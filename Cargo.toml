@@ -1,6 +1,19 @@
-[package]
-name = "control-plane-v2"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = [
+    "crates/catalog",
+    "crates/control_plane", 
+    "crates/nexus",
+]
+resolver= "2"
 
-[dependencies]
+[workspace.dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.10.0", features = ["v4", "serde"] }
+axum = { version = "0.7" }
+axum-macros = "0.4"
+tokio = { version = "1", features = ["full"] }
+async-trait = { version = "0.1" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tower = { version = "0.4", features = ["util"] }
+http-body-util = "0.1.0"

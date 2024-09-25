@@ -1,0 +1,10 @@
+[package]
+name = "control_plane"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = { workspace = true }
+uuid = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }

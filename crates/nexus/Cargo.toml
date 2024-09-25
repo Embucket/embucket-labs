@@ -1,0 +1,18 @@
+[package]
+name = "nexus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { workspace = true }
+axum-macros = { workspace = true }
+tokio = { workspace = true }
+control_plane = { path = "../control_plane" }
+chrono = { workspace = true }
+uuid = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+tower = { workspace = true }
+http-body-util = { workspace = true }
