@@ -1,30 +1,47 @@
-use axum::{Json, response::IntoResponse, extract::State};
+use std::result::Result;
+use axum::{Json, extract::State, extract::Path};
 use axum_macros::debug_handler;
-use crate::schemas::storage_profiles::{CreateStorageProfilePayload, StorageProfile};
 use uuid::Uuid;
-use chrono::Utc;
+use crate::schemas::storage_profiles::{CreateStorageProfilePayload, StorageProfile as StorageProfileSchema};
+use control_plane::models::{StorageProfileCreateRequest, StorageProfile};
 
 use crate::state::AppState;
+use crate::error::AppError;
 
 
 #[debug_handler]
 pub async fn create_storage_profile(
-    State(_): State<AppState>,
+    State(state): State<AppState>,
     Json(payload): Json<CreateStorageProfilePayload>,
-) -> impl IntoResponse {
+) -> Result<Json<StorageProfileSchema>, AppError> {
+    let request: StorageProfileCreateRequest = payload.into();
+    let profile: StorageProfile = state.storage_profile_svc.create_profile(&request).await?;
     
-    let response = StorageProfile {
-        id: Uuid::new_v4(),
-        provider_type: payload.provider_type,
-        region: payload.region,
-        bucket: payload.bucket,
-        credentials: payload.credentials,
-        sts_role_arn: payload.sts_role_arn,
-        endpoint: payload.endpoint,
-        created_at: Utc::now().naive_utc(),
-        updated_at: Utc::now().naive_utc(),
-        
-    };
+    Ok(Json(profile.into()))
+}
 
-    Json(response)
+pub async fn get_storage_profile(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<StorageProfileSchema>, AppError> {
+    let profile = state.storage_profile_svc.get_profile(id).await?;
+    
+    Ok(Json(profile.into()))
+}
+
+pub async fn delete_storage_profile(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<()>, AppError> {
+    state.storage_profile_svc.delete_profile(id).await?;
+    
+    Ok(Json(()))
+}
+
+pub async fn list_storage_profiles(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<StorageProfileSchema>>, AppError> {
+    let profiles = state.storage_profile_svc.list_profiles().await?;
+    
+    Ok(Json(profiles.into_iter().map(|p| p.into()).collect()))
 }

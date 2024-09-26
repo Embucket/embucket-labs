@@ -15,4 +15,5 @@ serde = { workspace = true }
 
 [dev-dependencies]
 tower = { workspace = true }
+async-trait = { workspace = true }
 http-body-util = { workspace = true }

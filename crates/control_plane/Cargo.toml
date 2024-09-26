@@ -8,3 +8,4 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
+thiserror = { workspace = true }

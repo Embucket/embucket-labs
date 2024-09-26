@@ -1,5 +1,7 @@
 use chrono::{NaiveDateTime, Utc};
 use uuid::Uuid;
+use std::convert::TryFrom;
+use crate::error::Error;
 
 // Enum for supported cloud providers
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,23 +56,35 @@ pub struct StorageProfileCreateRequest {
     pub endpoint: Option<String>,
 }
 
-impl From<StorageProfileCreateRequest> for StorageProfile {
-    fn from(params: StorageProfileCreateRequest) -> Self {
-        let now = Utc::now().naive_utc();
-        Self {
-            id: Uuid::new_v4(),
-            cloud_provider: params.cloud_provider,
-            region: params.region,
-            bucket: params.bucket,
-            credentials: params.credentials,
-            sts_role_arn: params.sts_role_arn,
-            endpoint: params.endpoint,
-            created_at: now,
-            updated_at: now,
-        }
+impl TryFrom<&StorageProfileCreateRequest> for StorageProfile {
+    type Error = Error;
+
+    fn try_from(value: &StorageProfileCreateRequest) -> Result<Self, Self::Error> {
+        StorageProfile::new(
+            value.cloud_provider,
+            value.region.clone(),
+            value.bucket.clone(),
+            value.credentials.clone(),
+            value.sts_role_arn.clone(),
+            value.endpoint.clone(),
+        )
     }
 }
 
+impl TryFrom<StorageProfileCreateRequest> for StorageProfile {
+    type Error = Error;
+
+    fn try_from(value: StorageProfileCreateRequest) -> Result<Self, Self::Error> {
+        StorageProfile::new(
+            value.cloud_provider,
+            value.region,
+            value.bucket,
+            value.credentials,
+            value.sts_role_arn,
+            value.endpoint,
+        )
+    }
+}
 
 impl StorageProfile {
 
@@ -82,10 +96,16 @@ impl StorageProfile {
         credentials: Credentials,
         sts_role_arn: Option<String>,
         endpoint: Option<String>,
-    ) -> Result<Self, &'static str> {
+    ) -> Result<Self, Error> {
         // Example validation: Ensure bucket name length
         if bucket.len() < 6 || bucket.len() > 63 {
-            return Err("Bucket name must be between 6 and 63 characters");
+            return Err(Error::InvalidInput("Bucket name must be between 6 and 63 characters".to_owned()));
+        }
+        if !bucket.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            return Err(Error::InvalidInput("Bucket name must only contain alphanumeric characters, hyphens, or underscores".to_owned()));
+        }
+        if bucket.starts_with('-') || bucket.starts_with('_') || bucket.ends_with('-') || bucket.ends_with('_') {
+            return Err(Error::InvalidInput("Bucket name must not start or end with a hyphen or underscore".to_owned()));
         }
         
         let now = Utc::now().naive_utc();
