@@ -8,12 +8,15 @@ axum = { workspace = true }
 axum-macros = { workspace = true }
 tokio = { workspace = true }
 control_plane = { path = "../control_plane" }
+catalog = { path = "../catalog" }
 chrono = { workspace = true }
 uuid = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
+iceberg = { workspace = true }
 
 [dev-dependencies]
 tower = { workspace = true }
 async-trait = { workspace = true }
 http-body-util = { workspace = true }
+tempfile = { workspace = true }

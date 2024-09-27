@@ -7,6 +7,12 @@ impl From<control_plane::error::Error> for AppError {
     }
 }
 
+impl From<catalog::error::Error> for AppError {
+    fn from(_err: catalog::error::Error) -> Self {
+        Self {} 
+    }
+}
+
 pub struct AppError {}
 
 impl IntoResponse for AppError {
