@@ -10,6 +10,11 @@ pub use iceberg::{
     TableUpdate,
 };
 
+pub use iceberg::spec::{
+    NullOrder, PartitionSpec, Schema, Snapshot, SortDirection, SortField, SortOrder, TableMetadata,
+    UnboundPartitionField, UnboundPartitionSpec, ViewMetadata, ViewVersion,
+};
+
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Config {
     pub defaults: HashMap<String, String>,

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub mod storage_profiles;
 pub mod warehouses;
 pub mod namespaces;
+pub mod tables;
 
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]

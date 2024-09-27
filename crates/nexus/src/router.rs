@@ -21,6 +21,9 @@ use crate::handlers::namespaces::{
     delete_namespace,
     list_namespaces,
 };
+use crate::handlers::tables::{
+    create_table,
+};
 
 
 pub fn create_app(state: AppState) -> Router {
@@ -39,6 +42,7 @@ pub fn create_app(state: AppState) -> Router {
         .route("/catalog/v1/:id/namespace", post(create_namespace))
         .route("/catalog/v1/:id/namespace/:namespace_id", get(get_namespace))
         .route("/catalog/v1/:id/namespace/:namespace_id", delete(delete_namespace))
+        .route("/catalog/v1/:id/namespace/:namespace_id/table", post(create_table))
         .with_state(state)
 }
 
@@ -222,6 +226,52 @@ mod tests {
         let namespace_id = serde_json::from_slice::<NamespaceSchema>(&body).unwrap().namespace;
 
         assert_eq!(namespace_id.inner(), vec!("my-namespace"));
+
+        // Now let's create table
+        let payload = json!({
+            "name": "my-table",
+            "location": "s3://my-bucket/my-prefix",
+            "schema": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "data_type": "int",
+                        "nullable": false,
+                        "default_value": null
+                    },
+                    {
+                        "name": "name",
+                        "data_type": "string",
+                        "nullable": true,
+                        "default_value": null
+                    }
+                ]
+            },
+            "partition_spec": {
+                "columns": ["id"],
+                "spec_id": "my-spec"
+            },
+            "write_order": "append",
+            "stage_create": true,
+            "properties": {
+                "key": "value"
+            }
+        });
+        let request = Request::builder()
+            .uri(format!("/catalog/v1/{wid}/namespace/my-namespace/table"))
+            .method(http::Method::POST)
+            .header(http::header::CONTENT_TYPE, "application/json")
+            .body(Body::from(serde_json::to_vec(&payload).unwrap()))
+            .unwrap();
+        let response = ServiceExt::<Request<Body>>::ready(&mut app)
+            .await
+            .unwrap()
+            .call(request)
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
     }
 
     #[tokio::test]

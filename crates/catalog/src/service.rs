@@ -41,13 +41,6 @@ impl CatalogService {
     pub fn new(inner: Arc<dyn Repository>, warehouse: Warehouse) -> Self {
         Self { repo: inner, warehouse }
     }
-
-    fn with_warehouse(&self, warehouse: Warehouse) -> Self {
-        Self {
-            repo: self.repo.clone(),
-            warehouse,
-        }
-    }
 }
 
 #[async_trait]

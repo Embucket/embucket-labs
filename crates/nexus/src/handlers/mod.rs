@@ -1,6 +1,7 @@
 pub mod storage_profiles;
 pub mod warehouses;
 pub mod namespaces;
+pub mod tables;
 
 use std::result::Result;
 use axum::{Json, extract::State, extract::Path};
