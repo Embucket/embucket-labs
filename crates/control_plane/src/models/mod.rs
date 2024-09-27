@@ -135,3 +135,61 @@ impl StorageProfile {
         self.updated_at = Utc::now().naive_utc();
     }
 }
+
+
+pub struct WarehouseCreateRequest {
+    pub prefix: String,
+    pub name: String,
+    pub storage_profile_id: Uuid,
+}
+#[derive(Debug, Clone)]
+pub struct Warehouse { 
+    pub id: Uuid,
+    pub prefix: String,
+    pub name: String,
+    pub location: String,
+    pub storage_profile_id: Uuid,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+impl Warehouse {
+    pub fn new(prefix: String, name: String, storage_profile_id: Uuid) -> Result<Self, Error> {
+        let id = Uuid::new_v4();
+        let location = format!("{prefix}/{id}");
+        let now = Utc::now().naive_utc();
+        Ok(Self {
+            id: Uuid::new_v4(),
+            prefix,
+            name,
+            location,
+            storage_profile_id,
+            created_at: now,
+            updated_at: now,
+        })
+    }
+}
+
+impl TryFrom<WarehouseCreateRequest> for Warehouse {
+    type Error = Error;
+
+    fn try_from(value: WarehouseCreateRequest) -> Result<Self, Self::Error> {
+        Warehouse::new(
+            value.prefix.clone(),
+            value.name.clone(),
+            value.storage_profile_id,
+        )
+    }
+}
+
+impl TryFrom<&WarehouseCreateRequest> for Warehouse {
+    type Error = Error;
+
+    fn try_from(value: &WarehouseCreateRequest) -> Result<Self, Self::Error> {
+        Warehouse::new(
+            value.prefix.clone(),
+            value.name.clone(),
+            value.storage_profile_id,
+        )
+    }
+}

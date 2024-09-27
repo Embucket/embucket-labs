@@ -7,6 +7,12 @@ use crate::handlers::storage_profiles::{
     delete_storage_profile,
     list_storage_profiles,
 };
+use crate::handlers::warehouses::{
+    create_warehouse,
+    get_warehouse,
+    delete_warehouse,
+    list_warehouses,
+};
 
 
 pub fn create_app(state: AppState) -> Router {
@@ -16,20 +22,28 @@ pub fn create_app(state: AppState) -> Router {
         .route("/v1/storage-profile/:id", get(get_storage_profile))
         .route("/v1/storage-profile/:id", delete(delete_storage_profile))
         .route("/v1/storage-profile", get(list_storage_profiles))
+        .route("/v1/warehouse", post(create_warehouse))
+        .route("/v1/warehouse/:id", get(get_warehouse))
+        .route("/v1/warehouse/:id", delete(delete_warehouse))
+        .route("/v1/warehouse", get(list_warehouses))
         .with_state(state)
 }
 
 
 #[cfg(test)]
 mod tests {
+    use crate::handlers::storage_profiles;
+
     use super::*;
     use std::sync::Arc;
     use async_trait::async_trait;
     use uuid::Uuid;
     use control_plane::repository::InMemoryStorageProfileRepository;
-    use control_plane::service::StorageProfileServiceImpl;
-    use control_plane::service::StorageProfileService;
+    use control_plane::repository::InMemoryWarehouseRepository;
+    use control_plane::service::ControlServiceImpl;
+    use control_plane::service::ControlService;
     use control_plane::models::{StorageProfile, StorageProfileCreateRequest};
+    use control_plane::models::{Warehouse, WarehouseCreateRequest};
     use control_plane::error::{Error, Result};
     use tower::{Service, ServiceExt};
     use axum::{
@@ -41,8 +55,9 @@ mod tests {
 
 
     fn create_router() -> Router {
-        let repository = Arc::new(InMemoryStorageProfileRepository::new());
-        let storage_profile_service = Arc::new(StorageProfileServiceImpl::new(repository));
+        let storage_profile_repo = Arc::new(InMemoryStorageProfileRepository::default());
+        let warehouse_repo = Arc::new(InMemoryWarehouseRepository::default());
+        let storage_profile_service = Arc::new(ControlServiceImpl::new(storage_profile_repo, warehouse_repo));
         let app_state = AppState::new(storage_profile_service);
         create_app(app_state)
     }
@@ -80,7 +95,7 @@ mod tests {
         struct MockStorageProfileService;
         
         #[async_trait]
-        impl StorageProfileService for MockStorageProfileService {
+        impl ControlService for MockStorageProfileService {
             async fn create_profile(&self, _params: &StorageProfileCreateRequest) -> Result<StorageProfile> {
                 Err(Error::InvalidInput("Invalid input".to_string()))
             }
@@ -91,6 +106,18 @@ mod tests {
                 unimplemented!()
             }
             async fn list_profiles(&self) -> Result<Vec<StorageProfile>> {
+                unimplemented!()
+            }
+            async fn create_warehouse(&self, _params: &WarehouseCreateRequest) -> Result<Warehouse> {
+                unimplemented!()
+            }
+            async fn get_warehouse(&self, _id: Uuid) -> Result<Warehouse> {
+                unimplemented!()
+            }
+            async fn delete_warehouse(&self, _id: Uuid) -> Result<()> {
+                unimplemented!()
+            }
+            async fn list_warehouses(&self) -> Result<Vec<Warehouse>> {
                 unimplemented!()
             }
         }

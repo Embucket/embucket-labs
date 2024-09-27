@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use control_plane::repository::InMemoryStorageProfileRepository;
-use control_plane::service::{StorageProfileService, StorageProfileServiceImpl};
+use control_plane::repository::InMemoryWarehouseRepository;
+use control_plane::service::{ControlService, ControlServiceImpl};
 
 mod router;
 mod state;
@@ -11,8 +12,9 @@ mod error;
 #[tokio::main]
 async fn main() {
         // Initialize the repository and concrete service implementation
-        let repository = Arc::new(InMemoryStorageProfileRepository::new());
-        let storage_profile_service = Arc::new(StorageProfileServiceImpl::new(repository)) as Arc<dyn StorageProfileService + Send + Sync>;
+        let storage_profile_repo = Arc::new(InMemoryStorageProfileRepository::default());
+        let warehouse_repo = Arc::new(InMemoryWarehouseRepository::default());
+        let storage_profile_service = Arc::new(ControlServiceImpl::new(storage_profile_repo, warehouse_repo));
     
         // Create the application state
         let app_state = state::AppState::new(storage_profile_service);

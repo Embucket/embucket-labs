@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 use crate::models::{StorageProfile, StorageProfileCreateRequest};
+use crate::models::{Warehouse, WarehouseCreateRequest};
 use async_trait::async_trait; // Required for async traits
 use std::sync::Mutex;
 use crate::error::{Result, Error};
@@ -15,19 +16,25 @@ pub trait StorageProfileRepository: Send + Sync {
     async fn list(&self) -> Result<Vec<StorageProfile>>;
 }
 
+#[async_trait]
+pub trait WarehouseRepository: Send + Sync {
+    async fn create(&self, params: &WarehouseCreateRequest) -> Result<Warehouse>;
+    async fn get(&self, id: Uuid) -> Result<Warehouse>;
+    async fn delete(&self, id: Uuid) -> Result<()>;
+    async fn list(&self) -> Result<Vec<Warehouse>>;
+}
+
 // In-memory repository using a mutex for safe shared access
 #[derive(Debug, Default)]
 pub struct InMemoryStorageProfileRepository {
     profiles: Mutex<HashMap<Uuid, StorageProfile>>,
 }
 
-impl InMemoryStorageProfileRepository {
-    pub fn new() -> Self {
-        Self {
-            profiles: Mutex::new(HashMap::new()),
-        }
-    }
+#[derive(Debug, Default)]
+pub struct InMemoryWarehouseRepository {
+    warehouses: Mutex<HashMap<Uuid, Warehouse>>,
 }
+
 
 #[async_trait]
 impl StorageProfileRepository for InMemoryStorageProfileRepository {
@@ -59,6 +66,33 @@ impl StorageProfileRepository for InMemoryStorageProfileRepository {
     }
 }
 
+#[async_trait]
+impl WarehouseRepository for InMemoryWarehouseRepository {
+    async fn create(&self, params: &WarehouseCreateRequest) -> Result<Warehouse> {
+        let mut warehouses = self.warehouses.lock().unwrap();
+        let warehouse = Warehouse::try_from(params)?;
+        warehouses.insert(warehouse.id, warehouse.clone());
+        Ok(warehouse)
+    }
+
+    async fn get(&self, id: Uuid) -> Result<Warehouse> {
+        let warehouses = self.warehouses.lock().unwrap();
+        let warehouse = warehouses.get(&id).ok_or(Error::ErrNotFound)?;
+        Ok(warehouse.clone())
+    }
+
+    async fn delete(&self, id: Uuid) -> Result<()> {
+        let mut warehouses = self.warehouses.lock().unwrap();
+        warehouses.remove(&id).ok_or(Error::ErrNotFound)?;
+        Ok(())
+    }
+
+    async fn list(&self) -> Result<Vec<Warehouse>> {
+        let warehouses = self.warehouses.lock().unwrap();
+        Ok(warehouses.values().cloned().collect())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -80,7 +114,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_and_get_profile() {
-        let repo = InMemoryStorageProfileRepository::new();
+        let repo = InMemoryStorageProfileRepository::default();
         let profile = create_dummy_profile();
         let profile = repo.create(&profile).await.unwrap();
         repo.get(profile.id).await.unwrap();
@@ -88,7 +122,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_profile() {
-        let repo = InMemoryStorageProfileRepository::new();
+        let repo = InMemoryStorageProfileRepository::default();
         let profile = create_dummy_profile();
         let profile = repo.create(&profile).await.unwrap();
         let id = profile.id;
@@ -99,7 +133,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_profiles() {
-        let repo = InMemoryStorageProfileRepository::new();
+        let repo = InMemoryStorageProfileRepository::default();
 
         let profile1 = create_dummy_profile();
         let profile2 = create_dummy_profile();
@@ -111,5 +145,56 @@ mod tests {
         // List profiles
         let profiles = repo.list().await.unwrap();
         assert_eq!(profiles.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_create_and_get_warehouse() {
+        let repo = InMemoryWarehouseRepository::default();
+        let warehouse = WarehouseCreateRequest {
+            name: "test-warehouse".to_string(),
+            storage_profile_id: Uuid::new_v4(),
+            prefix: "test-prefix".to_string(),
+        };
+        let warehouse = repo.create(&warehouse).await.unwrap();
+        repo.get(warehouse.id).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_delete_warehouse() {
+        let repo = InMemoryWarehouseRepository::default();
+        let warehouse = WarehouseCreateRequest {
+            name: "test-warehouse".to_string(),
+            storage_profile_id: Uuid::new_v4(),
+            prefix: "test-prefix".to_string(),
+        };
+        let warehouse = repo.create(&warehouse).await.unwrap();
+        let id = warehouse.id;
+        repo.delete(warehouse.id).await.unwrap();
+
+        assert_eq!(repo.get(id).await.unwrap_err(), Error::ErrNotFound);
+    }
+
+    #[tokio::test]
+    async fn test_list_warehouses() {
+        let repo = InMemoryWarehouseRepository::default();
+
+        let warehouse1 = WarehouseCreateRequest {
+            name: "test-warehouse1".to_string(),
+            storage_profile_id: Uuid::new_v4(),
+            prefix: "test-prefix".to_string(),
+        };
+        let warehouse2 = WarehouseCreateRequest {
+            name: "test-warehouse2".to_string(),
+            storage_profile_id: Uuid::new_v4(),
+            prefix: "test-prefix".to_string(),
+        };
+
+        // Create warehouses
+        repo.create(&warehouse1).await.unwrap();
+        repo.create(&warehouse2).await.unwrap();
+
+        // List warehouses
+        let warehouses = repo.list().await.unwrap();
+        assert_eq!(warehouses.len(), 2);
     }
 }

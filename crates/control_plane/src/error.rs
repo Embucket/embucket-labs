@@ -9,4 +9,7 @@ pub enum Error {
 
     #[error("invalid input: {0}")]
     InvalidInput(String),
+
+    #[error("not empty: {0}")]
+    NotEmpty(String),
 }
