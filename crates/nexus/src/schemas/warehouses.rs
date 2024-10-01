@@ -1,18 +1,18 @@
-use serde::{Deserialize, Serialize};
 use chrono::NaiveDateTime;
-use uuid::Uuid;
-use std::option::Option;
 use control_plane::models;
+use serde::{Deserialize, Serialize};
+use std::option::Option;
+use utoipa::ToSchema;
+use uuid::Uuid;
 
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateWarehouseRequest {
     pub prefix: String,
     pub name: String,
     pub storage_profile_id: Uuid,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Warehouse {
     pub id: Uuid,
     pub prefix: String,

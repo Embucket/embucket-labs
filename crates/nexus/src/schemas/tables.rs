@@ -1,23 +1,17 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-use catalog::models::{
-    Schema,
-    SortOrder,
-    TableMetadata,
-    UnboundPartitionSpec,
-    TableCreation,
-};
-
+use catalog::models::{Schema, SortOrder, TableCreation, TableMetadata, UnboundPartitionSpec};
 
 // TODO: remove once this is defined in iceberg crate or made public in iceberg-catalog-rest
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct TableSchema {
     pub metadata_location: Option<String>,
     pub metadata: TableMetadata,
     pub config: Option<std::collections::HashMap<String, String>>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct CreateTableSchema {
     pub name: String,

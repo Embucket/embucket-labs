@@ -14,6 +14,8 @@ uuid = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
 iceberg = { workspace = true }
+utoipa = { workspace = true }
+utoipa-axum = { workspace = true }
 
 [dev-dependencies]
 tower = { workspace = true }

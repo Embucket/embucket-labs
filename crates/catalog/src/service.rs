@@ -1,35 +1,19 @@
-use std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::sync::Arc;
 
-
-use iceberg::{
-    NamespaceIdent, Namespace, TableIdent, TableCreation, table::Table, TableCommit,
-};
+use iceberg::{table::Table, Namespace, NamespaceIdent, TableCommit, TableCreation, TableIdent};
 
 use crate::error::Result; // TODO: Replace this with this crate error and result
+use crate::models::Config;
 use crate::repository::Repository;
-use crate::models::Config;  
 
 use control_plane::models::Warehouse;
-
-
-// async fn create_table_handler(
-//     Json(payload): Json<Value>,
-//     Path(warehouse_id): Path<Uuid>,
-//     Path(namespace): Path<String>,
-//     State(state): State<AppState>,
-// ) -> &'static str {
-//     let wh = state.control_svc.get_warehouse(warehouse_id).await;
-//     let catalog = Catalog::new(warehouse);
-//     let resp = catalog.create_table(namespace, payload).await;
-// }
 
 #[async_trait]
 pub trait Catalog: Repository {
     async fn get_config(&self) -> Result<Config>;
 }
-
 
 #[derive(Clone, Debug)]
 pub struct CatalogService {
@@ -39,7 +23,10 @@ pub struct CatalogService {
 
 impl CatalogService {
     pub fn new(inner: Arc<dyn Repository>, warehouse: Warehouse) -> Self {
-        Self { repo: inner, warehouse }
+        Self {
+            repo: inner,
+            warehouse,
+        }
     }
 }
 
@@ -53,8 +40,10 @@ impl Catalog for CatalogService {
 #[async_trait]
 impl Repository for CatalogService {
     /// List namespaces inside the catalog.
-    async fn list_namespaces(&self, parent: Option<&NamespaceIdent>)
-        -> Result<Vec<NamespaceIdent>> {
+    async fn list_namespaces(
+        &self,
+        parent: Option<&NamespaceIdent>,
+    ) -> Result<Vec<NamespaceIdent>> {
         self.repo.list_namespaces(parent).await
     }
 

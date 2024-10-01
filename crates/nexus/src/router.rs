@@ -1,38 +1,46 @@
 use axum::extract::Path;
-use axum::{Router, routing::get, routing::post, routing::delete};
+use axum::{routing::delete, routing::get, routing::post, Router};
+use utoipa::{
+    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
+    Modify, OpenApi,
+};
+use utoipa_scalar::{Scalar, Servable as ScalarServable};
 
-use crate::state::AppState;
-use crate::handlers::storage_profiles::{
-    create_storage_profile,
-    get_storage_profile,    
-    delete_storage_profile,
-    list_storage_profiles,
-};
-use crate::handlers::warehouses::{
-    create_warehouse,
-    get_warehouse,
-    delete_warehouse,
-    list_warehouses,
-};
 use crate::handlers::get_config;
 use crate::handlers::namespaces::{
-    create_namespace,
-    get_namespace,
-    delete_namespace,
-    list_namespaces,
+    create_namespace, delete_namespace, get_namespace, list_namespaces,
 };
-use crate::handlers::tables::{
-    create_table,
+use crate::handlers::storage_profiles::{
+    create_storage_profile, delete_storage_profile, get_storage_profile, list_storage_profiles,
+    StorageProfileApi,
 };
+use crate::handlers::tables::create_table;
+use crate::handlers::warehouses::{
+    create_warehouse, delete_warehouse, get_warehouse, list_warehouses,
+};
+use crate::state::AppState;
 
+#[derive(OpenApi)]
+#[openapi(
+    nest(
+        (path = "/v1/storage-profile", api = StorageProfileApi)
+    ),
+    tags(
+        (name = "storage-profile", description = "Storage profile API")
+    )
+)]
+struct ApiDoc;
 
 pub fn create_app(state: AppState) -> Router {
+    let sp_router = Router::new()
+        .route("", post(create_storage_profile))
+        .route(":id", get(get_storage_profile))
+        .route(":id", delete(delete_storage_profile))
+        .route("", get(list_storage_profiles));
+
     Router::new()
-        .route("/", get(|| async { "Hello, World!" }))            
-        .route("/v1/storage-profile", post(create_storage_profile))
-        .route("/v1/storage-profile/:id", get(get_storage_profile))
-        .route("/v1/storage-profile/:id", delete(delete_storage_profile))
-        .route("/v1/storage-profile", get(list_storage_profiles))
+        .route("/", get(|| async { "Hello, World!" }))
+        .nest("v1/storage-profile", sp_router)
         .route("/v1/warehouse", post(create_warehouse))
         .route("/v1/warehouse/:id", get(get_warehouse))
         .route("/v1/warehouse/:id", delete(delete_warehouse))
@@ -40,43 +48,53 @@ pub fn create_app(state: AppState) -> Router {
         .route("/catalog/v1/:id/config", get(get_config))
         .route("/catalog/v1/:id/namespace", get(list_namespaces))
         .route("/catalog/v1/:id/namespace", post(create_namespace))
-        .route("/catalog/v1/:id/namespace/:namespace_id", get(get_namespace))
-        .route("/catalog/v1/:id/namespace/:namespace_id", delete(delete_namespace))
-        .route("/catalog/v1/:id/namespace/:namespace_id/table", post(create_table))
+        .route(
+            "/catalog/v1/:id/namespace/:namespace_id",
+            get(get_namespace),
+        )
+        .route(
+            "/catalog/v1/:id/namespace/:namespace_id",
+            delete(delete_namespace),
+        )
+        .route(
+            "/catalog/v1/:id/namespace/:namespace_id/table",
+            post(create_table),
+        )
+        .merge(Scalar::with_url("/openapi", ApiDoc::openapi()))
         .with_state(state)
 }
 
-
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::too_many_lines)]
+
     use crate::handlers::storage_profiles;
+    use crate::schemas::namespaces::NamespaceSchema;
     use crate::schemas::storage_profiles::StorageProfile as StorageProfileSchema;
     use crate::schemas::warehouses::Warehouse as WarehouseSchema;
-    use crate::schemas::namespaces::NamespaceSchema;
 
     use super::*;
-    use std::sync::Arc;
     use async_trait::async_trait;
     use axum::http::request;
-    use uuid::Uuid;
-    use control_plane::repository::InMemoryStorageProfileRepository;
-    use control_plane::repository::InMemoryWarehouseRepository;
-    use control_plane::service::ControlServiceImpl;
-    use control_plane::service::ControlService;
-    use control_plane::models::{StorageProfile, StorageProfileCreateRequest};
-    use control_plane::models::{Warehouse, WarehouseCreateRequest};
-    use control_plane::error::{Error, Result};
-    use catalog::repository::{InMemoryCatalogRepository, Repository};
-    use tower::{Service, ServiceExt};
     use axum::{
         body::Body,
         http::{self, Request, StatusCode},
     };
+    use catalog::repository::{InMemoryCatalogRepository, Repository};
+    use control_plane::error::{Error, Result};
+    use control_plane::models::{StorageProfile, StorageProfileCreateRequest};
+    use control_plane::models::{Warehouse, WarehouseCreateRequest};
+    use control_plane::repository::InMemoryStorageProfileRepository;
+    use control_plane::repository::InMemoryWarehouseRepository;
+    use control_plane::service::ControlService;
+    use control_plane::service::ControlServiceImpl;
     use http_body_util::BodyExt; // for `collect`
-    use serde_json::{json, Value};
     use iceberg::io::FileIOBuilder;
+    use serde_json::{json, Value};
+    use std::sync::Arc;
     use tempfile::TempDir;
-
+    use tower::{Service, ServiceExt};
+    use uuid::Uuid;
 
     fn temp_path() -> String {
         let temp_dir = TempDir::new().unwrap();
@@ -89,11 +107,13 @@ mod tests {
         InMemoryCatalogRepository::new(file_io, Some(warehouse_location))
     }
 
-
     fn create_router() -> Router {
         let storage_profile_repo = Arc::new(InMemoryStorageProfileRepository::default());
         let warehouse_repo = Arc::new(InMemoryWarehouseRepository::default());
-        let storage_profile_service = Arc::new(ControlServiceImpl::new(storage_profile_repo, warehouse_repo));
+        let storage_profile_service = Arc::new(ControlServiceImpl::new(
+            storage_profile_repo,
+            warehouse_repo,
+        ));
         let catalog_repo = Arc::new(new_memory_catalog());
         let app_state = AppState::new(storage_profile_service, catalog_repo);
         create_app(app_state)
@@ -155,7 +175,9 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let sid = serde_json::from_slice::<StorageProfileSchema>(&body).unwrap().id;
+        let sid = serde_json::from_slice::<StorageProfileSchema>(&body)
+            .unwrap()
+            .id;
 
         // Now create warehouse
         let payload = json!({
@@ -203,9 +225,10 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let namespace_id = serde_json::from_slice::<NamespaceSchema>(&body).unwrap().namespace;
+        let namespace_id = serde_json::from_slice::<NamespaceSchema>(&body)
+            .unwrap()
+            .namespace;
         let namespace_id = namespace_id.inner().first().unwrap().clone();
-
 
         // Now get namespace
         let request = Request::builder()
@@ -223,7 +246,9 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let namespace_id = serde_json::from_slice::<NamespaceSchema>(&body).unwrap().namespace;
+        let namespace_id = serde_json::from_slice::<NamespaceSchema>(&body)
+            .unwrap()
+            .namespace;
 
         assert_eq!(namespace_id.inner(), vec!("my-namespace"));
 
@@ -271,16 +296,18 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-
     }
 
     #[tokio::test]
     async fn test_error_handling() {
         struct MockStorageProfileService;
-        
+
         #[async_trait]
         impl ControlService for MockStorageProfileService {
-            async fn create_profile(&self, _params: &StorageProfileCreateRequest) -> Result<StorageProfile> {
+            async fn create_profile(
+                &self,
+                _params: &StorageProfileCreateRequest,
+            ) -> Result<StorageProfile> {
                 Err(Error::InvalidInput("Invalid input".to_string()))
             }
             async fn get_profile(&self, _id: Uuid) -> Result<StorageProfile> {
@@ -292,7 +319,10 @@ mod tests {
             async fn list_profiles(&self) -> Result<Vec<StorageProfile>> {
                 unimplemented!()
             }
-            async fn create_warehouse(&self, _params: &WarehouseCreateRequest) -> Result<Warehouse> {
+            async fn create_warehouse(
+                &self,
+                _params: &WarehouseCreateRequest,
+            ) -> Result<Warehouse> {
                 unimplemented!()
             }
             async fn get_warehouse(&self, _id: Uuid) -> Result<Warehouse> {
@@ -305,11 +335,11 @@ mod tests {
                 unimplemented!()
             }
         }
-        let storage_profile_service = Arc::new(MockStorageProfileService{});
+        let storage_profile_service = Arc::new(MockStorageProfileService {});
         let catalog_repo = Arc::new(new_memory_catalog());
         let app_state = AppState::new(storage_profile_service, catalog_repo);
         let app = create_app(app_state);
-        
+
         // Mock service that returns an error
         let payload = json!({
             "type": "aws",

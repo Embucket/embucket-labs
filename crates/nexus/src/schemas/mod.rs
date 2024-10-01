@@ -1,13 +1,13 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use utoipa::ToSchema;
 
-pub mod storage_profiles;
-pub mod warehouses;
 pub mod namespaces;
+pub mod storage_profiles;
 pub mod tables;
+pub mod warehouses;
 
-
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct Config {
     pub overrides: HashMap<String, String>,
     pub defaults: HashMap<String, String>,

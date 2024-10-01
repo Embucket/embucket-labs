@@ -1,11 +1,12 @@
-use serde::{Deserialize, Serialize};
 use chrono::NaiveDateTime;
-use uuid::Uuid;
-use std::option::Option;
 use control_plane::models;
+use serde::{Deserialize, Serialize};
+use std::option::Option;
+use utoipa::ToSchema;
+use uuid::Uuid;
 
 // Define the cloud provider enum
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CloudProvider {
     Aws,
@@ -33,7 +34,7 @@ impl From<models::CloudProvider> for CloudProvider {
 }
 
 // AWS Access Key Credentials
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
 pub struct AwsAccessKeyCredential {
     pub aws_access_key_id: String,
     pub aws_secret_access_key: String,
@@ -57,7 +58,7 @@ impl From<models::AwsAccessKeyCredential> for AwsAccessKeyCredential {
 }
 
 // AWS Role Credentials
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
 pub struct AwsRoleCredential {
     pub role_arn: String,
     pub external_id: String,
@@ -81,8 +82,8 @@ impl From<models::AwsRoleCredential> for AwsRoleCredential {
 }
 
 // Enum to represent either Access Key or Role Credentials
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(tag = "credential_type")]  // Enables tagged union based on credential type
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+#[serde(tag = "credential_type")] // Enables tagged union based on credential type
 pub enum Credentials {
     #[serde(rename = "access_key")]
     AccessKey(AwsAccessKeyCredential),
@@ -94,7 +95,9 @@ pub enum Credentials {
 impl From<Credentials> for models::Credentials {
     fn from(credential: Credentials) -> Self {
         match credential {
-            Credentials::AccessKey(aws_credential) => models::Credentials::AccessKey(aws_credential.into()),
+            Credentials::AccessKey(aws_credential) => {
+                models::Credentials::AccessKey(aws_credential.into())
+            }
             Credentials::Role(role_credential) => models::Credentials::Role(role_credential.into()),
         }
     }
@@ -102,14 +105,16 @@ impl From<Credentials> for models::Credentials {
 impl From<models::Credentials> for Credentials {
     fn from(credential: models::Credentials) -> Self {
         match credential {
-            models::Credentials::AccessKey(aws_credential) => Credentials::AccessKey(aws_credential.into()),
+            models::Credentials::AccessKey(aws_credential) => {
+                Credentials::AccessKey(aws_credential.into())
+            }
             models::Credentials::Role(role_credential) => Credentials::Role(role_credential.into()),
         }
     }
 }
 
 // Request struct for creating a storage profile
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct CreateStorageProfilePayload {
     #[serde(rename = "type")]
     pub provider_type: CloudProvider,
@@ -134,7 +139,7 @@ impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
 }
 
 // Response struct for returning a storage profile
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct StorageProfile {
     pub id: Uuid,
     #[serde(rename = "type")]
@@ -189,10 +194,13 @@ mod tests {
         assert_eq!(result.region, "us-west-2");
         assert_eq!(result.bucket, "my-bucket");
         assert_eq!(result.provider_type, CloudProvider::Aws);
-        assert_eq!(result.credentials, Credentials::AccessKey(AwsAccessKeyCredential {
-            aws_access_key_id: "my-access-key".to_string(),
-            aws_secret_access_key: "my-secret-access-key".to_string(),
-        }));
+        assert_eq!(
+            result.credentials,
+            Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "my-access-key".to_string(),
+                aws_secret_access_key: "my-secret-access-key".to_string(),
+            })
+        );
     }
 
     #[test]
