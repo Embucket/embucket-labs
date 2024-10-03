@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 // Define the cloud provider enum
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "kebab-case")]
 pub enum CloudProvider {
     Aws,
     Azure,
@@ -35,6 +35,7 @@ impl From<models::CloudProvider> for CloudProvider {
 
 // AWS Access Key Credentials
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "kebab-case")]
 pub struct AwsAccessKeyCredential {
     pub aws_access_key_id: String,
     pub aws_secret_access_key: String,
@@ -59,6 +60,7 @@ impl From<models::AwsAccessKeyCredential> for AwsAccessKeyCredential {
 
 // AWS Role Credentials
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "kebab-case")]
 pub struct AwsRoleCredential {
     pub role_arn: String,
     pub external_id: String,
@@ -84,6 +86,7 @@ impl From<models::AwsRoleCredential> for AwsRoleCredential {
 // Enum to represent either Access Key or Role Credentials
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
 #[serde(tag = "credential_type")] // Enables tagged union based on credential type
+#[serde(rename_all = "kebab-case")]
 pub enum Credentials {
     #[serde(rename = "access_key")]
     AccessKey(AwsAccessKeyCredential),
@@ -115,6 +118,7 @@ impl From<models::Credentials> for Credentials {
 
 // Request struct for creating a storage profile
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "kebab-case")]
 pub struct CreateStorageProfilePayload {
     #[serde(rename = "type")]
     pub provider_type: CloudProvider,
@@ -140,6 +144,7 @@ impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
 
 // Response struct for returning a storage profile
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "kebab-case")]
 pub struct StorageProfile {
     pub id: Uuid,
     #[serde(rename = "type")]

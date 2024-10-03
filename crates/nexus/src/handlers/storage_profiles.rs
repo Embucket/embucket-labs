@@ -1,8 +1,8 @@
 use crate::schemas::storage_profiles::{
-    AwsAccessKeyCredential, AwsRoleCredential, CloudProvider, CreateStorageProfilePayload, Credentials, StorageProfile as StorageProfileSchema
+    AwsAccessKeyCredential, AwsRoleCredential, CloudProvider, CreateStorageProfilePayload, Credentials, StorageProfile
 };
 use axum::{extract::Path, extract::State, Json};
-use control_plane::models::{StorageProfile, StorageProfileCreateRequest};
+use control_plane::models::{StorageProfile as StorageProfileModel, StorageProfileCreateRequest};
 use std::result::Result;
 use uuid::Uuid;
 use utoipa::OpenApi;
@@ -14,7 +14,7 @@ use crate::state::AppState;
 #[derive(OpenApi)]
 #[openapi(
     paths(create_storage_profile, get_storage_profile, delete_storage_profile, list_storage_profiles,),
-    components(schemas(CreateStorageProfilePayload, StorageProfileSchema, Credentials, AwsAccessKeyCredential, AwsRoleCredential, CloudProvider),)
+    components(schemas(CreateStorageProfilePayload, StorageProfile, Credentials, AwsAccessKeyCredential, AwsRoleCredential, CloudProvider),)
 )]
 pub struct StorageProfileApi;
 
@@ -23,14 +23,14 @@ pub struct StorageProfileApi;
     post, 
     operation_id = "createStorageProfile",
     path = "", 
-    responses((status = 200, body = StorageProfileSchema))
+    responses((status = 200, body = StorageProfile))
 )]
 pub async fn create_storage_profile(
     State(state): State<AppState>,
     Json(payload): Json<CreateStorageProfilePayload>,
-) -> Result<Json<StorageProfileSchema>, AppError> {
+) -> Result<Json<StorageProfile>, AppError> {
     let request: StorageProfileCreateRequest = payload.into();
-    let profile: StorageProfile = state.control_svc.create_profile(&request).await?;
+    let profile: StorageProfileModel = state.control_svc.create_profile(&request).await?;
 
     Ok(Json(profile.into()))
 }
@@ -40,12 +40,12 @@ pub async fn create_storage_profile(
     operation_id = "getStorageProfile",
     path = "/{storageProfileId}", 
     params(("storageProfileId" = Uuid, description = "Storage profile ID")),
-    responses((status = 200, body = StorageProfileSchema)),
+    responses((status = 200, body = StorageProfile)),
 )]
 pub async fn get_storage_profile(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<StorageProfileSchema>, AppError> {
+) -> Result<Json<StorageProfile>, AppError> {
     let profile = state.control_svc.get_profile(id).await?;
 
     Ok(Json(profile.into()))
@@ -71,11 +71,11 @@ pub async fn delete_storage_profile(
     get, 
     operation_id = "listStorageProfiles",
     path = "", 
-    responses((status = 200, body = Vec<StorageProfileSchema>))
+    responses((status = 200, body = Vec<StorageProfile>))
 )]
 pub async fn list_storage_profiles(
     State(state): State<AppState>,
-) -> Result<Json<Vec<StorageProfileSchema>>, AppError> {
+) -> Result<Json<Vec<StorageProfile>>, AppError> {
     let profiles = state.control_svc.list_profiles().await?;
 
     Ok(Json(profiles.into_iter().map(|p| p.into()).collect()))

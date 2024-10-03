@@ -1,5 +1,8 @@
 use axum::extract::Path;
 use axum::{routing::delete, routing::get, routing::post, Router};
+use std::collections::HashMap;
+use std::fs;
+use utoipa::openapi::{self, OpenApiBuilder};
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
@@ -19,21 +22,6 @@ use crate::handlers::warehouses::{
     create_warehouse, delete_warehouse, get_warehouse, list_warehouses, WarehouseApi,
 };
 use crate::state::AppState;
-
-#[derive(OpenApi)]
-#[openapi(
-    nest(
-        (path = "/v1/storage-profile", api = StorageProfileApi, tags = ["storage-profile"]),
-        (path = "/v1/warehouse", api = WarehouseApi, tags = ["warehouse"]),
-        (path = "/v1/warehouse/{warehouseId}/namespace", api = NamespaceApi, tags = ["database"]),
-        (path = "/v1/warehouse/{warehouseId}/namespace/{namespaceId}/table", api = TableApi, tags = ["table"]),
-    ),
-    tags(
-        (name = "storage-profile", description = "Storage profile API"),
-        (name = "warehouse", description = "Warehouse API"),
-    )
-)]
-struct ApiDoc;
 
 pub fn create_app(state: AppState) -> Router {
     let sp_router = Router::new()
@@ -64,7 +52,6 @@ pub fn create_app(state: AppState) -> Router {
         .nest("/v1/warehouse", wh_router)
         .nest("/v1/warehouse/:id/namespace", ns_router)
         .nest("/v1/warehouse/:id/namespace/:namespace_id/table", t_router)
-        .merge(SwaggerUi::new("/").url("/openapi.json", ApiDoc::openapi()))
         .with_state(state)
 }
 
@@ -99,7 +86,6 @@ mod tests {
     use tempfile::TempDir;
     use tower::{Service, ServiceExt};
     use uuid::Uuid;
-    
 
     lazy_static::lazy_static! {
         static ref TEMP_DIR: TempDir = TempDir::new().unwrap();

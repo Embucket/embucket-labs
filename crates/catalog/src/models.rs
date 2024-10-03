@@ -1,18 +1,13 @@
 use std::collections::HashMap;
 
 pub use iceberg::{
-    NamespaceIdent,
-    Namespace,
-    TableIdent,
-    TableCreation,
-    TableCommit,
-    TableRequirement,
+    Namespace, NamespaceIdent, TableCommit, TableCreation, TableIdent, TableRequirement,
     TableUpdate,
 };
 
 pub use iceberg::spec::{
     NullOrder, PartitionSpec, Schema, Snapshot, SortDirection, SortField, SortOrder, TableMetadata,
-    UnboundPartitionField, UnboundPartitionSpec, ViewMetadata, ViewVersion,
+    Transform, UnboundPartitionField, UnboundPartitionSpec, ViewMetadata, ViewVersion,
 };
 
 #[derive(Clone, Debug, PartialEq, Default)]

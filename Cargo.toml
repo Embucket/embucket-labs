@@ -3,6 +3,7 @@ members = [
     "crates/catalog",
     "crates/control_plane", 
     "crates/nexus",
+    "crates/openapi",
 ]
 resolver= "2"
 
@@ -15,6 +16,7 @@ tokio = { version = "1", features = ["full"] }
 async-trait = { version = "0.1" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_yaml = "0.8"
 tower = { version = "0.4", features = ["util"] }
 http-body-util = "0.1.0"
 thiserror = { version = "1" }

@@ -2,6 +2,10 @@
 name = "nexus"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
+
+[build-dependencies]
+utoipa = { workspace = true }
 
 [dependencies]
 axum = { workspace = true }
@@ -12,6 +16,7 @@ catalog = { path = "../catalog" }
 chrono = { workspace = true }
 uuid = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 serde = { workspace = true }
 iceberg = { workspace = true }
 utoipa = { workspace = true }

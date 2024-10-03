@@ -17,7 +17,7 @@ use catalog::models::TableIdent;
 #[derive(OpenApi)]
 #[openapi(
     paths(create_table,),
-    components(schemas(CreateTableSchema, TableSchema),)
+    components(schemas(CreateTableSchema, TableSchema,),)
 )]
 pub struct TableApi;
 

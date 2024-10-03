@@ -1,0 +1,422 @@
+---
+openapi: 3.1.0
+info:
+  title: Apache Iceberg REST Catalog API
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  version: 0.0.1
+  description: Defines the specification for the first version of the REST Catalog API. Implementations should ideally support both Iceberg table specs v1 and v2, with priority given to v2.
+paths:
+  /v1/config:
+    get:
+      tags:
+        - Configuration API
+      summary: List all catalog configuration settings
+      operationId: getConfig
+      parameters:
+        - name: warehouse
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Warehouse location or identifier to request from the service
+      description: " All REST clients should first call this route to get catalog configuration properties from the server to configure the catalog and its HTTP client. Configuration from the server consists of two sets of key/value pairs.\n- defaults -  properties that should be used as default configuration; applied before client configuration\n- overrides - properties that should be used to override client configuration; applied after defaults and client configuration\n\nCatalog configuration is constructed by setting the defaults, then client- provided configuration, and finally overrides. The final property set is then used to configure the catalog.\n\nFor example, a default configuration property might set the size of the client pool, which can be replaced with a client-specific setting. An override might be used to set the warehouse location, which is stored on the server rather than in client configuration.\n\nCommon catalog configuration settings are documented at https://iceberg.apache.org/docs/latest/configuration/#catalog-properties "
+      responses:
+        "200":
+          description: Server specified configuration values.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogConfig'
+              example: {"overrides": {"warehouse": "s3://bucket/warehouse/"}, "defaults": {"clients": "4"}}
+components:
+  schemas:
+    Schema:
+      allOf:
+        - $ref: '#/components/schemas/StructType'
+        - type: object
+          properties:
+            schema-id:
+              type: integer
+              readOnly: true
+            identifier-field-ids:
+              type: array
+              items:
+                type: integer
+    StructType:
+      type: object
+      required:
+        - type
+        - fields
+      properties:
+        type:
+          type: string
+          enum: ["struct"]
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/StructField'
+    StructField:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - required
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/Type'
+        required:
+          type: boolean
+        doc:
+          type: string
+    Type:
+      oneOf:
+        - $ref: '#/components/schemas/PrimitiveType'
+        - $ref: '#/components/schemas/StructType'
+        - $ref: '#/components/schemas/ListType'
+        - $ref: '#/components/schemas/MapType'
+    ListType:
+      type: object
+      required:
+        - type
+        - element-id
+        - element
+        - element-required
+      properties:
+        type:
+          type: string
+          enum: ["list"]
+        element-id:
+          type: integer
+        element:
+          $ref: '#/components/schemas/Type'
+        element-required:
+          type: boolean
+    MapType:
+      type: object
+      required:
+        - type
+        - key-id
+        - key
+        - value-id
+        - value
+        - value-required
+      properties:
+        type:
+          type: string
+          enum: ["map"]
+        key-id:
+          type: integer
+        key:
+          $ref: '#/components/schemas/Type'
+        value-id:
+          type: integer
+        value:
+          $ref: '#/components/schemas/Type'
+        value-required:
+          type: boolean
+    PrimitiveType:
+      type: string
+      example:
+        - "long"
+        - "string"
+        - "fixed[16]"
+        - "decimal(10,2)"
+    SortField:
+      type: object
+      required:
+        - source-id
+        - transform
+        - direction
+        - null-order
+      properties:
+        source-id:
+          type: integer
+        transform:
+          $ref: '#/components/schemas/Transform'
+        direction:
+          $ref: '#/components/schemas/SortDirection'
+        null-order:
+          $ref: '#/components/schemas/NullOrder'
+    SortOrder:
+      type: object
+      required:
+        - order-id
+        - fields
+      properties:
+        order-id:
+          type: integer
+          readOnly: true
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/SortField'
+    Transform:
+      type: string
+      example:
+        - "identity"
+        - "year"
+        - "month"
+        - "day"
+        - "hour"
+        - "bucket[256]"
+        - "truncate[16]"
+    SortDirection:
+      type: string
+      enum: ["asc", "desc"]
+    NullOrder:
+      type: string
+      enum: ["nulls-first", "nulls-last"]
+    PartitionField:
+      type: object
+      required:
+        - source-id
+        - transform
+        - name
+      properties:
+        field-id:
+          type: integer
+        source-id:
+          type: integer
+        name:
+          type: string
+        transform:
+          $ref: '#/components/schemas/Transform'
+    PartitionSpec:
+      type: object
+      required:
+        - fields
+      properties:
+        spec-id:
+          type: integer
+          readOnly: true
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartitionField'
+    TableMetadata:
+      type: object
+      required:
+        - format-version
+        - table-uuid
+      properties:
+        format-version:
+          type: integer
+          minimum: 1
+          maximum: 2
+        table-uuid:
+          type: string
+        location:
+          type: string
+        last-updated-ms:
+          type: integer
+          format: int64
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+        # schema tracking
+        schemas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Schema'
+        current-schema-id:
+          type: integer
+        last-column-id:
+          type: integer
+        # partition spec tracking
+        partition-specs:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartitionSpec'
+        default-spec-id:
+          type: integer
+        last-partition-id:
+          type: integer
+        # sort order tracking
+        sort-orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/SortOrder'
+        default-sort-order-id:
+          type: integer
+        # snapshot tracking
+        snapshots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Snapshot'
+        refs:
+          $ref: '#/components/schemas/SnapshotReferences'
+        current-snapshot-id:
+          type: integer
+          format: int64
+        last-sequence-number:
+          type: integer
+          format: int64
+        # logs
+        snapshot-log:
+          $ref: '#/components/schemas/SnapshotLog'
+        metadata-log:
+          $ref: '#/components/schemas/MetadataLog'
+        # statistics
+        statistics-files:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatisticsFile'
+        partition-statistics-files:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartitionStatisticsFile'
+    Snapshot:
+      type: object
+      required:
+        - snapshot-id
+        - timestamp-ms
+        - manifest-list
+        - summary
+      properties:
+        snapshot-id:
+          type: integer
+          format: int64
+        parent-snapshot-id:
+          type: integer
+          format: int64
+        sequence-number:
+          type: integer
+          format: int64
+        timestamp-ms:
+          type: integer
+          format: int64
+        manifest-list:
+          type: string
+          description: Location of the snapshot's manifest list file
+        summary:
+          type: object
+          required:
+            - operation
+          properties:
+            operation:
+              type: string
+              enum: ["append", "replace", "overwrite", "delete"]
+          additionalProperties:
+            type: string
+        schema-id:
+          type: integer
+    SnapshotReference:
+      type: object
+      required:
+        - type
+        - snapshot-id
+      properties:
+        type:
+          type: string
+          enum: ["tag", "branch"]
+        snapshot-id:
+          type: integer
+          format: int64
+        max-ref-age-ms:
+          type: integer
+          format: int64
+        max-snapshot-age-ms:
+          type: integer
+          format: int64
+        min-snapshots-to-keep:
+          type: integer
+    SnapshotReferences:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/SnapshotReference'
+    SnapshotLog:
+      type: array
+      items:
+        type: object
+        required:
+          - snapshot-id
+          - timestamp-ms
+        properties:
+          snapshot-id:
+            type: integer
+            format: int64
+          timestamp-ms:
+            type: integer
+            format: int64
+    MetadataLog:
+      type: array
+      items:
+        type: object
+        required:
+          - metadata-file
+          - timestamp-ms
+        properties:
+          metadata-file:
+            type: string
+          timestamp-ms:
+            type: integer
+            format: int64
+    PartitionStatisticsFile:
+      type: object
+      required:
+        - snapshot-id
+        - statistics-path
+        - file-size-in-bytes
+      properties:
+        snapshot-id:
+          type: integer
+          format: int64
+        statistics-path:
+          type: string
+        file-size-in-bytes:
+          type: integer
+          format: int64
+    StatisticsFile:
+      type: object
+      required:
+        - snapshot-id
+        - statistics-path
+        - file-size-in-bytes
+        - file-footer-size-in-bytes
+        - blob-metadata
+      properties:
+        snapshot-id:
+          type: integer
+          format: int64
+        statistics-path:
+          type: string
+        file-size-in-bytes:
+          type: integer
+          format: int64
+        file-footer-size-in-bytes:
+          type: integer
+          format: int64
+        blob-metadata:
+          type: array
+          items:
+            $ref: '#/components/schemas/BlobMetadata'
+    BlobMetadata:
+      type: object
+      required:
+        - type
+        - snapshot-id
+        - sequence-number
+        - fields
+      properties:
+        type:
+          type: string
+        snapshot-id:
+          type: integer
+          format: int64
+        sequence-number:
+          type: integer
+          format: int64
+        fields:
+          type: array
+          items:
+            type: integer
+        properties:
+          type: object
