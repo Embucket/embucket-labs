@@ -23,6 +23,21 @@ use crate::handlers::warehouses::{
 };
 use crate::state::AppState;
 
+#[derive(OpenApi)]
+#[openapi(
+    nest(
+        (path = "/v1/storage-profile", api = StorageProfileApi, tags = ["storage-profile"]),
+        (path = "/v1/warehouse", api = WarehouseApi, tags = ["warehouse"]),
+        (path = "/v1/warehouse/{warehouseId}/namespace", api = NamespaceApi, tags = ["database"]),
+        (path = "/v1/warehouse/{warehouseId}/namespace/{namespaceId}/table", api = TableApi, tags = ["table"]),
+    ),
+    tags(
+        (name = "storage-profile", description = "Storage profile API"),
+        (name = "warehouse", description = "Warehouse API"),
+    )
+)]
+struct ApiDoc;
+
 pub fn create_app(state: AppState) -> Router {
     let sp_router = Router::new()
         .route("/", post(create_storage_profile))
@@ -46,13 +61,27 @@ pub fn create_app(state: AppState) -> Router {
         .route("/", post(create_table))
         .route("/:table_id", get(get_table));
 
+    let mut spec = ApiDoc::openapi();
+    if let Some(extra_spec) = load_openapi_spec() {
+        spec = spec.merge_from(extra_spec);
+    }
+
     Router::new()
         .route("/catalog/v1/:id/config", get(get_config))
         .nest("/v1/storage-profile", sp_router)
         .nest("/v1/warehouse", wh_router)
         .nest("/v1/warehouse/:id/namespace", ns_router)
         .nest("/v1/warehouse/:id/namespace/:namespace_id/table", t_router)
+        .merge(SwaggerUi::new("/").url("/openapi.yaml", spec))
         .with_state(state)
+}
+
+fn load_openapi_spec() -> Option<openapi::OpenApi> {
+    let openapi_yaml_content = fs::read_to_string("rest-catalog-open-api.yaml").ok()?;
+    let mut original_spec = serde_yaml::from_str::<openapi::OpenApi>(&openapi_yaml_content).ok()?;
+    // Dropping all paths from the original spec
+    original_spec.paths = openapi::Paths::new();
+    Some(original_spec)
 }
 
 #[cfg(test)]

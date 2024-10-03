@@ -23,6 +23,7 @@ pub struct StorageProfileApi;
     post, 
     operation_id = "createStorageProfile",
     path = "", 
+    request_body = CreateStorageProfilePayload,
     responses((status = 200, body = StorageProfile))
 )]
 pub async fn create_storage_profile(

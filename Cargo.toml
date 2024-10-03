@@ -3,7 +3,6 @@ members = [
     "crates/catalog",
     "crates/control_plane", 
     "crates/nexus",
-    "crates/openapi",
 ]
 resolver= "2"
 
