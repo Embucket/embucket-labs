@@ -1,6 +1,8 @@
+use std::ops::Deref;
+
 pub use iceberg::NamespaceIdent;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{openapi::schema, ToSchema};
 
 use catalog::models::Namespace;
 
@@ -14,6 +16,10 @@ pub struct NamespaceSchema {
     /// Configured string to string map of properties for the namespace
     pub properties: Option<std::collections::HashMap<String, String>>,
 }
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = NamespaceIdent)]
+pub struct NamespaceIdentDuplicate(Vec<String>);
 
 impl From<Namespace> for NamespaceSchema {
     fn from(namespace: Namespace) -> Self {

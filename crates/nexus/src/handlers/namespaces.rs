@@ -1,4 +1,4 @@
-use crate::schemas::namespaces::{NamespaceIdent, NamespaceSchema};
+use crate::schemas::namespaces::{NamespaceIdent, NamespaceSchema, NamespaceIdentDuplicate};
 use axum::Router;
 use axum::{extract::Path, extract::State, Json};
 use axum_macros::debug_handler;
@@ -6,14 +6,28 @@ use catalog::models::Namespace;
 use catalog::repository::Repository;
 use catalog::service::{Catalog, CatalogService};
 use std::result::Result;
+use utoipa::OpenApi;
 use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::state::AppState;
 
-pub fn router() -> Router {}
+#[derive(OpenApi)]
+#[openapi(
+    paths(create_namespace, get_namespace, delete_namespace, list_namespaces,),
+    components(schemas(NamespaceSchema, NamespaceIdentDuplicate),)
+)]
+pub struct NamespaceApi;
 
-#[debug_handler]
+
+#[utoipa::path(
+    post, 
+    operation_id = "createNamespace",
+    path = "", 
+    params(("warehouseId" = Uuid, description = "Warehouse ID")),
+    request_body = NamespaceSchema,
+    responses((status = 200, body = NamespaceSchema))
+)]
 pub async fn create_namespace(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
@@ -28,13 +42,19 @@ pub async fn create_namespace(
     Ok(Json(namespace.into()))
 }
 
+#[utoipa::path(
+    get, 
+    operation_id = "getNamespace",
+    path = "/{namespaceId}", 
+    params(("warehouseId" = Uuid, description = "Warehouse ID"), ("namespaceId" = String, description = "Namespace ID")),
+    responses((status = 200, body = NamespaceSchema)),
+)]
 pub async fn get_namespace(
     State(state): State<AppState>,
     Path((id, namespace_id)): Path<(Uuid, String)>,
 ) -> Result<Json<NamespaceSchema>, AppError> {
-    println!("get_namespace");
     let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = CatalogService::new(state.catalog_repo.clone(), wh);
+    let catalog = CatalogService::new(state.catalog_repo, wh);
     // TODO: automatically convert from NamespaceIdent in Path<NamespaceIdent> to NamespaceIdent
     let namespace_id = NamespaceIdent::new(namespace_id);
     let namespace = catalog.get_namespace(&namespace_id).await?;
@@ -42,24 +62,38 @@ pub async fn get_namespace(
     Ok(Json(namespace.into()))
 }
 
+#[utoipa::path(
+    delete, 
+    operation_id = "deleteNamespace",
+    path = "/{namespaceId}", 
+    params(("warehouseId" = Uuid, description = "Warehouse ID"), ("namespaceId" = String, description = "Namespace ID")),
+    responses((status = 200))
+)]
 pub async fn delete_namespace(
     State(state): State<AppState>,
     Path((id, namespace_id)): Path<(Uuid, String)>,
 ) -> Result<Json<()>, AppError> {
     let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = CatalogService::new(state.catalog_repo.clone(), wh);
+    let catalog = CatalogService::new(state.catalog_repo, wh);
     let namespace_id = NamespaceIdent::new(namespace_id);
     catalog.drop_namespace(&namespace_id).await?;
 
     Ok(Json(()))
 }
 
+#[utoipa::path(
+    get, 
+    operation_id = "listNamespaces",
+    path = "", 
+    params(("warehouseId" = Uuid, description = "Warehouse ID")),
+    responses((status = 200, body = Vec<NamespaceSchema>))
+)]
 pub async fn list_namespaces(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Vec<NamespaceSchema>>, AppError> {
     let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = CatalogService::new(state.catalog_repo.clone(), wh);
+    let catalog = CatalogService::new(state.catalog_repo, wh);
     let parent_id = None;
     let namespaces = catalog.list_namespaces(parent_id).await?;
 

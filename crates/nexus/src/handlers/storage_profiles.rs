@@ -1,13 +1,11 @@
 use crate::schemas::storage_profiles::{
-    CreateStorageProfilePayload, StorageProfile as StorageProfileSchema,
+    AwsAccessKeyCredential, AwsRoleCredential, CloudProvider, CreateStorageProfilePayload, Credentials, StorageProfile as StorageProfileSchema
 };
 use axum::{extract::Path, extract::State, Json};
 use control_plane::models::{StorageProfile, StorageProfileCreateRequest};
 use std::result::Result;
 use uuid::Uuid;
-use utoipa::{OpenApi, ToSchema};
-use utoipa_axum::router::OpenApiRouter;
-use utoipa_axum::routes;
+use utoipa::OpenApi;
 
 use crate::error::AppError;
 use crate::state::AppState;
@@ -16,13 +14,14 @@ use crate::state::AppState;
 #[derive(OpenApi)]
 #[openapi(
     paths(create_storage_profile, get_storage_profile, delete_storage_profile, list_storage_profiles,),
-    components(schemas(CreateStorageProfilePayload, StorageProfileSchema))
+    components(schemas(CreateStorageProfilePayload, StorageProfileSchema, Credentials, AwsAccessKeyCredential, AwsRoleCredential, CloudProvider),)
 )]
 pub struct StorageProfileApi;
 
 
 #[utoipa::path(
     post, 
+    operation_id = "createStorageProfile",
     path = "", 
     responses((status = 200, body = StorageProfileSchema))
 )]
@@ -38,8 +37,10 @@ pub async fn create_storage_profile(
 
 #[utoipa::path(
     get, 
-    path = "", 
-    responses((status = 200, body = StorageProfileSchema))
+    operation_id = "getStorageProfile",
+    path = "/{storageProfileId}", 
+    params(("storageProfileId" = Uuid, description = "Storage profile ID")),
+    responses((status = 200, body = StorageProfileSchema)),
 )]
 pub async fn get_storage_profile(
     State(state): State<AppState>,
@@ -52,7 +53,9 @@ pub async fn get_storage_profile(
 
 #[utoipa::path(
     delete, 
-    path = "", 
+    operation_id = "deleteStorageProfile",
+    path = "/{storageProfileId}", 
+    params(("storageProfileId" = Uuid, description = "Storage profile ID")),
     responses((status = 200))
 )]
 pub async fn delete_storage_profile(
@@ -66,6 +69,7 @@ pub async fn delete_storage_profile(
 
 #[utoipa::path(
     get, 
+    operation_id = "listStorageProfiles",
     path = "", 
     responses((status = 200, body = Vec<StorageProfileSchema>))
 )]

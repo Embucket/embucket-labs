@@ -143,7 +143,7 @@ impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
 pub struct StorageProfile {
     pub id: Uuid,
     #[serde(rename = "type")]
-    pub provider_type: CloudProvider,
+    pub r#type: CloudProvider,
     pub region: String,
     pub bucket: String,
     pub credentials: Credentials,
@@ -158,7 +158,7 @@ impl From<models::StorageProfile> for StorageProfile {
     fn from(profile: models::StorageProfile) -> Self {
         StorageProfile {
             id: profile.id,
-            provider_type: profile.cloud_provider.into(),
+            r#type: profile.cloud_provider.into(),
             region: profile.region,
             bucket: profile.bucket,
             credentials: profile.credentials.into(),

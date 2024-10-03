@@ -16,9 +16,11 @@ serde = { workspace = true }
 iceberg = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
 
 [dev-dependencies]
 tower = { workspace = true }
 async-trait = { workspace = true }
 http-body-util = { workspace = true }
 tempfile = { workspace = true }
+lazy_static = { workspace = true }

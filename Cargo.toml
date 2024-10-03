@@ -21,6 +21,7 @@ thiserror = { version = "1" }
 iceberg = { version = "0.3" }
 iceberg-catalog-memory = { version = "0.3" }
 tempfile = { version = "3" }
-utoipa = { version = "4" }
+utoipa = { version = "5.0.0-beta.0", features = ["uuid", "chrono"] }
 utoipa-axum = { version = "0.1.0-beta.2" }
-utoipa-scalar = { version = ""}
+utoipa-swagger-ui = { version = "7.1.1-beta.0", features = ["axum"] }
+lazy_static = { version = "1.5" }
