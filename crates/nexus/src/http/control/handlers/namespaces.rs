@@ -1,4 +1,4 @@
-use crate::schemas::namespaces::{NamespaceIdent, NamespaceSchema, NamespaceIdentDuplicate};
+use crate::http::control::schemas::namespaces::{NamespaceIdent, NamespaceSchema, NamespaceIdentDuplicate};
 use axum::Router;
 use axum::{extract::Path, extract::State, Json};
 use axum_macros::debug_handler;

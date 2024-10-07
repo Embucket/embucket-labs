@@ -8,3 +8,12 @@ async-trait = { workspace = true }
 iceberg = { workspace = true }
 iceberg-catalog-memory = { workspace = true }
 control_plane = { path = "../control_plane" }
+slatedb = { workspace = true }
+bytes = { workspace = true }
+tokio = { workspace = true }
+object_store = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+uuid = { workspace = true }

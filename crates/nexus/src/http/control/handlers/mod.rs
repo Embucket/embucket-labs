@@ -1,21 +1,17 @@
-pub mod storage_profiles;
-pub mod warehouses;
 pub mod namespaces;
+pub mod storage_profiles;
 pub mod tables;
+pub mod warehouses;
 
-use std::result::Result;
-use axum::{Json, extract::State, extract::Path};
+use crate::http::control::schemas::Config;
+use axum::{extract::Path, extract::State, Json};
 use axum_macros::debug_handler;
+use catalog::service::{Catalog, CatalogService};
+use std::result::Result;
 use uuid::Uuid;
-use crate::schemas::Config;
-use catalog::service::{
-    CatalogService,
-    Catalog,
-};
 
-use crate::state::AppState;
 use crate::error::AppError;
-
+use crate::state::AppState;
 
 #[debug_handler]
 pub async fn get_config(
@@ -23,11 +19,8 @@ pub async fn get_config(
     Path(id): Path<Uuid>,
 ) -> Result<Json<Config>, AppError> {
     let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = CatalogService::new(
-        state.catalog_repo.clone(),
-        wh,
-    );
+    let catalog = CatalogService::new(state.catalog_repo.clone(), wh);
     let config = catalog.get_config().await?;
-    
+
     Ok(Json(config.into()))
 }

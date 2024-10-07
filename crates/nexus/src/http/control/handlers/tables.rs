@@ -9,7 +9,7 @@ use catalog::repository::Repository;
 use catalog::service::{Catalog, CatalogService};
 
 use crate::error::AppError;
-use crate::schemas::tables::{CreateTableSchema, TableSchema};
+use crate::http::control::schemas::tables::{CreateTableSchema, TableSchema};
 use crate::state::AppState;
 use catalog::models::NamespaceIdent;
 use catalog::models::TableIdent;

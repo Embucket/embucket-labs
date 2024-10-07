@@ -9,16 +9,16 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::handlers::get_config;
-use crate::handlers::namespaces::{
+use crate::http::control::handlers::get_config;
+use crate::http::control::handlers::namespaces::{
     create_namespace, delete_namespace, get_namespace, list_namespaces, NamespaceApi,
 };
-use crate::handlers::storage_profiles::{
+use crate::http::control::handlers::storage_profiles::{
     create_storage_profile, delete_storage_profile, get_storage_profile, list_storage_profiles,
     StorageProfileApi,
 };
-use crate::handlers::tables::{create_table, get_table, TableApi};
-use crate::handlers::warehouses::{
+use crate::http::control::handlers::tables::{create_table, get_table, TableApi};
+use crate::http::control::handlers::warehouses::{
     create_warehouse, delete_warehouse, get_warehouse, list_warehouses, WarehouseApi,
 };
 use crate::state::AppState;
@@ -88,10 +88,10 @@ fn load_openapi_spec() -> Option<openapi::OpenApi> {
 mod tests {
     #![allow(clippy::too_many_lines)]
 
-    use crate::handlers::storage_profiles;
-    use crate::schemas::namespaces::NamespaceSchema;
-    use crate::schemas::storage_profiles::StorageProfile as StorageProfileSchema;
-    use crate::schemas::warehouses::Warehouse as WarehouseSchema;
+    use crate::http::control::handlers::storage_profiles;
+    use crate::http::control::schemas::namespaces::NamespaceSchema;
+    use crate::http::control::schemas::storage_profiles::StorageProfile as StorageProfileSchema;
+    use crate::http::control::schemas::warehouses::Warehouse as WarehouseSchema;
 
     use super::*;
     use async_trait::async_trait;

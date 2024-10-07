@@ -1,4 +1,4 @@
-use crate::schemas::warehouses::{
+use crate::http::control::schemas::warehouses::{
     CreateWarehouseRequest, Warehouse,
 };
 use axum::{extract::Path, extract::State, Json};

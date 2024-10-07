@@ -1,4 +1,4 @@
-use crate::schemas::storage_profiles::{
+use crate::http::control::schemas::storage_profiles::{
     AwsAccessKeyCredential, AwsRoleCredential, CloudProvider, CreateStorageProfilePayload, Credentials, StorageProfile
 };
 use axum::{extract::Path, extract::State, Json};
