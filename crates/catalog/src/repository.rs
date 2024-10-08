@@ -279,18 +279,21 @@ impl Repository for DbRepository {
 
         let table = self.load_table(commit.identifier()).await?;
 
-        for req in &commit.take_requirements() {
-            check_requirements(table.metadata(), req).map_err(|e| {
+        let mut commit = commit;
+        for req in commit.take_requirements() {
+            check_requirements(table.metadata(), &req).map_err(|e| {
                 Error::new(ErrorKind::DataInvalid, "requirements check failed").with_source(e)
             })?;
         }
 
         let (metadata, location) = (table.metadata().clone(), table.metadata_location());
-        let builder = TableMetadataBuilder::new_from_metadata(metadata, location.map(|l| l.into()));
+        let mut builder =
+            TableMetadataBuilder::new_from_metadata(metadata, location.map(Into::into));
 
         for update in commit.take_updates() {
-            apply_update(builder, update)
-                .map_err(|e| Error::new(ErrorKind::DataInvalid, "update failed").with_source(e))?;
+            builder = update.apply(builder).map_err(|e| {
+                Error::new(ErrorKind::DataInvalid, "failed to apply update").with_source(e)
+            })?;
         }
         let metadata = builder.build().map_err(|e| {
             Error::new(ErrorKind::DataInvalid, "failed to build metadata").with_source(e)
@@ -318,38 +321,6 @@ impl Repository for DbRepository {
 
 fn check_requirements(metadata: &TableMetadata, requirement: &TableRequirement) -> Result<()> {
     Ok(())
-}
-
-fn apply_update(
-    builder: &mutTableMetadataBuilder,
-    update: TableUpdate,
-) -> Result<TableMetadataBuilder> {
-    match update {
-        TableUpdate::AssignUuid { uuid } => Ok(builder.assign_uuid(uuid)),
-        TableUpdate::UpgradeFormatVersion { format_version } => {
-            builder.upgrade_format_version(format_version)
-        }
-        TableUpdate::RemoveProperties { removals } => Ok(builder.remove_properties(&removals)),
-        TableUpdate::SetProperties { updates } => builder.set_properties(updates),
-        TableUpdate::AddSchema { schema, .. } => Ok(builder.add_schema(schema)),
-        TableUpdate::SetCurrentSchema { schema_id } => builder.set_current_schema(schema_id),
-        TableUpdate::SetDefaultSpec { spec_id } => builder.set_default_partition_spec(spec_id),
-        TableUpdate::SetDefaultSortOrder { sort_order_id } => {
-            builder.set_default_sort_order(sort_order_id)
-        }
-        TableUpdate::AddSpec { spec } => builder.add_partition_spec(spec),
-        TableUpdate::AddSortOrder { sort_order } => builder.add_sort_order(sort_order),
-        TableUpdate::SetLocation { location } => Ok(builder.set_location(location)),
-        TableUpdate::AddSnapshot { snapshot } => builder.add_snapshot(snapshot),
-        TableUpdate::RemoveSnapshots { snapshot_ids } => {
-            Ok(builder.remove_snapshots(&snapshot_ids))
-        }
-        TableUpdate::SetSnapshotRef {
-            ref_name,
-            reference,
-        } => builder.set_ref(&ref_name, reference),
-        TableUpdate::RemoveSnapshotRef { ref_name } => Ok(builder.remove_ref(&ref_name)),
-    }
 }
 
 mod tests {
