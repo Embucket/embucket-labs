@@ -21,10 +21,8 @@ pub use iceberg_catalog_memory::MemoryCatalog as InMemoryCatalogRepository;
 use crate::models::TableCommit;
 use control_plane::models::Warehouse;
 
-const SEP: u8 = b',';
-const DBLIST: &[u8] = b"db.all";
-const _DBPREFIX: &[u8] = b"db";
-const _TBLLIST: &[u8] = b"tbl.all";
+const DBPREFIX: &str = "db";
+const SEP: &str = "\u{001f}";
 const TBLPREFIX: &str = "tbl";
 const ALL: &str = "all";
 
@@ -49,6 +47,65 @@ impl DbRepository {
     pub fn new(db: Arc<Db>, warehouse: Warehouse) -> Self {
         Self { db, warehouse }
     }
+
+    async fn put<T: serde::Serialize>(&self, key: &str, value: T) -> Result<()> {
+        let serialized = ser::to_vec(&value)
+            .map_err(|e| Error::new(ErrorKind::Unexpected, "failed to serialize").with_source(e))?;
+        self.db.put(key.as_bytes(), serialized.as_ref()).await;
+        Ok(())
+    }
+
+    async fn get<T: for<'de> serde::de::Deserialize<'de>>(&self, key: &str) -> Result<Option<T>> {
+        let value: Option<bytes::Bytes> =
+            self.db.get(key.as_bytes()).await.map_err(|e| {
+                Error::new(ErrorKind::Unexpected, "failed to read db").with_source(e)
+            })?;
+        value.map_or_else(
+            || Ok(None),
+            |bytes| {
+                de::from_slice(&bytes).map_err(|e| {
+                    Error::new(ErrorKind::Unexpected, "failed to deserialize value").with_source(e)
+                })
+            },
+        )
+    }
+
+    async fn keys(&self, key: &str) -> Result<Vec<String>> {
+        let keys: Option<Vec<String>> = self.get(key).await?;
+        Ok(keys.unwrap_or_default())
+    }
+
+    async fn append(&self, key: String, value: String) -> Result<()> {
+        self.modify(key.as_ref(), |all_keys: &mut Vec<String>| {
+            all_keys.push(value.clone());
+        })
+        .await?;
+        Ok(())
+    }
+
+    async fn remove(&self, key: String, value: String) -> Result<()> {
+        self.modify(key.as_ref(), |all_keys: &mut Vec<String>| {
+            all_keys.retain(|key| *key != value);
+        })
+        .await?;
+        Ok(())
+    }
+
+    // function that takes closure as argument
+    // it reads value from the db, deserialize it and pass it to the closure
+    // it then gets value from the clousre, serialize it and write it back to the db
+    async fn modify<T>(&self, key: &str, f: impl Fn(&mut T)) -> Result<()>
+    where
+        T: serde::Serialize + serde::de::DeserializeOwned + Default,
+    {
+        let mut value: T = self.get(key).await?.unwrap_or_default();
+
+        f(&mut value);
+
+        self.put(key, value).await?;
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -57,42 +114,53 @@ impl Catalog for DbRepository {
         &self,
         _parent: Option<&NamespaceIdent>,
     ) -> Result<Vec<NamespaceIdent>> {
-        let list =
-            self.db.get(DBLIST).await.map_err(|e| {
-                Error::new(ErrorKind::Unexpected, "failed to read db").with_source(e)
-            })?;
-        let list = list.unwrap_or_default();
+        let warehouse = self.warehouse.id;
+        let key = format!("{DBPREFIX}.{warehouse}.{ALL}");
 
-        let list: std::result::Result<Vec<_>, _> = list
-            .split(|&c| c == SEP)
-            .map(|b| std::str::from_utf8(b))
-            .collect();
-        let list = list.map_err(|e| {
-            Error::new(ErrorKind::Unexpected, "failed to parse db list").with_source(e)
+        let keys = self.keys(&key).await.map_err(|e| {
+            Error::new(ErrorKind::Unexpected, "failed to list namespaces").with_source(e)
         })?;
 
-        Ok(list
+        Ok(keys
             .into_iter()
-            .map(|s| NamespaceIdent::new(s.to_string()))
-            .collect())
+            .map(|s| NamespaceIdent::from_strs(s.split(SEP).collect::<Vec<_>>()))
+            .collect::<Result<Vec<NamespaceIdent>>>()?)
     }
 
     async fn create_namespace(
         &self,
-        _namespace: &NamespaceIdent,
-        _properties: HashMap<String, String>,
+        namespace: &NamespaceIdent,
+        properties: HashMap<String, String>,
     ) -> Result<Namespace> {
-        Err(Error::new(
-            ErrorKind::FeatureUnsupported,
-            "create namespace is not supported",
-        ))
+        let warehouse = self.warehouse.id;
+        let name = namespace.to_url_string();
+        let key = format!("{DBPREFIX}.{warehouse}.{name}");
+
+        self.put(&key, properties.clone()).await.map_err(|e| {
+            Error::new(ErrorKind::Unexpected, "failed to create namespace").with_source(e)
+        })?;
+
+        self.append(format!("{DBPREFIX}.{warehouse}.{ALL}"), name)
+            .await
+            .map_err(|e| {
+                Error::new(ErrorKind::Unexpected, "failed to create namespace").with_source(e)
+            })?;
+
+        Ok(Namespace::with_properties(namespace.clone(), properties))
     }
 
-    async fn get_namespace(&self, _namespace: &NamespaceIdent) -> Result<Namespace> {
-        Err(Error::new(
-            ErrorKind::FeatureUnsupported,
-            "get namespace is not supported",
-        ))
+    async fn get_namespace(&self, namespace: &NamespaceIdent) -> Result<Namespace> {
+        let warehouse = self.warehouse.id;
+        let name = namespace.to_url_string();
+        let key = format!("{DBPREFIX}.{warehouse}.{name}");
+
+        let properties = self.get(&key).await.map_err(|e| {
+            Error::new(ErrorKind::Unexpected, "failed to read namespace").with_source(e)
+        })?;
+        let properties =
+            properties.ok_or_else(|| Error::new(ErrorKind::DataInvalid, "namespace not found"))?;
+
+        Ok(Namespace::with_properties(namespace.clone(), properties))
     }
 
     async fn namespace_exists(&self, namespace: &NamespaceIdent) -> Result<bool> {
@@ -110,31 +178,31 @@ impl Catalog for DbRepository {
         ))
     }
 
-    async fn drop_namespace(&self, _amespace: &NamespaceIdent) -> Result<()> {
-        Err(Error::new(
-            ErrorKind::FeatureUnsupported,
-            "drop namespace is not supported",
-        ))
+    async fn drop_namespace(&self, namespace: &NamespaceIdent) -> Result<()> {
+        let warehouse = self.warehouse.id;
+        let name = namespace.to_url_string();
+        let key = format!("{DBPREFIX}.{warehouse}.{name}");
+        self.db.delete(key.as_bytes()).await;
+
+        self.remove(format!("{DBPREFIX}.{warehouse}.{ALL}"), name)
+            .await
+            .map_err(|e| {
+                Error::new(ErrorKind::Unexpected, "failed to drop namespace").with_source(e)
+            })?;
+
+        Ok(())
     }
 
     async fn list_tables(&self, namespace: &NamespaceIdent) -> Result<Vec<TableIdent>> {
         let warehouse = self.warehouse.id;
         let database = namespace.to_url_string();
         let key = format!("{TBLPREFIX}.{warehouse}.{database}.{ALL}");
-        let list = self.db.get(key.as_bytes()).await.map_err(|e| {
-            Error::new(ErrorKind::Unexpected, "failed to read table").with_source(e)
+
+        let keys = self.keys(&key).await.map_err(|e| {
+            Error::new(ErrorKind::Unexpected, "failed to list tables").with_source(e)
         })?;
 
-        let all_keys: Vec<String> = list.filter(|bytes| !bytes.is_empty()).map_or_else(
-            || Ok(Vec::new()),
-            |bytes| {
-                de::from_slice(&bytes).map_err(|e| {
-                    Error::new(ErrorKind::Unexpected, "failed to deserialize keys").with_source(e)
-                })
-            },
-        )?;
-
-        Ok(all_keys
+        Ok(keys
             .into_iter()
             .map(|s| TableIdent {
                 namespace: namespace.clone(),
@@ -162,31 +230,17 @@ impl Catalog for DbRepository {
         let warehouse = self.warehouse.id;
         let database = namespace.to_url_string();
         let key = format!("{TBLPREFIX}.{warehouse}.{database}.{name}");
-        let value = ser::to_vec(&metadata).map_err(|e| {
-            Error::new(ErrorKind::Unexpected, "failed to serialize metadata").with_source(e)
-        })?;
-        self.db.put(key.as_bytes(), value.as_ref()).await;
 
-        // Update special key all value
-        let key = format!("{TBLPREFIX}.{warehouse}.{database}.{ALL}");
-        let value: Option<bytes::Bytes> = self.db.get(key.as_bytes()).await.map_err(|e| {
-            Error::new(ErrorKind::Unexpected, "failed to read table").with_source(e)
+        self.put(&key, metadata.clone()).await.map_err(|e| {
+            Error::new(ErrorKind::Unexpected, "failed to create table").with_source(e)
         })?;
 
-        let mut all_keys = value.filter(|bytes| !bytes.is_empty()).map_or_else(
-            || Ok(Vec::new()),
-            |bytes| {
-                de::from_slice(&bytes).map_err(|e| {
-                    Error::new(ErrorKind::Unexpected, "failed to deserialize keys").with_source(e)
-                })
-            },
-        )?;
-        all_keys.push(name.clone());
-
-        let value = ser::to_vec(&all_keys).map_err(|e| {
-            Error::new(ErrorKind::Unexpected, "failed to serialize keys").with_source(e)
-        })?;
-        self.db.put(key.as_bytes(), value.as_ref()).await;
+        self.append(
+            format!("{TBLPREFIX}.{warehouse}.{database}.{ALL}"),
+            name.clone(),
+        )
+        .await
+        .map_err(|e| Error::new(ErrorKind::Unexpected, "failed to create table").with_source(e))?;
 
         // TODO: update file io to match actual storage
         // i.e. FileIOBuilder::new(warehouse.location)
@@ -212,13 +266,13 @@ impl Catalog for DbRepository {
         let database = table.namespace.to_url_string();
         let tblname = table.name.as_str();
         let key = format!("{TBLPREFIX}.{warehouse}.{database}.{tblname}");
-        let value = self.db.get(key.as_bytes()).await.map_err(|e| {
+
+        let metadata = self.get(&key).await.map_err(|e| {
             Error::new(ErrorKind::Unexpected, "failed to read table").with_source(e)
         })?;
-        let value = value.ok_or_else(|| Error::new(ErrorKind::DataInvalid, "table not found"))?;
-        let metadata: TableMetadata = serde_json::from_slice(&value).map_err(|e| {
-            Error::new(ErrorKind::Unexpected, "failed to deserialize metadata").with_source(e)
-        })?;
+        let metadata =
+            metadata.ok_or_else(|| Error::new(ErrorKind::DataInvalid, "table not found"))?;
+
         let file_io = FileIOBuilder::new_fs_io().build().map_err(|e| {
             Error::new(ErrorKind::Unexpected, "failed to build file io").with_source(e)
         })?;
@@ -244,24 +298,9 @@ impl Catalog for DbRepository {
 
         // Update special key all value
         let key = format!("{TBLPREFIX}.{warehouse}.{database}.{ALL}");
-        let value: Option<bytes::Bytes> = self.db.get(key.as_bytes()).await.map_err(|e| {
-            Error::new(ErrorKind::Unexpected, "failed to read table").with_source(e)
+        self.remove(key, tblname.to_string()).await.map_err(|e| {
+            Error::new(ErrorKind::Unexpected, "failed to drop table").with_source(e)
         })?;
-
-        let mut all_keys: Vec<String> = value.filter(|bytes| !bytes.is_empty()).map_or_else(
-            || Ok(Vec::new()),
-            |bytes| {
-                de::from_slice(&bytes).map_err(|e| {
-                    Error::new(ErrorKind::Unexpected, "failed to deserialize keys").with_source(e)
-                })
-            },
-        )?;
-        all_keys.retain(|key| *key != table.name);
-
-        let value = ser::to_vec(&all_keys).map_err(|e| {
-            Error::new(ErrorKind::Unexpected, "failed to serialize keys").with_source(e)
-        })?;
-        self.db.put(key.as_bytes(), value.as_ref()).await;
 
         Ok(())
     }
@@ -444,7 +483,6 @@ impl TableRequirementExt {
 
 mod tests {
     use super::*;
-    use bytes::Bytes;
     use iceberg::spec::{NestedField, PrimitiveType, Schema, Type};
     use object_store::{memory::InMemory, path::Path, ObjectStore};
     use slatedb::config::DbOptions;
@@ -453,18 +491,41 @@ mod tests {
     use uuid::Uuid;
 
     #[tokio::test]
-    async fn test_empty_bytes() {
-        let cases = [Bytes::new(), Bytes::from_static(b"")];
+    async fn test_namespace_create() {
+        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+        let options = DbOptions::default();
+        let db = Db::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
+            .await
+            .unwrap();
 
-        for input in cases {
-            let list: std::result::Result<Vec<_>, _> = input
-                .split(|&c| c == SEP)
-                .filter(|b| !b.is_empty())
-                .map(|b| std::str::from_utf8(b))
-                .collect();
-            assert_eq!(list, Ok(vec![]));
-            assert_eq!(list.unwrap().len(), 0);
-        }
+        let wh = Warehouse::new("test".to_string(), "test".to_string(), Uuid::new_v4())
+            .expect("warehouse creation failed");
+        let repo = DbRepository::new(Arc::new(db), wh);
+
+        let namespace = NamespaceIdent::new("test".into());
+        let mut properties = HashMap::new();
+        properties.insert("key1".to_string(), "value1".to_string());
+
+        let res = repo.create_namespace(&namespace, properties).await;
+        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
+
+        let res = repo.list_namespaces(None).await;
+        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
+
+        let res = res.unwrap();
+        assert_eq!(res.len(), 1);
+        assert_eq!(res[0], namespace);
+
+        let res = repo.get_namespace(&namespace).await;
+        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
+        assert_eq!(res.unwrap().properties().len(), 1);
+
+        let res = repo.drop_namespace(&namespace).await;
+        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
+
+        let res = repo.list_namespaces(None).await;
+        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
+        assert_eq!(res.unwrap().len(), 0);
     }
 
     async fn create_table(

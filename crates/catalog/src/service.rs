@@ -100,7 +100,14 @@ impl iceberg::Catalog for CatalogService {
     ) -> Result<Table> {
         let mut creation = creation;
         creation.location = Some(self.warehouse.location.clone());
+        // TODO: Add checks
+        // - Check if the namespace exists
+        // - Check if the table doesnt exist
+        // - Check if storage profile is valid (writtable)
+
         self.repo.create_table(namespace, creation).await
+
+        // - Write metadata contents to metadata_location
     }
 
     /// Load table from the catalog.
