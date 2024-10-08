@@ -2,10 +2,13 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use iceberg::{table::Table, Namespace, NamespaceIdent, TableCommit, TableCreation, TableIdent};
+use iceberg::{
+    table::Table, Namespace, NamespaceIdent, TableCommit as TableCommitOld, TableCreation,
+    TableIdent,
+};
 
 use crate::error::Result; // TODO: Replace this with this crate error and result
-use crate::models::Config;
+use crate::models::{Config, TableCommit};
 use crate::repository::Repository;
 
 use control_plane::models::Warehouse;
@@ -38,7 +41,7 @@ impl Catalog for CatalogService {
 }
 
 #[async_trait]
-impl Repository for CatalogService {
+impl iceberg::Catalog for CatalogService {
     /// List namespaces inside the catalog.
     async fn list_namespaces(
         &self,
@@ -121,7 +124,14 @@ impl Repository for CatalogService {
     }
 
     /// Update a table to the catalog.
-    async fn update_table(&self, commit: TableCommit) -> Result<Table> {
+    async fn update_table(&self, commit: TableCommitOld) -> Result<Table> {
         self.repo.update_table(commit).await
+    }
+}
+
+#[async_trait]
+impl Repository for CatalogService {
+    async fn update_table_ext(&self, commit: TableCommit) -> Result<Table> {
+        self.repo.update_table_ext(commit).await
     }
 }

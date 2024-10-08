@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use iceberg::io::FileIOBuilder;
 use iceberg::spec::{TableMetadata, TableMetadataBuilder};
-use iceberg::table::{self, StaticTable};
+use iceberg::table::StaticTable;
 use iceberg::ErrorKind;
 use serde_json::de;
 use serde_json::ser;
@@ -11,21 +11,27 @@ use std::sync::Arc;
 use std::{collections::HashMap, fmt::Debug};
 
 use iceberg::{
-    table::Table, Error, Namespace, NamespaceIdent, Result, TableCommit, TableCreation, TableIdent,
-    TableRequirement, TableUpdate,
+    table::Table, Error, Namespace, NamespaceIdent, Result, TableCommit as TableCommitOld,
+    TableCreation, TableIdent, TableRequirement, TableUpdate,
 };
 
-pub use iceberg::Catalog as Repository;
+pub use iceberg::Catalog;
 pub use iceberg_catalog_memory::MemoryCatalog as InMemoryCatalogRepository;
 
+use crate::models::TableCommit;
 use control_plane::models::Warehouse;
 
 const SEP: u8 = b',';
 const DBLIST: &[u8] = b"db.all";
-const DBPREFIX: &[u8] = b"db";
-const TBLLIST: &[u8] = b"tbl.all";
+const _DBPREFIX: &[u8] = b"db";
+const _TBLLIST: &[u8] = b"tbl.all";
 const TBLPREFIX: &str = "tbl";
 const ALL: &str = "all";
+
+#[async_trait]
+pub trait Repository: Catalog {
+    async fn update_table_ext(&self, commit: TableCommit) -> Result<Table>;
+}
 
 pub struct DbRepository {
     db: Arc<Db>,
@@ -46,10 +52,10 @@ impl DbRepository {
 }
 
 #[async_trait]
-impl Repository for DbRepository {
+impl Catalog for DbRepository {
     async fn list_namespaces(
         &self,
-        parent: Option<&NamespaceIdent>,
+        _parent: Option<&NamespaceIdent>,
     ) -> Result<Vec<NamespaceIdent>> {
         let list =
             self.db.get(DBLIST).await.map_err(|e| {
@@ -73,8 +79,8 @@ impl Repository for DbRepository {
 
     async fn create_namespace(
         &self,
-        namespace: &NamespaceIdent,
-        properties: HashMap<String, String>,
+        _namespace: &NamespaceIdent,
+        _properties: HashMap<String, String>,
     ) -> Result<Namespace> {
         Err(Error::new(
             ErrorKind::FeatureUnsupported,
@@ -82,7 +88,7 @@ impl Repository for DbRepository {
         ))
     }
 
-    async fn get_namespace(&self, namespace: &NamespaceIdent) -> Result<Namespace> {
+    async fn get_namespace(&self, _namespace: &NamespaceIdent) -> Result<Namespace> {
         Err(Error::new(
             ErrorKind::FeatureUnsupported,
             "get namespace is not supported",
@@ -95,8 +101,8 @@ impl Repository for DbRepository {
 
     async fn update_namespace(
         &self,
-        namespace: &NamespaceIdent,
-        properties: HashMap<String, String>,
+        _namespace: &NamespaceIdent,
+        _properties: HashMap<String, String>,
     ) -> Result<()> {
         Err(Error::new(
             ErrorKind::FeatureUnsupported,
@@ -104,7 +110,7 @@ impl Repository for DbRepository {
         ))
     }
 
-    async fn drop_namespace(&self, namespace: &NamespaceIdent) -> Result<()> {
+    async fn drop_namespace(&self, _amespace: &NamespaceIdent) -> Result<()> {
         Err(Error::new(
             ErrorKind::FeatureUnsupported,
             "drop namespace is not supported",
@@ -271,26 +277,37 @@ impl Repository for DbRepository {
         ))
     }
 
-    async fn update_table(&self, commit: TableCommit) -> Result<Table> {
+    async fn update_table(&self, _commit: TableCommitOld) -> Result<Table> {
+        Err(Error::new(
+            ErrorKind::FeatureUnsupported,
+            "update table is not supported",
+        ))
+    }
+}
+
+#[async_trait]
+impl Repository for DbRepository {
+    async fn update_table_ext(&self, commit: TableCommit) -> Result<Table> {
         let warehouse = self.warehouse.id;
-        let database = commit.identifier().namespace.to_url_string();
-        let tblname = commit.identifier().name.as_str();
+        let database = commit.ident.namespace.to_url_string();
+        let tblname = commit.ident.name.as_str();
         let key = format!("{TBLPREFIX}.{warehouse}.{database}.{tblname}");
 
-        let table = self.load_table(commit.identifier()).await?;
+        let table = self.load_table(&commit.ident).await?;
 
-        let mut commit = commit;
-        for req in commit.take_requirements() {
-            check_requirements(table.metadata(), &req).map_err(|e| {
-                Error::new(ErrorKind::DataInvalid, "requirements check failed").with_source(e)
-            })?;
-        }
+        let commit = commit;
+
+        commit
+            .requirements
+            .into_iter()
+            .map(TableRequirementExt::new)
+            .try_for_each(|req| req.assert(table.metadata(), true))?;
 
         let (metadata, location) = (table.metadata().clone(), table.metadata_location());
         let mut builder =
             TableMetadataBuilder::new_from_metadata(metadata, location.map(Into::into));
 
-        for update in commit.take_updates() {
+        for update in commit.updates.into_iter() {
             builder = update.apply(builder).map_err(|e| {
                 Error::new(ErrorKind::DataInvalid, "failed to apply update").with_source(e)
             })?;
@@ -308,8 +325,8 @@ impl Repository for DbRepository {
         let table = StaticTable::from_metadata(
             metadata.metadata,
             TableIdent {
-                namespace: commit.identifier().namespace.clone(),
-                name: commit.identifier().name.clone(),
+                namespace: commit.ident.namespace.clone(),
+                name: commit.ident.name.clone(),
             },
             table.file_io().clone(),
         )
@@ -319,8 +336,110 @@ impl Repository for DbRepository {
     }
 }
 
-fn check_requirements(metadata: &TableMetadata, requirement: &TableRequirement) -> Result<()> {
-    Ok(())
+pub struct TableRequirementExt(TableRequirement);
+
+impl From<TableRequirement> for TableRequirementExt {
+    fn from(requirement: TableRequirement) -> Self {
+        Self(requirement)
+    }
+}
+
+impl TableRequirementExt {
+    pub fn new(requirement: TableRequirement) -> Self {
+        Self(requirement)
+    }
+
+    fn inner(&self) -> &TableRequirement {
+        &self.0
+    }
+
+    fn assert(&self, metadata: &TableMetadata, exists: bool) -> Result<()> {
+        match self.inner() {
+            TableRequirement::NotExist => {
+                if exists {
+                    return Err(Error::new(ErrorKind::DataInvalid, "Table exists"));
+                }
+            }
+            TableRequirement::UuidMatch { uuid } => {
+                if &metadata.uuid() != uuid {
+                    return Err(Error::new(
+                        ErrorKind::DataInvalid,
+                        "Table uuid does not match",
+                    ));
+                }
+            }
+            TableRequirement::CurrentSchemaIdMatch { current_schema_id } => {
+                // ToDo: Harmonize the types of current_schema_id
+                if i64::from(metadata.current_schema_id) != *current_schema_id {
+                    return Err(Error::new(
+                        ErrorKind::DataInvalid,
+                        "Table current schema id does not match",
+                    ));
+                }
+            }
+            TableRequirement::DefaultSortOrderIdMatch {
+                default_sort_order_id,
+            } => {
+                if metadata.default_sort_order_id != *default_sort_order_id {
+                    return Err(Error::new(
+                        ErrorKind::DataInvalid,
+                        "Table default sort order id does not match",
+                    ));
+                }
+            }
+            TableRequirement::RefSnapshotIdMatch { r#ref, snapshot_id } => {
+                if let Some(snapshot_id) = snapshot_id {
+                    let snapshot_ref = metadata
+                        .refs
+                        .get(r#ref)
+                        .ok_or(Error::new(ErrorKind::DataInvalid, "Table ref not found"))?;
+                    if snapshot_ref.snapshot_id != *snapshot_id {
+                        return Err(Error::new(
+                            ErrorKind::DataInvalid,
+                            "Table ref snapshot id does not match",
+                        ));
+                    }
+                } else if metadata.refs.contains_key(r#ref) {
+                    return Err(Error::new(
+                        ErrorKind::DataInvalid,
+                        "Table ref snapshot id does not match",
+                    ));
+                }
+            }
+            TableRequirement::DefaultSpecIdMatch { default_spec_id } => {
+                // ToDo: Harmonize the types of default_spec_id
+                if i64::from(metadata.default_partition_spec_id()) != *default_spec_id {
+                    return Err(Error::new(
+                        ErrorKind::DataInvalid,
+                        "Table default spec id does not match",
+                    ));
+                }
+            }
+            TableRequirement::LastAssignedPartitionIdMatch {
+                last_assigned_partition_id,
+            } => {
+                if i64::from(metadata.last_partition_id) != *last_assigned_partition_id {
+                    return Err(Error::new(
+                        ErrorKind::DataInvalid,
+                        "Table last assigned partition id does not match",
+                    ));
+                }
+            }
+            TableRequirement::LastAssignedFieldIdMatch {
+                last_assigned_field_id,
+            } => {
+                // ToDo: Harmonize types
+                let last_column_id: i64 = metadata.last_column_id.into();
+                if &last_column_id != last_assigned_field_id {
+                    return Err(Error::new(
+                        ErrorKind::DataInvalid,
+                        "Table last assigned field id does not match",
+                    ));
+                }
+            }
+        };
+        Ok(())
+    }
 }
 
 mod tests {
@@ -439,5 +558,76 @@ mod tests {
         assert_eq!(res.len(), 2);
         assert_eq!(res[0].name(), "test_table_0");
         assert_eq!(res[1].name(), "test_table_1");
+    }
+
+    #[tokio::test]
+    async fn test_update_table() {
+        let json = r#"
+{
+    "action": "add-sort-order",
+    "sort-order": {
+        "order-id": 1,
+        "fields": [
+            {
+                "transform": "identity",
+                "source-id": 3,
+                "direction": "asc",
+                "null-order": "nulls-first"
+            },
+            {
+                "transform": "bucket[4]",
+                "source-id": 2,
+                "direction": "desc",
+                "null-order": "nulls-last"
+            }
+        ]
+    }
+}
+        "#;
+        let update: TableUpdate = serde_json::from_str(json).unwrap();
+
+        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+        let options = DbOptions::default();
+        let db = Db::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
+            .await
+            .unwrap();
+
+        let wh = Warehouse::new("test".to_string(), "test".to_string(), Uuid::new_v4())
+            .expect("warehouse creation failed");
+        let repo = DbRepository::new(Arc::new(db), wh);
+
+        let res = create_table(
+            &repo,
+            &NamespaceIdent::new("test".into()),
+            Some("test_table"),
+        )
+        .await;
+        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
+
+        let ident = res.as_ref().unwrap().identifier();
+        let id = res.as_ref().unwrap().metadata().table_uuid;
+        let commit = TableCommit {
+            ident: ident.clone(),
+            requirements: vec![TableRequirement::UuidMatch { uuid: id }],
+            updates: vec![update],
+        };
+
+        let res = repo.update_table_ext(commit).await;
+        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
+
+        let res_load = repo.load_table(&ident).await;
+        assert!(res_load.is_ok(), "{}", res_load.unwrap_err().to_string());
+
+        assert_eq!(
+            res_load
+                .unwrap()
+                .metadata()
+                .sort_orders
+                .get(&1)
+                .unwrap()
+                .fields
+                .len(),
+            2
+        );
     }
 }
