@@ -84,6 +84,7 @@ impl iceberg::Catalog for CatalogService {
 
     /// Drop a namespace from the catalog.
     async fn drop_namespace(&self, namespace: &NamespaceIdent) -> Result<()> {
+        // - Check if the namespace is empty
         self.repo.drop_namespace(namespace).await
     }
 

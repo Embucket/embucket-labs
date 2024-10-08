@@ -8,6 +8,7 @@ async-trait = { workspace = true }
 iceberg = { workspace = true }
 iceberg-catalog-memory = { workspace = true }
 control_plane = { path = "../control_plane" }
+utils = { path = "../utils" }
 slatedb = { workspace = true }
 bytes = { workspace = true }
 tokio = { workspace = true }
