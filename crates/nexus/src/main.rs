@@ -17,20 +17,20 @@ pub mod state;
 #[tokio::main]
 async fn main() {
     // Initialize the repository and concrete service implementation
-    let storage_profile_service = {
+    let control_svc = {
         let storage_profile_repo = Arc::new(InMemoryStorageProfileRepository::default());
         let warehouse_repo = Arc::new(InMemoryWarehouseRepository::default());
         ControlServiceImpl::new(storage_profile_repo, warehouse_repo)
     };
 
-    let catalog_repo = {
+    let catalog_svc = {
         let file_io = iceberg::io::FileIOBuilder::new_fs_io().build().unwrap();
         let warehouse_location = "/tmp/warehouse";
         InMemoryCatalogRepository::new(file_io, Some(warehouse_location.to_string()))
     };
 
     // Create the application state
-    let app_state = state::AppState::new(Arc::new(storage_profile_service), Arc::new(catalog_repo));
+    let app_state = state::AppState::new(Arc::new(control_svc), Arc::new(catalog_svc));
 
     // Create the application router and pass the state
     let app = http::router::create_app(app_state);

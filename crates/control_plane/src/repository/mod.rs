@@ -245,20 +245,18 @@ mod tests {
     use std::sync::Arc;
 
     fn create_dummy_profile() -> StorageProfile {
-        StorageProfile {
-            id: Uuid::new_v4(),
-            r#type: CloudProvider::AWS,
-            region: "us-east-1".to_string(),
-            bucket: "test-bucket".to_string(),
-            credentials: Credentials::AccessKey(AwsAccessKeyCredential {
-                aws_access_key_id: "access_key_id".to_string(),
-                aws_secret_access_key: "secret_access_key".to_string(),
+        StorageProfile::new(
+            CloudProvider::AWS,
+            "us-west-1".to_string(),
+            "bucket".to_string(),
+            Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "access_key".to_string(),
+                aws_secret_access_key: "secret_key".to_string(),
             }),
-            sts_role_arn: None,
-            endpoint: None,
-            created_at: chrono::Utc::now().naive_utc(),
-            updated_at: chrono::Utc::now().naive_utc(),
-        }
+            None,
+            None,
+        )
+        .expect("failed to create profile")
     }
 
     #[tokio::test]
@@ -308,23 +306,11 @@ mod tests {
 
         let repo = WarehouseRepositoryDb { db };
 
-        let warehouse = Warehouse {
-            id: Uuid::new_v4(),
-            name: "test-warehouse".to_string(),
-            storage_profile_id: Uuid::new_v4(),
-            prefix: "test-prefix".to_string(),
-            location: "test-location".to_string(),
-            created_at: chrono::Utc::now().naive_utc(),
-            updated_at: chrono::Utc::now().naive_utc(),
-        };
-
-        let wh1 = warehouse.clone();
+        let wh1 = Warehouse::new("prefix".to_string(), "wh1".to_string(), Uuid::new_v4())
+            .expect("failed to create warehouse");
         repo.create(&wh1).await.expect("failed to create warehouse");
-        let wh2 = {
-            let mut wh = warehouse.clone();
-            wh.id = Uuid::new_v4();
-            wh
-        };
+        let wh2 = Warehouse::new("prefix".to_string(), "wh2".to_string(), Uuid::new_v4())
+            .expect("failed to create warehouse");
         repo.create(&wh2).await.expect("failed to create warehouse");
 
         let warehouses = repo.list().await.expect("failed to list warehouses");
