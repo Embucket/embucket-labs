@@ -132,7 +132,7 @@ pub struct CreateStorageProfilePayload {
 impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
     fn from(payload: CreateStorageProfilePayload) -> Self {
         models::StorageProfileCreateRequest {
-            cloud_provider: payload.provider_type.into(),
+            r#type: payload.provider_type.into(),
             region: payload.region,
             bucket: payload.bucket,
             credentials: payload.credentials.into(),

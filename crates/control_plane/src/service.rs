@@ -1,12 +1,10 @@
+use crate::error::{Error, Result};
 use crate::models::{StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
-use uuid::Uuid;
 use async_trait::async_trait;
 use std::sync::Arc;
-use crate::error::{Result, Error};
-
-
+use uuid::Uuid;
 
 #[async_trait]
 pub trait ControlService: Send + Sync {
@@ -37,8 +35,11 @@ pub struct ControlServiceImpl {
 }
 
 impl ControlServiceImpl {
-    pub fn new(storage_profile_repo: Arc<dyn StorageProfileRepository>, warehouse_repo: Arc<dyn WarehouseRepository>) -> Self {
-        Self { 
+    pub fn new(
+        storage_profile_repo: Arc<dyn StorageProfileRepository>,
+        warehouse_repo: Arc<dyn WarehouseRepository>,
+    ) -> Self {
+        Self {
             storage_profile_repo,
             warehouse_repo,
         }
@@ -48,7 +49,9 @@ impl ControlServiceImpl {
 #[async_trait]
 impl ControlService for ControlServiceImpl {
     async fn create_profile(&self, params: &StorageProfileCreateRequest) -> Result<StorageProfile> {
-        self.storage_profile_repo.create(params).await
+        let profile = params.try_into()?;
+        self.storage_profile_repo.create(&profile).await?;
+        Ok(profile)
     }
 
     async fn get_profile(&self, id: Uuid) -> Result<StorageProfile> {
@@ -68,8 +71,14 @@ impl ControlService for ControlServiceImpl {
     }
 
     async fn create_warehouse(&self, params: &WarehouseCreateRequest) -> Result<Warehouse> {
-        let _ = self.get_profile(params.storage_profile_id).await?;
-        self.warehouse_repo.create(params).await
+        // TODO: Check if storage profile exists
+        // - Check if its valid
+        // - Generate id, update created_at and updated_at
+        // - Try create Warehouse from WarehouseCreateRequest
+        let wh: Warehouse = params.try_into()?;
+        let _ = self.get_profile(wh.storage_profile_id).await?;
+        self.warehouse_repo.create(&wh).await?;
+        Ok(wh)
     }
 
     async fn get_warehouse(&self, id: Uuid) -> Result<Warehouse> {
@@ -87,14 +96,15 @@ impl ControlService for ControlServiceImpl {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::repository::InMemoryWarehouseRepository;
-    use crate::repository::InMemoryStorageProfileRepository;
-    use crate::models::{StorageProfileCreateRequest, Credentials, AwsAccessKeyCredential, CloudProvider};
     use crate::error::Error;
+    use crate::models::{
+        AwsAccessKeyCredential, CloudProvider, Credentials, StorageProfileCreateRequest,
+    };
+    use crate::repository::InMemoryStorageProfileRepository;
+    use crate::repository::InMemoryWarehouseRepository;
 
     #[tokio::test]
     async fn test_create_warehouse_failed_no_storage_profile() {
@@ -118,7 +128,7 @@ mod tests {
         let service = ControlServiceImpl::new(storage_repo, warehouse_repo);
 
         let request = StorageProfileCreateRequest {
-            cloud_provider: CloudProvider::AWS,
+            r#type: CloudProvider::AWS,
             region: "us-west-2".to_string(),
             bucket: "my-bucket".to_string(),
             credentials: Credentials::AccessKey(AwsAccessKeyCredential {
@@ -136,7 +146,10 @@ mod tests {
         };
 
         let wh = service.create_warehouse(&request).await.unwrap();
-        let result = service.delete_profile(wh.storage_profile_id).await.unwrap_err();
+        let result = service
+            .delete_profile(wh.storage_profile_id)
+            .await
+            .unwrap_err();
         assert!(matches!(result, Error::NotEmpty(_)));
     }
 }

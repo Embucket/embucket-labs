@@ -1,16 +1,22 @@
-use std::collections::HashMap;
-use uuid::Uuid;
+use crate::error::{Error, Result};
 use crate::models::{StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use async_trait::async_trait; // Required for async traits
+use serde::{de::DeserializeOwned, Serialize};
+use std::collections::HashMap;
 use std::sync::Mutex;
-use crate::error::{Result, Error};
+use uuid::Uuid;
 
+use utils::Db;
 
-// Define the trait with async methods
+const PROFILEPREFIX: &str = "sp";
+const WAREHOUSEPREFIX: &str = "wh";
+const PROFILES: &str = "sp.all";
+const WAREHOUSES: &str = "wh.all";
+
 #[async_trait]
 pub trait StorageProfileRepository: Send + Sync {
-    async fn create(&self, params: &StorageProfileCreateRequest) -> Result<StorageProfile>;
+    async fn create(&self, params: &StorageProfile) -> Result<()>;
     async fn get(&self, id: Uuid) -> Result<StorageProfile>;
     async fn delete(&self, id: Uuid) -> Result<()>;
     async fn list(&self) -> Result<Vec<StorageProfile>>;
@@ -18,10 +24,150 @@ pub trait StorageProfileRepository: Send + Sync {
 
 #[async_trait]
 pub trait WarehouseRepository: Send + Sync {
-    async fn create(&self, params: &WarehouseCreateRequest) -> Result<Warehouse>;
+    async fn create(&self, params: &Warehouse) -> Result<()>;
     async fn get(&self, id: Uuid) -> Result<Warehouse>;
     async fn delete(&self, id: Uuid) -> Result<()>;
     async fn list(&self) -> Result<Vec<Warehouse>>;
+}
+
+#[async_trait]
+pub trait Entity {
+    fn id(&self) -> Uuid;
+}
+
+#[async_trait]
+pub trait Repository {
+    type Entity: Entity + Serialize + DeserializeOwned + Send + Sync;
+    type CreateRequest: TryInto<Self::Entity, Error = Error> + Send + Sync;
+
+    fn db(&self) -> &Db;
+
+    async fn _create(&self, entity: &Self::Entity) -> Result<()> {
+        let key = format!("{}.{}", Self::prefix(), entity.id());
+        self.db().put(&key, &entity).await?;
+        self.db().append(Self::collection_key(), key).await?;
+        Ok(())
+    }
+
+    async fn _get(&self, id: Uuid) -> Result<Self::Entity> {
+        let key = format!("{}.{}", Self::prefix(), id);
+        let entity = self.db().get(&key).await?;
+        let entity = entity.ok_or(Error::ErrNotFound)?;
+        Ok(entity)
+    }
+
+    async fn _delete(&self, id: Uuid) -> Result<()> {
+        let key = format!("{}.{}", Self::prefix(), id);
+        self.db().delete(&key).await?;
+        self.db().remove(Self::collection_key(), &key).await?;
+        Ok(())
+    }
+
+    async fn _list(&self) -> Result<Vec<Self::Entity>> {
+        let keys = self.db().keys(Self::collection_key()).await?;
+        let futures = keys
+            .iter()
+            .map(|key| self.db().get(key))
+            .collect::<Vec<_>>();
+        let results = futures::future::try_join_all(futures).await?;
+        let entities = results.into_iter().flatten().collect::<Vec<Self::Entity>>();
+        Ok(entities)
+    }
+
+    fn prefix() -> &'static str;
+    fn collection_key() -> &'static str;
+}
+
+impl Entity for StorageProfile {
+    fn id(&self) -> Uuid {
+        self.id
+    }
+}
+
+impl Entity for Warehouse {
+    fn id(&self) -> Uuid {
+        self.id
+    }
+}
+
+pub struct StorageProfileRepositoryDb {
+    db: Db,
+}
+
+pub struct WarehouseRepositoryDb {
+    db: Db,
+}
+
+impl Repository for StorageProfileRepositoryDb {
+    type Entity = StorageProfile;
+    type CreateRequest = StorageProfileCreateRequest;
+
+    fn db(&self) -> &Db {
+        &self.db
+    }
+
+    fn prefix() -> &'static str {
+        PROFILEPREFIX
+    }
+
+    fn collection_key() -> &'static str {
+        PROFILES
+    }
+}
+
+#[async_trait]
+impl StorageProfileRepository for StorageProfileRepositoryDb {
+    async fn create(&self, entity: &StorageProfile) -> Result<()> {
+        Repository::_create(self, entity).await
+    }
+
+    async fn get(&self, id: Uuid) -> Result<StorageProfile> {
+        Repository::_get(self, id).await
+    }
+
+    async fn delete(&self, id: Uuid) -> Result<()> {
+        Repository::_delete(self, id).await
+    }
+
+    async fn list(&self) -> Result<Vec<StorageProfile>> {
+        Repository::_list(self).await
+    }
+}
+
+impl Repository for WarehouseRepositoryDb {
+    type Entity = Warehouse;
+    type CreateRequest = WarehouseCreateRequest;
+
+    fn db(&self) -> &Db {
+        &self.db
+    }
+
+    fn prefix() -> &'static str {
+        WAREHOUSEPREFIX
+    }
+
+    fn collection_key() -> &'static str {
+        WAREHOUSES
+    }
+}
+
+#[async_trait]
+impl WarehouseRepository for WarehouseRepositoryDb {
+    async fn create(&self, entity: &Warehouse) -> Result<()> {
+        Repository::_create(self, entity).await
+    }
+
+    async fn get(&self, id: Uuid) -> Result<Warehouse> {
+        Repository::_get(self, id).await
+    }
+
+    async fn delete(&self, id: Uuid) -> Result<()> {
+        Repository::_delete(self, id).await
+    }
+
+    async fn list(&self) -> Result<Vec<Warehouse>> {
+        Repository::_list(self).await
+    }
 }
 
 // In-memory repository using a mutex for safe shared access
@@ -30,22 +176,12 @@ pub struct InMemoryStorageProfileRepository {
     profiles: Mutex<HashMap<Uuid, StorageProfile>>,
 }
 
-#[derive(Debug, Default)]
-pub struct InMemoryWarehouseRepository {
-    warehouses: Mutex<HashMap<Uuid, Warehouse>>,
-}
-
-
 #[async_trait]
 impl StorageProfileRepository for InMemoryStorageProfileRepository {
-    async fn create(&self, params: &StorageProfileCreateRequest) -> Result<StorageProfile> {
+    async fn create(&self, profile: &StorageProfile) -> Result<()> {
         let mut profiles = self.profiles.lock().unwrap();
-        // Ideally, we would validate the input here (or earlier in the stack)
-        // Ideally, we couldn't create invalid profiles, perhaps by using a builder pattern
-        // or with TryFrom/TryInto traits
-        let profile = StorageProfile::try_from(params)?;
         profiles.insert(profile.id, profile.clone());
-        Ok(profile)
+        Ok(())
     }
 
     async fn get(&self, id: Uuid) -> Result<StorageProfile> {
@@ -68,11 +204,10 @@ impl StorageProfileRepository for InMemoryStorageProfileRepository {
 
 #[async_trait]
 impl WarehouseRepository for InMemoryWarehouseRepository {
-    async fn create(&self, params: &WarehouseCreateRequest) -> Result<Warehouse> {
+    async fn create(&self, warehouse: &Warehouse) -> Result<()> {
         let mut warehouses = self.warehouses.lock().unwrap();
-        let warehouse = Warehouse::try_from(params)?;
         warehouses.insert(warehouse.id, warehouse.clone());
-        Ok(warehouse)
+        Ok(())
     }
 
     async fn get(&self, id: Uuid) -> Result<Warehouse> {
@@ -93,14 +228,26 @@ impl WarehouseRepository for InMemoryWarehouseRepository {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct InMemoryWarehouseRepository {
+    warehouses: Mutex<HashMap<Uuid, Warehouse>>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{CloudProvider, Credentials, AwsAccessKeyCredential};
+    use crate::models::{AwsAccessKeyCredential, CloudProvider, Credentials};
+    use object_store::memory::InMemory;
+    use object_store::path::Path;
+    use object_store::ObjectStore;
+    use slatedb::config::DbOptions;
+    use slatedb::db::Db as SlateDb;
+    use std::sync::Arc;
 
-    fn create_dummy_profile() -> StorageProfileCreateRequest {
-        StorageProfileCreateRequest {
-            cloud_provider: CloudProvider::AWS,
+    fn create_dummy_profile() -> StorageProfile {
+        StorageProfile {
+            id: Uuid::new_v4(),
+            r#type: CloudProvider::AWS,
             region: "us-east-1".to_string(),
             bucket: "test-bucket".to_string(),
             credentials: Credentials::AccessKey(AwsAccessKeyCredential {
@@ -109,92 +256,88 @@ mod tests {
             }),
             sts_role_arn: None,
             endpoint: None,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
         }
     }
 
     #[tokio::test]
-    async fn test_create_and_get_profile() {
-        let repo = InMemoryStorageProfileRepository::default();
-        let profile = create_dummy_profile();
-        let profile = repo.create(&profile).await.unwrap();
-        repo.get(profile.id).await.unwrap();
-    }
+    async fn test_storage_profile_db() {
+        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+        let options = DbOptions::default();
+        let db = Db::new(
+            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
+                .await
+                .unwrap(),
+        );
 
-    #[tokio::test]
-    async fn test_delete_profile() {
-        let repo = InMemoryStorageProfileRepository::default();
-        let profile = create_dummy_profile();
-        let profile = repo.create(&profile).await.unwrap();
-        let id = profile.id;
-        repo.delete(profile.id).await.unwrap();
+        let repo = StorageProfileRepositoryDb { db };
 
-        assert_eq!(repo.get(id).await.unwrap_err(), Error::ErrNotFound);
-    }
+        let profile_1 = create_dummy_profile();
+        repo.create(&profile_1)
+            .await
+            .expect("failed to create profile");
+        let profile_2 = create_dummy_profile();
+        repo.create(&profile_2)
+            .await
+            .expect("failed to create profile");
 
-    #[tokio::test]
-    async fn test_list_profiles() {
-        let repo = InMemoryStorageProfileRepository::default();
+        let profiles = repo.list().await.expect("failed to list profiles");
 
-        let profile1 = create_dummy_profile();
-        let profile2 = create_dummy_profile();
-
-        // Create profiles
-        repo.create(&profile1).await.unwrap();
-        repo.create(&profile2).await.unwrap();
-
-        // List profiles
-        let profiles = repo.list().await.unwrap();
         assert_eq!(profiles.len(), 2);
+        assert_eq!(profiles[0].id, profile_1.id);
+        assert_eq!(profiles[1].id, profile_2.id);
+
+        repo.delete(profile_1.id)
+            .await
+            .expect("failed to delete profile");
+
+        let profiles = repo.list().await.expect("failed to list profiles");
+        assert_eq!(profiles.len(), 1);
     }
 
     #[tokio::test]
-    async fn test_create_and_get_warehouse() {
-        let repo = InMemoryWarehouseRepository::default();
-        let warehouse = WarehouseCreateRequest {
+    async fn test_warehouse_db() {
+        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+        let options = DbOptions::default();
+        let db = Db::new(
+            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
+                .await
+                .unwrap(),
+        );
+
+        let repo = WarehouseRepositoryDb { db };
+
+        let warehouse = Warehouse {
+            id: Uuid::new_v4(),
             name: "test-warehouse".to_string(),
             storage_profile_id: Uuid::new_v4(),
             prefix: "test-prefix".to_string(),
-        };
-        let warehouse = repo.create(&warehouse).await.unwrap();
-        repo.get(warehouse.id).await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_delete_warehouse() {
-        let repo = InMemoryWarehouseRepository::default();
-        let warehouse = WarehouseCreateRequest {
-            name: "test-warehouse".to_string(),
-            storage_profile_id: Uuid::new_v4(),
-            prefix: "test-prefix".to_string(),
-        };
-        let warehouse = repo.create(&warehouse).await.unwrap();
-        let id = warehouse.id;
-        repo.delete(warehouse.id).await.unwrap();
-
-        assert_eq!(repo.get(id).await.unwrap_err(), Error::ErrNotFound);
-    }
-
-    #[tokio::test]
-    async fn test_list_warehouses() {
-        let repo = InMemoryWarehouseRepository::default();
-
-        let warehouse1 = WarehouseCreateRequest {
-            name: "test-warehouse1".to_string(),
-            storage_profile_id: Uuid::new_v4(),
-            prefix: "test-prefix".to_string(),
-        };
-        let warehouse2 = WarehouseCreateRequest {
-            name: "test-warehouse2".to_string(),
-            storage_profile_id: Uuid::new_v4(),
-            prefix: "test-prefix".to_string(),
+            location: "test-location".to_string(),
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
         };
 
-        // Create warehouses
-        repo.create(&warehouse1).await.unwrap();
-        repo.create(&warehouse2).await.unwrap();
+        let wh1 = warehouse.clone();
+        repo.create(&wh1).await.expect("failed to create warehouse");
+        let wh2 = {
+            let mut wh = warehouse.clone();
+            wh.id = Uuid::new_v4();
+            wh
+        };
+        repo.create(&wh2).await.expect("failed to create warehouse");
 
-        // List warehouses
-        let warehouses = repo.list().await.unwrap();
+        let warehouses = repo.list().await.expect("failed to list warehouses");
+
         assert_eq!(warehouses.len(), 2);
+        assert_eq!(warehouses[0].id, wh1.id);
+        assert_eq!(warehouses[1].id, wh2.id);
+
+        repo.delete(wh1.id)
+            .await
+            .expect("failed to delete warehouse");
+
+        let warehouses = repo.list().await.expect("failed to list warehouses");
+        assert_eq!(warehouses.len(), 1);
     }
 }

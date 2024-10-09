@@ -1,10 +1,11 @@
-use chrono::{NaiveDateTime, Utc};
-use uuid::Uuid;
-use std::convert::TryFrom;
 use crate::error::Error;
+use chrono::{NaiveDateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
+use uuid::Uuid;
 
 // Enum for supported cloud providers
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CloudProvider {
     AWS,
     AZURE,
@@ -12,31 +13,38 @@ pub enum CloudProvider {
 }
 
 // AWS Access Key Credentials
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub struct AwsAccessKeyCredential {
     pub aws_access_key_id: String,
-    pub aws_secret_access_key: String,  // Business model may not use SecretStr, it's presentation-specific
+    pub aws_secret_access_key: String,
 }
 
 // AWS Role Credentials
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub struct AwsRoleCredential {
     pub role_arn: String,
     pub external_id: String,
 }
 
 // Composite enum for credentials
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[serde(tag = "credential_type")] // Enables tagged union based on credential type
+#[serde(rename_all = "kebab-case")]
 pub enum Credentials {
+    #[serde(rename = "access_key")]
     AccessKey(AwsAccessKeyCredential),
+
+    #[serde(rename = "role")]
     Role(AwsRoleCredential),
 }
 
-// Core StorageProfile structure in the business model
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub struct StorageProfile {
     pub id: Uuid,
-    pub cloud_provider: CloudProvider,
+    pub r#type: CloudProvider,
     pub region: String,
     pub bucket: String,
     pub credentials: Credentials,
@@ -46,9 +54,11 @@ pub struct StorageProfile {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
 pub struct StorageProfileCreateRequest {
-    pub cloud_provider: CloudProvider,
+    #[serde(rename = "type")]
+    pub r#type: CloudProvider,
     pub region: String,
     pub bucket: String,
     pub credentials: Credentials,
@@ -61,7 +71,7 @@ impl TryFrom<&StorageProfileCreateRequest> for StorageProfile {
 
     fn try_from(value: &StorageProfileCreateRequest) -> Result<Self, Self::Error> {
         StorageProfile::new(
-            value.cloud_provider,
+            value.r#type,
             value.region.clone(),
             value.bucket.clone(),
             value.credentials.clone(),
@@ -76,7 +86,7 @@ impl TryFrom<StorageProfileCreateRequest> for StorageProfile {
 
     fn try_from(value: StorageProfileCreateRequest) -> Result<Self, Self::Error> {
         StorageProfile::new(
-            value.cloud_provider,
+            value.r#type,
             value.region,
             value.bucket,
             value.credentials,
@@ -87,7 +97,6 @@ impl TryFrom<StorageProfileCreateRequest> for StorageProfile {
 }
 
 impl StorageProfile {
-
     // Method to create a new StorageProfile with validation
     pub fn new(
         cloud_provider: CloudProvider,
@@ -99,19 +108,33 @@ impl StorageProfile {
     ) -> Result<Self, Error> {
         // Example validation: Ensure bucket name length
         if bucket.len() < 6 || bucket.len() > 63 {
-            return Err(Error::InvalidInput("Bucket name must be between 6 and 63 characters".to_owned()));
+            return Err(Error::InvalidInput(
+                "Bucket name must be between 6 and 63 characters".to_owned(),
+            ));
         }
-        if !bucket.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
-            return Err(Error::InvalidInput("Bucket name must only contain alphanumeric characters, hyphens, or underscores".to_owned()));
+        if !bucket
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(Error::InvalidInput(
+                "Bucket name must only contain alphanumeric characters, hyphens, or underscores"
+                    .to_owned(),
+            ));
         }
-        if bucket.starts_with('-') || bucket.starts_with('_') || bucket.ends_with('-') || bucket.ends_with('_') {
-            return Err(Error::InvalidInput("Bucket name must not start or end with a hyphen or underscore".to_owned()));
+        if bucket.starts_with('-')
+            || bucket.starts_with('_')
+            || bucket.ends_with('-')
+            || bucket.ends_with('_')
+        {
+            return Err(Error::InvalidInput(
+                "Bucket name must not start or end with a hyphen or underscore".to_owned(),
+            ));
         }
-        
+
         let now = Utc::now().naive_utc();
         Ok(Self {
             id: Uuid::new_v4(),
-            cloud_provider,
+            r#type: cloud_provider,
             region,
             bucket,
             credentials,
@@ -136,14 +159,17 @@ impl StorageProfile {
     }
 }
 
-
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct WarehouseCreateRequest {
     pub prefix: String,
     pub name: String,
     pub storage_profile_id: Uuid,
 }
-#[derive(Debug, Clone)]
-pub struct Warehouse { 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Warehouse {
     pub id: Uuid,
     pub prefix: String,
     pub name: String,
