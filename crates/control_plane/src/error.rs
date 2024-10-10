@@ -20,6 +20,7 @@ impl From<utils::Error> for Error {
             utils::Error::DbError(e) => Error::InvalidInput(e.to_string()),
             utils::Error::SerializeError(e) => Error::InvalidInput(e.to_string()),
             utils::Error::DeserializeError(e) => Error::InvalidInput(e.to_string()),
+            utils::Error::ErrNotFound => Error::ErrNotFound,
         }
     }
 }

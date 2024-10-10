@@ -6,7 +6,7 @@ pub mod warehouses;
 use crate::http::control::schemas::Config;
 use axum::{extract::Path, extract::State, Json};
 use axum_macros::debug_handler;
-use catalog::service::{Catalog, CatalogService};
+use catalog::service::{Catalog, CatalogImpl};
 use std::result::Result;
 use uuid::Uuid;
 
@@ -19,7 +19,7 @@ pub async fn get_config(
     Path(id): Path<Uuid>,
 ) -> Result<Json<Config>, AppError> {
     let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = CatalogService::new(state.catalog_repo.clone(), wh);
+    let catalog = CatalogImpl::new(state.catalog_repo.clone(), wh);
     let config = catalog.get_config().await?;
 
     Ok(Json(config.into()))

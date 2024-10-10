@@ -1,4 +1,4 @@
-use catalog::repository::InMemoryCatalogRepository;
+use catalog::repository::CatalogRepository;
 use control_plane::repository::InMemoryStorageProfileRepository;
 use control_plane::repository::InMemoryWarehouseRepository;
 use control_plane::service::{ControlService, ControlServiceImpl};
@@ -7,6 +7,10 @@ use std::sync::Arc;
 pub mod http {
     pub mod router;
     pub mod control {
+        pub mod handlers;
+        pub mod schemas;
+    }
+    pub mod catalog {
         pub mod handlers;
         pub mod schemas;
     }
@@ -23,14 +27,10 @@ async fn main() {
         ControlServiceImpl::new(storage_profile_repo, warehouse_repo)
     };
 
-    let catalog_svc = {
-        let file_io = iceberg::io::FileIOBuilder::new_fs_io().build().unwrap();
-        let warehouse_location = "/tmp/warehouse";
-        InMemoryCatalogRepository::new(file_io, Some(warehouse_location.to_string()))
-    };
+    let catalog_repo = {};
 
     // Create the application state
-    let app_state = state::AppState::new(Arc::new(control_svc), Arc::new(catalog_svc));
+    let app_state = state::AppState::new(Arc::new(control_svc), Arc::new(catalog_repo));
 
     // Create the application router and pass the state
     let app = http::router::create_app(app_state);

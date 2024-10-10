@@ -6,7 +6,8 @@ use utoipa::OpenApi;
 use uuid::Uuid;
 
 use catalog::repository::Repository;
-use catalog::service::{Catalog, CatalogService};
+use catalog::service::{Catalog as CatalogExt, CatalogImpl};
+use iceberg::Catalog;
 
 use crate::error::AppError;
 use crate::http::control::schemas::tables::{CreateTableSchema, TableSchema};
@@ -35,7 +36,7 @@ pub async fn create_table(
     Json(payload): Json<CreateTableSchema>,
 ) -> Result<Json<TableSchema>, AppError> {
     let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = CatalogService::new(state.catalog_repo.clone(), wh);
+    let catalog = CatalogImpl::new(state.catalog_repo.clone(), wh);
     let namespace_id = NamespaceIdent::new(namespace_id);
     let table = catalog.create_table(&namespace_id, payload.into()).await?;
 
@@ -59,7 +60,7 @@ pub async fn get_table(
     Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
 ) -> Result<Json<TableSchema>, AppError> {
     let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = CatalogService::new(state.catalog_repo.clone(), wh);
+    let catalog = CatalogImpl::new(state.catalog_repo.clone(), wh);
     let namespace_id = NamespaceIdent::new(namespace_id);
     let table_id = TableIdent::new(namespace_id, table_id);
     let table = catalog.load_table(&table_id).await?;

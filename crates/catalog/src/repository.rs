@@ -1,25 +1,13 @@
 use async_trait::async_trait;
-use iceberg::io::FileIOBuilder;
-use iceberg::spec::{TableMetadata, TableMetadataBuilder};
-use iceberg::table::StaticTable;
-use iceberg::ErrorKind;
-use serde_json::de;
-use serde_json::ser;
-use std::fmt::Formatter;
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
-use std::{collections::HashMap, fmt::Debug};
+use uuid::Uuid;
 
-use iceberg::{
-    table::Table, Error, Namespace, NamespaceIdent, Result, TableCommit as TableCommitOld,
-    TableCreation, TableIdent, TableRequirement, TableUpdate,
-};
-
-pub use iceberg::Catalog;
-pub use iceberg_catalog_memory::MemoryCatalog as InMemoryCatalogRepository;
-
-use crate::models::TableCommit;
-use control_plane::models::Warehouse;
 use utils::Db;
+use utils::{Entity, Repository};
+
+use crate::error::Result;
+use crate::models::{Database, DatabaseIdent, Table, TableIdent, WarehouseIdent};
 
 const DBPREFIX: &str = "db";
 const SEP: &str = "\u{001f}";
@@ -27,382 +15,138 @@ const TBLPREFIX: &str = "tbl";
 const ALL: &str = "all";
 
 #[async_trait]
-pub trait Repository: Catalog {
-    async fn update_table_ext(&self, commit: TableCommit) -> Result<Table>;
+pub trait TableRepository: Send + Sync {
+    async fn put(&self, params: &Table) -> Result<()>;
+    async fn get(&self, id: &TableIdent) -> Result<Table>;
+    async fn delete(&self, id: &TableIdent) -> Result<()>;
+    async fn list(&self, db: &DatabaseIdent) -> Result<Vec<Table>>;
 }
 
-pub struct DbRepository {
+#[async_trait]
+pub trait DatabaseRepository: Send + Sync {
+    async fn put(&self, params: &Database) -> Result<()>;
+    async fn get(&self, id: &DatabaseIdent) -> Result<Database>;
+    async fn delete(&self, id: &DatabaseIdent) -> Result<()>;
+    async fn list(&self, wh: &WarehouseIdent) -> Result<Vec<Database>>;
+}
+
+pub struct TableRepositoryDb {
     db: Arc<Db>,
-    warehouse: Warehouse,
 }
 
-// Repository trait requires Debug trait
-impl Debug for DbRepository {
+impl TableRepositoryDb {
+    pub fn new(db: Arc<Db>) -> Self {
+        Self { db }
+    }
+}
+
+impl Display for TableIdent {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DbRepository")
+        write!(f, "{}.{}", self.database, self.table)
     }
 }
 
-impl DbRepository {
-    pub fn new(db: Arc<Db>, warehouse: Warehouse) -> Self {
-        Self { db, warehouse }
+impl Display for DatabaseIdent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.warehouse, self.namespace.to_url_string())
     }
 }
 
-#[async_trait]
-impl Catalog for DbRepository {
-    async fn list_namespaces(
-        &self,
-        _parent: Option<&NamespaceIdent>,
-    ) -> Result<Vec<NamespaceIdent>> {
-        let warehouse = self.warehouse.id;
-        let key = format!("{DBPREFIX}.{warehouse}.{ALL}");
-
-        let keys = self.db.keys(&key).await?;
-
-        Ok(keys
-            .into_iter()
-            .map(|s| NamespaceIdent::from_strs(s.split(SEP).collect::<Vec<_>>()))
-            .collect::<Result<Vec<NamespaceIdent>>>()?)
-    }
-
-    async fn create_namespace(
-        &self,
-        namespace: &NamespaceIdent,
-        properties: HashMap<String, String>,
-    ) -> Result<Namespace> {
-        let warehouse = self.warehouse.id;
-        let name = namespace.to_url_string();
-        let key = format!("{DBPREFIX}.{warehouse}.{name}");
-
-        self.db.put(&key, &properties).await?;
-
-        self.db
-            .append(&format!("{DBPREFIX}.{warehouse}.{ALL}"), name)
-            .await?;
-
-        Ok(Namespace::with_properties(namespace.clone(), properties))
-    }
-
-    async fn get_namespace(&self, namespace: &NamespaceIdent) -> Result<Namespace> {
-        let warehouse = self.warehouse.id;
-        let name = namespace.to_url_string();
-        let key = format!("{DBPREFIX}.{warehouse}.{name}");
-
-        let properties = self.db.get(&key).await?;
-        let properties =
-            properties.ok_or_else(|| Error::new(ErrorKind::DataInvalid, "namespace not found"))?;
-
-        Ok(Namespace::with_properties(namespace.clone(), properties))
-    }
-
-    async fn namespace_exists(&self, namespace: &NamespaceIdent) -> Result<bool> {
-        self.get_namespace(namespace).await.map(|_| true)
-    }
-
-    async fn update_namespace(
-        &self,
-        _namespace: &NamespaceIdent,
-        _properties: HashMap<String, String>,
-    ) -> Result<()> {
-        Err(Error::new(
-            ErrorKind::FeatureUnsupported,
-            "update namespace is not supported",
-        ))
-    }
-
-    async fn drop_namespace(&self, namespace: &NamespaceIdent) -> Result<()> {
-        let warehouse = self.warehouse.id;
-        let name = namespace.to_url_string();
-        let key = format!("{DBPREFIX}.{warehouse}.{name}");
-        _ = self.db.delete(&key).await;
-
-        self.db
-            .remove(&format!("{DBPREFIX}.{warehouse}.{ALL}"), &name)
-            .await?;
-
-        Ok(())
-    }
-
-    async fn list_tables(&self, namespace: &NamespaceIdent) -> Result<Vec<TableIdent>> {
-        let warehouse = self.warehouse.id;
-        let database = namespace.to_url_string();
-        let key = format!("{TBLPREFIX}.{warehouse}.{database}.{ALL}");
-
-        let keys = self.db.keys(&key).await?;
-
-        Ok(keys
-            .into_iter()
-            .map(|s| TableIdent {
-                namespace: namespace.clone(),
-                name: s.to_string(),
-            })
-            .collect())
-    }
-
-    async fn create_table(
-        &self,
-        namespace: &NamespaceIdent,
-        creation: TableCreation,
-    ) -> Result<Table> {
-        let name = creation.name.to_string();
-        let metadata = TableMetadataBuilder::from_table_creation(creation)
-            .map_err(|e| {
-                Error::new(ErrorKind::Unexpected, "failed to build table metadata").with_source(e)
-            })?
-            .build()
-            .map_err(|e| {
-                Error::new(ErrorKind::Unexpected, "failed to build table metadata").with_source(e)
-            })?
-            .metadata;
-
-        let warehouse = self.warehouse.id;
-        let database = namespace.to_url_string();
-        let key = format!("{TBLPREFIX}.{warehouse}.{database}.{name}");
-
-        self.db.put(&key, &metadata).await?;
-
-        self.db
-            .append(
-                &format!("{TBLPREFIX}.{warehouse}.{database}.{ALL}"),
-                name.clone(),
-            )
-            .await?;
-
-        // TODO: update file io to match actual storage
-        // i.e. FileIOBuilder::new(warehouse.location)
-        let file_io = FileIOBuilder::new_fs_io().build().map_err(|e| {
-            Error::new(ErrorKind::Unexpected, "failed to build file io").with_source(e)
-        })?;
-
-        let table = StaticTable::from_metadata(
-            metadata,
-            TableIdent {
-                namespace: namespace.clone(),
-                name,
-            },
-            file_io,
-        )
-        .await?
-        .into_table();
-        Ok(table)
-    }
-
-    async fn load_table(&self, table: &TableIdent) -> Result<Table> {
-        let warehouse = self.warehouse.id;
-        let database = table.namespace.to_url_string();
-        let tblname = table.name.as_str();
-        let key = format!("{TBLPREFIX}.{warehouse}.{database}.{tblname}");
-
-        let metadata = self.db.get(&key).await?;
-        let metadata =
-            metadata.ok_or_else(|| Error::new(ErrorKind::DataInvalid, "table not found"))?;
-
-        let file_io = FileIOBuilder::new_fs_io().build().map_err(|e| {
-            Error::new(ErrorKind::Unexpected, "failed to build file io").with_source(e)
-        })?;
-        let table = StaticTable::from_metadata(
-            metadata,
-            TableIdent {
-                namespace: table.namespace.clone(),
-                name: table.name.clone(),
-            },
-            file_io,
-        )
-        .await?
-        .into_table();
-        Ok(table)
-    }
-
-    async fn drop_table(&self, table: &TableIdent) -> Result<()> {
-        let warehouse = self.warehouse.id;
-        let database = table.namespace.to_url_string();
-        let tblname = table.name.as_str();
-        let key = format!("{TBLPREFIX}.{warehouse}.{database}.{tblname}");
-        _ = self.db.delete(&key).await;
-
-        // Update special key all value
-        let key = format!("{TBLPREFIX}.{warehouse}.{database}.{ALL}");
-        self.db.remove(&key, tblname).await?;
-
-        Ok(())
-    }
-
-    async fn table_exists(&self, table: &TableIdent) -> Result<bool> {
-        self.load_table(table).await.map(|_| true)
-    }
-
-    async fn rename_table(&self, _src: &TableIdent, _dest: &TableIdent) -> Result<()> {
-        Err(Error::new(
-            ErrorKind::FeatureUnsupported,
-            "rename table is not supported",
-        ))
-    }
-
-    async fn update_table(&self, _commit: TableCommitOld) -> Result<Table> {
-        Err(Error::new(
-            ErrorKind::FeatureUnsupported,
-            "update table is not supported",
-        ))
+impl Display for WarehouseIdent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.id())
     }
 }
 
 #[async_trait]
-impl Repository for DbRepository {
-    async fn update_table_ext(&self, commit: TableCommit) -> Result<Table> {
-        let warehouse = self.warehouse.id;
-        let database = commit.ident.namespace.to_url_string();
-        let tblname = commit.ident.name.as_str();
-        let key = format!("{TBLPREFIX}.{warehouse}.{database}.{tblname}");
-
-        let table = self.load_table(&commit.ident).await?;
-
-        let commit = commit;
-
-        commit
-            .requirements
-            .into_iter()
-            .map(TableRequirementExt::new)
-            .try_for_each(|req| req.assert(table.metadata(), true))?;
-
-        let (metadata, location) = (table.metadata().clone(), table.metadata_location());
-        let mut builder =
-            TableMetadataBuilder::new_from_metadata(metadata, location.map(Into::into));
-
-        for update in commit.updates {
-            builder = update.apply(builder).map_err(|e| {
-                Error::new(ErrorKind::DataInvalid, "failed to apply update").with_source(e)
-            })?;
-        }
-        let metadata = builder.build().map_err(|e| {
-            Error::new(ErrorKind::DataInvalid, "failed to build metadata").with_source(e)
-        })?;
-
-        self.db.put(&key, &metadata.metadata).await;
-
-        let table = StaticTable::from_metadata(
-            metadata.metadata,
-            TableIdent {
-                namespace: commit.ident.namespace.clone(),
-                name: commit.ident.name.clone(),
-            },
-            table.file_io().clone(),
-        )
-        .await?;
-
-        Ok(table.into_table())
-    }
-}
-
-pub struct TableRequirementExt(TableRequirement);
-
-impl From<TableRequirement> for TableRequirementExt {
-    fn from(requirement: TableRequirement) -> Self {
-        Self(requirement)
-    }
-}
-
-impl TableRequirementExt {
-    pub fn new(requirement: TableRequirement) -> Self {
-        Self(requirement)
-    }
-
-    fn inner(&self) -> &TableRequirement {
-        &self.0
-    }
-
-    fn assert(&self, metadata: &TableMetadata, exists: bool) -> Result<()> {
-        match self.inner() {
-            TableRequirement::NotExist => {
-                if exists {
-                    return Err(Error::new(ErrorKind::DataInvalid, "Table exists"));
-                }
-            }
-            TableRequirement::UuidMatch { uuid } => {
-                if &metadata.uuid() != uuid {
-                    return Err(Error::new(
-                        ErrorKind::DataInvalid,
-                        "Table uuid does not match",
-                    ));
-                }
-            }
-            TableRequirement::CurrentSchemaIdMatch { current_schema_id } => {
-                // ToDo: Harmonize the types of current_schema_id
-                if i64::from(metadata.current_schema_id) != *current_schema_id {
-                    return Err(Error::new(
-                        ErrorKind::DataInvalid,
-                        "Table current schema id does not match",
-                    ));
-                }
-            }
-            TableRequirement::DefaultSortOrderIdMatch {
-                default_sort_order_id,
-            } => {
-                if metadata.default_sort_order_id != *default_sort_order_id {
-                    return Err(Error::new(
-                        ErrorKind::DataInvalid,
-                        "Table default sort order id does not match",
-                    ));
-                }
-            }
-            TableRequirement::RefSnapshotIdMatch { r#ref, snapshot_id } => {
-                if let Some(snapshot_id) = snapshot_id {
-                    let snapshot_ref = metadata
-                        .refs
-                        .get(r#ref)
-                        .ok_or(Error::new(ErrorKind::DataInvalid, "Table ref not found"))?;
-                    if snapshot_ref.snapshot_id != *snapshot_id {
-                        return Err(Error::new(
-                            ErrorKind::DataInvalid,
-                            "Table ref snapshot id does not match",
-                        ));
-                    }
-                } else if metadata.refs.contains_key(r#ref) {
-                    return Err(Error::new(
-                        ErrorKind::DataInvalid,
-                        "Table ref snapshot id does not match",
-                    ));
-                }
-            }
-            TableRequirement::DefaultSpecIdMatch { default_spec_id } => {
-                // ToDo: Harmonize the types of default_spec_id
-                if i64::from(metadata.default_partition_spec_id()) != *default_spec_id {
-                    return Err(Error::new(
-                        ErrorKind::DataInvalid,
-                        "Table default spec id does not match",
-                    ));
-                }
-            }
-            TableRequirement::LastAssignedPartitionIdMatch {
-                last_assigned_partition_id,
-            } => {
-                if i64::from(metadata.last_partition_id) != *last_assigned_partition_id {
-                    return Err(Error::new(
-                        ErrorKind::DataInvalid,
-                        "Table last assigned partition id does not match",
-                    ));
-                }
-            }
-            TableRequirement::LastAssignedFieldIdMatch {
-                last_assigned_field_id,
-            } => {
-                // ToDo: Harmonize types
-                let last_column_id: i64 = metadata.last_column_id.into();
-                if &last_column_id != last_assigned_field_id {
-                    return Err(Error::new(
-                        ErrorKind::DataInvalid,
-                        "Table last assigned field id does not match",
-                    ));
-                }
-            }
-        };
+impl TableRepository for TableRepositoryDb {
+    async fn put(&self, params: &Table) -> Result<()> {
+        let key = format!("{TBLPREFIX}.{}", params.ident);
+        self.db.put(&key, &params).await?;
+        self.db
+            .append(&format!("{TBLPREFIX}.{}", params.ident.database), key)
+            .await?;
         Ok(())
     }
+
+    async fn get(&self, id: &TableIdent) -> Result<Table> {
+        let key = format!("{TBLPREFIX}.{id}");
+        let table = self.db.get(&key).await?;
+        let table = table.ok_or(crate::error::Error::ErrNotFound)?;
+        Ok(table)
+    }
+
+    async fn delete(&self, id: &TableIdent) -> Result<()> {
+        let key = format!("{TBLPREFIX}.{id}");
+        self.db.delete(&key).await?;
+        self.db
+            .remove(&format!("{TBLPREFIX}.{}", id.database), &key)
+            .await?;
+        Ok(())
+    }
+
+    async fn list(&self, db: &DatabaseIdent) -> Result<Vec<Table>> {
+        let key = &format!("{TBLPREFIX}.{db}");
+        let keys = self.db.keys(key).await?;
+        let futures = keys.iter().map(|key| self.db.get(key)).collect::<Vec<_>>();
+        let results = futures::future::try_join_all(futures).await?;
+        let entities = results.into_iter().flatten().collect::<Vec<_>>();
+        Ok(entities)
+    }
 }
 
+#[async_trait]
+impl DatabaseRepository for DatabaseRepositoryDb {
+    async fn put(&self, params: &Database) -> Result<()> {
+        let key = format!("{DBPREFIX}.{}", params.ident);
+        self.db.put(&key, &params).await?;
+        self.db
+            .append(&format!("{DBPREFIX}.{}", params.ident.warehouse), key)
+            .await?;
+        Ok(())
+    }
+
+    async fn get(&self, id: &DatabaseIdent) -> Result<Database> {
+        let key = format!("{DBPREFIX}.{id}");
+        let db = self.db.get(&key).await?;
+        let db = db.ok_or(crate::error::Error::ErrNotFound)?;
+        Ok(db)
+    }
+
+    async fn delete(&self, id: &DatabaseIdent) -> Result<()> {
+        let key = format!("{DBPREFIX}.{id}");
+        self.db.delete(&key).await?;
+        self.db
+            .remove(&format!("{DBPREFIX}.{}", id.warehouse), &key)
+            .await?;
+        Ok(())
+    }
+
+    async fn list(&self, wh: &WarehouseIdent) -> Result<Vec<Database>> {
+        let key = &format!("{DBPREFIX}.{wh}");
+        let keys = self.db.keys(key).await?;
+        let futures = keys.iter().map(|key| self.db.get(key)).collect::<Vec<_>>();
+        let results = futures::future::try_join_all(futures).await?;
+        let entities = results.into_iter().flatten().collect::<Vec<_>>();
+        Ok(entities)
+    }
+}
+
+pub struct DatabaseRepositoryDb {
+    db: Arc<Db>,
+}
+
+impl DatabaseRepositoryDb {
+    pub fn new(db: Arc<Db>) -> Self {
+        Self { db }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-    use iceberg::spec::{NestedField, PrimitiveType, Schema, Type};
+    use iceberg::spec::{NestedField, PrimitiveType, Schema, TableMetadata, Type};
+    use iceberg::NamespaceIdent;
     use object_store::{memory::InMemory, path::Path, ObjectStore};
     use slatedb::config::DbOptions;
     use slatedb::db::Db as SlateDb;
@@ -410,169 +154,76 @@ mod tests {
     use utils::Db;
     use uuid::Uuid;
 
-    #[tokio::test]
-    async fn test_namespace_create() {
-        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
-        let options = DbOptions::default();
-        let db = Db::new(
-            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
-                .await
-                .unwrap(),
-        );
-
-        let wh = Warehouse::new("test".to_string(), "test".to_string(), Uuid::new_v4())
-            .expect("warehouse creation failed");
-        let repo = DbRepository::new(Arc::new(db), wh);
-
-        let namespace = NamespaceIdent::new("test".into());
-        let mut properties = HashMap::new();
-        properties.insert("key1".to_string(), "value1".to_string());
-
-        let res = repo.create_namespace(&namespace, properties).await;
-        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
-
-        let res = repo.list_namespaces(None).await;
-        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
-
-        let res = res.unwrap();
-        assert_eq!(res.len(), 1);
-        assert_eq!(res[0], namespace);
-
-        let res = repo.get_namespace(&namespace).await;
-        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
-        assert_eq!(res.unwrap().properties().len(), 1);
-
-        let res = repo.drop_namespace(&namespace).await;
-        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
-
-        let res = repo.list_namespaces(None).await;
-        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
-        assert_eq!(res.unwrap().len(), 0);
-    }
-
-    async fn create_table(
-        repo: &DbRepository,
-        namespace: &NamespaceIdent,
-        name: Option<&str>,
-    ) -> Result<Table> {
-        let test_schema = Schema::builder()
-            .with_schema_id(1)
-            .with_identifier_field_ids(vec![2])
-            .with_fields(vec![
-                NestedField::optional(1, "foo", Type::Primitive(PrimitiveType::String)).into(),
-                NestedField::required(2, "bar", Type::Primitive(PrimitiveType::Int)).into(),
-                NestedField::optional(3, "baz", Type::Primitive(PrimitiveType::Boolean)).into(),
-            ])
-            .build()
-            .unwrap();
-        let name = name.unwrap_or("test_table");
-        let creation = TableCreation::builder()
-            .name(name.into())
-            .schema(test_schema)
-            .location("test_table".into())
-            .build();
-
-        repo.create_table(namespace, creation).await
-    }
-
-    #[tokio::test]
-    async fn test_table_create_and_drop() {
-        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
-        let options = DbOptions::default();
-        let db = Db::new(
-            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
-                .await
-                .unwrap(),
-        );
-
-        let wh = Warehouse::new("test".to_string(), "test".to_string(), Uuid::new_v4())
-            .expect("warehouse creation failed");
-        let repo = DbRepository::new(Arc::new(db), wh);
-
-        let res = create_table(
-            &repo,
-            &NamespaceIdent::new("test".into()),
-            Some(format!("test_table_{}", Uuid::new_v4()).as_str()),
-        )
-        .await;
-        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
-
-        let ident = res.as_ref().unwrap().identifier();
-        let res = repo.drop_table(ident).await;
-        assert!(res.is_ok(), "{}", res.unwrap_err());
-
-        let res = repo.list_tables(&NamespaceIdent::new("test".into())).await;
-        assert!(res.is_ok(), "{}", res.unwrap_err());
-
-        let res = res.unwrap();
-        assert_eq!(res.len(), 0);
-    }
-
-    #[tokio::test]
-    async fn test_table_create_get() {
-        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
-        let options = DbOptions::default();
-        let db = Db::new(
-            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
-                .await
-                .unwrap(),
-        );
-
-        let wh = Warehouse::new("test".to_string(), "test".to_string(), Uuid::new_v4())
-            .expect("warehouse creation failed");
-        let repo = DbRepository::new(Arc::new(db), wh);
-
-        for i in 0..2 {
-            let res = create_table(
-                &repo,
-                &NamespaceIdent::new("test".into()),
-                Some(format!("test_table_{i}").as_str()),
-            )
-            .await;
-            assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
-
-            let ident = res.as_ref().unwrap().identifier();
-            let res_load = repo.load_table(ident).await;
-            assert!(res_load.is_ok());
-
-            assert_eq!(res_load.unwrap().metadata(), res.unwrap().metadata());
-        }
-
-        let res = repo.list_tables(&NamespaceIdent::new("test".into())).await;
-        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
-
-        let res = res.unwrap();
-        assert_eq!(res.len(), 2);
-        assert_eq!(res[0].name(), "test_table_0");
-        assert_eq!(res[1].name(), "test_table_1");
-    }
-
-    #[tokio::test]
-    async fn test_update_table() {
-        let json = r#"
-{
-    "action": "add-sort-order",
-    "sort-order": {
-        "order-id": 1,
-        "fields": [
+    fn create_table_metadata() -> TableMetadata {
+        let data = r#"
             {
-                "transform": "identity",
-                "source-id": 3,
-                "direction": "asc",
-                "null-order": "nulls-first"
-            },
-            {
-                "transform": "bucket[4]",
-                "source-id": 2,
-                "direction": "desc",
-                "null-order": "nulls-last"
+                "format-version" : 2,
+                "table-uuid": "fb072c92-a02b-11e9-ae9c-1bb7bc9eca94",
+                "location": "s3://b/wh/data.db/table",
+                "last-sequence-number" : 1,
+                "last-updated-ms": 1515100955770,
+                "last-column-id": 1,
+                "schemas": [
+                    {
+                        "schema-id" : 1,
+                        "type" : "struct",
+                        "fields" :[
+                            {
+                                "id": 1,
+                                "name": "struct_name",
+                                "required": true,
+                                "type": "fixed[1]"
+                            },
+                            {
+                                "id": 4,
+                                "name": "ts",
+                                "required": true,
+                                "type": "timestamp"
+                            }
+                        ]
+                    }
+                ],
+                "current-schema-id" : 1,
+                "partition-specs": [
+                    {
+                        "spec-id": 0,
+                        "fields": [
+                            {
+                                "source-id": 4,
+                                "field-id": 1000,
+                                "name": "ts_day",
+                                "transform": "day"
+                            }
+                        ]
+                    }
+                ],
+                "default-spec-id": 0,
+                "last-partition-id": 1000,
+                "properties": {
+                    "commit.retry.num-retries": "1"
+                },
+                "metadata-log": [
+                    {
+                        "metadata-file": "s3://bucket/.../v1.json",
+                        "timestamp-ms": 1515100
+                    }
+                ],
+                "sort-orders": [
+                    {
+                    "order-id": 0,
+                    "fields": []
+                    }
+                ],
+                "default-sort-order-id": 0
             }
-        ]
-    }
-}
         "#;
-        let update: TableUpdate = serde_json::from_str(json).unwrap();
 
+        let metadata: TableMetadata = serde_json::from_str(data).expect("Failed to parse metadata");
+        metadata
+    }
+
+    #[tokio::test]
+    async fn test_table_repo() {
         let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
         let options = DbOptions::default();
         let db = Db::new(
@@ -581,42 +232,49 @@ mod tests {
                 .unwrap(),
         );
 
-        let wh = Warehouse::new("test".to_string(), "test".to_string(), Uuid::new_v4())
-            .expect("warehouse creation failed");
-        let repo = DbRepository::new(Arc::new(db), wh);
+        let repo = TableRepositoryDb::new(Arc::new(db));
 
-        let res = create_table(
-            &repo,
-            &NamespaceIdent::new("test".into()),
-            Some("test_table"),
-        )
-        .await;
-        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
-
-        let ident = res.as_ref().unwrap().identifier();
-        let id = res.as_ref().unwrap().metadata().table_uuid;
-        let commit = TableCommit {
-            ident: ident.clone(),
-            requirements: vec![TableRequirement::UuidMatch { uuid: id }],
-            updates: vec![update],
+        let table = Table {
+            ident: TableIdent {
+                database: DatabaseIdent {
+                    warehouse: WarehouseIdent::new(Uuid::new_v4()),
+                    namespace: NamespaceIdent::new("dbname".to_string()),
+                },
+                table: "tblname".to_string(),
+            },
+            metadata_location: "s3://bucket/path".to_string(),
+            metadata: create_table_metadata(),
         };
 
-        let res = repo.update_table_ext(commit).await;
-        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
+        repo.put(&table).await.expect("failed to create table");
+        let list = repo
+            .list(&table.ident.database)
+            .await
+            .expect("failed to list tables");
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].ident, table.ident);
 
-        let res_load = repo.load_table(ident).await;
-        assert!(res_load.is_ok(), "{}", res_load.unwrap_err().to_string());
+        // Check no extra tables
+        let list = repo
+            .list(&DatabaseIdent {
+                warehouse: WarehouseIdent::new(Uuid::default()),
+                namespace: NamespaceIdent::new("dbname".to_string()),
+            })
+            .await
+            .expect("failed to list tables");
+        assert_eq!(list.len(), 0);
 
-        assert_eq!(
-            res_load
-                .unwrap()
-                .metadata()
-                .sort_orders
-                .get(&1)
-                .unwrap()
-                .fields
-                .len(),
-            2
-        );
+        let table_2 = repo.get(&table.ident).await.expect("failed to get table");
+        assert_eq!(table.ident, table_2.ident);
+
+        repo.delete(&table.ident)
+            .await
+            .expect("failed to delete table");
+
+        let list = repo
+            .list(&table.ident.database)
+            .await
+            .expect("failed to list tables");
+        assert_eq!(list.len(), 0);
     }
 }

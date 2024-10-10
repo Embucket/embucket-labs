@@ -8,6 +8,7 @@ use std::sync::Mutex;
 use uuid::Uuid;
 
 use utils::Db;
+use utils::{Entity, Repository};
 
 const PROFILEPREFIX: &str = "sp";
 const WAREHOUSEPREFIX: &str = "wh";
@@ -28,54 +29,6 @@ pub trait WarehouseRepository: Send + Sync {
     async fn get(&self, id: Uuid) -> Result<Warehouse>;
     async fn delete(&self, id: Uuid) -> Result<()>;
     async fn list(&self) -> Result<Vec<Warehouse>>;
-}
-
-#[async_trait]
-pub trait Entity {
-    fn id(&self) -> Uuid;
-}
-
-#[async_trait]
-pub trait Repository {
-    type Entity: Entity + Serialize + DeserializeOwned + Send + Sync;
-    type CreateRequest: TryInto<Self::Entity, Error = Error> + Send + Sync;
-
-    fn db(&self) -> &Db;
-
-    async fn _create(&self, entity: &Self::Entity) -> Result<()> {
-        let key = format!("{}.{}", Self::prefix(), entity.id());
-        self.db().put(&key, &entity).await?;
-        self.db().append(Self::collection_key(), key).await?;
-        Ok(())
-    }
-
-    async fn _get(&self, id: Uuid) -> Result<Self::Entity> {
-        let key = format!("{}.{}", Self::prefix(), id);
-        let entity = self.db().get(&key).await?;
-        let entity = entity.ok_or(Error::ErrNotFound)?;
-        Ok(entity)
-    }
-
-    async fn _delete(&self, id: Uuid) -> Result<()> {
-        let key = format!("{}.{}", Self::prefix(), id);
-        self.db().delete(&key).await?;
-        self.db().remove(Self::collection_key(), &key).await?;
-        Ok(())
-    }
-
-    async fn _list(&self) -> Result<Vec<Self::Entity>> {
-        let keys = self.db().keys(Self::collection_key()).await?;
-        let futures = keys
-            .iter()
-            .map(|key| self.db().get(key))
-            .collect::<Vec<_>>();
-        let results = futures::future::try_join_all(futures).await?;
-        let entities = results.into_iter().flatten().collect::<Vec<Self::Entity>>();
-        Ok(entities)
-    }
-
-    fn prefix() -> &'static str;
-    fn collection_key() -> &'static str;
 }
 
 impl Entity for StorageProfile {
@@ -100,7 +53,6 @@ pub struct WarehouseRepositoryDb {
 
 impl Repository for StorageProfileRepositoryDb {
     type Entity = StorageProfile;
-    type CreateRequest = StorageProfileCreateRequest;
 
     fn db(&self) -> &Db {
         &self.db
@@ -118,25 +70,24 @@ impl Repository for StorageProfileRepositoryDb {
 #[async_trait]
 impl StorageProfileRepository for StorageProfileRepositoryDb {
     async fn create(&self, entity: &StorageProfile) -> Result<()> {
-        Repository::_create(self, entity).await
+        Repository::_create(self, entity).await.map_err(Into::into)
     }
 
     async fn get(&self, id: Uuid) -> Result<StorageProfile> {
-        Repository::_get(self, id).await
+        Repository::_get(self, id).await.map_err(Into::into)
     }
 
     async fn delete(&self, id: Uuid) -> Result<()> {
-        Repository::_delete(self, id).await
+        Repository::_delete(self, id).await.map_err(Into::into)
     }
 
     async fn list(&self) -> Result<Vec<StorageProfile>> {
-        Repository::_list(self).await
+        Repository::_list(self).await.map_err(Into::into)
     }
 }
 
 impl Repository for WarehouseRepositoryDb {
     type Entity = Warehouse;
-    type CreateRequest = WarehouseCreateRequest;
 
     fn db(&self) -> &Db {
         &self.db
@@ -154,19 +105,19 @@ impl Repository for WarehouseRepositoryDb {
 #[async_trait]
 impl WarehouseRepository for WarehouseRepositoryDb {
     async fn create(&self, entity: &Warehouse) -> Result<()> {
-        Repository::_create(self, entity).await
+        Repository::_create(self, entity).await.map_err(Into::into)
     }
 
     async fn get(&self, id: Uuid) -> Result<Warehouse> {
-        Repository::_get(self, id).await
+        Repository::_get(self, id).await.map_err(Into::into)
     }
 
     async fn delete(&self, id: Uuid) -> Result<()> {
-        Repository::_delete(self, id).await
+        Repository::_delete(self, id).await.map_err(Into::into)
     }
 
     async fn list(&self) -> Result<Vec<Warehouse>> {
-        Repository::_list(self).await
+        Repository::_list(self).await.map_err(Into::into)
     }
 }
 

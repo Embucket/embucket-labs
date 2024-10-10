@@ -2,7 +2,7 @@ use iceberg::spec;
 use serde::{Deserialize, Serialize};
 use utoipa::{openapi::schema, ToSchema};
 
-use catalog::models::{PartitionSpec, Schema, SortOrder, TableCreation, TableMetadata};
+use catalog::models::{Schema, SortOrder, TableCreation, TableMetadata, UnboundPartitionSpec};
 
 // TODO: remove once this is defined in iceberg crate or made public in iceberg-catalog-rest
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
@@ -18,7 +18,7 @@ pub struct CreateTableSchema {
     pub name: String,
     pub location: Option<String>,
     pub schema: Schema,
-    pub partition_spec: Option<PartitionSpec>,
+    pub partition_spec: Option<UnboundPartitionSpec>,
     pub write_order: Option<SortOrder>,
     pub stage_create: Option<bool>,
     pub properties: Option<std::collections::HashMap<String, String>>,

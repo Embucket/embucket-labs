@@ -9,6 +9,7 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::http::catalog::router::create_router;
 use crate::http::control::handlers::get_config;
 use crate::http::control::handlers::namespaces::{
     create_namespace, delete_namespace, get_namespace, list_namespaces, NamespaceApi,
@@ -65,13 +66,14 @@ pub fn create_app(state: AppState) -> Router {
     if let Some(extra_spec) = load_openapi_spec() {
         spec = spec.merge_from(extra_spec);
     }
+    let catalog_router = create_router();
 
     Router::new()
-        .route("/catalog/v1/:id/config", get(get_config))
         .nest("/v1/storage-profile", sp_router)
         .nest("/v1/warehouse", wh_router)
         .nest("/v1/warehouse/:id/namespace", ns_router)
         .nest("/v1/warehouse/:id/namespace/:namespace_id/table", t_router)
+        .nest("/catalog", catalog_router)
         .merge(SwaggerUi::new("/").url("/openapi.yaml", spec))
         .with_state(state)
 }

@@ -163,7 +163,7 @@ impl From<models::StorageProfile> for StorageProfile {
     fn from(profile: models::StorageProfile) -> Self {
         StorageProfile {
             id: profile.id,
-            r#type: profile.cloud_provider.into(),
+            r#type: profile.r#type.into(),
             region: profile.region,
             bucket: profile.bucket,
             credentials: profile.credentials.into(),

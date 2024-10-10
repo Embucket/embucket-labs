@@ -1,7 +1,10 @@
+use async_trait::async_trait;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::de;
 use serde_json::ser;
 use slatedb::db::Db as SlateDb;
 use slatedb::error::SlateDBError;
+use uuid::Uuid;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -13,6 +16,9 @@ pub enum Error {
 
     #[error("Deserialize error: {0}")]
     DeserializeError(serde_json::Error),
+
+    #[error("Not found")]
+    ErrNotFound,
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -56,6 +62,7 @@ impl Db {
     }
 
     pub async fn append(&self, key: &str, value: String) -> Result<()> {
+        // TODO: check for uniqueness (use Set?)
         self.modify(key, |all_keys: &mut Vec<String>| {
             all_keys.push(value.clone());
         })
@@ -104,4 +111,53 @@ impl From<Error> for iceberg::Error {
     fn from(e: Error) -> Self {
         iceberg::Error::new(iceberg::ErrorKind::Unexpected, e.to_string()).with_source(e)
     }
+}
+
+const ALL: &str = "all";
+
+#[async_trait]
+pub trait Entity {
+    fn id(&self) -> Uuid;
+}
+
+#[async_trait]
+pub trait Repository {
+    type Entity: Entity + Serialize + DeserializeOwned + Send + Sync;
+
+    fn db(&self) -> &Db;
+
+    async fn _create(&self, entity: &Self::Entity) -> Result<()> {
+        let key = format!("{}.{}", Self::prefix(), entity.id());
+        self.db().put(&key, &entity).await?;
+        self.db().append(Self::collection_key(), key).await?;
+        Ok(())
+    }
+
+    async fn _get(&self, id: Uuid) -> Result<Self::Entity> {
+        let key = format!("{}.{}", Self::prefix(), id);
+        let entity = self.db().get(&key).await?;
+        let entity = entity.ok_or(Error::ErrNotFound)?;
+        Ok(entity)
+    }
+
+    async fn _delete(&self, id: Uuid) -> Result<()> {
+        let key = format!("{}.{}", Self::prefix(), id);
+        self.db().delete(&key).await?;
+        self.db().remove(Self::collection_key(), &key).await?;
+        Ok(())
+    }
+
+    async fn _list(&self) -> Result<Vec<Self::Entity>> {
+        let keys = self.db().keys(Self::collection_key()).await?;
+        let futures = keys
+            .iter()
+            .map(|key| self.db().get(key))
+            .collect::<Vec<_>>();
+        let results = futures::future::try_join_all(futures).await?;
+        let entities = results.into_iter().flatten().collect::<Vec<Self::Entity>>();
+        Ok(entities)
+    }
+
+    fn prefix() -> &'static str;
+    fn collection_key() -> &'static str;
 }
