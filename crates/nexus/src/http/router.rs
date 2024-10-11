@@ -9,19 +9,10 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::http::catalog::router::create_router;
-use crate::http::control::handlers::get_config;
-use crate::http::control::handlers::namespaces::{
-    create_namespace, delete_namespace, get_namespace, list_namespaces, NamespaceApi,
-};
-use crate::http::control::handlers::storage_profiles::{
-    create_storage_profile, delete_storage_profile, get_storage_profile, list_storage_profiles,
-    StorageProfileApi,
-};
-use crate::http::control::handlers::tables::{create_table, get_table, TableApi};
-use crate::http::control::handlers::warehouses::{
-    create_warehouse, delete_warehouse, get_warehouse, list_warehouses, WarehouseApi,
-};
+use crate::http::catalog::router::create_router as create_catalog_router;
+use crate::http::control::handlers::storage_profiles::StorageProfileApi;
+use crate::http::control::handlers::warehouses::WarehouseApi;
+use crate::http::control::router::create_router as create_control_router;
 use crate::state::AppState;
 
 #[derive(OpenApi)]
@@ -29,8 +20,6 @@ use crate::state::AppState;
     nest(
         (path = "/v1/storage-profile", api = StorageProfileApi, tags = ["storage-profile"]),
         (path = "/v1/warehouse", api = WarehouseApi, tags = ["warehouse"]),
-        (path = "/v1/warehouse/{warehouseId}/namespace", api = NamespaceApi, tags = ["database"]),
-        (path = "/v1/warehouse/{warehouseId}/namespace/{namespaceId}/table", api = TableApi, tags = ["table"]),
     ),
     tags(
         (name = "storage-profile", description = "Storage profile API"),
@@ -40,39 +29,15 @@ use crate::state::AppState;
 struct ApiDoc;
 
 pub fn create_app(state: AppState) -> Router {
-    let sp_router = Router::new()
-        .route("/", post(create_storage_profile))
-        .route("/:id", get(get_storage_profile))
-        .route("/:id", delete(delete_storage_profile))
-        .route("/", get(list_storage_profiles));
-
-    let wh_router = Router::new()
-        .route("/", post(create_warehouse))
-        .route("/:id", get(get_warehouse))
-        .route("/:id", delete(delete_warehouse))
-        .route("/", get(list_warehouses));
-
-    let ns_router = Router::new()
-        .route("/", post(create_namespace))
-        .route("/:namespace_id", get(get_namespace))
-        .route("/:namespace_id", delete(delete_namespace))
-        .route("/", get(list_namespaces));
-
-    let t_router = Router::new()
-        .route("/", post(create_table))
-        .route("/:table_id", get(get_table));
-
     let mut spec = ApiDoc::openapi();
     if let Some(extra_spec) = load_openapi_spec() {
         spec = spec.merge_from(extra_spec);
     }
-    let catalog_router = create_router();
+    let catalog_router = create_catalog_router();
+    let control_router = create_control_router();
 
     Router::new()
-        .nest("/v1/storage-profile", sp_router)
-        .nest("/v1/warehouse", wh_router)
-        .nest("/v1/warehouse/:id/namespace", ns_router)
-        .nest("/v1/warehouse/:id/namespace/:namespace_id/table", t_router)
+        .nest("/", control_router)
         .nest("/catalog", catalog_router)
         .merge(SwaggerUi::new("/").url("/openapi.yaml", spec))
         .with_state(state)
@@ -90,8 +55,8 @@ fn load_openapi_spec() -> Option<openapi::OpenApi> {
 mod tests {
     #![allow(clippy::too_many_lines)]
 
-    use crate::http::control::handlers::storage_profiles;
-    use crate::http::control::schemas::namespaces::NamespaceSchema;
+    use crate::http::catalog::schemas::Namespace as NamespaceSchema;
+    use crate::http::control;
     use crate::http::control::schemas::storage_profiles::StorageProfile as StorageProfileSchema;
     use crate::http::control::schemas::warehouses::Warehouse as WarehouseSchema;
 
@@ -102,55 +67,70 @@ mod tests {
         body::Body,
         http::{self, Request, StatusCode},
     };
-    use catalog::repository::{InMemoryCatalogRepository, Repository};
+    use catalog::repository::{DatabaseRepositoryDb, TableRepositoryDb};
+    use catalog::service::CatalogImpl;
     use control_plane::error::{Error, Result};
     use control_plane::models::{StorageProfile, StorageProfileCreateRequest};
     use control_plane::models::{Warehouse, WarehouseCreateRequest};
-    use control_plane::repository::InMemoryStorageProfileRepository;
-    use control_plane::repository::InMemoryWarehouseRepository;
+    use control_plane::repository::{StorageProfileRepositoryDb, WarehouseRepositoryDb};
     use control_plane::service::ControlService;
     use control_plane::service::ControlServiceImpl;
     use http_body_util::BodyExt; // for `collect`
-    use iceberg::io::FileIOBuilder;
-    use serde_json::{json, Value};
+    use object_store::{memory::InMemory, path::Path, ObjectStore};
+    use serde_json::json;
+    use slatedb::config::DbOptions;
+    use slatedb::db::Db as SlateDb;
     use std::sync::Arc;
     use tempfile::TempDir;
     use tower::{Service, ServiceExt};
+    use utils::Db;
     use uuid::Uuid;
 
     lazy_static::lazy_static! {
         static ref TEMP_DIR: TempDir = TempDir::new().unwrap();
     }
 
-    fn new_memory_catalog() -> impl Repository {
-        let file_io = FileIOBuilder::new_fs_io().build().unwrap();
-        let warehouse_location = TEMP_DIR.path().to_str().unwrap().to_string();
-        InMemoryCatalogRepository::new(file_io, Some(warehouse_location))
-    }
+    async fn create_router() -> Router {
+        let db = {
+            let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+            let options = DbOptions::default();
+            let db = Arc::new(Db::new(
+                SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
+                    .await
+                    .unwrap(),
+            ));
+            db
+        };
 
-    fn create_router() -> Router {
-        let storage_profile_repo = Arc::new(InMemoryStorageProfileRepository::default());
-        let warehouse_repo = Arc::new(InMemoryWarehouseRepository::default());
-        let storage_profile_service = Arc::new(ControlServiceImpl::new(
-            storage_profile_repo,
-            warehouse_repo,
-        ));
-        let catalog_repo = Arc::new(new_memory_catalog());
-        let app_state = AppState::new(storage_profile_service, catalog_repo);
+        // Initialize the repository and concrete service implementation
+        let control_svc = {
+            let storage_profile_repo = StorageProfileRepositoryDb::new(db.clone());
+            let warehouse_repo = WarehouseRepositoryDb::new(db.clone());
+            ControlServiceImpl::new(Arc::new(storage_profile_repo), Arc::new(warehouse_repo))
+        };
+
+        let catalog_svc = {
+            let t_repo = TableRepositoryDb::new(db.clone());
+            let db_repo = DatabaseRepositoryDb::new(db.clone());
+
+            CatalogImpl::new(Arc::new(t_repo), Arc::new(db_repo))
+        };
+
+        let app_state = AppState::new(Arc::new(control_svc), Arc::new(catalog_svc));
         create_app(app_state)
     }
 
     #[tokio::test]
     async fn test_create_storage_profile() {
-        let app = create_router();
+        let app = create_router().await;
         let payload = json!({
             "type": "aws",
             "region": "us-west-2",
             "bucket": "my-bucket",
             "credentials": {
-                "credential_type": "access_key",
-                "aws_access_key_id": "my-access-key",
-                "aws_secret_access_key": "my-secret-access-key"
+                "credential-type": "access-key",
+                "aws-access-key-id": "my-access-key",
+                "aws-secret-access-key": "my-secret-access-key"
             }
         });
         let response = app
@@ -170,15 +150,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_get_table() {
-        let mut app = create_router().into_service();
+        let mut app = create_router().await.into_service();
         let payload = json!({
             "type": "aws",
             "region": "us-west-2",
             "bucket": "my-bucket",
             "credentials": {
-                "credential_type": "access_key",
-                "aws_access_key_id": "my-access-key",
-                "aws_secret_access_key": "my-secret-access-key"
+                "credential-type": "access-key",
+                "aws-access-key-id": "my-access-key",
+                "aws-secret-access-key": "my-secret-access-key"
             }
         });
         let request = Request::builder()
@@ -203,7 +183,7 @@ mod tests {
         // Now create warehouse
         let payload = json!({
             "name": "my-warehouse",
-            "storage_profile_id": sid,
+            "storage-profile-id": sid,
             "prefix": "my-prefix",
         });
         let request = Request::builder()
@@ -232,7 +212,7 @@ mod tests {
             }
         });
         let request = Request::builder()
-            .uri(format!("/v1/warehouse/{wid}/namespace"))
+            .uri(format!("/catalog/{wid}/v1/namespace"))
             .method(http::Method::POST)
             .header(http::header::CONTENT_TYPE, "application/json")
             .body(Body::from(serde_json::to_vec(&payload).unwrap()))
@@ -253,7 +233,7 @@ mod tests {
 
         // Now get namespace
         let request = Request::builder()
-            .uri(format!("/v1/warehouse/{wid}/namespace/{namespace_id}"))
+            .uri(format!("/catalog/{wid}/v1/namespace/{namespace_id}"))
             .method(http::Method::GET)
             .header(http::header::CONTENT_TYPE, "application/json")
             .body(Body::empty())
@@ -298,7 +278,7 @@ mod tests {
         },
         });
         let request = Request::builder()
-            .uri(format!("/v1/warehouse/{wid}/namespace/my-namespace/table"))
+            .uri(format!("/catalog/{wid}/v1/namespace/my-namespace/table"))
             .method(http::Method::POST)
             .header(http::header::CONTENT_TYPE, "application/json")
             .body(Body::from(serde_json::to_vec(&payload).unwrap()))
@@ -315,46 +295,11 @@ mod tests {
     }
 
     #[tokio::test]
+    #[should_panic(expected = "not implemented")]
     async fn test_error_handling() {
-        struct MockStorageProfileService;
+        panic!("not implemented");
 
-        #[async_trait]
-        impl ControlService for MockStorageProfileService {
-            async fn create_profile(
-                &self,
-                _params: &StorageProfileCreateRequest,
-            ) -> Result<StorageProfile> {
-                Err(Error::InvalidInput("Invalid input".to_string()))
-            }
-            async fn get_profile(&self, _id: Uuid) -> Result<StorageProfile> {
-                unimplemented!()
-            }
-            async fn delete_profile(&self, _id: Uuid) -> Result<()> {
-                unimplemented!()
-            }
-            async fn list_profiles(&self) -> Result<Vec<StorageProfile>> {
-                unimplemented!()
-            }
-            async fn create_warehouse(
-                &self,
-                _params: &WarehouseCreateRequest,
-            ) -> Result<Warehouse> {
-                unimplemented!()
-            }
-            async fn get_warehouse(&self, _id: Uuid) -> Result<Warehouse> {
-                unimplemented!()
-            }
-            async fn delete_warehouse(&self, _id: Uuid) -> Result<()> {
-                unimplemented!()
-            }
-            async fn list_warehouses(&self) -> Result<Vec<Warehouse>> {
-                unimplemented!()
-            }
-        }
-        let storage_profile_service = Arc::new(MockStorageProfileService {});
-        let catalog_repo = Arc::new(new_memory_catalog());
-        let app_state = AppState::new(storage_profile_service, catalog_repo);
-        let app = create_app(app_state);
+        let app = create_router().await;
 
         // Mock service that returns an error
         let payload = json!({

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
 
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct Config {
     pub defaults: HashMap<String, String>,
     pub overrides: HashMap<String, String>,
@@ -139,6 +139,15 @@ pub struct Table {
 pub struct TableIdent {
     pub database: DatabaseIdent,
     pub table: String,
+}
+
+impl From<Table> for iceberg::TableIdent {
+    fn from(table: Table) -> Self {
+        Self {
+            namespace: table.ident.database.namespace,
+            name: table.ident.table,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

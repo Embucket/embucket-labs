@@ -12,9 +12,13 @@ use crate::models::{
 };
 use crate::repository::{DatabaseRepository, TableRepository};
 
+// FIXME: Rename namespace to database: namespace concept is Iceberg REST API specific
+// Internally we have not a namespace but a database
+// Database is a superset of namespace, Database > Namespace
+// We can create namespace from a database, but not otherwise
 #[async_trait]
 pub trait Catalog: Debug + Sync + Send {
-    async fn get_config(&self) -> Result<Config>;
+    async fn get_config(&self, ident: &WarehouseIdent) -> Result<Config>;
     async fn list_namespaces(
         &self,
         warehouse: &WarehouseIdent,
@@ -66,7 +70,7 @@ impl CatalogImpl {
 
 #[async_trait]
 impl Catalog for CatalogImpl {
-    async fn get_config(&self) -> Result<Config> {
+    async fn get_config(&self, _ident: &WarehouseIdent) -> Result<Config> {
         Ok(Config::default())
     }
 

@@ -4,7 +4,7 @@ use crate::models::{Warehouse, WarehouseCreateRequest};
 use async_trait::async_trait; // Required for async traits
 use serde::{de::DeserializeOwned, Serialize};
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 use utils::Db;
@@ -44,11 +44,23 @@ impl Entity for Warehouse {
 }
 
 pub struct StorageProfileRepositoryDb {
-    db: Db,
+    db: Arc<Db>,
+}
+
+impl StorageProfileRepositoryDb {
+    pub fn new(db: Arc<Db>) -> Self {
+        Self { db }
+    }
 }
 
 pub struct WarehouseRepositoryDb {
-    db: Db,
+    db: Arc<Db>,
+}
+
+impl WarehouseRepositoryDb {
+    pub fn new(db: Arc<Db>) -> Self {
+        Self { db }
+    }
 }
 
 impl Repository for StorageProfileRepositoryDb {
@@ -220,7 +232,7 @@ mod tests {
                 .unwrap(),
         );
 
-        let repo = StorageProfileRepositoryDb { db };
+        let repo = StorageProfileRepositoryDb::new(Arc::new(db));
 
         let profile_1 = create_dummy_profile();
         repo.create(&profile_1)
@@ -255,7 +267,7 @@ mod tests {
                 .unwrap(),
         );
 
-        let repo = WarehouseRepositoryDb { db };
+        let repo = WarehouseRepositoryDb::new(Arc::new(db));
 
         let wh1 = Warehouse::new("prefix".to_string(), "wh1".to_string(), Uuid::new_v4())
             .expect("failed to create warehouse");
