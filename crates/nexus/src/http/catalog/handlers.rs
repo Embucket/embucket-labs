@@ -1,6 +1,7 @@
 use crate::http::catalog::schemas;
-use axum::{extract::Path, extract::State, Json};
+use axum::{extract::Path, extract::Query, extract::State, Json};
 use catalog::models::{DatabaseIdent, NamespaceIdent, TableCommit, TableIdent, WarehouseIdent};
+use iceberg::TableCreation;
 use std::result::Result;
 use uuid::Uuid;
 
@@ -58,16 +59,18 @@ pub async fn delete_namespace(
 pub async fn list_namespaces(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<Vec<schemas::Namespace>>, AppError> {
+) -> Result<Json<schemas::NamespaceListResponse>, AppError> {
     let wh = state.control_svc.get_warehouse(id).await?;
     let catalog = state.catalog_svc;
     let ident = WarehouseIdent::new(wh.id);
     // TODO: Extract parent_id from request
     let parent_id = None;
-    let namespaces = catalog.list_namespaces(&ident, parent_id).await?;
+    let databases = catalog.list_namespaces(&ident, parent_id).await?;
 
     // TODO: Implement From/Into
-    Ok(Json(namespaces.into_iter().map(Into::into).collect()))
+    Ok(Json(schemas::NamespaceListResponse {
+        namespaces: databases.into_iter().map(Into::into).collect(),
+    }))
 }
 
 pub async fn create_table(
@@ -81,7 +84,7 @@ pub async fn create_table(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::new(namespace_id),
     };
-    let table = catalog.create_table(&ident, payload.into()).await?;
+    let table = catalog.create_table(&ident, &wh, payload.into()).await?;
 
     Ok(Json(table.into()))
 }
@@ -169,8 +172,9 @@ pub async fn list_tables(
 
 pub async fn get_config(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
+    Query(params): Query<schemas::GetConfigQueryParams>,
 ) -> Result<Json<schemas::Config>, AppError> {
+    let id = params.warehouse;
     let wh = state.control_svc.get_warehouse(id).await?;
     let catalog = state.catalog_svc;
     let ident = WarehouseIdent::new(wh.id);

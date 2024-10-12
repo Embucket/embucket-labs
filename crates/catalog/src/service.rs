@@ -1,8 +1,10 @@
 use async_trait::async_trait;
+use object_store::CredentialProvider;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use control_plane::models::Warehouse;
 use iceberg::{spec::TableMetadataBuilder, TableCreation};
 
 use crate::error::{Error, Result}; // TODO: Replace this with this crate error and result
@@ -11,6 +13,8 @@ use crate::models::{
     WarehouseIdent,
 };
 use crate::repository::{DatabaseRepository, TableRepository};
+
+use control_plane::service::ControlService;
 
 // FIXME: Rename namespace to database: namespace concept is Iceberg REST API specific
 // Internally we have not a namespace but a database
@@ -37,9 +41,12 @@ pub trait Catalog: Debug + Sync + Send {
     ) -> Result<()>;
     async fn drop_namespace(&self, namespace: &DatabaseIdent) -> Result<()>;
     async fn list_tables(&self, namespace: &DatabaseIdent) -> Result<Vec<Table>>;
+    // TODO: We need warehouse and storage profile objects here
+    // to generate location and actually write metadata contents
     async fn create_table(
         &self,
         namespace: &DatabaseIdent,
+        warehouse: &Warehouse,
         creation: TableCreation,
     ) -> Result<Table>;
     async fn load_table(&self, table: &TableIdent) -> Result<Table>;
@@ -70,8 +77,26 @@ impl CatalogImpl {
 
 #[async_trait]
 impl Catalog for CatalogImpl {
-    async fn get_config(&self, _ident: &WarehouseIdent) -> Result<Config> {
-        Ok(Config::default())
+    async fn get_config(&self, ident: &WarehouseIdent) -> Result<Config> {
+        // TODO: Implement warehouse config
+        // TODO: Should it include prefix from Warehouse or not?
+        // As per https://github.com/apache/iceberg-python/blob/main/pyiceberg/catalog/rest.py#L298
+        // prefix is used only in URL construction, so no - only id as it's part of the URL
+        // TODO: Should it include bucket from storage profile?
+        // hardcoding for now
+        // uri, warehouse and prefix
+        let config = Config {
+            defaults: HashMap::new(),
+            overrides: HashMap::from([
+                ("warehouse".to_string(), ident.id().to_string()),
+                (
+                    "uri".to_string(),
+                    "http://localhost:3000/catalog".to_string(),
+                ),
+                ("prefix".to_string(), format! {"{}", ident.id()}),
+            ]),
+        };
+        Ok(config)
     }
 
     async fn update_table(&self, commit: TableCommit) -> Result<Table> {
@@ -190,6 +215,7 @@ impl Catalog for CatalogImpl {
     async fn create_table(
         &self,
         namespace: &DatabaseIdent,
+        warehouse: &Warehouse,
         creation: TableCreation,
     ) -> Result<Table> {
         // Check if namespace exists
@@ -203,8 +229,16 @@ impl Catalog for CatalogImpl {
         if res.is_ok() {
             return Err(Error::ErrAlreadyExists);
         }
-        // TODO: Generate location from warehouse object!
-        // creation.location = Some(self.warehouse.location.clone());
+
+        // TODO: Robust location generation
+        // Take into account namespace location property if present
+        // Take into account provided location if present
+        // If none, generate location based on warehouse location
+        let creation = {
+            let mut creation = creation;
+            creation.location = Some(format!("{}/{}", warehouse.location, creation.name));
+            creation
+        };
         // TODO: Add checks
         // - Check if storage profile is valid (writtable)
 

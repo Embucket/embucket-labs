@@ -6,6 +6,7 @@ use iceberg::spec::{Schema, SortOrder, TableMetadata, UnboundPartitionSpec};
 pub use iceberg::NamespaceIdent;
 pub use iceberg::{TableIdent, TableRequirement, TableUpdate};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Namespace {
@@ -82,6 +83,12 @@ pub struct TableListResponse {
     pub identifiers: Vec<TableIdent>,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct NamespaceListResponse {
+    pub namespaces: Vec<NamespaceIdent>,
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct TableCommitRequest {
@@ -96,4 +103,9 @@ pub struct TableCommitResponse {
     pub metadata_location: String,
     pub metadata: TableMetadata,
     pub config: Option<std::collections::HashMap<String, String>>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct GetConfigQueryParams {
+    pub warehouse: Uuid,
 }

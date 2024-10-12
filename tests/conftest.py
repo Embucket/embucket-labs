@@ -1,0 +1,115 @@
+import dataclasses
+import json
+import os
+import urllib
+import uuid
+
+import pyiceberg.catalog
+import pyiceberg.catalog.rest
+import pyiceberg.typedef
+import pytest
+import requests
+
+# ---- Core
+MANAGEMENT_URL = os.environ.get("MANAGEMENT_URL")
+CATALOG_URL = os.environ.get("CATALOG_URL")
+# ---- S3
+S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY")
+S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY")
+S3_BUCKET = os.environ.get("S3_BUCKET")
+S3_ENDPOINT = os.environ.get("S3_ENDPOINT")
+S3_REGION = os.environ.get("S3_REGION", None)
+S3_PATH_STYLE_ACCESS = os.environ.get("S3_PATH_STYLE_ACCESS")
+
+
+@dataclasses.dataclass
+class Server:
+    catalog_url: str
+    management_url: str
+
+    def create_storage_profile(self, **payload) -> dict:
+        storage_profile_url = urllib.parse.urljoin(
+            self.management_url, "v1/storage-profile"
+        )
+        payload = {k.replace("_", "-"): v for k, v in payload.items()}
+        response = requests.post(
+            storage_profile_url,
+            json=payload,
+        )
+        assert response.ok, response.text
+        return response.json()
+
+    def create_warehouse(
+        self,
+        **payload,
+    ) -> uuid.UUID:
+        """Create a warehouse in this server"""
+        warehouse_url = self.warehouse_url
+        payload = {k.replace("_", "-"): v for k, v in payload.items()}
+        response = requests.post(
+            warehouse_url,
+            json=payload,
+        )
+        assert response.ok, response.text
+        return response.json()
+
+    @property
+    def warehouse_url(self) -> str:
+        return urllib.parse.urljoin(self.management_url, "v1/warehouse")
+
+
+@pytest.fixture(scope="session")
+def server() -> Server:
+    if MANAGEMENT_URL is None:
+        pytest.skip("ICEBERG_REST_TEST_MANAGEMENT_URL is not set")
+    if CATALOG_URL is None:
+        pytest.skip("ICEBERG_REST_TEST_CATALOG_URL is not set")
+
+    return Server(
+        catalog_url=CATALOG_URL.rstrip("/") + "/",
+        management_url=MANAGEMENT_URL.rstrip("/") + "/",
+    )
+
+
+@pytest.fixture(scope="session")
+def storage_profile(server: Server) -> dict:
+    return server.create_storage_profile(
+        type="aws",
+        region=S3_REGION,
+        bucket=S3_BUCKET,
+        credentials={
+            "credential-type": "access-key",
+            "aws-access-key-id": S3_ACCESS_KEY,
+            "aws-secret-access-key": S3_SECRET_KEY,
+        },
+        sts_role_arn=None,
+        endpoint=S3_ENDPOINT,
+    )
+
+
+@pytest.fixture(scope="session")
+def warehouse(server: Server, storage_profile) -> dict:
+    warehouse_name = "test-warehouse"
+    preix = "prefix"
+    wh = server.create_warehouse(
+        name=warehouse_name,
+        prefix=preix,
+        storage_profile_id=storage_profile.get("id", None),
+    )
+    return wh
+
+
+@pytest.fixture(scope="session")
+def namespace(catalog) -> dict:
+    namespace = "test-namespace"
+    catalog.create_namespace(namespace)
+    return catalog.get_namespace(namespace)
+
+
+@pytest.fixture(scope="session")
+def catalog(warehouse):
+    return pyiceberg.catalog.rest.RestCatalog(
+        name="test-catalog",
+        uri=CATALOG_URL.rstrip("/") + "/",
+        warehouse=warehouse.get("id", None),
+    )

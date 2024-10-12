@@ -21,7 +21,12 @@ pub fn create_router() -> Router<AppState> {
         .route("/:namespace", delete(delete_namespace))
         .nest("/:namespace/tables", table_router);
 
+    // Iceberg clients do not prefix config fetch RPC call
+    // and do prefix (with whatever prefix returned by config fetch) all other RPC calls
+    // We return warehouse id as a part of config fetch response and thus expecting it
+    // as part of URL (:wid)
+
     Router::new()
-        .route("/:wid/v1/config", get(get_config))
-        .nest("/:wid/v1/namespace", ns_router)
+        .route("/v1/config", get(get_config))
+        .nest("/v1/:wid/namespaces", ns_router)
 }

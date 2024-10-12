@@ -180,3 +180,9 @@ pub struct Database {
     pub ident: DatabaseIdent,
     pub properties: HashMap<String, String>,
 }
+
+impl From<Database> for NamespaceIdent {
+    fn from(db: Database) -> Self {
+        db.ident.namespace
+    }
+}

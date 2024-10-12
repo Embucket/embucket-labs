@@ -23,3 +23,5 @@ Cargo.lock
 # Added by cargo
 
 /target
+venv
+__pycache__
