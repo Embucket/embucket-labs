@@ -83,7 +83,7 @@ impl Db {
     // it then gets value from the clousre, serialize it and write it back to the db
     pub async fn modify<T>(&self, key: &str, f: impl Fn(&mut T)) -> Result<()>
     where
-        T: serde::Serialize + serde::de::DeserializeOwned + Default,
+        T: serde::Serialize + DeserializeOwned + Default,
     {
         let mut value: T = self.get(key).await?.unwrap_or_default();
 

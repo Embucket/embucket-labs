@@ -1,10 +1,7 @@
-use axum::extract::Path;
-use axum::{routing::delete, routing::get, routing::post, Router};
-use std::collections::HashMap;
+use axum::Router;
 use std::fs;
-use utoipa::openapi::{self, OpenApiBuilder};
+use utoipa::openapi::{self};
 use utoipa::{
-    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
 };
 use utoipa_swagger_ui::SwaggerUi;
@@ -13,6 +10,7 @@ use crate::http::catalog::router::create_router as create_catalog_router;
 use crate::http::control::handlers::storage_profiles::StorageProfileApi;
 use crate::http::control::handlers::warehouses::WarehouseApi;
 use crate::http::control::router::create_router as create_control_router;
+use crate::http::ui::router::create_router as create_ui_router;
 use crate::state::AppState;
 
 #[derive(OpenApi)]
@@ -35,10 +33,12 @@ pub fn create_app(state: AppState) -> Router {
     }
     let catalog_router = create_catalog_router();
     let control_router = create_control_router();
+    let ui_router = create_ui_router();
 
     Router::new()
         .nest("/", control_router)
         .nest("/catalog", catalog_router)
+        .nest("/ui", ui_router)
         .merge(SwaggerUi::new("/").url("/openapi.yaml", spec))
         .with_state(state)
 }
@@ -56,26 +56,20 @@ mod tests {
     #![allow(clippy::too_many_lines)]
 
     use crate::http::catalog::schemas::Namespace as NamespaceSchema;
-    use crate::http::control;
     use crate::http::control::schemas::storage_profiles::StorageProfile as StorageProfileSchema;
     use crate::http::control::schemas::warehouses::Warehouse as WarehouseSchema;
 
     use super::*;
-    use async_trait::async_trait;
-    use axum::http::request;
     use axum::{
         body::Body,
         http::{self, Request, StatusCode},
     };
     use catalog::repository::{DatabaseRepositoryDb, TableRepositoryDb};
     use catalog::service::CatalogImpl;
-    use control_plane::error::{Error, Result};
-    use control_plane::models::{StorageProfile, StorageProfileCreateRequest};
-    use control_plane::models::{Warehouse, WarehouseCreateRequest};
     use control_plane::repository::{StorageProfileRepositoryDb, WarehouseRepositoryDb};
-    use control_plane::service::ControlService;
     use control_plane::service::ControlServiceImpl;
-    use http_body_util::BodyExt; // for `collect`
+    use http_body_util::BodyExt;
+    // for `collect`
     use object_store::{memory::InMemory, path::Path, ObjectStore};
     use serde_json::json;
     use slatedb::config::DbOptions;
@@ -84,7 +78,6 @@ mod tests {
     use tempfile::TempDir;
     use tower::{Service, ServiceExt};
     use utils::Db;
-    use uuid::Uuid;
 
     lazy_static::lazy_static! {
         static ref TEMP_DIR: TempDir = TempDir::new().unwrap();

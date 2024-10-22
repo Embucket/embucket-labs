@@ -21,6 +21,12 @@ pub mod http {
         pub mod router;
         pub mod schemas;
     }
+
+    pub mod ui {
+        pub mod handlers;
+        pub mod router;
+        pub mod models;
+    }
 }
 pub mod error;
 pub mod state;
