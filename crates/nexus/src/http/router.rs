@@ -10,6 +10,10 @@ use crate::http::catalog::router::create_router as create_catalog_router;
 use crate::http::control::handlers::storage_profiles::StorageProfileApi;
 use crate::http::control::handlers::warehouses::WarehouseApi;
 use crate::http::control::router::create_router as create_control_router;
+use crate::http::ui::handlers::databases::ApiDoc as DatabaseApiDoc;
+use crate::http::ui::handlers::profiles::ApiDoc as ProfileApiDoc;
+use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
+use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
 use crate::http::ui::router::create_router as create_ui_router;
 use crate::state::AppState;
 
@@ -22,14 +26,19 @@ use crate::state::AppState;
     tags(
         (name = "storage-profile", description = "Storage profile API"),
         (name = "warehouse", description = "Warehouse API"),
+        (name = "ui", description = "Web UI API"),
     )
 )]
-struct ApiDoc;
+pub struct ApiDoc;
 
 pub fn create_app(state: AppState) -> Router {
     let mut spec = ApiDoc::openapi();
     if let Some(extra_spec) = load_openapi_spec() {
-        spec = spec.merge_from(extra_spec);
+        spec = spec.merge_from(extra_spec)
+            .merge_from(WarehouseApiDoc::openapi())
+            .merge_from(TableApiDoc::openapi())
+            .merge_from(DatabaseApiDoc::openapi())
+            .merge_from(ProfileApiDoc::openapi());
     }
     let catalog_router = create_catalog_router();
     let control_router = create_control_router();

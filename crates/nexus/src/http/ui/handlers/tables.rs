@@ -23,12 +23,12 @@ use uuid::Uuid;
         (name = "Tables", description = "Tables management endpoints.")
     )
 )]
-struct ApiDoc;
+pub struct ApiDoc;
 
 #[utoipa::path(
     get,
-    path = "/warehouses/{warehouseId}/databases/{databaseName}/tables",
-    operation_id = "tablesDashboard",
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables",
+    operation_id = "webTablesDashboard",
     responses(
         (status = 200, description = "List all warehouses", body = Vec<table::TableExtended>),
         (status = 500, description = "Internal server error")
@@ -42,8 +42,8 @@ pub async fn list_tables(
 
 #[utoipa::path(
     get,
-    path = "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
-    operation_id = "tablesDashboard",
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
+    operation_id = "webTableDashboard",
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
         ("databaseName" = Uuid, Path, description = "Database Name"),
@@ -107,8 +107,8 @@ pub async fn get_table(
 
 #[utoipa::path(
     get,
-    operation_id = "createTable",
-    path = "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
+    operation_id = "webCreateTable",
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
         ("databaseName" = Uuid, Path, description = "Database Name"),
@@ -172,8 +172,8 @@ pub async fn create_table(
 
 #[utoipa::path(
     get,
-    operation_id = "tableDashboard",
-    path = "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
+    operation_id = "webDeleteTable",
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
         ("databaseName" = Uuid, Path, description = "Database Name"),

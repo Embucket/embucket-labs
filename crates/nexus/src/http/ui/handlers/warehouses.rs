@@ -24,12 +24,12 @@ use uuid::Uuid;
         (name = "Warehouse", description = "Warehouse management endpoints.")
     )
 )]
-struct ApiDoc;
+pub struct ApiDoc;
 
 #[utoipa::path(
     get,
-    path = "/warehouses",
-    operation_id = "warehousesDashboard",
+    path = "/ui/warehouses",
+    operation_id = "webWarehousesDashboard",
     responses(
         (status = 200, description = "List all warehouses", body = Vec<warehouse::WarehousesDashboard>),
         (status = 500, description = "Internal server error")
@@ -43,8 +43,8 @@ pub async fn list_warehouses(
 
 #[utoipa::path(
     get,
-    path = "/warehouses/{warehouseId}",
-    operation_id = "warehouseDashboard",
+    path = "/ui/warehouses/{warehouseId}",
+    operation_id = "webWarehouseDashboard",
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID")
     ),
@@ -72,9 +72,9 @@ pub async fn get_warehouse(
 
 #[utoipa::path(
     post,
-    path = "/warehouses",
+    path = "/ui/warehouses",
     request_body = warehouse::CreateWarehousePayload,
-    operation_id = "createWarehouse",
+    operation_id = "webCreateWarehouse",
     responses(
         (status = 201, description = "Warehouse created", body = warehouse::Warehouse),
         (status = 400, description = "Bad request"),
@@ -99,8 +99,8 @@ pub async fn create_warehouse(
 
 #[utoipa::path(
     delete,
-    path = "/warehouses/{warehouseId}",
-    operation_id = "deleteWarehouse",
+    path = "/ui/warehouses/{warehouseId}",
+    operation_id = "webCeleteWarehouse",
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID")
     ),

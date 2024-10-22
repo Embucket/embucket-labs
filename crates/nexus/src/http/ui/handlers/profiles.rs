@@ -27,12 +27,12 @@ use uuid::Uuid;
         (name = "Storage profiles", description = "Storage profiles management endpoints.")
     )
 )]
-struct ApiDoc;
+pub struct ApiDoc;
 
 #[utoipa::path(
     post,
-    operation_id = "createStorageProfile",
-    path = "/storage-profiles",
+    operation_id = "webCreateStorageProfile",
+    path = "/ui/storage-profiles",
     request_body = storage_profile::CreateStorageProfilePayload,
     responses(
         (status = 200, description = "Successful Response", body = storage_profile::StorageProfile),
@@ -59,8 +59,8 @@ pub async fn create_storage_profile(
 
 #[utoipa::path(
     get,
-    operation_id = "getStorageProfile",
-    path = "/storage-profiles/{storageProfileId}",
+    operation_id = "webGetStorageProfile",
+    path = "/ui/storage-profiles/{storageProfileId}",
     params(
         ("storageProfileId" = Uuid, Path, description = "Storage profile ID")
     ),
@@ -88,8 +88,8 @@ pub async fn get_storage_profile(
 
 #[utoipa::path(
     delete,
-    operation_id = "deleteStorageProfile",
-    path = "/storage-profiles/{storageProfileId}",
+    operation_id = "webDeleteStorageProfile",
+    path = "/ui/storage-profiles/{storageProfileId}",
     params(
         ("storageProfileId" = Uuid, Path, description = "Storage profile ID")
     ),
@@ -107,8 +107,8 @@ pub async fn delete_storage_profile(
 
 #[utoipa::path(
     get,
-    operation_id = "listStorageProfiles",
-    path = "/storage-profiles/",
+    operation_id = "webListStorageProfiles",
+    path = "/ui/storage-profiles/",
     responses(
         (status = 200, body = Vec<storage_profile::StorageProfile>),
         (status = 500, description = "Internal server error")

@@ -27,12 +27,12 @@ use uuid::Uuid;
         (name = "Databases", description = "Databases management endpoints.")
     )
 )]
-struct ApiDoc;
+pub struct ApiDoc;
 
 #[utoipa::path(
     post,
-    path = "/warehouses/{warehouseId}/databases/{databaseName}",
-    operation_id = "createDatabase",
+    path = "/ui/warehouses/{warehouseId}/databases",
+    operation_id = "webCreateDatabase",
     responses(
         (status = 200, description = "Successful Response", body = database::Database),
         (status = 400, description = "Bad request"),
@@ -53,8 +53,8 @@ pub async fn create_database(
 
 #[utoipa::path(
     delete,
-    path = "/warehouses/{warehouseId}/databases/{databaseName}",
-    operation_id = "deleteDatabase",
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}",
+    operation_id = "webDeleteDatabase",
     responses(
         (status = 204, description = "Successful Response"),
         (status = 404, description = "Database not found")
@@ -69,8 +69,8 @@ pub async fn delete_database(
 
 #[utoipa::path(
     get,
-    path = "/warehouses/{warehouseId}/databases/{databaseName}",
-    operation_id = "databaseDashboard",
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}",
+    operation_id = "webDatabaseDashboard",
     responses(
         (status = 200, description = "Successful Response", body = database::DatabaseDashboard),
         (status = 204, description = "Successful Response"),
