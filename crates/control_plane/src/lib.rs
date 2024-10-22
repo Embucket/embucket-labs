@@ -8,4 +8,3 @@ pub mod repository; // This will expose everything inside repository.rs
 pub mod service; // This will expose everything inside service.rs
 
 pub mod error;
-

@@ -1,23 +1,34 @@
 use crate::http::control::schemas::storage_profiles::{
-    AwsAccessKeyCredential, AwsRoleCredential, CloudProvider, CreateStorageProfilePayload, Credentials, StorageProfile
+    AwsAccessKeyCredential, AwsRoleCredential, CloudProvider, CreateStorageProfilePayload,
+    Credentials, StorageProfile,
 };
 use axum::{extract::Path, extract::State, Json};
 use control_plane::models::{StorageProfile as StorageProfileModel, StorageProfileCreateRequest};
 use std::result::Result;
-use uuid::Uuid;
 use utoipa::OpenApi;
+use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::state::AppState;
 
-
 #[derive(OpenApi)]
 #[openapi(
-    paths(create_storage_profile, get_storage_profile, delete_storage_profile, list_storage_profiles,),
-    components(schemas(CreateStorageProfilePayload, StorageProfile, Credentials, AwsAccessKeyCredential, AwsRoleCredential, CloudProvider),)
+    paths(
+        create_storage_profile,
+        get_storage_profile,
+        delete_storage_profile,
+        list_storage_profiles,
+    ),
+    components(schemas(
+        CreateStorageProfilePayload,
+        StorageProfile,
+        Credentials,
+        AwsAccessKeyCredential,
+        AwsRoleCredential,
+        CloudProvider
+    ),)
 )]
 pub struct StorageProfileApi;
-
 
 #[utoipa::path(
     post, 
