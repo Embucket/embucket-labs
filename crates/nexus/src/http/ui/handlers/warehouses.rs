@@ -115,5 +115,3 @@ pub async fn delete_warehouse(
 ) -> Result<(), AppError> {
     Ok(())
 }
-
-

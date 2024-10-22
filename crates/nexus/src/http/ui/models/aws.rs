@@ -12,10 +12,7 @@ pub struct AwsAccessKeyCredential {
 
 impl AwsAccessKeyCredential {
     #[allow(clippy::new_without_default)]
-    pub fn new(
-        aws_access_key_id: String,
-        aws_secret_access_key: String,
-    ) -> AwsAccessKeyCredential {
+    pub fn new(aws_access_key_id: String, aws_secret_access_key: String) -> AwsAccessKeyCredential {
         AwsAccessKeyCredential {
             aws_access_key_id,
             aws_secret_access_key,
@@ -33,10 +30,7 @@ pub struct AwsRoleCredential {
 
 impl AwsRoleCredential {
     #[allow(clippy::new_without_default)]
-    pub fn new(
-        role_arn: String,
-        external_id: String,
-    ) -> AwsRoleCredential {
+    pub fn new(role_arn: String, external_id: String) -> AwsRoleCredential {
         AwsRoleCredential {
             role_arn,
             external_id,
@@ -45,7 +39,7 @@ impl AwsRoleCredential {
 }
 
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, ToSchema
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, ToSchema,
 )]
 pub enum CloudProvider {
     #[serde(rename = "s3")]

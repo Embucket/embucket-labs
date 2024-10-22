@@ -1,6 +1,4 @@
-use crate::http::control::schemas::warehouses::{
-    CreateWarehouseRequest, Warehouse,
-};
+use crate::http::control::schemas::warehouses::{CreateWarehouseRequest, Warehouse};
 use axum::{extract::Path, extract::State, Json};
 use control_plane::models::{Warehouse as WarehouseModel, WarehouseCreateRequest};
 use std::result::Result;
@@ -9,7 +7,6 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::state::AppState;
-
 
 // #[derive(OpenApi)]
 // #[openapi(
@@ -21,7 +18,7 @@ use crate::state::AppState;
 #[derive(OpenApi)]
 #[openapi(
     paths(create_warehouse, get_warehouse, delete_warehouse, list_warehouses,),
-    components(schemas(CreateWarehouseRequest, Warehouse, ),)
+    components(schemas(CreateWarehouseRequest, Warehouse,),)
 )]
 pub struct WarehouseApi;
 

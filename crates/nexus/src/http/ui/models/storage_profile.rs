@@ -37,7 +37,6 @@ impl CreateStorageProfilePayload {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct StorageProfile {
     #[serde(rename = "type")]
