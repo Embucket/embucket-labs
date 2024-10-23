@@ -96,7 +96,7 @@ pub async fn get_database(
             created_at: Default::default(),
             updated_at: Default::default(),
             storage_profile: storage_profile::StorageProfile {
-                r#type: aws::CloudProvider::S3,
+                r#type: aws::CloudProvider::AWS,
                 region: "".to_string(),
                 bucket: "".to_string(),
                 credentials: Default::default(),

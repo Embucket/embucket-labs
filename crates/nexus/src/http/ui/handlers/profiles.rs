@@ -2,6 +2,7 @@ use crate::error::AppError;
 use crate::http::ui::models::{aws, storage_profile};
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
+use control_plane::models::{StorageProfile, StorageProfileCreateRequest};
 use utoipa::OpenApi;
 use uuid::Uuid;
 
@@ -44,17 +45,13 @@ pub async fn create_storage_profile(
     State(state): State<AppState>,
     Json(payload): Json<storage_profile::CreateStorageProfilePayload>,
 ) -> Result<Json<storage_profile::StorageProfile>, AppError> {
-    Ok(Json(storage_profile::StorageProfile {
-        r#type: aws::CloudProvider::S3,
-        region: "2".to_string(),
-        bucket: "".to_string(),
-        credentials: Default::default(),
-        sts_role_arn: None,
-        endpoint: None,
-        id: Default::default(),
-        created_at: Default::default(),
-        updated_at: Default::default(),
-    }))
+    let request: StorageProfileCreateRequest = payload.into();
+    let profile: StorageProfile = state
+        .control_svc
+        .create_profile(&request)
+        .await
+        .map_err(|e| AppError::from(e))?;
+    Ok(Json(profile.into()))
 }
 
 #[utoipa::path(
@@ -71,19 +68,14 @@ pub async fn create_storage_profile(
 )]
 pub async fn get_storage_profile(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
+    Path(storage_profile_id): Path<Uuid>,
 ) -> Result<Json<storage_profile::StorageProfile>, AppError> {
-    Ok(Json(storage_profile::StorageProfile {
-        r#type: aws::CloudProvider::S3,
-        region: "1".to_string(),
-        bucket: "".to_string(),
-        credentials: Default::default(),
-        sts_role_arn: None,
-        endpoint: None,
-        id: Default::default(),
-        created_at: Default::default(),
-        updated_at: Default::default(),
-    }))
+    let profile: StorageProfile = state
+        .control_svc
+        .get_profile(storage_profile_id)
+        .await
+        .map_err(|e| AppError::from(e))?;
+    Ok(Json(profile.into()))
 }
 
 #[utoipa::path(
@@ -100,8 +92,13 @@ pub async fn get_storage_profile(
 )]
 pub async fn delete_storage_profile(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
+    Path(storage_profile_id): Path<Uuid>,
 ) -> Result<Json<()>, AppError> {
+    state
+        .control_svc
+        .delete_profile(storage_profile_id)
+        .await
+        .map_err(|e| AppError::from(e))?;
     Ok(Json(()))
 }
 
@@ -117,5 +114,6 @@ pub async fn delete_storage_profile(
 pub async fn list_storage_profiles(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<storage_profile::StorageProfile>>, AppError> {
-    Ok(Json(vec![]))
+    let profiles = state.control_svc.list_profiles().await?;
+    Ok(Json(profiles.into_iter().map(|p| p.into()).collect()))
 }

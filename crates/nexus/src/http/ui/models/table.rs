@@ -522,7 +522,7 @@ impl TableMetadataV1 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Validate, ToSchema)]
 pub struct Statistics {
     pub commit_count: i32,
     pub op_append_count: i32,
