@@ -1,4 +1,6 @@
 use crate::http::ui::models::aws::{CloudProvider, Credentials};
+use chrono::{DateTime, Utc};
+use control_plane::models;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
@@ -37,7 +39,20 @@ impl CreateStorageProfilePayload {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
+    fn from(payload: CreateStorageProfilePayload) -> Self {
+        models::StorageProfileCreateRequest {
+            r#type: payload.r#type.into(),
+            region: payload.region,
+            bucket: payload.bucket,
+            credentials: payload.credentials.into(),
+            sts_role_arn: payload.sts_role_arn,
+            endpoint: payload.endpoint,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
 pub struct StorageProfile {
     #[serde(rename = "type")]
     pub r#type: CloudProvider,
@@ -51,8 +66,8 @@ pub struct StorageProfile {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub endpoint: Option<String>,
     pub id: uuid::Uuid,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl StorageProfile {
@@ -63,8 +78,8 @@ impl StorageProfile {
         bucket: String,
         credentials: Credentials,
         id: uuid::Uuid,
-        created_at: chrono::DateTime<chrono::Utc>,
-        updated_at: chrono::DateTime<chrono::Utc>,
+        created_at: DateTime<Utc>,
+        updated_at: DateTime<Utc>,
     ) -> StorageProfile {
         StorageProfile {
             r#type,
@@ -76,6 +91,22 @@ impl StorageProfile {
             id,
             created_at,
             updated_at,
+        }
+    }
+}
+
+impl From<models::StorageProfile> for StorageProfile {
+    fn from(profile: models::StorageProfile) -> Self {
+        StorageProfile {
+            r#type: profile.r#type.into(),
+            region: profile.region,
+            bucket: profile.bucket,
+            credentials: profile.credentials.into(),
+            sts_role_arn: profile.sts_role_arn,
+            endpoint: profile.endpoint,
+            id: profile.id,
+            created_at: DateTime::from_naive_utc_and_offset(profile.created_at, Utc),
+            updated_at: DateTime::from_naive_utc_and_offset(profile.updated_at, Utc),
         }
     }
 }

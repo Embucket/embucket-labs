@@ -90,7 +90,7 @@ pub async fn get_table(
                 statistics: None,
                 compaction_summary: None,
                 storage_profile: storage_profile::StorageProfile {
-                    r#type: aws::CloudProvider::S3,
+                    r#type: aws::CloudProvider::AWS,
                     region: "22".to_string(),
                     bucket: "2".to_string(),
                     credentials: Default::default(),
@@ -155,7 +155,7 @@ pub async fn create_table(
                 statistics: None,
                 compaction_summary: None,
                 storage_profile: storage_profile::StorageProfile {
-                    r#type: aws::CloudProvider::S3,
+                    r#type: aws::CloudProvider::AWS,
                     region: "2".to_string(),
                     bucket: "2".to_string(),
                     credentials: Default::default(),

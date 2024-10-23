@@ -3,6 +3,8 @@
 use crate::http::ui::models::database::{CompactionSummary, DatabaseEntity, DatabaseShort};
 use crate::http::ui::models::storage_profile::StorageProfile;
 use crate::http::ui::models::table::Statistics;
+use chrono::{DateTime, Utc};
+use control_plane::models;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
@@ -43,12 +45,23 @@ impl CreateWarehousePayload {
     }
 }
 
+impl From<CreateWarehousePayload> for models::WarehouseCreateRequest {
+    fn from(payload: CreateWarehousePayload) -> Self {
+        models::WarehouseCreateRequest {
+            prefix: payload.key_prefix,
+            name: payload.name,
+            storage_profile_id: payload.storage_profile_id,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct Warehouse {
     #[validate(length(min = 1))]
     pub name: String,
     pub storage_profile_id: uuid::Uuid,
     #[validate(length(min = 1))]
+    #[serde(rename = "prefix")]
     pub key_prefix: String,
     pub id: uuid::Uuid,
     pub external_id: uuid::Uuid,
@@ -78,6 +91,21 @@ impl Warehouse {
             location,
             created_at,
             updated_at,
+        }
+    }
+}
+
+impl From<control_plane::models::Warehouse> for Warehouse {
+    fn from(warehouse: control_plane::models::Warehouse) -> Self {
+        Warehouse {
+            id: warehouse.id,
+            key_prefix: warehouse.prefix,
+            name: warehouse.name,
+            location: warehouse.location,
+            storage_profile_id: warehouse.storage_profile_id,
+            created_at: DateTime::from_naive_utc_and_offset(warehouse.created_at, Utc),
+            updated_at: DateTime::from_naive_utc_and_offset(warehouse.updated_at, Utc),
+            external_id: Default::default(),
         }
     }
 }
@@ -196,26 +224,16 @@ pub struct WarehouseExtended {
 
 impl WarehouseExtended {
     #[allow(clippy::new_without_default)]
-    pub fn new(
-        name: String,
-        storage_profile_id: uuid::Uuid,
-        key_prefix: String,
-        id: uuid::Uuid,
-        external_id: uuid::Uuid,
-        location: String,
-        created_at: chrono::DateTime<chrono::Utc>,
-        updated_at: chrono::DateTime<chrono::Utc>,
-        storage_profile: StorageProfile,
-    ) -> WarehouseExtended {
+    pub fn new(warehouse: Warehouse, storage_profile: StorageProfile) -> WarehouseExtended {
         WarehouseExtended {
-            name,
-            storage_profile_id,
-            key_prefix,
-            id,
-            external_id,
-            location,
-            created_at,
-            updated_at,
+            id: warehouse.id,
+            key_prefix: warehouse.key_prefix,
+            name: warehouse.name,
+            location: warehouse.location,
+            storage_profile_id: warehouse.storage_profile_id,
+            created_at: warehouse.created_at,
+            updated_at: warehouse.updated_at,
+            external_id: warehouse.external_id,
             statistics: None,
             compaction_summary: None,
             storage_profile,
@@ -241,7 +259,7 @@ impl WarehouseShort {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
 pub struct WarehousesDashboard {
     pub warehouses: Vec<WarehouseExtended>,
     pub statistics: Statistics,

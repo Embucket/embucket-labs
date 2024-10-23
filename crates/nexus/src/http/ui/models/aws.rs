@@ -1,3 +1,4 @@
+use control_plane::models;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
@@ -20,6 +21,23 @@ impl AwsAccessKeyCredential {
     }
 }
 
+impl From<AwsAccessKeyCredential> for models::AwsAccessKeyCredential {
+    fn from(credential: AwsAccessKeyCredential) -> Self {
+        models::AwsAccessKeyCredential {
+            aws_access_key_id: credential.aws_access_key_id,
+            aws_secret_access_key: credential.aws_secret_access_key,
+        }
+    }
+}
+impl From<models::AwsAccessKeyCredential> for AwsAccessKeyCredential {
+    fn from(credential: models::AwsAccessKeyCredential) -> Self {
+        AwsAccessKeyCredential {
+            aws_access_key_id: credential.aws_access_key_id,
+            aws_secret_access_key: credential.aws_secret_access_key,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct AwsRoleCredential {
     #[validate(length(min = 1))]
@@ -38,26 +56,108 @@ impl AwsRoleCredential {
     }
 }
 
+impl From<AwsRoleCredential> for models::AwsRoleCredential {
+    fn from(credential: AwsRoleCredential) -> Self {
+        models::AwsRoleCredential {
+            role_arn: credential.role_arn,
+            external_id: credential.external_id,
+        }
+    }
+}
+impl From<models::AwsRoleCredential> for AwsRoleCredential {
+    fn from(credential: models::AwsRoleCredential) -> Self {
+        AwsRoleCredential {
+            role_arn: credential.role_arn,
+            external_id: credential.external_id,
+        }
+    }
+}
+
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, ToSchema,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Hash,
+    Default,
+    ToSchema,
 )]
 pub enum CloudProvider {
-    #[serde(rename = "s3")]
-    S3,
+    #[serde(rename = "aws")]
+    #[default]
+    AWS,
     #[serde(rename = "gcs")]
-    Gcs,
+    GCS,
     #[serde(rename = "azure")]
-    Azure,
+    AZURE,
+}
+
+impl From<models::CloudProvider> for CloudProvider {
+    fn from(provider: models::CloudProvider) -> Self {
+        match provider {
+            models::CloudProvider::AWS => CloudProvider::AWS,
+            models::CloudProvider::GCS => CloudProvider::GCS,
+            models::CloudProvider::AZURE => CloudProvider::AZURE,
+        }
+    }
+}
+
+impl From<CloudProvider> for models::CloudProvider {
+    fn from(provider: CloudProvider) -> Self {
+        match provider {
+            CloudProvider::AWS => models::CloudProvider::AWS,
+            CloudProvider::GCS => models::CloudProvider::GCS,
+            CloudProvider::AZURE => models::CloudProvider::AZURE,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub enum Credentials {
-    AwsAccessKeyCredential(AwsAccessKeyCredential),
-    AwsRoleCredential(AwsRoleCredential),
+    #[serde(rename = "access_key")]
+    AccessKey(AwsAccessKeyCredential),
+    #[serde(rename = "role")]
+    Role(AwsRoleCredential),
 }
 
 impl Default for Credentials {
     fn default() -> Self {
-        Credentials::AwsAccessKeyCredential(AwsAccessKeyCredential::default())
+        Credentials::AccessKey(AwsAccessKeyCredential::default())
+    }
+}
+impl From<models::Credentials> for Credentials {
+    fn from(credentials: models::Credentials) -> Self {
+        match credentials {
+            models::Credentials::AccessKey(creds) => Credentials::AccessKey(
+                AwsAccessKeyCredential::new(creds.aws_access_key_id, creds.aws_secret_access_key),
+            ),
+            models::Credentials::Role(creds) => {
+                Credentials::Role(AwsRoleCredential::new(creds.role_arn, creds.external_id))
+            }
+        }
+    }
+}
+
+impl From<Credentials> for models::Credentials {
+    fn from(credentials: Credentials) -> Self {
+        match credentials {
+            Credentials::AccessKey(creds) => models::Credentials::AccessKey(
+                models::AwsAccessKeyCredential {
+                    aws_access_key_id: creds.aws_access_key_id,
+                    aws_secret_access_key: creds.aws_secret_access_key,
+                },
+            ),
+            Credentials::Role(creds) => {
+                models::Credentials::Role(models::AwsRoleCredential {
+                    role_arn: creds.role_arn,
+                    external_id: creds.external_id,
+                })
+            }
+        }
     }
 }
