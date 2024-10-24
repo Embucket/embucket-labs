@@ -4,6 +4,7 @@ use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
 use utoipa::OpenApi;
 use uuid::Uuid;
+use control_plane::models::{CloudProvider, StorageProfileCreateRequest, Credentials, AwsAccessKeyCredential, WarehouseCreateRequest};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -12,10 +13,12 @@ use uuid::Uuid;
         delete_table,
         get_table,
         list_tables,
+        query_table,
     ),
     components(
         schemas(
             table::TableExtended,
+            table::TableQueryResult,
             database::Database,
         )
     ),
@@ -189,4 +192,53 @@ pub async fn delete_table(
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
 ) -> Result<(), AppError> {
     Ok(())
+}
+
+
+#[utoipa::path(
+    post,
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/query",
+    operation_id = "webTableQuery",
+    params(
+        ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
+        ("databaseName" = Uuid, Path, description = "Database Name"),
+        ("tableName" = Uuid, Path, description = "Table name")
+    ),
+    responses(
+        (status = 200, description = "Returns result of the query", body = Vec<table::TableQueryResult>),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn query_table(
+    State(state): State<AppState>,
+    Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
+) -> Result<Json<table::TableQueryResult>, AppError> {
+    ///////// For testing only
+    let storage_profile_create = StorageProfileCreateRequest {
+        r#type: CloudProvider::AWS,
+        region: "us-east-2".to_string(),
+        bucket: "test_bucket".to_string(),
+        credentials: Credentials::AccessKey(AwsAccessKeyCredential {
+            aws_access_key_id: "test_access_key".to_string(),
+            aws_secret_access_key: "test_secret_access_key".to_string(),
+        }),
+        sts_role_arn: None,
+        endpoint: None,
+    };
+    let storage_profile = state.control_svc.create_profile(&storage_profile_create).await?;
+    let warehouse_create = WarehouseCreateRequest {
+        prefix: "test_prefix".to_string(),
+        name: "test_name".to_string(),
+        storage_profile_id: storage_profile.id,
+    };
+    let warehouse = state.control_svc.create_warehouse(&warehouse_create).await?;
+    // state.control_svc.
+    /////////
+    let query = "dfssdf".to_string();
+    let result = state.control_svc.query_table(&warehouse_id, &query).await?;
+    Ok(Json(table::TableQueryResult {
+        id: Default::default(),
+        query,
+        result: "result".to_string(),
+    }))
 }

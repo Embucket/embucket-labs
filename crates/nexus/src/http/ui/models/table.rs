@@ -576,3 +576,26 @@ impl Statistics {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WriteDefault(swagger::AnyOf6<String, bool, i32, f64, swagger::ByteArray, uuid::Uuid>);
+
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+pub struct TableQueryResult {
+    pub id: uuid::Uuid,
+    pub query: String,
+    pub result: String,
+}
+
+impl crate::http::ui::models::table::TableQueryResult {
+    #[allow(clippy::new_without_default)]
+    pub fn new(
+        id: uuid::Uuid,
+        query: String,
+        result: String,
+    ) -> crate::http::ui::models::table::TableQueryResult {
+        crate::http::ui::models::table::TableQueryResult {
+            id,
+            query,
+            result,
+        }
+    }
+}

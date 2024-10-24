@@ -5,6 +5,10 @@ use crate::repository::{StorageProfileRepository, WarehouseRepository};
 use async_trait::async_trait;
 use std::sync::Arc;
 use uuid::Uuid;
+use datafusion::prelude::*;
+use iceberg_catalog_rest::{RestCatalog, RestCatalogConfig};
+use iceberg_datafusion::IcebergCatalogProvider;
+use std::collections::HashMap;
 
 #[async_trait]
 pub trait ControlService: Send + Sync {
@@ -27,6 +31,8 @@ pub trait ControlService: Send + Sync {
     // async fn get_table(&self, id: Uuid) -> Result<Table>;
     // async fn delete_table(&self, id: Uuid) -> Result<()>;
     // async fn list_tables(&self) -> Result<Vec<Table>>;
+
+    async fn query_table(&self, warehouse_id:&Uuid, query:&String) -> Result<()>;
 }
 
 pub struct ControlServiceImpl {
@@ -93,6 +99,29 @@ impl ControlService for ControlServiceImpl {
 
     async fn list_warehouses(&self) -> Result<Vec<Warehouse>> {
         self.warehouse_repo.list().await
+    }
+
+    async fn query_table(&self, warehouse_id:&Uuid, query:&String) -> Result<()> {
+        let config = RestCatalogConfig::builder()
+            .uri("http://0.0.0.0:3000/catalog".to_string())
+            .warehouse(warehouse_id.to_string())
+            .props(HashMap::default())
+            .build();
+
+        let catalog = RestCatalog::new(config);
+        let catalog = IcebergCatalogProvider::try_new(Arc::new(catalog))
+            .await
+            .unwrap();
+
+        let ctx = SessionContext::new();
+        ctx.register_catalog("catalog", Arc::new(catalog));
+
+        let provider = ctx.catalog("catalog").unwrap();
+        let schemas = provider.schema_names();
+        println!("{schemas:?}");
+        assert_eq!(schemas.len(), 6);
+
+        Ok(())
     }
 }
 
