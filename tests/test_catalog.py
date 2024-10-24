@@ -6,15 +6,13 @@ import time
 import pyiceberg.io as io
 
 
-def test_create_namespace(warehouse):
-    catalog = conftest.catalog(warehouse)
+def test_create_namespace(catalog):
     namespace = ("test_create_namespace",)
     catalog.create_namespace(namespace)
     assert namespace in catalog.list_namespaces()
 
 
-def test_list_namespaces(warehouse):
-    catalog = conftest.catalog(warehouse)
+def test_list_namespaces(catalog):
     catalog.create_namespace(("test_list_namespaces_1",))
     catalog.create_namespace(("test_list_namespaces_2"))
     namespaces = catalog.list_namespaces()
@@ -22,16 +20,14 @@ def test_list_namespaces(warehouse):
     assert ("test_list_namespaces_2",) in namespaces
 
 
-def test_default_location_for_namespace_is_set(warehouse):
-    catalog = conftest.catalog(warehouse)
+def test_default_location_for_namespace_is_set(catalog):
     namespace = ("test_default_location_for_namespace",)
     catalog.create_namespace(namespace)
     loaded_properties = catalog.load_namespace_properties(namespace)
     assert "location" in loaded_properties
 
 
-def test_namespace_properties(warehouse):
-    catalog = conftest.catalog(warehouse)
+def test_namespace_properties(catalog):
     namespace = ("test_namespace_properties",)
     properties = {"key-1": "value-1", "key2": "value2"}
     catalog.create_namespace(namespace, properties=properties)
@@ -40,8 +36,7 @@ def test_namespace_properties(warehouse):
         assert loaded_properties[key] == value
 
 
-def test_drop_namespace(warehouse):
-    catalog = conftest.catalog(warehouse)
+def test_drop_namespace(catalog):
     namespace = ("test_drop_namespace",)
     catalog.create_namespace(namespace)
     assert namespace in catalog.list_namespaces()
@@ -49,8 +44,7 @@ def test_drop_namespace(warehouse):
     assert namespace not in catalog.list_namespaces()
 
 
-def test_create_table(warehouse):
-    catalog = conftest.catalog(warehouse)
+def test_create_table(catalog):
     namespace = ("test_create_table",)
     table_name = "my_table"
     schema = pa.schema(
@@ -71,8 +65,7 @@ def test_create_table(warehouse):
     assert len(loaded_table.schema().fields) == 3
 
 
-def test_drop_table(namespace):
-    catalog = conftest.catalog(namespace.warehouse)
+def test_drop_table(catalog, namespace):
     table_name = "my_table"
     schema = pa.schema(
         [
@@ -89,8 +82,7 @@ def test_drop_table(namespace):
         assert "NoSuchTableError" in str(e)
 
 
-def test_drop_purge_table(namespace, storage_config):
-    catalog = conftest.catalog(namespace.warehouse)
+def test_drop_purge_table(catalog, namespace, storage_config):
     table_name = "my_table"
     schema = pa.schema(
         [
@@ -133,8 +125,7 @@ def test_drop_purge_table(namespace, storage_config):
         assert "NoSuchTableError" in str(e)
 
 
-def test_table_properties(namespace):
-    catalog = conftest.catalog(namespace.warehouse)
+def test_table_properties(catalog, namespace):
     table_name = "my_table"
     schema = pa.schema(
         [
@@ -151,8 +142,7 @@ def test_table_properties(namespace):
     assert table.properties == properties
 
 
-def test_list_tables(namespace):
-    catalog = conftest.catalog(namespace.warehouse)
+def test_list_tables(catalog, namespace):
     assert len(catalog.list_tables(namespace.name)) == 0
     table_name_1 = "my_table_1"
     table_name_2 = "my_table_2"
@@ -171,8 +161,7 @@ def test_list_tables(namespace):
     assert (*namespace.name, table_name_2) in tables
 
 
-def test_write_read(namespace):
-    catalog = conftest.catalog(namespace.warehouse)
+def test_write_read(catalog, namespace):
     table_name = "my_table"
     schema = pa.schema(
         [

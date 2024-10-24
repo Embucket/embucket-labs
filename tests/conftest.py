@@ -23,6 +23,13 @@ S3_PATH_STYLE_ACCESS = os.environ.get("S3_PATH_STYLE_ACCESS")
 
 
 @dataclasses.dataclass
+class Namespace:
+    name: [str]
+    properties: dict
+    warehouse_id: str
+
+
+@dataclasses.dataclass
 class Server:
     catalog_url: str
     management_url: str
@@ -39,12 +46,24 @@ class Server:
         assert response.ok, response.text
         return response.json()
 
+    def delete_storage_profile(self, storage_profile: dict) -> None:
+        sid = storage_profile.get("id", None)
+        assert sid
+        storage_profile_url = urllib.parse.urljoin(
+            self.management_url, f"v1/storage-profile/{sid}"
+        )
+        response = requests.delete(
+            storage_profile_url,
+            json=storage_profile,
+        )
+        assert response.ok, response.text
+
     def create_warehouse(
         self,
         **payload,
     ) -> uuid.UUID:
         """Create a warehouse in this server"""
-        warehouse_url = self.warehouse_url
+        warehouse_url = urllib.parse.urljoin(self.management_url, "v1/warehouse")
         payload = {k.replace("_", "-"): v for k, v in payload.items()}
         response = requests.post(
             warehouse_url,
@@ -53,9 +72,15 @@ class Server:
         assert response.ok, response.text
         return response.json()
 
-    @property
-    def warehouse_url(self) -> str:
-        return urllib.parse.urljoin(self.management_url, "v1/warehouse")
+    def delete_warehouse(self, warehouse: dict) -> None:
+        wid = warehouse.get("id", None)
+        assert wid
+        warehouse_url = urllib.parse.urljoin(self.management_url, f"v1/warehouse/{wid}")
+        response = requests.delete(
+            warehouse_url,
+            json=warehouse,
+        )
+        assert response.ok, response.text
 
 
 @pytest.fixture(scope="session")
@@ -73,7 +98,7 @@ def server() -> Server:
 
 @pytest.fixture(scope="session")
 def storage_profile(server: Server) -> dict:
-    return server.create_storage_profile(
+    data = server.create_storage_profile(
         type="aws",
         region=S3_REGION,
         bucket=S3_BUCKET,
@@ -86,6 +111,9 @@ def storage_profile(server: Server) -> dict:
         endpoint=S3_ENDPOINT,
     )
 
+    yield data
+    server.delete_storage_profile(data)
+
 
 @pytest.fixture(scope="session")
 def warehouse(server: Server, storage_profile) -> dict:
@@ -96,14 +124,19 @@ def warehouse(server: Server, storage_profile) -> dict:
         prefix=preix,
         storage_profile_id=storage_profile.get("id", None),
     )
-    return wh
+    yield wh
+    server.delete_warehouse(wh)
 
 
 @pytest.fixture(scope="session")
 def namespace(catalog) -> dict:
-    namespace = "test-namespace"
+    namespace = ("test-namespace",)
     catalog.create_namespace(namespace)
-    return catalog.get_namespace(namespace)
+    return Namespace(
+        name=namespace,
+        properties={},
+        warehouse_id=catalog.properties.get("warehouse", None),
+    )
 
 
 @pytest.fixture(scope="session")
