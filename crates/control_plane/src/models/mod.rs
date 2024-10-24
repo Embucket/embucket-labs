@@ -185,7 +185,7 @@ impl Warehouse {
         let location = format!("{prefix}/{id}");
         let now = Utc::now().naive_utc();
         Ok(Self {
-            id: Uuid::new_v4(),
+            id,
             prefix,
             name,
             location,

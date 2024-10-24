@@ -4,12 +4,13 @@ use axum::Router;
 
 use crate::http::catalog::handlers::{
     commit_table, create_namespace, create_table, delete_namespace, delete_table, get_config,
-    get_namespace, get_table, list_namespaces,
+    get_namespace, get_table, list_namespaces, list_tables,
 };
 
 pub fn create_router() -> Router<AppState> {
     let table_router: Router<AppState> = Router::new()
         .route("/", post(create_table))
+        .route("/", get(list_tables))
         .route("/:table", get(get_table))
         .route("/:table", delete(delete_table))
         .route("/:table", post(commit_table));
