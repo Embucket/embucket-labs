@@ -13,7 +13,7 @@ tokio = { workspace = true }
 control_plane = { path = "../control_plane" }
 catalog = { path = "../catalog" }
 chrono = { workspace = true }
-uuid = { workspace = true }
+uuid = { workspace = true, features = ["v4", "v5"] }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 serde = { workspace = true }

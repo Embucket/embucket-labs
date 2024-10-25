@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use crate::http::ui::models::errors::AppError;
 use crate::http::ui::models::{aws, storage_profile};
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
@@ -22,6 +22,7 @@ use uuid::Uuid;
             aws::AwsAccessKeyCredential,
             aws::AwsRoleCredential,
             aws::CloudProvider,
+            AppError,
         )
     ),
     tags(
@@ -37,8 +38,9 @@ pub struct ApiDoc;
     request_body = storage_profile::CreateStorageProfilePayload,
     responses(
         (status = 200, description = "Successful Response", body = storage_profile::StorageProfile),
-        (status = 400, description = "Bad request"),
-        (status = 500, description = "Internal server error")
+        (status = 400, description = "Bad request", body = AppError),
+        (status = 422, description = "Unprocessable entity", body = AppError),
+        (status = 500, description = "Internal server error", body = AppError)
     )
 )]
 pub async fn create_storage_profile(
@@ -46,11 +48,15 @@ pub async fn create_storage_profile(
     Json(payload): Json<storage_profile::CreateStorageProfilePayload>,
 ) -> Result<Json<storage_profile::StorageProfile>, AppError> {
     let request: StorageProfileCreateRequest = payload.into();
-    let profile: StorageProfile = state
-        .control_svc
-        .create_profile(&request)
-        .await
-        .map_err(|e| AppError::from(e))?;
+    let profile: StorageProfile =
+        state
+            .control_svc
+            .create_profile(&request)
+            .await
+            .map_err(|e| {
+                let fmt = format!("{}: failed to create storage profile", e);
+                AppError::new(e, fmt.as_str())
+            })?;
     Ok(Json(profile.into()))
 }
 
@@ -63,7 +69,8 @@ pub async fn create_storage_profile(
     ),
     responses(
         (status = 200, description = "Successful Response", body = storage_profile::StorageProfile),
-        (status = 404, description = "Not found"),
+        (status = 404, description = "Not found", body = AppError),
+        (status = 422, description = "Unprocessable entity", body = AppError),
     )
 )]
 pub async fn get_storage_profile(
@@ -74,7 +81,13 @@ pub async fn get_storage_profile(
         .control_svc
         .get_profile(storage_profile_id)
         .await
-        .map_err(|e| AppError::from(e))?;
+        .map_err(|e| {
+            let fmt = format!(
+                "{}: failed to get storage profile with id {}",
+                e, storage_profile_id
+            );
+            AppError::new(e, fmt.as_str())
+        })?;
     Ok(Json(profile.into()))
 }
 
@@ -87,7 +100,8 @@ pub async fn get_storage_profile(
     ),
     responses(
         (status = 200, description = "Successful Response", body = storage_profile::StorageProfile),
-        (status = 404, description = "Not found"),
+        (status = 404, description = "Not found", body = AppError),
+        (status = 422, description = "Unprocessable entity", body = AppError),
     )
 )]
 pub async fn delete_storage_profile(
@@ -98,7 +112,13 @@ pub async fn delete_storage_profile(
         .control_svc
         .delete_profile(storage_profile_id)
         .await
-        .map_err(|e| AppError::from(e))?;
+        .map_err(|e| {
+            let fmt = format!(
+                "{}: failed to delete storage profile with id {}",
+                e, storage_profile_id
+            );
+            AppError::new(e, fmt.as_str())
+        })?;
     Ok(Json(()))
 }
 
@@ -108,12 +128,15 @@ pub async fn delete_storage_profile(
     path = "/ui/storage-profiles/",
     responses(
         (status = 200, body = Vec<storage_profile::StorageProfile>),
-        (status = 500, description = "Internal server error")
+        (status = 500, description = "Internal server error", body = AppError)
     )
 )]
 pub async fn list_storage_profiles(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<storage_profile::StorageProfile>>, AppError> {
-    let profiles = state.control_svc.list_profiles().await?;
+    let profiles = state.control_svc.list_profiles().await.map_err(|e| {
+        let fmt = format!("{}: failed to list storage profile", e);
+        AppError::new(e, fmt.as_str())
+    })?;
     Ok(Json(profiles.into_iter().map(|p| p.into()).collect()))
 }
