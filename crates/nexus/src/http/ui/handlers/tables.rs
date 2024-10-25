@@ -2,9 +2,11 @@ use crate::error::AppError;
 use crate::http::ui::models::{aws, database, storage_profile, table, warehouse};
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
+use axum_macros::debug_handler;
 use utoipa::OpenApi;
 use uuid::Uuid;
 use control_plane::models::{CloudProvider, StorageProfileCreateRequest, Credentials, AwsAccessKeyCredential, WarehouseCreateRequest};
+use crate::http::ui::models::table::TableQueryRequest;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -18,7 +20,7 @@ use control_plane::models::{CloudProvider, StorageProfileCreateRequest, Credenti
     components(
         schemas(
             table::TableExtended,
-            table::TableQueryResult,
+            table::TableQueryResponse,
             database::Database,
         )
     ),
@@ -198,6 +200,7 @@ pub async fn delete_table(
 #[utoipa::path(
     post,
     path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/query",
+    request_body = table::TableQueryRequest,
     operation_id = "webTableQuery",
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
@@ -205,40 +208,20 @@ pub async fn delete_table(
         ("tableName" = Uuid, Path, description = "Table name")
     ),
     responses(
-        (status = 200, description = "Returns result of the query", body = Vec<table::TableQueryResult>),
+        (status = 200, description = "Returns result of the query", body = Vec<table::TableQueryResponse>),
         (status = 500, description = "Internal server error")
     )
 )]
 pub async fn query_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
-) -> Result<Json<table::TableQueryResult>, AppError> {
-    ///////// For testing only
-    let storage_profile_create = StorageProfileCreateRequest {
-        r#type: CloudProvider::AWS,
-        region: "us-east-2".to_string(),
-        bucket: "test_bucket".to_string(),
-        credentials: Credentials::AccessKey(AwsAccessKeyCredential {
-            aws_access_key_id: "test_access_key".to_string(),
-            aws_secret_access_key: "test_secret_access_key".to_string(),
-        }),
-        sts_role_arn: None,
-        endpoint: None,
-    };
-    let storage_profile = state.control_svc.create_profile(&storage_profile_create).await?;
-    let warehouse_create = WarehouseCreateRequest {
-        prefix: "test_prefix".to_string(),
-        name: "test_name".to_string(),
-        storage_profile_id: storage_profile.id,
-    };
-    let warehouse = state.control_svc.create_warehouse(&warehouse_create).await?;
-    // state.control_svc.
-    /////////
-    let query = "dfssdf".to_string();
-    let result = state.control_svc.query_table(&warehouse_id, &query).await?;
-    Ok(Json(table::TableQueryResult {
+    Json(payload): Json<table::TableQueryRequest>,
+) -> Result<Json<table::TableQueryResponse>, AppError> {
+    let request: TableQueryRequest = payload.into();
+    let result = state.control_svc.query_table(&warehouse_id, &request.query).await?;
+    Ok(Json(table::TableQueryResponse {
         id: Default::default(),
-        query,
-        result: "result".to_string(),
+        query: request.query.clone(),
+        result: result.to_string(),
     }))
 }

@@ -32,7 +32,7 @@ pub trait ControlService: Send + Sync {
     // async fn delete_table(&self, id: Uuid) -> Result<()>;
     // async fn list_tables(&self) -> Result<Vec<Table>>;
 
-    async fn query_table(&self, warehouse_id:&Uuid, query:&String) -> Result<()>;
+    async fn query_table(&self, warehouse_id:&Uuid, query:&String) -> Result<(&str)>;
 }
 
 pub struct ControlServiceImpl {
@@ -101,7 +101,7 @@ impl ControlService for ControlServiceImpl {
         self.warehouse_repo.list().await
     }
 
-    async fn query_table(&self, warehouse_id:&Uuid, query:&String) -> Result<()> {
+    async fn query_table(&self, warehouse_id:&Uuid, query:&String) -> Result<(&str)> {
         let config = RestCatalogConfig::builder()
             .uri("http://0.0.0.0:3000/catalog".to_string())
             .warehouse(warehouse_id.to_string())
@@ -109,19 +109,13 @@ impl ControlService for ControlServiceImpl {
             .build();
 
         let catalog = RestCatalog::new(config);
-        let catalog = IcebergCatalogProvider::try_new(Arc::new(catalog))
-            .await
-            .unwrap();
 
-        let ctx = SessionContext::new();
-        ctx.register_catalog("catalog", Arc::new(catalog));
+        // TODO need manifest file written before the code below works
+        // let catalog = IcebergCatalogProvider::try_new(Arc::new(catalog))
+        //     .await
+        //     .unwrap();
 
-        let provider = ctx.catalog("catalog").unwrap();
-        let schemas = provider.schema_names();
-        println!("{schemas:?}");
-        assert_eq!(schemas.len(), 6);
-
-        Ok(())
+        Ok(("OK"))
     }
 }
 

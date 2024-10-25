@@ -579,20 +579,36 @@ pub struct WriteDefault(swagger::AnyOf6<String, bool, i32, f64, swagger::ByteArr
 
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct TableQueryResult {
+pub struct TableQueryRequest {
+    pub query: String,
+}
+
+impl TableQueryRequest {
+    #[allow(clippy::new_without_default)]
+    pub fn new(
+        query: String,
+    ) -> TableQueryRequest {
+        TableQueryRequest {
+            query,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+pub struct TableQueryResponse {
     pub id: uuid::Uuid,
     pub query: String,
     pub result: String,
 }
 
-impl crate::http::ui::models::table::TableQueryResult {
+impl crate::http::ui::models::table::TableQueryResponse {
     #[allow(clippy::new_without_default)]
     pub fn new(
         id: uuid::Uuid,
         query: String,
         result: String,
-    ) -> crate::http::ui::models::table::TableQueryResult {
-        crate::http::ui::models::table::TableQueryResult {
+    ) -> crate::http::ui::models::table::TableQueryResponse {
+        crate::http::ui::models::table::TableQueryResponse {
             id,
             query,
             result,
