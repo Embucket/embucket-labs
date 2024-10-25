@@ -128,14 +128,14 @@ impl TableRequirementExt {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Table {
     pub ident: TableIdent,
     pub metadata: TableMetadata,
     pub metadata_location: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct TableIdent {
     pub database: DatabaseIdent,
     pub table: String,
