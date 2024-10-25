@@ -124,7 +124,7 @@ pub struct WarehouseDashboard {
     pub updated_at: chrono::DateTime<chrono::Utc>,
     pub storage_profile: StorageProfile,
     pub databases: Vec<DatabaseEntity>,
-    pub statistics: Statistics,
+    pub statistics: Option<Statistics>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compaction_summary: Option<CompactionSummary>,
 }
@@ -132,31 +132,23 @@ pub struct WarehouseDashboard {
 impl WarehouseDashboard {
     #[allow(clippy::new_without_default)]
     pub fn new(
-        name: String,
-        storage_profile_id: uuid::Uuid,
-        key_prefix: String,
-        id: uuid::Uuid,
-        external_id: uuid::Uuid,
-        location: String,
-        created_at: chrono::DateTime<chrono::Utc>,
-        updated_at: chrono::DateTime<chrono::Utc>,
+        warehouse: Warehouse,
         storage_profile: StorageProfile,
         databases: Vec<DatabaseEntity>,
-        statistics: Statistics,
     ) -> WarehouseDashboard {
         WarehouseDashboard {
-            name,
-            storage_profile_id,
-            key_prefix,
-            id,
-            external_id,
-            location,
-            created_at,
-            updated_at,
-            storage_profile,
-            databases,
-            statistics,
+            id: warehouse.id,
+            key_prefix: warehouse.key_prefix,
+            name: warehouse.name,
+            location: warehouse.location,
+            storage_profile_id: warehouse.storage_profile_id,
+            created_at: warehouse.created_at,
+            updated_at: warehouse.updated_at,
+            external_id: warehouse.external_id,
+            statistics: None,
             compaction_summary: None,
+            storage_profile,
+            databases: databases,
         }
     }
 }
@@ -178,30 +170,21 @@ pub struct WarehouseEntity {
 
 impl WarehouseEntity {
     #[allow(clippy::new_without_default)]
-    pub fn new(
-        name: String,
-        storage_profile_id: uuid::Uuid,
-        key_prefix: String,
-        id: uuid::Uuid,
-        external_id: uuid::Uuid,
-        location: String,
-        created_at: chrono::DateTime<chrono::Utc>,
-        updated_at: chrono::DateTime<chrono::Utc>,
-        storage_profile: StorageProfile,
-    ) -> WarehouseEntity {
+    pub fn new(warehouse: Warehouse, storage_profile: StorageProfile) -> WarehouseEntity {
         WarehouseEntity {
-            name,
-            storage_profile_id,
-            key_prefix,
-            id,
-            external_id,
-            location,
-            created_at,
-            updated_at,
+            id: warehouse.id,
+            key_prefix: warehouse.key_prefix,
+            name: warehouse.name,
+            location: warehouse.location,
+            storage_profile_id: warehouse.storage_profile_id,
+            created_at: warehouse.created_at,
+            updated_at: warehouse.updated_at,
+            external_id: warehouse.external_id,
             storage_profile,
         }
     }
 }
+
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct WarehouseExtended {

@@ -118,6 +118,7 @@ impl From<CloudProvider> for models::CloudProvider {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
 pub enum Credentials {
     #[serde(rename = "access_key")]
     AccessKey(AwsAccessKeyCredential),

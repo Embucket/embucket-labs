@@ -1,10 +1,10 @@
-use crate::http::ui::handlers::databases::{delete_database, get_database};
+use crate::http::ui::handlers::databases::{create_database, delete_database, get_database};
 use crate::http::ui::handlers::profiles::{
     create_storage_profile, delete_storage_profile, get_storage_profile, list_storage_profiles,
 };
-use crate::http::ui::handlers::tables::{get_table, query_table};
+use crate::http::ui::handlers::tables::{create_table, delete_table, get_table, query_table};
 use crate::http::ui::handlers::warehouses::{
-    create_warehouse, delete_warehouse, get_warehouse, list_warehouses,
+    create_warehouse, delete_warehouse, get_warehouse, list_warehouses, navigation,
 };
 use crate::state::AppState;
 use axum::routing::{delete, get, post};
@@ -12,6 +12,7 @@ use axum::Router;
 
 pub fn create_router() -> Router<AppState> {
     Router::new()
+        .route("/navigation", get(navigation))
         .route("/warehouses", post(create_warehouse).get(list_warehouses))
         .route(
             "/warehouses/:warehouseId",
@@ -20,6 +21,11 @@ pub fn create_router() -> Router<AppState> {
         .route(
             "/warehouses/:warehouseId/databases/:databaseName",
             get(get_database).delete(delete_database),
+        )
+        .route("/warehouses/:warehouseId/databases", post(create_database))
+        .route(
+            "/warehouses/:warehouseId/databases/:databaseName/tables",
+            post(create_table).delete(delete_table),
         )
         .route(
             "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName",
