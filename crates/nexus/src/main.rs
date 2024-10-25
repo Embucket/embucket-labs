@@ -90,20 +90,6 @@ async fn main() {
         .unwrap();
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
-
-
-
-    // // Set up tracing to log to stdout
-    // let subscriber = FmtSubscriber::builder()
-    //     .with_max_level(Level::INFO)
-    //     .finish();
-    // tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-    //
-    // // Create the application router and pass the state
-    // let app = http::router::create_app(app_state).layer(middleware::from_fn(log_request));
-    //
-    // let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    // axum::serve(listener, app).await.unwrap();
 }
 
 
