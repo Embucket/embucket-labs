@@ -93,8 +93,7 @@ impl TableEntity {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TableMetadataWrapper(pub TableMetadata);
-
+pub struct TableMetadataWrapper(TableMetadata);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TableExtended {
