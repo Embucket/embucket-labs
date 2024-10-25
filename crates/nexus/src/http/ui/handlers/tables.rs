@@ -2,8 +2,11 @@ use crate::error::AppError;
 use crate::http::ui::models::{aws, database, storage_profile, table, warehouse};
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
+use axum_macros::debug_handler;
 use utoipa::OpenApi;
 use uuid::Uuid;
+use control_plane::models::{CloudProvider, StorageProfileCreateRequest, Credentials, AwsAccessKeyCredential, WarehouseCreateRequest};
+use crate::http::ui::models::table::TableQueryRequest;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -12,10 +15,12 @@ use uuid::Uuid;
         delete_table,
         get_table,
         list_tables,
+        query_table,
     ),
     components(
         schemas(
             table::TableExtended,
+            table::TableQueryResponse,
             database::Database,
         )
     ),
@@ -189,4 +194,34 @@ pub async fn delete_table(
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
 ) -> Result<(), AppError> {
     Ok(())
+}
+
+
+#[utoipa::path(
+    post,
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/query",
+    request_body = table::TableQueryRequest,
+    operation_id = "webTableQuery",
+    params(
+        ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
+        ("databaseName" = Uuid, Path, description = "Database Name"),
+        ("tableName" = Uuid, Path, description = "Table name")
+    ),
+    responses(
+        (status = 200, description = "Returns result of the query", body = Vec<table::TableQueryResponse>),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn query_table(
+    State(state): State<AppState>,
+    Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
+    Json(payload): Json<table::TableQueryRequest>,
+) -> Result<Json<table::TableQueryResponse>, AppError> {
+    let request: TableQueryRequest = payload.into();
+    let result = state.control_svc.query_table(&warehouse_id, &request.query).await?;
+    Ok(Json(table::TableQueryResponse {
+        id: Default::default(),
+        query: request.query.clone(),
+        result: result.to_string(),
+    }))
 }
