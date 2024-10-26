@@ -8,6 +8,7 @@ use uuid::Uuid;
 use datafusion::prelude::*;
 use iceberg_catalog_rest::{RestCatalog, RestCatalogConfig};
 use iceberg_datafusion::IcebergCatalogProvider;
+use datafusion::catalog_common::CatalogProvider;
 use std::collections::HashMap;
 
 #[async_trait]
@@ -110,10 +111,14 @@ impl ControlService for ControlServiceImpl {
 
         let catalog = RestCatalog::new(config);
 
-        // TODO need manifest file written before the code below works
-        // let catalog = IcebergCatalogProvider::try_new(Arc::new(catalog))
-        //     .await
-        //     .unwrap();
+        let catalog = IcebergCatalogProvider::try_new(Arc::new(catalog))
+            .await
+            .unwrap();
+
+        // Test that catalog loaded successfully
+        println!("SCHEMAS: {:?}", catalog.schema_names());
+
+        // TODO rest of the query code
 
         Ok(("OK"))
     }
