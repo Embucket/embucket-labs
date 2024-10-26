@@ -111,6 +111,9 @@ impl Catalog for CatalogImpl {
             .map(TableRequirementExt::new)
             .try_for_each(|req| req.assert(&table.metadata, true))?;
 
+        // TODO rewrite metadata file? need to research when metadata rewrite is needed
+        // Currently the metadata file is only written once - during table creation
+
         let mut builder =
             TableMetadataBuilder::new_from_metadata(table.metadata, Some(table.metadata_location.clone()));
 
