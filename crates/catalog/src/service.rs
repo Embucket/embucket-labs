@@ -266,15 +266,9 @@ impl Catalog for CatalogImpl {
         let local_dir = "object_store";
         fs::create_dir_all(local_dir).await.unwrap();
         let store = LocalFileSystem::new_with_prefix(local_dir).expect("Failed to initialize filesystem object store");
-
         let path = Path::from(metadata_relative_location);
-
         let json_data = serde_json::to_string(&table.metadata).unwrap();
-
-        // The content to be written to the file
         let content = Bytes::from(json_data);
-
-        // Writing the content to the file
         store.put(&path, PutPayload::from(content)).await.expect("Failed to write file");
 
         Ok(table)
