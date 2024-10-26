@@ -251,6 +251,7 @@ impl Catalog for CatalogImpl {
         let metadata = result.metadata.clone();
         let metadata_file_id = Uuid::new_v4().to_string();
         let metadata_relative_location = format!("{table_location}/metadata/{metadata_file_id}.metadata.json");
+        // TODO un-hardcode "file://" and make it dynamic - filesystem or s3 (at least)
         let metadata_full_location = format!("file://object_store/{metadata_relative_location}");
 
         let table = Table {
