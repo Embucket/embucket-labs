@@ -1,21 +1,23 @@
 use crate::http::ui::models::database::{CompactionSummary, Database, DatabaseExtended};
+use crate::http::ui::models::metadata::TableMetadataWrapper;
 use crate::http::ui::models::storage_profile::StorageProfile;
 use crate::http::ui::models::warehouse::Warehouse;
 use catalog::models as CatalogModels;
-use iceberg::spec::{Schema, SortOrder, TableMetadata, UnboundPartitionSpec};
+use iceberg::spec::{Schema, SortOrder, UnboundPartitionSpec};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use utoipa::openapi::{ArrayBuilder, ObjectBuilder, RefOr, Schema as OpenApiSchema};
 use utoipa::{PartialSchema, ToSchema};
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct TableCreateRequest {
     pub name: String,
     pub location: Option<String>,
-    pub schema: Schema,
-    pub partition_spec: Option<UnboundPartitionSpec>,
-    pub write_order: Option<SortOrder>,
+    pub schema: SchemaWrapper,
+    pub partition_spec: Option<UnboundPartitionSpecWrapper>,
+    pub write_order: Option<SortOrderWrapper>,
     pub stage_create: Option<bool>,
     pub properties: Option<HashMap<String, String>>,
 }
@@ -25,15 +27,15 @@ impl From<TableCreateRequest> for catalog::models::TableCreation {
         catalog::models::TableCreation {
             name: schema.name,
             location: schema.location,
-            schema: schema.schema,
-            partition_spec: schema.partition_spec.map(std::convert::Into::into),
-            sort_order: schema.write_order,
+            schema: schema.schema.0,
+            partition_spec: schema.partition_spec.map(|x| x.0),
+            sort_order: schema.write_order.map(|x| x.0),
             properties: schema.properties.unwrap_or_default(),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, ToSchema)]
 pub struct Table {
     pub id: Uuid,
     pub name: String,
@@ -63,7 +65,7 @@ pub fn get_table_id(ident: CatalogModels::TableIdent) -> Uuid {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct TableEntity {
-    pub id: uuid::Uuid,
+    pub id: Uuid,
     pub name: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
@@ -75,7 +77,7 @@ pub struct TableEntity {
 impl TableEntity {
     #[allow(clippy::new_without_default)]
     pub fn new(
-        id: uuid::Uuid,
+        id: Uuid,
         name: String,
         created_at: chrono::DateTime<chrono::Utc>,
         updated_at: chrono::DateTime<chrono::Utc>,
@@ -91,11 +93,7 @@ impl TableEntity {
         }
     }
 }
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TableMetadataWrapper(TableMetadata);
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct TableExtended {
     pub id: Uuid,
     pub name: String,
@@ -188,10 +186,6 @@ impl Statistics {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WriteDefault(swagger::AnyOf6<String, bool, i32, f64, swagger::ByteArray, uuid::Uuid>);
-
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct TableQueryRequest {
     pub query: String,
@@ -199,33 +193,101 @@ pub struct TableQueryRequest {
 
 impl TableQueryRequest {
     #[allow(clippy::new_without_default)]
-    pub fn new(
-        query: String,
-    ) -> TableQueryRequest {
-        TableQueryRequest {
-            query,
-        }
+    pub fn new(query: String) -> TableQueryRequest {
+        TableQueryRequest { query }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct TableQueryResponse {
-    pub id: uuid::Uuid,
+    pub id: Uuid,
     pub query: String,
     pub result: String,
 }
 
-impl crate::http::ui::models::table::TableQueryResponse {
+impl TableQueryResponse {
     #[allow(clippy::new_without_default)]
-    pub fn new(
-        id: uuid::Uuid,
-        query: String,
-        result: String,
-    ) -> crate::http::ui::models::table::TableQueryResponse {
-        crate::http::ui::models::table::TableQueryResponse {
-            id,
-            query,
-            result,
-        }
+    pub fn new(id: Uuid, query: String, result: String) -> TableQueryResponse {
+        TableQueryResponse { id, query, result }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SchemaWrapper(Schema);
+
+impl ToSchema for SchemaWrapper {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("SchemaWrapper")
+    }
+}
+impl PartialSchema for SchemaWrapper {
+    fn schema() -> RefOr<utoipa::openapi::Schema> {
+        RefOr::from(utoipa::openapi::Schema::Object(
+            ObjectBuilder::new()
+                .property("r#struct", OpenApiSchema::Object(Default::default()))
+                .property("schema_id", i32::schema())
+                .property("highest_field_id", i32::schema())
+                .property(
+                    "identifier_field_ids",
+                    OpenApiSchema::Array(ArrayBuilder::new().items(i32::schema()).build()),
+                )
+                .property("alias_to_id", OpenApiSchema::Object(Default::default()))
+                .property("id_to_field", OpenApiSchema::Object(Default::default()))
+                .property("name_to_id", OpenApiSchema::Object(Default::default()))
+                .property(
+                    "lowercase_name_to_id",
+                    OpenApiSchema::Object(Default::default()),
+                )
+                .property("id_to_name", OpenApiSchema::Object(Default::default()))
+                .property(
+                    "field_id_to_accessor",
+                    OpenApiSchema::Object(Default::default()),
+                )
+                .build(),
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UnboundPartitionSpecWrapper(UnboundPartitionSpec);
+
+impl ToSchema for UnboundPartitionSpecWrapper {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("UnboundPartitionSpecWrapper")
+    }
+}
+impl PartialSchema for UnboundPartitionSpecWrapper {
+    fn schema() -> RefOr<utoipa::openapi::Schema> {
+        RefOr::from(utoipa::openapi::Schema::Object(
+            ObjectBuilder::new()
+                .property("spec_id", i32::schema())
+                .property(
+                    "fields",
+                    OpenApiSchema::Array(ArrayBuilder::new().items(String::schema()).build()),
+                )
+                .build(),
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SortOrderWrapper(SortOrder);
+
+impl ToSchema for SortOrderWrapper {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("SortOrderWrapper")
+    }
+}
+impl PartialSchema for SortOrderWrapper {
+    fn schema() -> RefOr<utoipa::openapi::Schema> {
+        RefOr::from(utoipa::openapi::Schema::Object(
+            ObjectBuilder::new()
+                .property("order_id", i64::schema())
+                .property(
+                    "fields",
+                    OpenApiSchema::Array(ArrayBuilder::new().items(String::schema()).build()),
+                )
+                .build(),
+        ))
     }
 }

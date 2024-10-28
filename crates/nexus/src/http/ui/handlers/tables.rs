@@ -1,7 +1,9 @@
 use crate::http::ui::models::errors::AppError;
 use crate::http::ui::models::table;
 use crate::http::ui::models::table::TableQueryRequest;
-use crate::http::ui::models::table::{Table, TableCreateRequest, TableExtended};
+use crate::http::ui::models::table::{
+    Table, TableCreateRequest, TableExtended, TableQueryResponse,
+};
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
 use catalog::models::{DatabaseIdent, TableIdent, WarehouseIdent};
@@ -19,7 +21,11 @@ use uuid::Uuid;
     ),
     components(
         schemas(
-            table::TableQueryResponse,
+            TableQueryResponse,
+            TableQueryRequest,
+            TableExtended,
+            TableCreateRequest,
+            Table,
             AppError,
         )
     ),
@@ -49,34 +55,15 @@ pub async fn get_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
 ) -> Result<Json<TableExtended>, AppError> {
-    let warehouse = state
-        .control_svc
-        .get_warehouse(warehouse_id)
-        .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to get warehouse by id {}", e, warehouse_id);
-            AppError::new(e, fmt.as_str())
-        })?;
+    let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let profile = state
-        .control_svc
-        .get_profile(warehouse.storage_profile_id)
-        .await
-        .map_err(|e| {
-            let fmt = format!(
-                "{}: failed to get profile by id {}",
-                e, warehouse.storage_profile_id
-            );
-            AppError::new(e, fmt.as_str())
-        })?;
+        .get_profile_by_id(warehouse.storage_profile_id)
+        .await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(database_name),
     };
-    let database = state.catalog_svc.get_namespace(&ident).await.map_err(|e| {
-        let fmt = format!("{}: failed to get database with db ident {}", e, &ident);
-        AppError::new(e, fmt.as_str())
-    })?;
-
+    let database = state.get_database_by_ident(&ident).await?;
     let table_ident = TableIdent {
         database: ident,
         table: table_name,
@@ -116,14 +103,7 @@ pub async fn create_table(
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
     Json(payload): Json<TableCreateRequest>,
 ) -> Result<Json<Table>, AppError> {
-    let warehouse = state
-        .control_svc
-        .get_warehouse(warehouse_id)
-        .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to get warehouse by id {}", e, warehouse_id);
-            AppError::new(e, fmt.as_str())
-        })?;
+    let warehouse = state.get_warehouse_model(warehouse_id).await?;
     let db_ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(database_name),
@@ -158,14 +138,7 @@ pub async fn delete_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
 ) -> Result<(), AppError> {
-    let warehouse = state
-        .control_svc
-        .get_warehouse(warehouse_id)
-        .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to get warehouse by id {}", e, warehouse_id);
-            AppError::new(e, fmt.as_str())
-        })?;
+    let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let table_ident = TableIdent {
         database: DatabaseIdent {
             warehouse: WarehouseIdent::new(warehouse.id),
@@ -187,7 +160,7 @@ pub async fn delete_table(
 #[utoipa::path(
     post,
     path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/query",
-    request_body = table::TableQueryRequest,
+    request_body = TableQueryRequest,
     operation_id = "webTableQuery",
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
@@ -195,7 +168,7 @@ pub async fn delete_table(
         ("tableName" = Uuid, Path, description = "Table name")
     ),
     responses(
-        (status = 200, description = "Returns result of the query", body = Vec<table::TableQueryResponse>),
+        (status = 200, description = "Returns result of the query", body = TableQueryResponse),
         (status = 500, description = "Internal server error")
     )
 )]
