@@ -55,14 +55,7 @@ pub async fn create_database(
     Path(warehouse_id): Path<Uuid>,
     Json(payload): Json<database::CreateDatabasePayload>,
 ) -> Result<Json<database::Database>, AppError> {
-    let warehouse = state
-        .control_svc
-        .get_warehouse(warehouse_id)
-        .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to get warehouse by id {}", e, warehouse_id);
-            AppError::new(e, fmt.as_str())
-        })?;
+    let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(payload.name),
@@ -130,48 +123,18 @@ pub async fn get_database(
     State(state): State<AppState>,
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
 ) -> Result<Json<database::DatabaseDashboard>, AppError> {
-    let warehouse = state
-        .control_svc
-        .get_warehouse(warehouse_id)
-        .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to get warehouse by id {}", e, warehouse_id);
-            AppError::new(e, fmt.as_str())
-        })?;
-    let profile = state
-        .control_svc
-        .get_profile(warehouse.storage_profile_id)
-        .await
-        .map_err(|e| {
-            let fmt = format!(
-                "{}: failed to get profile by id {}",
-                e, warehouse.storage_profile_id
-            );
-            AppError::new(e, fmt.as_str())
-        })?;
+    let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
+    let profile = state.get_profile_by_id(warehouse.storage_profile_id).await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(database_name),
     };
-    let database = state.catalog_svc.get_namespace(&ident).await.map_err(|e| {
-        let fmt = format!(
-            "{}: failed to get database with db ident {}",
-            e, &ident
-        );
-        AppError::new(e, fmt.as_str())
-    })?;
-    let tables = state.catalog_svc.list_tables(&ident).await
-        .map_err(|e| {
-            let fmt = format!(
-                "{}: failed to get database tables with db ident {}",
-                e, &ident
-            );
-            AppError::new(e, fmt.as_str())
-        })?;
+    let database = state.get_database_by_ident(&ident).await?;
+    let tables = state.catalog_svc.list_tables(&ident).await?;
     Ok(Json(DatabaseDashboard {
-        name: database.ident.to_string(),
+        name: ident.namespace.first().unwrap().to_string(),
         properties: Option::from(database.properties),
-        id: get_database_id(database.ident),
+        id: get_database_id(ident),
         warehouse_id,
         warehouse: WarehouseEntity::new(warehouse.into(), profile.into()),
         tables: tables

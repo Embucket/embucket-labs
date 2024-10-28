@@ -77,17 +77,7 @@ pub async fn get_storage_profile(
     State(state): State<AppState>,
     Path(storage_profile_id): Path<Uuid>,
 ) -> Result<Json<storage_profile::StorageProfile>, AppError> {
-    let profile: StorageProfile = state
-        .control_svc
-        .get_profile(storage_profile_id)
-        .await
-        .map_err(|e| {
-            let fmt = format!(
-                "{}: failed to get storage profile with id {}",
-                e, storage_profile_id
-            );
-            AppError::new(e, fmt.as_str())
-        })?;
+    let profile = state.get_profile_by_id(storage_profile_id).await?;
     Ok(Json(profile.into()))
 }
 

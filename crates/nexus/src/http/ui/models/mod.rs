@@ -4,3 +4,4 @@ pub mod errors;
 pub mod storage_profile;
 pub mod table;
 pub mod warehouse;
+pub mod metadata;

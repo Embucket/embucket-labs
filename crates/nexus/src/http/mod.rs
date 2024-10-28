@@ -7,5 +7,4 @@ pub mod control {
 pub mod ui {
     pub mod handlers;
     pub mod models;
-    pub mod models;
 }
