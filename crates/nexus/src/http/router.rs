@@ -48,7 +48,7 @@ pub fn create_app(state: AppState) -> Router {
         .nest("/", control_router)
         .nest("/catalog", catalog_router)
         .nest("/ui", ui_router)
-        .merge(SwaggerUi::new("/").url("/openapi.yaml", spec))
+        .merge(SwaggerUi::new("/").url("/openapi.json", spec))
         .with_state(state)
 }
 

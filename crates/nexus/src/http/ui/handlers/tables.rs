@@ -1,8 +1,6 @@
 use crate::http::ui::models::errors::AppError;
-use crate::http::ui::models::table;
-use crate::http::ui::models::table::TableQueryRequest;
 use crate::http::ui::models::table::{
-    Table, TableCreateRequest, TableExtended, TableQueryResponse,
+    Table, TableCreatePayload, TableQueryRequest, TableQueryResponse,
 };
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
@@ -23,8 +21,7 @@ use uuid::Uuid;
         schemas(
             TableQueryResponse,
             TableQueryRequest,
-            TableExtended,
-            TableCreateRequest,
+            TableCreatePayload,
             Table,
             AppError,
         )
@@ -45,7 +42,7 @@ pub struct ApiDoc;
         ("tableName" = String, description = "Table name")
     ),
     responses(
-        (status = 200, description = "List all warehouses"),
+        (status = 200, description = "Get table"),
         (status = 404, description = "Not found", body = AppError),
         (status = 422, description = "Unprocessable entity", body = AppError),
         (status = 500, description = "Internal server error", body = AppError)
@@ -54,35 +51,23 @@ pub struct ApiDoc;
 pub async fn get_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
-) -> Result<Json<TableExtended>, AppError> {
-    let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
+) -> Result<Json<Table>, AppError> {
+    let mut warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let profile = state
-        .get_profile_by_id(warehouse.storage_profile_id)
+        .get_profile_by_id(warehouse.storage_profile_id.unwrap())
         .await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(database_name),
     };
-    let database = state.get_database_by_ident(&ident).await?;
+    let mut database = state.get_database(&ident).await?;
     let table_ident = TableIdent {
         database: ident,
         table: table_name,
     };
-    let table = state
-        .catalog_svc
-        .load_table(&table_ident)
-        .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to get table with ident {}", e, &table_ident);
-            AppError::new(e, fmt.as_str())
-        })?;
-
-    Ok(Json(TableExtended::new(
-        profile.into(),
-        warehouse.into(),
-        database.into(),
-        table,
-    )))
+    warehouse.with_details(Option::from(profile), None);
+    let mut table = state.get_table(&table_ident).await?;
+    Ok(Json(table))
 }
 
 #[utoipa::path(
@@ -101,7 +86,7 @@ pub async fn get_table(
 pub async fn create_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
-    Json(payload): Json<TableCreateRequest>,
+    Json(payload): Json<TableCreatePayload>,
 ) -> Result<Json<Table>, AppError> {
     let warehouse = state.get_warehouse_model(warehouse_id).await?;
     let db_ident = DatabaseIdent {
@@ -175,14 +160,14 @@ pub async fn delete_table(
 pub async fn query_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
-    Json(payload): Json<table::TableQueryRequest>,
-) -> Result<Json<table::TableQueryResponse>, AppError> {
+    Json(payload): Json<TableQueryRequest>,
+) -> Result<Json<TableQueryResponse>, AppError> {
     let request: TableQueryRequest = payload.into();
     let result = state
         .control_svc
         .query_table(&warehouse_id, &request.query)
         .await?;
-    Ok(Json(table::TableQueryResponse {
+    Ok(Json(TableQueryResponse {
         id: Default::default(),
         query: request.query.clone(),
         result: result.to_string(),

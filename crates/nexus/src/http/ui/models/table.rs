@@ -1,8 +1,7 @@
-use crate::http::ui::models::database::{CompactionSummary, Database, DatabaseExtended};
+use crate::http::ui::models::database::CompactionSummary;
 use crate::http::ui::models::metadata::TableMetadataWrapper;
-use crate::http::ui::models::storage_profile::StorageProfile;
-use crate::http::ui::models::warehouse::Warehouse;
 use catalog::models as CatalogModels;
+use iceberg::spec::TableMetadata;
 use iceberg::spec::{Schema, SortOrder, UnboundPartitionSpec};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,8 +10,12 @@ use utoipa::{PartialSchema, ToSchema};
 use uuid::Uuid;
 use validator::Validate;
 
+pub fn get_table_id(ident: CatalogModels::TableIdent) -> Uuid {
+    Uuid::new_v5(&Uuid::NAMESPACE_DNS, ident.table.to_string().as_bytes())
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct TableCreateRequest {
+pub struct TableCreatePayload {
     pub name: String,
     pub location: Option<String>,
     pub schema: SchemaWrapper,
@@ -22,8 +25,8 @@ pub struct TableCreateRequest {
     pub properties: Option<HashMap<String, String>>,
 }
 
-impl From<TableCreateRequest> for catalog::models::TableCreation {
-    fn from(schema: TableCreateRequest) -> Self {
+impl From<TableCreatePayload> for catalog::models::TableCreation {
+    fn from(schema: TableCreatePayload) -> Self {
         catalog::models::TableCreation {
             name: schema.name,
             location: schema.location,
@@ -35,101 +38,52 @@ impl From<TableCreateRequest> for catalog::models::TableCreation {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct Table {
     pub id: Uuid,
     pub name: String,
-    pub metadata: TableMetadataWrapper,
-    pub metadata_location: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub database_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warehouse_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub properties: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<TableMetadataWrapper>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata_location: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub statistics: Option<Statistics>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compaction_summary: Option<CompactionSummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
 }
+
+// impl Table {
+//     pub fn with_details(&mut self, database: Option<Database>) {
+//         if database.is_some() {
+//             self.database = database;
+//         }
+//     }
+// }
 
 impl From<catalog::models::Table> for Table {
     fn from(table: catalog::models::Table) -> Self {
         Self {
             id: get_table_id(table.clone().ident),
             name: table.ident.table,
-            metadata_location: table.metadata_location,
-            metadata: TableMetadataWrapper(table.metadata),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct TableShort {
-    pub id: Uuid,
-    pub name: String,
-}
-pub fn get_table_id(ident: CatalogModels::TableIdent) -> Uuid {
-    Uuid::new_v5(&Uuid::NAMESPACE_DNS, ident.table.to_string().as_bytes())
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct TableEntity {
-    pub id: Uuid,
-    pub name: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-    pub statistics: Statistics,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compaction_summary: Option<CompactionSummary>,
-}
-
-impl TableEntity {
-    #[allow(clippy::new_without_default)]
-    pub fn new(
-        id: Uuid,
-        name: String,
-        created_at: chrono::DateTime<chrono::Utc>,
-        updated_at: chrono::DateTime<chrono::Utc>,
-        statistics: Statistics,
-    ) -> TableEntity {
-        TableEntity {
-            id,
-            name,
-            created_at,
-            updated_at,
-            statistics,
-            compaction_summary: None,
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct TableExtended {
-    pub id: Uuid,
-    pub name: String,
-    pub database_name: String,
-    pub warehouse_id: Uuid,
-    pub properties: Option<HashMap<String, String>>,
-    pub metadata: TableMetadataWrapper,
-    pub metadata_location: String,
-    pub statistics: Option<Statistics>,
-    pub compaction_summary: Option<CompactionSummary>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-    pub database: DatabaseExtended,
-}
-
-impl TableExtended {
-    #[allow(clippy::new_without_default)]
-    pub fn new(
-        profile: StorageProfile,
-        warehouse: Warehouse,
-        database: Database,
-        table: CatalogModels::Table,
-    ) -> TableExtended {
-        TableExtended {
-            id: get_table_id(table.clone().ident),
-            name: table.ident.table,
-            database_name: table.ident.database.to_string(),
-            warehouse_id: warehouse.id,
+            database_name: None,
+            warehouse_id: None,
             properties: None,
-            metadata: TableMetadataWrapper(table.metadata),
-            metadata_location: table.metadata_location,
-            statistics: None,
-            compaction_summary: None,
+            metadata: None,
             created_at: Default::default(),
             updated_at: Default::default(),
-            database: DatabaseExtended::new(profile, warehouse, database),
+            statistics: Option::from(Statistics::from_table_metadata(&table.metadata)),
+            compaction_summary: None,
+            metadata_location: None,
         }
     }
 }
@@ -154,20 +108,65 @@ pub struct Statistics {
 }
 
 impl Statistics {
-    #[allow(clippy::new_without_default)]
-    pub fn new(
-        commit_count: i32,
-        op_append_count: i32,
-        op_overwrite_count: i32,
-        op_delete_count: i32,
-        op_replace_count: i32,
-        total_bytes: i32,
-        bytes_added: i32,
-        bytes_removed: i32,
-        total_rows: i32,
-        rows_added: i32,
-        rows_deleted: i32,
-    ) -> Statistics {
+    pub fn from_table_metadata(metadata: &TableMetadata) -> Statistics {
+        let mut total_bytes = 0;
+        let mut total_rows = 0;
+        let mut rows_deleted = 0;
+        let mut commit_count = 0;
+        let mut op_append_count = 0;
+        let mut op_overwrite_count = 0;
+        let mut op_delete_count = 0;
+        let mut op_replace_count = 0;
+        let mut bytes_added = 0;
+        let mut rows_added = 0;
+
+        if let Some(latest_snapshot) = metadata.current_snapshot() {
+            total_bytes = latest_snapshot
+                .summary()
+                .other
+                .get("total-files-size")
+                .unwrap()
+                .parse::<i32>()
+                .unwrap();
+            total_rows = latest_snapshot
+                .summary()
+                .other
+                .get("total-records")
+                .unwrap()
+                .parse::<i32>()
+                .unwrap();
+            rows_deleted = latest_snapshot
+                .summary()
+                .other
+                .get("removed-records")
+                .unwrap()
+                .parse::<i32>()
+                .unwrap();
+        };
+
+        metadata.snapshots().for_each(|snapshot| {
+            let summary = snapshot.summary();
+            commit_count += 1;
+            bytes_added += summary
+                .other
+                .get("added-files-size")
+                .unwrap()
+                .parse::<i32>()
+                .unwrap();
+            rows_added += summary
+                .other
+                .get("added-records")
+                .unwrap()
+                .parse::<i32>()
+                .unwrap();
+            match summary.operation {
+                iceberg::spec::Operation::Append => op_append_count += 1,
+                iceberg::spec::Operation::Overwrite => op_overwrite_count += 1,
+                iceberg::spec::Operation::Delete => op_delete_count += 1,
+                iceberg::spec::Operation::Replace => op_replace_count += 1,
+            }
+        });
+
         Statistics {
             commit_count,
             op_append_count,
@@ -176,12 +175,34 @@ impl Statistics {
             op_replace_count,
             total_bytes,
             bytes_added,
-            bytes_removed,
+            bytes_removed: 0,
             total_rows,
             rows_added,
             rows_deleted,
-            table_count: None,
+            table_count: Option::from(1),
             database_count: None,
+        }
+    }
+
+    pub fn aggregate(&self, other: &Statistics) -> Statistics {
+        Statistics {
+            commit_count: self.commit_count + other.commit_count,
+            op_append_count: self.op_append_count + other.op_append_count,
+            op_overwrite_count: self.op_overwrite_count + other.op_overwrite_count,
+            op_delete_count: self.op_delete_count + other.op_delete_count,
+            op_replace_count: self.op_replace_count + other.op_replace_count,
+            total_bytes: self.total_bytes + other.total_bytes,
+            bytes_added: self.bytes_added + other.bytes_added,
+            bytes_removed: self.bytes_removed + other.bytes_removed,
+            total_rows: self.total_rows + other.total_rows,
+            rows_added: self.rows_added + other.rows_added,
+            rows_deleted: self.rows_deleted + other.rows_deleted,
+            table_count: self.table_count.map_or(other.table_count, |count| {
+                Some(count + other.table_count.unwrap_or(0))
+            }),
+            database_count: self.database_count.map_or(other.database_count, |count| {
+                Some(count + other.database_count.unwrap_or(0))
+            }),
         }
     }
 }

@@ -1,14 +1,10 @@
-use crate::http::ui::models::storage_profile::StorageProfile;
-use crate::http::ui::models::table::{Statistics, TableEntity, TableShort};
-use crate::http::ui::models::warehouse::{Warehouse, WarehouseEntity, WarehouseExtended};
+use crate::http::ui::models::table::{Statistics, Table};
 use catalog::models;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
-
-pub const DATABASE_NAME: &str = "database_name";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreateDatabasePayload {
@@ -29,21 +25,34 @@ impl CreateDatabasePayload {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct Database {
+    pub id: Uuid,
     pub name: String,
+    pub tables: Vec<Table>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<HashMap<String, String>>,
-    pub id: Uuid,
-    pub warehouse_id: Uuid,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warehouse_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub statistics: Option<Statistics>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compaction_summary: Option<CompactionSummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl Database {
-    #[allow(clippy::new_without_default)]
-    pub fn new(name: String, id: Uuid, warehouse_id: Uuid) -> Database {
-        Database {
-            name,
-            properties: None,
-            id,
-            warehouse_id,
+    pub fn with_details(&mut self, tables: Option<Vec<Table>>) {
+        if tables.is_some() {
+            let mut total_statistics = Statistics::default();
+
+            for t in tables.clone().unwrap() {
+                total_statistics = total_statistics.aggregate(&t.statistics.unwrap_or_default());
+            }
+            total_statistics.database_count = Some(1);
+            self.statistics = Option::from(total_statistics);
+            self.tables = tables.unwrap();
         }
     }
 }
@@ -53,134 +62,15 @@ impl From<models::Database> for Database {
         Database {
             id: get_database_id(db.ident.clone()),
             name: db.ident.namespace.first().unwrap().to_string(),
-            properties: db.properties.into(),
-            warehouse_id: *db.ident.warehouse.id(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct DatabaseDashboard {
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<HashMap<String, String>>,
-    pub id: Uuid,
-    pub warehouse_id: Uuid,
-    pub warehouse: WarehouseEntity,
-    pub tables: Vec<TableEntity>,
-    pub statistics: Statistics,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compaction_summary: Option<CompactionSummary>,
-}
-
-impl DatabaseDashboard {
-    #[allow(clippy::new_without_default)]
-    pub fn new(
-        name: String,
-        id: Uuid,
-        warehouse_id: Uuid,
-        warehouse: WarehouseEntity,
-        tables: Vec<TableEntity>,
-        statistics: Statistics,
-    ) -> DatabaseDashboard {
-        DatabaseDashboard {
-            name,
-            properties: None,
-            id,
-            warehouse_id,
-            warehouse,
-            tables,
-            statistics,
-            compaction_summary: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct DatabaseEntity {
-    pub id: Uuid,
-    pub name: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-    pub statistics: Statistics,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compaction_summary: Option<CompactionSummary>,
-}
-
-impl DatabaseEntity {
-    #[allow(clippy::new_without_default)]
-    pub fn new(
-        id: Uuid,
-        name: String,
-        created_at: chrono::DateTime<chrono::Utc>,
-        updated_at: chrono::DateTime<chrono::Utc>,
-        statistics: Statistics,
-    ) -> DatabaseEntity {
-        DatabaseEntity {
-            id,
-            name,
-            created_at,
-            updated_at,
-            statistics,
-            compaction_summary: None,
-        }
-    }
-}
-
-impl From<models::Database> for DatabaseEntity {
-    fn from(db: models::Database) -> Self {
-        DatabaseEntity {
-            id: get_database_id(db.ident.clone()),
-            name: db.ident.namespace.first().unwrap().to_string(),
+            tables: vec![],
+            warehouse_id: None,
             created_at: Default::default(),
             updated_at: Default::default(),
             statistics: Default::default(),
             compaction_summary: None,
+            properties: None,
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct DatabaseExtended {
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<HashMap<String, String>>,
-    pub id: Uuid,
-    pub warehouse_id: Uuid,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub statistics: Option<Statistics>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compaction_summary: Option<CompactionSummary>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-    pub warehouse: WarehouseExtended,
-}
-
-impl DatabaseExtended {
-    pub fn new(
-        profile: StorageProfile,
-        warehouse: Warehouse,
-        database: Database,
-    ) -> DatabaseExtended {
-        DatabaseExtended {
-            id: database.id,
-            name: database.name,
-            warehouse_id: database.warehouse_id,
-            properties: database.properties,
-            statistics: None,
-            compaction_summary: None,
-            created_at: Default::default(),
-            updated_at: Default::default(),
-            warehouse: WarehouseExtended::new(warehouse, profile),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct DatabaseShort {
-    pub id: Uuid,
-    pub name: String,
-    pub tables: Vec<TableShort>,
 }
 
 pub fn get_database_id(ident: models::DatabaseIdent) -> Uuid {
@@ -188,13 +78,6 @@ pub fn get_database_id(ident: models::DatabaseIdent) -> Uuid {
         &Uuid::NAMESPACE_DNS,
         ident.namespace.first().unwrap().to_string().as_bytes(),
     )
-}
-
-impl DatabaseShort {
-    #[allow(clippy::new_without_default)]
-    pub fn new(id: Uuid, name: String, tables: Vec<TableShort>) -> DatabaseShort {
-        DatabaseShort { id, name, tables }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
