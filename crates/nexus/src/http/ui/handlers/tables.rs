@@ -165,7 +165,7 @@ pub async fn query_table(
     let request: TableQueryRequest = payload.into();
     let result = state
         .control_svc
-        .query_table(&warehouse_id, &request.query)
+        .query_table(&warehouse_id, &database_name, &table_name, &request.query)
         .await?;
     Ok(Json(TableQueryResponse {
         id: Default::default(),

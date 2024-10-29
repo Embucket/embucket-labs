@@ -3,13 +3,15 @@ use crate::models::{StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
 use async_trait::async_trait;
-use datafusion::catalog_common::CatalogProvider;
-use datafusion::prelude::*;
-use iceberg_catalog_rest::{RestCatalog, RestCatalogConfig};
-use iceberg_datafusion::IcebergCatalogProvider;
-use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
+use datafusion::prelude::*;
+use iceberg_rest_catalog::apis::configuration::Configuration;
+use iceberg_rust::catalog::bucket::ObjectStoreBuilder;
+use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use iceberg_rest_catalog::catalog::RestCatalog;
+use arrow::record_batch::RecordBatch;
+use object_store::local::LocalFileSystem;
 
 #[async_trait]
 pub trait ControlService: Send + Sync {
@@ -33,7 +35,8 @@ pub trait ControlService: Send + Sync {
     // async fn delete_table(&self, id: Uuid) -> Result<()>;
     // async fn list_tables(&self) -> Result<Vec<Table>>;
 
-    async fn query_table(&self, warehouse_id: &Uuid, query: &String) -> Result<(&str)>;
+    async fn query_table(&self, warehouse_id:&Uuid, database_name:&String, table_name:&String, query:&String) -> Result<
+        (String)>;
 }
 
 pub struct ControlServiceImpl {
@@ -102,25 +105,58 @@ impl ControlService for ControlServiceImpl {
         self.warehouse_repo.list().await
     }
 
-    async fn query_table(&self, warehouse_id: &Uuid, query: &String) -> Result<(&str)> {
-        let config = RestCatalogConfig::builder()
-            .uri("http://0.0.0.0:3000/catalog".to_string())
-            .warehouse(warehouse_id.to_string())
-            .props(HashMap::default())
-            .build();
-
-        let catalog = RestCatalog::new(config);
-
-        let catalog = IcebergCatalogProvider::try_new(Arc::new(catalog))
+    async fn query_table(&self, warehouse_id:&Uuid, database_name:&String, table_name:&String, query:&String) -> Result<
+        (String)> {
+        let config = {
+            let mut config = Configuration::new();
+            config.base_path = "http://0.0.0.0:3000/catalog".to_string();
+            config
+        };
+        let builder = {
+            Arc::new(LocalFileSystem::new())
+        };
+        let rest_client = RestCatalog::new(
+            Some(warehouse_id.to_string().as_str()),
+            config,
+            ObjectStoreBuilder::Filesystem(builder),
+        );
+        let catalog = IcebergCatalog::new(Arc::new(rest_client), None)
             .await
             .unwrap();
 
-        // Test that catalog loaded successfully
-        println!("SCHEMAS: {:?}", catalog.schema_names());
+        let ctx = SessionContext::new();
+        ctx.register_catalog("catalog", Arc::new(catalog));
 
-        // TODO rest of the query code
+        let provider = ctx.catalog("catalog").unwrap();
+        let schemas = provider.schema_names();
+        println!("{schemas:?}");
 
-        Ok(("OK"))
+        let tables = provider.schema(database_name).unwrap().table_names();
+        println!("{tables:?}");
+
+        println!("{}", query);
+        let records = ctx
+            .sql(query)
+            .await
+            .unwrap()
+            .collect()
+            .await
+            .unwrap();
+        println!("{records:?}");
+
+        let df = ctx.sql(query,).await.unwrap();
+        df.show().await.unwrap();
+
+        let buf = Vec::new();
+        let mut writer = arrow_json::ArrayWriter::new(buf);
+        let record_refs: Vec<&RecordBatch> = records.iter().collect();
+        writer.write_batches(&record_refs).unwrap();
+        writer.finish().unwrap();
+
+        // Get the underlying buffer back,
+        let buf = writer.into_inner();
+
+        Ok((String::from_utf8(buf).unwrap()))
     }
 }
 

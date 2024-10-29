@@ -1,14 +1,9 @@
-use object_store::path::Path;
 use async_trait::async_trait;
-use object_store::{CredentialProvider, ObjectStore, PutPayload};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-use bytes::Bytes;
 use control_plane::models::Warehouse;
 use iceberg::{spec::TableMetadataBuilder, TableCreation};
-use object_store::local::LocalFileSystem;
-use tokio::fs;
 use uuid::Uuid;
 use crate::error::{Error, Result}; // TODO: Replace this with this crate error and result
 use crate::models::{
@@ -222,14 +217,14 @@ impl Catalog for CatalogImpl {
         &self,
         namespace: &DatabaseIdent,
         warehouse: &Warehouse,
-        creation: TableCreation,
+        table_creation: TableCreation,
     ) -> Result<Table> {
         // Check if namespace exists
         _ = self.get_namespace(namespace).await?;
         // Check if table exists
         let ident = TableIdent {
             database: namespace.clone(),
-            table: creation.name.clone(),
+            table: table_creation.name.clone(),
         };
         let res = self.load_table(&ident).await;
         if res.is_ok() {
@@ -240,26 +235,26 @@ impl Catalog for CatalogImpl {
         // Take into account namespace location property if present
         // Take into account provided location if present
         // If none, generate location based on warehouse location
-        let table_location = format!("{}/{}", warehouse.location, creation.name);
+        // un-hardcode "file://" and make it dynamic - filesystem or s3 (at least)
+        let working_dir_abs_path = std::env::current_dir().unwrap().to_str().unwrap().to_string();
+        let table_location = format!("file://{}/{}/{}", working_dir_abs_path, warehouse.location, table_creation.name);
         let creation = {
-            let mut creation = creation;
+            let mut creation = table_creation;
             creation.location = Some(table_location.clone());
             creation
         };
         // TODO: Add checks
-        // - Check if storage profile is valid (writtable)
+        // - Check if storage profile is valid (writable)
 
         let name = creation.name.to_string();
         let result = TableMetadataBuilder::from_table_creation(creation)?.build()?;
         let metadata = result.metadata.clone();
         let metadata_file_id = Uuid::new_v4().to_string();
-        let metadata_relative_location = format!("{table_location}/metadata/{metadata_file_id}.metadata.json");
-        // TODO un-hardcode "file://" and make it dynamic - filesystem or s3 (at least)
-        let metadata_full_location = format!("file://object_store/{metadata_relative_location}");
+        let metadata_location = format!("{table_location}/metadata/{metadata_file_id}.metadata.json");
 
         let table = Table {
             metadata: metadata.clone(),
-            metadata_location: metadata_full_location,
+            metadata_location: metadata_location.clone(),
             ident: TableIdent {
                 database: namespace.clone(),
                 table: name.clone(),
@@ -267,13 +262,17 @@ impl Catalog for CatalogImpl {
         };
         self.table_repo.put(&table).await?;
 
-        let local_dir = "object_store";
-        fs::create_dir_all(local_dir).await.unwrap();
-        let store = LocalFileSystem::new_with_prefix(local_dir).expect("Failed to initialize filesystem object store");
-        let path = Path::from(metadata_relative_location);
-        let json_data = serde_json::to_string(&table.metadata).unwrap();
-        let content = Bytes::from(json_data);
-        store.put(&path, PutPayload::from(content)).await.expect("Failed to write file");
+        let file_io = iceberg::io::FileIOBuilder::new("file").build()?;
+        let metadata_file = file_io
+            .new_output(metadata_location)?;
+        let mut writer = metadata_file
+            .writer()
+            .await?;
+        let buf = serde_json::to_vec(&table.metadata).unwrap();
+        writer
+            .write(buf.into())
+            .await?;
+        writer.close().await?;
 
         Ok(table)
     }

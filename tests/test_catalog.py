@@ -1,4 +1,4 @@
-import conftest
+import tests.conftest
 import pandas as pd
 import pyarrow as pa
 import pytest
