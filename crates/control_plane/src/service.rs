@@ -3,13 +3,13 @@ use crate::models::{StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
 use async_trait::async_trait;
-use std::sync::Arc;
-use uuid::Uuid;
+use datafusion::catalog_common::CatalogProvider;
 use datafusion::prelude::*;
 use iceberg_catalog_rest::{RestCatalog, RestCatalogConfig};
 use iceberg_datafusion::IcebergCatalogProvider;
-use datafusion::catalog_common::CatalogProvider;
 use std::collections::HashMap;
+use std::sync::Arc;
+use uuid::Uuid;
 
 #[async_trait]
 pub trait ControlService: Send + Sync {
@@ -33,7 +33,7 @@ pub trait ControlService: Send + Sync {
     // async fn delete_table(&self, id: Uuid) -> Result<()>;
     // async fn list_tables(&self) -> Result<Vec<Table>>;
 
-    async fn query_table(&self, warehouse_id:&Uuid, query:&String) -> Result<(&str)>;
+    async fn query_table(&self, warehouse_id: &Uuid, query: &String) -> Result<(&str)>;
 }
 
 pub struct ControlServiceImpl {
@@ -102,7 +102,7 @@ impl ControlService for ControlServiceImpl {
         self.warehouse_repo.list().await
     }
 
-    async fn query_table(&self, warehouse_id:&Uuid, query:&String) -> Result<(&str)> {
+    async fn query_table(&self, warehouse_id: &Uuid, query: &String) -> Result<(&str)> {
         let config = RestCatalogConfig::builder()
             .uri("http://0.0.0.0:3000/catalog".to_string())
             .warehouse(warehouse_id.to_string())
