@@ -1,10 +1,10 @@
-use crate::http::ui::models::database::{get_database_id, DatabaseShort};
 use crate::http::ui::models::errors::AppError;
-use crate::http::ui::models::table::{get_table_id, TableShort};
-use crate::http::ui::models::warehouse;
+use crate::http::ui::models::table::Statistics;
+use crate::http::ui::models::warehouse::{
+    CreateWarehousePayload, Navigation, Warehouse, WarehousesDashboard,
+};
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
-use catalog::models::WarehouseIdent;
 use control_plane::models::{Warehouse as WarehouseModel, WarehouseCreateRequest};
 use utoipa::OpenApi;
 use uuid::Uuid;
@@ -20,12 +20,9 @@ use uuid::Uuid;
     ),
     components(
         schemas(
-            warehouse::CreateWarehousePayload,
-            warehouse::Warehouse,
-            warehouse::WarehouseExtended,
-            warehouse::WarehousesDashboard,
-            warehouse::WarehouseEntity,
-            warehouse::WarehouseShort,
+            CreateWarehousePayload,
+            Warehouse,
+            Navigation,
             AppError,
         )
     ),
@@ -40,68 +37,13 @@ pub struct ApiDoc;
     path = "/ui/navigation",
     operation_id = "webWarehousesNavigation",
     responses(
-        (status = 200, description = "List all warehouses fot navigation", body = warehouse::Navigation),
+        (status = 200, description = "List all warehouses fot navigation", body = Navigation),
     )
 )]
-pub async fn navigation(
-    State(state): State<AppState>,
-) -> Result<Json<warehouse::Navigation>, AppError> {
-    let warehouses = state.control_svc.list_warehouses().await.map_err(|e| {
-        let fmt = format!("{}: failed to get warehouses", e);
-        AppError::new(e, fmt.as_str())
-    })?;
-    let mut warehouses_short = Vec::new();
-
-    for warehouse in warehouses {
-        let databases = state
-            .catalog_svc
-            .list_namespaces(&WarehouseIdent::new(warehouse.id), None)
-            .await
-            .map_err(|e| {
-                let fmt = format!(
-                    "{}: failed to get warehouse databases with wh id {}",
-                    e, warehouse.id
-                );
-                AppError::new(e, fmt.as_str())
-            })?;
-        let mut databases_short = Vec::new();
-
-        for database in databases {
-            let tables = state
-                .catalog_svc
-                .list_tables(&database.ident)
-                .await
-                .map_err(|e| {
-                    let fmt = format!(
-                        "{}: failed to get database tables with db ident {}",
-                        e, &database.ident
-                    );
-                    AppError::new(e, fmt.as_str())
-                })?;
-            let ident = database.ident.clone();
-            databases_short.push(DatabaseShort {
-                id: get_database_id(database.ident),
-                name: ident.to_string(),
-                tables: tables
-                    .into_iter()
-                    .map(|t| {
-                        let ident = t.ident.clone();
-                        TableShort {
-                            id: get_table_id(t.ident),
-                            name: ident.table,
-                        }
-                    })
-                    .collect(),
-            });
-        }
-        warehouses_short.push(warehouse::WarehouseShort {
-            id: warehouse.id,
-            name: warehouse.name,
-            databases: databases_short,
-        });
-    }
-    Ok(Json(warehouse::Navigation {
-        warehouses: warehouses_short,
+pub async fn navigation(State(state): State<AppState>) -> Result<Json<Navigation>, AppError> {
+    let warehouses = state.list_warehouses().await?;
+    Ok(Json(Navigation {
+        warehouses,
     }))
 }
 #[utoipa::path(
@@ -109,38 +51,30 @@ pub async fn navigation(
     path = "/ui/warehouses",
     operation_id = "webWarehousesDashboard",
     responses(
-        (status = 200, description = "List all warehouses", body = warehouse::WarehousesDashboard),
-        (status = 500, description = "List all warehouses", body = AppError),
+        (status = 200, description = "List all warehouses", body = WarehousesDashboard),
+        (status = 500, description = "List all warehouses error", body = AppError),
 
     )
 )]
 pub async fn list_warehouses(
     State(state): State<AppState>,
-) -> Result<Json<warehouse::WarehousesDashboard>, AppError> {
-    let warehouses = state.control_svc.list_warehouses().await.map_err(|e| {
-        let fmt = format!("{}: failed to get warehouses", e);
-        AppError::new(e, fmt.as_str())
-    })?;
-    let storage_profiles = state.control_svc.list_profiles().await.map_err(|e| {
-        let fmt = format!("{}: failed to get profiles", e);
-        AppError::new(e, fmt.as_str())
-    })?;
-    let mut extended_warehouses = Vec::new();
+) -> Result<Json<WarehousesDashboard>, AppError> {
+    let warehouses = state.list_warehouses().await?;
 
-    for warehouse in warehouses {
-        let mut extended_warehouse =
-            warehouse::WarehouseExtended::new(warehouse.clone().into(), Default::default());
-        if let Some(profile) = storage_profiles
-            .iter()
-            .find(|p| p.id == extended_warehouse.storage_profile_id)
-        {
-            extended_warehouse.storage_profile = profile.clone().into();
-            extended_warehouses.push(extended_warehouse)
-        }
-    }
-    Ok(Json(warehouse::WarehousesDashboard {
-        warehouses: extended_warehouses,
-        statistics: Default::default(),
+    let mut total_statistics = Statistics::default();
+    let dashboards = warehouses
+        .into_iter()
+        .map(|warehouse| {
+            if let Some(stats) = &warehouse.statistics {
+                total_statistics = total_statistics.aggregate(stats);
+            }
+            warehouse.into()
+        })
+        .collect();
+
+    Ok(Json(WarehousesDashboard {
+        warehouses: dashboards,
+        statistics: total_statistics,
         compaction_summary: None,
     }))
 }
@@ -153,88 +87,40 @@ pub async fn list_warehouses(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID")
     ),
     responses(
-        (status = 200, description = "Warehouse found", body = warehouse::WarehouseDashboard),
+        (status = 200, description = "Warehouse found", body = Warehouse),
         (status = 404, description = "Warehouse not found", body = AppError)
     )
 )]
 pub async fn get_warehouse(
     State(state): State<AppState>,
     Path(warehouse_id): Path<Uuid>,
-) -> Result<Json<warehouse::WarehouseDashboard>, AppError> {
-    let warehouse = state
-        .control_svc
-        .get_warehouse(warehouse_id)
-        .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to get warehouse by id {}", e, warehouse_id);
-            AppError::new(e, fmt.as_str())
-        })?;
+) -> Result<Json<Warehouse>, AppError> {
+    let mut warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let profile = state
-        .control_svc
-        .get_profile(warehouse.storage_profile_id)
-        .await
-        .map_err(|e| {
-            let fmt = format!(
-                "{}: failed to get profile by id {}",
-                e, warehouse.storage_profile_id
-            );
-            AppError::new(e, fmt.as_str())
-        })?;
-    let databases = state
-        .catalog_svc
-        .list_namespaces(&WarehouseIdent::new(warehouse.id), None)
-        .await
-        .map_err(|e| {
-            let fmt = format!(
-                "{}: failed to get warehouse databases with wh id {}",
-                e, warehouse.id
-            );
-            AppError::new(e, fmt.as_str())
-        })?;
-    let mut dashboard = warehouse::WarehouseDashboard::new(
-        warehouse.into(),
-        profile.into(),
-        databases.into_iter().map(|d| d.into()).collect(),
-    );
-
-    if let Ok(profile) = state
-        .control_svc
-        .get_profile(dashboard.storage_profile_id)
-        .await
-    {
-        dashboard.storage_profile = profile.into();
-    }
-
-    Ok(Json(dashboard))
+        .get_profile_by_id(warehouse.storage_profile_id.unwrap())
+        .await?;
+    let databases = state.list_databases(warehouse_id).await?;
+    warehouse.with_details(Option::from(profile), Option::from(databases));
+    Ok(Json(warehouse))
 }
 
 #[utoipa::path(
     post,
     path = "/ui/warehouses",
-    request_body = warehouse::CreateWarehousePayload,
+    request_body = CreateWarehousePayload,
     operation_id = "webCreateWarehouse",
     responses(
-        (status = 201, description = "Warehouse created", body = warehouse::Warehouse),
-        (status = 422, description = "Unprocessable Entity"),
-        (status = 500, description = "Internal server error")
+        (status = 201, description = "Warehouse created", body = Warehouse),
+        (status = 422, description = "Unprocessable Entity", body = AppError),
+        (status = 500, description = "Internal server error", body = AppError)
     )
 )]
 pub async fn create_warehouse(
     State(state): State<AppState>,
-    Json(payload): Json<warehouse::CreateWarehousePayload>,
-) -> Result<Json<warehouse::Warehouse>, AppError> {
+    Json(payload): Json<CreateWarehousePayload>,
+) -> Result<Json<Warehouse>, AppError> {
     let request: WarehouseCreateRequest = payload.into();
-    state
-        .control_svc
-        .get_profile(request.storage_profile_id)
-        .await
-        .map_err(|e| {
-            let fmt = format!(
-                "{}: failed to get profile with id {}",
-                e, request.storage_profile_id
-            );
-            AppError::new(e, fmt.as_str())
-        })?;
+    state.get_profile_by_id(request.storage_profile_id).await?;
     let warehouse: WarehouseModel =
         state
             .control_svc
@@ -253,13 +139,13 @@ pub async fn create_warehouse(
 #[utoipa::path(
     delete,
     path = "/ui/warehouses/{warehouseId}",
-    operation_id = "webCreteWarehouse",
+    operation_id = "webCreateWarehouse",
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID")
     ),
     responses(
         (status = 204, description = "Warehouse deleted"),
-        (status = 404, description = "Warehouse not found")
+        (status = 404, description = "Warehouse not found", body = AppError)
     )
 )]
 pub async fn delete_warehouse(

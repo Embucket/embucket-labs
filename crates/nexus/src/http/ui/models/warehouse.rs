@@ -1,6 +1,6 @@
 #![allow(unused_qualifications)]
 
-use crate::http::ui::models::database::{CompactionSummary, DatabaseEntity, DatabaseShort};
+use crate::http::ui::models::database::{CompactionSummary, Database};
 use crate::http::ui::models::storage_profile::StorageProfile;
 use crate::http::ui::models::table::Statistics;
 use chrono::{DateTime, Utc};
@@ -11,12 +11,12 @@ use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct Navigation {
-    pub warehouses: Vec<WarehouseShort>,
+    pub warehouses: Vec<Warehouse>,
 }
 
 impl Navigation {
     #[allow(clippy::new_without_default)]
-    pub fn new(warehouses: Vec<WarehouseShort>) -> Navigation {
+    pub fn new(warehouses: Vec<Warehouse>) -> Navigation {
         Navigation { warehouses }
     }
 }
@@ -55,42 +55,41 @@ impl From<CreateWarehousePayload> for models::WarehouseCreateRequest {
     }
 }
 
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 pub struct Warehouse {
+    pub id: uuid::Uuid,
     #[validate(length(min = 1))]
     pub name: String,
-    pub storage_profile_id: uuid::Uuid,
+    pub databases: Option<Vec<Database>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub storage_profile_id: Option<uuid::Uuid>,
     #[validate(length(min = 1))]
-    #[serde(rename = "prefix")]
-    pub key_prefix: String,
-    pub id: uuid::Uuid,
-    pub external_id: uuid::Uuid,
-    pub location: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_prefix: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_id: Option<uuid::Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub storage_profile: Option<StorageProfile>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub statistics: Option<Statistics>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compaction_summary: Option<CompactionSummary>,
 }
 
 impl Warehouse {
-    #[allow(clippy::new_without_default)]
-    pub fn new(
-        name: String,
-        storage_profile_id: uuid::Uuid,
-        key_prefix: String,
-        id: uuid::Uuid,
-        external_id: uuid::Uuid,
-        location: String,
-        created_at: chrono::DateTime<chrono::Utc>,
-        updated_at: chrono::DateTime<chrono::Utc>,
-    ) -> Warehouse {
-        Warehouse {
-            name,
-            storage_profile_id,
-            key_prefix,
-            id,
-            external_id,
-            location,
-            created_at,
-            updated_at,
+    pub fn with_details(&mut self, profile: Option<StorageProfile>, databases: Option<Vec<Database>>) {
+        if profile.is_some() {
+            self.storage_profile = profile;
+        }
+        if databases.is_some() {
+            self.databases = databases;
         }
     }
 }
@@ -99,152 +98,24 @@ impl From<control_plane::models::Warehouse> for Warehouse {
     fn from(warehouse: control_plane::models::Warehouse) -> Self {
         Warehouse {
             id: warehouse.id,
-            key_prefix: warehouse.prefix,
+            key_prefix: Option::from(warehouse.prefix),
             name: warehouse.name,
-            location: warehouse.location,
-            storage_profile_id: warehouse.storage_profile_id,
-            created_at: DateTime::from_naive_utc_and_offset(warehouse.created_at, Utc),
-            updated_at: DateTime::from_naive_utc_and_offset(warehouse.updated_at, Utc),
+            location: Option::from(warehouse.location),
+            storage_profile_id: Option::from(warehouse.storage_profile_id),
+            created_at: Option::from(DateTime::from_naive_utc_and_offset(warehouse.created_at, Utc)),
+            updated_at: Option::from(DateTime::from_naive_utc_and_offset(warehouse.updated_at, Utc)),
+            storage_profile: None,
+            statistics: None,
             external_id: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct WarehouseDashboard {
-    #[validate(length(min = 1))]
-    pub name: String,
-    pub storage_profile_id: uuid::Uuid,
-    #[validate(length(min = 1))]
-    pub key_prefix: String,
-    pub id: uuid::Uuid,
-    pub external_id: uuid::Uuid,
-    pub location: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-    pub storage_profile: StorageProfile,
-    pub databases: Vec<DatabaseEntity>,
-    pub statistics: Option<Statistics>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compaction_summary: Option<CompactionSummary>,
-}
-
-impl WarehouseDashboard {
-    #[allow(clippy::new_without_default)]
-    pub fn new(
-        warehouse: Warehouse,
-        storage_profile: StorageProfile,
-        databases: Vec<DatabaseEntity>,
-    ) -> WarehouseDashboard {
-        WarehouseDashboard {
-            id: warehouse.id,
-            key_prefix: warehouse.key_prefix,
-            name: warehouse.name,
-            location: warehouse.location,
-            storage_profile_id: warehouse.storage_profile_id,
-            created_at: warehouse.created_at,
-            updated_at: warehouse.updated_at,
-            external_id: warehouse.external_id,
-            statistics: None,
+            databases: None,
             compaction_summary: None,
-            storage_profile,
-            databases: databases,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct WarehouseEntity {
-    #[validate(length(min = 1))]
-    pub name: String,
-    pub storage_profile_id: uuid::Uuid,
-    #[validate(length(min = 1))]
-    pub key_prefix: String,
-    pub id: uuid::Uuid,
-    pub external_id: uuid::Uuid,
-    pub location: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-    pub storage_profile: StorageProfile,
-}
-
-impl WarehouseEntity {
-    #[allow(clippy::new_without_default)]
-    pub fn new(warehouse: Warehouse, storage_profile: StorageProfile) -> WarehouseEntity {
-        WarehouseEntity {
-            id: warehouse.id,
-            key_prefix: warehouse.key_prefix,
-            name: warehouse.name,
-            location: warehouse.location,
-            storage_profile_id: warehouse.storage_profile_id,
-            created_at: warehouse.created_at,
-            updated_at: warehouse.updated_at,
-            external_id: warehouse.external_id,
-            storage_profile,
-        }
-    }
-}
-
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct WarehouseExtended {
-    #[validate(length(min = 1))]
-    pub name: String,
-    pub storage_profile_id: uuid::Uuid,
-    #[validate(length(min = 1))]
-    pub key_prefix: String,
-    pub id: uuid::Uuid,
-    pub external_id: uuid::Uuid,
-    pub location: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub statistics: Option<Statistics>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compaction_summary: Option<CompactionSummary>,
-    pub storage_profile: StorageProfile,
-}
-
-impl WarehouseExtended {
-    #[allow(clippy::new_without_default)]
-    pub fn new(warehouse: Warehouse, storage_profile: StorageProfile) -> WarehouseExtended {
-        WarehouseExtended {
-            id: warehouse.id,
-            key_prefix: warehouse.key_prefix,
-            name: warehouse.name,
-            location: warehouse.location,
-            storage_profile_id: warehouse.storage_profile_id,
-            created_at: warehouse.created_at,
-            updated_at: warehouse.updated_at,
-            external_id: warehouse.external_id,
-            statistics: None,
-            compaction_summary: None,
-            storage_profile,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-pub struct WarehouseShort {
-    pub id: uuid::Uuid,
-    pub name: String,
-    pub databases: Vec<DatabaseShort>,
-}
-
-impl WarehouseShort {
-    #[allow(clippy::new_without_default)]
-    pub fn new(id: uuid::Uuid, name: String, databases: Vec<DatabaseShort>) -> WarehouseShort {
-        WarehouseShort {
-            id,
-            name,
-            databases,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
 pub struct WarehousesDashboard {
-    pub warehouses: Vec<WarehouseExtended>,
+    pub warehouses: Vec<Warehouse>,
     pub statistics: Statistics,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compaction_summary: Option<CompactionSummary>,
@@ -252,7 +123,7 @@ pub struct WarehousesDashboard {
 
 impl WarehousesDashboard {
     #[allow(clippy::new_without_default)]
-    pub fn new(warehouses: Vec<WarehouseExtended>, statistics: Statistics) -> WarehousesDashboard {
+    pub fn new(warehouses: Vec<Warehouse>, statistics: Statistics) -> WarehousesDashboard {
         WarehousesDashboard {
             warehouses,
             statistics,
