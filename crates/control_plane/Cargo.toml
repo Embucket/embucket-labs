@@ -12,11 +12,13 @@ thiserror = { workspace = true }
 utils = { path = "../utils" }
 futures = { workspace = true }
 serde = { workspace = true }
-datafusion = { version = "41" }
-iceberg-catalog-rest = { version = "0.3" }
-iceberg-datafusion = { version = "0.3" }
+datafusion = { version = "40" }
+iceberg-rust = { version = "0.5.8" }
+iceberg-rest-catalog = { version = "0.5.8" }
+datafusion_iceberg = { version = "0.5.8" }
 arrow = { version = "52" }
+arrow-json = { version = "52" }
+object_store = { workspace = true }
 
 [dev-dependencies]
 slatedb = {workspace = true }
-object_store = { workspace = true }

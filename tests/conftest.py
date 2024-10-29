@@ -118,10 +118,10 @@ def storage_profile(server: Server) -> dict:
 @pytest.fixture(scope="session")
 def warehouse(server: Server, storage_profile) -> dict:
     warehouse_name = "test-warehouse"
-    preix = "prefix"
+    prefix = "prefix"
     wh = server.create_warehouse(
         name=warehouse_name,
-        prefix=preix,
+        prefix=prefix,
         storage_profile_id=storage_profile.get("id", None),
     )
     yield wh

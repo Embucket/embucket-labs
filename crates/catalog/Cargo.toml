@@ -14,7 +14,6 @@ futures = { workspace = true }
 slatedb = { workspace = true }
 bytes = { workspace = true }
 tokio = { workspace = true }
-object_store = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }

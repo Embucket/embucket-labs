@@ -182,3 +182,15 @@ pub async fn get_config(
 
     Ok(Json(config.into()))
 }
+
+// only one endpoint is defined for the catalog implementation to work
+// we don't actually have functionality for views yet
+pub async fn list_views(
+    State(state): State<AppState>,
+    Path((id, namespace_id)): Path<(Uuid, String)>,
+) -> Result<Json<schemas::TableListResponse>, AppError> {
+
+    Ok(Json(schemas::TableListResponse {
+        identifiers: vec![],
+    }))
+}

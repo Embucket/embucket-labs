@@ -2,7 +2,7 @@ use catalog::repository::{DatabaseRepositoryDb, TableRepositoryDb};
 use catalog::service::CatalogImpl;
 use control_plane::repository::{StorageProfileRepositoryDb, WarehouseRepositoryDb};
 use control_plane::service::ControlServiceImpl;
-use object_store::{memory::InMemory, path::Path, ObjectStore};
+use object_store_for_slatedb::{memory::InMemory, path::Path, ObjectStore};
 use slatedb::config::DbOptions;
 use slatedb::db::Db as SlateDb;
 use std::sync::Arc;

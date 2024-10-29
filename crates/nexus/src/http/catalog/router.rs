@@ -4,7 +4,7 @@ use axum::Router;
 
 use crate::http::catalog::handlers::{
     commit_table, create_namespace, create_table, delete_namespace, delete_table, get_config,
-    get_namespace, get_table, list_namespaces, list_tables,
+    get_namespace, get_table, list_namespaces, list_tables, list_views
 };
 
 pub fn create_router() -> Router<AppState> {
@@ -15,12 +15,18 @@ pub fn create_router() -> Router<AppState> {
         .route("/:table", delete(delete_table))
         .route("/:table", post(commit_table));
 
+    // only one endpoint is defined for the catalog implementation to work
+    // we don't actually have functionality for views yet
+    let view_router: Router<AppState> = Router::new()
+        .route("/", get(list_views));
+
     let ns_router = Router::new()
         .route("/", get(list_namespaces))
         .route("/", post(create_namespace))
         .route("/:namespace", get(get_namespace))
         .route("/:namespace", delete(delete_namespace))
-        .nest("/:namespace/tables", table_router);
+        .nest("/:namespace/tables", table_router)
+        .nest("/:namespace/views", view_router);
 
     // Iceberg clients do not prefix config fetch RPC call
     // and do prefix (with whatever prefix returned by config fetch) all other RPC calls
