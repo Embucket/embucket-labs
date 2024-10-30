@@ -35,7 +35,7 @@ pub struct ApiDoc;
 #[utoipa::path(
     get,
     path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
-    operation_id = "webTableDashboard",
+    operation_id = "webGetTable",
     params(
         ("warehouseId" = Uuid, description = "Warehouse ID"),
         ("databaseName" = String, description = "Database Name"),
@@ -53,20 +53,14 @@ pub async fn get_table(
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
 ) -> Result<Json<Table>, AppError> {
     let mut warehouse = state.get_warehouse_by_id(warehouse_id).await?;
-    let profile = state
-        .get_profile_by_id(warehouse.storage_profile_id.unwrap())
-        .await?;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(warehouse.id),
-        namespace: NamespaceIdent::new(database_name),
-    };
-    let mut database = state.get_database(&ident).await?;
     let table_ident = TableIdent {
-        database: ident,
+        database: DatabaseIdent {
+            warehouse: WarehouseIdent::new(warehouse.id),
+            namespace: NamespaceIdent::new(database_name),
+        },
         table: table_name,
     };
-    warehouse.with_details(Option::from(profile), None);
-    let mut table = state.get_table(&table_ident).await?;
+    let table = state.get_table(&table_ident).await?;
     Ok(Json(table))
 }
 

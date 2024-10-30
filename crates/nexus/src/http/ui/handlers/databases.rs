@@ -105,7 +105,7 @@ pub async fn delete_database(
         ("warehouseId" = Uuid, description = "Warehouse ID"),
         ("databaseName" = String, description = "Database Name"),
     ),
-    operation_id = "webDatabaseDashboard",
+    operation_id = "webGetDatabase",
     responses(
         (status = 200, description = "Successful Response", body = Database),
         (status = 404, description = "Database not found", body = AppError),
@@ -117,9 +117,6 @@ pub async fn get_database(
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
 ) -> Result<Json<Database>, AppError> {
     let mut warehouse = state.get_warehouse_by_id(warehouse_id).await?;
-    let profile = state
-        .get_profile_by_id(warehouse.storage_profile_id.unwrap())
-        .await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(database_name),
@@ -127,7 +124,6 @@ pub async fn get_database(
     let mut database = state.get_database(&ident).await?;
     let tables = state.list_tables(&ident).await?;
 
-    warehouse.with_details(Option::from(profile), None);
     database.with_details(Option::from(tables));
     Ok(Json(database))
 }

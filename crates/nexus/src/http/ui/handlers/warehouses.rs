@@ -82,7 +82,7 @@ pub async fn list_warehouses(
 #[utoipa::path(
     get,
     path = "/ui/warehouses/{warehouseId}",
-    operation_id = "webWarehouseDashboard",
+    operation_id = "webGetWarehouse",
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID")
     ),
@@ -139,7 +139,7 @@ pub async fn create_warehouse(
 #[utoipa::path(
     delete,
     path = "/ui/warehouses/{warehouseId}",
-    operation_id = "webCreateWarehouse",
+    operation_id = "webDeleteWarehouse",
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID")
     ),
