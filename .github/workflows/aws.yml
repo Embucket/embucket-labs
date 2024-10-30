@@ -34,7 +34,7 @@ on:
 
 env:
   AWS_REGION: us-east-2
-  ECR_REPOSITORY: 767397688925.dkr.ecr.us-east-2.amazonaws.com/embucket/control_plane
+  ECR_REPOSITORY: 767397688925.dkr.ecr.us-east-2.amazonaws.com/embucket/control-plane
   EC2_USER: ec2-user
   EC2_HOST: api.embucket.com
   CONTAINER_NAME: control-plane-backend
@@ -76,21 +76,21 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Configure SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
-
-      - name: Connect to remote server and deploy
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'EOF'
-            # Pull the latest Docker image
-            docker pull ${{ steps.build-image.outputs.image }}
-
-            # Stop and remove the existing container if it exists
-            docker stop control_plane || true
-            docker rm control_plane || true
-
-            # Run the new container with server port
-            docker run -d --name my_container -p 3000:3000 ${{ env.CONTAINER_NAME }}
-          EOF
+#      - name: Configure SSH
+#        uses: webfactory/ssh-agent@v0.9.0
+#        with:
+#          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+#
+#      - name: Connect to remote server and deploy
+#        run: |
+#          ssh -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'EOF'
+#            # Pull the latest Docker image
+#            docker pull ${{ steps.build-image.outputs.image }}
+#
+#            # Stop and remove the existing container if it exists
+#            docker stop control_plane || true
+#            docker rm control_plane || true
+#
+#            # Run the new container with server port
+#            docker run -d --name control_plane -p 3000:3000 ${{ env.CONTAINER_NAME }}
+#          EOF
