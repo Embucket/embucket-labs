@@ -90,6 +90,6 @@ jobs:
             docker stop control_plane || true
             docker rm control_plane || true
 
-            # Run the new container
+            # Run the new container with server port
             docker run -d --name my_container -p 3000:3000 ${{ env.CONTAINER_NAME }}
           EOF
