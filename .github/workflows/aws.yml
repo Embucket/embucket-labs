@@ -34,10 +34,9 @@ on:
 env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: 767397688925.dkr.ecr.us-east-2.amazonaws.com/embucket/contol_plane
-  ECS_SERVICE: control-plane
-  ECS_CLUSTER: control-plane
-  ECS_TASK_DEFINITION: deploy/task-definition.json
-  CONTAINER_NAME: control-plane
+  EC2_USER: ec2-user
+  EC2_HOST: api.embucket.com
+  CONTAINER_NAME: control-plane-backend
 
 permissions:
   contents: read
@@ -72,22 +71,25 @@ jobs:
           # Build a docker container and
           # push it to ECR so that it can
           # be deployed to ECS.
-          docker build -f deploy/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          task-definition: ${{ env.ECS_TASK_DEFINITION }}
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ steps.build-image.outputs.image }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+      - name: Connect to remote server and deploy
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            # Pull the latest Docker image
+            docker pull ${{ steps.build-image.outputs.image }}
+
+            # Stop and remove the existing container if it exists
+            docker stop control_plane || true
+            docker rm control_plane || true
+
+            # Run the new container
+            docker run -d --name my_container -p 3000:3000 ${{ env.CONTAINER_NAME }}
+          EOF
