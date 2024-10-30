@@ -24,7 +24,7 @@
 #    See the documentation for each action used below for the recommended IAM policies for this IAM user,
 #    and best practices on handling the access key credentials.
 
-name: Deploy to Amazon ECS
+name: Build and deploy
 
 on:
   pull_request:
@@ -34,7 +34,7 @@ on:
 
 env:
   AWS_REGION: us-east-2
-  ECR_REPOSITORY: 767397688925.dkr.ecr.us-east-2.amazonaws.com/embucket/control-plane
+  ECR_REPOSITORY: embucket/control-plane
   EC2_USER: ec2-user
   EC2_HOST: api.embucket.com
   CONTAINER_NAME: control-plane-backend
