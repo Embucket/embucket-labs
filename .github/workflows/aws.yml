@@ -28,12 +28,13 @@ name: Deploy to Amazon ECS
 
 on:
   pull_request:
+    #    types: [ closed ]
     branches:
       - main
 
 env:
   AWS_REGION: us-east-2
-  ECR_REPOSITORY: 767397688925.dkr.ecr.us-east-2.amazonaws.com/embucket/contol_plane
+  ECR_REPOSITORY: 767397688925.dkr.ecr.us-east-2.amazonaws.com/embucket/control_plane
   EC2_USER: ec2-user
   EC2_HOST: api.embucket.com
   CONTAINER_NAME: control-plane-backend
@@ -82,7 +83,7 @@ jobs:
 
       - name: Connect to remote server and deploy
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'EOF'
             # Pull the latest Docker image
             docker pull ${{ steps.build-image.outputs.image }}
 
