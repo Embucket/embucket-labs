@@ -62,14 +62,6 @@ pub struct Table {
     pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-// impl Table {
-//     pub fn with_details(&mut self, database: Option<Database>) {
-//         if database.is_some() {
-//             self.database = database;
-//         }
-//     }
-// }
-
 impl From<catalog::models::Table> for Table {
     fn from(table: catalog::models::Table) -> Self {
         Self {
