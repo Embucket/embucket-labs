@@ -1,11 +1,12 @@
 {
-  "taskDefinitionArn": "arn:aws:ecs:us-east-2:767397688925:task-definition/control-plane-release:1",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-2:767397688925:task-definition/control-plane-release:2",
   "containerDefinitions": [
     {
       "name": "control-plane-container",
-      "image": "767397688925.dkr.ecr.us-east-2.amazonaws.com/embucket/control-plane",
-      "cpu": 512,
-      "memory": 1024,
+      "image": "767397688925.dkr.ecr.us-east-2.amazonaws.com/embucket/contol_plane",
+      "cpu": 256,
+      "memory": 512,
+      "memoryReservation": 512,
       "portMappings": [
         {
           "name": "control-plane-container-80-tcp",
@@ -35,12 +36,15 @@
   "taskRoleArn": "arn:aws:iam::767397688925:role/ecsTaskExecutionRole",
   "executionRoleArn": "arn:aws:iam::767397688925:role/ecsTaskExecutionRole",
   "networkMode": "awsvpc",
-  "revision": 1,
+  "revision": 2,
   "volumes": [],
   "status": "ACTIVE",
   "requiresAttributes": [
     {
       "name": "com.amazonaws.ecs.capability.ecr-auth"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.21"
     },
     {
       "name": "com.amazonaws.ecs.capability.task-iam-role"
@@ -64,13 +68,13 @@
     "EC2",
     "FARGATE"
   ],
-  "cpu": "512",
-  "memory": "1024",
+  "cpu": "256",
+  "memory": "512",
   "runtimePlatform": {
     "cpuArchitecture": "X86_64",
     "operatingSystemFamily": "LINUX"
   },
-  "registeredAt": "2024-10-30T11:37:28.033Z",
+  "registeredAt": "2024-10-30T13:40:40.266Z",
   "registeredBy": "arn:aws:sts::767397688925:assumed-role/AWSReservedSSO_AdministratorAccess_8e3bcaa97820bc2f/aosipov",
   "enableFaultInjection": false,
   "tags": []
