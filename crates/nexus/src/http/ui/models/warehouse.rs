@@ -10,6 +10,7 @@ use utoipa::ToSchema;
 use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct Navigation {
     pub warehouses: Vec<Warehouse>,
 }
@@ -22,6 +23,7 @@ impl Navigation {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
 pub struct CreateWarehousePayload {
     #[validate(length(min = 1))]
     pub name: String,

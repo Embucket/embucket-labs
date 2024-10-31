@@ -1,22 +1,26 @@
 FROM rust:latest AS builder
 
-RUN rustup target add x86_64-unknown-linux-musl
-RUN apt update && apt install -y musl-tools musl-dev
 RUN update-ca-certificates
 
 WORKDIR /app
 
 COPY ./ .
+COPY .env.example .env
 
-RUN cargo build --target x86_64-unknown-linux-musl --release
+RUN cargo build --release
 
 ####################################################################################################
 ## Final image
 ####################################################################################################
-FROM alpine
 
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/nexus /usr/local/bin/nexus
+FROM debian:bookworm-slim
 
-WORKDIR /usr/local/bin
+# Copy the binary from the builder stage
+WORKDIR /app
 
-CMD ["nexus"]
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/nexus ./
+COPY --from=builder /app/.env.example .env
+
+CMD ["./nexus"]

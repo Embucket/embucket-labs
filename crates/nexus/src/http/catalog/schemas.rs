@@ -27,7 +27,6 @@ impl From<catalog::models::Database> for Namespace {
 
 /// Result used when a table is successfully loaded.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct TableResult {
     /// May be null if the table is staged as part of a transaction
     pub metadata_location: Option<String>,
@@ -46,7 +45,6 @@ impl From<Table> for TableResult {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct TableCreateRequest {
     pub name: String,
     pub location: Option<String>,
@@ -71,26 +69,22 @@ impl From<TableCreateRequest> for catalog::models::TableCreation {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct TableRegisterRequest {
     pub name: String,
     pub metadata_location: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct TableListResponse {
     pub identifiers: Vec<TableIdent>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct NamespaceListResponse {
     pub namespaces: Vec<NamespaceIdent>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct TableCommitRequest {
     pub identifier: Option<TableIdent>,
     pub requirements: Vec<TableRequirement>,
@@ -98,7 +92,6 @@ pub struct TableCommitRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct TableCommitResponse {
     pub metadata_location: String,
     pub metadata: TableMetadata,

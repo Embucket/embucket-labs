@@ -1,12 +1,10 @@
 use chrono::NaiveDateTime;
 use control_plane::models;
 use serde::{Deserialize, Serialize};
-use std::option::Option;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "kebab-case")]
 pub struct CreateWarehouseRequest {
     pub prefix: String,
     pub name: String,
@@ -14,7 +12,7 @@ pub struct CreateWarehouseRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "kebab-case")]
+
 pub struct Warehouse {
     pub id: Uuid,
     pub prefix: String,

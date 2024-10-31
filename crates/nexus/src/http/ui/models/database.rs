@@ -8,6 +8,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct CreateDatabasePayload {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -25,6 +26,7 @@ impl CreateDatabasePayload {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct Database {
     pub id: Uuid,
     pub name: String,
@@ -89,6 +91,7 @@ pub fn get_database_id(ident: models::DatabaseIdent) -> Uuid {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct CompactionSummary {
     pub compactions: i32,
     pub starting_files: i32,
