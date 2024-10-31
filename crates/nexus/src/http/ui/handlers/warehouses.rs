@@ -99,7 +99,7 @@ pub async fn get_warehouse(
     let profile = state
         .get_profile_by_id(warehouse.storage_profile_id.unwrap())
         .await?;
-    let databases = state.list_databases(warehouse_id).await?;
+    let databases = state.list_databases(warehouse_id, profile.clone()).await?;
     warehouse.with_details(Option::from(profile), Option::from(databases));
     Ok(Json(warehouse))
 }

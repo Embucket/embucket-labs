@@ -117,6 +117,7 @@ pub async fn get_database(
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
 ) -> Result<Json<Database>, AppError> {
     let mut warehouse = state.get_warehouse_by_id(warehouse_id).await?;
+    let profile = state.get_profile_by_id(warehouse.storage_profile_id.unwrap()).await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(database_name),
@@ -124,6 +125,7 @@ pub async fn get_database(
     let mut database = state.get_database(&ident).await?;
     let tables = state.list_tables(&ident).await?;
 
-    database.with_details(Option::from(tables));
+    database.with_details(Option::from(profile), Option::from(tables));
+    database.warehouse_id = Option::from(warehouse_id);
     Ok(Json(database))
 }

@@ -1,3 +1,4 @@
+use crate::http::ui::models::storage_profile::StorageProfile;
 use crate::http::ui::models::table::{Statistics, Table};
 use catalog::models;
 use serde::{Deserialize, Serialize};
@@ -29,6 +30,8 @@ pub struct Database {
     pub name: String,
     pub tables: Vec<Table>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub storage_profile: Option<StorageProfile>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub warehouse_id: Option<Uuid>,
@@ -43,7 +46,11 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn with_details(&mut self, tables: Option<Vec<Table>>) {
+    pub fn with_details(&mut self, profile: Option<StorageProfile>, tables: Option<Vec<Table>>) {
+        if profile.is_some() {
+            self.storage_profile = profile;
+        }
+
         if tables.is_some() {
             let mut total_statistics = Statistics::default();
 
@@ -69,6 +76,7 @@ impl From<models::Database> for Database {
             statistics: Default::default(),
             compaction_summary: None,
             properties: None,
+            storage_profile: None,
         }
     }
 }

@@ -67,11 +67,11 @@ impl AppState {
 
         let mut result = Vec::new();
         for mut warehouse in warehouses {
-            let databases = self.list_databases(warehouse.id).await?;
-
             let profile = self
                 .get_profile_by_id(warehouse.storage_profile_id.unwrap())
                 .await?;
+
+            let databases = self.list_databases(warehouse.id, profile.clone()).await?;
 
             let mut total_statistics = Statistics::default();
             databases.iter().for_each(|database| {
@@ -80,7 +80,7 @@ impl AppState {
             });
 
             warehouse.with_details(
-                Option::from(profile.clone()),
+                Option::from(profile),
                 Option::from(databases.clone()),
             );
             warehouse.statistics = Some(total_statistics);
@@ -88,7 +88,7 @@ impl AppState {
         }
         Ok(result)
     }
-    pub async fn list_databases(&self, warehouse_id: Uuid) -> Result<Vec<Database>, AppError> {
+    pub async fn list_databases(&self, warehouse_id: Uuid, profile: StorageProfile) -> Result<Vec<Database>, AppError> {
         let ident = &WarehouseIdent::new(warehouse_id);
         let databases = self
             .catalog_svc
@@ -104,17 +104,19 @@ impl AppState {
 
         let mut database_entities = Vec::new();
         for database in databases {
-            let tables = self.catalog_svc.list_tables(&database.ident).await?;
+            let tables = self.list_tables(&database.ident).await?;
             let mut total_statistics = Statistics::default();
 
-            for table in tables {
-                let table_stats = Statistics::from_table_metadata(&table.metadata);
+            for table in tables.clone() {
+                let table_stats = table.statistics.unwrap_or_default();
                 total_statistics = total_statistics.aggregate(&table_stats);
             }
 
             total_statistics.database_count = Option::from(1);
             let mut entity = Database::from(database);
             entity.statistics = Option::from(total_statistics);
+            entity.warehouse_id = Option::from(warehouse_id);
+            entity.with_details(Option::from(profile.clone()), Option::from(tables));
             database_entities.push(entity);
         }
         Ok(database_entities)
