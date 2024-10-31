@@ -16,6 +16,7 @@ pub fn get_table_id(ident: CatalogModels::TableIdent) -> Uuid {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct TableCreatePayload {
     pub name: String,
     pub location: Option<String>,
@@ -40,6 +41,7 @@ impl From<TableCreatePayload> for catalog::models::TableCreation {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct Table {
     pub id: Uuid,
     pub name: String,
@@ -94,6 +96,7 @@ impl Table {
 
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Validate, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct Statistics {
     pub commit_count: i32,
     pub op_append_count: i32,
@@ -213,6 +216,7 @@ impl Statistics {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct TableQueryRequest {
     pub query: String,
 }
@@ -225,6 +229,7 @@ impl TableQueryRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct TableQueryResponse {
     pub id: Uuid,
     pub query: String,
@@ -275,6 +280,7 @@ impl PartialSchema for SchemaWrapper {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct UnboundPartitionSpecWrapper(UnboundPartitionSpec);
 
 impl ToSchema for UnboundPartitionSpecWrapper {
@@ -297,6 +303,7 @@ impl PartialSchema for UnboundPartitionSpecWrapper {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct SortOrderWrapper(SortOrder);
 
 impl ToSchema for SortOrderWrapper {

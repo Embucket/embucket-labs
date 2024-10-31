@@ -4,6 +4,7 @@ use utoipa::ToSchema;
 use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct AwsAccessKeyCredential {
     #[validate(length(min = 1))]
     pub aws_access_key_id: String,
@@ -39,6 +40,7 @@ impl From<models::AwsAccessKeyCredential> for AwsAccessKeyCredential {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct AwsRoleCredential {
     #[validate(length(min = 1))]
     pub role_arn: String,
@@ -87,6 +89,7 @@ impl From<models::AwsRoleCredential> for AwsRoleCredential {
     Default,
     ToSchema,
 )]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub enum CloudProvider {
     #[serde(rename = "aws")]
     #[default]
@@ -118,11 +121,10 @@ impl From<CloudProvider> for models::CloudProvider {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
 #[serde(untagged)]
 pub enum Credentials {
-    #[serde(rename = "access_key")]
     AccessKey(AwsAccessKeyCredential),
-    #[serde(rename = "role")]
     Role(AwsRoleCredential),
 }
 

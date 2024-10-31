@@ -6,6 +6,7 @@ use utoipa::ToSchema;
 use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct CreateStorageProfilePayload {
     #[serde(rename = "type")]
     pub r#type: CloudProvider,

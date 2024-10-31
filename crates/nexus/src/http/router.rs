@@ -2,9 +2,7 @@ use axum::routing::get;
 use axum::Router;
 use std::fs;
 use utoipa::openapi::{self};
-use utoipa::{
-    Modify, OpenApi,
-};
+use utoipa::{Modify, OpenApi};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::catalog::router::create_router as create_catalog_router;
@@ -35,12 +33,12 @@ pub struct ApiDoc;
 pub fn create_app(state: AppState) -> Router {
     let mut spec = ApiDoc::openapi();
     if let Some(extra_spec) = load_openapi_spec() {
-        spec = spec.merge_from(extra_spec)
-            .merge_from(WarehouseApiDoc::openapi())
-            .merge_from(TableApiDoc::openapi())
-            .merge_from(DatabaseApiDoc::openapi())
-            .merge_from(ProfileApiDoc::openapi());
+        spec = spec.merge_from(extra_spec);
     }
+    let ui_spec = ProfileApiDoc::openapi()
+        .merge_from(WarehouseApiDoc::openapi())
+        .merge_from(TableApiDoc::openapi())
+        .merge_from(DatabaseApiDoc::openapi());
     let catalog_router = create_catalog_router();
     let control_router = create_control_router();
     let ui_router = create_ui_router();
@@ -49,7 +47,11 @@ pub fn create_app(state: AppState) -> Router {
         .nest("/", control_router)
         .nest("/catalog", catalog_router)
         .nest("/ui", ui_router)
-        .merge(SwaggerUi::new("/").url("/openapi.json", spec))
+        .merge(
+            SwaggerUi::new("/")
+                .url("/openapi.json", spec)
+                .url("/ui_openapi.json", ui_spec),
+        )
         .route("/health", get(|| async { "OK" }))
         .with_state(state)
 }
