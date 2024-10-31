@@ -2,9 +2,7 @@ use axum::routing::get;
 use axum::Router;
 use std::fs;
 use utoipa::openapi::{self};
-use utoipa::{
-    Modify, OpenApi,
-};
+use utoipa::{Modify, OpenApi};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::catalog::router::create_router as create_catalog_router;
@@ -49,8 +47,11 @@ pub fn create_app(state: AppState) -> Router {
         .nest("/", control_router)
         .nest("/catalog", catalog_router)
         .nest("/ui", ui_router)
-        .merge(SwaggerUi::new("/").url("/openapi.json", spec))
-        .merge(SwaggerUi::new("/").url("/ui_openapi.json", ui_spec))
+        .merge(
+            SwaggerUi::new("/")
+                .url("/openapi.json", spec)
+                .url("/ui_openapi.json", ui_spec),
+        )
         .route("/health", get(|| async { "OK" }))
         .with_state(state)
 }

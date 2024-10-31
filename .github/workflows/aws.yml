@@ -28,7 +28,7 @@ name: Build and deploy
 
 on:
   pull_request:
-    #    types: [ closed ]
+    types: [ closed ]
     branches:
       - main
 
