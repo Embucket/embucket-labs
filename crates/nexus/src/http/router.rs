@@ -19,8 +19,8 @@ use crate::state::AppState;
 #[derive(OpenApi)]
 #[openapi(
     nest(
-        (path = "/v1/storage-profile", api = StorageProfileApi, tags = ["storage-profile"]),
-        (path = "/v1/warehouse", api = WarehouseApi, tags = ["warehouse"]),
+        (path = "/v1/storage-profile", api = StorageProfileApi, tags = ["storage-profiles"]),
+        (path = "/v1/warehouse", api = WarehouseApi, tags = ["warehouses"]),
     ),
     tags(
         (name = "storage-profile", description = "Storage profile API"),

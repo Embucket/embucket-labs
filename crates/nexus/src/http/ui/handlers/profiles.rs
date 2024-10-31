@@ -26,7 +26,7 @@ use uuid::Uuid;
         )
     ),
     tags(
-        (name = "Storage profiles", description = "Storage profiles management endpoints.")
+        (name = "storage_profiles", description = "Storage profiles management endpoints.")
     )
 )]
 pub struct ApiDoc;

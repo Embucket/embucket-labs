@@ -27,7 +27,7 @@ use uuid::Uuid;
         )
     ),
     tags(
-        (name = "Warehouse", description = "Warehouse management endpoints.")
+        (name = "warehouses", description = "Warehouse management endpoints.")
     )
 )]
 pub struct ApiDoc;

@@ -27,7 +27,7 @@ use uuid::Uuid;
         )
     ),
     tags(
-        (name = "Tables", description = "Tables management endpoints.")
+        (name = "tables", description = "Tables management endpoints.")
     )
 )]
 pub struct ApiDoc;

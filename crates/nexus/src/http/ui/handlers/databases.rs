@@ -23,7 +23,7 @@ use uuid::Uuid;
         )
     ),
     tags(
-        (name = "Databases", description = "Databases management endpoints.")
+        (name = "databases", description = "Databases management endpoints.")
     )
 )]
 pub struct ApiDoc;
