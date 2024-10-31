@@ -1,5 +1,6 @@
 use crate::http::ui::models::database::CompactionSummary;
 use crate::http::ui::models::metadata::TableMetadataWrapper;
+use crate::http::ui::models::storage_profile::StorageProfile;
 use catalog::models as CatalogModels;
 use iceberg::spec::TableMetadata;
 use iceberg::spec::{Schema, SortOrder, UnboundPartitionSpec};
@@ -43,6 +44,8 @@ pub struct Table {
     pub id: Uuid,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub storage_profile: Option<StorageProfile>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub database_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub warehouse_id: Option<Uuid>,
@@ -67,6 +70,7 @@ impl From<catalog::models::Table> for Table {
         Self {
             id: get_table_id(table.clone().ident),
             name: table.ident.table,
+            storage_profile: None,
             database_name: None,
             warehouse_id: None,
             properties: None,
@@ -79,6 +83,15 @@ impl From<catalog::models::Table> for Table {
         }
     }
 }
+
+impl Table {
+    pub fn with_details(&mut self, profile: Option<StorageProfile>) {
+        if profile.is_some() {
+            self.storage_profile = profile;
+        }
+    }
+}
+
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Validate, ToSchema)]
 pub struct Statistics {
