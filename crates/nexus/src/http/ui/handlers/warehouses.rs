@@ -35,7 +35,8 @@ pub struct ApiDoc;
 #[utoipa::path(
     get,
     path = "/ui/navigation",
-    operation_id = "webWarehousesNavigation",
+    tags = ["warehouses"],
+    operation_id = "warehousesNavigation",
     responses(
         (status = 200, description = "List all warehouses fot navigation", body = Navigation),
     )
