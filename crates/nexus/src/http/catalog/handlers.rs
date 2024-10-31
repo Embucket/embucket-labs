@@ -79,12 +79,13 @@ pub async fn create_table(
     Json(payload): Json<schemas::TableCreateRequest>,
 ) -> Result<Json<schemas::TableResult>, AppError> {
     let wh = state.control_svc.get_warehouse(id).await?;
+    let sp = state.control_svc.get_profile(wh.storage_profile_id).await?;
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::new(namespace_id),
     };
-    let table = catalog.create_table(&ident, &wh, payload.into()).await?;
+    let table = catalog.create_table(&ident, &sp, &wh, payload.into()).await?;
 
     Ok(Json(table.into()))
 }
