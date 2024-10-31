@@ -4,7 +4,7 @@ use utoipa::ToSchema;
 use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, Validate, ToSchema)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
+#[serde(rename_all = "camelCase")]
 pub struct AwsAccessKeyCredential {
     #[validate(length(min = 1))]
     pub aws_access_key_id: String,
@@ -40,7 +40,7 @@ impl From<models::AwsAccessKeyCredential> for AwsAccessKeyCredential {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
+#[serde(rename_all = "camelCase")]
 pub struct AwsRoleCredential {
     #[validate(length(min = 1))]
     pub role_arn: String,
@@ -89,7 +89,7 @@ impl From<models::AwsRoleCredential> for AwsRoleCredential {
     Default,
     ToSchema,
 )]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
+#[serde(rename_all = "camelCase")]
 pub enum CloudProvider {
     #[serde(rename = "aws")]
     #[default]
@@ -121,7 +121,7 @@ impl From<CloudProvider> for models::CloudProvider {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
+#[serde(rename_all(serialize = "camelCase", deserialize = "camelCase"))]
 #[serde(untagged)]
 pub enum Credentials {
     AccessKey(AwsAccessKeyCredential),
@@ -149,18 +149,16 @@ impl From<models::Credentials> for Credentials {
 impl From<Credentials> for models::Credentials {
     fn from(credentials: Credentials) -> Self {
         match credentials {
-            Credentials::AccessKey(creds) => models::Credentials::AccessKey(
-                models::AwsAccessKeyCredential {
+            Credentials::AccessKey(creds) => {
+                models::Credentials::AccessKey(models::AwsAccessKeyCredential {
                     aws_access_key_id: creds.aws_access_key_id,
                     aws_secret_access_key: creds.aws_secret_access_key,
-                },
-            ),
-            Credentials::Role(creds) => {
-                models::Credentials::Role(models::AwsRoleCredential {
-                    role_arn: creds.role_arn,
-                    external_id: creds.external_id,
                 })
             }
+            Credentials::Role(creds) => models::Credentials::Role(models::AwsRoleCredential {
+                role_arn: creds.role_arn,
+                external_id: creds.external_id,
+            }),
         }
     }
 }

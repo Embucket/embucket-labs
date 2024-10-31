@@ -16,13 +16,13 @@ pub fn get_table_id(ident: CatalogModels::TableIdent) -> Uuid {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
+#[serde(rename_all = "camelCase")]
 pub struct TableCreatePayload {
     pub name: String,
     pub location: Option<String>,
     pub schema: SchemaWrapper,
     pub partition_spec: Option<UnboundPartitionSpecWrapper>,
-    pub write_order: Option<SortOrderWrapper>,
+    pub sort_order: Option<SortOrderWrapper>,
     pub stage_create: Option<bool>,
     pub properties: Option<HashMap<String, String>>,
 }
@@ -34,14 +34,14 @@ impl From<TableCreatePayload> for catalog::models::TableCreation {
             location: schema.location,
             schema: schema.schema.0,
             partition_spec: schema.partition_spec.map(|x| x.0),
-            sort_order: schema.write_order.map(|x| x.0),
+            sort_order: schema.sort_order.map(|x| x.0),
             properties: schema.properties.unwrap_or_default(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
+#[serde(rename_all = "camelCase")]
 pub struct Table {
     pub id: Uuid,
     pub name: String,
@@ -76,12 +76,12 @@ impl From<catalog::models::Table> for Table {
             database_name: None,
             warehouse_id: None,
             properties: None,
-            metadata: None,
+            metadata: Option::from(TableMetadataWrapper(table.metadata.clone())),
+            metadata_location: Option::from(table.metadata_location),
             created_at: Default::default(),
             updated_at: Default::default(),
             statistics: Option::from(Statistics::from_table_metadata(&table.metadata)),
             compaction_summary: None,
-            metadata_location: None,
         }
     }
 }
@@ -96,7 +96,7 @@ impl Table {
 
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Validate, ToSchema)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
+#[serde(rename_all = "camelCase")]
 pub struct Statistics {
     pub commit_count: i32,
     pub op_append_count: i32,
@@ -216,7 +216,7 @@ impl Statistics {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
+#[serde(rename_all = "camelCase")]
 pub struct TableQueryRequest {
     pub query: String,
 }
@@ -229,7 +229,7 @@ impl TableQueryRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
+#[serde(rename_all = "camelCase")]
 pub struct TableQueryResponse {
     pub id: Uuid,
     pub query: String,
@@ -244,6 +244,7 @@ impl TableQueryResponse {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SchemaWrapper(Schema);
 
 impl ToSchema for SchemaWrapper {
@@ -280,7 +281,7 @@ impl PartialSchema for SchemaWrapper {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
+#[serde(rename_all = "camelCase")]
 pub struct UnboundPartitionSpecWrapper(UnboundPartitionSpec);
 
 impl ToSchema for UnboundPartitionSpecWrapper {
@@ -303,7 +304,7 @@ impl PartialSchema for UnboundPartitionSpecWrapper {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
+#[serde(rename_all = "camelCase")]
 pub struct SortOrderWrapper(SortOrder);
 
 impl ToSchema for SortOrderWrapper {

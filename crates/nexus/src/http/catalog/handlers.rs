@@ -1,7 +1,6 @@
 use crate::http::catalog::schemas;
 use axum::{extract::Path, extract::Query, extract::State, Json};
 use catalog::models::{DatabaseIdent, NamespaceIdent, TableCommit, TableIdent, WarehouseIdent};
-use iceberg::TableCreation;
 use std::result::Result;
 use uuid::Uuid;
 
@@ -190,7 +189,6 @@ pub async fn list_views(
     State(state): State<AppState>,
     Path((id, namespace_id)): Path<(Uuid, String)>,
 ) -> Result<Json<schemas::TableListResponse>, AppError> {
-
     Ok(Json(schemas::TableListResponse {
         identifiers: vec![],
     }))

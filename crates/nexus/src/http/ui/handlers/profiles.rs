@@ -33,7 +33,8 @@ pub struct ApiDoc;
 
 #[utoipa::path(
     post,
-    operation_id = "webCreateStorageProfile",
+    operation_id = "createStorageProfile",
+    tags = ["storage profiles"],
     path = "/ui/storage-profiles",
     request_body = storage_profile::CreateStorageProfilePayload,
     responses(
@@ -62,7 +63,8 @@ pub async fn create_storage_profile(
 
 #[utoipa::path(
     get,
-    operation_id = "webGetStorageProfile",
+    operation_id = "getStorageProfile",
+    tags = ["storage profiles"],
     path = "/ui/storage-profiles/{storageProfileId}",
     params(
         ("storageProfileId" = Uuid, Path, description = "Storage profile ID")
@@ -83,7 +85,8 @@ pub async fn get_storage_profile(
 
 #[utoipa::path(
     delete,
-    operation_id = "webDeleteStorageProfile",
+    operation_id = "deleteStorageProfile",
+    tags = ["storage profiles"],
     path = "/ui/storage-profiles/{storageProfileId}",
     params(
         ("storageProfileId" = Uuid, Path, description = "Storage profile ID")
@@ -114,7 +117,8 @@ pub async fn delete_storage_profile(
 
 #[utoipa::path(
     get,
-    operation_id = "webListStorageProfiles",
+    operation_id = "listStorageProfiles",
+    tags = ["storage profiles"],
     path = "/ui/storage-profiles/",
     responses(
         (status = 200, body = Vec<storage_profile::StorageProfile>),

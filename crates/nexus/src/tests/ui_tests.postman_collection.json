@@ -42,7 +42,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"bucket\": \"artem_test\",\n    \"credentials\": {\n        \"aws_access_key_id\": \"123\",\n        \"aws_secret_access_key\": \"123\"\n    },\n    \"region\": \"us-east-2\",\n    \"endpoint\": \"\",\n    \"sts_role_arn\": \"\",\n    \"type\": \"aws\"\n}",
+							"raw": "{\n    \"bucket\": \"artem_test\",\n    \"credentials\": {\n        \"awsAccessKeyId\": \"123\",\n        \"awsSecretAccessKey\": \"123\"\n    },\n    \"region\": \"us-east-2\",\n    \"endpoint\": \"\",\n    \"stsRoleArn\": \"\",\n    \"type\": \"aws\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -220,7 +220,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"storage_profile_id\": \"{{storage_profile_id}}\",\n    \"name\": \"name\",\n    \"key_prefix\": \"test\"\n}",
+							"raw": "{\n    \"storageProfileId\": \"{{storage_profile_id}}\",\n    \"name\": \"name\",\n    \"keyPrefix\": \"test\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -374,7 +374,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "   { \n    \"name\": \"name\",\n    \"properties\" : {\"test\": \"eqqq\"}\n}",
+							"raw": "   { \n    \"name\": \"name2\",\n    \"properties\" : {\"testId\": \"eqqq\"}\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -492,7 +492,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"table_data_1\",\n    \"location\": \"/home/iceberg/warehouse/nyc/taxis\",\n    \"schema\": {\n        \"type\": \"struct\",\n        \"schema-id\": 0,\n        \"fields\": [\n            {\n                \"id\": 1,\n                \"name\": \"vendor_id\",\n                \"required\": false,\n                \"type\": \"long\"\n            },\n            {\n                \"id\": 2,\n                \"name\": \"trip_id\",\n                \"required\": false,\n                \"type\": \"long\"\n            },\n            {\n                \"id\": 3,\n                \"name\": \"trip_distance\",\n                \"required\": false,\n                \"type\": \"float\"\n            },\n            {\n                \"id\": 4,\n                \"name\": \"fare_amount\",\n                \"required\": false,\n                \"type\": \"double\"\n            },\n            {\n                \"id\": 5,\n                \"name\": \"store_and_fwd_flag\",\n                \"required\": false,\n                \"type\": \"string\"\n            }\n        ]\n    },\n    \"partition-spec\": [\n        {\n            \"name\": \"vendor_id\",\n            \"transform\": \"identity\",\n            \"source-id\": 1,\n            \"field-id\": 1000\n        }\n    ],\n    \"sort-orders\": [\n        {\n            \"order-id\": 0,\n            \"fields\": []\n        }\n    ],\n    \"properties\": {\n        \"owner\": \"root\"\n    }\n}",
+							"raw": "{\n    \"name\": \"table_data_2\",\n    \"location\": \"/home/iceberg/warehouse/nyc/taxis\",\n    \"schema\": {\n        \"type\": \"struct\",\n        \"schemaId\": 0,\n        \"fields\": [\n            {\n                \"id\": 1,\n                \"name\": \"vendor_id\",\n                \"required\": false,\n                \"type\": \"long\"\n            },\n            {\n                \"id\": 2,\n                \"name\": \"trip_id\",\n                \"required\": false,\n                \"type\": \"long\"\n            },\n            {\n                \"id\": 3,\n                \"name\": \"trip_distance\",\n                \"required\": false,\n                \"type\": \"float\"\n            },\n            {\n                \"id\": 4,\n                \"name\": \"fare_amount\",\n                \"required\": false,\n                \"type\": \"double\"\n            },\n            {\n                \"id\": 5,\n                \"name\": \"store_and_fwd_flag\",\n                \"required\": false,\n                \"type\": \"string\"\n            }\n        ]\n    },\n    \"partitionSpec\": {\n        \"spec_id\": 1,\n        \"fields\": [\n            {\n                \"name\": \"vendor_id\",\n                \"transform\": \"identity\",\n                \"source-id\": 1,\n                \"field-id\": 1000\n            }\n        ]\n    },\n    \"sortOrders\": [\n        {\n            \"orderId\": 0,\n            \"fields\": [\n                {\n                    \"direction\": \"asc\",\n                    \"transform\": \"identity\",\n                    \"source-id\": 1,\n                    \"null-order\": \"nulls-first\"\n                }\n            ]\n        }\n    ],\n    \"properties\": {\n        \"owner\": \"root\"\n    }\n}",
 							"options": {
 								"raw": {
 									"language": "json"

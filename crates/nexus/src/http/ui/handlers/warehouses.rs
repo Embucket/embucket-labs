@@ -49,7 +49,8 @@ pub async fn navigation(State(state): State<AppState>) -> Result<Json<Navigation
 #[utoipa::path(
     get,
     path = "/ui/warehouses",
-    operation_id = "webWarehousesDashboard",
+    tags = ["warehouses"],
+    operation_id = "warehousesDashboard",
     responses(
         (status = 200, description = "List all warehouses", body = WarehousesDashboard),
         (status = 500, description = "List all warehouses error", body = AppError),
@@ -82,7 +83,8 @@ pub async fn list_warehouses(
 #[utoipa::path(
     get,
     path = "/ui/warehouses/{warehouseId}",
-    operation_id = "webGetWarehouse",
+    operation_id = "getWarehouse",
+    tags = ["warehouses"],
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID")
     ),
@@ -108,7 +110,8 @@ pub async fn get_warehouse(
     post,
     path = "/ui/warehouses",
     request_body = CreateWarehousePayload,
-    operation_id = "webCreateWarehouse",
+    operation_id = "createWarehouse",
+    tags = ["warehouses"],
     responses(
         (status = 201, description = "Warehouse created", body = Warehouse),
         (status = 422, description = "Unprocessable Entity", body = AppError),
@@ -139,7 +142,8 @@ pub async fn create_warehouse(
 #[utoipa::path(
     delete,
     path = "/ui/warehouses/{warehouseId}",
-    operation_id = "webDeleteWarehouse",
+    operation_id = "deleteWarehouse",
+    tags = ["warehouses"],
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID")
     ),
