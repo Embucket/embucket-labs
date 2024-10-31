@@ -1,10 +1,15 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::env;
 use std::fmt::Debug;
 use std::sync::Arc;
-use control_plane::models::Warehouse;
+use bytes::Bytes;
+use control_plane::models::{CloudProvider, Credentials, StorageProfile, Warehouse};
 use iceberg::{spec::TableMetadataBuilder, TableCreation};
 use uuid::Uuid;
+use object_store::{ObjectStore, PutPayload, aws::AmazonS3Builder, local::LocalFileSystem};
+use object_store::path::Path;
+use dotenv::dotenv;
 use crate::error::{Error, Result}; // TODO: Replace this with this crate error and result
 use crate::models::{
     Config, Database, DatabaseIdent, Table, TableCommit, TableIdent, TableRequirementExt,
@@ -44,6 +49,7 @@ pub trait Catalog: Debug + Sync + Send {
     async fn create_table(
         &self,
         namespace: &DatabaseIdent,
+        storage_profile: &StorageProfile,
         warehouse: &Warehouse,
         creation: TableCreation,
     ) -> Result<Table>;
@@ -216,6 +222,7 @@ impl Catalog for CatalogImpl {
     async fn create_table(
         &self,
         namespace: &DatabaseIdent,
+        storage_profile: &StorageProfile,
         warehouse: &Warehouse,
         table_creation: TableCreation,
     ) -> Result<Table> {
@@ -236,11 +243,44 @@ impl Catalog for CatalogImpl {
         // Take into account provided location if present
         // If none, generate location based on warehouse location
         // un-hardcode "file://" and make it dynamic - filesystem or s3 (at least)
-        let working_dir_abs_path = std::env::current_dir().unwrap().to_str().unwrap().to_string();
-        let table_location = format!("file://{}/{}/{}", working_dir_abs_path, warehouse.location, table_creation.name);
+
+        let table_relative_location = format!("{}/{}", warehouse.location, table_creation.name);
+
+        dotenv().ok();
+        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD").ok().unwrap()
+            .parse::<bool>()
+            .expect
+            ("Failed to parse \
+            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD");
+        let table_abs_location = if use_file_system_instead_of_cloud {
+            let working_dir_abs_path = std::env::current_dir().unwrap().to_str().unwrap().to_string();
+            format!("{}/{}", working_dir_abs_path, table_relative_location)
+        } else {
+            table_relative_location
+        };
+
+        let base_url = if use_file_system_instead_of_cloud {
+            "file://".to_string()
+        } else {
+            match storage_profile.r#type {
+                CloudProvider::AWS => {
+                    let base = if let Some(i) = &storage_profile.endpoint {
+                        i
+                    } else {
+                        &"s3://".to_string()
+                    };
+                    format!("{}/{}", base, &storage_profile.bucket)
+                }
+                CloudProvider::AZURE => { panic!("Not implemented") }
+                CloudProvider::GCS => { panic!("Not implemented") }
+            }
+        };
+
+        let table_url_location = format!("{}/{}", base_url, table_abs_location);
+
         let creation = {
             let mut creation = table_creation;
-            creation.location = Some(table_location.clone());
+            creation.location = Some(table_url_location.clone());
             creation
         };
         // TODO: Add checks
@@ -250,11 +290,11 @@ impl Catalog for CatalogImpl {
         let result = TableMetadataBuilder::from_table_creation(creation)?.build()?;
         let metadata = result.metadata.clone();
         let metadata_file_id = Uuid::new_v4().to_string();
-        let metadata_location = format!("{table_location}/metadata/{metadata_file_id}.metadata.json");
+        let metadata_abs_location = format!("{table_abs_location}/metadata/{metadata_file_id}.metadata.json");
 
         let table = Table {
             metadata: metadata.clone(),
-            metadata_location: metadata_location.clone(),
+            metadata_location: format!("{}/{}", base_url, metadata_abs_location),
             ident: TableIdent {
                 database: namespace.clone(),
                 table: name.clone(),
@@ -262,17 +302,39 @@ impl Catalog for CatalogImpl {
         };
         self.table_repo.put(&table).await?;
 
-        let file_io = iceberg::io::FileIOBuilder::new("file").build()?;
-        let metadata_file = file_io
-            .new_output(metadata_location)?;
-        let mut writer = metadata_file
-            .writer()
-            .await?;
-        let buf = serde_json::to_vec(&table.metadata).unwrap();
-        writer
-            .write(buf.into())
-            .await?;
-        writer.close().await?;
+        let object_store: Box<dyn ObjectStore> = if use_file_system_instead_of_cloud {
+            Box::new(LocalFileSystem::new())
+        } else {
+            match storage_profile.r#type {
+                CloudProvider::AWS => {
+                    let mut builder = AmazonS3Builder::new()
+                        .with_region(&storage_profile.region)
+                        .with_bucket_name(&storage_profile.bucket)
+                        .with_allow_http(true); // TODO should be only the case for local development
+                    builder = if let Some(endpoint) = &storage_profile.endpoint {
+                        builder.with_endpoint(endpoint.clone())
+                    } else {
+                        builder
+                    };
+                    match &storage_profile.credentials {
+                        Credentials::AccessKey(creds) => {
+                            Box::new(builder.with_access_key_id(&creds.aws_access_key_id)
+                                .with_secret_access_key(&creds.aws_secret_access_key)
+                                .build()
+                                .expect("error creating AWS object store"))
+                        }
+                        Credentials::Role(_) => {
+                            panic!("Not implemented")
+                        }
+                    }
+                }
+                CloudProvider::AZURE => { panic!("Not implemented") }
+                CloudProvider::GCS => { panic!("Not implemented") }
+            }
+        };
+        let data = Bytes::from(serde_json::to_vec(&table.metadata).unwrap());
+        let path = Path::from(metadata_abs_location);
+        object_store.put(&path, PutPayload::from(data)).await.unwrap();
 
         Ok(table)
     }
