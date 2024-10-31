@@ -31,7 +31,8 @@ pub struct ApiDoc;
 #[utoipa::path(
     post,
     path = "/ui/warehouses/{warehouseId}/databases",
-    operation_id = "webCreateDatabase",
+    operation_id = "createDatabase",
+    tags = ["databases"],
     params(
         ("warehouseId" = Uuid, description = "Warehouse ID"),
     ),
@@ -67,7 +68,8 @@ pub async fn create_database(
 #[utoipa::path(
     delete,
     path = "/ui/warehouses/{warehouseId}/databases/{databaseName}",
-    operation_id = "webDeleteDatabase",
+    operation_id = "deleteDatabase",
+    tags = ["databases"],
     params(
         ("warehouseId" = Uuid, description = "Warehouse ID"),
         ("databaseName" = String, description = "Database Name"),
@@ -105,7 +107,8 @@ pub async fn delete_database(
         ("warehouseId" = Uuid, description = "Warehouse ID"),
         ("databaseName" = String, description = "Database Name"),
     ),
-    operation_id = "webGetDatabase",
+    operation_id = "getDatabase",
+    tags = ["databases"],
     responses(
         (status = 200, description = "Successful Response", body = Database),
         (status = 404, description = "Database not found", body = AppError),
@@ -116,7 +119,7 @@ pub async fn get_database(
     State(state): State<AppState>,
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
 ) -> Result<Json<Database>, AppError> {
-    let mut warehouse = state.get_warehouse_by_id(warehouse_id).await?;
+    let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let profile = state.get_profile_by_id(warehouse.storage_profile_id.unwrap()).await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),

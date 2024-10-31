@@ -35,7 +35,8 @@ pub struct ApiDoc;
 #[utoipa::path(
     get,
     path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
-    operation_id = "webGetTable",
+    operation_id = "getTable",
+    tags = ["tables"],
     params(
         ("warehouseId" = Uuid, description = "Warehouse ID"),
         ("databaseName" = String, description = "Database Name"),
@@ -52,7 +53,7 @@ pub async fn get_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
 ) -> Result<Json<Table>, AppError> {
-    let mut warehouse = state.get_warehouse_by_id(warehouse_id).await?;
+    let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let profile = state.get_profile_by_id(warehouse.storage_profile_id.unwrap()).await?;
     let table_ident = TableIdent {
         database: DatabaseIdent {
@@ -70,7 +71,8 @@ pub async fn get_table(
 
 #[utoipa::path(
     get,
-    operation_id = "webCreateTable",
+    operation_id = "createTable",
+    tags = ["tables"],
     path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables",
     params(
         ("warehouseId" = Uuid, description = "Warehouse ID"),
@@ -106,7 +108,8 @@ pub async fn create_table(
 
 #[utoipa::path(
     delete,
-    operation_id = "webDeleteTable",
+    operation_id = "deleteTable",
+    tags = ["tables"],
     path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
@@ -145,7 +148,8 @@ pub async fn delete_table(
     post,
     path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/query",
     request_body = TableQueryRequest,
-    operation_id = "webTableQuery",
+    operation_id = "tableQuery",
+    tags = ["tables"],
     params(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
         ("databaseName" = Uuid, Path, description = "Database Name"),

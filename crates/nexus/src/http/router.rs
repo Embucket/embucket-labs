@@ -2,7 +2,7 @@ use axum::routing::get;
 use axum::Router;
 use std::fs;
 use utoipa::openapi::{self};
-use utoipa::{Modify, OpenApi};
+use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::catalog::router::create_router as create_catalog_router;
