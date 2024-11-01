@@ -1,16 +1,15 @@
+use crate::error::{Error, Result};
 use async_trait::async_trait;
+use bytes::Bytes;
+use control_plane::models::{StorageProfile, Warehouse};
+use iceberg::{spec::TableMetadataBuilder, TableCreation};
+use object_store::path::Path;
+use object_store::{ObjectStore, PutPayload};
 use std::collections::HashMap;
-use std::env;
 use std::fmt::Debug;
 use std::sync::Arc;
-use bytes::Bytes;
-use control_plane::models::{CloudProvider, Credentials, StorageProfile, Warehouse};
-use iceberg::{spec::TableMetadataBuilder, TableCreation};
 use uuid::Uuid;
-use object_store::{ObjectStore, PutPayload, aws::AmazonS3Builder, local::LocalFileSystem};
-use object_store::path::Path;
-use dotenv::dotenv;
-use crate::error::{Error, Result}; // TODO: Replace this with this crate error and result
+// TODO: Replace this with this crate error and result
 use crate::models::{
     Config, Database, DatabaseIdent, Table, TableCommit, TableIdent, TableRequirementExt,
     WarehouseIdent,
@@ -25,7 +24,7 @@ use control_plane::service::ControlService;
 // We can create namespace from a database, but not otherwise
 #[async_trait]
 pub trait Catalog: Debug + Sync + Send {
-    async fn get_config(&self, ident: &WarehouseIdent) -> Result<Config>;
+    async fn get_config(&self, ident: &WarehouseIdent, storage_profile: &StorageProfile) -> Result<Config>;
     async fn list_namespaces(
         &self,
         warehouse: &WarehouseIdent,
@@ -81,23 +80,24 @@ impl CatalogImpl {
 
 #[async_trait]
 impl Catalog for CatalogImpl {
-    async fn get_config(&self, ident: &WarehouseIdent) -> Result<Config> {
+    async fn get_config(&self, ident: &WarehouseIdent, storage_profile: &StorageProfile) -> Result<Config> {
         // TODO: Implement warehouse config
         // TODO: Should it include prefix from Warehouse or not?
         // As per https://github.com/apache/iceberg-python/blob/main/pyiceberg/catalog/rest.py#L298
         // prefix is used only in URL construction, so no - only id as it's part of the URL
         // TODO: Should it include bucket from storage profile?
         // hardcoding for now
-        // uri, warehouse and prefix
+        // uri and prefix
         let config = Config {
             defaults: HashMap::new(),
             overrides: HashMap::from([
-                ("warehouse".to_string(), ident.id().to_string()),
+                // ("warehouse".to_string(), ident.id().to_string()),
                 (
                     "uri".to_string(),
                     "http://localhost:3000/catalog".to_string(),
                 ),
-                ("prefix".to_string(), format! {"{}", ident.id()}),
+                ("prefix".to_string(), format! {"{}", ident.id()}), // we parse it as warehouse id in catalog url
+                ("s3.endpoint".to_string(), storage_profile.endpoint.clone().unwrap()),
             ]),
         };
         Ok(config)
@@ -242,98 +242,37 @@ impl Catalog for CatalogImpl {
         // Take into account namespace location property if present
         // Take into account provided location if present
         // If none, generate location based on warehouse location
-        // un-hardcode "file://" and make it dynamic - filesystem or s3 (at least)
 
-        let table_relative_location = format!("{}/{}", warehouse.location, table_creation.name);
+        let base_part = storage_profile.get_base_url();
+        let table_part = format!("{}/{}", warehouse.location, table_creation.name);
+        let metadata_part = format!("metadata/{}.metadata.json", Uuid::new_v4().to_string());
 
-        dotenv().ok();
-        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD").ok().unwrap()
-            .parse::<bool>()
-            .expect
-            ("Failed to parse \
-            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD");
-        let table_abs_location = if use_file_system_instead_of_cloud {
-            let working_dir_abs_path = std::env::current_dir().unwrap().to_str().unwrap().to_string();
-            format!("{}/{}", working_dir_abs_path, table_relative_location)
-        } else {
-            table_relative_location
-        };
-
-        let base_url = if use_file_system_instead_of_cloud {
-            "file://".to_string()
-        } else {
-            match storage_profile.r#type {
-                CloudProvider::AWS => {
-                    let base = if let Some(i) = &storage_profile.endpoint {
-                        i
-                    } else {
-                        &"s3://".to_string()
-                    };
-                    format!("{}/{}", base, &storage_profile.bucket)
-                }
-                CloudProvider::AZURE => { panic!("Not implemented") }
-                CloudProvider::GCS => { panic!("Not implemented") }
-            }
-        };
-
-        let table_url_location = format!("{}/{}", base_url, table_abs_location);
-
-        let creation = {
+        let table_creation = {
             let mut creation = table_creation;
-            creation.location = Some(table_url_location.clone());
+            creation.location = Some(format!("{base_part}/{table_part}"));
             creation
         };
+
         // TODO: Add checks
         // - Check if storage profile is valid (writable)
 
-        let name = creation.name.to_string();
-        let result = TableMetadataBuilder::from_table_creation(creation)?.build()?;
+        let table_name = table_creation.name.clone();
+        let result = TableMetadataBuilder::from_table_creation(table_creation)?.build()?;
         let metadata = result.metadata.clone();
-        let metadata_file_id = Uuid::new_v4().to_string();
-        let metadata_abs_location = format!("{table_abs_location}/metadata/{metadata_file_id}.metadata.json");
 
         let table = Table {
             metadata: metadata.clone(),
-            metadata_location: format!("{}/{}", base_url, metadata_abs_location),
+            metadata_location: format!("{base_part}/{table_part}/{metadata_part}"),
             ident: TableIdent {
                 database: namespace.clone(),
-                table: name.clone(),
+                table: table_name.clone(),
             },
         };
         self.table_repo.put(&table).await?;
 
-        let object_store: Box<dyn ObjectStore> = if use_file_system_instead_of_cloud {
-            Box::new(LocalFileSystem::new())
-        } else {
-            match storage_profile.r#type {
-                CloudProvider::AWS => {
-                    let mut builder = AmazonS3Builder::new()
-                        .with_region(&storage_profile.region)
-                        .with_bucket_name(&storage_profile.bucket)
-                        .with_allow_http(true); // TODO should be only the case for local development
-                    builder = if let Some(endpoint) = &storage_profile.endpoint {
-                        builder.with_endpoint(endpoint.clone())
-                    } else {
-                        builder
-                    };
-                    match &storage_profile.credentials {
-                        Credentials::AccessKey(creds) => {
-                            Box::new(builder.with_access_key_id(&creds.aws_access_key_id)
-                                .with_secret_access_key(&creds.aws_secret_access_key)
-                                .build()
-                                .expect("error creating AWS object store"))
-                        }
-                        Credentials::Role(_) => {
-                            panic!("Not implemented")
-                        }
-                    }
-                }
-                CloudProvider::AZURE => { panic!("Not implemented") }
-                CloudProvider::GCS => { panic!("Not implemented") }
-            }
-        };
+        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store();
         let data = Bytes::from(serde_json::to_vec(&table.metadata).unwrap());
-        let path = Path::from(metadata_abs_location);
+        let path = Path::from(format!("{table_part}/{metadata_part}"));
         object_store.put(&path, PutPayload::from(data)).await.unwrap();
 
         Ok(table)

@@ -38,7 +38,7 @@ class Server:
         storage_profile_url = urllib.parse.urljoin(
             self.management_url, "v1/storage-profile"
         )
-        payload = {k.replace("_", "-"): v for k, v in payload.items()}
+        # payload = {k.replace("_", "-"): v for k, v in payload.items()}
         response = requests.post(
             storage_profile_url,
             json=payload,
@@ -64,7 +64,7 @@ class Server:
     ) -> uuid.UUID:
         """Create a warehouse in this server"""
         warehouse_url = urllib.parse.urljoin(self.management_url, "v1/warehouse")
-        payload = {k.replace("_", "-"): v for k, v in payload.items()}
+        # payload = {k.replace("_", "-"): v for k, v in payload.items()}
         response = requests.post(
             warehouse_url,
             json=payload,
@@ -99,13 +99,13 @@ def server() -> Server:
 @pytest.fixture(scope="session")
 def storage_profile(server: Server) -> dict:
     data = server.create_storage_profile(
-        type="aws",
+        type="Aws",
         region=S3_REGION,
         bucket=S3_BUCKET,
         credentials={
-            "credential-type": "access-key",
-            "aws-access-key-id": S3_ACCESS_KEY,
-            "aws-secret-access-key": S3_SECRET_KEY,
+            "credential_type": "access_key",
+            "aws_access_key_id": S3_ACCESS_KEY,
+            "aws_secret_access_key": S3_SECRET_KEY,
         },
         sts_role_arn=None,
         endpoint=S3_ENDPOINT,
@@ -118,7 +118,7 @@ def storage_profile(server: Server) -> dict:
 @pytest.fixture(scope="session")
 def warehouse(server: Server, storage_profile) -> dict:
     warehouse_name = "test-warehouse"
-    prefix = "prefix"
+    prefix = "warehouse-prefix"
     wh = server.create_warehouse(
         name=warehouse_name,
         prefix=prefix,

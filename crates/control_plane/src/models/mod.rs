@@ -2,6 +2,13 @@ use crate::error::Error;
 use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::env;
+use std::sync::Arc;
+use dotenv::dotenv;
+use iceberg_rust::catalog::bucket::ObjectStoreBuilder;
+use object_store::aws::AmazonS3Builder;
+use object_store::local::LocalFileSystem;
+use object_store::ObjectStore;
 use uuid::Uuid;
 
 // Enum for supported cloud providers
@@ -156,6 +163,105 @@ impl StorageProfile {
             }
         }
         self.updated_at = Utc::now().naive_utc();
+    }
+
+    pub fn get_base_url(&self) -> String {
+        dotenv().ok();
+        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD").ok().unwrap()
+            .parse::<bool>()
+            .expect
+            ("Failed to parse \
+            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD");
+        if use_file_system_instead_of_cloud {
+            format!("file://{}", env::current_dir().unwrap().to_str().unwrap())
+        } else {
+            match self.r#type {
+                CloudProvider::AWS => {
+                    format!("s3://{}", &self.bucket)
+                }
+                CloudProvider::AZURE => { panic!("Not implemented") }
+                CloudProvider::GCS => { panic!("Not implemented") }
+            }
+        }
+    }
+
+    // This is needed to initialize the catalog used in JanKaul code
+    pub fn get_object_store_builder(&self) -> ObjectStoreBuilder {
+        // TODO remove duplicated code
+        dotenv().ok();
+        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD").ok().unwrap()
+            .parse::<bool>()
+            .expect
+            ("Failed to parse \
+            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD");
+        if use_file_system_instead_of_cloud {
+            ObjectStoreBuilder::Filesystem(Arc::new((LocalFileSystem::new_with_prefix(".").unwrap())))
+        } else {
+            match self.r#type {
+                CloudProvider::AWS => {
+                    let mut builder = AmazonS3Builder::new()
+                        .with_region(&self.region)
+                        .with_bucket_name(&self.bucket)
+                        .with_allow_http(true); // TODO should be only the case for local development
+                    builder = if let Some(endpoint) = &self.endpoint {
+                        builder.with_endpoint(endpoint.clone())
+                    } else {
+                        builder
+                    };
+                    match &self.credentials {
+                        Credentials::AccessKey(creds) => {
+                            ObjectStoreBuilder::S3(builder.with_access_key_id(&creds.aws_access_key_id)
+                                .with_secret_access_key(&creds.aws_secret_access_key))
+                        }
+                        Credentials::Role(_) => {
+                            panic!("Not implemented")
+                        }
+                    }
+                }
+                CloudProvider::AZURE => { panic!("Not implemented") }
+                CloudProvider::GCS => { panic!("Not implemented") }
+            }
+        }
+    }
+
+    pub fn get_object_store(&self) -> Box<dyn ObjectStore> {
+        // TODO remove duplicated code
+        dotenv().ok();
+        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD").ok().unwrap()
+            .parse::<bool>()
+            .expect
+            ("Failed to parse \
+            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD");
+        if use_file_system_instead_of_cloud {
+            Box::new(LocalFileSystem::new_with_prefix(".").unwrap())
+        } else {
+            match self.r#type {
+                CloudProvider::AWS => {
+                    let mut builder = AmazonS3Builder::new()
+                        .with_region(&self.region)
+                        .with_bucket_name(&self.bucket)
+                        .with_allow_http(true); // TODO should be only the case for local development
+                    builder = if let Some(endpoint) = &self.endpoint {
+                        builder.with_endpoint(endpoint.clone())
+                    } else {
+                        builder
+                    };
+                    match &self.credentials {
+                        Credentials::AccessKey(creds) => {
+                            Box::new(builder.with_access_key_id(&creds.aws_access_key_id)
+                                .with_secret_access_key(&creds.aws_secret_access_key)
+                                .build()
+                                .expect("error creating AWS object store"))
+                        }
+                        Credentials::Role(_) => {
+                            panic!("Not implemented")
+                        }
+                    }
+                }
+                CloudProvider::AZURE => { panic!("Not implemented") }
+                CloudProvider::GCS => { panic!("Not implemented") }
+            }
+        }
     }
 }
 
