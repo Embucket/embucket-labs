@@ -89,7 +89,7 @@ pub async fn create_table(
     Json(payload): Json<TableCreatePayload>,
 ) -> Result<Json<Table>, AppError> {
     let warehouse = state.get_warehouse_model(warehouse_id).await?;
-    let sp = state.control_svc.get_profile(warehouse.storage_profile_id).await?;
+    let profile = state.control_svc.get_profile(warehouse.storage_profile_id).await?;
     let db_ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(database_name),
@@ -97,12 +97,15 @@ pub async fn create_table(
 
     let table = state
         .catalog_svc
-        .create_table(&db_ident, &sp, &warehouse, payload.into())
+        .create_table(&db_ident, &profile, &warehouse, payload.into())
         .await
         .map_err(|e| {
             let fmt = format!("{}: failed to create table", e);
             AppError::new(e, fmt.as_str())
         })?;
+    let mut table: Table = table.into();
+    table.storage_profile = profile.into();
+    table.warehouse_id = warehouse_id;
     Ok(Json(table.into()))
 }
 

@@ -65,9 +65,7 @@ pub async fn list_warehouses(
     let dashboards = warehouses
         .into_iter()
         .map(|warehouse| {
-            if let Some(stats) = &warehouse.statistics {
-                total_statistics = total_statistics.aggregate(stats);
-            }
+            total_statistics = total_statistics.aggregate(&warehouse.statistics);
             warehouse.into()
         })
         .collect();
@@ -123,20 +121,21 @@ pub async fn create_warehouse(
     Json(payload): Json<CreateWarehousePayload>,
 ) -> Result<Json<Warehouse>, AppError> {
     let request: WarehouseCreateRequest = payload.into();
-    state.get_profile_by_id(request.storage_profile_id).await?;
-    let warehouse: WarehouseModel =
-        state
-            .control_svc
-            .create_warehouse(&request)
-            .await
-            .map_err(|e| {
-                let fmt = format!(
-                    "{}: failed to get create warehouse with name {}",
-                    e, request.name
-                );
-                AppError::new(e, fmt.as_str())
-            })?;
-    Ok(Json(warehouse.into()))
+    let profile = state.get_profile_by_id(request.storage_profile_id).await?;
+    let warehouse: WarehouseModel = state
+        .control_svc
+        .create_warehouse(&request)
+        .await
+        .map_err(|e| {
+            let fmt = format!(
+                "{}: failed to get create warehouse with name {}",
+                e, request.name
+            );
+            AppError::new(e, fmt.as_str())
+        })?;
+    let mut warehouse: Warehouse = warehouse.into();
+    warehouse.storage_profile = profile;
+    Ok(Json(warehouse))
 }
 
 #[utoipa::path(

@@ -71,7 +71,6 @@ impl From<ControlError> for AppError {
             ControlError::NotEmpty(e) => AppError::AlreadyExists(e.to_string()),
             ControlError::InvalidInput(e) => AppError::BadRequest(e.to_string()),
             ControlError::ErrNotFound => AppError::NotFound(e.to_string()),
-            ControlError::InvalidCredentials(e) => AppError::InvalidCredentials(e.to_string()),
         }
     }
 }

@@ -1,9 +1,10 @@
 use control_plane::models;
-use serde::{Deserialize, Serialize};
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Serialize, Serializer};
 use utoipa::ToSchema;
 use validator::Validate;
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AwsAccessKeyCredential {
     #[validate(length(min = 1))]
@@ -19,6 +20,18 @@ impl AwsAccessKeyCredential {
             aws_access_key_id,
             aws_secret_access_key,
         }
+    }
+}
+
+impl Serialize for AwsAccessKeyCredential {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("AwsAccessKeyCredential", 2)?;
+        state.serialize_field("awsAccessKeyId", &self.aws_access_key_id)?;
+        state.serialize_field("awsSecretAccessKey", &"********")?;
+        state.end()
     }
 }
 

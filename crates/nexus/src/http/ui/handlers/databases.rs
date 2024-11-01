@@ -50,11 +50,12 @@ pub async fn create_database(
     Json(payload): Json<CreateDatabasePayload>,
 ) -> Result<Json<Database>, AppError> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
+    let profile = state.get_profile_by_id(warehouse.storage_profile_id).await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(payload.name),
     };
-    let res = state
+    let database = state
         .catalog_svc
         .create_namespace(&ident, payload.properties.unwrap_or_default())
         .await
@@ -62,7 +63,10 @@ pub async fn create_database(
             let fmt = format!("{}: failed to create database with ident {}", e, &ident);
             AppError::new(e, fmt.as_str())
         })?;
-    Ok(Json(res.into()))
+    let mut database: Database = database.into();
+    database.storage_profile = profile;
+    database.warehouse_id = warehouse_id;
+    Ok(Json(database))
 }
 
 #[utoipa::path(
@@ -120,7 +124,7 @@ pub async fn get_database(
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
 ) -> Result<Json<Database>, AppError> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
-    let profile = state.get_profile_by_id(warehouse.storage_profile_id.unwrap()).await?;
+    let profile = state.get_profile_by_id(warehouse.storage_profile_id).await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(database_name),
@@ -128,7 +132,7 @@ pub async fn get_database(
     let mut database = state.get_database(&ident).await?;
     let tables = state.list_tables(&ident).await?;
 
-    database.with_details(Option::from(profile), Option::from(tables));
-    database.warehouse_id = Option::from(warehouse_id);
+    database.with_details(profile, tables);
+    database.warehouse_id = warehouse_id;
     Ok(Json(database))
 }
