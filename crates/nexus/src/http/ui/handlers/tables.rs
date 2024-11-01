@@ -43,7 +43,7 @@ pub struct ApiDoc;
         ("tableName" = String, description = "Table name")
     ),
     responses(
-        (status = 200, description = "Get table"),
+        (status = 200, description = "Get table", body = Table),
         (status = 404, description = "Not found", body = AppError),
         (status = 422, description = "Unprocessable entity", body = AppError),
         (status = 500, description = "Internal server error", body = AppError)
@@ -79,8 +79,8 @@ pub async fn get_table(
         ("databaseName" = String, description = "Database Name"),
     ),
     responses(
-        (status = 200, description = "Successful Response"),
-        (status = 404, description = "Not found"),
+        (status = 200, description = "Successful Response", body = Table),
+        (status = 404, description = "Not found", body = AppError),
     )
 )]
 pub async fn create_table(
@@ -160,7 +160,7 @@ pub async fn delete_table(
     ),
     responses(
         (status = 200, description = "Returns result of the query", body = TableQueryResponse),
-        (status = 500, description = "Internal server error")
+        (status = 500, description = "Internal server error", body = AppError)
     )
 )]
 pub async fn query_table(
