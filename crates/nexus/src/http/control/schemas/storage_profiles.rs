@@ -132,6 +132,7 @@ impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
             credentials: payload.credentials.into(),
             sts_role_arn: payload.sts_role_arn,
             endpoint: payload.endpoint,
+            validate_access: None,
         }
     }
 }

@@ -43,9 +43,7 @@ pub struct ApiDoc;
 )]
 pub async fn navigation(State(state): State<AppState>) -> Result<Json<Navigation>, AppError> {
     let warehouses = state.list_warehouses().await?;
-    Ok(Json(Navigation {
-        warehouses,
-    }))
+    Ok(Json(Navigation { warehouses }))
 }
 #[utoipa::path(
     get,
@@ -100,10 +98,11 @@ pub async fn get_warehouse(
 ) -> Result<Json<Warehouse>, AppError> {
     let mut warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let profile = state
-        .get_profile_by_id(warehouse.storage_profile_id.unwrap())
+        .get_profile_by_id(warehouse.storage_profile_id)
         .await?;
     let databases = state.list_databases(warehouse_id, profile.clone()).await?;
-    warehouse.with_details(Option::from(profile), Option::from(databases));
+    warehouse.storage_profile = profile;
+    warehouse.databases = databases;
     Ok(Json(warehouse))
 }
 

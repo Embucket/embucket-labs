@@ -54,7 +54,7 @@ pub async fn get_table(
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
 ) -> Result<Json<Table>, AppError> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
-    let profile = state.get_profile_by_id(warehouse.storage_profile_id.unwrap()).await?;
+    let profile = state.get_profile_by_id(warehouse.storage_profile_id).await?;
     let table_ident = TableIdent {
         database: DatabaseIdent {
             warehouse: WarehouseIdent::new(warehouse.id),
@@ -63,9 +63,9 @@ pub async fn get_table(
         table: table_name,
     };
     let mut table = state.get_table(&table_ident).await?;
-    table.with_details(Option::from(profile));
-    table.warehouse_id = Option::from(warehouse_id);
-    table.database_name = Option::from(database_name);
+    table.storage_profile = profile;
+    table.warehouse_id = warehouse_id;
+    table.database_name = database_name;
     Ok(Json(table))
 }
 

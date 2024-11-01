@@ -24,6 +24,8 @@ pub enum AppError {
     DbError(String),
     #[error("Iceberg error: {0}")]
     IcebergError(String),
+    #[error("invalid credentials error: {0}")]
+    InvalidCredentials(String),
 }
 
 impl AppError {
@@ -44,6 +46,7 @@ impl AppError {
             AppError::NotImplemented(ref mut msg) => *msg = new_message.to_string(),
             AppError::DbError(ref mut msg) => *msg = new_message.to_string(),
             AppError::IcebergError(ref mut msg) => *msg = new_message.to_string(),
+            AppError::InvalidCredentials(ref mut msg) => *msg = new_message.to_string(),
         }
     }
 }
@@ -68,6 +71,7 @@ impl From<ControlError> for AppError {
             ControlError::NotEmpty(e) => AppError::AlreadyExists(e.to_string()),
             ControlError::InvalidInput(e) => AppError::BadRequest(e.to_string()),
             ControlError::ErrNotFound => AppError::NotFound(e.to_string()),
+            ControlError::InvalidCredentials(e) => AppError::InvalidCredentials(e.to_string()),
         }
     }
 }

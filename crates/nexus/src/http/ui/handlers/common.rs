@@ -68,22 +68,20 @@ impl AppState {
         let mut result = Vec::new();
         for mut warehouse in warehouses {
             let profile = self
-                .get_profile_by_id(warehouse.storage_profile_id.unwrap())
+                .get_profile_by_id(warehouse.storage_profile_id)
                 .await?;
 
             let databases = self.list_databases(warehouse.id, profile.clone()).await?;
 
             let mut total_statistics = Statistics::default();
             databases.iter().for_each(|database| {
-                let stats = database.clone().statistics.unwrap_or_default();
+                let stats = database.clone().statistics;
                 total_statistics = total_statistics.aggregate(&stats);
             });
 
-            warehouse.with_details(
-                Option::from(profile),
-                Option::from(databases.clone()),
-            );
-            warehouse.statistics = Some(total_statistics);
+            warehouse.storage_profile = profile;
+            warehouse.databases = databases;
+            warehouse.statistics = total_statistics;
             result.push(warehouse)
         }
         Ok(result)
@@ -108,15 +106,15 @@ impl AppState {
             let mut total_statistics = Statistics::default();
 
             for table in tables.clone() {
-                let table_stats = table.statistics.unwrap_or_default();
+                let table_stats = table.statistics;
                 total_statistics = total_statistics.aggregate(&table_stats);
             }
 
             total_statistics.database_count = Option::from(1);
             let mut entity = Database::from(database);
-            entity.statistics = Option::from(total_statistics);
-            entity.warehouse_id = Option::from(warehouse_id);
-            entity.with_details(Option::from(profile.clone()), Option::from(tables));
+            entity.statistics = total_statistics;
+            entity.warehouse_id = warehouse_id;
+            entity.with_details(profile.clone(), tables);
             database_entities.push(entity);
         }
         Ok(database_entities)

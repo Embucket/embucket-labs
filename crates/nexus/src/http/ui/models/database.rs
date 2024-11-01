@@ -31,38 +31,28 @@ pub struct Database {
     pub id: Uuid,
     pub name: String,
     pub tables: Vec<Table>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub storage_profile: Option<StorageProfile>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<HashMap<String, String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub warehouse_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub statistics: Option<Statistics>,
+    pub storage_profile: StorageProfile,
+    pub properties: HashMap<String, String>,
+    pub warehouse_id: Uuid,
+    pub statistics: Statistics,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compaction_summary: Option<CompactionSummary>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl Database {
-    pub fn with_details(&mut self, profile: Option<StorageProfile>, tables: Option<Vec<Table>>) {
-        if profile.is_some() {
-            self.storage_profile = profile;
-        }
+    pub fn with_details(&mut self, profile: StorageProfile, tables: Vec<Table>) {
+        self.storage_profile = profile;
 
-        if tables.is_some() {
-            let mut total_statistics = Statistics::default();
+        let mut total_statistics = Statistics::default();
 
-            for t in tables.clone().unwrap() {
-                total_statistics = total_statistics.aggregate(&t.statistics.unwrap_or_default());
-            }
-            total_statistics.database_count = Some(1);
-            self.statistics = Option::from(total_statistics);
-            self.tables = tables.unwrap();
+        for t in tables.clone() {
+            total_statistics = total_statistics.aggregate(&t.statistics);
         }
+        total_statistics.database_count = Some(1);
+        self.statistics = total_statistics;
+        self.tables = tables;
     }
 }
 
@@ -72,13 +62,13 @@ impl From<models::Database> for Database {
             id: get_database_id(db.ident.clone()),
             name: db.ident.namespace.first().unwrap().to_string(),
             tables: vec![],
-            warehouse_id: None,
+            warehouse_id: Default::default(),
             created_at: Default::default(),
             updated_at: Default::default(),
             statistics: Default::default(),
             compaction_summary: None,
-            properties: Option::from(db.properties),
-            storage_profile: None,
+            properties: db.properties,
+            storage_profile: Default::default(),
         }
     }
 }

@@ -64,54 +64,37 @@ pub struct Warehouse {
     pub id: uuid::Uuid,
     #[validate(length(min = 1))]
     pub name: String,
-    pub databases: Option<Vec<Database>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub storage_profile_id: Option<uuid::Uuid>,
+    pub databases: Vec<Database>,
+    pub storage_profile_id: uuid::Uuid,
     #[validate(length(min = 1))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub key_prefix: Option<String>,
+    pub key_prefix: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_id: Option<uuid::Uuid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub storage_profile: Option<StorageProfile>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub statistics: Option<Statistics>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub storage_profile: StorageProfile,
+    pub statistics: Statistics,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compaction_summary: Option<CompactionSummary>,
-}
-
-impl Warehouse {
-    pub fn with_details(&mut self, profile: Option<StorageProfile>, databases: Option<Vec<Database>>) {
-        if profile.is_some() {
-            self.storage_profile = profile;
-        }
-        if databases.is_some() {
-            self.databases = databases;
-        }
-    }
 }
 
 impl From<control_plane::models::Warehouse> for Warehouse {
     fn from(warehouse: control_plane::models::Warehouse) -> Self {
         Warehouse {
             id: warehouse.id,
-            key_prefix: Option::from(warehouse.prefix),
+            key_prefix: warehouse.prefix,
             name: warehouse.name,
             location: Option::from(warehouse.location),
-            storage_profile_id: Option::from(warehouse.storage_profile_id),
-            created_at: Option::from(DateTime::from_naive_utc_and_offset(warehouse.created_at, Utc)),
-            updated_at: Option::from(DateTime::from_naive_utc_and_offset(warehouse.updated_at, Utc)),
-            storage_profile: None,
-            statistics: None,
+            storage_profile_id: warehouse.storage_profile_id,
+            created_at: DateTime::from_naive_utc_and_offset(warehouse.created_at, Utc),
+            updated_at: DateTime::from_naive_utc_and_offset(warehouse.updated_at, Utc),
+            storage_profile: Default::default(),
+            statistics: Default::default(),
             external_id: Default::default(),
-            databases: None,
             compaction_summary: None,
+            databases: vec![],
         }
     }
 }

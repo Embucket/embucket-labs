@@ -45,26 +45,17 @@ impl From<TableCreatePayload> for catalog::models::TableCreation {
 pub struct Table {
     pub id: Uuid,
     pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub storage_profile: Option<StorageProfile>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub database_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub warehouse_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<HashMap<String, String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<TableMetadataWrapper>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata_location: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub statistics: Option<Statistics>,
+    pub storage_profile: StorageProfile,
+    pub database_name: String,
+    pub warehouse_id: Uuid,
+    pub properties: HashMap<String, String>,
+    pub metadata: TableMetadataWrapper,
+    pub metadata_location: String,
+    pub statistics: Statistics,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compaction_summary: Option<CompactionSummary>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl From<catalog::models::Table> for Table {
@@ -72,28 +63,19 @@ impl From<catalog::models::Table> for Table {
         Self {
             id: get_table_id(table.clone().ident),
             name: table.ident.table,
-            storage_profile: None,
-            database_name: None,
-            warehouse_id: None,
-            properties: None,
-            metadata: Option::from(TableMetadataWrapper(table.metadata.clone())),
-            metadata_location: Option::from(table.metadata_location),
+            storage_profile: Default::default(),
+            database_name: Default::default(),
+            warehouse_id: Default::default(),
+            properties: Default::default(),
+            metadata: TableMetadataWrapper(table.metadata.clone()),
+            metadata_location: table.metadata_location,
             created_at: Default::default(),
             updated_at: Default::default(),
-            statistics: Option::from(Statistics::from_table_metadata(&table.metadata)),
+            statistics: Statistics::from_table_metadata(&table.metadata),
             compaction_summary: None,
         }
     }
 }
-
-impl Table {
-    pub fn with_details(&mut self, profile: Option<StorageProfile>) {
-        if profile.is_some() {
-            self.storage_profile = profile;
-        }
-    }
-}
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
