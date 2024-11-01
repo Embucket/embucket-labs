@@ -176,9 +176,10 @@ pub async fn get_config(
 ) -> Result<Json<schemas::Config>, AppError> {
     let id = params.warehouse;
     let wh = state.control_svc.get_warehouse(id).await?;
+    let sp = state.control_svc.get_profile(wh.storage_profile_id).await?;
     let catalog = state.catalog_svc;
     let ident = WarehouseIdent::new(wh.id);
-    let config = catalog.get_config(&ident).await?;
+    let config = catalog.get_config(&ident, &sp).await?;
 
     Ok(Json(config.into()))
 }

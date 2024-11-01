@@ -35,7 +35,8 @@ pub trait ControlService: Send + Sync {
     // async fn delete_table(&self, id: Uuid) -> Result<()>;
     // async fn list_tables(&self) -> Result<Vec<Table>>;
 
-    async fn query_table(&self, warehouse_id:&Uuid, database_name:&String, table_name:&String, query:&String) -> Result<
+    async fn query_table(&self, warehouse_id:&Uuid, database_name:&String,
+                         table_name:&String, query:&String) -> Result<
         (String)>;
 }
 
@@ -105,20 +106,22 @@ impl ControlService for ControlServiceImpl {
         self.warehouse_repo.list().await
     }
 
-    async fn query_table(&self, warehouse_id:&Uuid, database_name:&String, table_name:&String, query:&String) -> Result<
+    async fn query_table(&self, warehouse_id:&Uuid, database_name:&String,
+                         table_name:&String,
+                         query:&String) -> Result<
         (String)> {
+        let warehouse = self.get_warehouse(*warehouse_id).await?;
+        let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
+
         let config = {
             let mut config = Configuration::new();
             config.base_path = "http://0.0.0.0:3000/catalog".to_string();
             config
         };
-        let builder = {
-            Arc::new(LocalFileSystem::new())
-        };
         let rest_client = RestCatalog::new(
             Some(warehouse_id.to_string().as_str()),
             config,
-            ObjectStoreBuilder::Filesystem(builder),
+            storage_profile.get_object_store_builder(),
         );
         let catalog = IcebergCatalog::new(Arc::new(rest_client), None)
             .await
@@ -156,7 +159,7 @@ impl ControlService for ControlServiceImpl {
         // Get the underlying buffer back,
         let buf = writer.into_inner();
 
-        Ok((String::from_utf8(buf).unwrap()))
+        Ok(String::from_utf8(buf).unwrap())
     }
 }
 
