@@ -54,7 +54,7 @@ pub trait Catalog: Debug + Sync + Send {
     ) -> Result<Table>;
     async fn load_table(&self, table: &TableIdent) -> Result<Table>;
     async fn drop_table(&self, table: &TableIdent) -> Result<()>;
-    async fn update_table(&self, commit: TableCommit) -> Result<Table>;
+    async fn update_table(&self, storage_profile: &StorageProfile, warehouse: &Warehouse, commit: TableCommit) -> Result<Table>;
 }
 
 #[derive(Clone)]
@@ -75,6 +75,10 @@ impl CatalogImpl {
             table_repo,
             db_repo,
         }
+    }
+
+    fn generate_metadata_filename() -> String {
+        format!("{}.metadata.json", Uuid::new_v4().to_string())
     }
 }
 
@@ -103,7 +107,10 @@ impl Catalog for CatalogImpl {
         Ok(config)
     }
 
-    async fn update_table(&self, commit: TableCommit) -> Result<Table> {
+    async fn update_table(&self,
+                          storage_profile: &StorageProfile,
+                          warehouse: &Warehouse,
+                          commit: TableCommit) -> Result<Table> {
         let table = self.load_table(&commit.ident).await?;
 
         commit
@@ -122,15 +129,22 @@ impl Catalog for CatalogImpl {
             builder = update.apply(builder)?;
         }
         let result = builder.build()?;
-        let metadata_location = table.metadata_location.clone();
-        let metadata = result.metadata;
+
+        let base_part = storage_profile.get_base_url();
+        let table_part = format!("{}/{}", warehouse.location, commit.ident.table);
+        let metadata_part = format!("metadata/{}", CatalogImpl::generate_metadata_filename());
 
         let table: Table = Table {
-            metadata,
-            metadata_location,
+            metadata: result.metadata,
+            metadata_location: format!("{base_part}/{table_part}/{metadata_part}"),
             ident: table.ident,
         };
         self.table_repo.put(&table).await?;
+
+        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store();
+        let data = Bytes::from(serde_json::to_vec(&table.metadata).unwrap());
+        let path = Path::from(format!("{table_part}/{metadata_part}"));
+        object_store.put(&path, PutPayload::from(data)).await.unwrap();
 
         Ok(table)
     }
@@ -245,7 +259,7 @@ impl Catalog for CatalogImpl {
 
         let base_part = storage_profile.get_base_url();
         let table_part = format!("{}/{}", warehouse.location, table_creation.name);
-        let metadata_part = format!("metadata/{}.metadata.json", Uuid::new_v4().to_string());
+        let metadata_part = format!("metadata/{}", CatalogImpl::generate_metadata_filename());
 
         let table_creation = {
             let mut creation = table_creation;

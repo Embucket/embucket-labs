@@ -4,6 +4,7 @@ import pyarrow as pa
 import pytest
 import time
 import pyiceberg.io as io
+from pyiceberg.types import BooleanType
 
 
 def test_create_namespace(catalog):
@@ -187,3 +188,22 @@ def test_write_read(catalog, namespace):
     read_df = read_table.to_pandas()
 
     assert read_df.equals(df)
+
+
+def test_update_table_properties(catalog, namespace):
+    table_name = "my_table"
+    schema = pa.schema(
+        [
+            pa.field("my_ints", pa.int64()),
+            pa.field("my_floats", pa.float64()),
+            pa.field("strings", pa.string()),
+        ]
+    )
+    catalog.create_table((*namespace.name, table_name), schema=schema)
+    table = catalog.load_table((*namespace.name, table_name))
+
+    assert len(table.schema().fields) == 3
+
+    table.update_schema().add_column("new_column", BooleanType()).commit()
+
+    assert len(table.schema().fields) == 4
