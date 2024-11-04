@@ -50,7 +50,9 @@ pub async fn create_database(
     Json(payload): Json<CreateDatabasePayload>,
 ) -> Result<Json<Database>, AppError> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
-    let profile = state.get_profile_by_id(warehouse.storage_profile_id).await?;
+    let profile = state
+        .get_profile_by_id(warehouse.storage_profile_id)
+        .await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(payload.name),
@@ -124,7 +126,9 @@ pub async fn get_database(
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
 ) -> Result<Json<Database>, AppError> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
-    let profile = state.get_profile_by_id(warehouse.storage_profile_id).await?;
+    let profile = state
+        .get_profile_by_id(warehouse.storage_profile_id)
+        .await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(database_name),

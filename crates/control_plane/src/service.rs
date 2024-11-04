@@ -1,17 +1,18 @@
-use crate::error::{Error, Result};
-use crate::models::{StorageProfile, StorageProfileCreateRequest};
+use crate::error::{extract_error_message, Error, Result};
+use crate::models::{Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
+use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
+use datafusion::prelude::*;
+use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use iceberg_rest_catalog::apis::configuration::Configuration;
+use iceberg_rest_catalog::catalog::RestCatalog;
+use rusoto_core::{HttpClient, Region};
+use rusoto_credential::StaticProvider;
+use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
 use std::sync::Arc;
 use uuid::Uuid;
-use datafusion::prelude::*;
-use iceberg_rest_catalog::apis::configuration::Configuration;
-use iceberg_rust::catalog::bucket::ObjectStoreBuilder;
-use datafusion_iceberg::catalog::catalog::IcebergCatalog;
-use iceberg_rest_catalog::catalog::RestCatalog;
-use arrow::record_batch::RecordBatch;
-use object_store::local::LocalFileSystem;
 
 #[async_trait]
 pub trait ControlService: Send + Sync {
@@ -19,6 +20,7 @@ pub trait ControlService: Send + Sync {
     async fn get_profile(&self, id: Uuid) -> Result<StorageProfile>;
     async fn delete_profile(&self, id: Uuid) -> Result<()>;
     async fn list_profiles(&self) -> Result<Vec<StorageProfile>>;
+    async fn validate_credentials(&self, profile: &StorageProfile) -> Result<()>;
 
     async fn create_warehouse(&self, params: &WarehouseCreateRequest) -> Result<Warehouse>;
     async fn get_warehouse(&self, id: Uuid) -> Result<Warehouse>;
@@ -35,9 +37,13 @@ pub trait ControlService: Send + Sync {
     // async fn delete_table(&self, id: Uuid) -> Result<()>;
     // async fn list_tables(&self) -> Result<Vec<Table>>;
 
-    async fn query_table(&self, warehouse_id:&Uuid, database_name:&String,
-                         table_name:&String, query:&String) -> Result<
-        (String)>;
+    async fn query_table(
+        &self,
+        warehouse_id: &Uuid,
+        database_name: &String,
+        table_name: &String,
+        query: &String,
+    ) -> Result<String>;
 }
 
 pub struct ControlServiceImpl {
@@ -61,6 +67,11 @@ impl ControlServiceImpl {
 impl ControlService for ControlServiceImpl {
     async fn create_profile(&self, params: &StorageProfileCreateRequest) -> Result<StorageProfile> {
         let profile = params.try_into()?;
+
+        if params.validate_credentials.unwrap_or_default() {
+            self.validate_credentials(&profile).await?;
+        }
+
         self.storage_profile_repo.create(&profile).await?;
         Ok(profile)
     }
@@ -79,6 +90,37 @@ impl ControlService for ControlServiceImpl {
 
     async fn list_profiles(&self) -> Result<Vec<StorageProfile>> {
         self.storage_profile_repo.list().await
+    }
+
+    async fn validate_credentials(&self, profile: &StorageProfile) -> Result<()> {
+        match profile.credentials.clone() {
+            Credentials::AccessKey(creds) => {
+                let profile_region = profile.region.clone();
+                let endpoint = profile.endpoint.clone();
+                let credentials = StaticProvider::new_minimal(
+                    creds.aws_access_key_id.clone(),
+                    creds.aws_secret_access_key.clone(),
+                );
+                let region = Region::Custom {
+                    name: profile_region.clone(),
+                    endpoint: endpoint
+                        .unwrap_or_else(|| format!("https://s3.{}.amazonaws.com", profile_region)),
+                };
+
+                let dispatcher = HttpClient::new().expect("Failed to create HTTP client");
+                let client = S3Client::new_with(dispatcher, credentials, region);
+                let request = GetBucketAclRequest {
+                    bucket: profile.bucket.clone(),
+                    expected_bucket_owner: None,
+                };
+                client
+                    .get_bucket_acl(request)
+                    .await
+                    .map_err(|e| Error::InvalidCredentials(extract_error_message(&e).unwrap()))?;
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
     async fn create_warehouse(&self, params: &WarehouseCreateRequest) -> Result<Warehouse> {
@@ -106,10 +148,13 @@ impl ControlService for ControlServiceImpl {
         self.warehouse_repo.list().await
     }
 
-    async fn query_table(&self, warehouse_id:&Uuid, database_name:&String,
-                         table_name:&String,
-                         query:&String) -> Result<
-        (String)> {
+    async fn query_table(
+        &self,
+        warehouse_id: &Uuid,
+        database_name: &String,
+        table_name: &String,
+        query: &String,
+    ) -> Result<String> {
         let warehouse = self.get_warehouse(*warehouse_id).await?;
         let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
 
@@ -138,16 +183,10 @@ impl ControlService for ControlServiceImpl {
         println!("{tables:?}");
 
         println!("{}", query);
-        let records = ctx
-            .sql(query)
-            .await
-            .unwrap()
-            .collect()
-            .await
-            .unwrap();
+        let records = ctx.sql(query).await.unwrap().collect().await.unwrap();
         println!("{records:?}");
 
-        let df = ctx.sql(query,).await.unwrap();
+        let df = ctx.sql(query).await.unwrap();
         df.show().await.unwrap();
 
         let buf = Vec::new();
@@ -204,6 +243,7 @@ mod tests {
             }),
             sts_role_arn: None,
             endpoint: None,
+            validate_credentials: None,
         };
         let profile = service.create_profile(&request).await.unwrap();
         let request = WarehouseCreateRequest {

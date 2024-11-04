@@ -1,14 +1,14 @@
 use crate::error::Error;
 use chrono::{NaiveDateTime, Utc};
-use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-use std::env;
-use std::sync::Arc;
 use dotenv::dotenv;
 use iceberg_rust::catalog::bucket::ObjectStoreBuilder;
 use object_store::aws::AmazonS3Builder;
 use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
+use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
+use std::env;
+use std::sync::Arc;
 use uuid::Uuid;
 
 // Enum for supported cloud providers
@@ -71,6 +71,7 @@ pub struct StorageProfileCreateRequest {
     pub credentials: Credentials,
     pub sts_role_arn: Option<String>,
     pub endpoint: Option<String>,
+    pub validate_credentials: Option<bool>,
 }
 
 impl TryFrom<&StorageProfileCreateRequest> for StorageProfile {
@@ -84,21 +85,6 @@ impl TryFrom<&StorageProfileCreateRequest> for StorageProfile {
             value.credentials.clone(),
             value.sts_role_arn.clone(),
             value.endpoint.clone(),
-        )
-    }
-}
-
-impl TryFrom<StorageProfileCreateRequest> for StorageProfile {
-    type Error = Error;
-
-    fn try_from(value: StorageProfileCreateRequest) -> Result<Self, Self::Error> {
-        StorageProfile::new(
-            value.r#type,
-            value.region,
-            value.bucket,
-            value.credentials,
-            value.sts_role_arn,
-            value.endpoint,
         )
     }
 }
@@ -195,7 +181,7 @@ impl StorageProfile {
             ("Failed to parse \
             USE_FILE_SYSTEM_INSTEAD_OF_CLOUD");
         if use_file_system_instead_of_cloud {
-            ObjectStoreBuilder::Filesystem(Arc::new((LocalFileSystem::new_with_prefix(".").unwrap())))
+            ObjectStoreBuilder::Filesystem(Arc::new(LocalFileSystem::new_with_prefix(".").unwrap()))
         } else {
             match self.r#type {
                 CloudProvider::AWS => {

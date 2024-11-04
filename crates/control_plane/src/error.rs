@@ -1,3 +1,7 @@
+#[warn(dead_code)]
+use quick_xml::de::from_str;
+use rusoto_core::RusotoError;
+use serde::Deserialize;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -12,6 +16,9 @@ pub enum Error {
 
     #[error("not empty: {0}")]
     NotEmpty(String),
+
+    #[error("invalid credentials: {0}")]
+    InvalidCredentials(String),
 }
 
 impl From<utils::Error> for Error {
@@ -23,4 +30,21 @@ impl From<utils::Error> for Error {
             utils::Error::ErrNotFound => Error::ErrNotFound,
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct S3Error {
+    #[serde(rename = "Code")]
+    code: String,
+    #[serde(rename = "Message")]
+    message: String,
+}
+
+pub fn extract_error_message<T>(e: &RusotoError<T>) -> Option<String> {
+    if let RusotoError::Unknown(response) = e {
+        if let Ok(s3_error) = from_str::<S3Error>(&String::from_utf8_lossy(&response.body)) {
+            return Some(s3_error.code + s3_error.message.as_str());
+        }
+    }
+    None
 }
