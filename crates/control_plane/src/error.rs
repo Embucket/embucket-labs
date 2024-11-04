@@ -1,5 +1,4 @@
 #[warn(dead_code)]
-
 use quick_xml::de::from_str;
 use rusoto_core::RusotoError;
 use serde::Deserialize;
