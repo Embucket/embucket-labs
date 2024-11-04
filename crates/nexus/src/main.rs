@@ -27,6 +27,8 @@ use utils::Db;
 
 pub mod http {
     pub mod router;
+
+    pub mod layers;
     pub mod control {
         pub mod handlers;
         pub mod router;

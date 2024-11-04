@@ -1,6 +1,7 @@
 use axum::routing::get;
-use axum::Router;
+use axum::{Json, Router};
 use std::fs;
+use tower_http::catch_panic::CatchPanicLayer;
 use utoipa::openapi::{self};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -15,6 +16,7 @@ use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
 use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
 use crate::http::ui::router::create_router as create_ui_router;
 use crate::state::AppState;
+use tower_http::timeout::TimeoutLayer;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -52,7 +54,9 @@ pub fn create_app(state: AppState) -> Router {
                 .url("/openapi.json", spec)
                 .url("/ui_openapi.json", ui_spec),
         )
-        .route("/health", get(|| async { "OK" }))
+        .route("/health", get(|| async { Json("OK") }))
+        .layer(TimeoutLayer::new(std::time::Duration::from_secs(30)))
+        .layer(CatchPanicLayer::new())
         .with_state(state)
 }
 

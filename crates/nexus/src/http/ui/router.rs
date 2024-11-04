@@ -1,3 +1,4 @@
+use crate::http::layers::add_request_metadata;
 use crate::http::ui::handlers::databases::{create_database, delete_database, get_database};
 use crate::http::ui::handlers::profiles::{
     create_storage_profile, delete_storage_profile, get_storage_profile, list_storage_profiles,
@@ -9,6 +10,7 @@ use crate::http::ui::handlers::warehouses::{
 use crate::state::AppState;
 use axum::routing::{delete, get, post};
 use axum::Router;
+use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 
 pub fn create_router() -> Router<AppState> {
     Router::new()
@@ -43,4 +45,8 @@ pub fn create_router() -> Router<AppState> {
             "/storage-profiles/:storageProfileId",
             delete(delete_storage_profile).get(get_storage_profile),
         )
+        .layer(SetSensitiveHeadersLayer::new([
+            axum::http::header::AUTHORIZATION,
+        ]))
+        .layer(axum::middleware::from_fn(add_request_metadata))
 }
