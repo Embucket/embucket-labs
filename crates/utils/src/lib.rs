@@ -66,7 +66,7 @@ impl Db {
         self.modify(key, |all_keys: &mut Vec<String>| {
             all_keys.push(value.clone());
         })
-        .await?;
+            .await?;
         Ok(())
     }
 
@@ -74,7 +74,7 @@ impl Db {
         self.modify(key, |all_keys: &mut Vec<String>| {
             all_keys.retain(|key| *key != value);
         })
-        .await?;
+            .await?;
         Ok(())
     }
 
@@ -112,8 +112,6 @@ impl From<Error> for iceberg::Error {
         iceberg::Error::new(iceberg::ErrorKind::Unexpected, e.to_string()).with_source(e)
     }
 }
-
-const ALL: &str = "all";
 
 #[async_trait]
 pub trait Entity {

@@ -1,8 +1,6 @@
 use crate::error::{Error, Result};
-use crate::models::{StorageProfile, StorageProfileCreateRequest};
-use crate::models::{Warehouse, WarehouseCreateRequest};
-use async_trait::async_trait; // Required for async traits
-use serde::{de::DeserializeOwned, Serialize};
+use crate::models::{StorageProfile, Warehouse};
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
@@ -219,7 +217,7 @@ mod tests {
             None,
             None,
         )
-        .expect("failed to create profile")
+            .expect("failed to create profile")
     }
 
     #[tokio::test]
