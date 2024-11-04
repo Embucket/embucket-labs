@@ -95,6 +95,7 @@ pub async fn commit_table(
     Json(payload): Json<schemas::TableCommitRequest>,
 ) -> Result<Json<schemas::TableResult>, AppError> {
     let wh = state.control_svc.get_warehouse(id).await?;
+    let sp = state.control_svc.get_profile(wh.storage_profile_id).await?;
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(wh.id),
@@ -110,7 +111,7 @@ pub async fn commit_table(
         requirements: payload.requirements,
         updates: payload.updates,
     };
-    let table = catalog.update_table(commit).await?;
+    let table = catalog.update_table(&sp, &wh, commit).await?;
 
     Ok(Json(table.into()))
 }
