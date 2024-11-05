@@ -181,7 +181,10 @@ impl StorageProfile {
             ("Failed to parse \
             USE_FILE_SYSTEM_INSTEAD_OF_CLOUD");
         if use_file_system_instead_of_cloud {
-            ObjectStoreBuilder::Filesystem(Arc::new(LocalFileSystem::new_with_prefix(".").unwrap()))
+            // Here we initialise filesystem object store without root directory, because this code is used
+            // by our catalog when we read metadata from the table - paths are absolute
+            // In get_object_store function we are using the root directory
+            ObjectStoreBuilder::Filesystem(Arc::new(LocalFileSystem::new()))
         } else {
             match self.r#type {
                 CloudProvider::AWS => {
@@ -219,6 +222,9 @@ impl StorageProfile {
             ("Failed to parse \
             USE_FILE_SYSTEM_INSTEAD_OF_CLOUD");
         if use_file_system_instead_of_cloud {
+            // Here we initialise filesystem object store without current directory as root, because this code is used
+            // by our catalog when we write metadata file - we use relative path
+            // In get_object_store_builder function we are using absolute paths
             Box::new(LocalFileSystem::new_with_prefix(".").unwrap())
         } else {
             match self.r#type {
