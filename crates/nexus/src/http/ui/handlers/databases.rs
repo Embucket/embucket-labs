@@ -136,7 +136,6 @@ pub async fn get_database(
     let mut database = state.get_database(&ident).await?;
     let tables = state.list_tables(&ident).await?;
 
-    database.with_details(profile, tables);
-    database.warehouse_id = warehouse_id;
+    database.with_details(warehouse_id, profile, tables);
     Ok(Json(database))
 }

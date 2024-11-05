@@ -1,5 +1,4 @@
 import dataclasses
-import json
 import os
 import urllib
 import uuid
@@ -11,14 +10,14 @@ import pytest
 import requests
 
 # ---- Core
-MANAGEMENT_URL = os.environ.get("MANAGEMENT_URL")
-CATALOG_URL = os.environ.get("CATALOG_URL")
+MANAGEMENT_URL = os.environ.get("MANAGEMENT_URL", "http://localhost:3000")
+CATALOG_URL = os.environ.get("CATALOG_URL", "http://localhost:3000/catalog")
 # ---- S3
-S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY")
-S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY")
-S3_BUCKET = os.environ.get("S3_BUCKET")
-S3_ENDPOINT = os.environ.get("S3_ENDPOINT")
-S3_REGION = os.environ.get("S3_REGION", None)
+S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY", "access-key")
+S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY", "secret-key")
+S3_BUCKET = os.environ.get("S3_BUCKET", "mybucket")
+S3_ENDPOINT = os.environ.get("S3_ENDPOINT", "https://s3.us-east-2amazonaws.com")
+S3_REGION = os.environ.get("S3_REGION", "us-east-2")
 S3_PATH_STYLE_ACCESS = os.environ.get("S3_PATH_STYLE_ACCESS")
 
 
@@ -59,8 +58,8 @@ class Server:
         assert response.ok, response.text
 
     def create_warehouse(
-        self,
-        **payload,
+            self,
+            **payload,
     ) -> uuid.UUID:
         """Create a warehouse in this server"""
         warehouse_url = urllib.parse.urljoin(self.management_url, "v1/warehouse")

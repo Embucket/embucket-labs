@@ -96,14 +96,13 @@ impl ControlService for ControlServiceImpl {
         match profile.credentials.clone() {
             Credentials::AccessKey(creds) => {
                 let profile_region = profile.region.clone();
-                let endpoint = profile.endpoint.clone();
                 let credentials = StaticProvider::new_minimal(
                     creds.aws_access_key_id.clone(),
                     creds.aws_secret_access_key.clone(),
                 );
                 let region = Region::Custom {
                     name: profile_region.clone(),
-                    endpoint: endpoint
+                    endpoint: profile.endpoint.clone()
                         .unwrap_or_else(|| format!("https://s3.{}.amazonaws.com", profile_region)),
                 };
 

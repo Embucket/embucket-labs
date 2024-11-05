@@ -1,9 +1,9 @@
-import tests.conftest
+import time
+
 import pandas as pd
 import pyarrow as pa
-import pytest
-import time
 import pyiceberg.io as io
+import pytest
 from pyiceberg.types import BooleanType
 
 
@@ -25,6 +25,7 @@ def test_default_location_for_namespace_is_set(catalog):
     namespace = ("test_default_location_for_namespace",)
     catalog.create_namespace(namespace)
     loaded_properties = catalog.load_namespace_properties(namespace)
+    print(catalog.list_namespaces())
     assert "location" in loaded_properties
 
 
@@ -83,7 +84,7 @@ def test_drop_table(catalog, namespace):
         assert "NoSuchTableError" in str(e)
 
 
-def test_drop_purge_table(catalog, namespace, storage_config):
+def test_drop_purge_table(catalog, namespace, storage_profile):
     table_name = "my_table"
     schema = pa.schema(
         [
@@ -96,14 +97,14 @@ def test_drop_purge_table(catalog, namespace, storage_config):
     tab = catalog.load_table((*namespace.name, table_name))
 
     properties = tab.properties
-    if storage_config["storage-profile"]["type"] == "s3":
-        properties["s3.access-key-id"] = storage_config["storage-credential"][
-            "aws-access-key-id"
+    if storage_profile["type"] == "Aws":
+        properties["s3.access-key-id"] = storage_profile["credentials"][
+            "aws_access_key_id"
         ]
-        properties["s3.secret-access-key"] = storage_config["storage-credential"][
-            "aws-secret-access-key"
+        properties["s3.secret-access-key"] = storage_profile["credentials"][
+            "aws_secret_access_key"
         ]
-        properties["s3.endpoint"] = storage_config["storage-profile"]["endpoint"]
+        properties["s3.endpoint"] = storage_profile["endpoint"]
 
     file_io = io._infer_file_io_from_scheme(tab.location(), properties)
 
@@ -176,18 +177,44 @@ def test_write_read(catalog, namespace):
 
     df = pd.DataFrame(
         {
-            "my_ints": [1, 2, 3],
-            "my_floats": [1.1, 2.2, 3.3],
-            "strings": ["a", "b", "c"],
+            "my_ints": [1, 2, 3, 4],
+            "my_floats": [1.1, 2.2, 3.3, 4.4],
+            "strings": ["a", "b", "c", "d"],
         }
     )
     data = pa.Table.from_pandas(df)
     table.append(data)
 
-    read_table = table.scan().to_arrow()
-    read_df = read_table.to_pandas()
+    assert table.scan().to_arrow().to_pandas().equals(df)
 
-    assert read_df.equals(df)
+    # test delete
+    table.delete(delete_filter="my_ints = 1")
+
+    assert table.scan().to_arrow().to_pandas().equals(pd.DataFrame(
+        {
+            "my_ints": [2, 3, 4],
+            "my_floats": [2.2, 3.3, 4.4],
+            "strings": ["b", "c", "d"],
+        }
+    ))
+
+    # test override
+    table = catalog.load_table((*namespace.name, table_name))
+    table.overwrite(df=pa.Table.from_pandas(pd.DataFrame(
+        {
+            "my_ints": [12, 13, 14, 15, 16],
+            "my_floats": [12.2, 13.3, 14.4, 15.5, 16.6],
+            "strings": ["aa", "ab", "ac", "ad", "ae"],
+        }
+    )))
+
+    assert table.scan().to_arrow().to_pandas().equals(pd.DataFrame(
+        {
+            "my_ints": [12, 13, 14, 15, 16],
+            "my_floats": [12.2, 13.3, 14.4, 15.5, 16.6],
+            "strings": ["aa", "ab", "ac", "ad", "ae"],
+        }
+    ))
 
 
 def test_update_table_properties(catalog, namespace):

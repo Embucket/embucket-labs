@@ -81,14 +81,16 @@ impl From<catalog::models::Table> for Table {
 #[serde(rename_all = "camelCase")]
 pub struct Statistics {
     pub commit_count: i32,
+    pub total_bytes: i32,
+    pub total_rows: i32,
+    pub total_files: i32,
+    pub total_snapshots_files: i32,
     pub op_append_count: i32,
     pub op_overwrite_count: i32,
     pub op_delete_count: i32,
     pub op_replace_count: i32,
-    pub total_bytes: i32,
     pub bytes_added: i32,
     pub bytes_removed: i32,
-    pub total_rows: i32,
     pub rows_added: i32,
     pub rows_deleted: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -99,39 +101,39 @@ pub struct Statistics {
 
 impl Statistics {
     pub fn from_table_metadata(metadata: &TableMetadata) -> Statistics {
+        let mut commit_count = 0;
         let mut total_bytes = 0;
         let mut total_rows = 0;
+        let mut total_files = 0;
+        let mut total_snapshots_files = 0;
         let mut rows_deleted = 0;
-        let mut commit_count = 0;
+        let mut bytes_removed = 0;
+        let mut rows_added = 0;
+        let mut bytes_added = 0;
         let mut op_append_count = 0;
         let mut op_overwrite_count = 0;
         let mut op_delete_count = 0;
         let mut op_replace_count = 0;
-        let mut bytes_added = 0;
-        let mut rows_added = 0;
 
         if let Some(latest_snapshot) = metadata.current_snapshot() {
             total_bytes = latest_snapshot
                 .summary()
                 .other
                 .get("total-files-size")
-                .unwrap()
-                .parse::<i32>()
-                .unwrap();
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
             total_rows = latest_snapshot
                 .summary()
                 .other
                 .get("total-records")
-                .unwrap()
-                .parse::<i32>()
-                .unwrap();
-            rows_deleted = latest_snapshot
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            total_files = latest_snapshot
                 .summary()
                 .other
-                .get("removed-records")
-                .unwrap()
-                .parse::<i32>()
-                .unwrap();
+                .get("total-data-files")
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
         };
 
         metadata.snapshots().for_each(|snapshot| {
@@ -140,15 +142,28 @@ impl Statistics {
             bytes_added += summary
                 .other
                 .get("added-files-size")
-                .unwrap()
-                .parse::<i32>()
-                .unwrap();
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
             rows_added += summary
                 .other
                 .get("added-records")
-                .unwrap()
-                .parse::<i32>()
-                .unwrap();
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            bytes_removed += summary
+                .other
+                .get("removed-files-size")
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            rows_deleted += summary
+                .other
+                .get("deleted-records")
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            total_snapshots_files += summary
+                .other
+                .get("total-data-files")
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
             match summary.operation {
                 iceberg::spec::Operation::Append => op_append_count += 1,
                 iceberg::spec::Operation::Overwrite => op_overwrite_count += 1,
@@ -164,8 +179,10 @@ impl Statistics {
             op_delete_count,
             op_replace_count,
             total_bytes,
+            total_files,
+            total_snapshots_files,
             bytes_added,
-            bytes_removed: 0,
+            bytes_removed,
             total_rows,
             rows_added,
             rows_deleted,
@@ -185,6 +202,8 @@ impl Statistics {
             bytes_added: self.bytes_added + other.bytes_added,
             bytes_removed: self.bytes_removed + other.bytes_removed,
             total_rows: self.total_rows + other.total_rows,
+            total_files: self.total_files + other.total_files,
+            total_snapshots_files: self.total_snapshots_files + other.total_snapshots_files,
             rows_added: self.rows_added + other.rows_added,
             rows_deleted: self.rows_deleted + other.rows_deleted,
             table_count: self.table_count.map_or(other.table_count, |count| {

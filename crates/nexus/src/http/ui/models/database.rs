@@ -42,16 +42,20 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn with_details(&mut self, profile: StorageProfile, tables: Vec<Table>) {
-        self.storage_profile = profile;
+    pub fn with_details(&mut self, warehouse_id: Uuid, profile: StorageProfile, mut tables: Vec<Table>) {
+        self.storage_profile = profile.clone();
 
         let mut total_statistics = Statistics::default();
-
-        for t in tables.clone() {
+        tables.iter_mut().for_each(|t| {
+            t.storage_profile = profile.clone();
+            t.warehouse_id = warehouse_id.clone();
+            t.database_name = self.name.clone();
             total_statistics = total_statistics.aggregate(&t.statistics);
-        }
+        });
         total_statistics.database_count = Some(1);
+
         self.statistics = total_statistics;
+        self.warehouse_id = warehouse_id;
         self.tables = tables;
     }
 }

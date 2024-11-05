@@ -103,18 +103,8 @@ impl AppState {
         let mut database_entities = Vec::new();
         for database in databases {
             let tables = self.list_tables(&database.ident).await?;
-            let mut total_statistics = Statistics::default();
-
-            for table in tables.clone() {
-                let table_stats = table.statistics;
-                total_statistics = total_statistics.aggregate(&table_stats);
-            }
-
-            total_statistics.database_count = Option::from(1);
             let mut entity = Database::from(database);
-            entity.statistics = total_statistics;
-            entity.warehouse_id = warehouse_id;
-            entity.with_details(profile.clone(), tables);
+            entity.with_details(warehouse_id, profile.clone(), tables);
             database_entities.push(entity);
         }
         Ok(database_entities)
