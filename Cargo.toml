@@ -32,3 +32,4 @@ utoipa-axum = { version = "0.1.0-beta.2" }
 utoipa-swagger-ui = { version = "7.1.1-beta.0", features = ["axum"] }
 lazy_static = { version = "1.5" }
 dotenv = { version = "0.15.0" }
+datafusion = { version = "40" }

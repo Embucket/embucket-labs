@@ -60,6 +60,7 @@ impl IntoResponse for AppError {
             }
             AppError::InvalidCredentials(ref _e) => (StatusCode::UNPROCESSABLE_ENTITY, self.to_string()),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            AppError::UnprocessableEntity(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
 
@@ -73,6 +74,7 @@ impl From<ControlError> for AppError {
             ControlError::InvalidInput(e) => AppError::BadRequest(e.to_string()),
             ControlError::ErrNotFound => AppError::NotFound(e.to_string()),
             ControlError::InvalidCredentials(e) => AppError::InvalidCredentials(e.to_string()),
+            ControlError::DataFusionError(e) => AppError::UnprocessableEntity(e.to_string())
         }
     }
 }
@@ -91,4 +93,3 @@ impl From<CatalogError> for AppError {
         }
     }
 }
-
