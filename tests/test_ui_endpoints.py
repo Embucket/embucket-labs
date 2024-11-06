@@ -54,3 +54,8 @@ def test_query_endpoint(server, catalog, namespace):
     result = json.loads(response.json()['result'])
     assert result == [{f"sum(catalog.{namespace.name[0]}.{table_name}.my_ints)": sum(df["my_ints"])}]
 
+    response = requests.post(query_table_url, json={
+        "query": "INCORRECT SQL"
+    })
+    assert response.status_code == 422
+    assert "SQL error: ParserError" in response.text

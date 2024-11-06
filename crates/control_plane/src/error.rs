@@ -19,6 +19,9 @@ pub enum Error {
 
     #[error("invalid credentials: {0}")]
     InvalidCredentials(String),
+
+    #[error("datafusion error: {0}")]
+    DataFusionError(String),
 }
 
 impl From<utils::Error> for Error {
@@ -47,4 +50,10 @@ pub fn extract_error_message<T>(e: &RusotoError<T>) -> Option<String> {
         }
     }
     None
+}
+
+impl From<datafusion::error::DataFusionError> for Error {
+    fn from(err: datafusion::error::DataFusionError) -> Self {
+        Error::DataFusionError(err.to_string())
+    }
 }

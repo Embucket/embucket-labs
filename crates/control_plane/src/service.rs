@@ -182,7 +182,7 @@ impl ControlService for ControlServiceImpl {
         println!("{tables:?}");
 
         println!("{}", query);
-        let records = ctx.sql(query).await.unwrap().collect().await.unwrap();
+        let records = ctx.sql(query).await?.collect().await?;
         println!("{records:?}");
 
         let buf = Vec::new();

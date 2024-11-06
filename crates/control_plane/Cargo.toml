@@ -12,7 +12,7 @@ thiserror = { workspace = true }
 utils = { path = "../utils" }
 futures = { workspace = true }
 serde = { workspace = true }
-datafusion = { version = "40" }
+datafusion = { workspace = true }
 iceberg-rust = { version = "0.5.8" }
 iceberg-rest-catalog = { version = "0.5.8" }
 datafusion_iceberg = { version = "0.5.8" }

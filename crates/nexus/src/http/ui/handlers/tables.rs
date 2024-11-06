@@ -161,6 +161,7 @@ pub async fn delete_table(
     ),
     responses(
         (status = 200, description = "Returns result of the query", body = TableQueryResponse),
+        (status = 422, description = "Unprocessable entity", body = AppError),
         (status = 500, description = "Internal server error", body = AppError)
     )
 )]
@@ -175,7 +176,11 @@ pub async fn query_table(
     let result = state
         .control_svc
         .query_table(&warehouse_id, &database_name, &table_name, &request.query)
-        .await?;
+        .await
+        .map_err(|e| {
+            let fmt = format!("{}", e);
+            AppError::new(e, fmt.as_str())
+        })?;
     let duration = start.elapsed();
     Ok(Json(TableQueryResponse {
         query: request.query.clone(),
