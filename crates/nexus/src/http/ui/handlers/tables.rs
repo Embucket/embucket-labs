@@ -1,3 +1,4 @@
+use std::time::Instant;
 use crate::http::ui::models::errors::AppError;
 use crate::http::ui::models::table::{
     Table, TableCreatePayload, TableQueryRequest, TableQueryResponse,
@@ -163,19 +164,22 @@ pub async fn delete_table(
         (status = 500, description = "Internal server error", body = AppError)
     )
 )]
+// Add time sql took
 pub async fn query_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
     Json(payload): Json<TableQueryRequest>,
 ) -> Result<Json<TableQueryResponse>, AppError> {
     let request: TableQueryRequest = payload.into();
+    let start = Instant::now();
     let result = state
         .control_svc
         .query_table(&warehouse_id, &database_name, &table_name, &request.query)
         .await?;
+    let duration = start.elapsed();
     Ok(Json(TableQueryResponse {
-        id: Default::default(),
         query: request.query.clone(),
         result: result.to_string(),
+        duration_seconds: duration.as_secs_f32()
     }))
 }

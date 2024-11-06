@@ -185,9 +185,6 @@ impl ControlService for ControlServiceImpl {
         let records = ctx.sql(query).await.unwrap().collect().await.unwrap();
         println!("{records:?}");
 
-        let df = ctx.sql(query).await.unwrap();
-        df.show().await.unwrap();
-
         let buf = Vec::new();
         let mut writer = arrow_json::ArrayWriter::new(buf);
         let record_refs: Vec<&RecordBatch> = records.iter().collect();
