@@ -131,34 +131,38 @@ impl PartialSchema for Table {
                         .format(Some(KnownFormat(utoipa::openapi::KnownFormat::Uuid))),
                 )
                 .property("name", String::schema())
-                .property("storage_profile", StorageProfile::schema())
-                .property("database_name", String::schema())
                 .property(
-                    "warehouse_id",
+                    "storageProfile",
+                    Ref::new("#/components/schemas/storageProfile"),
+                )
+                .property("databaseName", String::schema())
+                .property(
+                    "warehouseId",
                     ObjectBuilder::new()
                         .schema_type(Type::String)
                         .format(Some(KnownFormat(utoipa::openapi::KnownFormat::Uuid))),
                 )
                 .property("properties", HashMap::<String, String>::schema())
                 .property("metadata", Ref::new("#/components/schemas/TableMetadata"))
-                .property("metadata_location", String::schema())
+                .property("metadataLocation", String::schema())
                 .property("statistics", Ref::new("#/components/schemas/Statistics"))
                 .property(
-                    "compaction_summary",
+                    "compactionSummary",
                     Ref::new("#/components/schemas/CompactionSummary"),
                 )
                 .property(
-                    "created_at",
+                    "createdAt",
                     ObjectBuilder::new()
                         .schema_type(Type::String)
                         .format(Some(KnownFormat(utoipa::openapi::KnownFormat::DateTime))),
                 )
                 .property(
-                    "updated_at",
+                    "updatedAt",
                     ObjectBuilder::new()
                         .schema_type(Type::String)
                         .format(Some(KnownFormat(utoipa::openapi::KnownFormat::DateTime))),
                 )
+                .required("name")
                 .build(),
         ))
     }
@@ -321,7 +325,7 @@ impl TableQueryRequest {
 pub struct TableQueryResponse {
     pub query: String,
     pub result: String,
-    pub duration_seconds: f32
+    pub duration_seconds: f32,
 }
 
 impl TableQueryResponse {
