@@ -232,15 +232,15 @@ impl TableQueryRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TableQueryResponse {
-    pub id: Uuid,
     pub query: String,
     pub result: String,
+    pub duration_seconds: f32
 }
 
 impl TableQueryResponse {
     #[allow(clippy::new_without_default)]
-    pub fn new(id: Uuid, query: String, result: String) -> TableQueryResponse {
-        TableQueryResponse { id, query, result }
+    pub fn new(query: String, result: String, duration_seconds: f32) -> TableQueryResponse {
+        TableQueryResponse { query, result, duration_seconds }
     }
 }
 

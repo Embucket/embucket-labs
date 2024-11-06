@@ -43,8 +43,10 @@ def test_query_endpoint(server, catalog, namespace):
     response = requests.post(query_table_url, json={
         "query": "SELECT strings FROM catalog.`test-namespace`.`my_table` WHERE my_ints = 2;"
     })
-    result = json.loads(response.json()['result'])
+    response_data = response.json()
+    result = json.loads(response_data['result'])
     assert result == [{"strings": "b"}]
+    assert 0 < response_data['durationSeconds'] < 1
 
     response = requests.post(query_table_url, json={
         "query": "SELECT SUM(my_ints) FROM catalog.`test-namespace`.`my_table`;"
