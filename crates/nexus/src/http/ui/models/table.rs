@@ -1,12 +1,12 @@
 use crate::http::ui::models::database::CompactionSummary;
-use crate::http::ui::models::metadata::TableMetadataWrapper;
 use crate::http::ui::models::storage_profile::StorageProfile;
 use catalog::models as CatalogModels;
 use iceberg::spec::TableMetadata;
 use iceberg::spec::{Schema, SortOrder, UnboundPartitionSpec};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use utoipa::openapi::{ArrayBuilder, ObjectBuilder, RefOr, Schema as OpenApiSchema};
+use utoipa::openapi::SchemaFormat::KnownFormat;
+use utoipa::openapi::{ObjectBuilder, Ref, RefOr, Type};
 use utoipa::{PartialSchema, ToSchema};
 use uuid::Uuid;
 use validator::Validate;
@@ -15,7 +15,19 @@ pub fn get_table_id(ident: CatalogModels::TableIdent) -> Uuid {
     Uuid::new_v5(&Uuid::NAMESPACE_DNS, ident.table.to_string().as_bytes())
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TableMetadataWrapper(pub TableMetadata);
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnboundPartitionSpecWrapper(pub(crate) UnboundPartitionSpec);
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SortOrderWrapper(pub(crate) SortOrder);
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct TableCreatePayload {
     pub name: String,
@@ -40,7 +52,33 @@ impl From<TableCreatePayload> for catalog::models::TableCreation {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+impl ToSchema for TableCreatePayload {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("TableCreatePayload")
+    }
+}
+impl PartialSchema for TableCreatePayload {
+    fn schema() -> RefOr<utoipa::openapi::Schema> {
+        RefOr::from(utoipa::openapi::Schema::Object(
+            ObjectBuilder::new()
+                .property("name", String::schema())
+                .property("location", Option::<String>::schema())
+                .property("schema", Ref::new("#/components/schemas/Schema"))
+                .property(
+                    "partition_spec",
+                    Ref::new("#/components/schemas/PartitionSpec"),
+                )
+                .property("sort_order", Ref::new("#/components/schemas/SortOrder"))
+                .property("stage_create", Option::<bool>::schema())
+                .property("properties", Option::<HashMap<String, String>>::schema())
+                .required("name")
+                .required("schema")
+                .build(),
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Table {
     pub id: Uuid,
@@ -74,6 +112,55 @@ impl From<catalog::models::Table> for Table {
             statistics: Statistics::from_table_metadata(&table.metadata),
             compaction_summary: None,
         }
+    }
+}
+
+impl ToSchema for Table {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("Table")
+    }
+}
+impl PartialSchema for Table {
+    fn schema() -> RefOr<utoipa::openapi::Schema> {
+        RefOr::from(utoipa::openapi::Schema::Object(
+            ObjectBuilder::new()
+                .property(
+                    "id",
+                    ObjectBuilder::new()
+                        .schema_type(Type::String)
+                        .format(Some(KnownFormat(utoipa::openapi::KnownFormat::Uuid))),
+                )
+                .property("name", String::schema())
+                .property("storage_profile", StorageProfile::schema())
+                .property("database_name", String::schema())
+                .property(
+                    "warehouse_id",
+                    ObjectBuilder::new()
+                        .schema_type(Type::String)
+                        .format(Some(KnownFormat(utoipa::openapi::KnownFormat::Uuid))),
+                )
+                .property("properties", HashMap::<String, String>::schema())
+                .property("metadata", Ref::new("#/components/schemas/TableMetadata"))
+                .property("metadata_location", String::schema())
+                .property("statistics", Ref::new("#/components/schemas/Statistics"))
+                .property(
+                    "compaction_summary",
+                    Ref::new("#/components/schemas/CompactionSummary"),
+                )
+                .property(
+                    "created_at",
+                    ObjectBuilder::new()
+                        .schema_type(Type::String)
+                        .format(Some(KnownFormat(utoipa::openapi::KnownFormat::DateTime))),
+                )
+                .property(
+                    "updated_at",
+                    ObjectBuilder::new()
+                        .schema_type(Type::String)
+                        .format(Some(KnownFormat(utoipa::openapi::KnownFormat::DateTime))),
+                )
+                .build(),
+        ))
     }
 }
 
@@ -247,82 +334,3 @@ impl TableQueryResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaWrapper(Schema);
-
-impl ToSchema for SchemaWrapper {
-    fn name() -> std::borrow::Cow<'static, str> {
-        std::borrow::Cow::Borrowed("SchemaWrapper")
-    }
-}
-impl PartialSchema for SchemaWrapper {
-    fn schema() -> RefOr<utoipa::openapi::Schema> {
-        RefOr::from(utoipa::openapi::Schema::Object(
-            ObjectBuilder::new()
-                .property("r#struct", OpenApiSchema::Object(Default::default()))
-                .property("schema_id", i32::schema())
-                .property("highest_field_id", i32::schema())
-                .property(
-                    "identifier_field_ids",
-                    OpenApiSchema::Array(ArrayBuilder::new().items(i32::schema()).build()),
-                )
-                .property("alias_to_id", OpenApiSchema::Object(Default::default()))
-                .property("id_to_field", OpenApiSchema::Object(Default::default()))
-                .property("name_to_id", OpenApiSchema::Object(Default::default()))
-                .property(
-                    "lowercase_name_to_id",
-                    OpenApiSchema::Object(Default::default()),
-                )
-                .property("id_to_name", OpenApiSchema::Object(Default::default()))
-                .property(
-                    "field_id_to_accessor",
-                    OpenApiSchema::Object(Default::default()),
-                )
-                .build(),
-        ))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UnboundPartitionSpecWrapper(UnboundPartitionSpec);
-
-impl ToSchema for UnboundPartitionSpecWrapper {
-    fn name() -> std::borrow::Cow<'static, str> {
-        std::borrow::Cow::Borrowed("UnboundPartitionSpecWrapper")
-    }
-}
-impl PartialSchema for UnboundPartitionSpecWrapper {
-    fn schema() -> RefOr<utoipa::openapi::Schema> {
-        RefOr::from(utoipa::openapi::Schema::Object(
-            ObjectBuilder::new()
-                .property("spec_id", i32::schema())
-                .property(
-                    "fields",
-                    OpenApiSchema::Array(ArrayBuilder::new().items(String::schema()).build()),
-                )
-                .build(),
-        ))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SortOrderWrapper(SortOrder);
-
-impl ToSchema for SortOrderWrapper {
-    fn name() -> std::borrow::Cow<'static, str> {
-        std::borrow::Cow::Borrowed("SortOrderWrapper")
-    }
-}
-impl PartialSchema for SortOrderWrapper {
-    fn schema() -> RefOr<utoipa::openapi::Schema> {
-        RefOr::from(utoipa::openapi::Schema::Object(
-            ObjectBuilder::new()
-                .property("order_id", i64::schema())
-                .property(
-                    "fields",
-                    OpenApiSchema::Array(ArrayBuilder::new().items(String::schema()).build()),
-                )
-                .build(),
-        ))
-    }
-}

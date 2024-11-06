@@ -11,6 +11,26 @@ use crate::state::AppState;
 use axum::routing::{delete, get, post};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
+use utoipa::OpenApi;
+
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "UI Router API",
+        description = "API documentation for the UI endpoints.",
+        version = "1.0.0",
+        license(
+            name = "Apache 2.0",
+            url = "https://www.apache.org/licenses/LICENSE-2.0.html"
+        ),
+        contact(
+            name = "Embucket, Inc.",
+            url = "https://embucket.com"
+        ),
+        description = "Defines the specification for the UI Catalog API",
+    )
+)]
+pub struct ApiDoc;
 
 pub fn create_router() -> Router<AppState> {
     Router::new()

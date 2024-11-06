@@ -2,6 +2,7 @@ use axum::routing::get;
 use axum::{Json, Router};
 use std::fs;
 use tower_http::catch_panic::CatchPanicLayer;
+use tower_http::cors::{Any, CorsLayer};
 use utoipa::openapi::{self};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -14,7 +15,7 @@ use crate::http::ui::handlers::databases::ApiDoc as DatabaseApiDoc;
 use crate::http::ui::handlers::profiles::ApiDoc as ProfileApiDoc;
 use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
 use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
-use crate::http::ui::router::create_router as create_ui_router;
+use crate::http::ui::router::{create_router as create_ui_router, ApiDoc as UiApiDoc};
 use crate::state::AppState;
 use tower_http::timeout::TimeoutLayer;
 
@@ -37,10 +38,15 @@ pub fn create_app(state: AppState) -> Router {
     if let Some(extra_spec) = load_openapi_spec() {
         spec = spec.merge_from(extra_spec);
     }
-    let ui_spec = ProfileApiDoc::openapi()
+
+    let mut ui_spec = UiApiDoc::openapi()
+        .merge_from(ProfileApiDoc::openapi())
         .merge_from(WarehouseApiDoc::openapi())
         .merge_from(TableApiDoc::openapi())
         .merge_from(DatabaseApiDoc::openapi());
+    if let Some(extra_spec) = load_openapi_spec() {
+        ui_spec = ui_spec.merge_from(extra_spec);
+    }
     let catalog_router = create_catalog_router();
     let control_router = create_control_router();
     let ui_router = create_ui_router();
@@ -57,6 +63,12 @@ pub fn create_app(state: AppState) -> Router {
         .route("/health", get(|| async { Json("OK") }))
         .layer(TimeoutLayer::new(std::time::Duration::from_secs(30)))
         .layer(CatchPanicLayer::new())
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any),
+        )
         .with_state(state)
 }
 

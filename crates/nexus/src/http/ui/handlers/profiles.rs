@@ -119,7 +119,7 @@ pub async fn delete_storage_profile(
     get,
     operation_id = "listStorageProfiles",
     tags = ["storage_profiles"],
-    path = "/ui/storage-profiles/",
+    path = "/ui/storage-profiles",
     responses(
         (status = 200, body = Vec<storage_profile::StorageProfile>),
         (status = 500, description = "Internal server error", body = AppError)
