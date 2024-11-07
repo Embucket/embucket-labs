@@ -45,6 +45,8 @@ pub mod http {
         pub mod models;
         pub mod router;
     }
+
+    pub mod utils;
 }
 pub mod error;
 pub mod state;

@@ -1,12 +1,11 @@
+use crate::error::AppError;
 use crate::http::catalog::schemas;
+use crate::http::utils::update_properties_timestamps;
+use crate::state::AppState;
 use axum::{extract::Path, extract::Query, extract::State, Json};
 use catalog::models::{DatabaseIdent, NamespaceIdent, TableCommit, TableIdent, WarehouseIdent};
-use chrono::Utc;
 use std::result::Result;
 use uuid::Uuid;
-
-use crate::error::AppError;
-use crate::state::AppState;
 
 pub async fn create_namespace(
     State(state): State<AppState>,
@@ -20,14 +19,9 @@ pub async fn create_namespace(
         namespace: payload.namespace.clone(),
     };
     let mut properties = payload.properties.unwrap_or_default();
-    let utc_now = Utc::now();
-    let utc_now_str = utc_now.to_rfc3339();
-    properties.insert("created_at".to_string(), utc_now_str.clone());
-    properties.insert("updated_at".to_string(), utc_now_str);
+    update_properties_timestamps(&mut properties);
 
-    let res = catalog
-        .create_namespace(&ident, properties)
-        .await?;
+    let res = catalog.create_namespace(&ident, properties).await?;
 
     Ok(Json(res.into()))
 }
@@ -91,7 +85,9 @@ pub async fn create_table(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::new(namespace_id),
     };
-    let table = catalog.create_table(&ident, &sp, &wh, payload.into()).await?;
+    let table = catalog
+        .create_table(&ident, &sp, &wh, payload.into())
+        .await?;
 
     Ok(Json(table.into()))
 }

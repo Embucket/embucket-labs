@@ -1,6 +1,6 @@
 use crate::http::ui::models::database::{CreateDatabasePayload, Database};
 use crate::http::ui::models::errors::AppError;
-use crate::http::ui::models::table::update_properties_timestamps;
+use crate::http::utils::update_properties_timestamps;
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
 use catalog::models::{DatabaseIdent, WarehouseIdent};

@@ -1,5 +1,6 @@
 use crate::http::ui::models::database::CompactionSummary;
 use crate::http::ui::models::storage_profile::StorageProfile;
+use crate::http::utils::update_properties_timestamps;
 use catalog::models as CatalogModels;
 use chrono::{DateTime, Utc};
 use iceberg::spec::TableMetadata;
@@ -14,13 +15,6 @@ use validator::Validate;
 
 pub fn get_table_id(ident: CatalogModels::TableIdent) -> Uuid {
     Uuid::new_v5(&Uuid::NAMESPACE_DNS, ident.table.to_string().as_bytes())
-}
-
-pub fn update_properties_timestamps(properties: &mut HashMap<String, String>) {
-    let utc_now = Utc::now();
-    let utc_now_str = utc_now.to_rfc3339();
-    properties.insert("created_at".to_string(), utc_now_str.clone());
-    properties.insert("updated_at".to_string(), utc_now_str);
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -108,20 +102,32 @@ pub struct Table {
 }
 
 impl Table {
-    pub fn with_details(&mut self, warehouse_id: Uuid, profile: StorageProfile, database_name: String) {
+    pub fn with_details(
+        &mut self,
+        warehouse_id: Uuid,
+        profile: StorageProfile,
+        database_name: String,
+    ) {
         self.storage_profile = profile;
         self.warehouse_id = warehouse_id;
         self.database_name = database_name;
-
-        self.metadata.0.properties.get("created_at").map(|created_at| {
-            self.created_at = DateTime::from(DateTime::parse_from_rfc3339(created_at).unwrap());
-        });
-        self.metadata.0.properties.get("updated_at").map(|updated_at| {
-            self.updated_at = DateTime::from(DateTime::parse_from_rfc3339(updated_at).unwrap());
-        });
+        self.properties = self.metadata.0.properties.clone();
+        self.metadata
+            .0
+            .properties
+            .get("created_at")
+            .map(|created_at| {
+                self.created_at = DateTime::from(DateTime::parse_from_rfc3339(created_at).unwrap());
+            });
+        self.metadata
+            .0
+            .properties
+            .get("updated_at")
+            .map(|updated_at| {
+                self.updated_at = DateTime::from(DateTime::parse_from_rfc3339(updated_at).unwrap());
+            });
     }
 }
-
 
 impl From<catalog::models::Table> for Table {
     fn from(table: catalog::models::Table) -> Self {
