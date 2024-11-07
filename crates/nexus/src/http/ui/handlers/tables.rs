@@ -93,7 +93,6 @@ pub async fn create_table(
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::new(database_name.clone()),
     };
-
     let table = state
         .catalog_svc
         .create_table(&db_ident, &profile, &warehouse, payload.into())

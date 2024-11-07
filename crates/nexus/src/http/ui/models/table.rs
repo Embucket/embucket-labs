@@ -48,14 +48,17 @@ pub struct TableCreatePayload {
 }
 
 impl From<TableCreatePayload> for catalog::models::TableCreation {
-    fn from(schema: TableCreatePayload) -> Self {
+    fn from(payload: TableCreatePayload) -> Self {
+        let mut properties = payload.properties.unwrap_or_default();
+        update_properties_timestamps(&mut properties);
+
         catalog::models::TableCreation {
-            name: schema.name,
-            location: schema.location,
-            schema: schema.schema.0,
-            partition_spec: schema.partition_spec.map(|x| x.0),
-            sort_order: schema.sort_order.map(|x| x.0),
-            properties: schema.properties.unwrap_or_default(),
+            name: payload.name,
+            location: payload.location,
+            schema: payload.schema.0,
+            partition_spec: payload.partition_spec.map(|x| x.0),
+            sort_order: payload.sort_order.map(|x| x.0),
+            properties,
         }
     }
 }
@@ -110,10 +113,10 @@ impl Table {
         self.warehouse_id = warehouse_id;
         self.database_name = database_name;
 
-        self.properties.get("created_at").map(|created_at| {
+        self.metadata.0.properties.get("created_at").map(|created_at| {
             self.created_at = DateTime::from(DateTime::parse_from_rfc3339(created_at).unwrap());
         });
-        self.properties.get("updated_at").map(|updated_at| {
+        self.metadata.0.properties.get("updated_at").map(|updated_at| {
             self.updated_at = DateTime::from(DateTime::parse_from_rfc3339(updated_at).unwrap());
         });
     }

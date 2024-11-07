@@ -1,4 +1,10 @@
 use crate::error::{Error, Result};
+// TODO: Replace this with this crate error and result
+use crate::models::{
+    Config, Database, DatabaseIdent, Table, TableCommit, TableIdent, TableRequirementExt,
+    WarehouseIdent,
+};
+use crate::repository::{DatabaseRepository, TableRepository};
 use async_trait::async_trait;
 use bytes::Bytes;
 use control_plane::models::{StorageProfile, Warehouse};
@@ -9,12 +15,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use uuid::Uuid;
-// TODO: Replace this with this crate error and result
-use crate::models::{
-    Config, Database, DatabaseIdent, Table, TableCommit, TableIdent, TableRequirementExt,
-    WarehouseIdent,
-};
-use crate::repository::{DatabaseRepository, TableRepository};
 
 use control_plane::service::ControlService;
 
