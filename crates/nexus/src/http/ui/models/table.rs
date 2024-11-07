@@ -1,6 +1,7 @@
 use crate::http::ui::models::database::CompactionSummary;
 use crate::http::ui::models::storage_profile::StorageProfile;
 use catalog::models as CatalogModels;
+use chrono::{DateTime, Utc};
 use iceberg::spec::TableMetadata;
 use iceberg::spec::{Schema, SortOrder, UnboundPartitionSpec};
 use serde::{Deserialize, Serialize};
@@ -13,6 +14,13 @@ use validator::Validate;
 
 pub fn get_table_id(ident: CatalogModels::TableIdent) -> Uuid {
     Uuid::new_v5(&Uuid::NAMESPACE_DNS, ident.table.to_string().as_bytes())
+}
+
+pub fn update_properties_timestamps(properties: &mut HashMap<String, String>) {
+    let utc_now = Utc::now();
+    let utc_now_str = utc_now.to_rfc3339();
+    properties.insert("created_at".to_string(), utc_now_str.clone());
+    properties.insert("updated_at".to_string(), utc_now_str);
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -92,9 +100,25 @@ pub struct Table {
     pub statistics: Statistics,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compaction_summary: Option<CompactionSummary>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
+
+impl Table {
+    pub fn with_details(&mut self, warehouse_id: Uuid, profile: StorageProfile, database_name: String) {
+        self.storage_profile = profile;
+        self.warehouse_id = warehouse_id;
+        self.database_name = database_name;
+
+        self.properties.get("created_at").map(|created_at| {
+            self.created_at = DateTime::from(DateTime::parse_from_rfc3339(created_at).unwrap());
+        });
+        self.properties.get("updated_at").map(|updated_at| {
+            self.updated_at = DateTime::from(DateTime::parse_from_rfc3339(updated_at).unwrap());
+        });
+    }
+}
+
 
 impl From<catalog::models::Table> for Table {
     fn from(table: catalog::models::Table) -> Self {
@@ -331,7 +355,11 @@ pub struct TableQueryResponse {
 impl TableQueryResponse {
     #[allow(clippy::new_without_default)]
     pub fn new(query: String, result: String, duration_seconds: f32) -> TableQueryResponse {
-        TableQueryResponse { query, result, duration_seconds }
+        TableQueryResponse {
+            query,
+            result,
+            duration_seconds,
+        }
     }
 }
 

@@ -1,6 +1,7 @@
 use crate::http::catalog::schemas;
 use axum::{extract::Path, extract::Query, extract::State, Json};
 use catalog::models::{DatabaseIdent, NamespaceIdent, TableCommit, TableIdent, WarehouseIdent};
+use chrono::Utc;
 use std::result::Result;
 use uuid::Uuid;
 
@@ -18,8 +19,14 @@ pub async fn create_namespace(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: payload.namespace.clone(),
     };
+    let mut properties = payload.properties.unwrap_or_default();
+    let utc_now = Utc::now();
+    let utc_now_str = utc_now.to_rfc3339();
+    properties.insert("created_at".to_string(), utc_now_str.clone());
+    properties.insert("updated_at".to_string(), utc_now_str);
+
     let res = catalog
-        .create_namespace(&ident, payload.properties.unwrap_or_default())
+        .create_namespace(&ident, properties)
         .await?;
 
     Ok(Json(res.into()))
