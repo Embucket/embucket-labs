@@ -145,7 +145,7 @@ impl DatabaseRepositoryDb {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use iceberg::spec::{NestedField, PrimitiveType, Schema, TableMetadata, Type};
+    use iceberg::spec::TableMetadata;
     use iceberg::NamespaceIdent;
     use object_store::{memory::InMemory, path::Path, ObjectStore};
     use slatedb::config::DbOptions;

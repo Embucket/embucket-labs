@@ -48,9 +48,7 @@ impl Database {
 
         let mut total_statistics = Statistics::default();
         tables.iter_mut().for_each(|t| {
-            t.storage_profile = profile.clone();
-            t.warehouse_id = warehouse_id.clone();
-            t.database_name = self.name.clone();
+            t.with_details(warehouse_id.clone(), profile.clone(), self.name.clone());
             total_statistics = total_statistics.aggregate(&t.statistics);
         });
         total_statistics.database_count = Some(1);
