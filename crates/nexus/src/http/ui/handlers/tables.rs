@@ -1,4 +1,3 @@
-use std::time::Instant;
 use crate::http::ui::models::errors::AppError;
 use crate::http::ui::models::table::{
     Table, TableCreatePayload, TableQueryRequest, TableQueryResponse,
@@ -7,6 +6,7 @@ use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
 use catalog::models::{DatabaseIdent, TableIdent, WarehouseIdent};
 use iceberg::NamespaceIdent;
+use std::time::Instant;
 use utoipa::OpenApi;
 use uuid::Uuid;
 
@@ -64,9 +64,7 @@ pub async fn get_table(
         table: table_name,
     };
     let mut table = state.get_table(&table_ident).await?;
-    table.storage_profile = profile;
-    table.warehouse_id = warehouse_id;
-    table.database_name = database_name;
+    table.with_details(warehouse_id, profile, database_name);
     Ok(Json(table))
 }
 
@@ -93,9 +91,8 @@ pub async fn create_table(
     let profile = state.control_svc.get_profile(warehouse.storage_profile_id).await?;
     let db_ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
-        namespace: NamespaceIdent::new(database_name),
+        namespace: NamespaceIdent::new(database_name.clone()),
     };
-
     let table = state
         .catalog_svc
         .create_table(&db_ident, &profile, &warehouse, payload.into())
@@ -105,8 +102,7 @@ pub async fn create_table(
             AppError::new(e, fmt.as_str())
         })?;
     let mut table: Table = table.into();
-    table.storage_profile = profile.into();
-    table.warehouse_id = warehouse_id;
+    table.with_details(warehouse_id, profile.into(), database_name);
     Ok(Json(table.into()))
 }
 
@@ -185,6 +181,6 @@ pub async fn query_table(
     Ok(Json(TableQueryResponse {
         query: request.query.clone(),
         result: result.to_string(),
-        duration_seconds: duration.as_secs_f32()
+        duration_seconds: duration.as_secs_f32(),
     }))
 }

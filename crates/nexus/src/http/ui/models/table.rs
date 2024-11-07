@@ -1,6 +1,8 @@
 use crate::http::ui::models::database::CompactionSummary;
 use crate::http::ui::models::storage_profile::StorageProfile;
+use crate::http::utils::update_properties_timestamps;
 use catalog::models as CatalogModels;
+use chrono::{DateTime, Utc};
 use iceberg::spec::TableMetadata;
 use iceberg::spec::{Schema, SortOrder, UnboundPartitionSpec};
 use serde::{Deserialize, Serialize};
@@ -40,14 +42,17 @@ pub struct TableCreatePayload {
 }
 
 impl From<TableCreatePayload> for catalog::models::TableCreation {
-    fn from(schema: TableCreatePayload) -> Self {
+    fn from(payload: TableCreatePayload) -> Self {
+        let mut properties = payload.properties.unwrap_or_default();
+        update_properties_timestamps(&mut properties);
+
         catalog::models::TableCreation {
-            name: schema.name,
-            location: schema.location,
-            schema: schema.schema.0,
-            partition_spec: schema.partition_spec.map(|x| x.0),
-            sort_order: schema.sort_order.map(|x| x.0),
-            properties: schema.properties.unwrap_or_default(),
+            name: payload.name,
+            location: payload.location,
+            schema: payload.schema.0,
+            partition_spec: payload.partition_spec.map(|x| x.0),
+            sort_order: payload.sort_order.map(|x| x.0),
+            properties,
         }
     }
 }
@@ -92,8 +97,36 @@ pub struct Table {
     pub statistics: Statistics,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compaction_summary: Option<CompactionSummary>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl Table {
+    pub fn with_details(
+        &mut self,
+        warehouse_id: Uuid,
+        profile: StorageProfile,
+        database_name: String,
+    ) {
+        self.storage_profile = profile;
+        self.warehouse_id = warehouse_id;
+        self.database_name = database_name;
+        self.properties = self.metadata.0.properties.clone();
+        self.metadata
+            .0
+            .properties
+            .get("created_at")
+            .map(|created_at| {
+                self.created_at = DateTime::from(DateTime::parse_from_rfc3339(created_at).unwrap());
+            });
+        self.metadata
+            .0
+            .properties
+            .get("updated_at")
+            .map(|updated_at| {
+                self.updated_at = DateTime::from(DateTime::parse_from_rfc3339(updated_at).unwrap());
+            });
+    }
 }
 
 impl From<catalog::models::Table> for Table {
@@ -331,7 +364,11 @@ pub struct TableQueryResponse {
 impl TableQueryResponse {
     #[allow(clippy::new_without_default)]
     pub fn new(query: String, result: String, duration_seconds: f32) -> TableQueryResponse {
-        TableQueryResponse { query, result, duration_seconds }
+        TableQueryResponse {
+            query,
+            result,
+            duration_seconds,
+        }
     }
 }
 
