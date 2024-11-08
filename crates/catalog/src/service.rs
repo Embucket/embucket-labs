@@ -7,7 +7,9 @@ use crate::models::{
 use crate::repository::{DatabaseRepository, TableRepository};
 use async_trait::async_trait;
 use bytes::Bytes;
+use chrono::Utc;
 use control_plane::models::{StorageProfile, Warehouse};
+use control_plane::service::ControlService;
 use iceberg::{spec::TableMetadataBuilder, TableCreation};
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
@@ -15,8 +17,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use uuid::Uuid;
-
-use control_plane::service::ControlService;
 
 // FIXME: Rename namespace to database: namespace concept is Iceberg REST API specific
 // Internally we have not a namespace but a database
@@ -83,6 +83,7 @@ impl CatalogImpl {
     }
 }
 
+
 #[async_trait]
 impl Catalog for CatalogImpl {
     async fn get_config(&self, ident: &WarehouseIdent, storage_profile: &StorageProfile) -> Result<Config> {
@@ -135,11 +136,14 @@ impl Catalog for CatalogImpl {
         let table_part = format!("{}/{}", warehouse.location, commit.ident.table);
         let metadata_part = format!("metadata/{}", CatalogImpl::generate_metadata_filename());
 
+        let mut properties = table.properties.clone();
+        properties.insert("updated_at".to_string(), Utc::now().to_rfc3339());
+
         let table: Table = Table {
             metadata: result.metadata,
             metadata_location: format!("{base_part}/{table_part}/{metadata_part}"),
             ident: table.ident,
-            properties: table.properties,
+            properties,
         };
         self.table_repo.put(&table).await?;
 
