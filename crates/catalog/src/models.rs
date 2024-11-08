@@ -133,6 +133,7 @@ pub struct Table {
     pub ident: TableIdent,
     pub metadata: TableMetadata,
     pub metadata_location: String,
+    pub properties: HashMap<String, String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]

@@ -19,5 +19,6 @@ serde_json = { workspace = true }
 uuid = { workspace = true }
 object_store = { workspace = true }
 url = "2.5.2"
+chrono = "0.4.38"
 
 [dev-dependencies]

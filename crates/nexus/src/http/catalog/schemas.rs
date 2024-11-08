@@ -92,13 +92,14 @@ pub struct TableCommitRequest {
     pub identifier: Option<TableIdent>,
     pub requirements: Vec<TableRequirement>,
     pub updates: Vec<TableUpdate>,
+    pub properties: Option<HashMap<String, String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TableCommitResponse {
     pub metadata_location: String,
     pub metadata: TableMetadata,
-    pub config: Option<std::collections::HashMap<String, String>>,
+    pub config: Option<HashMap<String, String>>,
 }
 
 #[derive(serde::Deserialize)]

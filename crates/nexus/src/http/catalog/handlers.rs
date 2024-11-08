@@ -1,6 +1,6 @@
 use crate::error::AppError;
 use crate::http::catalog::schemas;
-use crate::http::utils::update_properties_timestamps;
+use crate::http::utils::{get_default_properties, update_properties_timestamps};
 use crate::state::AppState;
 use axum::{extract::Path, extract::Query, extract::State, Json};
 use catalog::models::{DatabaseIdent, NamespaceIdent, TableCommit, TableIdent, WarehouseIdent};
@@ -86,7 +86,7 @@ pub async fn create_table(
         namespace: NamespaceIdent::new(namespace_id),
     };
     let table = catalog
-        .create_table(&ident, &sp, &wh, payload.into())
+        .create_table(&ident, &sp, &wh, payload.into(), Option::from(get_default_properties()))
         .await?;
 
     Ok(Json(table.into()))

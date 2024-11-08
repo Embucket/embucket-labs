@@ -7,7 +7,9 @@ use crate::models::{
 use crate::repository::{DatabaseRepository, TableRepository};
 use async_trait::async_trait;
 use bytes::Bytes;
+use chrono::Utc;
 use control_plane::models::{StorageProfile, Warehouse};
+use control_plane::service::ControlService;
 use iceberg::{spec::TableMetadataBuilder, TableCreation};
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
@@ -15,8 +17,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use uuid::Uuid;
-
-use control_plane::service::ControlService;
 
 // FIXME: Rename namespace to database: namespace concept is Iceberg REST API specific
 // Internally we have not a namespace but a database
@@ -51,6 +51,7 @@ pub trait Catalog: Debug + Sync + Send {
         storage_profile: &StorageProfile,
         warehouse: &Warehouse,
         creation: TableCreation,
+        properties: Option<HashMap<String, String>>,
     ) -> Result<Table>;
     async fn load_table(&self, table: &TableIdent) -> Result<Table>;
     async fn drop_table(&self, table: &TableIdent) -> Result<()>;
@@ -81,6 +82,7 @@ impl CatalogImpl {
         format!("{}.metadata.json", Uuid::new_v4().to_string())
     }
 }
+
 
 #[async_trait]
 impl Catalog for CatalogImpl {
@@ -134,10 +136,14 @@ impl Catalog for CatalogImpl {
         let table_part = format!("{}/{}", warehouse.location, commit.ident.table);
         let metadata_part = format!("metadata/{}", CatalogImpl::generate_metadata_filename());
 
+        let mut properties = table.properties.clone();
+        properties.insert("updated_at".to_string(), Utc::now().to_rfc3339());
+
         let table: Table = Table {
             metadata: result.metadata,
             metadata_location: format!("{base_part}/{table_part}/{metadata_part}"),
             ident: table.ident,
+            properties,
         };
         self.table_repo.put(&table).await?;
 
@@ -239,6 +245,7 @@ impl Catalog for CatalogImpl {
         storage_profile: &StorageProfile,
         warehouse: &Warehouse,
         table_creation: TableCreation,
+        properties: Option<HashMap<String, String>>,
     ) -> Result<Table> {
         // Check if namespace exists
         _ = self.get_namespace(namespace).await?;
@@ -281,6 +288,7 @@ impl Catalog for CatalogImpl {
                 database: namespace.clone(),
                 table: table_name.clone(),
             },
+            properties: properties.unwrap_or_default(),
         };
         self.table_repo.put(&table).await?;
 
@@ -802,6 +810,7 @@ mod tests {
             ident: res.unwrap().ident,
             requirements: vec![],
             updates: vec![update],
+            properties: None,
         };
 
         let res = service.update_table(commit).await;
