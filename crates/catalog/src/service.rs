@@ -51,6 +51,7 @@ pub trait Catalog: Debug + Sync + Send {
         storage_profile: &StorageProfile,
         warehouse: &Warehouse,
         creation: TableCreation,
+        properties: Option<HashMap<String, String>>,
     ) -> Result<Table>;
     async fn load_table(&self, table: &TableIdent) -> Result<Table>;
     async fn drop_table(&self, table: &TableIdent) -> Result<()>;
@@ -138,6 +139,7 @@ impl Catalog for CatalogImpl {
             metadata: result.metadata,
             metadata_location: format!("{base_part}/{table_part}/{metadata_part}"),
             ident: table.ident,
+            properties: table.properties,
         };
         self.table_repo.put(&table).await?;
 
@@ -239,6 +241,7 @@ impl Catalog for CatalogImpl {
         storage_profile: &StorageProfile,
         warehouse: &Warehouse,
         table_creation: TableCreation,
+        properties: Option<HashMap<String, String>>,
     ) -> Result<Table> {
         // Check if namespace exists
         _ = self.get_namespace(namespace).await?;
@@ -281,6 +284,7 @@ impl Catalog for CatalogImpl {
                 database: namespace.clone(),
                 table: table_name.clone(),
             },
+            properties: properties.unwrap_or_default(),
         };
         self.table_repo.put(&table).await?;
 
@@ -802,6 +806,7 @@ mod tests {
             ident: res.unwrap().ident,
             requirements: vec![],
             updates: vec![update],
+            properties: None,
         };
 
         let res = service.update_table(commit).await;

@@ -7,3 +7,9 @@ pub fn update_properties_timestamps(properties: &mut HashMap<String, String>) {
     properties.insert("created_at".to_string(), utc_now_str.clone());
     properties.insert("updated_at".to_string(), utc_now_str);
 }
+
+pub fn get_default_properties() -> HashMap<String, String> {
+    let mut properties = HashMap::new();
+    update_properties_timestamps(&mut properties);
+    properties
+}

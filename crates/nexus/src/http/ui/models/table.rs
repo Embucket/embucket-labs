@@ -1,6 +1,5 @@
 use crate::http::ui::models::database::CompactionSummary;
 use crate::http::ui::models::storage_profile::StorageProfile;
-use crate::http::utils::update_properties_timestamps;
 use catalog::models as CatalogModels;
 use chrono::{DateTime, Utc};
 use iceberg::spec::TableMetadata;
@@ -43,16 +42,13 @@ pub struct TableCreatePayload {
 
 impl From<TableCreatePayload> for catalog::models::TableCreation {
     fn from(payload: TableCreatePayload) -> Self {
-        let mut properties = payload.properties.unwrap_or_default();
-        update_properties_timestamps(&mut properties);
-
         catalog::models::TableCreation {
             name: payload.name,
             location: payload.location,
             schema: payload.schema.0,
             partition_spec: payload.partition_spec.map(|x| x.0),
             sort_order: payload.sort_order.map(|x| x.0),
-            properties,
+            properties: payload.properties.unwrap_or_default(),
         }
     }
 }
@@ -62,6 +58,7 @@ impl ToSchema for TableCreatePayload {
         std::borrow::Cow::Borrowed("TableCreatePayload")
     }
 }
+
 impl PartialSchema for TableCreatePayload {
     fn schema() -> RefOr<utoipa::openapi::Schema> {
         RefOr::from(utoipa::openapi::Schema::Object(
@@ -111,21 +108,13 @@ impl Table {
         self.storage_profile = profile;
         self.warehouse_id = warehouse_id;
         self.database_name = database_name;
-        self.properties = self.metadata.0.properties.clone();
-        self.metadata
-            .0
-            .properties
-            .get("created_at")
-            .map(|created_at| {
-                self.created_at = DateTime::from(DateTime::parse_from_rfc3339(created_at).unwrap());
-            });
-        self.metadata
-            .0
-            .properties
-            .get("updated_at")
-            .map(|updated_at| {
-                self.updated_at = DateTime::from(DateTime::parse_from_rfc3339(updated_at).unwrap());
-            });
+        self.properties = self.properties.clone();
+        self.properties.get("created_at").map(|created_at| {
+            self.created_at = DateTime::from(DateTime::parse_from_rfc3339(created_at).unwrap());
+        });
+        self.properties.get("updated_at").map(|updated_at| {
+            self.updated_at = DateTime::from(DateTime::parse_from_rfc3339(updated_at).unwrap());
+        });
     }
 }
 
@@ -137,7 +126,7 @@ impl From<catalog::models::Table> for Table {
             storage_profile: Default::default(),
             database_name: Default::default(),
             warehouse_id: Default::default(),
-            properties: Default::default(),
+            properties: table.properties,
             metadata: TableMetadataWrapper(table.metadata.clone()),
             metadata_location: table.metadata_location,
             created_at: Default::default(),
