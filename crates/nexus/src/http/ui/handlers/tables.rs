@@ -21,6 +21,8 @@ use uuid::Uuid;
         delete_table,
         get_table,
         query_table,
+        get_settings,
+        update_table_properties
     ),
     components(
         schemas(
