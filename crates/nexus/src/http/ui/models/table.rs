@@ -155,7 +155,7 @@ impl PartialSchema for Table {
                 .property("name", String::schema())
                 .property(
                     "storageProfile",
-                    Ref::new("#/components/schemas/storageProfile"),
+                    Ref::new("#/components/schemas/StorageProfile"),
                 )
                 .property("databaseName", String::schema())
                 .property(
