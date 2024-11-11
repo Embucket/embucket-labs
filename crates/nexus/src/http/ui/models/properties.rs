@@ -62,7 +62,7 @@ impl TableUpdatePropertiesPayload {
         match &self.properties {
             Properties::SnapshotsManagement(p) => p.to_commit(ident),
             Properties::AutomaticCompaction(p) => p.to_commit(ident),
-            Properties::LifecyclePolicies(p) => p.to_commit(ident),
+            Properties::LifecyclePolicies(p) => p.to_commit(ident, table.metadata.0.properties),
             Properties::UserManaged(p) => p.to_commit(table, ident),
         }
     }
@@ -78,6 +78,7 @@ pub enum Properties {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct SnapshotsManagement {
     /// A positive number for the minimum number of snapshots to keep in a branch while expiring snapshots.
     /// Defaults to table property history.expire.min-snapshots-to-keep.
@@ -138,8 +139,9 @@ impl SnapshotsManagement {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct AutomaticCompaction {
-    enabled: Option<i32>,
+    enabled: Option<bool>,
 }
 
 impl AutomaticCompaction {
@@ -167,18 +169,65 @@ impl AutomaticCompaction {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct LifecyclePolicies {
-    enabled: Option<i32>,
+    enabled: Option<bool>,
+    // This column indicates when a given record originated
+    data_age_column: Option<String>,
+    // Row level policy
+    max_data_age_ms: Option<i64>,
+    // Column level policy
+    columns_max_data_age_ms: Option<Vec<ColumnLevelPolicy>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ColumnLevelPolicy {
+    column_name: String,
+    max_data_age_ms: i64,
+    transform: ColumnTransform,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+pub enum ColumnTransform {
+    Nullify,
 }
 
 impl LifecyclePolicies {
-    fn to_commit(&self, ident: &TableIdent) -> TableCommit {
-        let mut properties = HashMap::new();
+    fn to_commit(&self, ident: &TableIdent, properties: HashMap<String, String>) -> TableCommit {
+        let mut properties_to_add = HashMap::new();
         let mut properties_to_remove = vec![];
+
+        for (k, v) in properties.iter() {
+            if k.starts_with("lifecycle.") {
+                properties_to_remove.push(k.clone());
+            }
+        }
+
         if let Some(enabled) = self.enabled {
-            properties.insert("lifecycle.enabled".to_string(), enabled.to_string());
-        } else {
-            properties_to_remove.push("lifecycle.enabled".to_string());
+            properties_to_add.insert("lifecycle.enabled".to_string(), enabled.to_string());
+            if let Some(data_age_column) = &self.data_age_column {
+                properties_to_add.insert("lifecycle.data-age-column".to_string(), data_age_column.clone());
+            }
+
+            if let Some(max_data_age_ms) = self.max_data_age_ms {
+                properties_to_add.insert("lifecycle.max-data-age-ms".to_string(), max_data_age_ms.to_string());
+            }
+
+            if let Some(columns_max_data_age_ms) = &self.columns_max_data_age_ms {
+                for column_policy in columns_max_data_age_ms {
+                    properties_to_add.insert(
+                        format!("lifecycle.columns.{}.max-data-age-ms", column_policy.column_name),
+                        column_policy.max_data_age_ms.to_string(),
+                    );
+                    properties_to_add.insert(
+                        format!("lifecycle.columns.{}.transform", column_policy.column_name),
+                        match column_policy.transform {
+                            ColumnTransform::Nullify => "nullify".to_string(),
+                        },
+                    );
+                }
+            }
         }
         TableCommit {
             ident: ident.clone(),
@@ -188,7 +237,7 @@ impl LifecyclePolicies {
                     removals: properties_to_remove,
                 },
                 TableUpdate::SetProperties {
-                    updates: properties,
+                    updates: properties_to_add,
                 },
             ],
         }
@@ -204,7 +253,9 @@ impl UserManaged {
     fn to_commit(&self, table: Table, ident: &TableIdent) -> TableCommit {
         // Find the properties that are managed by the user with prefix user_managed from the table
         let user_managed_prefix = "user_managed.";
+
         let properties_to_remove = table
+            .metadata.0
             .properties
             .iter()
             .filter(|(k, v)| k.starts_with(user_managed_prefix))
