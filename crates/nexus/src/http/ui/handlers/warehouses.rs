@@ -122,6 +122,11 @@ pub async fn create_warehouse(
 ) -> Result<Json<Warehouse>, AppError> {
     let request: WarehouseCreateRequest = payload.into();
     let profile = state.get_profile_by_id(request.storage_profile_id).await?;
+    let warehouses = state.control_svc.list_warehouses().await?;
+
+    if warehouses.iter().any(|w| w.name == request.name) {
+        return Err(AppError::AlreadyExists(format!("warehouse with name {} already exists", request.name)));
+    }
     let warehouse: WarehouseModel = state
         .control_svc
         .create_warehouse(&request)

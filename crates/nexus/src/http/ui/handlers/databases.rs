@@ -51,13 +51,24 @@ pub async fn create_database(
     Json(payload): Json<CreateDatabasePayload>,
 ) -> Result<Json<Database>, AppError> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
+    let databases = state.list_databases_models(warehouse_id).await?;
+    let name = payload.name;
+    let ident = DatabaseIdent {
+        warehouse: WarehouseIdent::new(warehouse.id),
+        namespace: NamespaceIdent::new(name.clone()),
+    };
+
+    if databases
+        .iter()
+        .any(|db| db.ident.namespace == ident.namespace)
+    {
+        return Err(AppError::AlreadyExists(format!("database with name {} already exists", name)));
+    }
+
     let profile = state
         .get_profile_by_id(warehouse.storage_profile_id)
         .await?;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(warehouse.id),
-        namespace: NamespaceIdent::new(payload.name),
-    };
+
     let mut properties = payload.properties.unwrap_or_default();
     update_properties_timestamps(&mut properties);
 
