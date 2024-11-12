@@ -153,7 +153,7 @@ impl StorageProfile {
 
     pub fn get_base_url(&self) -> String {
         dotenv().ok();
-        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD").ok().unwrap()
+        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD").unwrap_or("true".to_string())
             .parse::<bool>()
             .expect
             ("Failed to parse \
