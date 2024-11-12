@@ -1,6 +1,7 @@
 use crate::http::ui::models::storage_profile::StorageProfile;
 use crate::http::ui::models::table::{Statistics, Table};
 use catalog::models;
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use utoipa::ToSchema;
@@ -37,8 +38,8 @@ pub struct Database {
     pub statistics: Statistics,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compaction_summary: Option<CompactionSummary>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: DateTime<chrono::Utc>,
+    pub updated_at: DateTime<chrono::Utc>,
 }
 
 impl Database {
@@ -47,9 +48,7 @@ impl Database {
 
         let mut total_statistics = Statistics::default();
         tables.iter_mut().for_each(|t| {
-            t.storage_profile = profile.clone();
-            t.warehouse_id = warehouse_id.clone();
-            t.database_name = self.name.clone();
+            t.with_details(warehouse_id.clone(), profile.clone(), self.name.clone());
             total_statistics = total_statistics.aggregate(&t.statistics);
         });
         total_statistics.database_count = Some(1);
@@ -57,6 +56,13 @@ impl Database {
         self.statistics = total_statistics;
         self.warehouse_id = warehouse_id;
         self.tables = tables;
+
+        self.properties.get("created_at").map(|created_at| {
+            self.created_at = DateTime::from(chrono::DateTime::parse_from_rfc3339(created_at).unwrap());
+        });
+        self.properties.get("updated_at").map(|updated_at| {
+            self.updated_at = DateTime::from(chrono::DateTime::parse_from_rfc3339(updated_at).unwrap());
+        });
     }
 }
 

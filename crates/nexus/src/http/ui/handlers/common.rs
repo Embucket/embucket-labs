@@ -4,7 +4,7 @@ use crate::http::ui::models::storage_profile::StorageProfile;
 use crate::http::ui::models::table::{Statistics, Table};
 use crate::http::ui::models::warehouse::Warehouse;
 use crate::state::AppState;
-use catalog::models::{DatabaseIdent, TableIdent, WarehouseIdent};
+use catalog::models::{Database as DatabaseModel, DatabaseIdent, TableIdent, WarehouseIdent};
 use control_plane::models::Warehouse as WarehouseModel;
 use uuid::Uuid;
 
@@ -26,6 +26,7 @@ impl AppState {
             .await
             .map(|warehouse| warehouse.into())
     }
+
 
     pub async fn get_profile_by_id(
         &self,
@@ -85,6 +86,22 @@ impl AppState {
             result.push(warehouse)
         }
         Ok(result)
+    }
+
+    pub async fn list_databases_models(
+        &self,
+        warehouse_id: Uuid,
+    ) -> Result<Vec<DatabaseModel>, AppError> {
+        self.catalog_svc
+            .list_namespaces(&WarehouseIdent::new(warehouse_id), None)
+            .await
+            .map_err(|e| {
+                let fmt = format!(
+                    "{}: failed to get warehouse databases with wh id {}",
+                    e, warehouse_id
+                );
+                AppError::new(e, fmt.as_str())
+            })
     }
     pub async fn list_databases(&self, warehouse_id: Uuid, profile: StorageProfile) -> Result<Vec<Database>, AppError> {
         let ident = &WarehouseIdent::new(warehouse_id);

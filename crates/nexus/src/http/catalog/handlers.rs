@@ -1,11 +1,13 @@
+use crate::error::AppError;
 use crate::http::catalog::schemas;
+use crate::http::utils::{get_default_properties, update_properties_timestamps};
+use crate::state::AppState;
 use axum::{extract::Path, extract::Query, extract::State, Json};
 use catalog::models::{DatabaseIdent, NamespaceIdent, TableCommit, TableIdent, WarehouseIdent};
 use std::result::Result;
 use uuid::Uuid;
+
 use control_plane::models::{StorageProfile, Warehouse};
-use crate::error::AppError;
-use crate::state::AppState;
 
 pub async fn create_namespace(
     State(state): State<AppState>,
@@ -18,9 +20,10 @@ pub async fn create_namespace(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: payload.namespace.clone(),
     };
-    let res = catalog
-        .create_namespace(&ident, payload.properties.unwrap_or_default())
-        .await?;
+    let mut properties = payload.properties.unwrap_or_default();
+    update_properties_timestamps(&mut properties);
+
+    let res = catalog.create_namespace(&ident, properties).await?;
 
     Ok(Json(res.into()))
 }
@@ -84,7 +87,9 @@ pub async fn create_table(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::new(namespace_id),
     };
-    let table = catalog.create_table(&ident, &sp, &wh, payload.into()).await?;
+    let table = catalog
+        .create_table(&ident, &sp, &wh, payload.into(), Option::from(get_default_properties()))
+        .await?;
 
     Ok(Json(table.into()))
 }

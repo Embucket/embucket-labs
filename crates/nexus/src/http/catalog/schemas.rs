@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-
+use crate::http::utils::update_properties_timestamps;
 pub use catalog::models::Config;
 use catalog::models::Table;
 use iceberg::spec::{Schema, SortOrder, TableMetadata, UnboundPartitionSpec};
 pub use iceberg::NamespaceIdent;
 pub use iceberg::{TableIdent, TableRequirement, TableUpdate};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ pub struct TableResult {
     /// May be null if the table is staged as part of a transaction
     pub metadata_location: Option<String>,
     pub metadata: TableMetadata,
-    pub config: Option<std::collections::HashMap<String, String>>,
+    pub config: Option<HashMap<String, String>>,
 }
 
 impl From<Table> for TableResult {
@@ -53,18 +53,21 @@ pub struct TableCreateRequest {
     pub partition_spec: Option<UnboundPartitionSpec>,
     pub write_order: Option<SortOrder>,
     pub stage_create: Option<bool>,
-    pub properties: Option<std::collections::HashMap<String, String>>,
+    pub properties: Option<HashMap<String, String>>,
 }
 
 impl From<TableCreateRequest> for catalog::models::TableCreation {
     fn from(schema: TableCreateRequest) -> Self {
+        let mut properties = schema.properties.unwrap_or_default();
+        update_properties_timestamps(&mut properties);
+
         catalog::models::TableCreation {
             name: schema.name,
             location: schema.location,
             schema: schema.schema,
             partition_spec: schema.partition_spec.map(std::convert::Into::into),
             sort_order: schema.write_order,
-            properties: schema.properties.unwrap_or_default(),
+            properties,
         }
     }
 }
@@ -90,13 +93,14 @@ pub struct TableCommitRequest {
     pub identifier: Option<TableIdent>,
     pub requirements: Vec<TableRequirement>,
     pub updates: Vec<TableUpdate>,
+    pub properties: Option<HashMap<String, String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TableCommitResponse {
     pub metadata_location: String,
     pub metadata: TableMetadata,
-    pub config: Option<std::collections::HashMap<String, String>>,
+    pub config: Option<HashMap<String, String>>,
 }
 
 #[derive(serde::Deserialize)]

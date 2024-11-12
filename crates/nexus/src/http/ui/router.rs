@@ -3,7 +3,9 @@ use crate::http::ui::handlers::databases::{create_database, delete_database, get
 use crate::http::ui::handlers::profiles::{
     create_storage_profile, delete_storage_profile, get_storage_profile, list_storage_profiles,
 };
-use crate::http::ui::handlers::tables::{create_table, delete_table, get_table, query_table, upload_data_to_table};
+use crate::http::ui::handlers::tables::{
+    create_table, delete_table, get_settings, get_table, query_table, update_table_properties,
+};
 use crate::http::ui::handlers::warehouses::{
     create_warehouse, delete_warehouse, get_warehouse, list_warehouses, navigation,
 };
@@ -14,22 +16,17 @@ use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
-#[openapi(
-    info(
-        title = "UI Router API",
-        description = "API documentation for the UI endpoints.",
-        version = "1.0.0",
-        license(
-            name = "Apache 2.0",
-            url = "https://www.apache.org/licenses/LICENSE-2.0.html"
-        ),
-        contact(
-            name = "Embucket, Inc.",
-            url = "https://embucket.com"
-        ),
-        description = "Defines the specification for the UI Catalog API",
-    )
-)]
+#[openapi(info(
+    title = "UI Router API",
+    description = "API documentation for the UI endpoints.",
+    version = "1.0.0",
+    license(
+        name = "Apache 2.0",
+        url = "https://www.apache.org/licenses/LICENSE-2.0.html"
+    ),
+    contact(name = "Embucket, Inc.", url = "https://embucket.com"),
+    description = "Defines the specification for the UI Catalog API",
+))]
 pub struct ApiDoc;
 
 pub fn create_router() -> Router<AppState> {
@@ -56,6 +53,10 @@ pub fn create_router() -> Router<AppState> {
         .route(
             "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName/query",
             post(query_table),
+        )
+        .route(
+            "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName/settings",
+            get(get_settings).post(update_table_properties),
         )
         .route(
             "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName/upload",

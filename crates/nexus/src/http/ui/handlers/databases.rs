@@ -1,5 +1,6 @@
 use crate::http::ui::models::database::{CreateDatabasePayload, Database};
 use crate::http::ui::models::errors::AppError;
+use crate::http::utils::update_properties_timestamps;
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
 use catalog::models::{DatabaseIdent, WarehouseIdent};
@@ -50,24 +51,38 @@ pub async fn create_database(
     Json(payload): Json<CreateDatabasePayload>,
 ) -> Result<Json<Database>, AppError> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
+    let databases = state.list_databases_models(warehouse_id).await?;
+    let name = payload.name;
+    let ident = DatabaseIdent {
+        warehouse: WarehouseIdent::new(warehouse.id),
+        namespace: NamespaceIdent::new(name.clone()),
+    };
+
+    if databases
+        .iter()
+        .any(|db| db.ident.namespace == ident.namespace)
+    {
+        return Err(AppError::AlreadyExists(format!("database with name {} already exists", name)));
+    }
+
     let profile = state
         .get_profile_by_id(warehouse.storage_profile_id)
         .await?;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(warehouse.id),
-        namespace: NamespaceIdent::new(payload.name),
-    };
+
+    let mut properties = payload.properties.unwrap_or_default();
+    update_properties_timestamps(&mut properties);
+
     let database = state
         .catalog_svc
-        .create_namespace(&ident, payload.properties.unwrap_or_default())
+        .create_namespace(&ident, properties)
         .await
         .map_err(|e| {
             let fmt = format!("{}: failed to create database with ident {}", e, &ident);
             AppError::new(e, fmt.as_str())
         })?;
     let mut database: Database = database.into();
-    database.storage_profile = profile;
-    database.warehouse_id = warehouse_id;
+    database.with_details(warehouse_id, profile, vec![]);
+
     Ok(Json(database))
 }
 

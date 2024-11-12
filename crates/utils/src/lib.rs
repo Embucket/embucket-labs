@@ -62,9 +62,10 @@ impl Db {
     }
 
     pub async fn append(&self, key: &str, value: String) -> Result<()> {
-        // TODO: check for uniqueness (use Set?)
         self.modify(key, |all_keys: &mut Vec<String>| {
-            all_keys.push(value.clone());
+            if !all_keys.contains(&value) {
+                all_keys.push(value.clone());
+            }
         })
             .await?;
         Ok(())
@@ -80,7 +81,7 @@ impl Db {
 
     // function that takes closure as argument
     // it reads value from the db, deserialize it and pass it to the closure
-    // it then gets value from the clousre, serialize it and write it back to the db
+    // it then gets value from the closure, serialize it and write it back to the db
     pub async fn modify<T>(&self, key: &str, f: impl Fn(&mut T)) -> Result<()>
     where
         T: serde::Serialize + DeserializeOwned + Default,
