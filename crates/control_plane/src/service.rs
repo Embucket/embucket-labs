@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::error::{extract_error_message, Error, Result};
 use crate::models::{Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
@@ -13,6 +14,10 @@ use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
 use std::sync::Arc;
 use uuid::Uuid;
+use bytes::Bytes;
+use icelake::TableIdentifier;
+use object_store::{ObjectStore, PutPayload};
+use object_store::path::Path;
 
 #[async_trait]
 pub trait ControlService: Send + Sync {
@@ -44,6 +49,15 @@ pub trait ControlService: Send + Sync {
         table_name: &String,
         query: &String,
     ) -> Result<String>;
+
+    async fn upload_data_to_table(
+        &self,
+        warehouse_id: &Uuid,
+        database_name: &String,
+        table_name: &String,
+        data: Bytes,
+        file_name: String,
+    ) -> Result<()>;
 }
 
 pub struct ControlServiceImpl {
@@ -195,6 +209,122 @@ impl ControlService for ControlServiceImpl {
         let buf = writer.into_inner();
 
         Ok(String::from_utf8(buf).unwrap())
+    }
+
+    async fn upload_data_to_table(&self, warehouse_id: &Uuid, database_name: &String, table_name: &String, data:
+    Bytes, file_name: String) -> Result<()> {
+        println!("{:?}", warehouse_id);
+
+        let warehouse = self.get_warehouse(*warehouse_id).await?;
+        let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
+        let object_store = storage_profile.get_object_store();
+        let unique_file_id = Uuid::new_v4().to_string();
+
+        // this path also computes inside catalog service (create_table)
+        // TODO need to refactor the code so this path calculation is in one place
+        let table_part = format!("{}/{}", warehouse.location, table_name);
+        let path_string = format!("{table_part}/tmp/{unique_file_id}/{file_name}");
+
+        let path = Path::from(path_string.clone());
+        object_store.put(&path, PutPayload::from(data)).await.unwrap();
+
+        let ctx = SessionContext::new();
+        let df = ctx.read_csv(path_string, CsvReadOptions::new()).await?;
+        let data = df.collect().await?;
+
+        // Commented code is writing with iceberg-rust-jankaul
+        // Let it sit here just in case
+        //////////////////////////////////////
+
+        // let config = {
+        //     let mut config = Configuration::new();
+        //     config.base_path = "http://0.0.0.0:3000/catalog".to_string();
+        //     config
+        // };
+        // let rest_client = RestCatalog::new(
+        //     Some(warehouse_id.to_string().as_str()),
+        //     config,
+        //     storage_profile.get_object_store_builder(),
+        // );
+        // let catalog = IcebergCatalog::new(Arc::new(rest_client), None)
+        //     .await
+        //     .unwrap();
+        //
+        // let ctx = SessionContext::new();
+        // ctx.register_catalog("catalog", Arc::new(catalog));
+        //
+        // let provider = ctx.catalog("catalog").unwrap();
+        //
+        // let tables = provider.schema(database_name).unwrap().table_names();
+        // println!("{tables:?}");
+        // let input = ctx.read_batches(data).unwrap();
+        // input.write_table(format!("catalog.`{database_name}`.`{table_name}`").as_str(),
+        //                   DataFrameWriteOptions::default()).await.unwrap();
+
+        //////////////////////////////////////
+
+        let config = {
+            HashMap::from([
+                ("iceberg.catalog.type".to_string(), "rest".to_string()),
+                (
+                    "iceberg.catalog.demo.warehouse".to_string(),
+                    warehouse_id.to_string(),
+                ),
+                ("iceberg.catalog.name".to_string(), "demo".to_string()),
+                (
+                    "iceberg.catalog.demo.uri".to_string(),
+                    "http://0.0.0.0:3000/catalog".to_string(),
+                ),
+                (
+                    "iceberg.table.io.region".to_string(),
+                    "us-east-2".to_string(),
+                ),
+                (
+                    "iceberg.table.io.endpoint".to_string(),
+                    "http://0.0.0.0:3000/catalog".to_string(),
+                ),
+                // (
+                //     "iceberg.table.io.bucket".to_string(),
+                //     "examples".to_string(),
+                // ),
+                // (
+                //     "iceberg.table.io.access_key_id".to_string(),
+                //     "minioadmin".to_string(),
+                // ),
+                // (
+                //     "iceberg.table.io.secret_access_key".to_string(),
+                //     "minioadmin".to_string(),
+                // ),
+            ])
+        };
+        let catalog = icelake::catalog::load_catalog(&config).await.unwrap();
+
+        let table_ident =
+            TableIdentifier::new(vec![database_name, table_name]).unwrap();
+        let mut table = catalog.load_table(&table_ident).await.unwrap();
+
+        let builder = table
+            .writer_builder()
+            .unwrap()
+            .rolling_writer_builder(None)
+            .unwrap();
+        let mut writer = table
+            .writer_builder()
+            .unwrap()
+            .build_append_only_writer(builder)
+            .await
+            .unwrap();
+
+        for r in data{
+            writer.write(&r).await?;
+        }
+
+        let res: Vec<icelake::types::DataFile> = writer.close().await?;
+        let mut txn = icelake::transaction::Transaction::new(&mut table);
+        txn.append_data_file(res);
+        txn.commit().await.unwrap();
+
+        Ok(())
     }
 }
 

@@ -99,7 +99,7 @@ mod tests {
     use control_plane::service::ControlServiceImpl;
     use http_body_util::BodyExt;
     // for `collect`
-    use object_store::{memory::InMemory, path::Path, ObjectStore};
+    use object_store_for_slatedb::{memory::InMemory, path::Path, ObjectStore};
     use serde_json::json;
     use slatedb::config::DbOptions;
     use slatedb::db::Db as SlateDb;

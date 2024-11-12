@@ -3,7 +3,7 @@ use axum::{extract::Path, extract::Query, extract::State, Json};
 use catalog::models::{DatabaseIdent, NamespaceIdent, TableCommit, TableIdent, WarehouseIdent};
 use std::result::Result;
 use uuid::Uuid;
-
+use control_plane::models::{StorageProfile, Warehouse};
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -175,12 +175,16 @@ pub async fn get_config(
     State(state): State<AppState>,
     Query(params): Query<schemas::GetConfigQueryParams>,
 ) -> Result<Json<schemas::Config>, AppError> {
-    let id = params.warehouse;
-    let wh = state.control_svc.get_warehouse(id).await?;
-    let sp = state.control_svc.get_profile(wh.storage_profile_id).await?;
-    let catalog = state.catalog_svc;
-    let ident = WarehouseIdent::new(wh.id);
-    let config = catalog.get_config(&ident, &sp).await?;
+    let wh_id = params.warehouse;
+    let mut ident : Option<WarehouseIdent> = None;
+    let mut sp: Option<StorageProfile> = None;
+    if let Some(value) = wh_id {
+        let wh = state.control_svc.get_warehouse(value).await?;
+        sp = Some(state.control_svc.get_profile(wh.storage_profile_id).await?);
+        ident = Some(WarehouseIdent::new(wh.id));
+    }
+
+    let config = state.catalog_svc.get_config(ident, sp).await?;
 
     Ok(Json(config.into()))
 }

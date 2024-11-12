@@ -4,7 +4,7 @@ use crate::http::ui::models::table::{
     Table, TableCreatePayload, TableQueryRequest, TableQueryResponse,
 };
 use crate::state::AppState;
-use axum::{extract::Path, extract::State, Json};
+use axum::{extract::Path, extract::State, extract::Multipart, Json};
 use catalog::models::{DatabaseIdent, TableIdent, WarehouseIdent};
 use iceberg::NamespaceIdent;
 use utoipa::OpenApi;
@@ -151,7 +151,7 @@ pub async fn delete_table(
 #[utoipa::path(
     post,
     path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/query",
-    request_body = TableQueryRequest,
+    // request_body = TableQueryRequest,
     operation_id = "tableQuery",
     tags = ["tables"],
     params(
@@ -165,7 +165,6 @@ pub async fn delete_table(
         (status = 500, description = "Internal server error", body = AppError)
     )
 )]
-// Add time sql took
 pub async fn query_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
@@ -187,4 +186,44 @@ pub async fn query_table(
         result: result.to_string(),
         duration_seconds: duration.as_secs_f32()
     }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/upload",
+    operation_id = "tableUpload",
+    tags = ["tables"],
+    params(
+        ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
+        ("databaseName" = Uuid, Path, description = "Database Name"),
+        ("tableName" = Uuid, Path, description = "Table name")
+    ),
+    responses(
+        (status = 200, description = "Returns result of the query", body = TableQueryResponse),
+        (status = 422, description = "Unprocessable entity", body = AppError),
+        (status = 500, description = "Internal server error", body = AppError)
+    )
+)]
+pub async fn upload_data_to_table(
+    State(state): State<AppState>,
+    Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
+    mut multipart: Multipart
+) -> Result<(), AppError> {
+    while let Some(field) = multipart
+        .next_field().await.expect("Failed to get next field!")
+    {
+        if field.name().unwrap() != "upload_file" {
+            continue;
+        }
+        let file_name = field.file_name().unwrap().to_string();
+        let data = field.bytes().await.unwrap();
+
+        let result = state.control_svc
+            .upload_data_to_table(&warehouse_id, &database_name, &table_name, data, file_name)
+            .await.map_err(|e| {
+            let fmt = format!("{}", e);
+            AppError::new(e, fmt.as_str())
+        })?;
+    }
+    Ok(())
 }

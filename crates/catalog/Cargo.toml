@@ -18,6 +18,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
 object_store = { workspace = true }
+object_store_for_slatedb = { workspace = true }
 url = "2.5.2"
 
 [dev-dependencies]

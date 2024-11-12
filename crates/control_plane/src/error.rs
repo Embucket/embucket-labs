@@ -22,6 +22,9 @@ pub enum Error {
 
     #[error("datafusion error: {0}")]
     DataFusionError(String),
+
+    #[error("datafusion error: {0}")]
+    IceLakeError(String),
 }
 
 impl From<utils::Error> for Error {
@@ -55,5 +58,11 @@ pub fn extract_error_message<T>(e: &RusotoError<T>) -> Option<String> {
 impl From<datafusion::error::DataFusionError> for Error {
     fn from(err: datafusion::error::DataFusionError) -> Self {
         Error::DataFusionError(err.to_string())
+    }
+}
+
+impl From<icelake::Error> for Error {
+    fn from(err: icelake::Error) -> Self {
+        Error::IceLakeError(err.to_string())
     }
 }

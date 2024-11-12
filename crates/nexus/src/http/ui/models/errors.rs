@@ -74,7 +74,8 @@ impl From<ControlError> for AppError {
             ControlError::InvalidInput(e) => AppError::BadRequest(e.to_string()),
             ControlError::ErrNotFound => AppError::NotFound(e.to_string()),
             ControlError::InvalidCredentials(e) => AppError::InvalidCredentials(e.to_string()),
-            ControlError::DataFusionError(e) => AppError::UnprocessableEntity(e.to_string())
+            ControlError::DataFusionError(e) => AppError::UnprocessableEntity(e.to_string()),
+            ControlError::IceLakeError(e) => AppError::UnprocessableEntity(e.to_string()),
         }
     }
 }

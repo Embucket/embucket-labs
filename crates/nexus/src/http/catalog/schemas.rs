@@ -27,6 +27,7 @@ impl From<catalog::models::Database> for Namespace {
 
 /// Result used when a table is successfully loaded.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct TableResult {
     /// May be null if the table is staged as part of a transaction
     pub metadata_location: Option<String>,
@@ -100,5 +101,5 @@ pub struct TableCommitResponse {
 
 #[derive(serde::Deserialize)]
 pub struct GetConfigQueryParams {
-    pub warehouse: Uuid,
+    pub warehouse: Option<Uuid>,
 }
