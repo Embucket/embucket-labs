@@ -4,7 +4,7 @@ use crate::http::ui::handlers::profiles::{
     create_storage_profile, delete_storage_profile, get_storage_profile, list_storage_profiles,
 };
 use crate::http::ui::handlers::tables::{
-    create_table, delete_table, get_settings, get_table, query_table, update_table_properties,
+    create_table, delete_table, get_settings, get_table, query_table, update_table_properties, upload_data_to_table
 };
 use crate::http::ui::handlers::warehouses::{
     create_warehouse, delete_warehouse, get_warehouse, list_warehouses, navigation,
@@ -57,6 +57,10 @@ pub fn create_router() -> Router<AppState> {
         .route(
             "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName/settings",
             get(get_settings).post(update_table_properties),
+        )
+        .route(
+            "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName/upload",
+            post(upload_data_to_table),
         )
         .route(
             "/storage-profiles",

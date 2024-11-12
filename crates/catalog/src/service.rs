@@ -16,6 +16,7 @@ use object_store::{ObjectStore, PutPayload};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
+use iceberg::spec::FormatVersion;
 use uuid::Uuid;
 
 // FIXME: Rename namespace to database: namespace concept is Iceberg REST API specific
@@ -24,7 +25,8 @@ use uuid::Uuid;
 // We can create namespace from a database, but not otherwise
 #[async_trait]
 pub trait Catalog: Debug + Sync + Send {
-    async fn get_config(&self, ident: &WarehouseIdent, storage_profile: &StorageProfile) -> Result<Config>;
+    async fn get_config(&self, ident: Option<WarehouseIdent>, storage_profile: Option<StorageProfile>) ->
+                                                                                                       Result<Config>;
     async fn list_namespaces(
         &self,
         warehouse: &WarehouseIdent,
@@ -86,7 +88,8 @@ impl CatalogImpl {
 
 #[async_trait]
 impl Catalog for CatalogImpl {
-    async fn get_config(&self, ident: &WarehouseIdent, storage_profile: &StorageProfile) -> Result<Config> {
+    async fn get_config(&self, ident: Option<WarehouseIdent>, storage_profile: Option<StorageProfile>) ->
+                                                                                                      Result<Config> {
         // TODO: Implement warehouse config
         // TODO: Should it include prefix from Warehouse or not?
         // As per https://github.com/apache/iceberg-python/blob/main/pyiceberg/catalog/rest.py#L298
@@ -94,7 +97,7 @@ impl Catalog for CatalogImpl {
         // TODO: Should it include bucket from storage profile?
         // hardcoding for now
         // uri and prefix
-        let config = Config {
+        let mut config = Config {
             defaults: HashMap::new(),
             overrides: HashMap::from([
                 // ("warehouse".to_string(), ident.id().to_string()),
@@ -102,10 +105,15 @@ impl Catalog for CatalogImpl {
                     "uri".to_string(),
                     "http://localhost:3000/catalog".to_string(),
                 ),
-                ("prefix".to_string(), format! {"{}", ident.id()}), // we parse it as warehouse id in catalog url
-                ("s3.endpoint".to_string(), storage_profile.endpoint.clone().unwrap()),
             ]),
         };
+        if let Some(wh_ident) = ident {
+            // we parse it as warehouse id in catalog url
+            config.overrides.insert("prefix".to_string(), format! {"{}", wh_ident.id()});
+        }
+        if let Some(sp) = storage_profile {
+            config.overrides.insert("s3.endpoint".to_string(), sp.endpoint.clone().unwrap());
+        }
         Ok(config)
     }
 
@@ -278,7 +286,9 @@ impl Catalog for CatalogImpl {
         // - Check if storage profile is valid (writable)
 
         let table_name = table_creation.name.clone();
-        let result = TableMetadataBuilder::from_table_creation(table_creation)?.build()?;
+        let result = TableMetadataBuilder::from_table_creation(table_creation)?
+            .upgrade_format_version(FormatVersion::V2)?
+            .build()?;
         let metadata = result.metadata.clone();
 
         let table = Table {
@@ -321,7 +331,7 @@ mod tests {
     use super::*;
     use crate::repository::{DatabaseRepositoryDb, TableRepositoryDb};
     use iceberg::NamespaceIdent;
-    use object_store::{memory::InMemory, path::Path, ObjectStore};
+    use object_store_for_slatedb::{memory::InMemory, path::Path, ObjectStore};
     use slatedb::config::DbOptions;
     use slatedb::db::Db as SlateDb;
     use std::sync::Arc;

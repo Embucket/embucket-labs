@@ -1,3 +1,4 @@
+use std::time::Instant;
 use crate::http::ui::models::errors::AppError;
 use crate::http::ui::models::properties::{
     Properties, Property, TableSettingsResponse, TableUpdatePropertiesPayload,
@@ -7,10 +8,9 @@ use crate::http::ui::models::table::{
 };
 use crate::http::utils::get_default_properties;
 use crate::state::AppState;
-use axum::{extract::Path, extract::State, Json};
+use axum::{extract::Path, extract::State, extract::Multipart, Json};
 use catalog::models::{DatabaseIdent, TableIdent, WarehouseIdent};
 use iceberg::NamespaceIdent;
-use std::time::Instant;
 use utoipa::OpenApi;
 use uuid::Uuid;
 
@@ -300,4 +300,44 @@ pub async fn update_table_properties(
     let mut table: Table = updated_table.into();
     table.with_details(warehouse_id, profile.into(), database_name);
     Ok(Json(table.into()))
+}
+
+#[utoipa::path(
+    post,
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/upload",
+    operation_id = "tableUpload",
+    tags = ["tables"],
+    params(
+        ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
+        ("databaseName" = Uuid, Path, description = "Database Name"),
+        ("tableName" = Uuid, Path, description = "Table name")
+    ),
+    responses(
+        (status = 200, description = "Returns result of the query", body = TableQueryResponse),
+        (status = 422, description = "Unprocessable entity", body = AppError),
+        (status = 500, description = "Internal server error", body = AppError)
+    )
+)]
+pub async fn upload_data_to_table(
+    State(state): State<AppState>,
+    Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
+    mut multipart: Multipart
+) -> Result<(), AppError> {
+    while let Some(field) = multipart
+        .next_field().await.expect("Failed to get next field!")
+    {
+        if field.name().unwrap() != "upload_file" {
+            continue;
+        }
+        let file_name = field.file_name().unwrap().to_string();
+        let data = field.bytes().await.unwrap();
+
+        let result = state.control_svc
+            .upload_data_to_table(&warehouse_id, &database_name, &table_name, data, file_name)
+            .await.map_err(|e| {
+            let fmt = format!("{}", e);
+            AppError::new(e, fmt.as_str())
+        })?;
+    }
+    Ok(())
 }
