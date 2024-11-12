@@ -21,12 +21,10 @@ impl From<Table> for TableSettingsResponse {
         for (id, value) in table.metadata.0.properties.iter() {
             match id.as_str() {
                 "history.expire.max-snapshot-age-ms" => {
-                    response.snapshots_management.max_snapshot_age_ms =
-                        value.parse().ok();
+                    response.snapshots_management.max_snapshot_age_ms = value.parse().ok();
                 }
                 "history.expire.min-snapshots-to-keep" => {
-                    response.snapshots_management.min_snapshots_to_keep =
-                        value.parse().ok();
+                    response.snapshots_management.min_snapshots_to_keep = value.parse().ok();
                 }
                 "history.expire.max-ref-age-ms" => {
                     response.snapshots_management.max_ref_age_ms = value.parse().ok();
@@ -37,12 +35,48 @@ impl From<Table> for TableSettingsResponse {
                 "lifecycle.enabled" => {
                     response.lifecycle_policies.enabled = value.parse().ok();
                 }
+                "lifecycle.max-data-age-ms" => {
+                    response.lifecycle_policies.max_data_age_ms = value.parse().ok();
+                }
+                "lifecycle.data-age-column" => {
+                    response.lifecycle_policies.data_age_column = Some(value.clone());
+                }
                 _ => {
                     if id.starts_with("user_managed.") {
                         response.user_managed.items.push(Property {
                             id: id.clone(),
                             value: value.clone(),
                         });
+                    }
+                    if id.starts_with("lifecycle.columns.") && id.ends_with(".max-data-age-ms") {
+                        let column_name = id
+                            .strip_prefix("lifecycle.columns.")
+                            .unwrap()
+                            .split('.')
+                            .next()
+                            .unwrap()
+                            .to_string();
+                        let transform = match table
+                            .metadata
+                            .0
+                            .properties
+                            .get(&format!("lifecycle.columns.{}.transform", column_name))
+                            .unwrap()
+                            .as_str()
+                        {
+                            "nullify" => ColumnTransform::Nullify,
+                            _ => ColumnTransform::Nullify,
+                        };
+                        let column_policy = ColumnLevelPolicy {
+                            column_name,
+                            max_data_age_ms: value.parse().unwrap(),
+                            transform,
+                        };
+                        response
+                            .lifecycle_policies
+                            .columns_max_data_age_ms
+                            .get_or_insert_with(Vec::new)
+                            .push(column_policy);
                     }
                 }
             }
@@ -207,17 +241,26 @@ impl LifecyclePolicies {
         if let Some(enabled) = self.enabled {
             properties_to_add.insert("lifecycle.enabled".to_string(), enabled.to_string());
             if let Some(data_age_column) = &self.data_age_column {
-                properties_to_add.insert("lifecycle.data-age-column".to_string(), data_age_column.clone());
+                properties_to_add.insert(
+                    "lifecycle.data-age-column".to_string(),
+                    data_age_column.clone(),
+                );
             }
 
             if let Some(max_data_age_ms) = self.max_data_age_ms {
-                properties_to_add.insert("lifecycle.max-data-age-ms".to_string(), max_data_age_ms.to_string());
+                properties_to_add.insert(
+                    "lifecycle.max-data-age-ms".to_string(),
+                    max_data_age_ms.to_string(),
+                );
             }
 
             if let Some(columns_max_data_age_ms) = &self.columns_max_data_age_ms {
                 for column_policy in columns_max_data_age_ms {
                     properties_to_add.insert(
-                        format!("lifecycle.columns.{}.max-data-age-ms", column_policy.column_name),
+                        format!(
+                            "lifecycle.columns.{}.max-data-age-ms",
+                            column_policy.column_name
+                        ),
                         column_policy.max_data_age_ms.to_string(),
                     );
                     properties_to_add.insert(
@@ -255,7 +298,8 @@ impl UserManaged {
         let user_managed_prefix = "user_managed.";
 
         let properties_to_remove = table
-            .metadata.0
+            .metadata
+            .0
             .properties
             .iter()
             .filter(|(k, v)| k.starts_with(user_managed_prefix))
