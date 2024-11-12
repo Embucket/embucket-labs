@@ -4,7 +4,7 @@ use crate::http::ui::handlers::profiles::{
     create_storage_profile, delete_storage_profile, get_storage_profile, list_storage_profiles,
 };
 use crate::http::ui::handlers::tables::{
-    create_table, delete_table, get_settings, get_table, query_table, update_table_properties,
+    create_table, delete_table, get_settings, get_table, query_table, update_table_properties, upload_data_to_table
 };
 use crate::http::ui::handlers::warehouses::{
     create_warehouse, delete_warehouse, get_warehouse, list_warehouses, navigation,
