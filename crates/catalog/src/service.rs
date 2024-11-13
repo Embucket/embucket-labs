@@ -10,14 +10,16 @@ use bytes::Bytes;
 use chrono::Utc;
 use control_plane::models::{StorageProfile, Warehouse};
 use control_plane::service::ControlService;
+use iceberg::spec::FormatVersion;
 use iceberg::{spec::TableMetadataBuilder, TableCreation};
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
 use std::collections::HashMap;
+use std::env;
 use std::fmt::Debug;
 use std::sync::Arc;
-use iceberg::spec::FormatVersion;
 use uuid::Uuid;
+
 
 // FIXME: Rename namespace to database: namespace concept is Iceberg REST API specific
 // Internally we have not a namespace but a database
@@ -26,7 +28,7 @@ use uuid::Uuid;
 #[async_trait]
 pub trait Catalog: Debug + Sync + Send {
     async fn get_config(&self, ident: Option<WarehouseIdent>, storage_profile: Option<StorageProfile>) ->
-                                                                                                       Result<Config>;
+    Result<Config>;
     async fn list_namespaces(
         &self,
         warehouse: &WarehouseIdent,
@@ -89,7 +91,7 @@ impl CatalogImpl {
 #[async_trait]
 impl Catalog for CatalogImpl {
     async fn get_config(&self, ident: Option<WarehouseIdent>, storage_profile: Option<StorageProfile>) ->
-                                                                                                      Result<Config> {
+    Result<Config> {
         // TODO: Implement warehouse config
         // TODO: Should it include prefix from Warehouse or not?
         // As per https://github.com/apache/iceberg-python/blob/main/pyiceberg/catalog/rest.py#L298
@@ -97,13 +99,14 @@ impl Catalog for CatalogImpl {
         // TODO: Should it include bucket from storage profile?
         // hardcoding for now
         // uri and prefix
+        let control_plane_url = env::var("CONTROL_PLANE_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
         let mut config = Config {
             defaults: HashMap::new(),
             overrides: HashMap::from([
                 // ("warehouse".to_string(), ident.id().to_string()),
                 (
                     "uri".to_string(),
-                    "http://localhost:3000/catalog".to_string(),
+                    format! {"{}/catalog", control_plane_url},
                 ),
             ]),
         };
