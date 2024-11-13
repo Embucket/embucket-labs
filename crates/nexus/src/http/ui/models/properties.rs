@@ -1,10 +1,71 @@
 use crate::http::ui::models::table::Table;
 use catalog::models::{TableCommit, TableIdent};
+use chrono::{DateTime, Utc};
+use iceberg::spec::Operation;
 use iceberg::TableUpdate;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use utoipa::ToSchema;
 use validator::Validate;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TableSnapshotsResponse {
+    snapshots: Vec<TableSnapshot>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TableSnapshot {
+    pub timestamp: DateTime<Utc>,
+    pub operation: String,
+    pub total_records: i32,
+    pub added_records: i32,
+    pub deleted_records: i32,
+    pub snapshot_id: i64,
+}
+
+impl From<Table> for TableSnapshotsResponse {
+    fn from(table: Table) -> Self {
+        let mut snapshots = vec![];
+        // Sort the snapshots by timestamp
+
+        for (_, snapshot) in table.metadata.0.snapshots {
+            let operation = match snapshot.summary().operation {
+                Operation::Append => "append",
+                Operation::Overwrite => "overwrite",
+                Operation::Replace => "replace",
+                Operation::Delete => "delete",
+            };
+            snapshots.push(TableSnapshot {
+                timestamp: snapshot.timestamp().unwrap(),
+                operation: operation.to_string(),
+                total_records: snapshot
+                    .summary()
+                    .other
+                    .get("total-records")
+                    .and_then(|value| value.parse::<i32>().ok())
+                    .unwrap_or(0),
+                added_records: snapshot
+                    .summary()
+                    .other
+                    .get("added-records")
+                    .and_then(|value| value.parse::<i32>().ok())
+                    .unwrap_or(0),
+                deleted_records: snapshot
+                    .summary()
+                    .other
+                    .get("deleted-records")
+                    .and_then(|value| value.parse::<i32>().ok())
+                    .unwrap_or(0),
+                snapshot_id: snapshot.snapshot_id(),
+            });
+        }
+        snapshots.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+
+        TableSnapshotsResponse { snapshots }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -232,7 +293,7 @@ impl LifecyclePolicies {
         let mut properties_to_add = HashMap::new();
         let mut properties_to_remove = vec![];
 
-        for (k, v) in properties.iter() {
+        for (k, _) in properties.iter() {
             if k.starts_with("lifecycle.") {
                 properties_to_remove.push(k.clone());
             }
