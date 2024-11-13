@@ -1,16 +1,14 @@
-use std::time::Instant;
 use crate::http::ui::models::errors::AppError;
-use crate::http::ui::models::properties::{
-    Properties, Property, TableSettingsResponse, TableUpdatePropertiesPayload,
-};
+use crate::http::ui::models::properties::{Properties, Property, TableSettingsResponse, TableSnapshotsResponse, TableUpdatePropertiesPayload};
 use crate::http::ui::models::table::{
     Table, TableCreatePayload, TableQueryRequest, TableQueryResponse,
 };
 use crate::http::utils::get_default_properties;
 use crate::state::AppState;
-use axum::{extract::Path, extract::State, extract::Multipart, Json};
+use axum::{extract::Multipart, extract::Path, extract::State, Json};
 use catalog::models::{DatabaseIdent, TableIdent, WarehouseIdent};
 use iceberg::NamespaceIdent;
+use std::time::Instant;
 use utoipa::OpenApi;
 use uuid::Uuid;
 
@@ -22,7 +20,8 @@ use uuid::Uuid;
         get_table,
         query_table,
         get_settings,
-        update_table_properties
+        update_table_properties,
+        get_snapshots,
     ),
     components(
         schemas(
@@ -321,7 +320,7 @@ pub async fn update_table_properties(
 pub async fn upload_data_to_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
-    mut multipart: Multipart
+    mut multipart: Multipart,
 ) -> Result<(), AppError> {
     while let Some(field) = multipart
         .next_field().await.expect("Failed to get next field!")
@@ -340,4 +339,39 @@ pub async fn upload_data_to_table(
         })?;
     }
     Ok(())
+}
+
+#[utoipa::path(
+    get,
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/snapshots",
+    operation_id = "getTableSnapshots",
+    tags = ["tables"],
+    params(
+        ("warehouseId" = Uuid, description = "Warehouse ID"),
+        ("databaseName" = String, description = "Database Name"),
+        ("tableName" = String, description = "Table name")
+    ),
+    responses(
+        (status = 200, description = "Get table", body = TableSnapshotsResponse),
+        (status = 500, description = "Internal server error", body = AppError)
+    )
+)]
+pub async fn get_snapshots(
+    State(state): State<AppState>,
+    Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
+) -> Result<Json<TableSnapshotsResponse>, AppError> {
+    let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
+    let profile = state
+        .get_profile_by_id(warehouse.storage_profile_id)
+        .await?;
+    let table_ident = TableIdent {
+        database: DatabaseIdent {
+            warehouse: WarehouseIdent::new(warehouse.id),
+            namespace: NamespaceIdent::new(database_name.clone()),
+        },
+        table: table_name,
+    };
+    let mut table = state.get_table(&table_ident).await?;
+    table.with_details(warehouse_id, profile, database_name);
+    Ok(Json(table.into()))
 }
