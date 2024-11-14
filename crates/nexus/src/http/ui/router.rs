@@ -45,11 +45,11 @@ pub fn create_router() -> Router<AppState> {
         .route("/warehouses/:warehouseId/databases", post(create_database))
         .route(
             "/warehouses/:warehouseId/databases/:databaseName/tables",
-            post(create_table).delete(delete_table),
+            post(create_table),
         )
         .route(
             "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName",
-            get(get_table),
+            get(get_table).delete(delete_table),
         )
         .route(
             "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName/query",

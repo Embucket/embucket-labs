@@ -99,8 +99,16 @@ pub async fn get_warehouse(
         .get_profile_by_id(warehouse.storage_profile_id)
         .await?;
     let databases = state.list_databases(warehouse_id, profile.clone()).await?;
+
+    let mut total_statistics = Statistics::default();
+    total_statistics.database_count = Some(databases.len() as i32);
+    databases.iter().for_each(|database| {
+        let stats = database.clone().statistics;
+        total_statistics = total_statistics.aggregate(&stats);
+    });
     warehouse.storage_profile = profile;
     warehouse.databases = databases;
+    warehouse.statistics = total_statistics;
     Ok(Json(warehouse))
 }
 
