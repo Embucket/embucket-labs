@@ -7,7 +7,7 @@ use catalog::models::{DatabaseIdent, NamespaceIdent, TableCommit, TableIdent, Wa
 use std::result::Result;
 use uuid::Uuid;
 
-use control_plane::models::{StorageProfile, Warehouse};
+use control_plane::models::StorageProfile;
 
 pub async fn create_namespace(
     State(state): State<AppState>,
@@ -176,12 +176,21 @@ pub async fn list_tables(
     }))
 }
 
+pub async fn table_metrics(
+    State(state): State<AppState>,
+    Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
+    Json(payload): Json<()>,
+) -> Result<(), AppError> {
+    println!("add_table_metrics: {:?}", payload);
+    Ok(())
+}
+
 pub async fn get_config(
     State(state): State<AppState>,
     Query(params): Query<schemas::GetConfigQueryParams>,
 ) -> Result<Json<schemas::Config>, AppError> {
     let wh_id = params.warehouse;
-    let mut ident : Option<WarehouseIdent> = None;
+    let mut ident: Option<WarehouseIdent> = None;
     let mut sp: Option<StorageProfile> = None;
     if let Some(value) = wh_id {
         let wh = state.control_svc.get_warehouse(value).await?;
