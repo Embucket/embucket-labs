@@ -194,7 +194,7 @@ impl PartialSchema for Table {
 #[serde(rename_all = "camelCase")]
 pub struct Statistics {
     pub commit_count: i32,
-    pub total_bytes: i32,
+    pub total_bytes: i64,
     pub total_rows: i32,
     pub total_files: i32,
     pub total_snapshots_files: i32,
@@ -233,7 +233,7 @@ impl Statistics {
                 .summary()
                 .other
                 .get("total-files-size")
-                .and_then(|value| value.parse::<i32>().ok())
+                .and_then(|value| value.parse::<i64>().ok())
                 .unwrap_or(0);
             total_rows = latest_snapshot
                 .summary()
