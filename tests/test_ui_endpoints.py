@@ -121,3 +121,206 @@ def test_upload_endpoint(server, catalog, namespace):
     # Querying using our API also works
     assert response.status_code == 200
     assert result == [{f"sum(catalog.{namespace.name[0]}.{table_name}.my_ints)": 10}]
+
+
+def test_simple_dbt_workload(server, catalog, namespace):
+    list_warehouses_url = urllib.parse.urljoin(
+        server.management_url, f"ui/warehouses"
+    )
+    response = requests.get(list_warehouses_url)
+    wh_id = response.json()['warehouses'][0]['id']
+
+    customers_raw_table_name = "customers_raw"
+    schema = pa.schema(
+        [
+            pa.field("id", pa.int64()),
+            pa.field("first_name", pa.string()),
+            pa.field("last_name", pa.string()),
+        ]
+    )
+    catalog.create_table((*namespace.name, customers_raw_table_name), schema=schema)
+
+    orders_raw_table_name = "orders_raw"
+    schema = pa.schema(
+        [
+            pa.field("id", pa.int64()),
+            pa.field("user_id", pa.int64()),
+            pa.field("order_date", pa.date32()),
+            pa.field("status", pa.string()),
+        ]
+    )
+    catalog.create_table((*namespace.name, orders_raw_table_name), schema=schema)
+
+    upload_to_customers_table_url = urllib.parse.urljoin(
+        server.management_url, f"ui/warehouses/{wh_id}/databases/{namespace.name[0]}/tables/{customers_raw_table_name}/upload"
+    )
+
+    file = open('jaffle_shop_customers.csv', 'rb')
+    files = {'upload_file': file}
+    response = requests.post(upload_to_customers_table_url, files=files)
+
+    assert response.status_code == 200
+
+    upload_to_orders_table_url = urllib.parse.urljoin(
+        server.management_url, f"ui/warehouses/{wh_id}/databases/{namespace.name[0]}/tables/"
+                               f"{orders_raw_table_name}/upload"
+    )
+
+    file = open('jaffle_shop_orders.csv', 'rb')
+    files = {'upload_file': file}
+    response = requests.post(upload_to_orders_table_url, files=files)
+
+    assert response.status_code == 200
+
+    query_table_url = urllib.parse.urljoin(
+        server.management_url, f"ui/warehouses/{wh_id}/databases/{namespace.name[0]}/tables/"
+                               f"{customers_raw_table_name}/query"
+    )
+
+    # Original:
+    # create or replace transient table analytics.dbt_AO.stg_customers
+    #     as
+    # (select
+    #  id as customer_id,
+    #  first_name,
+    #  last_name
+    #
+    #  from raw.jaffle_shop.customers
+    #  );
+    customers_stg_table_name = "stg_customers"
+    schema = pa.schema(
+        [
+            pa.field("customer_id", pa.int64()),
+            pa.field("first_name", pa.string()),
+            pa.field("last_name", pa.string()),
+        ]
+    )
+    catalog.create_table((*namespace.name, customers_stg_table_name), schema=schema)
+    customers_raw_table_ident = f"`{wh_id}`.`{namespace.name[0]}`.`{customers_raw_table_name}`"
+    customers_stg_table_ident = f"`{wh_id}`.`{namespace.name[0]}`.`{customers_stg_table_name}`"
+    response = requests.post(query_table_url, json={
+        "query": f"INSERT INTO {customers_stg_table_ident} (customer_id, first_name, last_name) SELECT id as "
+                 f"customer_id, first_name, last_name FROM"
+                 f" {customers_raw_table_ident};"
+    })
+    assert response.status_code == 200
+
+    # Original:
+    # create or replace transient table analytics.dbt_AO.stg_orders
+    #     as
+    # (select
+    #  id as order_id,
+    #  user_id as customer_id,
+    #  order_date,
+    #  status
+    #
+    #  from raw.jaffle_shop.orders
+    #  );
+    orders_stg_table_name = "stg_orders"
+    schema = pa.schema(
+        [
+            pa.field("order_id", pa.int64()),
+            pa.field("customer_id", pa.int64()),
+            pa.field("order_date", pa.date32()),
+            pa.field("status", pa.string()),
+        ]
+    )
+    catalog.create_table((*namespace.name, orders_stg_table_name), schema=schema)
+    orders_raw_table_ident = f"`{wh_id}`.`{namespace.name[0]}`.`{orders_raw_table_name}`"
+    orders_stg_table_ident = f"`{wh_id}`.`{namespace.name[0]}`.`{orders_stg_table_name}`"
+    response = requests.post(query_table_url, json={
+        "query": f"INSERT INTO {orders_stg_table_ident} (order_id, customer_id, order_date, status) SELECT id as "
+                 f"order_id, user_id as customer_id, order_date, status FROM"
+                 f" {orders_raw_table_ident};"
+    })
+    assert response.status_code == 200
+
+    # Original:
+    # create or replace transient table analytics.dbt_AO.customers
+    #     as
+    # (with customers as (
+    #
+    #  select * from analytics.dbt_AO.stg_customers
+    #
+    #  ),
+    #
+    # orders as (
+    #
+    #         select * from analytics.dbt_AO.stg_orders
+    #
+    # ),
+    #
+    # customer_orders as (
+    #
+    #     select
+    #     customer_id,
+    #
+    #     min(order_date) as first_order_date,
+    # max(order_date) as most_recent_order_date,
+    # count(order_id) as number_of_orders
+    #
+    # from orders
+    #
+    #     group by 1
+    #
+    # ),
+    #
+    # final as (
+    #
+    #     select
+    #     customers.customer_id,
+    #     customers.first_name,
+    #     customers.last_name,
+    #     customer_orders.first_order_date,
+    #     customer_orders.most_recent_order_date,
+    #     coalesce(customer_orders.number_of_orders, 0) as number_of_orders
+    #
+    # from customers
+    #
+    #     left join customer_orders using (customer_id)
+    #
+    # )
+    #
+    # select * from final
+    # );
+    customers_final_table_name = "customers"
+    schema = pa.schema(
+        [
+            pa.field("customer_id", pa.string()),
+            pa.field("first_name", pa.string()),
+            pa.field("last_name", pa.string()),
+            pa.field("first_order_date", pa.date32()),
+            pa.field("most_recent_order_date", pa.date32()),
+            pa.field("number_of_orders", pa.int64()),
+        ]
+    )
+    catalog.create_table((*namespace.name, customers_final_table_name), schema=schema)
+    customers_final_table_ident = f"`{wh_id}`.`{namespace.name[0]}`.`{customers_final_table_name}`"
+    response = requests.post(query_table_url, json={
+        "query": f"INSERT INTO {customers_final_table_ident} (customer_id, first_name, last_name, first_order_date, "
+                 f"most_recent_order_date, number_of_orders) "
+                 f"(with customers as (select * from {customers_stg_table_ident}),"
+                 f"orders as (select * from {orders_stg_table_ident}),"
+                 f"customer_orders as (select customer_id, min(order_date) as first_order_date, max(order_date) as "
+                 f"most_recent_order_date, count(order_id) as number_of_orders from orders group by 1), "
+                 f"final as (select customers.customer_id, customers.first_name, customers.last_name, "
+                 f"customer_orders.first_order_date, customer_orders.most_recent_order_date, "
+                 f"coalesce(customer_orders.number_of_orders, 0) as number_of_orders from customers "
+                 f"left join customer_orders using (customer_id)) "
+                 f"select * from final)"
+    })
+    assert response.status_code == 200
+
+    response = requests.post(query_table_url, json={
+        "query": f"SELECT * FROM {customers_final_table_ident};"
+    })
+    assert response.status_code == 200
+    result = json.loads(response.json()['result'])
+
+    result_csv = pd.read_csv('jaffle_shop_customers_final.csv')
+    result_pd = pd.read_json(json.dumps(result))
+    # When I download file from snowflake there are minor differences from what we get using our app
+    result_pd.sort_values(by=['customer_id'], inplace=True, ignore_index=True)
+    result_pd.columns = map(str.upper, result_pd.columns)
+
+    assert result_pd.equals(result_csv)

@@ -186,9 +186,9 @@ impl ControlService for ControlServiceImpl {
             .unwrap();
 
         let ctx = SessionContext::new();
-        ctx.register_catalog("catalog", Arc::new(catalog));
+        ctx.register_catalog(warehouse_id.to_string(), Arc::new(catalog));
 
-        let provider = ctx.catalog("catalog").unwrap();
+        let provider = ctx.catalog(warehouse_id.to_string().as_str()).unwrap();
         let schemas = provider.schema_names();
         println!("{schemas:?}");
 
@@ -196,7 +196,8 @@ impl ControlService for ControlServiceImpl {
         println!("{tables:?}");
 
         println!("{}", query);
-        let records = ctx.sql(query).await?.collect().await?;
+        let records = ctx.sql(query).await.unwrap();
+        let records = records.collect().await.unwrap();
         println!("{records:?}");
 
         let buf = Vec::new();
