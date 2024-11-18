@@ -176,10 +176,10 @@ pub async fn list_tables(
     }))
 }
 
-pub async fn table_metrics(
+pub async fn report_metrics(
     State(state): State<AppState>,
     Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
-    Json(payload): Json<()>,
+    Json(payload): Json<schemas::ReportMetricsRequest>,
 ) -> Result<(), AppError> {
     println!("add_table_metrics: {:?}", payload);
     Ok(())

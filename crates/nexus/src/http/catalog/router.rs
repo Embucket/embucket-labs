@@ -4,7 +4,7 @@ use axum::Router;
 
 use crate::http::catalog::handlers::{
     commit_table, create_namespace, create_table, delete_namespace, delete_table, get_config,
-    get_namespace, get_table, list_namespaces, list_tables, list_views, table_metrics,
+    get_namespace, get_table, list_namespaces, list_tables, list_views, report_metrics,
 };
 
 pub fn create_router() -> Router<AppState> {
@@ -14,7 +14,7 @@ pub fn create_router() -> Router<AppState> {
         .route("/:table", get(get_table))
         .route("/:table", delete(delete_table))
         .route("/:table", post(commit_table))
-        .route("/:table/metrics", post(table_metrics));
+        .route("/:table/metrics", post(report_metrics));
 
     // only one endpoint is defined for the catalog implementation to work
     // we don't actually have functionality for views yet
