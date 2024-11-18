@@ -88,7 +88,13 @@ pub async fn create_table(
         namespace: NamespaceIdent::new(namespace_id),
     };
     let table = catalog
-        .create_table(&ident, &sp, &wh, payload.into(), Option::from(get_default_properties()))
+        .create_table(
+            &ident,
+            &sp,
+            &wh,
+            payload.into(),
+            Option::from(get_default_properties()),
+        )
         .await?;
 
     Ok(Json(table.into()))
@@ -179,7 +185,7 @@ pub async fn list_tables(
 pub async fn report_metrics(
     State(state): State<AppState>,
     Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
-    Json(payload): Json<schemas::ReportMetricsRequest>,
+    Json(payload): Json<()>,
 ) -> Result<(), AppError> {
     println!("add_table_metrics: {:?}", payload);
     Ok(())

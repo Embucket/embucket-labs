@@ -1,23 +1,23 @@
-use std::collections::HashMap;
 use crate::error::{extract_error_message, Error, Result};
 use crate::models::{Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
+use bytes::Bytes;
 use datafusion::prelude::*;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use iceberg_rest_catalog::apis::configuration::Configuration;
 use iceberg_rest_catalog::catalog::RestCatalog;
+use icelake::TableIdentifier;
+use object_store::path::Path;
+use object_store::{ObjectStore, PutPayload};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
+use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
-use bytes::Bytes;
-use icelake::TableIdentifier;
-use object_store::{ObjectStore, PutPayload};
-use object_store::path::Path;
 
 #[async_trait]
 pub trait ControlService: Send + Sync {
@@ -186,9 +186,9 @@ impl ControlService for ControlServiceImpl {
             .unwrap();
 
         let ctx = SessionContext::new();
-        ctx.register_catalog(warehouse_id.to_string(), Arc::new(catalog));
+        ctx.register_catalog(warehouse.name.clone(), Arc::new(catalog));
 
-        let provider = ctx.catalog(warehouse_id.to_string().as_str()).unwrap();
+        let provider = ctx.catalog(warehouse.name.as_str()).unwrap();
         let schemas = provider.schema_names();
         println!("{schemas:?}");
 
@@ -196,8 +196,7 @@ impl ControlService for ControlServiceImpl {
         println!("{tables:?}");
 
         println!("{}", query);
-        let records = ctx.sql(query).await.unwrap();
-        let records = records.collect().await.unwrap();
+        let records = ctx.sql(query).await?.collect().await?;
         println!("{records:?}");
 
         let buf = Vec::new();
@@ -316,7 +315,7 @@ impl ControlService for ControlServiceImpl {
             .await
             .unwrap();
 
-        for r in data{
+        for r in data {
             writer.write(&r).await?;
         }
 
