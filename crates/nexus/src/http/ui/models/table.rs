@@ -195,17 +195,17 @@ impl PartialSchema for Table {
 pub struct Statistics {
     pub commit_count: i32,
     pub total_bytes: i64,
-    pub total_rows: i32,
+    pub total_rows: i64,
     pub total_files: i32,
     pub total_snapshots_files: i32,
-    pub op_append_count: i32,
-    pub op_overwrite_count: i32,
-    pub op_delete_count: i32,
-    pub op_replace_count: i32,
-    pub bytes_added: i32,
-    pub bytes_removed: i32,
-    pub rows_added: i32,
-    pub rows_deleted: i32,
+    pub op_append_count: i64,
+    pub op_overwrite_count: i64,
+    pub op_delete_count: i64,
+    pub op_replace_count: i64,
+    pub bytes_added: i64,
+    pub bytes_removed: i64,
+    pub rows_added: i64,
+    pub rows_deleted: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub table_count: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -239,7 +239,7 @@ impl Statistics {
                 .summary()
                 .other
                 .get("total-records")
-                .and_then(|value| value.parse::<i32>().ok())
+                .and_then(|value| value.parse::<i64>().ok())
                 .unwrap_or(0);
             total_files = latest_snapshot
                 .summary()
@@ -255,22 +255,22 @@ impl Statistics {
             bytes_added += summary
                 .other
                 .get("added-files-size")
-                .and_then(|value| value.parse::<i32>().ok())
+                .and_then(|value| value.parse::<i64>().ok())
                 .unwrap_or(0);
             rows_added += summary
                 .other
                 .get("added-records")
-                .and_then(|value| value.parse::<i32>().ok())
+                .and_then(|value| value.parse::<i64>().ok())
                 .unwrap_or(0);
             bytes_removed += summary
                 .other
                 .get("removed-files-size")
-                .and_then(|value| value.parse::<i32>().ok())
+                .and_then(|value| value.parse::<i64>().ok())
                 .unwrap_or(0);
             rows_deleted += summary
                 .other
                 .get("deleted-records")
-                .and_then(|value| value.parse::<i32>().ok())
+                .and_then(|value| value.parse::<i64>().ok())
                 .unwrap_or(0);
             total_snapshots_files += summary
                 .other

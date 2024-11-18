@@ -1,18 +1,18 @@
 import requests
 
 # Local
-CATALOG = "http://0.0.0.0:3000"
-WAREHOUSE_ID = "a36772b4-7e70-437b-a7cf-5ba9eb565d49"
-WAREHOUSE_NAME = "embucket"
-TABLE = "hits"
-DATABASE = "datasets"
+# CATALOG = "http://0.0.0.0:3000"
+# WAREHOUSE_ID = "a36772b4-7e70-437b-a7cf-5ba9eb565d49"
+# WAREHOUSE_NAME = "embucket"
+# TABLE = "hits"
+# DATABASE = "datasets"
 
 # Prod
-# CATALOG = "https://api.embucket.com"
-# WAREHOUSE_ID = "9f81080e-966b-41d7-b058-f04d70bf22f4"
-# WAREHOUSE_NAME = "9f81080e-966b-41d7-b058-f04d70bf22f4"
-# TABLE = "hits_partitioned"
-# DATABASE = "datasets"
+CATALOG = "https://api.embucket.com"
+WAREHOUSE_ID = "9f81080e-966b-41d7-b058-f04d70bf22f4"
+WAREHOUSE_NAME = "embucket"
+TABLE = "hits_partitioned"
+DATABASE = "datasets"
 
 TABLE_PATH = f"`{WAREHOUSE_NAME}`.{DATABASE}.{TABLE}"
 
