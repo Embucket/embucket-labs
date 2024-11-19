@@ -22,6 +22,8 @@ use slatedb::config::DbOptions;
 use slatedb::db::Db as SlateDb;
 use std::env;
 use std::sync::Arc;
+use tokio::signal;
+use tokio::sync::oneshot;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::Db;
 
@@ -154,7 +156,47 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal(db))
+        .await
+        .unwrap();
+}
+
+/// This func will wait for a signal to shutdown the service.
+/// It will wait for either a Ctrl+C signal or a SIGTERM signal.
+///
+/// # Panics
+/// If the function fails to install the signal handler, it will panic.
+async fn shutdown_signal(db: Arc<Db>) {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            tracing::warn!("Ctrl+C received, starting graceful shutdown");
+            db.close().await.unwrap();
+        },
+        _ = terminate => {
+            tracing::warn!("SIGTERM received, starting graceful shutdown");
+            db.close().await.unwrap();
+        },
+    }
+
+    tracing::warn!("signal received, starting graceful shutdown");
 }
 
 async fn print_request_response(

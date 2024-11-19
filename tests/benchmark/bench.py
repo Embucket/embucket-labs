@@ -9,9 +9,9 @@ import requests
 
 # Prod
 CATALOG = "https://api.embucket.com"
-WAREHOUSE_ID = "9f81080e-966b-41d7-b058-f04d70bf22f4"
+WAREHOUSE_ID = "3906b8f2-dc8f-411f-b855-6abbe31faccd"
 WAREHOUSE_NAME = "embucket"
-TABLE = "hits_partitioned"
+TABLE = "hits"
 DATABASE = "datasets"
 
 TABLE_PATH = f"`{WAREHOUSE_NAME}`.{DATABASE}.{TABLE}"
