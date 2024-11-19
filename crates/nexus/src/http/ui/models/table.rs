@@ -28,6 +28,13 @@ pub struct UnboundPartitionSpecWrapper(pub(crate) UnboundPartitionSpec);
 #[serde(rename_all = "camelCase")]
 pub struct SortOrderWrapper(pub(crate) SortOrder);
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TableRegisterRequest {
+    pub name: String,
+    pub metadata_location: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct TableCreatePayload {
