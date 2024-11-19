@@ -30,6 +30,11 @@ impl Db {
         Self(db)
     }
 
+    pub async fn close(&self) -> Result<()> {
+        self.0.close().await?;
+        Ok(())
+    }
+
     pub async fn delete(&self, key: &str) -> Result<()> {
         self.0.delete(key.as_bytes()).await;
         Ok(())
