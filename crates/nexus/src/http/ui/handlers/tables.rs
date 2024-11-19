@@ -1,7 +1,10 @@
 use crate::http::ui::models::errors::AppError;
-use crate::http::ui::models::properties::{Properties, Property, TableSettingsResponse, TableSnapshotsResponse, TableUpdatePropertiesPayload};
+use crate::http::ui::models::properties::{
+    Properties, Property, TableSettingsResponse, TableSnapshotsResponse,
+    TableUpdatePropertiesPayload,
+};
 use crate::http::ui::models::table::{
-    Table, TableCreatePayload, TableQueryRequest, TableQueryResponse,
+    Table, TableCreatePayload, TableQueryRequest, TableQueryResponse, TableRegisterRequest,
 };
 use crate::http::utils::get_default_properties;
 use crate::state::AppState;
@@ -16,6 +19,7 @@ use uuid::Uuid;
 #[openapi(
     paths(
         create_table,
+        register_table,
         delete_table,
         get_table,
         query_table,
@@ -28,6 +32,7 @@ use uuid::Uuid;
             TableQueryResponse,
             TableQueryRequest,
             TableCreatePayload,
+            TableRegisterRequest,
             Table,
             Properties,
             Property,
@@ -117,6 +122,54 @@ pub async fn create_table(
         .await
         .map_err(|e| {
             let fmt = format!("{}: failed to create table", e);
+            AppError::new(e, fmt.as_str())
+        })?;
+    let mut table: Table = table.into();
+    table.with_details(warehouse_id, profile.into(), database_name);
+    Ok(Json(table.into()))
+}
+
+#[utoipa::path(
+    get,
+    operation_id = "registerTable",
+    tags = ["tables"],
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/register",
+    params(
+        ("warehouseId" = Uuid, description = "Warehouse ID"),
+        ("databaseName" = String, description = "Database Name"),
+    ),
+    responses(
+        (status = 200, description = "Successful Response", body = Table),
+        (status = 404, description = "Not found", body = AppError),
+    )
+)]
+pub async fn register_table(
+    State(state): State<AppState>,
+    Path((warehouse_id, database_name)): Path<(Uuid, String)>,
+    Json(payload): Json<TableRegisterRequest>,
+) -> Result<Json<Table>, AppError> {
+    let warehouse = state.get_warehouse_model(warehouse_id).await?;
+    let profile = state
+        .control_svc
+        .get_profile(warehouse.storage_profile_id)
+        .await?;
+    let db_ident = DatabaseIdent {
+        warehouse: WarehouseIdent::new(warehouse.id),
+        namespace: NamespaceIdent::new(database_name.clone()),
+    };
+    let table = state
+        .catalog_svc
+        .register_table(
+            &db_ident,
+            &profile,
+            &warehouse,
+            payload.name,
+            payload.metadata_location,
+            Option::from(get_default_properties()),
+        )
+        .await
+        .map_err(|e| {
+            let fmt = format!("{}: failed to register table", e);
             AppError::new(e, fmt.as_str())
         })?;
     let mut table: Table = table.into();
@@ -323,7 +376,9 @@ pub async fn upload_data_to_table(
     mut multipart: Multipart,
 ) -> Result<(), AppError> {
     while let Some(field) = multipart
-        .next_field().await.expect("Failed to get next field!")
+        .next_field()
+        .await
+        .expect("Failed to get next field!")
     {
         if field.name().unwrap() != "upload_file" {
             continue;
@@ -331,12 +386,14 @@ pub async fn upload_data_to_table(
         let file_name = field.file_name().unwrap().to_string();
         let data = field.bytes().await.unwrap();
 
-        let result = state.control_svc
+        let result = state
+            .control_svc
             .upload_data_to_table(&warehouse_id, &database_name, &table_name, data, file_name)
-            .await.map_err(|e| {
-            let fmt = format!("{}", e);
-            AppError::new(e, fmt.as_str())
-        })?;
+            .await
+            .map_err(|e| {
+                let fmt = format!("{}", e);
+                AppError::new(e, fmt.as_str())
+            })?;
     }
     Ok(())
 }

@@ -4,7 +4,8 @@ use axum::Router;
 
 use crate::http::catalog::handlers::{
     commit_table, create_namespace, create_table, delete_namespace, delete_table, get_config,
-    get_namespace, get_table, list_namespaces, list_tables, list_views, report_metrics,
+    get_namespace, get_table, list_namespaces, list_tables, list_views, register_table,
+    report_metrics,
 };
 
 pub fn create_router() -> Router<AppState> {
@@ -25,6 +26,7 @@ pub fn create_router() -> Router<AppState> {
         .route("/", post(create_namespace))
         .route("/:namespace", get(get_namespace))
         .route("/:namespace", delete(delete_namespace))
+        .route("/:namespace/register", post(register_table))
         .nest("/:namespace/tables", table_router)
         .nest("/:namespace/views", view_router);
 

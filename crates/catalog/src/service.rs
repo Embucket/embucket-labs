@@ -10,7 +10,7 @@ use bytes::Bytes;
 use chrono::Utc;
 use control_plane::models::{StorageProfile, Warehouse};
 use control_plane::service::ControlService;
-use iceberg::spec::FormatVersion;
+use iceberg::spec::{FormatVersion, TableMetadata};
 use iceberg::{spec::TableMetadataBuilder, TableCreation};
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
@@ -55,6 +55,15 @@ pub trait Catalog: Debug + Sync + Send {
         storage_profile: &StorageProfile,
         warehouse: &Warehouse,
         creation: TableCreation,
+        properties: Option<HashMap<String, String>>,
+    ) -> Result<Table>;
+    async fn register_table(
+        &self,
+        namespace: &DatabaseIdent,
+        storage_profile: &StorageProfile,
+        warehouse: &Warehouse,
+        table_name: String,
+        metadata_location: String,
         properties: Option<HashMap<String, String>>,
     ) -> Result<Table>;
     async fn load_table(&self, table: &TableIdent) -> Result<Table>;
@@ -310,6 +319,45 @@ impl Catalog for CatalogImpl {
         let path = Path::from(format!("{table_part}/{metadata_part}"));
         object_store.put(&path, PutPayload::from(data)).await.unwrap();
 
+        Ok(table)
+    }
+
+    async fn register_table(
+        &self,
+        namespace: &DatabaseIdent,
+        storage_profile: &StorageProfile,
+        warehouse: &Warehouse,
+        table_name: String,
+        metadata_location: String,
+        properties: Option<HashMap<String, String>>,
+    ) -> Result<Table> {
+        // Check if namespace exists
+        self.get_namespace(namespace).await?;
+        // Check if table exists
+        let ident = TableIdent {
+            database: namespace.clone(),
+            table: table_name.clone(),
+        };
+        let res = self.load_table(&ident).await;
+        if res.is_ok() {
+            return Err(Error::ErrAlreadyExists);
+        }
+
+        // Load metadata from the provided location
+        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store();
+        let path = Path::from(metadata_location.clone());
+        let data = object_store.get(&path).await.map_err(|e| Error::DbError(e.to_string()))?;
+        let metadata: TableMetadata = serde_json::from_slice(&data.bytes().await.unwrap()).unwrap();
+        let table = Table {
+            metadata: metadata.clone(),
+            metadata_location,
+            ident: TableIdent {
+                database: namespace.clone(),
+                table: table_name.clone(),
+            },
+            properties: properties.unwrap_or_default(),
+        };
+        self.table_repo.put(&table).await?;
         Ok(table)
     }
 

@@ -5,7 +5,7 @@ use crate::http::ui::handlers::profiles::{
 };
 use crate::http::ui::handlers::tables::{
     create_table, delete_table, get_settings, get_snapshots, get_table, query_table,
-    update_table_properties, upload_data_to_table,
+    register_table, update_table_properties, upload_data_to_table,
 };
 use crate::http::ui::handlers::warehouses::{
     create_warehouse, delete_warehouse, get_warehouse, list_warehouses, navigation,
@@ -43,6 +43,10 @@ pub fn create_router() -> Router<AppState> {
             get(get_database).delete(delete_database),
         )
         .route("/warehouses/:warehouseId/databases", post(create_database))
+        .route(
+            "/warehouses/:warehouseId/databases/:databaseName/register",
+            post(register_table),
+        )
         .route(
             "/warehouses/:warehouseId/databases/:databaseName/tables",
             post(create_table),

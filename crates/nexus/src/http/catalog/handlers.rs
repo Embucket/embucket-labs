@@ -100,6 +100,31 @@ pub async fn create_table(
     Ok(Json(table.into()))
 }
 
+pub async fn register_table(
+    State(state): State<AppState>,
+    Path((id, namespace_id)): Path<(Uuid, String)>,
+    Json(payload): Json<schemas::TableRegisterRequest>,
+) -> Result<Json<schemas::TableResult>, AppError> {
+    let wh = state.control_svc.get_warehouse(id).await?;
+    let sp = state.control_svc.get_profile(wh.storage_profile_id).await?;
+    let catalog = state.catalog_svc;
+    let ident = DatabaseIdent {
+        warehouse: WarehouseIdent::new(wh.id),
+        namespace: NamespaceIdent::new(namespace_id),
+    };
+    let table = catalog
+        .register_table(
+            &ident,
+            &sp,
+            &wh,
+            payload.name,
+            payload.metadata_location,
+            Option::from(get_default_properties()),
+        )
+        .await?;
+    Ok(Json(table.into()))
+}
+
 pub async fn commit_table(
     State(state): State<AppState>,
     Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
