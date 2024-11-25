@@ -283,7 +283,6 @@ where
             }
             // https://github.com/apache/datafusion/issues/12644
             SQLDataType::JSON => Ok(DataType::Utf8),
-            SQLDataType::Varia
             // Explicitly list all other types so that if sqlparser
             // adds/changes the `SQLDataType` the compiler will tell us on upgrade
             // and avoid bugs like https://github.com/apache/datafusion/issues/3059
