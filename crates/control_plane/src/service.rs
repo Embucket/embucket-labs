@@ -2,6 +2,7 @@ use crate::error::{extract_error_message, Error, Result};
 use crate::models::{Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
+use crate::sql::sql::sql_query;
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -116,7 +117,9 @@ impl ControlService for ControlServiceImpl {
                 );
                 let region = Region::Custom {
                     name: profile_region.clone(),
-                    endpoint: profile.endpoint.clone()
+                    endpoint: profile
+                        .endpoint
+                        .clone()
                         .unwrap_or_else(|| format!("https://s3.{}.amazonaws.com", profile_region)),
                 };
 
@@ -195,8 +198,7 @@ impl ControlService for ControlServiceImpl {
         let tables = provider.schema(database_name).unwrap().table_names();
         println!("{tables:?}");
 
-        println!("{}", query);
-        let records = ctx.sql(query).await?.collect().await?;
+        let records: Vec<RecordBatch> = sql_query(ctx, query).await?.into_iter().collect::<Vec<_>>();
         println!("{records:?}");
 
         let buf = Vec::new();
@@ -211,8 +213,14 @@ impl ControlService for ControlServiceImpl {
         Ok(String::from_utf8(buf).unwrap())
     }
 
-    async fn upload_data_to_table(&self, warehouse_id: &Uuid, database_name: &String, table_name: &String, data:
-    Bytes, file_name: String) -> Result<()> {
+    async fn upload_data_to_table(
+        &self,
+        warehouse_id: &Uuid,
+        database_name: &String,
+        table_name: &String,
+        data: Bytes,
+        file_name: String,
+    ) -> Result<()> {
         println!("{:?}", warehouse_id);
 
         let warehouse = self.get_warehouse(*warehouse_id).await?;
@@ -226,7 +234,10 @@ impl ControlService for ControlServiceImpl {
         let path_string = format!("{table_part}/tmp/{unique_file_id}/{file_name}");
 
         let path = Path::from(path_string.clone());
-        object_store.put(&path, PutPayload::from(data)).await.unwrap();
+        object_store
+            .put(&path, PutPayload::from(data))
+            .await
+            .unwrap();
 
         let ctx = SessionContext::new();
         let df = ctx.read_csv(path_string, CsvReadOptions::new()).await?;
@@ -299,8 +310,7 @@ impl ControlService for ControlServiceImpl {
         };
         let catalog = icelake::catalog::load_catalog(&config).await.unwrap();
 
-        let table_ident =
-            TableIdentifier::new(vec![database_name, table_name]).unwrap();
+        let table_ident = TableIdentifier::new(vec![database_name, table_name]).unwrap();
         let mut table = catalog.load_table(&table_ident).await.unwrap();
 
         let builder = table
