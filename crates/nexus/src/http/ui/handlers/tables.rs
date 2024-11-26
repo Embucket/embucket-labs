@@ -23,6 +23,7 @@ use uuid::Uuid;
         delete_table,
         get_table,
         query_table,
+        upload_data_to_table,
         get_settings,
         update_table_properties,
         get_snapshots,

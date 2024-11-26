@@ -129,6 +129,7 @@ def test_simple_dbt_workload(server, catalog, namespace):
     )
     response = requests.get(list_warehouses_url)
     wh_id = response.json()['warehouses'][0]['id']
+    wh_name = response.json()['warehouses'][0]['name']
 
     customers_raw_table_name = "customers_raw"
     schema = pa.schema(
@@ -188,20 +189,11 @@ def test_simple_dbt_workload(server, catalog, namespace):
     #  from raw.jaffle_shop.customers
     #  );
     customers_stg_table_name = "stg_customers"
-    schema = pa.schema(
-        [
-            pa.field("customer_id", pa.int64()),
-            pa.field("first_name", pa.string()),
-            pa.field("last_name", pa.string()),
-        ]
-    )
-    catalog.create_table((*namespace.name, customers_stg_table_name), schema=schema)
-    customers_raw_table_ident = f"`{wh_id}`.`{namespace.name[0]}`.`{customers_raw_table_name}`"
-    customers_stg_table_ident = f"`{wh_id}`.`{namespace.name[0]}`.`{customers_stg_table_name}`"
+    customers_raw_table_ident = f"`{wh_name}`.`{namespace.name[0]}`.`{customers_raw_table_name}`"
+    customers_stg_table_ident = f"`{wh_name}`.`{namespace.name[0]}`.`{customers_stg_table_name}`"
     response = requests.post(query_table_url, json={
-        "query": f"INSERT INTO {customers_stg_table_ident} (customer_id, first_name, last_name) SELECT id as "
-                 f"customer_id, first_name, last_name FROM"
-                 f" {customers_raw_table_ident};"
+        "query": f"CREATE OR REPLACE TABLE {customers_stg_table_ident} as (SELECT id as customer_id, first_name, "
+                 f"last_name FROM  {customers_raw_table_ident});"
     })
     assert response.status_code == 200
 
@@ -217,21 +209,11 @@ def test_simple_dbt_workload(server, catalog, namespace):
     #  from raw.jaffle_shop.orders
     #  );
     orders_stg_table_name = "stg_orders"
-    schema = pa.schema(
-        [
-            pa.field("order_id", pa.int64()),
-            pa.field("customer_id", pa.int64()),
-            pa.field("order_date", pa.date32()),
-            pa.field("status", pa.string()),
-        ]
-    )
-    catalog.create_table((*namespace.name, orders_stg_table_name), schema=schema)
-    orders_raw_table_ident = f"`{wh_id}`.`{namespace.name[0]}`.`{orders_raw_table_name}`"
-    orders_stg_table_ident = f"`{wh_id}`.`{namespace.name[0]}`.`{orders_stg_table_name}`"
+    orders_raw_table_ident = f"`{wh_name}`.`{namespace.name[0]}`.`{orders_raw_table_name}`"
+    orders_stg_table_ident = f"`{wh_name}`.`{namespace.name[0]}`.`{orders_stg_table_name}`"
     response = requests.post(query_table_url, json={
-        "query": f"INSERT INTO {orders_stg_table_ident} (order_id, customer_id, order_date, status) SELECT id as "
-                 f"order_id, user_id as customer_id, order_date, status FROM"
-                 f" {orders_raw_table_ident};"
+        "query": f"CREATE OR REPLACE TABLE {orders_stg_table_ident} as (SELECT id as order_id, user_id as  "
+                 f"customer_id, order_date, status FROM  {orders_raw_table_ident});"
     })
     assert response.status_code == 200
 
@@ -284,21 +266,9 @@ def test_simple_dbt_workload(server, catalog, namespace):
     # select * from final
     # );
     customers_final_table_name = "customers"
-    schema = pa.schema(
-        [
-            pa.field("customer_id", pa.string()),
-            pa.field("first_name", pa.string()),
-            pa.field("last_name", pa.string()),
-            pa.field("first_order_date", pa.date32()),
-            pa.field("most_recent_order_date", pa.date32()),
-            pa.field("number_of_orders", pa.int64()),
-        ]
-    )
-    catalog.create_table((*namespace.name, customers_final_table_name), schema=schema)
-    customers_final_table_ident = f"`{wh_id}`.`{namespace.name[0]}`.`{customers_final_table_name}`"
+    customers_final_table_ident = f"`{wh_name}`.`{namespace.name[0]}`.`{customers_final_table_name}`"
     response = requests.post(query_table_url, json={
-        "query": f"INSERT INTO {customers_final_table_ident} (customer_id, first_name, last_name, first_order_date, "
-                 f"most_recent_order_date, number_of_orders) "
+        "query": f"CREATE OR REPLACE TABLE {customers_final_table_ident} as "
                  f"(with customers as (select * from {customers_stg_table_ident}),"
                  f"orders as (select * from {orders_stg_table_ident}),"
                  f"customer_orders as (select customer_id, min(order_date) as first_order_date, max(order_date) as "
