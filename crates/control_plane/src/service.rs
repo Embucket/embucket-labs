@@ -189,16 +189,18 @@ impl ControlService for ControlServiceImpl {
             .unwrap();
 
         let ctx = SessionContext::new();
-        ctx.register_catalog(warehouse.name.clone(), Arc::new(catalog));
+        let catalog_name = warehouse.name.clone();
+        ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
 
-        let provider = ctx.catalog(warehouse.name.as_str()).unwrap();
+        let provider = ctx.catalog(catalog_name.clone().as_str()).unwrap();
         let schemas = provider.schema_names();
         println!("{schemas:?}");
 
         let tables = provider.schema(database_name).unwrap().table_names();
         println!("{tables:?}");
 
-        let records: Vec<RecordBatch> = sql_query(ctx, query).await?.into_iter().collect::<Vec<_>>();
+        let records: Vec<RecordBatch> = sql_query(ctx, query, &catalog_name.clone().to_string()).await?.into_iter()
+            .collect::<Vec<_>>();
         println!("{records:?}");
 
         let buf = Vec::new();
