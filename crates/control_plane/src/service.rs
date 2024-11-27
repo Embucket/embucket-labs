@@ -2,7 +2,8 @@ use crate::error::{extract_error_message, Error, Result};
 use crate::models::{Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
-use crate::sql::sql::sql_query;
+use crate::sql::functions::common::convert_record_batches;
+use crate::sql::sql::SqlExecutor;
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -200,8 +201,12 @@ impl ControlService for ControlServiceImpl {
         let tables = provider.schema(database_name).unwrap().table_names();
         println!("{tables:?}");
 
-        let records: Vec<RecordBatch> = sql_query(ctx, query, &catalog_name.clone().to_string()).await?.into_iter()
+        let records: Vec<RecordBatch> = SqlExecutor::new(ctx)
+            .query(query, &catalog_name.clone().to_string())
+            .await?
+            .into_iter()
             .collect::<Vec<_>>();
+        let records = convert_record_batches(records)?;
         println!("{records:?}");
 
         let buf = Vec::new();
