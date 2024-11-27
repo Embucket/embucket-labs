@@ -1,7 +1,7 @@
 use arrow::array::RecordBatch;
 use datafusion::catalog::CatalogProvider;
 use datafusion::common::Result;
-use datafusion::prelude::SessionContext;
+use datafusion::execution::context::SessionContext;
 use datafusion::sql::parser::Statement as DFStatement;
 use datafusion::sql::sqlparser::ast::{ObjectName, Statement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;

@@ -13,6 +13,8 @@ utils = { path = "../utils" }
 futures = { workspace = true }
 serde = { workspace = true }
 datafusion = { workspace = true }
+open-variant = { git = "https://github.com/datafusion-contrib/datafusion-functions-variant.git" }
+datafusion-functions-json = { version = "0.40.0" }
 iceberg-rust = { version = "0.5.8" }
 iceberg-rest-catalog = { version = "0.5.8" }
 datafusion_iceberg = { version = "0.5.8" }
@@ -25,8 +27,9 @@ rusoto_core = { version = "0.48.0" }
 rusoto_s3 = { version = "0.48.0" }
 rusoto_credential = { version = "0.48.0" }
 quick-xml = { version = "0.36.2" }
-icelake = { git = "https://github.com/Embucket/icelake.git"}
+icelake = { git = "https://github.com/Embucket/icelake.git" }
 bytes = { version = "1.8.0" }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 slatedb = { workspace = true }
