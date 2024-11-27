@@ -18,8 +18,11 @@ use object_store::{ObjectStore, PutPayload};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
+use std::any::Any;
 use std::collections::HashMap;
+use std::env;
 use std::sync::Arc;
+use url::Url;
 use uuid::Uuid;
 
 #[async_trait]
@@ -248,9 +251,26 @@ impl ControlService for ControlServiceImpl {
             .unwrap();
 
         let ctx = SessionContext::new();
+
+        let path_string = match &storage_profile.credentials {
+            Credentials::AccessKey(_) => {
+                // If the storage profile is AWS S3, modify the path_string with the S3 prefix
+                format!(
+                    "{}/{}",
+                    storage_profile.clone().endpoint.unwrap().as_str(),
+                    path_string
+                )
+            }
+            _ => path_string,
+        };
+        let endpoint_url = Url::parse(storage_profile.endpoint.clone().unwrap().as_str())
+            .map_err(|e| Error::DataFusionError(format!("Invalid endpoint URL: {}", e)))?;
+
+        ctx.register_object_store(&endpoint_url, Arc::from(object_store));
         let df = ctx.read_csv(path_string, CsvReadOptions::new()).await?;
         let data = df.collect().await?;
 
+        println!("{:?}", data);
         // Commented code is writing with iceberg-rust-jankaul
         // Let it sit here just in case
         //////////////////////////////////////
@@ -282,6 +302,8 @@ impl ControlService for ControlServiceImpl {
 
         //////////////////////////////////////
 
+        let control_plane_url =
+            env::var("CONTROL_PLANE_URL").unwrap_or_else(|_| "http://0.0.0.0:3000".to_string());
         let config = {
             HashMap::from([
                 ("iceberg.catalog.type".to_string(), "rest".to_string()),
@@ -292,15 +314,15 @@ impl ControlService for ControlServiceImpl {
                 ("iceberg.catalog.name".to_string(), "demo".to_string()),
                 (
                     "iceberg.catalog.demo.uri".to_string(),
-                    "http://0.0.0.0:3000/catalog".to_string(),
+                    format! {"{}/catalog", control_plane_url},
                 ),
                 (
                     "iceberg.table.io.region".to_string(),
-                    "us-east-2".to_string(),
+                    storage_profile.region.to_string(),
                 ),
                 (
                     "iceberg.table.io.endpoint".to_string(),
-                    "http://0.0.0.0:3000/catalog".to_string(),
+                    storage_profile.endpoint.unwrap().to_string(),
                 ),
                 // (
                 //     "iceberg.table.io.bucket".to_string(),
@@ -320,7 +342,7 @@ impl ControlService for ControlServiceImpl {
 
         let table_ident = TableIdentifier::new(vec![database_name, table_name]).unwrap();
         let mut table = catalog.load_table(&table_ident).await.unwrap();
-
+        println!("{:?}", table.table_name());
         let builder = table
             .writer_builder()
             .unwrap()
