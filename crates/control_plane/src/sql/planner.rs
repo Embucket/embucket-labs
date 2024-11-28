@@ -24,9 +24,7 @@ use datafusion::common::{
 };
 use datafusion::common::{DataFusionError, Result, SchemaError};
 use datafusion::logical_expr::sqlparser::ast;
-use datafusion::logical_expr::sqlparser::ast::{
-    ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, TableConstraint,
-};
+use datafusion::logical_expr::sqlparser::ast::{ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, StructBracketKind, TableConstraint};
 use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
 use datafusion::prelude::*;
 use datafusion::sql::planner::{
@@ -78,52 +76,52 @@ where
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
         // Example: Custom handling for a specific statement
         match statement {
-            Statement::CreateTable {
-                query,
-                name,
-                columns,
-                constraints,
-                table_properties,
-                with_options,
-                if_not_exists,
-                or_replace,
-                ..
-            } if table_properties.is_empty() && with_options.is_empty() => {
-                // Merge inline constraints and existing constraints
-                let mut all_constraints = constraints;
-                let inline_constraints = calc_inline_constraints_from_columns(&columns);
-                all_constraints.extend(inline_constraints);
-                // Build column default values
-                let column_defaults = self.build_column_defaults(&columns, planner_context)?;
-                match query {
-                    None => {
-                        let schema = self.build_schema(columns)?.to_dfschema_ref()?;
-                        let plan = EmptyRelation {
-                            produce_one_row: false,
-                            schema,
-                        };
-                        let plan = LogicalPlan::EmptyRelation(plan);
-                        let constraints = Constraints::new_from_table_constraints(
-                            &all_constraints,
-                            plan.schema(),
-                        )?;
-                        Ok(LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(
-                            CreateMemoryTable {
-                                name: object_name_to_table_reference(name, true)?,
-                                constraints,
-                                input: Arc::new(plan),
-                                if_not_exists,
-                                or_replace,
-                                column_defaults,
-                            },
-                        )))
-                    }
-                    _ => Err(DataFusionError::NotImplemented(
-                        "CREATE TABLE with options is not supported bu custom implementation"
-                            .to_string(),
-                    )),
-                }
-            }
+            // Statement::CreateTable {
+            //     query,
+            //     name,
+            //     columns,
+            //     constraints,
+            //     table_properties,
+            //     with_options,
+            //     if_not_exists,
+            //     or_replace,
+            //     ..
+            // } if table_properties.is_empty() && with_options.is_empty() => {
+            //     // Merge inline constraints and existing constraints
+            //     let mut all_constraints = constraints;
+            //     let inline_constraints = calc_inline_constraints_from_columns(&columns);
+            //     all_constraints.extend(inline_constraints);
+            //     // Build column default values
+            //     let column_defaults = self.build_column_defaults(&columns, planner_context)?;
+            //     match query {
+            //         None => {
+            //             let schema = self.build_schema(columns)?.to_dfschema_ref()?;
+            //             let plan = EmptyRelation {
+            //                 produce_one_row: false,
+            //                 schema,
+            //             };
+            //             let plan = LogicalPlan::EmptyRelation(plan);
+            //             let constraints = Constraints::new_unverified(
+            //                 &all_constraints,
+            //             )?;
+            //             Ok(LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(
+            //                 CreateMemoryTable {
+            //                     name: object_name_to_table_reference(name, true)?,
+            //                     constraints,
+            //                     input: Arc::new(plan),
+            //                     if_not_exists,
+            //                     or_replace,
+            //                     column_defaults,
+            //                     temporary: false,
+            //                 },
+            //             )))
+            //         }
+            //         _ => Err(DataFusionError::NotImplemented(
+            //             "CREATE TABLE with options is not supported bu custom implementation"
+            //                 .to_string(),
+            //         )),
+            //     }
+            // }
             _ => plan_err!("Unsupported statement: {:?}", statement),
         }
     }
@@ -262,7 +260,7 @@ where
             }
             SQLDataType::Bytea => Ok(DataType::Binary),
             SQLDataType::Interval => Ok(DataType::Interval(IntervalUnit::MonthDayNano)),
-            SQLDataType::Struct(fields) => {
+            SQLDataType::Struct(fields, _) => {
                 let fields = fields
                     .iter()
                     .enumerate()
@@ -313,8 +311,30 @@ where
             | SQLDataType::BigDecimal(_)
             | SQLDataType::Clob(_)
             | SQLDataType::Bytes(_)
+            | SQLDataType::Int16
+            | SQLDataType::Int32
             | SQLDataType::Int64
+            | SQLDataType::Int128
+            | SQLDataType::Int256
+            | SQLDataType::UInt8
+            | SQLDataType::UInt16
+            | SQLDataType::UInt32
+            | SQLDataType::UInt64
+            | SQLDataType::UInt128
+            | SQLDataType::UInt256
+            | SQLDataType::Float32
             | SQLDataType::Float64
+            | SQLDataType::Date32
+            | SQLDataType::Datetime64(_, _)
+            | SQLDataType::FixedString(_)
+            | SQLDataType::Map(_, _)
+            | SQLDataType::FixedString(_)
+            | SQLDataType::Tuple(_)
+            | SQLDataType::Nested(_)
+            | SQLDataType::Union(_)
+            | SQLDataType::Nullable(_)
+            | SQLDataType::LowCardinality(_)
+            | SQLDataType::Trigger
             | SQLDataType::JSONB
             | SQLDataType::Unspecified
             => not_impl_err!(
@@ -380,6 +400,9 @@ fn calc_inline_constraints_from_columns(columns: &[ColumnDef]) -> Vec<TableConst
                 | ColumnOption::Generated { .. }
                 | ColumnOption::Comment(_)
                 | ColumnOption::Options(_)
+                | ColumnOption::Materialized(_)
+                | ColumnOption::Ephemeral(_)
+                | ColumnOption::Alias(_)
                 | ColumnOption::OnUpdate(_) => {}
             }
         }

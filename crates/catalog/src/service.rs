@@ -382,7 +382,7 @@ mod tests {
     use super::*;
     use crate::repository::{DatabaseRepositoryDb, TableRepositoryDb};
     use iceberg::NamespaceIdent;
-    use object_store_for_slatedb::{memory::InMemory, path::Path, ObjectStore};
+    use object_store::{memory::InMemory, path::Path, ObjectStore};
     use slatedb::config::DbOptions;
     use slatedb::db::Db as SlateDb;
     use std::sync::Arc;

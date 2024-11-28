@@ -83,6 +83,7 @@ def test_upload_endpoint(server, catalog, namespace):
     )
     response = requests.get(list_warehouses_url)
     wh_id = response.json()['warehouses'][0]['id']
+    wh_name = response.json()['warehouses'][0]['name']
 
     upload_to_table_url = urllib.parse.urljoin(
         server.management_url, f"ui/warehouses/{wh_id}/databases/{namespace.name[0]}/tables/{table_name}/upload"
@@ -114,13 +115,13 @@ def test_upload_endpoint(server, catalog, namespace):
         server.management_url, f"ui/warehouses/{wh_id}/databases/{namespace.name[0]}/tables/{table_name}/query"
     )
     response = requests.post(query_table_url, json={
-        "query": f"SELECT SUM(my_ints) FROM catalog.`{namespace.name[0]}`.`{table_name}`;"
+        "query": f"SELECT SUM(my_ints) FROM `{wh_name}`.`{namespace.name[0]}`.`{table_name}`;"
     })
     result = json.loads(response.json()['result'])
 
     # Querying using our API also works
     assert response.status_code == 200
-    assert result == [{f"sum(catalog.{namespace.name[0]}.{table_name}.my_ints)": 10}]
+    assert result == [{f"sum({wh_name}.{namespace.name[0]}.{table_name}.my_ints)": 10}]
 
 
 def test_simple_dbt_workload(server, catalog, namespace):
@@ -196,6 +197,12 @@ def test_simple_dbt_workload(server, catalog, namespace):
                  f"last_name FROM  {customers_raw_table_ident});"
     })
     assert response.status_code == 200
+
+    response = requests.post(query_table_url, json={
+        "query": f"SELECT * FROM {customers_stg_table_ident};"
+    })
+    assert response.status_code == 200
+    result = json.loads(response.json()['result'])
 
     # Original:
     # create or replace transient table analytics.dbt_AO.stg_orders

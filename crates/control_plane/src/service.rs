@@ -1,3 +1,4 @@
+use datafusion_iceberg::planner::IcebergQueryPlanner;
 use crate::error::{extract_error_message, Error, Result};
 use crate::models::{Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
@@ -7,6 +8,7 @@ use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use bytes::Bytes;
 use datafusion::prelude::*;
+use datafusion::execution::SessionStateBuilder;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use iceberg_rest_catalog::apis::configuration::Configuration;
 use iceberg_rest_catalog::catalog::RestCatalog;
@@ -188,7 +190,12 @@ impl ControlService for ControlServiceImpl {
             .await
             .unwrap();
 
-        let ctx = SessionContext::new();
+        let state = SessionStateBuilder::new()
+            .with_default_features()
+            .with_query_planner(Arc::new(IcebergQueryPlanner {}))
+            .build();
+
+        let ctx = SessionContext::new_with_state(state);
         let catalog_name = warehouse.name.clone();
         ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
 

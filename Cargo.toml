@@ -18,19 +18,17 @@ async-trait = { version = "0.1" }
 serde = { version = "1.0", features = ["derive"] }
 slatedb = { version = "*" }
 bytes = { version = "1" }
-object_store = { version = "0.10.1", features=["aws","gcp", "azure"]}
-object_store_for_slatedb = { package = "object_store", version = "0.11.1" }
+object_store = { version = "0.11.1", features=["aws","gcp", "azure"]}
 serde_json = "1.0"
 serde_yaml = "0.8"
 tower = { version = "0.4", features = ["util"] }
 http-body-util = "0.1.0"
 thiserror = { version = "1" }
 iceberg = { git = "https://github.com/hansetag/iceberg-rust.git", branch = "ct/builder-upstream-20241002" }
-iceberg-catalog-memory = { version = "0.3" }
 tempfile = { version = "3" }
 utoipa = { version = "5.0.0-beta.0", features = ["uuid", "chrono"] }
 utoipa-axum = { version = "0.1.0-beta.2" }
 utoipa-swagger-ui = { version = "7.1.1-beta.0", features = ["axum"] }
 lazy_static = { version = "1.5" }
 dotenv = { version = "0.15.0" }
-datafusion = { version = "40" }
+datafusion = { version = "43" }

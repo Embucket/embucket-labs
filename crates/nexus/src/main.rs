@@ -14,7 +14,7 @@ use control_plane::repository::{StorageProfileRepositoryDb, WarehouseRepositoryD
 use control_plane::service::ControlServiceImpl;
 use dotenv::dotenv;
 use http_body_util::BodyExt;
-use object_store_for_slatedb::{
+use object_store::{
     aws::AmazonS3Builder, aws::S3ConditionalPut, local::LocalFileSystem, memory::InMemory,
     path::Path, ObjectStore,
 };

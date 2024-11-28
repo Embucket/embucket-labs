@@ -20,7 +20,6 @@ serde = { workspace = true }
 iceberg = { workspace = true }
 slatedb = { workspace = true }
 object_store = { workspace = true }
-object_store_for_slatedb = { workspace = true }
 utils = { path = "../utils" }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }

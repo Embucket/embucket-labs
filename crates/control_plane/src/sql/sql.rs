@@ -3,9 +3,9 @@ use datafusion::catalog::CatalogProvider;
 use datafusion::common::Result;
 use datafusion::prelude::SessionContext;
 use datafusion::sql::parser::Statement as DFStatement;
-use datafusion::sql::sqlparser::ast::{ObjectName, Statement};
+use datafusion::sql::sqlparser::ast::{ObjectName, Statement, CreateTable as CreateTableStatement};
+use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
-use iceberg_rust::catalog::create::CreateTable;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::schema::Schema;
@@ -17,15 +17,27 @@ pub async fn sql_query(ctx: SessionContext, query: &String, warehouse_name: &Str
     let statement = state.sql_to_statement(query, dialect)?;
 
     if let DFStatement::Statement(s) = statement {
-        if let Statement::CreateTable { or_replace, temporary, external, global,
-            if_not_exists, transient, name, columns,
-            constraints, hive_distribution, hive_formats,
-            table_properties, with_options, file_format,
-            location, query, without_rowid, like,
-            clone, engine, comment, auto_increment_offset,
-            default_charset, collation, on_commit,
-            on_cluster, order_by, partition_by,
-            cluster_by, options, strict } = *s {
+        if let Statement::CreateTable(CreateTableStatement { or_replace, temporary, external,
+                                          global, if_not_exists, transient, volatile,
+                                          name, columns, constraints,
+                                          hive_distribution, hive_formats,
+                                          table_properties, with_options,
+                                          file_format, location,
+                                          query, without_rowid, like,
+                                          clone, engine,
+                                          comment, auto_increment_offset,
+                                          default_charset, collation,
+                                          on_commit, on_cluster,
+                                          primary_key, order_by,
+                                          partition_by, cluster_by,
+                                          clustered_by, options, strict,
+                                          copy_grants, enable_schema_evolution,
+                                          change_tracking, data_retention_time_in_days,
+                                          max_data_extension_time_in_days,
+                                          default_ddl_collation,
+                                          with_aggregation_policy,
+                                          with_row_access_policy,
+                                          with_tags }) = *s {
 
             // Split table that needs to be created into parts
             let new_table_full_name = name.to_string();
@@ -35,12 +47,18 @@ pub async fn sql_query(ctx: SessionContext, query: &String, warehouse_name: &Str
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
-            let modified_statement = Statement::CreateTable { or_replace, temporary, external, global, if_not_exists,
-                transient, columns, constraints, hive_distribution, hive_formats, table_properties, with_options,
-                file_format, query, without_rowid, like, clone, engine, comment, auto_increment_offset,
-                default_charset, collation, on_commit, on_cluster, order_by, partition_by, cluster_by, options, strict,
+            let modified_statement = Statement::CreateTable(CreateTableStatement {
+                or_replace, temporary, external, global, if_not_exists, transient, columns, constraints,
+                hive_distribution, hive_formats, table_properties, with_options, file_format, without_rowid, like,
+                clone, engine, comment, auto_increment_offset, default_charset, collation, on_commit, on_cluster,
+                primary_key, order_by, partition_by, cluster_by, clustered_by, options, strict, copy_grants,
+                enable_schema_evolution, change_tracking, data_retention_time_in_days, max_data_extension_time_in_days,
+                default_ddl_collation, with_aggregation_policy, with_row_access_policy, query, volatile, with_tags,
                 location: location.clone(),
-                name: ObjectName { 0: vec![new_table_name.clone()] }};
+                name: ObjectName {
+                    0: vec![new_table_name.clone()],
+                },
+            });
             let updated_query = modified_statement.to_string();
             ctx.sql(&updated_query).await.unwrap().collect().await.unwrap();
 
@@ -71,7 +89,7 @@ pub async fn sql_query(ctx: SessionContext, query: &String, warehouse_name: &Str
             };
 
             // Create new table
-            rest_catalog.create_table(new_table_ident.clone(), CreateTable {
+            rest_catalog.create_table(new_table_ident.clone(), CreateTableCatalog {
                 name: new_table_name.value.clone(),
                 location,
                 schema,

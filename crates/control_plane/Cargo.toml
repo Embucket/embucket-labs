@@ -13,13 +13,12 @@ utils = { path = "../utils" }
 futures = { workspace = true }
 serde = { workspace = true }
 datafusion = { workspace = true }
-iceberg-rust = { version = "0.5.8" }
-iceberg-rest-catalog = { version = "0.5.8" }
-datafusion_iceberg = { version = "0.5.8" }
-arrow = { version = "52" }
-arrow-json = { version = "52" }
+iceberg-rust = { git = "https://github.com/JanKaul/iceberg-rust.git"}
+iceberg-rest-catalog = { git = "https://github.com/JanKaul/iceberg-rust.git"}
+datafusion_iceberg = { git = "https://github.com/JanKaul/iceberg-rust.git"}
+arrow = { version = "53" }
+arrow-json = { version = "53" }
 object_store = { workspace = true }
-object_store_for_slatedb = { workspace = true }
 dotenv = { workspace = true }
 rusoto_core = { version = "0.48.0" }
 rusoto_s3 = { version = "0.48.0" }
