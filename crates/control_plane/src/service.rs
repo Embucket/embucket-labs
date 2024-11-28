@@ -20,7 +20,6 @@ use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
 use std::any::Any;
 use std::collections::HashMap;
-use std::env;
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
@@ -302,8 +301,6 @@ impl ControlService for ControlServiceImpl {
 
         //////////////////////////////////////
 
-        let control_plane_url =
-            env::var("CONTROL_PLANE_URL").unwrap_or_else(|_| "http://0.0.0.0:3000".to_string());
         let config = {
             HashMap::from([
                 ("iceberg.catalog.type".to_string(), "rest".to_string()),
@@ -314,7 +311,7 @@ impl ControlService for ControlServiceImpl {
                 ("iceberg.catalog.name".to_string(), "demo".to_string()),
                 (
                     "iceberg.catalog.demo.uri".to_string(),
-                    format! {"{}/catalog", control_plane_url},
+                    "http://0.0.0.0:3000/catalog".to_string(),
                 ),
                 (
                     "iceberg.table.io.region".to_string(),
