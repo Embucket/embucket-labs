@@ -18,9 +18,8 @@ iceberg-rest-catalog = { git = "https://github.com/JanKaul/iceberg-rust.git"}
 datafusion_iceberg = { git = "https://github.com/JanKaul/iceberg-rust.git"}
 arrow = { version = "53" }
 arrow-json = { version = "53" }
-datafusion-functions-json = { version = "0.40.0" }
+datafusion-functions-json = { version = "0.43.0" }
 object_store = { workspace = true }
-object_store_for_slatedb = { workspace = true }
 dotenv = { workspace = true }
 rusoto_core = { version = "0.48.0" }
 rusoto_s3 = { version = "0.48.0" }

@@ -19,9 +19,7 @@ use arrow::datatypes::{
     DataType, Field, Fields, IntervalUnit, Schema, TimeUnit, DECIMAL128_MAX_PRECISION,
     DECIMAL256_MAX_PRECISION, DECIMAL_DEFAULT_SCALE,
 };
-use datafusion::common::{
-    not_impl_err, plan_datafusion_err, plan_err, Constraints, DFSchema, ToDFSchema,
-};
+use datafusion::common::{not_impl_err, plan_datafusion_err, plan_err, Constraint, Constraints, DFSchema, DFSchemaRef, ToDFSchema};
 use datafusion::common::{DataFusionError, Result, SchemaError};
 use datafusion::logical_expr::sqlparser::ast;
 use datafusion::logical_expr::sqlparser::ast::{ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, StructBracketKind, TableConstraint};
@@ -31,9 +29,10 @@ use datafusion::sql::planner::{
     object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel,
 };
 use datafusion::sql::sqlparser::ast::{
-    ColumnDef as SQLColumnDef, ColumnOption, DataType as SQLDataType, Statement, TimezoneInfo,
+    ColumnDef as SQLColumnDef, ColumnOption, DataType as SQLDataType, Statement, TimezoneInfo, CreateTable as CreateTableStatement
 };
 use std::sync::Arc;
+use datafusion::common::error::_plan_err;
 
 pub struct ExtendedSqlToRel<'a, S>
 where
@@ -75,53 +74,58 @@ where
     fn handle_custom_statement(&self, statement: Statement) -> Result<LogicalPlan> {
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
         // Example: Custom handling for a specific statement
-        match statement {
-            // Statement::CreateTable {
-            //     query,
-            //     name,
-            //     columns,
-            //     constraints,
-            //     table_properties,
-            //     with_options,
-            //     if_not_exists,
-            //     or_replace,
-            //     ..
-            // } if table_properties.is_empty() && with_options.is_empty() => {
-            //     // Merge inline constraints and existing constraints
-            //     let mut all_constraints = constraints;
-            //     let inline_constraints = calc_inline_constraints_from_columns(&columns);
-            //     all_constraints.extend(inline_constraints);
-            //     // Build column default values
-            //     let column_defaults = self.build_column_defaults(&columns, planner_context)?;
-            //     match query {
-            //         None => {
-            //             let schema = self.build_schema(columns)?.to_dfschema_ref()?;
-            //             let plan = EmptyRelation {
-            //                 produce_one_row: false,
-            //                 schema,
-            //             };
-            //             let plan = LogicalPlan::EmptyRelation(plan);
-            //             let constraints = Constraints::new_unverified(
-            //                 &all_constraints,
-            //             )?;
-            //             Ok(LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(
-            //                 CreateMemoryTable {
-            //                     name: object_name_to_table_reference(name, true)?,
-            //                     constraints,
-            //                     input: Arc::new(plan),
-            //                     if_not_exists,
-            //                     or_replace,
-            //                     column_defaults,
-            //                     temporary: false,
-            //                 },
-            //             )))
-            //         }
-            //         _ => Err(DataFusionError::NotImplemented(
-            //             "CREATE TABLE with options is not supported bu custom implementation"
-            //                 .to_string(),
-            //         )),
-            //     }
-            // }
+        match statement.clone() {
+            Statement::CreateTable(CreateTableStatement {
+                                       query,
+                                       name,
+                                       columns,
+                                       constraints,
+                                       table_properties,
+                                       with_options,
+                                       if_not_exists,
+                                       or_replace,
+                                       ..
+
+            }) if table_properties.is_empty() && with_options.is_empty() => {
+                // Merge inline constraints and existing constraints
+                let mut all_constraints = constraints;
+                let inline_constraints = calc_inline_constraints_from_columns(&columns);
+                all_constraints.extend(inline_constraints);
+                // Build column default values
+                let column_defaults = self.build_column_defaults(&columns, planner_context)?;
+                match query {
+                    Some(query) => {
+                        self.inner.sql_statement_to_plan(statement)
+                    },
+                    None => {
+                        let schema = self.build_schema(columns)?.to_dfschema_ref()?;
+                        let plan = EmptyRelation {
+                            produce_one_row: false,
+                            schema,
+                        };
+                        let plan = LogicalPlan::EmptyRelation(plan);
+                        let constraints = Self::new_constraint_from_table_constraints(
+                            &all_constraints,
+                            plan.schema()
+                        )?;
+                        Ok(LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(
+                            CreateMemoryTable {
+                                name: object_name_to_table_reference(name, true)?,
+                                constraints,
+                                input: Arc::new(plan),
+                                if_not_exists,
+                                or_replace,
+                                column_defaults,
+                                temporary: false,
+                            },
+                        )))
+                    }
+                    _ => Err(DataFusionError::NotImplemented(
+                        "CREATE TABLE with options is not supported bu custom implementation"
+                            .to_string(),
+                    )),
+                }
+            }
             _ => plan_err!("Unsupported statement: {:?}", statement),
         }
     }
@@ -368,6 +372,73 @@ where
 
     fn is_custom_type(sql_type: &SQLDataType) -> bool {
         matches!(sql_type, SQLDataType::Custom(a, _) if a.to_string().to_uppercase() == "VARIANT")
+    }
+
+    fn new_constraint_from_table_constraints(
+        constraints: &[TableConstraint],
+        df_schema: &DFSchemaRef,
+    ) -> Result<Constraints> {
+        let constraints = constraints
+            .iter()
+            .map(|c: &TableConstraint| match c {
+                TableConstraint::Unique { name, columns, .. } => {
+                    let field_names = df_schema.field_names();
+                    // Get unique constraint indices in the schema:
+                    let indices = columns
+                        .iter()
+                        .map(|u| {
+                            let idx = field_names
+                                .iter()
+                                .position(|item| *item == u.value)
+                                .ok_or_else(|| {
+                                    let name = name
+                                        .as_ref()
+                                        .map(|name| format!("with name '{name}' "))
+                                        .unwrap_or("".to_string());
+                                    DataFusionError::Execution(
+                                        format!("Column for unique constraint {}not found in schema: {}", name,u.value)
+                                    )
+                                })?;
+                            Ok(idx)
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    Ok(Constraint::Unique(indices))
+                }
+                TableConstraint::PrimaryKey { columns, .. } => {
+                    let field_names = df_schema.field_names();
+                    // Get primary key indices in the schema:
+                    let indices = columns
+                        .iter()
+                        .map(|pk| {
+                            let idx = field_names
+                                .iter()
+                                .position(|item| *item == pk.value)
+                                .ok_or_else(|| {
+                                    DataFusionError::Execution(format!(
+                                        "Column for primary key not found in schema: {}",
+                                        pk.value
+                                    ))
+                                })?;
+                            Ok(idx)
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    Ok(Constraint::PrimaryKey(indices))
+                }
+                TableConstraint::ForeignKey { .. } => {
+                    _plan_err!("Foreign key constraints are not currently supported")
+                }
+                TableConstraint::Check { .. } => {
+                    _plan_err!("Check constraints are not currently supported")
+                }
+                TableConstraint::Index { .. } => {
+                    _plan_err!("Indexes are not currently supported")
+                }
+                TableConstraint::FulltextOrSpatial { .. } => {
+                    _plan_err!("Indexes are not currently supported")
+                }
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Constraints::new_unverified(constraints))
     }
 }
 

@@ -194,12 +194,7 @@ impl ControlService for ControlServiceImpl {
             .await
             .unwrap();
 
-        let state = SessionStateBuilder::new()
-            .with_default_features()
-            .with_query_planner(Arc::new(IcebergQueryPlanner {}))
-            .build();
-
-        let ctx = SessionContext::new_with_state(state);
+        let ctx = SessionContext::new();
         let catalog_name = warehouse.name.clone();
         ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
 

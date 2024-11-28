@@ -1,3 +1,6 @@
+use crate::sql::context::CustomContextProvider;
+use crate::sql::functions::parse_json::ParseJsonFunc;
+use crate::sql::planner::ExtendedSqlToRel;
 use arrow::array::RecordBatch;
 use datafusion::catalog::CatalogProvider;
 use datafusion::common::Result;
@@ -5,6 +8,7 @@ use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::{LogicalPlan, ScalarUDF};
 use datafusion::sql::parser::Statement as DFStatement;
 use datafusion::sql::sqlparser::ast::{ObjectName, Statement, CreateTable as CreateTableStatement};
+use datafusion::datasource::default_table_source::provider_as_source;
 use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -13,6 +17,7 @@ use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use std::collections::HashMap;
+
 
 pub struct SqlExecutor {
     ctx: SessionContext,
@@ -95,13 +100,14 @@ impl SqlExecutor {
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
-            let modified_statement = Statement::CreateTable {
+            let modified_statement = Statement::CreateTable(CreateTableStatement {
                 or_replace,
                 temporary,
                 external,
                 global,
                 if_not_exists,
                 transient,
+                volatile,
                 columns,
                 constraints,
                 hive_distribution,
@@ -109,6 +115,7 @@ impl SqlExecutor {
                 table_properties,
                 with_options,
                 file_format,
+                query,
                 without_rowid,
                 like,
                 clone,
@@ -119,22 +126,32 @@ impl SqlExecutor {
                 collation,
                 on_commit,
                 on_cluster,
+                primary_key,
                 order_by,
                 partition_by,
                 cluster_by,
+                clustered_by,
                 options,
                 strict,
-                query,
+                copy_grants,
+                enable_schema_evolution,
+                change_tracking,
+                data_retention_time_in_days,
+                max_data_extension_time_in_days,
+                default_ddl_collation,
+                with_aggregation_policy,
+                with_row_access_policy,
+                with_tags,
                 location: location.clone(),
                 name: ObjectName {
                     0: vec![new_table_name.clone()],
                 },
-            };
+            });
             let updated_query = modified_statement.to_string();
             self.execute_with_custom_plan(&updated_query).await?;
 
             // Get schema of new table
-            let plan = self.get_custom_logical_plan(&updated_query)?;
+            let plan = self.get_custom_logical_plan(&updated_query).await?;
             let schema = Schema::builder()
                 .with_schema_id(0)
                 .with_identifier_field_ids(vec![])
@@ -191,16 +208,34 @@ impl SqlExecutor {
         }
     }
 
-    pub fn get_custom_logical_plan(&self, query: &String) -> Result<LogicalPlan> {
+    pub async fn get_custom_logical_plan(&self, query: &String) -> Result<LogicalPlan> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let statement = state.sql_to_statement(query, dialect)?;
 
         if let DFStatement::Statement(s) = statement {
-            let ctx_provider = CustomContextProvider {
+            let mut ctx_provider = CustomContextProvider {
                 state: &state,
                 tables: HashMap::new(),
             };
+            for catalog in self.ctx.state().catalog_list().catalog_names() {
+                let provider = self.ctx.state().catalog_list().catalog(&catalog).unwrap();
+                for schema in provider.schema_names() {
+                    for table in provider.schema(&schema).unwrap().table_names() {
+                        let table_source = provider
+                            .schema(&schema)
+                            .unwrap()
+                            .table(&table)
+                            .await
+                            .unwrap()
+                            .unwrap();
+                        ctx_provider.tables.insert(
+                            format!("{catalog}.{schema}.{table}"),
+                            provider_as_source(table_source),
+                        );
+                    }
+                }
+            }
             let planner = ExtendedSqlToRel::new(&ctx_provider);
             planner.sql_statement_to_plan(*s)
         } else {
@@ -211,7 +246,7 @@ impl SqlExecutor {
     }
 
     pub async fn execute_with_custom_plan(&self, query: &String) -> Result<Vec<RecordBatch>> {
-        let plan = self.get_custom_logical_plan(query)?;
+        let plan = self.get_custom_logical_plan(query).await?;
         self.ctx.execute_logical_plan(plan).await?.collect().await
     }
 }
