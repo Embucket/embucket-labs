@@ -170,11 +170,14 @@ where
                 .options
                 .iter()
                 .any(|x| x.option == ColumnOption::NotNull);
-            fields.push(Field::new(
+            let mut field = Field::new(
                 self.normalizer.normalize(column.name),
                 data_type,
                 !not_nullable,
-            ));
+            );
+            // Add metadata for custom data types
+            self.add_custom_metadata(&mut field, &column.data_type);
+            fields.push(field);
         }
 
         Ok(Schema::new(fields))
@@ -281,6 +284,13 @@ where
             }
             // https://github.com/apache/datafusion/issues/12644
             SQLDataType::JSON => Ok(DataType::Utf8),
+            SQLDataType::Custom(a, b) => {
+                if a.to_string().to_uppercase() == "VARIANT" {
+                    Ok(DataType::Utf8)
+                } else {
+                    Ok(DataType::Utf8)
+                }
+            }
             // Explicitly list all other types so that if sqlparser
             // adds/changes the `SQLDataType` the compiler will tell us on upgrade
             // and avoid bugs like https://github.com/apache/datafusion/issues/3059
@@ -291,7 +301,6 @@ where
             | SQLDataType::Blob(_)
             | SQLDataType::Datetime(_)
             | SQLDataType::Regclass
-            | SQLDataType::Custom(_, _)
             | SQLDataType::Array(_)
             | SQLDataType::Enum(_)
             | SQLDataType::Set(_)
@@ -341,6 +350,24 @@ where
                 "Unsupported SQL type xcvcxv {sql_type:?}"
             ),
         }
+    }
+
+    pub fn add_custom_metadata(&self, field: &mut Field, sql_type: &SQLDataType) {
+        match sql_type {
+            SQLDataType::JSON => {
+                *field = field.clone().with_metadata([("type".to_string(), "JSON".to_string())].iter().cloned().collect());
+            }
+            SQLDataType::Custom(a, b) => {
+                if a.to_string().to_uppercase() == "VARIANT" {
+                    *field = field.clone().with_metadata([("type".to_string(), "VARIANT".to_string())].iter().cloned().collect());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn is_custom_type(sql_type: &SQLDataType) -> bool {
+        matches!(sql_type, SQLDataType::Custom(a, _) if a.to_string().to_uppercase() == "VARIANT")
     }
 }
 
