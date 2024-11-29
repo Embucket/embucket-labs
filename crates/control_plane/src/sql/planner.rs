@@ -19,20 +19,20 @@ use arrow::datatypes::{
     DataType, Field, Fields, IntervalUnit, Schema, TimeUnit, DECIMAL128_MAX_PRECISION,
     DECIMAL256_MAX_PRECISION, DECIMAL_DEFAULT_SCALE,
 };
+use datafusion::common::error::_plan_err;
 use datafusion::common::{not_impl_err, plan_datafusion_err, plan_err, Constraint, Constraints, DFSchema, DFSchemaRef, ToDFSchema};
 use datafusion::common::{DataFusionError, Result, SchemaError};
 use datafusion::logical_expr::sqlparser::ast;
-use datafusion::logical_expr::sqlparser::ast::{ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, StructBracketKind, TableConstraint};
+use datafusion::logical_expr::sqlparser::ast::{ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, TableConstraint};
 use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
 use datafusion::prelude::*;
 use datafusion::sql::planner::{
     object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel,
 };
 use datafusion::sql::sqlparser::ast::{
-    ColumnDef as SQLColumnDef, ColumnOption, DataType as SQLDataType, Statement, TimezoneInfo, CreateTable as CreateTableStatement
+    ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement, DataType as SQLDataType, Statement, TimezoneInfo,
 };
 use std::sync::Arc;
-use datafusion::common::error::_plan_err;
 
 pub struct ExtendedSqlToRel<'a, S>
 where
@@ -85,8 +85,7 @@ where
                                        if_not_exists,
                                        or_replace,
                                        ..
-
-            }) if table_properties.is_empty() && with_options.is_empty() => {
+                                   }) if table_properties.is_empty() && with_options.is_empty() => {
                 // Merge inline constraints and existing constraints
                 let mut all_constraints = constraints;
                 let inline_constraints = calc_inline_constraints_from_columns(&columns);
@@ -96,7 +95,7 @@ where
                 match query {
                     Some(query) => {
                         self.inner.sql_statement_to_plan(statement)
-                    },
+                    }
                     None => {
                         let schema = self.build_schema(columns)?.to_dfschema_ref()?;
                         let plan = EmptyRelation {
@@ -106,7 +105,7 @@ where
                         let plan = LogicalPlan::EmptyRelation(plan);
                         let constraints = Self::new_constraint_from_table_constraints(
                             &all_constraints,
-                            plan.schema()
+                            plan.schema(),
                         )?;
                         Ok(LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(
                             CreateMemoryTable {
@@ -120,10 +119,6 @@ where
                             },
                         )))
                     }
-                    _ => Err(DataFusionError::NotImplemented(
-                        "CREATE TABLE with options is not supported bu custom implementation"
-                            .to_string(),
-                    )),
                 }
             }
             _ => plan_err!("Unsupported statement: {:?}", statement),
@@ -396,7 +391,7 @@ where
                                         .map(|name| format!("with name '{name}' "))
                                         .unwrap_or("".to_string());
                                     DataFusionError::Execution(
-                                        format!("Column for unique constraint {}not found in schema: {}", name,u.value)
+                                        format!("Column for unique constraint {}not found in schema: {}", name, u.value)
                                     )
                                 })?;
                             Ok(idx)

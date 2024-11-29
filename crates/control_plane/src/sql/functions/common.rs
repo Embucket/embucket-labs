@@ -17,7 +17,6 @@ pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, Array
     None
 }
 
-
 pub fn convert_record_batches(records: Vec<RecordBatch>) -> DataFusionResult<Vec<RecordBatch>> {
     let mut converted_batches = Vec::new();
 

@@ -4,20 +4,19 @@ use crate::sql::planner::ExtendedSqlToRel;
 use arrow::array::RecordBatch;
 use datafusion::catalog::CatalogProvider;
 use datafusion::common::Result;
+use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::{LogicalPlan, ScalarUDF};
 use datafusion::sql::parser::Statement as DFStatement;
-use datafusion::sql::sqlparser::ast::{ObjectName, Statement, CreateTable as CreateTableStatement};
-use datafusion::datasource::default_table_source::provider_as_source;
-use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
+use datafusion::sql::sqlparser::ast::{CreateTable as CreateTableStatement, ObjectName, Statement};
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use std::collections::HashMap;
-
 
 pub struct SqlExecutor {
     ctx: SessionContext,
@@ -52,46 +51,48 @@ impl SqlExecutor {
                                           or_replace,
                                           temporary,
                                           external,
-            global,
-            if_not_exists,
-            transient,
-            volatile, name,
-            columns,
-            constraints,
-            hive_distribution,
-            hive_formats,
-            table_properties,
-            with_options,
-            file_format,
-            location,
-            query,
-            without_rowid,
-            like,
-            clone,
-            engine,
-            comment,
-            auto_increment_offset,
-            default_charset,
-            collation,
-            on_commit,
-            on_cluster,
-            primary_key,
-            order_by,
-            partition_by,
-            cluster_by,
-            clustered_by,
-            options,
-            strict,
-            copy_grants,
-            enable_schema_evolution,
-            change_tracking,
-            data_retention_time_in_days,
-            max_data_extension_time_in_days,
-            default_ddl_collation,
-            with_aggregation_policy,
-            with_row_access_policy,
-            with_tags,
-           }) = statement {
+                                          global,
+                                          if_not_exists,
+                                          transient,
+                                          volatile,
+                                          name,
+                                          columns,
+                                          constraints,
+                                          hive_distribution,
+                                          hive_formats,
+                                          table_properties,
+                                          with_options,
+                                          file_format,
+                                          location,
+                                          query,
+                                          without_rowid,
+                                          like,
+                                          clone,
+                                          engine,
+                                          comment,
+                                          auto_increment_offset,
+                                          default_charset,
+                                          collation,
+                                          on_commit,
+                                          on_cluster,
+                                          primary_key,
+                                          order_by,
+                                          partition_by,
+                                          cluster_by,
+                                          clustered_by,
+                                          options,
+                                          strict,
+                                          copy_grants,
+                                          enable_schema_evolution,
+                                          change_tracking,
+                                          data_retention_time_in_days,
+                                          max_data_extension_time_in_days,
+                                          default_ddl_collation,
+                                          with_aggregation_policy,
+                                          with_row_access_policy,
+                                          with_tags,
+                                      }) = statement
+        {
             // Split table that needs to be created into parts
             let new_table_full_name = name.to_string();
             let new_table_wh_id = name.0[0].clone();
