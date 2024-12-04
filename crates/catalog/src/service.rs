@@ -9,7 +9,6 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::Utc;
 use control_plane::models::{StorageProfile, Warehouse};
-use control_plane::service::ControlService;
 use iceberg::spec::{FormatVersion, TableMetadata};
 use iceberg::{spec::TableMetadataBuilder, TableCreation};
 use object_store::path::Path;
@@ -326,7 +325,7 @@ impl Catalog for CatalogImpl {
         &self,
         namespace: &DatabaseIdent,
         storage_profile: &StorageProfile,
-        warehouse: &Warehouse,
+        _warehouse: &Warehouse,
         table_name: String,
         metadata_location: String,
         properties: Option<HashMap<String, String>>,
@@ -871,7 +870,6 @@ mod tests {
             ident: res.unwrap().ident,
             requirements: vec![],
             updates: vec![update],
-            properties: None,
         };
 
         let res = service.update_table(commit).await;

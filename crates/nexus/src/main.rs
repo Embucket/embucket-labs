@@ -23,7 +23,6 @@ use slatedb::db::Db as SlateDb;
 use std::env;
 use std::sync::Arc;
 use tokio::signal;
-use tokio::sync::oneshot;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::Db;
 

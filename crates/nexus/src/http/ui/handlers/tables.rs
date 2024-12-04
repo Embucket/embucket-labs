@@ -387,7 +387,7 @@ pub async fn upload_data_to_table(
         let file_name = field.file_name().unwrap().to_string();
         let data = field.bytes().await.unwrap();
 
-        let result = state
+        let _result = state
             .control_svc
             .upload_data_to_table(&warehouse_id, &database_name, &table_name, data, file_name)
             .await

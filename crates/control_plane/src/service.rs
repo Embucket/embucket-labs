@@ -1,4 +1,3 @@
-use datafusion_iceberg::planner::IcebergQueryPlanner;
 use crate::error::{extract_error_message, Error, Result};
 use crate::models::{Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
@@ -10,7 +9,6 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use datafusion::execution::context::SessionContext;
 use datafusion::prelude::CsvReadOptions;
-use datafusion::execution::SessionStateBuilder;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use iceberg_rest_catalog::apis::configuration::Configuration;
 use iceberg_rest_catalog::catalog::RestCatalog;
@@ -20,7 +18,6 @@ use object_store::{ObjectStore, PutPayload};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
-use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
@@ -174,7 +171,7 @@ impl ControlService for ControlServiceImpl {
         &self,
         warehouse_id: &Uuid,
         database_name: &String,
-        table_name: &String,
+        _table_name: &String,
         query: &String,
     ) -> Result<String> {
         let warehouse = self.get_warehouse(*warehouse_id).await?;
@@ -266,12 +263,9 @@ impl ControlService for ControlServiceImpl {
         };
         let endpoint_url = Url::parse(storage_profile.endpoint.clone().unwrap().as_str())
             .map_err(|e| Error::DataFusionError(format!("Invalid endpoint URL: {}", e)))?;
-
         ctx.register_object_store(&endpoint_url, Arc::from(object_store));
-        let df = ctx.read_csv(path_string, CsvReadOptions::new()).await?;
-        let data = df.collect().await?;
 
-        println!("{:?}", data);
+        // println!("{:?}", data);
         // Commented code is writing with iceberg-rust-jankaul
         // Let it sit here just in case
         //////////////////////////////////////
@@ -337,22 +331,22 @@ impl ControlService for ControlServiceImpl {
                 // ),
             ])
         };
-        let catalog = icelake::catalog::load_catalog(&config).await.unwrap();
-
-        let table_ident = TableIdentifier::new(vec![database_name, table_name]).unwrap();
-        let mut table = catalog.load_table(&table_ident).await.unwrap();
+        let catalog = icelake::catalog::load_catalog(&config).await?;
+        let table_ident = TableIdentifier::new(vec![database_name, table_name])?;
+        let mut table = catalog.load_table(&table_ident).await?;
+        let table_schema = table.current_arrow_schema()?;
         println!("{:?}", table.table_name());
+
+        let df = ctx.read_csv(path_string, CsvReadOptions::new().schema(&*table_schema)).await?;
+        let data = df.collect().await?;
+
         let builder = table
-            .writer_builder()
-            .unwrap()
-            .rolling_writer_builder(None)
-            .unwrap();
+            .writer_builder()?
+            .rolling_writer_builder(None)?;
         let mut writer = table
-            .writer_builder()
-            .unwrap()
+            .writer_builder()?
             .build_append_only_writer(builder)
-            .await
-            .unwrap();
+            .await?;
 
         for r in data {
             writer.write(&r).await?;
@@ -361,7 +355,7 @@ impl ControlService for ControlServiceImpl {
         let res: Vec<icelake::types::DataFile> = writer.close().await?;
         let mut txn = icelake::transaction::Transaction::new(&mut table);
         txn.append_data_file(res);
-        txn.commit().await.unwrap();
+        txn.commit().await?;
 
         Ok(())
     }
