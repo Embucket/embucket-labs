@@ -363,7 +363,7 @@ impl UserManaged {
             .0
             .properties
             .iter()
-            .filter(|(k, v)| k.starts_with(user_managed_prefix))
+            .filter(|(k, _)| k.starts_with(user_managed_prefix))
             .map(|(k, _)| k.clone())
             .collect();
 

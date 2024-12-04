@@ -4,7 +4,6 @@ use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
 use crate::sql::functions::common::convert_record_batches;
 use crate::sql::sql::SqlExecutor;
-use arrow::array::Array;
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -19,7 +18,6 @@ use object_store::{ObjectStore, PutPayload};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
-use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
@@ -173,7 +171,7 @@ impl ControlService for ControlServiceImpl {
         &self,
         warehouse_id: &Uuid,
         database_name: &String,
-        table_name: &String,
+        _table_name: &String,
         query: &String,
     ) -> Result<String> {
         let warehouse = self.get_warehouse(*warehouse_id).await?;
@@ -349,14 +347,12 @@ impl ControlService for ControlServiceImpl {
             .writer_builder()?
             .build_append_only_writer(builder)
             .await?;
-        println!("rsdfsdfsdfsf");
 
         for r in data {
             writer.write(&r).await?;
         }
 
         let res: Vec<icelake::types::DataFile> = writer.close().await?;
-        println!("res ss {:?}", res);
         let mut txn = icelake::transaction::Transaction::new(&mut table);
         txn.append_data_file(res);
         txn.commit().await?;

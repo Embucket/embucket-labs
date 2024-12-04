@@ -1,5 +1,5 @@
 use arrow::array::{
-    Array, ArrayBuilder, ArrayRef, BooleanArray, Float64Array, Int64Array, StringArray, StructArray,
+    Array, ArrayRef, BooleanArray, Float64Array, Int64Array, StringArray, StructArray,
 };
 use arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::{exec_err, ExprSchema, Result};
@@ -54,23 +54,17 @@ impl ScalarUDFImpl for ParseJsonFunc {
         &self.signature
     }
 
+    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
+        Ok(DataType::Utf8)
+    }
+
     fn return_type_from_exprs(
         &self,
         _args: &[Expr],
         _schema: &dyn ExprSchema,
         arg_types: &[DataType],
     ) -> Result<DataType> {
-        println!("arg_types: {:?}", arg_types);
-        println!("_schema: {:?}", _schema);
-        println!("_args: {:?}", _args);
         self.return_type(arg_types)
-    }
-
-    fn return_type(&self, arg_types: &[DataType]) -> Result<DataType> {
-        match &arg_types[0] {
-            DataType::Utf8 => Ok(DataType::Struct(Fields::empty())), // Default return type
-            _ => exec_err!("Expected a UTF-8 string as input"),
-        }
     }
 
     fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
@@ -80,7 +74,9 @@ impl ScalarUDFImpl for ParseJsonFunc {
                 args.len()
             );
         }
-        parse_raw_json(&args[0])
+        let result = args[0].clone();
+        Ok(result)
+        // parse_raw_json(&args[0])
     }
 }
 
@@ -103,7 +99,6 @@ fn parse_raw_json(json_str: &ColumnarValue) -> Result<ColumnarValue> {
     };
     let parsed: Value = serde_json::from_str(result).unwrap();
     let result = json_value_to_columnar_value(&parsed);
-    println!("result: {:?}", result.data_type());
     Ok(result)
 }
 
@@ -148,9 +143,9 @@ fn json_value_to_data_type(value: &Value) -> DataType {
         Value::Null => DataType::Utf8,
         Value::Bool(_) => DataType::Boolean,
         Value::Number(num) => {
-            if let Some(f) = num.as_i64() {
+            if let Some(_) = num.as_i64() {
                 DataType::Int64
-            } else if let Some(i) = num.as_f64() {
+            } else if let Some(_) = num.as_f64() {
                 DataType::Float64
             } else {
                 DataType::Float64

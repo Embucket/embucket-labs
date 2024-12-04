@@ -1,10 +1,8 @@
 use async_trait::async_trait;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
-use uuid::Uuid;
 
 use utils::Db;
-use utils::{Entity, Repository};
 
 use crate::error::Result;
 use crate::models::{Database, DatabaseIdent, Table, TableIdent, WarehouseIdent};
@@ -244,6 +242,7 @@ mod tests {
             },
             metadata_location: "s3://bucket/path".to_string(),
             metadata: create_table_metadata(),
+            properties: Default::default(),
         };
 
         repo.put(&table).await.expect("failed to create table");

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::Display;
 use uuid::Uuid;
 
 pub use iceberg::{Namespace, NamespaceIdent, TableCreation, TableRequirement, TableUpdate};

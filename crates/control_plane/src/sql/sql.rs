@@ -2,7 +2,6 @@ use crate::sql::context::CustomContextProvider;
 use crate::sql::functions::parse_json::ParseJsonFunc;
 use crate::sql::planner::ExtendedSqlToRel;
 use arrow::array::RecordBatch;
-use datafusion::catalog::CatalogProvider;
 use datafusion::common::Result;
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
@@ -12,7 +11,6 @@ use datafusion::sql::sqlparser::ast::{CreateTable as CreateTableStatement, Objec
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
-use iceberg_rust::catalog::Catalog;
 use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
@@ -48,8 +46,9 @@ impl SqlExecutor {
 
     pub fn preprocess_query(&self, query: &String) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
-        let re = regex::Regex::new(r"(\w+)\[(\d+)\]\.(\w+)").unwrap();
-        re.replace_all(query, "json_get(json_get($1, $2), '$3')").to_string()
+        let re = regex::Regex::new(r"(\w+)\[(\d+)]\.(\w+)").unwrap();
+        re.replace_all(query, "json_get(json_get($1, $2), '$3')")
+            .to_string()
     }
 
     pub async fn create_table_query(
@@ -59,7 +58,7 @@ impl SqlExecutor {
     ) -> Result<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
             let new_table_full_name = create_table_statement.name.to_string();
-            let new_table_wh_id = create_table_statement.name.0[0].clone();
+            let _new_table_wh_id = create_table_statement.name.0[0].clone();
             let new_table_db = create_table_statement.name.0[1].clone();
             let new_table_name = create_table_statement.name.0[2].clone();
             let location = create_table_statement.location.clone();

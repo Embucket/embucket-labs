@@ -106,7 +106,7 @@ where
                 }
 
                 match query {
-                    Some(query) => self.inner.sql_statement_to_plan(statement),
+                    Some(_query) => self.inner.sql_statement_to_plan(statement),
                     None => {
                         let schema = self.build_schema(columns)?.to_dfschema_ref()?;
                         let plan = EmptyRelation {
@@ -397,7 +397,7 @@ where
                         .collect(),
                 );
             }
-            SQLDataType::Custom(a, b) => {
+            SQLDataType::Custom(a, _b) => {
                 if a.to_string().to_uppercase() == "VARIANT" {
                     *field = field.clone().with_metadata(
                         [("type".to_string(), "VARIANT".to_string())]
@@ -409,10 +409,6 @@ where
             }
             _ => {}
         }
-    }
-
-    fn is_custom_type(sql_type: &SQLDataType) -> bool {
-        matches!(sql_type, SQLDataType::Custom(a, _) if a.to_string().to_uppercase() == "VARIANT")
     }
 
     fn new_constraint_from_table_constraints(

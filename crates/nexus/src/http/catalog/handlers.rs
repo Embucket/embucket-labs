@@ -208,8 +208,8 @@ pub async fn list_tables(
 }
 
 pub async fn report_metrics(
-    State(state): State<AppState>,
-    Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
+    State(_state): State<AppState>,
+    Path((_id, _namespace_id, _table_id)): Path<(Uuid, String, String)>,
     Json(payload): Json<()>,
 ) -> Result<(), AppError> {
     println!("add_table_metrics: {:?}", payload);
@@ -237,8 +237,8 @@ pub async fn get_config(
 // only one endpoint is defined for the catalog implementation to work
 // we don't actually have functionality for views yet
 pub async fn list_views(
-    State(state): State<AppState>,
-    Path((id, namespace_id)): Path<(Uuid, String)>,
+    State(_state): State<AppState>,
+    Path((_id, _namespace_id)): Path<(Uuid, String)>,
 ) -> Result<Json<schemas::TableListResponse>, AppError> {
     Ok(Json(schemas::TableListResponse {
         identifiers: vec![],

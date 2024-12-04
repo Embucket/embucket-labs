@@ -5,7 +5,6 @@ use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
 use catalog::models::{DatabaseIdent, WarehouseIdent};
 use iceberg::NamespaceIdent;
-use swagger;
 use utoipa::OpenApi;
 use uuid::Uuid;
 
