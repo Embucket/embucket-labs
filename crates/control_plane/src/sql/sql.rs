@@ -16,6 +16,7 @@ use iceberg_rust::catalog::Catalog;
 use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
+use regex;
 use std::collections::HashMap;
 
 pub struct SqlExecutor {
@@ -32,14 +33,23 @@ impl SqlExecutor {
     pub async fn query(&self, query: &String, warehouse_name: &String) -> Result<Vec<RecordBatch>> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
-        let statement = state.sql_to_statement(query, dialect)?;
+        // Update query ti use custom JSON functions
+        let query = self.preprocess_query(query);
+        println!("Query: {}", query);
+        let statement = state.sql_to_statement(&query, dialect)?;
 
         if let DFStatement::Statement(s) = statement {
             if let Statement::CreateTable { .. } = *s {
                 return self.create_table_query(*s, warehouse_name).await;
             }
         }
-        self.ctx.sql(query).await?.collect().await
+        self.ctx.sql(&query).await?.collect().await
+    }
+
+    pub fn preprocess_query(&self, query: &String) -> String {
+        // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
+        let re = regex::Regex::new(r"(\w+)\[(\d+)\]\.(\w+)").unwrap();
+        re.replace_all(query, "json_get(json_get($1, $2), '$3')").to_string()
     }
 
     pub async fn create_table_query(
@@ -47,107 +57,21 @@ impl SqlExecutor {
         statement: Statement,
         warehouse_name: &String,
     ) -> Result<Vec<RecordBatch>> {
-        if let Statement::CreateTable(CreateTableStatement {
-                                          or_replace,
-                                          temporary,
-                                          external,
-                                          global,
-                                          if_not_exists,
-                                          transient,
-                                          volatile,
-                                          name,
-                                          columns,
-                                          constraints,
-                                          hive_distribution,
-                                          hive_formats,
-                                          table_properties,
-                                          with_options,
-                                          file_format,
-                                          location,
-                                          query,
-                                          without_rowid,
-                                          like,
-                                          clone,
-                                          engine,
-                                          comment,
-                                          auto_increment_offset,
-                                          default_charset,
-                                          collation,
-                                          on_commit,
-                                          on_cluster,
-                                          primary_key,
-                                          order_by,
-                                          partition_by,
-                                          cluster_by,
-                                          clustered_by,
-                                          options,
-                                          strict,
-                                          copy_grants,
-                                          enable_schema_evolution,
-                                          change_tracking,
-                                          data_retention_time_in_days,
-                                          max_data_extension_time_in_days,
-                                          default_ddl_collation,
-                                          with_aggregation_policy,
-                                          with_row_access_policy,
-                                          with_tags,
-                                      }) = statement
-        {
-            // Split table that needs to be created into parts
-            let new_table_full_name = name.to_string();
-            let new_table_wh_id = name.0[0].clone();
-            let new_table_db = name.0[1].clone();
-            let new_table_name = name.0[2].clone();
+        if let Statement::CreateTable(create_table_statement) = statement {
+            let new_table_full_name = create_table_statement.name.to_string();
+            let new_table_wh_id = create_table_statement.name.0[0].clone();
+            let new_table_db = create_table_statement.name.0[1].clone();
+            let new_table_name = create_table_statement.name.0[2].clone();
+            let location = create_table_statement.location.clone();
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
-            let modified_statement = Statement::CreateTable(CreateTableStatement {
-                or_replace,
-                temporary,
-                external,
-                global,
-                if_not_exists,
-                transient,
-                volatile,
-                columns,
-                constraints,
-                hive_distribution,
-                hive_formats,
-                table_properties,
-                with_options,
-                file_format,
-                query,
-                without_rowid,
-                like,
-                clone,
-                engine,
-                comment,
-                auto_increment_offset,
-                default_charset,
-                collation,
-                on_commit,
-                on_cluster,
-                primary_key,
-                order_by,
-                partition_by,
-                cluster_by,
-                clustered_by,
-                options,
-                strict,
-                copy_grants,
-                enable_schema_evolution,
-                change_tracking,
-                data_retention_time_in_days,
-                max_data_extension_time_in_days,
-                default_ddl_collation,
-                with_aggregation_policy,
-                with_row_access_policy,
-                with_tags,
-                location: location.clone(),
+            let modified_statement = CreateTableStatement {
                 name: ObjectName {
                     0: vec![new_table_name.clone()],
                 },
-            });
+                ..create_table_statement
+            };
             let updated_query = modified_statement.to_string();
             self.execute_with_custom_plan(&updated_query).await?;
 
@@ -166,7 +90,7 @@ impl SqlExecutor {
             let catalog = self.ctx.catalog(warehouse_name).unwrap();
             let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().unwrap();
             let rest_catalog = iceberg_catalog.catalog();
-            let new_table_ident = Identifier::new(&[new_table_db.value], &*new_table_name.value);
+            let new_table_ident = Identifier::new(&[new_table_db.value], &new_table_name.value);
             match rest_catalog.tabular_exists(&new_table_ident).await {
                 Ok(true) => {
                     rest_catalog.drop_table(&new_table_ident).await.unwrap();
@@ -227,8 +151,7 @@ impl SqlExecutor {
                             .schema(&schema)
                             .unwrap()
                             .table(&table)
-                            .await
-                            .unwrap()
+                            .await?
                             .unwrap();
                         ctx_provider.tables.insert(
                             format!("{catalog}.{schema}.{table}"),

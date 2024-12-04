@@ -20,17 +20,23 @@ use arrow::datatypes::{
     DECIMAL256_MAX_PRECISION, DECIMAL_DEFAULT_SCALE,
 };
 use datafusion::common::error::_plan_err;
-use datafusion::common::{not_impl_err, plan_datafusion_err, plan_err, Constraint, Constraints, DFSchema, DFSchemaRef, ToDFSchema};
+use datafusion::common::{
+    not_impl_err, plan_datafusion_err, plan_err, Constraint, Constraints, DFSchema, DFSchemaRef,
+    ToDFSchema,
+};
 use datafusion::common::{DataFusionError, Result, SchemaError};
 use datafusion::logical_expr::sqlparser::ast;
-use datafusion::logical_expr::sqlparser::ast::{ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, TableConstraint};
+use datafusion::logical_expr::sqlparser::ast::{
+    ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, TableConstraint,
+};
 use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
 use datafusion::prelude::*;
 use datafusion::sql::planner::{
     object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel,
 };
 use datafusion::sql::sqlparser::ast::{
-    ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement, DataType as SQLDataType, Statement, TimezoneInfo,
+    ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement,
+    DataType as SQLDataType, Statement, TimezoneInfo,
 };
 use std::sync::Arc;
 
@@ -92,10 +98,15 @@ where
                 all_constraints.extend(inline_constraints);
                 // Build column default values
                 let column_defaults = self.build_column_defaults(&columns, planner_context)?;
+
+                let has_columns = !columns.is_empty();
+                let schema = self.build_schema(columns.clone())?.to_dfschema_ref()?;
+                if has_columns {
+                    planner_context.set_table_schema(Some(Arc::clone(&schema)));
+                }
+
                 match query {
-                    Some(query) => {
-                        self.inner.sql_statement_to_plan(statement)
-                    }
+                    Some(query) => self.inner.sql_statement_to_plan(statement),
                     None => {
                         let schema = self.build_schema(columns)?.to_dfschema_ref()?;
                         let plan = EmptyRelation {
@@ -284,10 +295,35 @@ where
             // https://github.com/apache/datafusion/issues/12644
             SQLDataType::JSON => Ok(DataType::Utf8),
             SQLDataType::Custom(a, b) => {
-                if a.to_string().to_uppercase() == "VARIANT" {
-                    Ok(DataType::Utf8)
-                } else {
-                    Ok(DataType::Utf8)
+                match a.to_string().to_uppercase().as_str() {
+                    "VARIANT" => Ok(DataType::Utf8),
+                    "TIMESTAMP_NTZ" => {
+                        let parsed_b: Option<u64> = b.iter().next().and_then(|s| s.parse().ok());
+                        match parsed_b {
+                            Some(0) => Ok(DataType::Timestamp(TimeUnit::Second, None)),
+                            Some(3) => Ok(DataType::Timestamp(TimeUnit::Millisecond, None)),
+                            Some(6) => Ok(DataType::Timestamp(TimeUnit::Microsecond, None)),
+                            Some(9) => Ok(DataType::Timestamp(TimeUnit::Nanosecond, None)),
+                            _ => not_impl_err!("Unsupported SQL TIMESTAMP_NZT precision {parsed_b:?}")
+                        }
+                    }
+                    "NUMBER" => {
+                        let (precision, scale) = match b.len() {
+                            0 => (None, None),
+                            1 => {
+                                let precision = b[0].parse().expect("Invalid precision");
+                                (Some(precision), None)
+                            }
+                            2 => {
+                                let precision = b[0].parse().expect("Invalid precision");
+                                let scale = b[1].parse().expect("Invalid scale");
+                                (Some(precision), Some(scale))
+                            }
+                            _ => panic!("Invalid NUMBER type format"),
+                        };
+                        make_decimal_type(precision, scale)
+                    }
+                    _ => Ok(DataType::Utf8)
                 }
             }
             // Explicitly list all other types so that if sqlparser
@@ -346,7 +382,7 @@ where
             | SQLDataType::JSONB
             | SQLDataType::Unspecified
             => not_impl_err!(
-                "Unsupported SQL type xcvcxv {sql_type:?}"
+                "Unsupported SQL type {sql_type:?}"
             ),
         }
     }
@@ -354,11 +390,21 @@ where
     pub fn add_custom_metadata(&self, field: &mut Field, sql_type: &SQLDataType) {
         match sql_type {
             SQLDataType::JSON => {
-                *field = field.clone().with_metadata([("type".to_string(), "JSON".to_string())].iter().cloned().collect());
+                *field = field.clone().with_metadata(
+                    [("type".to_string(), "JSON".to_string())]
+                        .iter()
+                        .cloned()
+                        .collect(),
+                );
             }
             SQLDataType::Custom(a, b) => {
                 if a.to_string().to_uppercase() == "VARIANT" {
-                    *field = field.clone().with_metadata([("type".to_string(), "VARIANT".to_string())].iter().cloned().collect());
+                    *field = field.clone().with_metadata(
+                        [("type".to_string(), "VARIANT".to_string())]
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    );
                 }
             }
             _ => {}
@@ -384,15 +430,16 @@ where
                         .map(|u| {
                             let idx = field_names
                                 .iter()
-                                .position(|item| *item == u.value)
+                                .position(|item| *item.to_lowercase() == u.value.to_lowercase())
                                 .ok_or_else(|| {
                                     let name = name
                                         .as_ref()
                                         .map(|name| format!("with name '{name}' "))
                                         .unwrap_or("".to_string());
-                                    DataFusionError::Execution(
-                                        format!("Column for unique constraint {}not found in schema: {}", name, u.value)
-                                    )
+                                    DataFusionError::Execution(format!(
+                                        "Column for unique constraint {}not found in schema: {}",
+                                        name, u.value
+                                    ))
                                 })?;
                             Ok(idx)
                         })
@@ -407,7 +454,7 @@ where
                         .map(|pk| {
                             let idx = field_names
                                 .iter()
-                                .position(|item| *item == pk.value)
+                                .position(|item| *item.to_lowercase() == pk.value.to_lowercase())
                                 .ok_or_else(|| {
                                     DataFusionError::Execution(format!(
                                         "Column for primary key not found in schema: {}",

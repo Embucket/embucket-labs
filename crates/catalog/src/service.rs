@@ -871,7 +871,6 @@ mod tests {
             ident: res.unwrap().ident,
             requirements: vec![],
             updates: vec![update],
-            properties: None,
         };
 
         let res = service.update_table(commit).await;
