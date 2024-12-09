@@ -27,10 +27,12 @@ use datafusion::common::{
 };
 use datafusion::common::{DataFusionError, Result, SchemaError};
 use datafusion::logical_expr::sqlparser::ast;
-use datafusion::logical_expr::sqlparser::ast::{ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, ObjectName, TableConstraint};
+use datafusion::logical_expr::sqlparser::ast::{
+    ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, ObjectName, TableConstraint,
+};
 use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
 use datafusion::prelude::*;
-use datafusion::sql::parser::DFParser;
+use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{
     object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel,
 };
@@ -81,6 +83,7 @@ where
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
         // Example: Custom handling for a specific statement
         match statement.clone() {
+            Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
             Statement::CreateTable(CreateTableStatement {
                                        query,
                                        name,
@@ -516,28 +519,29 @@ where
                 .iter()
                 .any(|opt| opt.key == variable);
 
-            if !is_valid_variable {
-                return plan_err!(
-                    "'{variable}' is not a variable which can be viewed with 'SHOW'"
-                );
+            if is_valid_variable {
+                format!("{base_query} WHERE name = '{variable}'")
+            } else {
+                // skip where clause to return empty result
+                format!("{base_query}")
             }
-
-            format!("{base_query} WHERE name = '{variable}'")
         };
 
-        let mut rewrite = DFParser::parse_sql(&query)?;
-        assert_eq!(rewrite.len(), 1);
+        let statement = DFParser::parse_sql(&query)?.pop_front().unwrap();
 
-        self.inner.statement_to_plan(rewrite.pop_front().unwrap())
+        if let DFStatement::Statement(s) = statement {
+            self.sql_statement_to_plan(*s)
+        } else {
+            plan_err!("Failed to parse SQL statement")
+        }
     }
+
     fn has_table(&self, schema: &str, table: &str) -> bool {
         let tables_reference = TableReference::Partial {
             schema: schema.into(),
             table: table.into(),
         };
-        self.provider
-            .get_table_source(tables_reference)
-            .is_ok()
+        self.provider.get_table_source(tables_reference).is_ok()
     }
 }
 
@@ -631,14 +635,6 @@ fn ident_to_string(ident: &Ident) -> String {
     normalize_ident(ident.to_owned())
 }
 
-// Normalize an owned identifier to a lowercase string unless the identifier is quoted.
-pub(crate) fn normalize_ident(id: Ident) -> String {
-    match id.quote_style {
-        Some(_) => id.value,
-        None => id.value.to_ascii_lowercase(),
-    }
-}
-
 fn object_name_to_string(object_name: &ObjectName) -> String {
     object_name
         .0
@@ -646,4 +642,12 @@ fn object_name_to_string(object_name: &ObjectName) -> String {
         .map(ident_to_string)
         .collect::<Vec<String>>()
         .join(".")
+}
+
+// Normalize an owned identifier to a lowercase string unless the identifier is quoted.
+pub fn normalize_ident(id: Ident) -> String {
+    match id.quote_style {
+        Some(_) => id.value,
+        None => id.value.to_ascii_lowercase(),
+    }
 }
