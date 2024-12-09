@@ -41,6 +41,12 @@ pub mod http {
         pub mod schemas;
     }
 
+    pub mod dbt {
+        pub mod handlers;
+        pub mod router;
+        pub mod schemas;
+    }
+
     pub mod ui {
         pub mod handlers;
         pub mod models;
@@ -207,7 +213,6 @@ async fn print_request_response(
     let uri = req_parts.uri.to_string();
     let bytes = buffer_and_print("request", &method, &uri, req_body).await?;
     let req = Request::from_parts(req_parts, Body::from(bytes));
-
     let res = next.run(req).await;
 
     let (resp_parts, resp_body) = res.into_parts();

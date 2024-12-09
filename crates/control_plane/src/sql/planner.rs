@@ -19,6 +19,7 @@ use arrow::datatypes::{
     DataType, Field, Fields, IntervalUnit, Schema, TimeUnit, DECIMAL128_MAX_PRECISION,
     DECIMAL256_MAX_PRECISION, DECIMAL_DEFAULT_SCALE,
 };
+use datafusion::catalog_common::TableReference;
 use datafusion::common::error::_plan_err;
 use datafusion::common::{
     not_impl_err, plan_datafusion_err, plan_err, Constraint, Constraints, DFSchema, DFSchemaRef,
@@ -27,10 +28,11 @@ use datafusion::common::{
 use datafusion::common::{DataFusionError, Result, SchemaError};
 use datafusion::logical_expr::sqlparser::ast;
 use datafusion::logical_expr::sqlparser::ast::{
-    ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, TableConstraint,
+    ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, ObjectName, TableConstraint,
 };
 use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
 use datafusion::prelude::*;
+use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{
     object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel,
 };
@@ -81,6 +83,7 @@ where
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
         // Example: Custom handling for a specific statement
         match statement.clone() {
+            Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
             Statement::CreateTable(CreateTableStatement {
                                        query,
                                        name,
@@ -372,7 +375,6 @@ where
             | SQLDataType::Datetime64(_, _)
             | SQLDataType::FixedString(_)
             | SQLDataType::Map(_, _)
-            | SQLDataType::FixedString(_)
             | SQLDataType::Tuple(_)
             | SQLDataType::Nested(_)
             | SQLDataType::Union(_)
@@ -478,6 +480,69 @@ where
             .collect::<Result<Vec<_>>>()?;
         Ok(Constraints::new_unverified(constraints))
     }
+
+    fn show_variable_to_plan(&self, variable: &[Ident]) -> Result<LogicalPlan> {
+        if !self.has_table("information_schema", "df_settings") {
+            return plan_err!(
+                "SHOW [VARIABLE] is not supported unless information_schema is enabled"
+            );
+        }
+
+        let verbose = variable
+            .last()
+            .map(|s| ident_to_string(s) == "verbose")
+            .unwrap_or(false);
+        let mut variable_vec = variable.to_vec();
+        let mut columns: String = "name, value".to_owned();
+
+        if verbose {
+            columns = format!("{columns}, description");
+            variable_vec = variable_vec.split_at(variable_vec.len() - 1).0.to_vec();
+        }
+
+        let variable = object_name_to_string(&ObjectName(variable_vec));
+        let base_query = format!("SELECT {columns} FROM information_schema.df_settings");
+        let query = if variable == "all" {
+            // Add an ORDER BY so the output comes out in a consistent order
+            format!("{base_query} ORDER BY name")
+        } else if variable == "timezone" || variable == "time.zone" {
+            // we could introduce alias in OptionDefinition if this string matching thing grows
+            format!("{base_query} WHERE name = 'datafusion.execution.time_zone'")
+        } else {
+            // These values are what are used to make the information_schema table, so we just
+            // check here, before actually planning or executing the query, if it would produce no
+            // results, and error preemptively if it would (for a better UX)
+            let is_valid_variable = self
+                .provider
+                .options()
+                .entries()
+                .iter()
+                .any(|opt| opt.key == variable);
+
+            if is_valid_variable {
+                format!("{base_query} WHERE name = '{variable}'")
+            } else {
+                // skip where clause to return empty result
+                format!("{base_query}")
+            }
+        };
+
+        let statement = DFParser::parse_sql(&query)?.pop_front().unwrap();
+
+        if let DFStatement::Statement(s) = statement {
+            self.sql_statement_to_plan(*s)
+        } else {
+            plan_err!("Failed to parse SQL statement")
+        }
+    }
+
+    fn has_table(&self, schema: &str, table: &str) -> bool {
+        let tables_reference = TableReference::Partial {
+            schema: schema.into(),
+            table: table.into(),
+        };
+        self.provider.get_table_source(tables_reference).is_ok()
+    }
 }
 
 fn calc_inline_constraints_from_columns(columns: &[ColumnDef]) -> Vec<TableConstraint> {
@@ -563,5 +628,26 @@ pub fn make_decimal_type(precision: Option<u64>, scale: Option<u64>) -> Result<D
         Ok(DataType::Decimal256(precision, scale))
     } else {
         Ok(DataType::Decimal128(precision, scale))
+    }
+}
+
+fn ident_to_string(ident: &Ident) -> String {
+    normalize_ident(ident.to_owned())
+}
+
+fn object_name_to_string(object_name: &ObjectName) -> String {
+    object_name
+        .0
+        .iter()
+        .map(ident_to_string)
+        .collect::<Vec<String>>()
+        .join(".")
+}
+
+// Normalize an owned identifier to a lowercase string unless the identifier is quoted.
+pub fn normalize_ident(id: Ident) -> String {
+    match id.quote_style {
+        Some(_) => id.value,
+        None => id.value.to_ascii_lowercase(),
     }
 }

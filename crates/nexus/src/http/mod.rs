@@ -8,6 +8,6 @@ pub mod ui {
     pub mod handlers;
     pub mod models;
 }
-
+pub mod dbt;
 pub mod utils;
 pub mod layers;

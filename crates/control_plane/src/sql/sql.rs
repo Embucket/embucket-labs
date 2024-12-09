@@ -2,7 +2,10 @@ use crate::sql::context::CustomContextProvider;
 use crate::sql::functions::parse_json::ParseJsonFunc;
 use crate::sql::planner::ExtendedSqlToRel;
 use arrow::array::RecordBatch;
-use datafusion::common::Result;
+use datafusion::catalog::SchemaProvider;
+use datafusion::catalog_common::information_schema::InformationSchemaProvider;
+use datafusion::catalog_common::{ResolvedTableReference, TableReference};
+use datafusion::common::{plan_datafusion_err, Result};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::{LogicalPlan, ScalarUDF};
@@ -15,7 +18,9 @@ use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use regex;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 pub struct SqlExecutor {
     ctx: SessionContext,
@@ -37,8 +42,14 @@ impl SqlExecutor {
         let statement = state.sql_to_statement(&query, dialect)?;
 
         if let DFStatement::Statement(s) = statement {
-            if let Statement::CreateTable { .. } = *s {
-                return self.create_table_query(*s, warehouse_name).await;
+            match *s {
+                Statement::CreateTable { .. } => {
+                    return self.create_table_query(*s, warehouse_name).await;
+                }
+                Statement::ShowVariable { .. } => {
+                    return self.execute_with_custom_plan(&query).await;
+                }
+                _ => {}
             }
         }
         self.ctx.sql(&query).await?.collect().await
@@ -137,11 +148,26 @@ impl SqlExecutor {
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let statement = state.sql_to_statement(query, dialect)?;
 
-        if let DFStatement::Statement(s) = statement {
+        if let DFStatement::Statement(s) = statement.clone() {
+            let references = state.resolve_table_references(&statement)?;
+
             let mut ctx_provider = CustomContextProvider {
                 state: &state,
                 tables: HashMap::new(),
             };
+
+            for reference in references {
+                let resolved = self.resolve_table_ref(reference);
+
+                if let Entry::Vacant(v) = ctx_provider.tables.entry(resolved.to_string()) {
+                    if let Ok(schema) = self.schema_for_ref(resolved.clone()) {
+                        if let Some(table) = schema.table(&resolved.table).await? {
+                            v.insert(provider_as_source(table));
+                        }
+                    }
+                }
+            }
+
             for catalog in self.ctx.state().catalog_list().catalog_names() {
                 let provider = self.ctx.state().catalog_list().catalog(&catalog).unwrap();
                 for schema in provider.schema_names() {
@@ -166,6 +192,40 @@ impl SqlExecutor {
                 "Only SQL statements are supported".to_string(),
             ))
         }
+    }
+
+    pub fn resolve_table_ref(
+        &self,
+        table_ref: impl Into<TableReference>,
+    ) -> ResolvedTableReference {
+        let catalog = &self.ctx.state().config_options().catalog.clone();
+        table_ref
+            .into()
+            .resolve(&catalog.default_catalog, &catalog.default_schema)
+    }
+
+    pub fn schema_for_ref(
+        &self,
+        table_ref: impl Into<TableReference>,
+    ) -> Result<Arc<dyn SchemaProvider>> {
+        let state = self.ctx.state();
+        let resolved_ref = self.resolve_table_ref(table_ref);
+        if state.config().information_schema() && *resolved_ref.schema == *"information_schema" {
+            return Ok(Arc::new(InformationSchemaProvider::new(
+                state.catalog_list().clone(),
+            )));
+        }
+
+        state
+            .catalog_list()
+            .catalog(&resolved_ref.catalog)
+            .ok_or_else(|| {
+                plan_datafusion_err!("failed to resolve catalog: {}", resolved_ref.catalog)
+            })?
+            .schema(&resolved_ref.schema)
+            .ok_or_else(|| {
+                plan_datafusion_err!("failed to resolve schema: {}", resolved_ref.schema)
+            })
     }
 
     pub async fn execute_with_custom_plan(&self, query: &String) -> Result<Vec<RecordBatch>> {
