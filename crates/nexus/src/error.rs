@@ -17,7 +17,7 @@ impl From<catalog::error::Error> for AppError {
 }
 
 pub struct AppError {
-    message: String,
+    pub message: String,
 }
 
 impl IntoResponse for AppError {

@@ -37,8 +37,12 @@ impl SqlExecutor {
         let statement = state.sql_to_statement(&query, dialect)?;
 
         if let DFStatement::Statement(s) = statement {
-            if let Statement::CreateTable { .. } = *s {
-                return self.create_table_query(*s, warehouse_name).await;
+            match *s {
+                Statement::CreateTable { .. } => {
+                    return self.create_table_query(*s, warehouse_name).await;
+                }
+                Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
+                _ => {}
             }
         }
         self.ctx.sql(&query).await?.collect().await

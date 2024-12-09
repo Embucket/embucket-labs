@@ -8,7 +8,7 @@ use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use bytes::Bytes;
 use datafusion::execution::context::SessionContext;
-use datafusion::prelude::CsvReadOptions;
+use datafusion::prelude::{CsvReadOptions, SessionConfig};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use iceberg_rest_catalog::apis::configuration::Configuration;
 use iceberg_rest_catalog::catalog::RestCatalog;
@@ -191,7 +191,9 @@ impl ControlService for ControlServiceImpl {
             .await
             .unwrap();
 
-        let ctx = SessionContext::new();
+        let ctx = SessionContext::new_with_config(
+            SessionConfig::new().with_information_schema(true),
+        );
         let catalog_name = warehouse.name.clone();
         ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
 

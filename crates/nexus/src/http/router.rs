@@ -11,6 +11,7 @@ use crate::http::catalog::router::create_router as create_catalog_router;
 use crate::http::control::handlers::storage_profiles::StorageProfileApi;
 use crate::http::control::handlers::warehouses::WarehouseApi;
 use crate::http::control::router::create_router as create_control_router;
+use crate::http::dbt::router::create_router as create_dbt_router;
 use crate::http::ui::handlers::databases::ApiDoc as DatabaseApiDoc;
 use crate::http::ui::handlers::profiles::ApiDoc as ProfileApiDoc;
 use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
@@ -50,8 +51,10 @@ pub fn create_app(state: AppState) -> Router {
     let catalog_router = create_catalog_router();
     let control_router = create_control_router();
     let ui_router = create_ui_router();
+    let dbt_router = create_dbt_router();
 
     Router::new()
+        .nest("/", dbt_router)
         .nest("/", control_router)
         .nest("/catalog", catalog_router)
         .nest("/ui", ui_router)

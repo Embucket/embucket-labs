@@ -1,12 +1,15 @@
 use catalog::service::Catalog;
-use control_plane::service::ControlService; // Your service implementation
-use std::sync::Arc; // Your service implementation
+use control_plane::service::ControlService;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 // Define a State struct that contains shared services or repositories
 #[derive(Clone)]
 pub struct AppState {
     pub control_svc: Arc<dyn ControlService + Send + Sync>,
     pub catalog_svc: Arc<dyn Catalog + Send + Sync>,
+    pub dbt_sessions: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl AppState {
@@ -18,6 +21,7 @@ impl AppState {
         Self {
             control_svc,
             catalog_svc: catalog_repo,
+            dbt_sessions: Arc::new(Default::default()),
         }
     }
 }
