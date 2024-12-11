@@ -1,4 +1,6 @@
 use crate::error::Error;
+use arrow::array::RecordBatch;
+use arrow::datatypes::{DataType, Field};
 use chrono::{NaiveDateTime, Utc};
 use dotenv::dotenv;
 use iceberg_rust::catalog::bucket::ObjectStoreBuilder;
@@ -6,6 +8,7 @@ use object_store::aws::AmazonS3Builder;
 use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
 use std::sync::Arc;
@@ -153,11 +156,13 @@ impl StorageProfile {
 
     pub fn get_base_url(&self) -> String {
         dotenv().ok();
-        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD").unwrap_or("true".to_string())
+        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
+            .unwrap_or("true".to_string())
             .parse::<bool>()
-            .expect
-            ("Failed to parse \
-            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD");
+            .expect(
+                "Failed to parse \
+            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD",
+            );
         if use_file_system_instead_of_cloud {
             format!("file://{}", env::current_dir().unwrap().to_str().unwrap())
         } else {
@@ -165,8 +170,12 @@ impl StorageProfile {
                 CloudProvider::AWS => {
                     format!("s3://{}", &self.bucket)
                 }
-                CloudProvider::AZURE => { panic!("Not implemented") }
-                CloudProvider::GCS => { panic!("Not implemented") }
+                CloudProvider::AZURE => {
+                    panic!("Not implemented")
+                }
+                CloudProvider::GCS => {
+                    panic!("Not implemented")
+                }
             }
         }
     }
@@ -175,11 +184,14 @@ impl StorageProfile {
     pub fn get_object_store_builder(&self) -> ObjectStoreBuilder {
         // TODO remove duplicated code
         dotenv().ok();
-        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD").ok().unwrap()
+        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
+            .ok()
+            .unwrap()
             .parse::<bool>()
-            .expect
-            ("Failed to parse \
-            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD");
+            .expect(
+                "Failed to parse \
+            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD",
+            );
         if use_file_system_instead_of_cloud {
             // Here we initialise filesystem object store without root directory, because this code is used
             // by our catalog when we read metadata from the table - paths are absolute
@@ -198,17 +210,22 @@ impl StorageProfile {
                         builder
                     };
                     match &self.credentials {
-                        Credentials::AccessKey(creds) => {
-                            ObjectStoreBuilder::S3(builder.with_access_key_id(&creds.aws_access_key_id)
-                                .with_secret_access_key(&creds.aws_secret_access_key))
-                        }
+                        Credentials::AccessKey(creds) => ObjectStoreBuilder::S3(
+                            builder
+                                .with_access_key_id(&creds.aws_access_key_id)
+                                .with_secret_access_key(&creds.aws_secret_access_key),
+                        ),
                         Credentials::Role(_) => {
                             panic!("Not implemented")
                         }
                     }
                 }
-                CloudProvider::AZURE => { panic!("Not implemented") }
-                CloudProvider::GCS => { panic!("Not implemented") }
+                CloudProvider::AZURE => {
+                    panic!("Not implemented")
+                }
+                CloudProvider::GCS => {
+                    panic!("Not implemented")
+                }
             }
         }
     }
@@ -216,11 +233,14 @@ impl StorageProfile {
     pub fn get_object_store(&self) -> Box<dyn ObjectStore> {
         // TODO remove duplicated code
         dotenv().ok();
-        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD").ok().unwrap()
+        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
+            .ok()
+            .unwrap()
             .parse::<bool>()
-            .expect
-            ("Failed to parse \
-            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD");
+            .expect(
+                "Failed to parse \
+            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD",
+            );
         if use_file_system_instead_of_cloud {
             // Here we initialise filesystem object store without current directory as root, because this code is used
             // by our catalog when we write metadata file - we use relative path
@@ -239,19 +259,24 @@ impl StorageProfile {
                         builder
                     };
                     match &self.credentials {
-                        Credentials::AccessKey(creds) => {
-                            Box::new(builder.with_access_key_id(&creds.aws_access_key_id)
+                        Credentials::AccessKey(creds) => Box::new(
+                            builder
+                                .with_access_key_id(&creds.aws_access_key_id)
                                 .with_secret_access_key(&creds.aws_secret_access_key)
                                 .build()
-                                .expect("error creating AWS object store"))
-                        }
+                                .expect("error creating AWS object store"),
+                        ),
                         Credentials::Role(_) => {
                             panic!("Not implemented")
                         }
                     }
                 }
-                CloudProvider::AZURE => { panic!("Not implemented") }
-                CloudProvider::GCS => { panic!("Not implemented") }
+                CloudProvider::AZURE => {
+                    panic!("Not implemented")
+                }
+                CloudProvider::GCS => {
+                    panic!("Not implemented")
+                }
             }
         }
     }
@@ -315,5 +340,107 @@ impl TryFrom<&WarehouseCreateRequest> for Warehouse {
             value.name.clone(),
             value.storage_profile_id,
         )
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ColumnInfo {
+    pub name: String,
+    pub database: String,
+    pub schema: String,
+    pub table: String,
+    pub nullable: bool,
+    pub r#type: String,
+    pub byte_length: Option<i32>,
+    pub length: Option<i32>,
+    pub scale: Option<i32>,
+    pub precision: Option<i32>,
+    pub collation: Option<String>,
+}
+
+impl ColumnInfo {
+    pub fn to_metadata(&self) -> HashMap<String, String> {
+        let mut metadata = HashMap::new();
+        metadata.insert("logicalType".to_string(), self.r#type.to_uppercase());
+        metadata.insert("precision".to_string(), self.precision.unwrap_or(38).to_string());
+        metadata.insert("scale".to_string(), self.scale.unwrap_or(0).to_string());
+        metadata.insert("charLength".to_string(), self.length.unwrap_or(0).to_string());
+        metadata
+    }
+    pub fn from_batch(records: Vec<RecordBatch>) -> Vec<ColumnInfo> {
+        let mut column_infos = Vec::new();
+
+        if records.is_empty() {
+            return column_infos;
+        }
+        for field in records[0].schema().fields() {
+            column_infos.push(ColumnInfo::from_field(field));
+        }
+        column_infos
+    }
+
+    pub fn from_field(field: &Field) -> ColumnInfo {
+        let mut column_info = ColumnInfo {
+            name: field.name().clone(),
+            database: "".to_string(), // TODO
+            schema: "".to_string(),   // TODO
+            table: "".to_string(),    // TODO
+            nullable: field.is_nullable(),
+            r#type: field.data_type().to_string(),
+            byte_length: None,
+            length: None,
+            scale: None,
+            precision: None,
+            collation: None,
+        };
+
+        match field.data_type() {
+            DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64
+            | DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64 => {
+                column_info.r#type = "fixed".to_string();
+                column_info.precision = Some(38);
+                column_info.scale = Some(0);
+            }
+            DataType::Decimal128(precision, scale) | DataType::Decimal256(precision, scale) => {
+                column_info.r#type = "fixed".to_string();
+                column_info.precision = Some(*precision as i32);
+                column_info.scale = Some(*scale as i32);
+            }
+            DataType::Boolean => {
+                column_info.r#type = "boolean".to_string();
+            }
+            // Varchar, Char, Utf8
+            DataType::Utf8 => {
+                column_info.r#type = "text".to_string();
+                column_info.byte_length = Some(16777216);
+                column_info.length = Some(16777216);
+            }
+            DataType::Time32(_) | DataType::Time64(_) => {
+                column_info.r#type = "time".to_string();
+                column_info.precision = Some(0);
+                column_info.scale = Some(9);
+            }
+            DataType::Date32 | DataType::Date64 => {
+                column_info.r#type = "date".to_string();
+            }
+            DataType::Timestamp(_, _) => {
+                column_info.r#type = "timestamp_ntz".to_string();
+                column_info.precision = Some(0);
+                column_info.scale = Some(9);
+            }
+            DataType::Binary => {
+                column_info.r#type = "binary".to_string();
+                column_info.byte_length = Some(8388608);
+                column_info.length = Some(8388608);
+            }
+            _ => {}
+        }
+        column_info
     }
 }

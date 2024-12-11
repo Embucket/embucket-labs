@@ -7,6 +7,7 @@ edition = "2021"
 utoipa = { workspace = true }
 
 [dependencies]
+arrow = { version = "53" }
 axum = { workspace = true }
 axum-macros = { workspace = true }
 tokio = { workspace = true }
@@ -35,8 +36,8 @@ http-body-util = "0.1.0"
 anyhow = "1.0.89"
 tower-http = { version = "0.6.1", features = ["catch-panic", "timeout", "sensitive-headers", "cors"] }
 lazy_static = { version = "1.4.0" }
-flate2 = "1.0.34"
-regex = "1.11.0"
+flate2 = { version = "1.0.34" }
+regex = { version = "1.11.0" }
 
 [dev-dependencies]
 tower = { workspace = true }

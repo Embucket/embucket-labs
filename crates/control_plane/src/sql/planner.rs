@@ -70,7 +70,7 @@ where
         match self.handle_custom_statement(statement.clone()) {
             Ok(plan) => return Ok(plan),
             Err(e) => {
-                eprintln!("Error: {e}");
+                eprintln!("Custom statement parsing skipped: {}", statement.to_string());
             }
         }
 

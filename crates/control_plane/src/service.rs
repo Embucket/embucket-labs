@@ -1,11 +1,13 @@
 use crate::error::{extract_error_message, Error, Result};
-use crate::models::{Credentials, StorageProfile, StorageProfileCreateRequest};
+use crate::models::{ColumnInfo, Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
 use crate::sql::functions::common::convert_record_batches;
 use crate::sql::sql::SqlExecutor;
+use arrow::ipc::writer::StreamWriter;
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
+use base64::{engine::general_purpose, Engine};
 use bytes::Bytes;
 use datafusion::execution::context::SessionContext;
 use datafusion::prelude::{CsvReadOptions, SessionConfig};
@@ -46,6 +48,14 @@ pub trait ControlService: Send + Sync {
     // async fn delete_table(&self, id: Uuid) -> Result<()>;
     // async fn list_tables(&self) -> Result<Vec<Table>>;
 
+    async fn query(
+        &self,
+        warehouse_id: &Uuid,
+        database_name: &String,
+        table_name: &String,
+        query: &String,
+    ) -> Result<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
+
     async fn query_table(
         &self,
         warehouse_id: &Uuid,
@@ -53,6 +63,14 @@ pub trait ControlService: Send + Sync {
         table_name: &String,
         query: &String,
     ) -> Result<String>;
+
+    async fn query_dbt(
+        &self,
+        warehouse_id: &Uuid,
+        database_name: &String,
+        table_name: &String,
+        query: &String,
+    ) -> Result<(String, Vec<ColumnInfo>)>;
 
     async fn upload_data_to_table(
         &self,
@@ -167,13 +185,13 @@ impl ControlService for ControlServiceImpl {
         self.warehouse_repo.list().await
     }
 
-    async fn query_table(
+    async fn query(
         &self,
         warehouse_id: &Uuid,
         database_name: &String,
         _table_name: &String,
         query: &String,
-    ) -> Result<String> {
+    ) -> Result<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
         let warehouse = self.get_warehouse(*warehouse_id).await?;
         let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
 
@@ -187,13 +205,10 @@ impl ControlService for ControlServiceImpl {
             config,
             storage_profile.get_object_store_builder(),
         );
-        let catalog = IcebergCatalog::new(Arc::new(rest_client), None)
-            .await
-            .unwrap();
+        let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
 
-        let ctx = SessionContext::new_with_config(
-            SessionConfig::new().with_information_schema(true),
-        );
+        let ctx =
+            SessionContext::new_with_config(SessionConfig::new().with_information_schema(true));
         let catalog_name = warehouse.name.clone();
         ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
 
@@ -209,7 +224,20 @@ impl ControlService for ControlServiceImpl {
             .await?
             .into_iter()
             .collect::<Vec<_>>();
-        let records = convert_record_batches(records)?;
+        // Add columns dbt metadata to each field
+        convert_record_batches(records).map_err(|e| Error::DataFusionError(e.to_string()))
+    }
+
+    async fn query_table(
+        &self,
+        warehouse_id: &Uuid,
+        database_name: &String,
+        _table_name: &String,
+        query: &String,
+    ) -> Result<String> {
+        let (records, _) = self
+            .query(warehouse_id, database_name, _table_name, query)
+            .await?;
         println!("{records:?}");
 
         let buf = Vec::new();
@@ -222,6 +250,38 @@ impl ControlService for ControlServiceImpl {
         let buf = writer.into_inner();
 
         Ok(String::from_utf8(buf).unwrap())
+    }
+
+    async fn query_dbt(
+        &self,
+        warehouse_id: &Uuid,
+        database_name: &String,
+        _table_name: &String,
+        query: &String,
+    ) -> Result<(String, Vec<ColumnInfo>)> {
+        let (records, columns) = self
+            .query(warehouse_id, database_name, _table_name, query)
+            .await?;
+
+        // fn roundtrip_ipc_stream(rb: &RecordBatch) -> RecordBatch {
+        //     let mut buf = Vec::new();
+        //     let mut writer = StreamWriter::try_new(&mut buf, rb.schema_ref()).unwrap();
+        //     writer.write(rb).unwrap();
+        //     writer.finish().unwrap();
+        //     drop(writer);
+        //
+        //     let mut reader = StreamReader::try_new(std::io::Cursor::new(buf), None).unwrap();
+        //     reader.next().unwrap().unwrap()
+        // }
+        //
+        // println!("agahaha {:?}", roundtrip_ipc_stream(&records[0]));
+
+        let mut buffer = Vec::new();
+        let mut writer = StreamWriter::try_new(&mut buffer, &records[0].schema_ref()).unwrap();
+        writer.write(&records[0]).unwrap();
+        writer.finish().unwrap();
+        drop(writer);
+        Ok((general_purpose::STANDARD.encode(buffer), columns))
     }
 
     async fn upload_data_to_table(
@@ -339,12 +399,12 @@ impl ControlService for ControlServiceImpl {
         let table_schema = table.current_arrow_schema()?;
         println!("{:?}", table.table_name());
 
-        let df = ctx.read_csv(path_string, CsvReadOptions::new().schema(&*table_schema)).await?;
+        let df = ctx
+            .read_csv(path_string, CsvReadOptions::new().schema(&*table_schema))
+            .await?;
         let data = df.collect().await?;
 
-        let builder = table
-            .writer_builder()?
-            .rolling_writer_builder(None)?;
+        let builder = table.writer_builder()?.rolling_writer_builder(None)?;
         let mut writer = table
             .writer_builder()?
             .build_append_only_writer(builder)
