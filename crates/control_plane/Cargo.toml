@@ -13,9 +13,9 @@ utils = { path = "../utils" }
 futures = { workspace = true }
 serde = { workspace = true }
 datafusion = { workspace = true }
-iceberg-rust = { git = "https://github.com/JanKaul/iceberg-rust.git" }
-iceberg-rest-catalog = { git = "https://github.com/JanKaul/iceberg-rust.git" }
-datafusion_iceberg = { git = "https://github.com/JanKaul/iceberg-rust.git" }
+iceberg-rust = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "4f1bd30" }
+iceberg-rest-catalog = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "4f1bd30" }
+datafusion_iceberg = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "4f1bd30" }
 arrow = { version = "53" }
 arrow-json = { version = "53" }
 datafusion-functions-json = { version = "0.43.0" }
@@ -30,7 +30,8 @@ bytes = { version = "1.8.0" }
 url = { version = "2.5.2" }
 serde_json = "1.0.128"
 once_cell = "1.19.0"
-regex = "1.11.0"
+regex = { version = "1.11.0" }
+base64 = { version = "0.22.1" }
 
 [dev-dependencies]
 slatedb = { workspace = true }
