@@ -34,7 +34,7 @@ pub fn convert_record_batches(
                 column.as_any().downcast_ref::<UnionArray>()
             {
                 if let Some((data_type, array)) = first_non_empty_type(union_array) {
-                    fields.push(Field::new(field.name(), data_type, true).with_metadata(metadata));
+                    fields.push(Field::new(field.name(), data_type, field.is_nullable()).with_metadata(metadata));
                     array
                 } else {
                     fields.push(field.clone().with_metadata(metadata));
