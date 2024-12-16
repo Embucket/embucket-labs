@@ -1,6 +1,7 @@
 use crate::error::AppError;
 use crate::http::dbt::schemas::{
-    JsonResponse, LoginRequestBody, LoginRequestQuery, QueryRequest, QueryRequestBody, ResponseData,
+    JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
+    QueryRequestBody, ResponseData,
 };
 use crate::state::AppState;
 use axum::body::Bytes;
@@ -18,7 +19,7 @@ pub async fn login(
     State(state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
     body: Bytes,
-) -> Result<Json<(serde_json::value::Value)>, AppError> {
+) -> Json<LoginResponse> {
     // Decompress the gzip-encoded body
     let mut d = GzDecoder::new(&body[..]);
     let mut s = String::new();
@@ -35,7 +36,15 @@ pub async fn login(
     for warehouse in state
         .control_svc
         .list_warehouses()
-        .await?
+        .await
+        .map_err(|e| {
+            Json(LoginResponse {
+                data: None,
+                success: false,
+                message: None,
+            })
+        })
+        .unwrap()
         .into_iter()
         .filter(|w| w.name == query.warehouse)
     {
@@ -44,7 +53,11 @@ pub async fn login(
             format!("{}.{}", warehouse.id, query.database_name),
         );
     }
-    Ok(Json(json!({"data": {"token": token}, "success": true})))
+    Json(LoginResponse {
+        data: Option::from(LoginData { token }),
+        success: true,
+        message: Option::from("successfully executed".to_string()),
+    })
 }
 
 pub async fn query(
@@ -52,7 +65,7 @@ pub async fn query(
     Query(query): Query<QueryRequest>,
     headers: HeaderMap,
     body: Bytes,
-) -> Result<Json<JsonResponse>, AppError> {
+) -> Json<JsonResponse> {
     // Decompress the gzip-encoded body
     let mut d = GzDecoder::new(&body[..]);
     let mut s = String::new();
@@ -63,64 +76,63 @@ pub async fn query(
     let (params, sql_query) = body_json.get_sql_text();
     println!("Request: {:?}", query);
     println!("Params: {:?}", params);
+    println!("sql query: {:?}", sql_query);
     println!("Query raw: {:?}", body_json.sql_text);
     println!("header_map: {:?}", headers);
 
-    let token = extract_token(&headers).ok_or_else(|| AppError {
-        message: "Missing auth token".to_string(),
-    })?;
+    let token = match extract_token(&headers) {
+        Some(token) => token,
+        None => {
+            return Json(JsonResponse::bad_default("missing auth token".to_string()));
+        }
+    };
 
     let dbt_sessions = state.dbt_sessions.lock().await;
     let auth_data = dbt_sessions.get(token.as_str());
 
     if auth_data.is_none() {
-        return Ok(Json(JsonResponse {
-            data: None,
-            success: false,
-            message: Option::from("missing auth data".to_string()),
-            code: Default::default(),
-        }));
+        return Json(JsonResponse::bad_default("missing session".to_string()));
     }
+
     let (warehouse_id, database_name) = auth_data.unwrap().split_once('.').unwrap();
-    let warehouse_id = Uuid::parse_str(warehouse_id).map_err(|_| AppError {
-        message: "Invalid warehouse_id format".to_string(),
-    })?;
+    let warehouse_id = match Uuid::parse_str(warehouse_id) {
+        Ok(w_id) => w_id,
+        Err(e) => {
+            return Json(JsonResponse::bad_default(format!(
+                "{}: {}",
+                "invalid warehouse_id format".to_string(),
+                e
+            )));
+        }
+    };
 
-    let result = state
+    let (result, columns) = state
         .control_svc
-        .query_table(&warehouse_id, &database_name.to_string(), &"".to_string(), &body_json.sql_text)
-        .await;
-
-    if result.is_err() {
-        let err = result.unwrap_err();
-        return Ok(Json(JsonResponse {
-            data: Option::from(ResponseData {
-                row_type: Option::from(vec![]),
-                row_set_base_64: Default::default(),
-                total: Some(0),
-                query_result_format: Option::from("arrow".to_string()),
-                error_code: Option::from("1000".to_string()),
-                sql_state: Option::from(format!("{}", err)),
-            }),
-            success: false,
-            message: Option::from(format!("{}", err)),
-            code: Default::default(),
-        }));
-    }
-
-    Ok(Json(JsonResponse {
+        .query_dbt(
+            &warehouse_id,
+            &database_name.to_string(),
+            &"".to_string(),
+            &body_json.sql_text,
+        )
+        .await
+        .map_err(|e| Json(JsonResponse::bad_default(format!("{}", e))))
+        .unwrap();
+    // query_result_format now is JSON since arrow IPC has flatbuffers bug
+    // https://github.com/apache/arrow-rs/pull/6426
+    Json(JsonResponse {
         data: Option::from(ResponseData {
-            row_type: Option::from(vec![]),
-            row_set_base_64: Option::from("".to_string()),
-            total: Some(0),
-            query_result_format: Option::from("arrow".to_string()),
-            error_code: Default::default(),
-            sql_state: Default::default(),
+            row_type: columns.into_iter().map(|c| c.into()).collect(),
+            row_set_base_64: Option::from(result.clone()),
+            row_set: Option::from(result),
+            total: Some(1),
+            query_result_format: Option::from("json".to_string()),
+            error_code: None,
+            sql_state: Option::from("ok".to_string()),
         }),
         success: true,
-        message: Default::default(),
-        code: Default::default(),
-    }))
+        message: Option::from("successfully executed".to_string()),
+        code: Some(format!("{:06}", 200)),
+    })
 }
 
 pub async fn abort() -> Result<Json<(serde_json::value::Value)>, AppError> {

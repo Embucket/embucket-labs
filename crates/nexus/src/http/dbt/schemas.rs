@@ -1,3 +1,4 @@
+use control_plane::models::ColumnInfo as ColumnInfoModel;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 
@@ -18,6 +19,18 @@ pub struct LoginRequestQuery {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LoginRequestBody {
     pub data: ClientData,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LoginResponse {
+    pub data: Option<LoginData>,
+    pub success: bool,
+    pub message: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LoginData {
+    pub token: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -74,22 +87,19 @@ impl QueryRequestBody {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseData {
-    #[serde(rename = "rowType")]
-    pub row_type: Option<Vec<RowType>>,
-    #[serde(rename = "rowSetBase64")]
+    #[serde(rename = "rowtype")]
+    pub row_type: Vec<ColumnInfo>,
+    #[serde(rename = "rowsetBase64")]
     pub row_set_base_64: Option<String>,
+    #[serde(rename = "rowset")]
+    pub row_set: Option<String>,
     pub total: Option<u32>,
+    #[serde(rename = "queryResultFormat")]
     pub query_result_format: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sql_state: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct RowType {
-    #[serde(rename = "name")]
-    pub name: String,
-    #[serde(rename = "type")]
-    pub type_: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -97,6 +107,51 @@ pub struct JsonResponse {
     pub data: Option<ResponseData>,
     pub success: bool,
     pub message: Option<String>,
-    pub code: Option<i32>,
+    pub code: Option<String>,
+}
 
+impl JsonResponse {
+    pub(crate) fn bad_default(msg: String) -> Self {
+        Self {
+            data: None,
+            success: false,
+            message: Option::from(msg),
+            code: Some(format!("{:06}", 422)),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ColumnInfo {
+    name: String,
+    database: String,
+    schema: String,
+    table: String,
+    nullable: bool,
+    #[serde(rename = "type")]
+    r#type: String,
+    #[serde(rename = "byteLength")]
+    byte_length: Option<i32>,
+    length: Option<i32>,
+    scale: Option<i32>,
+    precision: Option<i32>,
+    collation: Option<String>,
+}
+
+impl From<ColumnInfoModel> for ColumnInfo {
+    fn from(column_info: ColumnInfoModel) -> Self {
+        Self {
+            name: column_info.name,
+            database: column_info.database,
+            schema: column_info.schema,
+            table: column_info.table,
+            nullable: column_info.nullable,
+            r#type: column_info.r#type,
+            byte_length: column_info.byte_length,
+            length: column_info.length,
+            scale: column_info.scale,
+            precision: column_info.precision,
+            collation: column_info.collation,
+        }
+    }
 }
