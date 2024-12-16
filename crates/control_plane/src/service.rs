@@ -4,16 +4,13 @@ use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
 use crate::sql::functions::common::convert_record_batches;
 use crate::sql::sql::SqlExecutor;
-use arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
-use arrow::ipc::MetadataVersion;
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
-use base64::{engine::general_purpose, Engine};
+use base64::Engine;
 use bytes::Bytes;
 use datafusion::execution::context::SessionContext;
 use datafusion::prelude::{CsvReadOptions, SessionConfig};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
-use flatbuffers::{FlatBufferBuilder, Verifier, VerifierOptions};
 use iceberg_rest_catalog::apis::configuration::Configuration;
 use iceberg_rest_catalog::catalog::RestCatalog;
 use icelake::TableIdentifier;
@@ -265,6 +262,9 @@ impl ControlService for ControlServiceImpl {
             .query(warehouse_id, database_name, _table_name, query)
             .await?;
 
+        // THIS CODE RELATED TO ARROW FORMAT
+        //////////////////////////////////////
+
         // fn roundtrip_ipc_stream(rb: &RecordBatch) -> RecordBatch {
         //     let mut buf = Vec::new();
         //     let mut writer = StreamWriter::try_new(&mut buf, rb.schema_ref()).unwrap();
@@ -278,24 +278,34 @@ impl ControlService for ControlServiceImpl {
         //
         // println!("agahaha {:?}", roundtrip_ipc_stream(&records[0]));
 
-        let mut buffer = Vec::new();
-        let options = IpcWriteOptions::try_new(8, false, MetadataVersion::V5).unwrap();
-        let mut stream_writer = StreamWriter::try_new_with_options(
-            &mut buffer, &records[0].schema_ref(), options).unwrap();
-        stream_writer.write(&records[0]).unwrap();
-        stream_writer.finish().unwrap();
-        drop(stream_writer);
+        // let mut buffer = Vec::new();
+        // let options = IpcWriteOptions::try_new(8, false, MetadataVersion::V5).unwrap();
+        // let mut stream_writer = StreamWriter::try_new_with_options(
+        //     &mut buffer, &records[0].schema_ref(), options).unwrap();
+        // stream_writer.write(&records[0]).unwrap();
+        // stream_writer.finish().unwrap();
+        // drop(stream_writer);
+        //
+        // // Try to add flatbuffer verification
+        // println!("{:?}", buffer.len());
+        // let res = general_purpose::STANDARD.encode(buffer);
+        // let encoded = general_purpose::STANDARD.decode(res.clone()).unwrap();
+        //
+        // let mut verifier = Verifier::new(&VerifierOptions::default(), &encoded);
+        // let mut builder = FlatBufferBuilder::new();
+        // let res = general_purpose::STANDARD.encode(buf);
+        //////////////////////////////////////
 
-        // Try to add flatbuffer verification
-        println!("{:?}", buffer.len());
-        let res = general_purpose::STANDARD.encode(buffer);
-        let encoded = general_purpose::STANDARD.decode(res.clone()).unwrap();
+        // We use json format since there is a bug between arrow and nanoarrow
+        let buf = Vec::new();
+        let mut writer = arrow_json::ArrayWriter::new(buf);
+        let record_refs: Vec<&RecordBatch> = records.iter().collect();
+        writer.write_batches(&record_refs).unwrap();
+        writer.finish().unwrap();
 
-        let mut verifier = Verifier::new(&VerifierOptions::default(), &encoded);
-        let mut builder = FlatBufferBuilder::new();
-
-
-        Ok((res, columns))
+        // Get the underlying buffer back,
+        let buf = writer.into_inner();
+        Ok((String::from_utf8(buf).unwrap(), columns))
     }
 
     async fn upload_data_to_table(

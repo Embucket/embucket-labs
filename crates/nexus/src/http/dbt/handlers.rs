@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::http::dbt::schemas::{
-    JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest
-    , ResponseData,
+    JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
+    QueryRequestBody, ResponseData,
 };
 use crate::state::AppState;
 use axum::body::Bytes;
@@ -13,6 +13,7 @@ use regex::Regex;
 use serde_json::json;
 use std::io::Read;
 use std::result::Result;
+use uuid::Uuid;
 
 pub async fn login(
     State(state): State<AppState>,
@@ -65,76 +66,68 @@ pub async fn query(
     headers: HeaderMap,
     body: Bytes,
 ) -> Json<JsonResponse> {
-    // // Decompress the gzip-encoded body
-    // let mut d = GzDecoder::new(&body[..]);
-    // let mut s = String::new();
-    // d.read_to_string(&mut s).unwrap();
-    //
-    // // Deserialize the JSON body
-    // let body_json: QueryRequestBody = serde_json::from_str(&s).unwrap();
-    // let (params, sql_query) = body_json.get_sql_text();
-    // println!("Request: {:?}", query);
-    // println!("Params: {:?}", params);
-    // println!("Query raw: {:?}", body_json.sql_text);
-    // println!("header_map: {:?}", headers);
-    //
-    // let token = match extract_token(&headers) {
-    //     Some(token) => token,
-    //     None => {
-    //         return Json(JsonResponse::bad_default("missing auth token".to_string()));
-    //     }
-    // };
-    //
-    // let dbt_sessions = state.dbt_sessions.lock().await;
-    // let auth_data = dbt_sessions.get(token.as_str());
-    //
-    // if auth_data.is_none() {
-    //     return Json(JsonResponse::bad_default("missing session".to_string()));
-    // }
-    //
-    // let (warehouse_id, database_name) = auth_data.unwrap().split_once('.').unwrap();
-    // let warehouse_id = match Uuid::parse_str(warehouse_id) {
-    //     Ok(w_id) => w_id,
-    //     Err(e) => {
-    //         return Json(JsonResponse::bad_default(format!(
-    //             "{}: {}",
-    //             "invalid warehouse_id format".to_string(),
-    //             e
-    //         )));
-    //     }
-    // };
+    // Decompress the gzip-encoded body
+    let mut d = GzDecoder::new(&body[..]);
+    let mut s = String::new();
+    d.read_to_string(&mut s).unwrap();
 
-    let warehouse = state
-        .control_svc
-        .list_warehouses()
-        .await
-        .unwrap()
-        .into_iter()
-        .filter(|w| w.name == "embucket").map(|w| w.id).collect()[0];
+    // Deserialize the JSON body
+    let body_json: QueryRequestBody = serde_json::from_str(&s).unwrap();
+    let (params, sql_query) = body_json.get_sql_text();
+    println!("Request: {:?}", query);
+    println!("Params: {:?}", params);
+    println!("sql query: {:?}", sql_query);
+    println!("Query raw: {:?}", body_json.sql_text);
+    println!("header_map: {:?}", headers);
+
+    let token = match extract_token(&headers) {
+        Some(token) => token,
+        None => {
+            return Json(JsonResponse::bad_default("missing auth token".to_string()));
+        }
+    };
+
+    let dbt_sessions = state.dbt_sessions.lock().await;
+    let auth_data = dbt_sessions.get(token.as_str());
+
+    if auth_data.is_none() {
+        return Json(JsonResponse::bad_default("missing session".to_string()));
+    }
+
+    let (warehouse_id, database_name) = auth_data.unwrap().split_once('.').unwrap();
+    let warehouse_id = match Uuid::parse_str(warehouse_id) {
+        Ok(w_id) => w_id,
+        Err(e) => {
+            return Json(JsonResponse::bad_default(format!(
+                "{}: {}",
+                "invalid warehouse_id format".to_string(),
+                e
+            )));
+        }
+    };
 
     let (result, columns) = state
         .control_svc
         .query_dbt(
-            &warehouse,
-            &"datasets".to_string(),
-            //&database_name.to_string(),
+            &warehouse_id,
+            &database_name.to_string(),
             &"".to_string(),
-            &"SELECT * FROM embucket.datasets.variant_insert_2".to_string(),
+            &body_json.sql_text,
         )
         .await
-        .map_err(|e| {
-            Json(JsonResponse::bad_default(format!("{}", e)))
-        })
+        .map_err(|e| Json(JsonResponse::bad_default(format!("{}", e))))
         .unwrap();
-
+    // query_result_format now is JSON since arrow IPC has flatbuffers bug
+    // https://github.com/apache/arrow-rs/pull/6426
     Json(JsonResponse {
         data: Option::from(ResponseData {
             row_type: columns.into_iter().map(|c| c.into()).collect(),
-            row_set_base_64: Option::from("".to_string()),
+            row_set_base_64: Option::from(result.clone()),
+            row_set: Option::from(result),
             total: Some(1),
-            query_result_format: Option::from("arrow".to_string()),
+            query_result_format: Option::from("json".to_string()),
             error_code: None,
-            sql_state: Default::default(),
+            sql_state: Option::from("ok".to_string()),
         }),
         success: true,
         message: Option::from("successfully executed".to_string()),
