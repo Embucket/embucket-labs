@@ -13,9 +13,9 @@ utils = { path = "../utils" }
 futures = { workspace = true }
 serde = { workspace = true }
 datafusion = { workspace = true }
-iceberg-rust = { git = "https://github.com/JanKaul/iceberg-rust.git" }
-iceberg-rest-catalog = { git = "https://github.com/JanKaul/iceberg-rust.git" }
-datafusion_iceberg = { git = "https://github.com/JanKaul/iceberg-rust.git" }
+iceberg-rust = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "4f1bd30" }
+iceberg-rest-catalog = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "4f1bd30" }
+datafusion_iceberg = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "4f1bd30" }
 arrow = { version = "53" }
 arrow-json = { version = "53" }
 datafusion-functions-json = { version = "0.43.0" }
