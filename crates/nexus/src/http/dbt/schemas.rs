@@ -91,6 +91,8 @@ pub struct ResponseData {
     pub row_type: Vec<ColumnInfo>,
     #[serde(rename = "rowsetBase64")]
     pub row_set_base_64: Option<String>,
+    #[serde(rename = "rowset")]
+    pub row_set: Option<String>,
     pub total: Option<u32>,
     #[serde(rename = "queryResultFormat")]
     pub query_result_format: Option<String>,
