@@ -1,7 +1,0 @@
-    pytest>=7
-    pyiceberg[s3fs]==0.7.1
-    pyarrow
-    requests
-    boto3
-    fsspec
-    pandas

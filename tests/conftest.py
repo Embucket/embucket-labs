@@ -111,7 +111,7 @@ def storage_profile(server: Server) -> dict:
     )
 
     yield data
-    server.delete_storage_profile(data)
+    #server.delete_storage_profile(data)
 
 
 @pytest.fixture(scope="session")
@@ -124,7 +124,7 @@ def warehouse(server: Server, storage_profile) -> dict:
         storage_profile_id=storage_profile.get("id", None),
     )
     yield wh
-    server.delete_warehouse(wh)
+    #server.delete_warehouse(wh)
 
 
 @pytest.fixture(scope="session")
