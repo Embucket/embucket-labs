@@ -369,6 +369,7 @@ pub async fn update_table_properties(
     ),
     request_body(
         content = TableUploadPayload,
+        content_type = "multipart/form-data",
         description = "Upload data to the table in multipart/form-data format"
     ),
     responses(
