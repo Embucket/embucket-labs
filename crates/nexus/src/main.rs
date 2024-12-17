@@ -183,7 +183,7 @@ async fn shutdown_signal(db: Arc<Db>) {
     let terminate = async {
         signal::unix::signal(signal::unix::SignalKind::terminate())
             .expect("failed to install signal handler")
-            .recv()
+            .recv() 
             .await;
     };
 
@@ -193,11 +193,11 @@ async fn shutdown_signal(db: Arc<Db>) {
     tokio::select! {
         _ = ctrl_c => {
             tracing::warn!("Ctrl+C received, starting graceful shutdown");
-            db.close().await.unwrap();
+            //db.close().await.unwrap();
         },
         _ = terminate => {
             tracing::warn!("SIGTERM received, starting graceful shutdown");
-            db.close().await.unwrap();
+            //db.close().await.unwrap();
         },
     }
 

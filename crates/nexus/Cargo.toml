@@ -19,7 +19,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 serde = { workspace = true }
 iceberg = { workspace = true }
-slatedb = { workspace = true, version = "0.2.0" }
+slatedb = { workspace = true, version = "0.3.0" }
 object_store = { workspace = true }
 utils = { path = "../utils" }
 utoipa = { workspace = true }
