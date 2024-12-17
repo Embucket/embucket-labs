@@ -5,6 +5,7 @@ use crate::http::ui::models::properties::{
 };
 use crate::http::ui::models::table::{
     Table, TableCreatePayload, TableQueryRequest, TableQueryResponse, TableRegisterRequest,
+    TableUploadPayload
 };
 use crate::http::utils::get_default_properties;
 use crate::state::AppState;
@@ -34,6 +35,7 @@ use uuid::Uuid;
             TableQueryRequest,
             TableCreatePayload,
             TableRegisterRequest,
+            TableUploadPayload,
             Table,
             Properties,
             Property,
@@ -184,9 +186,9 @@ pub async fn register_table(
     tags = ["tables"],
     path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
     params(
-        ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
-        ("databaseName" = Uuid, Path, description = "Database Name"),
-        ("tableName" = Uuid, Path, description = "Table name")
+        ("warehouseId" = Uuid, description = "Warehouse ID"),
+        ("databaseName" = Uuid, description = "Database Name"),
+        ("tableName" = Uuid, description = "Table name")
     ),
     responses(
         (status = 200, description = "Successful Response"),
@@ -364,6 +366,10 @@ pub async fn update_table_properties(
         ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
         ("databaseName" = Uuid, Path, description = "Database Name"),
         ("tableName" = Uuid, Path, description = "Table name")
+    ),
+    request_body(
+        content = TableUploadPayload,
+        description = "Upload data to the table in multipart/form-data format"
     ),
     responses(
         (status = 200, description = "Returns result of the query", body = TableQueryResponse),

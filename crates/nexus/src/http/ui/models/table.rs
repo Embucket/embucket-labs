@@ -371,3 +371,10 @@ impl TableQueryResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaWrapper(Schema);
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TableUploadPayload {
+    #[schema(format = "binary")]
+    pub upload_file: String,
+}
