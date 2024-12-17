@@ -21,7 +21,7 @@ async fn main() {
         config.base_path = "http://0.0.0.0:3000/catalog".to_string();
         config
     };
-    let warehouse_id = "dd290519-8e5f-4426-82ca-a70d047f375b";
+    let warehouse_id = "ae7e241d-8aaa-4dcc-8a79-5ad2f72778b0";
     let database_name = "test-namespace";
     let warehouse_name = "test-warehouse";
     let initial_table_ident = format!("`{warehouse_name}`.`{database_name}`.`initial_table`");
@@ -119,12 +119,17 @@ async fn main() {
     //                                 FROM {initial_table_ident}\
     //                                 ");
 
-    // There is correct data in result, but it has similar problems as query above but multiple empty batches
-    let query4 = format!("SELECT i, p, o, ROW_NUMBER() OVER (PARTITION BY p ORDER BY o) as \
-    qualify_alias \
-                                    FROM {initial_table_ident} \
-                                    WHERE p = 'A' OR p = 'B'\
+    // OLOLOLO
+    let query4 = format!("SELECT i \
+                                    FROM {initial_table_ident}\
                                     ");
+
+    // There is correct data in result, but it has similar problems as query above but multiple empty batches
+    // let query4 = format!("SELECT i, p, o, ROW_NUMBER() OVER (PARTITION BY p ORDER BY o) as \
+    // qualify_alias \
+    //                                 FROM {initial_table_ident} \
+    //                                 WHERE p = 'A' OR p = 'B'\
+    //                                 ");
     let records: Vec<RecordBatch> = SqlExecutor::new(ctx.clone())
         .query(&query4.to_string(), &warehouse_name.clone().to_string())
         .await.unwrap()
