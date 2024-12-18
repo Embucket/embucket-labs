@@ -74,7 +74,13 @@ pub async fn get_table(
     let table_ident = TableIdent {
         database: DatabaseIdent {
             warehouse: WarehouseIdent::new(warehouse.id),
-            namespace: NamespaceIdent::new(database_name.clone()),
+            namespace: NamespaceIdent::from_vec(
+                database_name
+                    .split(".")
+                    .map(String::from)
+                    .collect::<Vec<String>>(),
+            )
+                .unwrap(),
         },
         table: table_name,
     };
@@ -109,7 +115,13 @@ pub async fn create_table(
         .await?;
     let db_ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
-        namespace: NamespaceIdent::new(database_name.clone()),
+        namespace: NamespaceIdent::from_vec(
+            database_name
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
     let table = state
         .catalog_svc
@@ -156,7 +168,13 @@ pub async fn register_table(
         .await?;
     let db_ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
-        namespace: NamespaceIdent::new(database_name.clone()),
+        namespace: NamespaceIdent::from_vec(
+            database_name
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
     let table = state
         .catalog_svc
@@ -201,7 +219,13 @@ pub async fn delete_table(
     let table_ident = TableIdent {
         database: DatabaseIdent {
             warehouse: WarehouseIdent::new(warehouse.id),
-            namespace: NamespaceIdent::new(database_name),
+            namespace: NamespaceIdent::from_vec(
+                database_name
+                    .split(".")
+                    .map(String::from)
+                    .collect::<Vec<String>>(),
+            )
+                .unwrap(),
         },
         table: table_name,
     };
@@ -283,7 +307,13 @@ pub async fn get_settings(
     let table_ident = TableIdent {
         database: DatabaseIdent {
             warehouse: WarehouseIdent::new(warehouse.id),
-            namespace: NamespaceIdent::new(database_name.clone()),
+            namespace: NamespaceIdent::from_vec(
+                database_name
+                    .split(".")
+                    .map(String::from)
+                    .collect::<Vec<String>>(),
+            )
+                .unwrap(),
         },
         table: table_name,
     };
@@ -337,7 +367,13 @@ pub async fn update_table_properties(
     let table_ident = TableIdent {
         database: DatabaseIdent {
             warehouse: WarehouseIdent::new(warehouse.id),
-            namespace: NamespaceIdent::new(database_name.clone()),
+            namespace: NamespaceIdent::from_vec(
+                database_name
+                    .split(".")
+                    .map(String::from)
+                    .collect::<Vec<String>>(),
+            )
+                .unwrap(),
         },
         table: table_name,
     };
@@ -425,7 +461,13 @@ pub async fn get_snapshots(
     let table_ident = TableIdent {
         database: DatabaseIdent {
             warehouse: WarehouseIdent::new(warehouse.id),
-            namespace: NamespaceIdent::new(database_name.clone()),
+            namespace: NamespaceIdent::from_vec(
+                database_name
+                    .split(".")
+                    .map(String::from)
+                    .collect::<Vec<String>>(),
+            )
+                .unwrap(),
         },
         table: table_name,
     };

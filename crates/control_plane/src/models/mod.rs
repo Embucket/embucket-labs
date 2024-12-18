@@ -430,7 +430,7 @@ impl ColumnInfo {
                 column_info.r#type = "date".to_string();
             }
             DataType::Timestamp(_, _) => {
-                column_info.r#type = "timestamp_ntz".to_string();
+                column_info.r#type = "timestamp".to_string();
                 column_info.precision = Some(0);
                 column_info.scale = Some(9);
             }

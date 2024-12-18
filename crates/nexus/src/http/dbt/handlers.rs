@@ -74,11 +74,11 @@ pub async fn query(
     // Deserialize the JSON body
     let body_json: QueryRequestBody = serde_json::from_str(&s).unwrap();
     let (params, sql_query) = body_json.get_sql_text();
-    println!("Request: {:?}", query);
-    println!("Params: {:?}", params);
-    println!("sql query: {:?}", sql_query);
-    println!("Query raw: {:?}", body_json.sql_text);
-    println!("header_map: {:?}", headers);
+    // println!("Request: {:?}", query);
+    // println!("Params: {:?}", params);
+    // println!("sql query: {:?}", sql_query);
+    // println!("Query raw: {:?}", body_json.sql_text);
+    // println!("header_map: {:?}", headers);
 
     let token = match extract_token(&headers) {
         Some(token) => token,
@@ -106,7 +106,7 @@ pub async fn query(
         }
     };
 
-    let (result, columns) = state
+    let (result, columns) = match state
         .control_svc
         .query_dbt(
             &warehouse_id,
@@ -115,14 +115,18 @@ pub async fn query(
             &body_json.sql_text,
         )
         .await
-        .map_err(|e| Json(JsonResponse::bad_default(format!("{}", e))))
-        .unwrap();
+    {
+        Ok((result, columns)) => (result, columns),
+        Err(e) => return Json(JsonResponse::bad_default(format!("{}", e))),
+    };
+
     // query_result_format now is JSON since arrow IPC has flatbuffers bug
     // https://github.com/apache/arrow-rs/pull/6426
     Json(JsonResponse {
         data: Option::from(ResponseData {
             row_type: columns.into_iter().map(|c| c.into()).collect(),
-            row_set_base_64: Option::from(result.clone()),
+            // row_set_base_64: Option::from(result.clone()),
+            row_set_base_64: None,
             row_set: Option::from(result),
             total: Some(1),
             query_result_format: Option::from("json".to_string()),
