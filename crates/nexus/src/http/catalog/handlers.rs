@@ -36,7 +36,13 @@ pub async fn get_namespace(
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::new(namespace_id),
+        namespace: NamespaceIdent::from_vec(
+            namespace_id
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
     let namespace = catalog.get_namespace(&ident).await?;
 
@@ -51,7 +57,13 @@ pub async fn delete_namespace(
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::new(namespace_id),
+        namespace: NamespaceIdent::from_vec(
+            namespace_id
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
     catalog.drop_namespace(&ident).await?;
 
@@ -85,7 +97,13 @@ pub async fn create_table(
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::new(namespace_id),
+        namespace: NamespaceIdent::from_vec(
+            namespace_id
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
     let table = catalog
         .create_table(
@@ -110,7 +128,13 @@ pub async fn register_table(
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::new(namespace_id),
+        namespace: NamespaceIdent::from_vec(
+            namespace_id
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
     let table = catalog
         .register_table(
@@ -135,7 +159,13 @@ pub async fn commit_table(
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::new(namespace_id),
+        namespace: NamespaceIdent::from_vec(
+            namespace_id
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
     // FIXME: Iceberg REST has table ident in the body request
     let ident = TableIdent {
@@ -160,7 +190,13 @@ pub async fn get_table(
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::new(namespace_id),
+        namespace: NamespaceIdent::from_vec(
+            namespace_id
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
     let ident = TableIdent {
         database: ident,
@@ -179,7 +215,13 @@ pub async fn delete_table(
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::new(namespace_id),
+        namespace: NamespaceIdent::from_vec(
+            namespace_id
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
     let ident = TableIdent {
         database: ident,
@@ -198,7 +240,13 @@ pub async fn list_tables(
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::new(namespace_id),
+        namespace: NamespaceIdent::from_vec(
+            namespace_id
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
     let tables = catalog.list_tables(&ident).await?;
 

@@ -54,14 +54,20 @@ pub async fn create_database(
     let name = payload.name;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
-        namespace: NamespaceIdent::new(name.clone()),
+        namespace: NamespaceIdent::from_vec(
+            name.split(".").map(String::from).collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
 
     if databases
         .iter()
         .any(|db| db.ident.namespace == ident.namespace)
     {
-        return Err(AppError::AlreadyExists(format!("database with name {} already exists", name)));
+        return Err(AppError::AlreadyExists(format!(
+            "database with name {:?} already exists",
+            name
+        )));
     }
 
     let profile = state
@@ -106,7 +112,13 @@ pub async fn delete_database(
 ) -> Result<Json<()>, AppError> {
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse_id),
-        namespace: NamespaceIdent::new(database_name),
+        namespace: NamespaceIdent::from_vec(
+            database_name
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
 
     state
@@ -145,7 +157,13 @@ pub async fn get_database(
         .await?;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
-        namespace: NamespaceIdent::new(database_name),
+        namespace: NamespaceIdent::from_vec(
+            database_name
+                .split(".")
+                .map(String::from)
+                .collect::<Vec<String>>(),
+        )
+            .unwrap(),
     };
     let mut database = state.get_database(&ident).await?;
     let tables = state.list_tables(&ident).await?;

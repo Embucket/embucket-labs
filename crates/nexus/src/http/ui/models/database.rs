@@ -70,7 +70,7 @@ impl From<models::Database> for Database {
     fn from(db: models::Database) -> Self {
         Database {
             id: get_database_id(db.ident.clone()),
-            name: db.ident.namespace.first().unwrap().to_string(),
+            name: db.ident.namespace.join(".").to_string(),
             tables: vec![],
             warehouse_id: Default::default(),
             created_at: Default::default(),
@@ -86,7 +86,7 @@ impl From<models::Database> for Database {
 pub fn get_database_id(ident: models::DatabaseIdent) -> Uuid {
     Uuid::new_v5(
         &Uuid::NAMESPACE_DNS,
-        ident.namespace.first().unwrap().to_string().as_bytes(),
+        ident.namespace.join("__").to_string().as_bytes(),
     )
 }
 

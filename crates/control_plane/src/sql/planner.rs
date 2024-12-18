@@ -70,7 +70,10 @@ where
         match self.handle_custom_statement(statement.clone()) {
             Ok(plan) => return Ok(plan),
             Err(e) => {
-                eprintln!("Custom statement parsing skipped: {}", statement.to_string());
+                eprintln!(
+                    "Custom statement parsing skipped: {} with err {}",
+                    statement.to_string(), e
+                );
             }
         }
 
@@ -482,6 +485,7 @@ where
     }
 
     fn show_variable_to_plan(&self, variable: &[Ident]) -> Result<LogicalPlan> {
+        println!("SHOW variable: {:?}", variable);
         if !self.has_table("information_schema", "df_settings") {
             return plan_err!(
                 "SHOW [VARIABLE] is not supported unless information_schema is enabled"
@@ -500,34 +504,50 @@ where
             variable_vec = variable_vec.split_at(variable_vec.len() - 1).0.to_vec();
         }
 
-        let variable = object_name_to_string(&ObjectName(variable_vec));
-        let base_query = format!("SELECT {columns} FROM information_schema.df_settings");
-        let query = if variable == "all" {
-            // Add an ORDER BY so the output comes out in a consistent order
-            format!("{base_query} ORDER BY name")
-        } else if variable == "timezone" || variable == "time.zone" {
-            // we could introduce alias in OptionDefinition if this string matching thing grows
-            format!("{base_query} WHERE name = 'datafusion.execution.time_zone'")
-        } else {
-            // These values are what are used to make the information_schema table, so we just
-            // check here, before actually planning or executing the query, if it would produce no
-            // results, and error preemptively if it would (for a better UX)
-            let is_valid_variable = self
-                .provider
-                .options()
-                .entries()
-                .iter()
-                .any(|opt| opt.key == variable);
 
-            if is_valid_variable {
-                format!("{base_query} WHERE name = '{variable}'")
+        println!("Variable vec: {:?}", variable_vec);
+        println!("Variable contains: {:?}", variable_vec.iter().any(|ident| ident.value == "objects"));
+        let query = if variable_vec.iter().any(|ident| ident.value == "objects") {
+            columns = vec![
+                "to_timestamp(0) as 'created_on'",
+                "table_name as 'name'",
+                "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
+                "table_catalog as 'database_name'",
+                "table_schema as 'schema_name'",
+                "null as 'comment'",
+            ].join(", ");
+            format!("SELECT {columns} FROM information_schema.tables")
+        } else {
+            let variable = object_name_to_string(&ObjectName(variable_vec));
+            let base_query = format!("SELECT {columns} FROM information_schema.df_settings");
+            let query_res = if variable == "all" {
+                // Add an ORDER BY so the output comes out in a consistent order
+                format!("{base_query} ORDER BY name")
+            } else if variable == "timezone" || variable == "time.zone" {
+                // we could introduce alias in OptionDefinition if this string matching thing grows
+                format!("{base_query} WHERE name = 'datafusion.execution.time_zone'")
             } else {
-                // skip where clause to return empty result
-                format!("{base_query}")
-            }
+                // These values are what are used to make the information_schema table, so we just
+                // check here, before actually planning or executing the query, if it would produce no
+                // results, and error preemptively if it would (for a better UX)
+                let is_valid_variable = self
+                    .provider
+                    .options()
+                    .entries()
+                    .iter()
+                    .any(|opt| opt.key == variable);
+
+                if is_valid_variable {
+                    format!("{base_query} WHERE name = '{variable}'")
+                } else {
+                    // skip where clause to return empty result
+                    format!("{base_query}")
+                }
+            };
+            query_res
         };
 
-        let statement = DFParser::parse_sql(&query)?.pop_front().unwrap();
+        let statement = DFParser::parse_sql(&query.as_str())?.pop_front().unwrap();
 
         if let DFStatement::Statement(s) = statement {
             self.sql_statement_to_plan(*s)

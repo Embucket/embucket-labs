@@ -41,6 +41,7 @@ impl<'a> ContextProvider for CustomContextProvider<'a> {
     fn get_table_source(&self, name: TableReference) -> Result<Arc<dyn TableSource>> {
         let catalog = self.state.config_options().catalog.clone();
         let name = name.resolve(&catalog.default_catalog, &catalog.default_schema);
+        println!("Table name: {:?}", name);
         println!("Table name: {:?}, to_string {}", name, name.to_string());
         println!("Tables: {:?}", self.tables.keys());
         self.tables

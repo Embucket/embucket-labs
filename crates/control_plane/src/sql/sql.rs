@@ -1,7 +1,8 @@
 use crate::sql::context::CustomContextProvider;
 use crate::sql::functions::parse_json::ParseJsonFunc;
 use crate::sql::planner::ExtendedSqlToRel;
-use arrow::array::RecordBatch;
+use arrow::array::{RecordBatch, UInt64Array};
+use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::catalog::SchemaProvider;
 use datafusion::catalog_common::information_schema::InformationSchemaProvider;
 use datafusion::catalog_common::{ResolvedTableReference, TableReference};
@@ -10,11 +11,14 @@ use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::{LogicalPlan, ScalarUDF};
 use datafusion::sql::parser::Statement as DFStatement;
-use datafusion::sql::sqlparser::ast::{CreateTable as CreateTableStatement, ObjectName, Statement};
+use datafusion::sql::sqlparser::ast::{
+    CreateTable as CreateTableStatement, ObjectName, SchemaName, Statement,
+};
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
 use iceberg_rust::spec::identifier::Identifier;
+use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use regex;
@@ -36,15 +40,19 @@ impl SqlExecutor {
     pub async fn query(&self, query: &String, warehouse_name: &String) -> Result<Vec<RecordBatch>> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
-        // Update query ti use custom JSON functions
+        // Update query to use custom JSON functions
         let query = self.preprocess_query(query);
         println!("Query: {}", query);
         let statement = state.sql_to_statement(&query, dialect)?;
 
         if let DFStatement::Statement(s) = statement {
+            println!("Statement: {:?}", s);
             match *s {
                 Statement::CreateTable { .. } => {
                     return self.create_table_query(*s, warehouse_name).await;
+                }
+                Statement::CreateSchema { schema_name, .. } => {
+                    return self.create_schema(schema_name, warehouse_name).await;
                 }
                 Statement::ShowVariable { .. } => {
                     return self.execute_with_custom_plan(&query).await;
@@ -70,8 +78,10 @@ impl SqlExecutor {
         if let Statement::CreateTable(create_table_statement) = statement {
             let new_table_full_name = create_table_statement.name.to_string();
             let _new_table_wh_id = create_table_statement.name.0[0].clone();
-            let new_table_db = create_table_statement.name.0[1].clone();
-            let new_table_name = create_table_statement.name.0[2].clone();
+            // Get database identifier from warehouse.db.db_1.table_name
+            let new_table_db =
+                &create_table_statement.name.0[1..create_table_statement.name.0.len() - 1];
+            let new_table_name = create_table_statement.name.0.last().unwrap().clone();
             let location = create_table_statement.location.clone();
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
@@ -100,7 +110,10 @@ impl SqlExecutor {
             let catalog = self.ctx.catalog(warehouse_name).unwrap();
             let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().unwrap();
             let rest_catalog = iceberg_catalog.catalog();
-            let new_table_ident = Identifier::new(&[new_table_db.value], &new_table_name.value);
+            let new_table_ident = Identifier::new(
+                &new_table_db.into_iter().map(|v| v.value.clone()).collect::<Vec<String>>(),
+                &new_table_name.value,
+            );
             match rest_catalog.tabular_exists(&new_table_ident).await {
                 Ok(true) => {
                     rest_catalog.drop_table(&new_table_ident).await.unwrap();
@@ -108,7 +121,6 @@ impl SqlExecutor {
                 Ok(false) => {}
                 Err(_) => {}
             };
-
             // Create new table
             rest_catalog
                 .create_table(
@@ -143,6 +155,33 @@ impl SqlExecutor {
         }
     }
 
+    pub async fn create_schema(&self, name: SchemaName, warehouse_name: &str) -> Result<Vec<RecordBatch>> {
+        match name {
+            SchemaName::Simple(schema_name) => {
+                println!("Creating simple schema: {:?}", schema_name);
+                let catalog = self.ctx.catalog(warehouse_name).unwrap();
+                let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().unwrap();
+                let rest_catalog = iceberg_catalog.catalog();
+                let namespace: Vec<String> = schema_name.0.iter().map(|ident| ident.value.clone()).collect();
+                rest_catalog.create_namespace(&Namespace::try_new(&namespace).unwrap(), None).await.unwrap();
+            }
+            _ => {
+                return Err(datafusion::error::DataFusionError::NotImplemented(
+                    "Only simple schema names are supported".to_string(),
+                ));
+            }
+        }
+        let schema = Arc::new(ArrowSchema::new(vec![Field::new(
+            "count",
+            DataType::UInt64,
+            false,
+        )]));
+        Ok(vec![RecordBatch::try_new(
+            schema,
+            vec![Arc::new(UInt64Array::from(vec![0]))],
+        )?])
+    }
+
     pub async fn get_custom_logical_plan(&self, query: &String) -> Result<LogicalPlan> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
@@ -150,7 +189,7 @@ impl SqlExecutor {
 
         if let DFStatement::Statement(s) = statement.clone() {
             let references = state.resolve_table_references(&statement)?;
-
+            println!("References: {:?}", references);
             let mut ctx_provider = CustomContextProvider {
                 state: &state,
                 tables: HashMap::new(),
@@ -185,6 +224,7 @@ impl SqlExecutor {
                     }
                 }
             }
+            println!("Tables: {:?}", ctx_provider.tables.keys());
             let planner = ExtendedSqlToRel::new(&ctx_provider);
             planner.sql_statement_to_plan(*s)
         } else {

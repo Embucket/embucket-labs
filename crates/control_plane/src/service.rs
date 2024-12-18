@@ -205,7 +205,6 @@ impl ControlService for ControlServiceImpl {
             storage_profile.get_object_store_builder(),
         );
         let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
-
         let ctx =
             SessionContext::new_with_config(SessionConfig::new().with_information_schema(true));
         let catalog_name = warehouse.name.clone();
@@ -213,10 +212,10 @@ impl ControlService for ControlServiceImpl {
 
         let provider = ctx.catalog(catalog_name.clone().as_str()).unwrap();
         let schemas = provider.schema_names();
-        println!("{schemas:?}");
+        println!("schemas {schemas:?}");
 
         let tables = provider.schema(database_name).unwrap().table_names();
-        println!("{tables:?}");
+        println!("tables {tables:?}");
 
         let records: Vec<RecordBatch> = SqlExecutor::new(ctx)
             .query(query, &catalog_name.clone().to_string())
@@ -237,7 +236,7 @@ impl ControlService for ControlServiceImpl {
         let (records, _) = self
             .query(warehouse_id, database_name, _table_name, query)
             .await?;
-        println!("{records:?}");
+        // println!("{records:?}");
 
         let buf = Vec::new();
         let mut writer = arrow_json::ArrayWriter::new(buf);
