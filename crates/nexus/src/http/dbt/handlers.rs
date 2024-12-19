@@ -74,11 +74,7 @@ pub async fn query(
     // Deserialize the JSON body
     let body_json: QueryRequestBody = serde_json::from_str(&s).unwrap();
     let (params, sql_query) = body_json.get_sql_text();
-    // println!("Request: {:?}", query);
-    // println!("Params: {:?}", params);
-    // println!("sql query: {:?}", sql_query);
-    // println!("Query raw: {:?}", body_json.sql_text);
-    // println!("header_map: {:?}", headers);
+    println!("Query raw: {:?}", body_json.sql_text);
 
     let token = match extract_token(&headers) {
         Some(token) => token,
@@ -127,7 +123,7 @@ pub async fn query(
             row_type: columns.into_iter().map(|c| c.into()).collect(),
             // row_set_base_64: Option::from(result.clone()),
             row_set_base_64: None,
-            row_set: Option::from(result),
+            row_set: serde_json::from_str(&*result).unwrap(),
             total: Some(1),
             query_result_format: Option::from("json".to_string()),
             error_code: None,

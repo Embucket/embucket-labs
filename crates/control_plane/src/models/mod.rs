@@ -1,6 +1,6 @@
 use crate::error::Error;
-use arrow::array::RecordBatch;
-use arrow::datatypes::{DataType, Field};
+use arrow::array::{RecordBatch, UInt64Array};
+use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use chrono::{NaiveDateTime, Utc};
 use dotenv::dotenv;
 use iceberg_rust::catalog::bucket::ObjectStoreBuilder;
@@ -430,7 +430,7 @@ impl ColumnInfo {
                 column_info.r#type = "date".to_string();
             }
             DataType::Timestamp(_, _) => {
-                column_info.r#type = "timestamp".to_string();
+                column_info.r#type = "timestamp_ntz".to_string();
                 column_info.precision = Some(0);
                 column_info.scale = Some(9);
             }
@@ -443,4 +443,13 @@ impl ColumnInfo {
         }
         column_info
     }
+}
+
+pub fn created_entity_response() -> Vec<RecordBatch> {
+    let schema = Arc::new(ArrowSchema::new(vec![Field::new(
+        "count",
+        DataType::UInt64,
+        false,
+    )]));
+    vec![RecordBatch::try_new(schema, vec![Arc::new(UInt64Array::from(vec![0]))]).unwrap()]
 }

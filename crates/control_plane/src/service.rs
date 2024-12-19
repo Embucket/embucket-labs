@@ -214,8 +214,12 @@ impl ControlService for ControlServiceImpl {
         let schemas = provider.schema_names();
         println!("schemas {schemas:?}");
 
-        let tables = provider.schema(database_name).unwrap().table_names();
-        println!("tables {tables:?}");
+        for schema in schemas {
+            if schema.starts_with(format!("{database_name}.").as_str()) {
+                let tables = provider.schema(&*schema).unwrap().table_names();
+                println!("tables in {schema}: {tables:?}");
+            }
+        }
 
         let records: Vec<RecordBatch> = SqlExecutor::new(ctx)
             .query(query, &catalog_name.clone().to_string())

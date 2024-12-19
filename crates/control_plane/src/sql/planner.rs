@@ -72,7 +72,8 @@ where
             Err(e) => {
                 eprintln!(
                     "Custom statement parsing skipped: {} with err {}",
-                    statement.to_string(), e
+                    statement.to_string(),
+                    e
                 );
             }
         }
@@ -504,22 +505,20 @@ where
             variable_vec = variable_vec.split_at(variable_vec.len() - 1).0.to_vec();
         }
 
-
-        println!("Variable vec: {:?}", variable_vec);
-        println!("Variable contains: {:?}", variable_vec.iter().any(|ident| ident.value == "objects"));
         let query = if variable_vec.iter().any(|ident| ident.value == "objects") {
             columns = vec![
-                "to_timestamp(0) as 'created_on'",
-                "table_name as 'name'",
-                "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
                 "table_catalog as 'database_name'",
                 "table_schema as 'schema_name'",
+                "table_name as 'name'",
+                "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
                 "null as 'comment'",
-            ].join(", ");
+            ]
+                .join(", ");
             format!("SELECT {columns} FROM information_schema.tables")
         } else {
             let variable = object_name_to_string(&ObjectName(variable_vec));
-            let base_query = format!("SELECT {columns} FROM information_schema.df_settings");
+            // let base_query = format!("SELECT {columns} FROM information_schema.df_settings");
+            let base_query = "select schema_name as 'name' from information_schema.schemata";
             let query_res = if variable == "all" {
                 // Add an ORDER BY so the output comes out in a consistent order
                 format!("{base_query} ORDER BY name")
