@@ -3,7 +3,7 @@ members = [
     "crates/utils",
     "crates/catalog",
     "crates/control_plane", 
-    "crates/nexus",
+    "crates/nexus", "tests/sql-parser",
 ]
 resolver= "2"
 
