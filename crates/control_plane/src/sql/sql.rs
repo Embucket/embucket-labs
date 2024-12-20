@@ -13,7 +13,8 @@ use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::{LogicalPlan, ScalarUDF};
 use datafusion::sql::parser::Statement as DFStatement;
 use datafusion::sql::sqlparser::ast::{
-    CreateTable as CreateTableStatement, Ident, ObjectName, SchemaName, Statement,
+    CreateTable as CreateTableStatement, Ident, ObjectName, Query, SchemaName, Statement,
+    TableFactor, TableWithJoins,
 };
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -42,12 +43,12 @@ impl SqlExecutor {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         // Update query to use custom JSON functions
-        let mut query = self.preprocess_query(query);
+        let query = self.preprocess_query(query);
         println!("Query: {}", query);
         let mut statement = state.sql_to_statement(&query, dialect)?;
-        statement = self.modify_statement_references(statement, warehouse_name);
-        query = statement.to_string();
-        println!("Query fixed: {}", query);
+        // statement = self.update_statement_references(statement, warehouse_name);
+        // query = statement.to_string();
+        // println!("Query fixed: {}", query);
 
         if let DFStatement::Statement(s) = statement.clone() {
             match *s {
@@ -58,15 +59,18 @@ impl SqlExecutor {
                     return self.create_schema(schema_name, warehouse_name).await;
                 }
                 Statement::ShowVariable { .. } => {
-                    return self.execute_with_custom_plan(&query).await;
+                    return self.execute_with_custom_plan(&query, warehouse_name).await;
                 }
                 Statement::Drop { .. } => {
-                    return self.execute_with_custom_plan(&query).await;
+                    return self.execute_with_custom_plan(&query, warehouse_name).await;
+                }
+                Statement::Query { .. } => {
+                    return self.execute_with_custom_plan(&query, warehouse_name).await;
                 }
                 _ => {}
             }
         }
-        self.ctx.sql(&statement.to_string()).await?.collect().await
+        self.ctx.sql(&query).await?.collect().await
     }
 
     pub fn preprocess_query(&self, query: &String) -> String {
@@ -113,7 +117,7 @@ impl SqlExecutor {
             let updated_query = modified_statement.to_string();
 
             // Get schema of new table
-            let plan = self.get_custom_logical_plan(&updated_query).await?;
+            let plan = self.get_custom_logical_plan(&updated_query, "").await?;
             self.ctx
                 .execute_logical_plan(plan.clone())
                 .await?
@@ -168,7 +172,7 @@ impl SqlExecutor {
                 // Copy data from InMemory table to created table
                 let insert_query =
                     format!("INSERT INTO {new_table_full_name} SELECT * FROM {new_table_name}");
-                let result = self.execute_with_custom_plan(&insert_query).await?;
+                let result = self.execute_with_custom_plan(&insert_query, warehouse_name).await?;
                 // self.ctx.sql(&insert_query).await?.collect().await?;
 
                 // Drop InMemory table
@@ -221,11 +225,12 @@ impl SqlExecutor {
         Ok(created_entity_response())
     }
 
-    pub async fn get_custom_logical_plan(&self, query: &String) -> Result<LogicalPlan> {
+    pub async fn get_custom_logical_plan(&self, query: &String, warehouse_name: &str) -> Result<LogicalPlan> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let mut statement = state.sql_to_statement(query, dialect)?;
-        statement = self.modify_statement_references(statement, "");
+        statement = self.update_statement_references(statement, warehouse_name);
+        println!("modified query: {:?}", statement);
 
         if let DFStatement::Statement(s) = statement.clone() {
             let mut ctx_provider = CustomContextProvider {
@@ -306,23 +311,36 @@ impl SqlExecutor {
             })
     }
 
-    pub async fn execute_with_custom_plan(&self, query: &String) -> Result<Vec<RecordBatch>> {
-        let plan = self.get_custom_logical_plan(query).await?;
+    pub async fn execute_with_custom_plan(&self, query: &String, warehouse_name: &str) -> Result<Vec<RecordBatch>> {
+        let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
         self.ctx.execute_logical_plan(plan).await?.collect().await
     }
 
-    pub fn modify_statement_references(&self, statement: DFStatement, warehouse_name: &str) -> DFStatement {
+    pub fn update_statement_references(
+        &self,
+        statement: DFStatement,
+        warehouse_name: &str,
+    ) -> DFStatement {
         if let DFStatement::Statement(s) = statement.clone() {
             match *s.clone() {
                 Statement::Insert(insert_statement) => {
-                    let table_name = self.compress_database_name(insert_statement.table_name.0, warehouse_name);
+                    let table_name =
+                        self.compress_database_name(insert_statement.table_name.0, warehouse_name);
                     let modified_statement = Insert {
                         table_name: ObjectName(table_name),
                         ..insert_statement
                     };
                     DFStatement::Statement(Box::new(Statement::Insert(modified_statement)))
                 }
-                Statement::Drop { object_type, if_exists, names, cascade, restrict, purge, temporary } => {
+                Statement::Drop {
+                    object_type,
+                    if_exists,
+                    names,
+                    cascade,
+                    restrict,
+                    purge,
+                    temporary,
+                } => {
                     let names = self.compress_database_name(names[0].clone().0, warehouse_name);
                     let modified_statement = Statement::Drop {
                         object_type,
@@ -335,9 +353,10 @@ impl SqlExecutor {
                     };
                     DFStatement::Statement(Box::new(modified_statement))
                 }
-                Statement::Query(query) => {
-                    // println!()
-                    statement
+                Statement::Query(mut query) => {
+                    self.update_tables_in_query(query.as_mut(), warehouse_name);
+                    println!("Query: {:?}", query);
+                    DFStatement::Statement(Box::new(Statement::Query(query)))
                 }
                 _ => statement,
             }
@@ -346,11 +365,14 @@ impl SqlExecutor {
         }
     }
 
-    // Combine database identifiers into single Ident
-    pub fn compress_database_name(&self, table_name: Vec<Ident>, warehouse_name: &str) -> Vec<Ident> {
-        let mut new_table_name = table_name.clone();
+    // Combine database name identifiers into single Ident
+    pub fn compress_database_name(
+        &self,
+        mut table_name: Vec<Ident>,
+        warehouse_name: &str,
+    ) -> Vec<Ident> {
         if warehouse_name.len() > 0 && !table_name.starts_with(&[Ident::new(warehouse_name)]) {
-            new_table_name.insert(0, Ident::new(warehouse_name));
+            table_name.insert(0, Ident::new(warehouse_name));
         }
         if table_name.len() > 3 {
             let new_table_db = &table_name[1..table_name.len() - 1]
@@ -358,12 +380,63 @@ impl SqlExecutor {
                 .map(|v| v.value.clone())
                 .collect::<Vec<String>>()
                 .join(".");
-            new_table_name = vec![
+            table_name = vec![
                 table_name[0].clone(),
                 Ident::new(new_table_db),
                 table_name.last().unwrap().clone(),
             ];
         }
-        new_table_name
+        table_name
+    }
+
+    fn update_tables_in_query(&self, query: &mut Query, warehouse_name: &str) {
+        if let Some(with) = query.with.as_mut() {
+            for cte in &mut with.cte_tables {
+                self.update_tables_in_query(&mut cte.query, warehouse_name);
+            }
+        }
+
+        match query.body.as_mut() {
+            datafusion::sql::sqlparser::ast::SetExpr::Select(select) => {
+                for table_with_joins in &mut select.from {
+                    self.update_tables_in_table_with_joins(table_with_joins, warehouse_name);
+                }
+            }
+            datafusion::sql::sqlparser::ast::SetExpr::Query(q) => {
+                self.update_tables_in_query(q, warehouse_name);
+            }
+            _ => {}
+        }
+    }
+
+    fn update_tables_in_table_with_joins(
+        &self,
+        table_with_joins: &mut TableWithJoins,
+        warehouse_name: &str,
+    ) {
+        self.update_tables_in_table_factor(&mut table_with_joins.relation, warehouse_name);
+
+        for join in &mut table_with_joins.joins {
+            self.update_tables_in_table_factor(&mut join.relation, warehouse_name);
+        }
+    }
+
+    fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor, warehouse_name: &str) {
+        match table_factor {
+            TableFactor::Table { name, .. } => {
+                let compressed_name = self.compress_database_name(name.0.clone(), warehouse_name);
+                *name = ObjectName(compressed_name);
+            }
+            TableFactor::Derived { subquery, .. } => {
+                self.update_tables_in_query(subquery, warehouse_name);
+            }
+            TableFactor::TableFunction { .. } => {}
+            TableFactor::NestedJoin {
+                table_with_joins, ..
+            } => {
+                self.update_tables_in_table_with_joins(table_with_joins, warehouse_name);
+            }
+            _ => {}
+        }
     }
 }
