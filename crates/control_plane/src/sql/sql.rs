@@ -323,7 +323,6 @@ impl SqlExecutor {
     ) -> Result<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
         let res = self.ctx.execute_logical_plan(plan).await?.collect().await;
-        println!("Result: {:?}", res);
         res
     }
 
