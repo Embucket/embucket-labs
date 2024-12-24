@@ -176,7 +176,7 @@ or replace transient table DBT_TRY_1.ATOMIC_snowplow_manifest.snowplow_web_base_
             *
           from
             new_events_session_ids
-        ),
+        )
         select
           sl.session_identifier,
           sl.user_identifier,
