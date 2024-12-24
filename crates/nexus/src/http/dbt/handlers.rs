@@ -13,6 +13,8 @@ use regex::Regex;
 use serde_json::json;
 use std::io::Read;
 use std::result::Result;
+use tokio::fs::OpenOptions;
+use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 pub async fn login(
@@ -75,6 +77,10 @@ pub async fn query(
     let body_json: QueryRequestBody = serde_json::from_str(&s).unwrap();
     let (params, sql_query) = body_json.get_sql_text();
     println!("Query raw: {:?}", body_json.sql_text);
+
+    // if let Err(e) = log_query(body_json.sql_text.as_str()).await {
+    //     eprintln!("Failed to log query: {}", e);
+    // }
 
     let token = match extract_token(&headers) {
         Some(token) => token,
@@ -147,4 +153,15 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
                 .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
         })
     })
+}
+
+async fn log_query(query: &str) -> Result<(), std::io::Error> {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("queries.log")
+        .await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    file.write_all(query.as_bytes()).await?;
+    file.write_all(b"\n").await?;
+    Ok(())
 }

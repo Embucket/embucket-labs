@@ -5,6 +5,8 @@ use crate::repository::{StorageProfileRepository, WarehouseRepository};
 use crate::sql::functions::common::convert_record_batches;
 use crate::sql::sql::SqlExecutor;
 use arrow::record_batch::RecordBatch;
+use arrow_json::writer::JsonArray;
+use arrow_json::WriterBuilder;
 use async_trait::async_trait;
 use base64::Engine;
 use bytes::Bytes;
@@ -240,10 +242,11 @@ impl ControlService for ControlServiceImpl {
         let (records, _) = self
             .query(warehouse_id, database_name, _table_name, query)
             .await?;
-        // println!("{records:?}");
 
         let buf = Vec::new();
-        let mut writer = arrow_json::ArrayWriter::new(buf);
+        let write_builder = WriterBuilder::new().with_explicit_nulls(true);
+        let mut writer = write_builder.build::<_, JsonArray>(buf);
+
         let record_refs: Vec<&RecordBatch> = records.iter().collect();
         writer.write_batches(&record_refs).unwrap();
         writer.finish().unwrap();
@@ -301,7 +304,9 @@ impl ControlService for ControlServiceImpl {
 
         // We use json format since there is a bug between arrow and nanoarrow
         let buf = Vec::new();
-        let mut writer = arrow_json::ArrayWriter::new(buf);
+        let write_builder = WriterBuilder::new().with_explicit_nulls(true);
+        let mut writer = write_builder.build::<_, JsonArray>(buf);
+
         let record_refs: Vec<&RecordBatch> = records.iter().collect();
         writer.write_batches(&record_refs).unwrap();
         writer.finish().unwrap();

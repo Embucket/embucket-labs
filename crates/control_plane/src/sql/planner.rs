@@ -70,11 +70,7 @@ where
         match self.handle_custom_statement(statement.clone()) {
             Ok(plan) => return Ok(plan),
             Err(e) => {
-                eprintln!(
-                    "Custom statement parsing skipped: {} with err {}",
-                    statement.to_string(),
-                    e
-                );
+                eprintln!("Custom statement parsing skipped: {statement} ");
             }
         }
 
@@ -105,7 +101,8 @@ where
                 all_constraints.extend(inline_constraints);
                 // Build column default values
                 let column_defaults = self.build_column_defaults(&columns, planner_context)?;
-
+                println!("column_defaults: {:?}", column_defaults);
+                println!("statement 11: {:?}", statement);
                 let has_columns = !columns.is_empty();
                 let schema = self.build_schema(columns.clone())?.to_dfschema_ref()?;
                 if has_columns {
@@ -240,7 +237,7 @@ where
             SQLDataType::Char(_)
             | SQLDataType::Text
             | SQLDataType::String(_) => Ok(DataType::Utf8),
-            SQLDataType::Timestamp(None, tz_info) => {
+            SQLDataType::Timestamp(precision, tz_info) => {
                 let tz = if matches!(tz_info, TimezoneInfo::Tz)
                     || matches!(tz_info, TimezoneInfo::WithTimeZone)
                 {
@@ -252,7 +249,14 @@ where
                     // Timestamp Without Time zone
                     None
                 };
-                Ok(DataType::Timestamp(TimeUnit::Nanosecond, tz.map(Into::into)))
+                let precision = match precision {
+                    Some(0) => TimeUnit::Second,
+                    Some(3) => TimeUnit::Millisecond,
+                    Some(6) => TimeUnit::Microsecond,
+                    None | Some(9) => TimeUnit::Nanosecond,
+                    _ => unreachable!(),
+                };
+                Ok(DataType::Timestamp(precision, tz.map(Into::into)))
             }
             SQLDataType::Date => Ok(DataType::Date32),
             SQLDataType::Time(None, tz_info) => {

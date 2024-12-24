@@ -44,7 +44,6 @@ impl SqlExecutor {
         let dialect = state.config().options().sql_parser.dialect.as_str();
         // Update query to use custom JSON functions
         let query = self.preprocess_query(query);
-        println!("Query: {}", query);
         let mut statement = state.sql_to_statement(&query, dialect)?;
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
@@ -168,21 +167,21 @@ impl SqlExecutor {
                 .unwrap();
 
             // we don't need physical table for transient tables
-            if !transient {
-                // Copy data from InMemory table to created table
-                let insert_query =
-                    format!("INSERT INTO {new_table_full_name} SELECT * FROM {new_table_name}");
-                let result = self
-                    .execute_with_custom_plan(&insert_query, warehouse_name)
-                    .await?;
-                // self.ctx.sql(&insert_query).await?.collect().await?;
+            // if !transient {
+            // Copy data from InMemory table to created table
+            let insert_query =
+                format!("INSERT INTO {new_table_full_name} SELECT * FROM {new_table_name}");
+            let result = self
+                .execute_with_custom_plan(&insert_query, warehouse_name)
+                .await?;
+            // self.ctx.sql(&insert_query).await?.collect().await?;
 
-                // Drop InMemory table
-                let drop_query = format!("DROP TABLE {new_table_name}");
-                self.ctx.sql(&drop_query).await?.collect().await?;
-                return Ok(result);
-            }
-            Ok(created_entity_response())
+            // Drop InMemory table
+            let drop_query = format!("DROP TABLE {new_table_name}");
+            self.ctx.sql(&drop_query).await?.collect().await?;
+            return Ok(result);
+            // }
+            // Ok(created_entity_response())
         } else {
             Err(datafusion::error::DataFusionError::NotImplemented(
                 "Only CREATE TABLE statements are supported".to_string(),
@@ -235,15 +234,15 @@ impl SqlExecutor {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let mut statement = state.sql_to_statement(query, dialect)?;
+        println!("raw query: {:?}", statement.to_string());
         statement = self.update_statement_references(statement, warehouse_name);
-        println!("modified query: {:?}", statement);
+        println!("modified query: {:?}", statement.to_string());
 
         if let DFStatement::Statement(s) = statement.clone() {
             let mut ctx_provider = CustomContextProvider {
                 state: &state,
                 tables: HashMap::new(),
             };
-
             let references = state.resolve_table_references(&statement)?;
             println!("References: {:?}", references);
             for reference in references {
@@ -323,7 +322,9 @@ impl SqlExecutor {
         warehouse_name: &str,
     ) -> Result<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
-        self.ctx.execute_logical_plan(plan).await?.collect().await
+        let res = self.ctx.execute_logical_plan(plan).await?.collect().await;
+        println!("Result: {:?}", res);
+        res
     }
 
     pub fn update_statement_references(
@@ -365,7 +366,6 @@ impl SqlExecutor {
                 }
                 Statement::Query(mut query) => {
                     self.update_tables_in_query(query.as_mut(), warehouse_name);
-                    println!("Query: {:?}", query);
                     DFStatement::Statement(Box::new(Statement::Query(query)))
                 }
                 _ => statement,
