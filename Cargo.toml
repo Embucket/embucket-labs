@@ -32,3 +32,10 @@ utoipa-swagger-ui = { version = "7.1.1-beta.0", features = ["axum"] }
 lazy_static = { version = "1.5" }
 dotenv = { version = "0.15.0" }
 datafusion = { version = "43" }
+
+
+[workspace.lints.clippy]
+all={ level="deny", priority=-1 }
+pedantic="warn"
+as_conversions="warn"
+nursery="warn"

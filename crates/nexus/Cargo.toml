@@ -46,3 +46,6 @@ async-trait = { workspace = true }
 http-body-util = { workspace = true }
 tempfile = { workspace = true }
 lazy_static = { workspace = true }
+
+[lints]
+workspace = true

@@ -13,3 +13,6 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 iceberg = { workspace = true }
 uuid = { workspace = true }
+
+[lints]
+workspace = true
