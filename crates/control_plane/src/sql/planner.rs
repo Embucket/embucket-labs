@@ -199,8 +199,8 @@ where
 
     pub fn convert_data_type(&self, sql_type: &SQLDataType) -> Result<DataType> {
         match sql_type {
-            SQLDataType::Array(ArrayElemTypeDef::AngleBracket(inner_sql_type))
-            | SQLDataType::Array(ArrayElemTypeDef::SquareBracket(inner_sql_type, _)) => {
+            SQLDataType::Array(ArrayElemTypeDef::AngleBracket(inner_sql_type) |
+ArrayElemTypeDef::SquareBracket(inner_sql_type, _)) => {
                 // Arrays may be multi-dimensional.
                 let inner_data_type = self.convert_data_type(inner_sql_type)?;
                 Ok(DataType::new_list(inner_data_type, true))
@@ -357,8 +357,6 @@ where
             | SQLDataType::CharVarying(_)
             | SQLDataType::CharacterLargeObject(_)
             | SQLDataType::CharLargeObject(_)
-            // precision is not supported
-            | SQLDataType::Timestamp(Some(_), _)
             // precision is not supported
             | SQLDataType::Time(Some(_), _)
             | SQLDataType::Dec(_)
