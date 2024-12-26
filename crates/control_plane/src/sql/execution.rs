@@ -85,6 +85,7 @@ impl SqlExecutor {
         )
     }
 
+    #[allow(clippy::redundant_else)]
     pub async fn create_table_query(
         &self,
         statement: Statement,
@@ -102,7 +103,6 @@ impl SqlExecutor {
             let new_table_db = &ident[1..ident.len() - 1];
             let new_table_name = ident.last().unwrap().clone();
             let location = create_table_statement.location.clone();
-            let transient = create_table_statement.transient;
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
