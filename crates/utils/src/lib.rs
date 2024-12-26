@@ -30,68 +30,60 @@ impl Db {
         Self(db)
     }
 
-    
     /// Closes the database connection.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns a `DbError` if the underlying database operation fails.
     pub async fn close(&self) -> Result<()> {
         self.0.close().await?;
         Ok(())
     }
 
-
     /// Deletes a key-value pair from the database.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// This function will return a `DbError` if the underlying database operation fails.
     pub async fn delete(&self, key: &str) -> Result<()> {
         self.0.delete(key.as_bytes()).await;
         Ok(())
     }
 
-
     /// Stores a key-value pair in the database.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns a `SerializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.
     pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
-        let serialized = ser::to_vec(value).map_err( Error::SerializeError)?;
+        let serialized = ser::to_vec(value).map_err(Error::SerializeError)?;
         self.0.put(key.as_bytes(), serialized.as_ref()).await;
         Ok(())
     }
 
-
     /// Retrieves a value from the database by its key.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns a `DbError` if the underlying database operation fails.
     /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
     pub async fn get<T: for<'de> serde::de::Deserialize<'de>>(
         &self,
         key: &str,
     ) -> Result<Option<T>> {
-        let value: Option<bytes::Bytes> = self
-            .0
-            .get(key.as_bytes())
-            .await
-            .map_err(Error::DbError)?;
+        let value: Option<bytes::Bytes> =
+            self.0.get(key.as_bytes()).await.map_err(Error::DbError)?;
         value.map_or_else(
             || Ok(None),
             |bytes| de::from_slice(&bytes).map_err(Error::DeserializeError),
         )
     }
 
-
     /// Retrieves a list of keys from the database.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns a `DbError` if the underlying database operation fails.
     /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
     pub async fn keys(&self, key: &str) -> Result<Vec<String>> {
@@ -99,11 +91,10 @@ impl Db {
         Ok(keys.unwrap_or_default())
     }
 
-
     /// Appends a value to a list stored in the database.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns a `DbError` if the database operations fail, or
     /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
     pub async fn append(&self, key: &str, value: String) -> Result<()> {
@@ -112,29 +103,28 @@ impl Db {
                 all_keys.push(value.clone());
             }
         })
-            .await?;
+        .await?;
         Ok(())
     }
 
-    
     /// Removes a value from a list stored in the database.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns a `DbError` if the database operations fail, or
     /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
     pub async fn remove(&self, key: &str, value: &str) -> Result<()> {
         self.modify(key, |all_keys: &mut Vec<String>| {
             all_keys.retain(|key| *key != value);
         })
-            .await?;
+        .await?;
         Ok(())
     }
 
     /// Modifies a value in the database using the provided closure.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns a `DbError` if the database operations fail, or
     /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
     pub async fn modify<T>(&self, key: &str, f: impl Fn(&mut T)) -> Result<()>

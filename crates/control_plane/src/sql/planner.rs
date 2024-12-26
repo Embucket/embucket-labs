@@ -89,16 +89,16 @@ where
         match statement.clone() {
             Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
             Statement::CreateTable(CreateTableStatement {
-                                       query,
-                                       name,
-                                       columns,
-                                       constraints,
-                                       table_properties,
-                                       with_options,
-                                       if_not_exists,
-                                       or_replace,
-                                       ..
-                                   }) if table_properties.is_empty() && with_options.is_empty() => {
+                query,
+                name,
+                columns,
+                constraints,
+                table_properties,
+                with_options,
+                if_not_exists,
+                or_replace,
+                ..
+            }) if table_properties.is_empty() && with_options.is_empty() => {
                 // Merge inline constraints and existing constraints
                 let mut all_constraints = constraints;
                 let inline_constraints = calc_inline_constraints_from_columns(&columns);
@@ -513,7 +513,7 @@ where
                 "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
                 "null as 'comment'",
             ]
-                .join(", ");
+            .join(", ");
             format!("SELECT {columns} FROM information_schema.tables")
         } else {
             let variable = object_name_to_string(&ObjectName(variable_vec));

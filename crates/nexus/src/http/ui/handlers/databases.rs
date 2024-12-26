@@ -57,7 +57,7 @@ pub async fn create_database(
         namespace: NamespaceIdent::from_vec(
             name.split(".").map(String::from).collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
 
     if databases
@@ -118,7 +118,7 @@ pub async fn delete_database(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
 
     state
@@ -163,7 +163,7 @@ pub async fn get_database(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
     let mut database = state.get_database(&ident).await?;
     let tables = state.list_tables(&ident).await?;

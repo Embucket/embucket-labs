@@ -19,15 +19,17 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use uuid::Uuid;
 
-
 // FIXME: Rename namespace to database: namespace concept is Iceberg REST API specific
 // Internally we have not a namespace but a database
 // Database is a superset of namespace, Database > Namespace
 // We can create namespace from a database, but not otherwise
 #[async_trait]
 pub trait Catalog: Debug + Sync + Send {
-    async fn get_config(&self, ident: Option<WarehouseIdent>, storage_profile: Option<StorageProfile>) ->
-    Result<Config>;
+    async fn get_config(
+        &self,
+        ident: Option<WarehouseIdent>,
+        storage_profile: Option<StorageProfile>,
+    ) -> Result<Config>;
     async fn list_namespaces(
         &self,
         warehouse: &WarehouseIdent,
@@ -67,7 +69,12 @@ pub trait Catalog: Debug + Sync + Send {
     ) -> Result<Table>;
     async fn load_table(&self, table: &TableIdent) -> Result<Table>;
     async fn drop_table(&self, table: &TableIdent) -> Result<()>;
-    async fn update_table(&self, storage_profile: &StorageProfile, warehouse: &Warehouse, commit: TableCommit) -> Result<Table>;
+    async fn update_table(
+        &self,
+        storage_profile: &StorageProfile,
+        warehouse: &Warehouse,
+        commit: TableCommit,
+    ) -> Result<Table>;
 }
 
 #[derive(Clone)]
@@ -95,11 +102,13 @@ impl CatalogImpl {
     }
 }
 
-
 #[async_trait]
 impl Catalog for CatalogImpl {
-    async fn get_config(&self, ident: Option<WarehouseIdent>, storage_profile: Option<StorageProfile>) ->
-    Result<Config> {
+    async fn get_config(
+        &self,
+        ident: Option<WarehouseIdent>,
+        storage_profile: Option<StorageProfile>,
+    ) -> Result<Config> {
         // TODO: Implement warehouse config
         // TODO: Should it include prefix from Warehouse or not?
         // As per https://github.com/apache/iceberg-python/blob/main/pyiceberg/catalog/rest.py#L298
@@ -107,31 +116,35 @@ impl Catalog for CatalogImpl {
         // TODO: Should it include bucket from storage profile?
         // hardcoding for now
         // uri and prefix
-        let control_plane_url = env::var("CONTROL_PLANE_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+        let control_plane_url =
+            env::var("CONTROL_PLANE_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
         let mut config = Config {
             defaults: HashMap::new(),
             overrides: HashMap::from([
                 // ("warehouse".to_string(), ident.id().to_string()),
-                (
-                    "uri".to_string(),
-                    format! {"{}/catalog", control_plane_url},
-                ),
+                ("uri".to_string(), format! {"{}/catalog", control_plane_url}),
             ]),
         };
         if let Some(wh_ident) = ident {
             // we parse it as warehouse id in catalog url
-            config.overrides.insert("prefix".to_string(), format! {"{}", wh_ident.id()});
+            config
+                .overrides
+                .insert("prefix".to_string(), format! {"{}", wh_ident.id()});
         }
         if let Some(sp) = storage_profile {
-            config.overrides.insert("s3.endpoint".to_string(), sp.endpoint.clone().unwrap());
+            config
+                .overrides
+                .insert("s3.endpoint".to_string(), sp.endpoint.clone().unwrap());
         }
         Ok(config)
     }
 
-    async fn update_table(&self,
-                          storage_profile: &StorageProfile,
-                          warehouse: &Warehouse,
-                          commit: TableCommit) -> Result<Table> {
+    async fn update_table(
+        &self,
+        storage_profile: &StorageProfile,
+        warehouse: &Warehouse,
+        commit: TableCommit,
+    ) -> Result<Table> {
         let table = self.load_table(&commit.ident).await?;
 
         commit
@@ -143,8 +156,10 @@ impl Catalog for CatalogImpl {
         // TODO rewrite metadata file? need to research when metadata rewrite is needed
         // Currently the metadata file is only written once - during table creation
 
-        let mut builder =
-            TableMetadataBuilder::new_from_metadata(table.metadata, Some(table.metadata_location.clone()));
+        let mut builder = TableMetadataBuilder::new_from_metadata(
+            table.metadata,
+            Some(table.metadata_location.clone()),
+        );
 
         for update in commit.updates {
             builder = update.apply(builder)?;
@@ -169,7 +184,10 @@ impl Catalog for CatalogImpl {
         let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store();
         let data = Bytes::from(serde_json::to_vec(&table.metadata).unwrap());
         let path = Path::from(format!("{table_part}/{metadata_part}"));
-        object_store.put(&path, PutPayload::from(data)).await.unwrap();
+        object_store
+            .put(&path, PutPayload::from(data))
+            .await
+            .unwrap();
 
         Ok(table)
     }
@@ -316,7 +334,10 @@ impl Catalog for CatalogImpl {
         let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store();
         let data = Bytes::from(serde_json::to_vec(&table.metadata).unwrap());
         let path = Path::from(format!("{table_part}/{metadata_part}"));
-        object_store.put(&path, PutPayload::from(data)).await.unwrap();
+        object_store
+            .put(&path, PutPayload::from(data))
+            .await
+            .unwrap();
 
         Ok(table)
     }
@@ -345,7 +366,10 @@ impl Catalog for CatalogImpl {
         // Load metadata from the provided location
         let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store();
         let path = Path::from(metadata_location.clone());
-        let data = object_store.get(&path).await.map_err(|e| Error::DbError(e.to_string()))?;
+        let data = object_store
+            .get(&path)
+            .await
+            .map_err(|e| Error::DbError(e.to_string()))?;
         let metadata: TableMetadata = serde_json::from_slice(&data.bytes().await.unwrap()).unwrap();
         let table = Table {
             metadata: metadata.clone(),

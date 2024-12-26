@@ -5,7 +5,7 @@ use crate::http::ui::models::properties::{
 };
 use crate::http::ui::models::table::{
     Table, TableCreatePayload, TableQueryRequest, TableQueryResponse, TableRegisterRequest,
-    TableUploadPayload
+    TableUploadPayload,
 };
 use crate::http::utils::get_default_properties;
 use crate::state::AppState;
@@ -82,7 +82,7 @@ pub async fn get_table(
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-                .unwrap(),
+            .unwrap(),
         },
         table: table_name,
     };
@@ -123,7 +123,7 @@ pub async fn create_table(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
     let table = state
         .catalog_svc
@@ -176,7 +176,7 @@ pub async fn register_table(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
     let table = state
         .catalog_svc
@@ -227,7 +227,7 @@ pub async fn delete_table(
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-                .unwrap(),
+            .unwrap(),
         },
         table: table_name,
     };
@@ -315,7 +315,7 @@ pub async fn get_settings(
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-                .unwrap(),
+            .unwrap(),
         },
         table: table_name,
     };
@@ -375,7 +375,7 @@ pub async fn update_table_properties(
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-                .unwrap(),
+            .unwrap(),
         },
         table: table_name,
     };
@@ -474,7 +474,7 @@ pub async fn get_snapshots(
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-                .unwrap(),
+            .unwrap(),
         },
         table: table_name,
     };

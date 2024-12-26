@@ -27,7 +27,6 @@ impl AppState {
             .map(|warehouse| warehouse.into())
     }
 
-
     pub async fn get_profile_by_id(
         &self,
         storage_profile_id: Uuid,
@@ -68,9 +67,7 @@ impl AppState {
 
         let mut result = Vec::new();
         for mut warehouse in warehouses {
-            let profile = self
-                .get_profile_by_id(warehouse.storage_profile_id)
-                .await?;
+            let profile = self.get_profile_by_id(warehouse.storage_profile_id).await?;
 
             let databases = self.list_databases(warehouse.id, profile.clone()).await?;
 
@@ -103,7 +100,11 @@ impl AppState {
                 AppError::new(e, fmt.as_str())
             })
     }
-    pub async fn list_databases(&self, warehouse_id: Uuid, profile: StorageProfile) -> Result<Vec<Database>, AppError> {
+    pub async fn list_databases(
+        &self,
+        warehouse_id: Uuid,
+        profile: StorageProfile,
+    ) -> Result<Vec<Database>, AppError> {
         let ident = &WarehouseIdent::new(warehouse_id);
         let databases = self
             .catalog_svc

@@ -183,7 +183,7 @@ async fn shutdown_signal(db: Arc<Db>) {
     let terminate = async {
         signal::unix::signal(signal::unix::SignalKind::terminate())
             .expect("failed to install signal handler")
-            .recv() 
+            .recv()
             .await;
     };
 
@@ -229,7 +229,7 @@ async fn buffer_and_print<B>(
     body: B,
 ) -> Result<Bytes, (StatusCode, String)>
 where
-    B: axum::body::HttpBody<Data=Bytes>,
+    B: axum::body::HttpBody<Data = Bytes>,
     B::Error: std::fmt::Display,
 {
     let bytes = match body.collect().await {

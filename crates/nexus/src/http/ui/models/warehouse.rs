@@ -57,7 +57,6 @@ impl From<CreateWarehousePayload> for models::WarehouseCreateRequest {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Warehouse {

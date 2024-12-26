@@ -30,20 +30,22 @@ pub fn convert_record_batches(
         for (i, column) in batch.columns().iter().enumerate() {
             let metadata = column_infos[i].to_metadata();
             let field = batch.schema().field(i).clone();
-            let converted_column = if let Some(union_array) =
-                column.as_any().downcast_ref::<UnionArray>()
-            {
-                if let Some((data_type, array)) = first_non_empty_type(union_array) {
-                    fields.push(Field::new(field.name(), data_type, field.is_nullable()).with_metadata(metadata));
-                    array
+            let converted_column =
+                if let Some(union_array) = column.as_any().downcast_ref::<UnionArray>() {
+                    if let Some((data_type, array)) = first_non_empty_type(union_array) {
+                        fields.push(
+                            Field::new(field.name(), data_type, field.is_nullable())
+                                .with_metadata(metadata),
+                        );
+                        array
+                    } else {
+                        fields.push(field.clone().with_metadata(metadata));
+                        Arc::clone(column)
+                    }
                 } else {
                     fields.push(field.clone().with_metadata(metadata));
                     Arc::clone(column)
-                }
-            } else {
-                fields.push(field.clone().with_metadata(metadata));
-                Arc::clone(column)
-            };
+                };
             columns.push(converted_column);
         }
         let new_schema = Arc::new(Schema::new(fields));

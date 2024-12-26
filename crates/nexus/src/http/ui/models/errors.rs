@@ -58,7 +58,9 @@ impl IntoResponse for AppError {
             AppError::InternalServerError(ref _e) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
             }
-            AppError::InvalidCredentials(ref _e) => (StatusCode::UNPROCESSABLE_ENTITY, self.to_string()),
+            AppError::InvalidCredentials(ref _e) => {
+                (StatusCode::UNPROCESSABLE_ENTITY, self.to_string())
+            }
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             AppError::UnprocessableEntity(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),

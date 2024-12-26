@@ -217,7 +217,7 @@ mod tests {
             None,
             None,
         )
-            .expect("failed to create profile")
+        .expect("failed to create profile")
     }
 
     #[tokio::test]

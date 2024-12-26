@@ -362,9 +362,15 @@ impl ColumnInfo {
     pub fn to_metadata(&self) -> HashMap<String, String> {
         let mut metadata = HashMap::new();
         metadata.insert("logicalType".to_string(), self.r#type.to_uppercase());
-        metadata.insert("precision".to_string(), self.precision.unwrap_or(38).to_string());
+        metadata.insert(
+            "precision".to_string(),
+            self.precision.unwrap_or(38).to_string(),
+        );
         metadata.insert("scale".to_string(), self.scale.unwrap_or(0).to_string());
-        metadata.insert("charLength".to_string(), self.length.unwrap_or(0).to_string());
+        metadata.insert(
+            "charLength".to_string(),
+            self.length.unwrap_or(0).to_string(),
+        );
         metadata
     }
     pub fn from_batch(records: Vec<RecordBatch>) -> Vec<ColumnInfo> {

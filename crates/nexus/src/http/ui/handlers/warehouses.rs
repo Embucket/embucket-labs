@@ -133,19 +133,23 @@ pub async fn create_warehouse(
     let warehouses = state.control_svc.list_warehouses().await?;
 
     if warehouses.iter().any(|w| w.name == request.name) {
-        return Err(AppError::AlreadyExists(format!("warehouse with name {} already exists", request.name)));
+        return Err(AppError::AlreadyExists(format!(
+            "warehouse with name {} already exists",
+            request.name
+        )));
     }
-    let warehouse: WarehouseModel = state
-        .control_svc
-        .create_warehouse(&request)
-        .await
-        .map_err(|e| {
-            let fmt = format!(
-                "{}: failed to get create warehouse with name {}",
-                e, request.name
-            );
-            AppError::new(e, fmt.as_str())
-        })?;
+    let warehouse: WarehouseModel =
+        state
+            .control_svc
+            .create_warehouse(&request)
+            .await
+            .map_err(|e| {
+                let fmt = format!(
+                    "{}: failed to get create warehouse with name {}",
+                    e, request.name
+                );
+                AppError::new(e, fmt.as_str())
+            })?;
     let mut warehouse: Warehouse = warehouse.into();
     warehouse.storage_profile = profile;
     Ok(Json(warehouse))

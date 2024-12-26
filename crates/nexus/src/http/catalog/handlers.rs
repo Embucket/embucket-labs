@@ -42,7 +42,7 @@ pub async fn get_namespace(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
     let namespace = catalog.get_namespace(&ident).await?;
 
@@ -63,7 +63,7 @@ pub async fn delete_namespace(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
     catalog.drop_namespace(&ident).await?;
 
@@ -103,7 +103,7 @@ pub async fn create_table(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
     let table = catalog
         .create_table(
@@ -134,7 +134,7 @@ pub async fn register_table(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
     let table = catalog
         .register_table(
@@ -165,7 +165,7 @@ pub async fn commit_table(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
     // FIXME: Iceberg REST has table ident in the body request
     let ident = TableIdent {
@@ -196,7 +196,7 @@ pub async fn get_table(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
     let ident = TableIdent {
         database: ident,
@@ -221,7 +221,7 @@ pub async fn delete_table(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
     let ident = TableIdent {
         database: ident,
@@ -246,7 +246,7 @@ pub async fn list_tables(
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .unwrap(),
     };
     let tables = catalog.list_tables(&ident).await?;
 

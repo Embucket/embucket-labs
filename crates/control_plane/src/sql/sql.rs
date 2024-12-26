@@ -172,7 +172,9 @@ impl SqlExecutor {
                 // Copy data from InMemory table to created table
                 let insert_query =
                     format!("INSERT INTO {new_table_full_name} SELECT * FROM {new_table_name}");
-                let result = self.execute_with_custom_plan(&insert_query, warehouse_name).await?;
+                let result = self
+                    .execute_with_custom_plan(&insert_query, warehouse_name)
+                    .await?;
                 // self.ctx.sql(&insert_query).await?.collect().await?;
 
                 // Drop InMemory table
@@ -225,7 +227,11 @@ impl SqlExecutor {
         Ok(created_entity_response())
     }
 
-    pub async fn get_custom_logical_plan(&self, query: &String, warehouse_name: &str) -> Result<LogicalPlan> {
+    pub async fn get_custom_logical_plan(
+        &self,
+        query: &String,
+        warehouse_name: &str,
+    ) -> Result<LogicalPlan> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let mut statement = state.sql_to_statement(query, dialect)?;
@@ -311,7 +317,11 @@ impl SqlExecutor {
             })
     }
 
-    pub async fn execute_with_custom_plan(&self, query: &String, warehouse_name: &str) -> Result<Vec<RecordBatch>> {
+    pub async fn execute_with_custom_plan(
+        &self,
+        query: &String,
+        warehouse_name: &str,
+    ) -> Result<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
         self.ctx.execute_logical_plan(plan).await?.collect().await
     }

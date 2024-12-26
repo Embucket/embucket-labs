@@ -43,7 +43,12 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn with_details(&mut self, warehouse_id: Uuid, profile: StorageProfile, mut tables: Vec<Table>) {
+    pub fn with_details(
+        &mut self,
+        warehouse_id: Uuid,
+        profile: StorageProfile,
+        mut tables: Vec<Table>,
+    ) {
         self.storage_profile = profile.clone();
 
         let mut total_statistics = Statistics::default();
@@ -58,10 +63,12 @@ impl Database {
         self.tables = tables;
 
         self.properties.get("created_at").map(|created_at| {
-            self.created_at = DateTime::from(chrono::DateTime::parse_from_rfc3339(created_at).unwrap());
+            self.created_at =
+                DateTime::from(chrono::DateTime::parse_from_rfc3339(created_at).unwrap());
         });
         self.properties.get("updated_at").map(|updated_at| {
-            self.updated_at = DateTime::from(chrono::DateTime::parse_from_rfc3339(updated_at).unwrap());
+            self.updated_at =
+                DateTime::from(chrono::DateTime::parse_from_rfc3339(updated_at).unwrap());
         });
     }
 }
