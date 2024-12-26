@@ -39,12 +39,12 @@ impl SqlExecutor {
         Self { ctx }
     }
 
-    pub async fn query(&self, query: &String, warehouse_name: &String) -> Result<Vec<RecordBatch>> {
+    pub async fn query(&self, query: &str, warehouse_name: &str) -> Result<Vec<RecordBatch>> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         // Update query to use custom JSON functions
         let query = self.preprocess_query(query);
-        let mut statement = state.sql_to_statement(&query, dialect)?;
+        let statement = state.sql_to_statement(&query, dialect)?;
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
         // println!("Query fixed: {}", query);
@@ -72,7 +72,7 @@ impl SqlExecutor {
         self.ctx.sql(&query).await?.collect().await
     }
 
-    pub fn preprocess_query(&self, query: &String) -> String {
+    pub fn preprocess_query(&self, query: &str) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         let re = regex::Regex::new(r"(\w+)\[(\d+)]\.(\w+)").unwrap();
         let query = re
@@ -88,7 +88,7 @@ impl SqlExecutor {
     pub async fn create_table_query(
         &self,
         statement: Statement,
-        warehouse_name: &String,
+        warehouse_name: &str,
     ) -> Result<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
             let mut new_table_full_name = create_table_statement.name.to_string();
@@ -228,7 +228,7 @@ impl SqlExecutor {
 
     pub async fn get_custom_logical_plan(
         &self,
-        query: &String,
+        query: &str,
         warehouse_name: &str,
     ) -> Result<LogicalPlan> {
         let state = self.ctx.state();
@@ -318,7 +318,7 @@ impl SqlExecutor {
 
     pub async fn execute_with_custom_plan(
         &self,
-        query: &String,
+        query: &str,
         warehouse_name: &str,
     ) -> Result<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
