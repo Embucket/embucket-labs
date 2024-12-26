@@ -36,6 +36,8 @@ datafusion = { version = "43" }
 
 [workspace.lints.clippy]
 all={ level="deny", priority=-1 }
-pedantic="warn"
+pedantic={ level="warn", priority=1 }
 as_conversions="warn"
-nursery="warn"
+nursery={ level="warn", priority=1 }
+unwrap_used="deny"
+expect_used="deny"
