@@ -8,18 +8,22 @@ use uuid::Uuid;
 use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
+//#[snafu(visibility(pub(crate)))]
 pub enum Error {
     #[snafu(display("SlateDB error: {source}"))]
     Database { source: SlateDBError },
 
-    #[snafu(display("Serialize error: {}", source))]
-    Serialize { source: serde_json::Error },
+    #[snafu(display("SlateDB error: {source} while fetching key {key}"))]
+    KeyGet { key: String, source: SlateDBError },
+
+    #[snafu(display("Error serializing value: {source}"))]
+    SerializeValue { source: serde_json::Error },
 
     #[snafu(display("Deserialize error: {source}"))]
-    Deserialize { source: serde_json::Error },
+    DeserializeValue { source: serde_json::Error },
 
-    #[snafu(display("Not found"))]
-    NotFound,
+    #[snafu(display("Key Not found"))]
+    KeyNotFound,
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -37,7 +41,10 @@ impl Db {
     ///
     /// Returns a `DbError` if the underlying database operation fails.
     pub async fn close(&self) -> Result<()> {
-        self.0.close().await?;
+        self.0
+            .close()
+            .await
+            .context(DatabaseSnafu)?;
         Ok(())
     }
 
@@ -58,7 +65,8 @@ impl Db {
     /// Returns a `SerializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.
     pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
-        let serialized = ser::to_vec(value).map_err(|e| Error::Serialize { source: e })?;
+        let serialized = ser::to_vec(value)
+            .context(SerializeValueSnafu)?;
         self.0.put(key.as_bytes(), serialized.as_ref()).await;
         Ok(())
     }
@@ -74,10 +82,14 @@ impl Db {
         key: &str,
     ) -> Result<Option<T>> {
         let value: Option<bytes::Bytes> =
-            self.0.get(key.as_bytes()).await.map_err(|e| Error::Database { source: e})?;
+            self.0.get(key.as_bytes())
+                .await
+                .context(KeyGetSnafu { key: key.to_string() })?;
         value.map_or_else(
             || Ok(None),
-            |bytes| de::from_slice(&bytes).map_err(|e| Error::Deserialize { source: e}),
+            |bytes| de::from_slice(&bytes)
+            .context(DeserializeValueSnafu)
+            //.map_err(|e| Error::Deserialize { source: e}),
         )
     }
 
@@ -142,18 +154,6 @@ impl Db {
     }
 }
 
-impl From<SlateDBError> for Error {
-    fn from(e: SlateDBError) -> Self {
-        Self::Database { source: e }
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Self {
-        Self::Serialize { source: e}
-    }
-}
-
 impl From<Error> for iceberg::Error {
     fn from(e: Error) -> Self {
         Self::new(iceberg::ErrorKind::Unexpected, e.to_string()).with_source(e)
@@ -181,7 +181,7 @@ pub trait Repository {
     async fn _get(&self, id: Uuid) -> Result<Self::Entity> {
         let key = format!("{}.{}", Self::prefix(), id);
         let entity = self.db().get(&key).await?;
-        let entity = entity.ok_or(Error::NotFound)?;
+        let entity = entity.ok_or(Error::KeyNotFound)?;
         Ok(entity)
     }
 
