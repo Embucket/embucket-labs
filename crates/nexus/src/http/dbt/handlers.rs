@@ -160,7 +160,8 @@ async fn log_query(query: &str) -> Result<(), std::io::Error> {
         .create(true)
         .append(true)
         .open("queries.log")
-        .await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        .await
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     file.write_all(query.as_bytes()).await?;
     file.write_all(b"\n").await?;
     Ok(())

@@ -59,7 +59,7 @@ pub fn convert_record_batches(
                             converted_column.data_type().clone(),
                             field.is_nullable(),
                         )
-                            .with_metadata(metadata),
+                        .with_metadata(metadata),
                     );
                     Arc::clone(&converted_column)
                 }
