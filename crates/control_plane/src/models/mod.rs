@@ -1,4 +1,3 @@
-use crate::error::Error;
 use arrow::array::{RecordBatch, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use chrono::{NaiveDateTime, Utc};
@@ -13,6 +12,9 @@ use std::convert::TryFrom;
 use std::env;
 use std::sync::Arc;
 use uuid::Uuid;
+
+pub mod error;
+pub use error::{Error, Result};
 
 // Enum for supported cloud providers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -80,8 +82,8 @@ pub struct StorageProfileCreateRequest {
 impl TryFrom<&StorageProfileCreateRequest> for StorageProfile {
     type Error = Error;
 
-    fn try_from(value: &StorageProfileCreateRequest) -> Result<Self, Self::Error> {
-        StorageProfile::new(
+    fn try_from(value: &StorageProfileCreateRequest) -> Result<Self> {
+        Self::new(
             value.r#type,
             value.region.clone(),
             value.bucket.clone(),
@@ -93,7 +95,14 @@ impl TryFrom<&StorageProfileCreateRequest> for StorageProfile {
 }
 
 impl StorageProfile {
-    // Method to create a new StorageProfile with validation
+    /// Creates a new `StorageProfile` with validation.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an `Error::InvalidInput` if:
+    /// - Bucket name length is less than 6 or greater than 63 characters
+    /// - Bucket name contains non-alphanumeric characters (other than hyphens or underscores)
+    /// - Bucket name starts or ends with a hyphen or underscore
     pub fn new(
         cloud_provider: CloudProvider,
         region: String,
@@ -101,30 +110,32 @@ impl StorageProfile {
         credentials: Credentials,
         sts_role_arn: Option<String>,
         endpoint: Option<String>,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
         // Example validation: Ensure bucket name length
         if bucket.len() < 6 || bucket.len() > 63 {
-            return Err(Error::InvalidInput(
-                "Bucket name must be between 6 and 63 characters".to_owned(),
-            ));
+            return Err(Error::InvalidBucketName {
+                bucket_name: bucket.clone(),
+                reason: "Bucket name must be between 6 and 63 characters".to_owned(),
+            });
         }
         if !bucket
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
         {
-            return Err(Error::InvalidInput(
-                "Bucket name must only contain alphanumeric characters, hyphens, or underscores"
-                    .to_owned(),
-            ));
+            return Err(Error::InvalidBucketName {
+                bucket_name: bucket.clone(),
+                reason: "Bucket name must only contain alphanumeric characters, hyphens, or underscores".to_owned(),
+            });
         }
         if bucket.starts_with('-')
             || bucket.starts_with('_')
             || bucket.ends_with('-')
             || bucket.ends_with('_')
         {
-            return Err(Error::InvalidInput(
-                "Bucket name must not start or end with a hyphen or underscore".to_owned(),
-            ));
+            return Err(Error::InvalidBucketName {
+                bucket_name: bucket.clone(),
+                reason: "Bucket name must not start or end with a hyphen or underscore".to_owned(),
+            });
         }
 
         let now = Utc::now().naive_utc();
@@ -154,7 +165,9 @@ impl StorageProfile {
         self.updated_at = Utc::now().naive_utc();
     }
 
-    pub fn get_base_url(&self) -> String {
+    #[must_use] 
+    pub fn get_base_url(&self) -> Result<String> {
+        // Doing this for every call is not efficient
         dotenv().ok();
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
             .unwrap_or("true".to_string())
@@ -162,19 +175,22 @@ impl StorageProfile {
             .expect(
                 "Failed to parse \
             USE_FILE_SYSTEM_INSTEAD_OF_CLOUD",
-            );
+            ); 
         if use_file_system_instead_of_cloud {
-            format!("file://{}", env::current_dir().unwrap().to_str().unwrap())
+            let current_directory = env::current_dir()
+                .map_err(|_| Error::InvalidCurrentDirectory)
+                .and_then(|cd| cd.to_str().map(String::from).ok_or(Error::InvalidCurrentDirectory))?;
+            Ok(format!("file://{}", current_directory))
         } else {
             match self.r#type {
                 CloudProvider::AWS => {
-                    format!("s3://{}", &self.bucket)
+                    Ok(format!("s3://{}", &self.bucket))
                 }
                 CloudProvider::AZURE => {
-                    panic!("Not implemented")
+                    Err(Error::CloudProviderNotImplemented { provider: "Azure".to_string() })
                 }
                 CloudProvider::GCS => {
-                    panic!("Not implemented")
+                    Err(Error::CloudProviderNotImplemented { provider: "GCS".to_string() })
                 }
             }
         }
@@ -303,7 +319,7 @@ pub struct Warehouse {
 }
 
 impl Warehouse {
-    pub fn new(prefix: String, name: String, storage_profile_id: Uuid) -> Result<Self, Error> {
+    pub fn new(prefix: String, name: String, storage_profile_id: Uuid) -> Result<Self> {
         let id = Uuid::new_v4();
         let location = format!("{prefix}/{id}");
         let now = Utc::now().naive_utc();
@@ -322,7 +338,7 @@ impl Warehouse {
 impl TryFrom<WarehouseCreateRequest> for Warehouse {
     type Error = Error;
 
-    fn try_from(value: WarehouseCreateRequest) -> Result<Self, Self::Error> {
+    fn try_from(value: WarehouseCreateRequest) -> Result<Self> {
         Warehouse::new(
             value.prefix.clone(),
             value.name.clone(),
@@ -334,7 +350,7 @@ impl TryFrom<WarehouseCreateRequest> for Warehouse {
 impl TryFrom<&WarehouseCreateRequest> for Warehouse {
     type Error = Error;
 
-    fn try_from(value: &WarehouseCreateRequest) -> Result<Self, Self::Error> {
+    fn try_from(value: &WarehouseCreateRequest) -> Result<Self> {
         Warehouse::new(
             value.prefix.clone(),
             value.name.clone(),
@@ -424,8 +440,8 @@ impl ColumnInfo {
             // Varchar, Char, Utf8
             DataType::Utf8 => {
                 column_info.r#type = "text".to_string();
-                column_info.byte_length = Some(16777216);
-                column_info.length = Some(16777216);
+                column_info.byte_length = Some(16_777_216);
+                column_info.length = Some(16_777_216);
             }
             DataType::Time32(_) | DataType::Time64(_) => {
                 column_info.r#type = "time".to_string();
@@ -442,8 +458,8 @@ impl ColumnInfo {
             }
             DataType::Binary => {
                 column_info.r#type = "binary".to_string();
-                column_info.byte_length = Some(8388608);
-                column_info.length = Some(8388608);
+                column_info.byte_length = Some(8_388_608);
+                column_info.length = Some(8_388_608);
             }
             _ => {}
         }
