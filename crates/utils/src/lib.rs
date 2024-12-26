@@ -5,20 +5,21 @@ use serde_json::ser;
 use slatedb::db::Db as SlateDb;
 use slatedb::error::SlateDBError;
 use uuid::Uuid;
+use snafu::prelude::*;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(Snafu, Debug)]
 pub enum Error {
-    #[error("SlateDB error: {0}")]
-    DbError(SlateDBError),
+    #[snafu(display("SlateDB error: {source}"))]
+    Database { source: SlateDBError },
 
-    #[error("Serialize error: {0}")]
-    SerializeError(serde_json::Error),
+    #[snafu(display("Serialize error: {}", source))]
+    Serialize { source: serde_json::Error },
 
-    #[error("Deserialize error: {0}")]
-    DeserializeError(serde_json::Error),
+    #[snafu(display("Deserialize error: {source}"))]
+    Deserialize { source: serde_json::Error },
 
-    #[error("Not found")]
-    ErrNotFound,
+    #[snafu(display("Not found"))]
+    NotFound,
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -57,7 +58,7 @@ impl Db {
     /// Returns a `SerializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.
     pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
-        let serialized = ser::to_vec(value).map_err(Error::SerializeError)?;
+        let serialized = ser::to_vec(value).map_err(|e| Error::Serialize { source: e })?;
         self.0.put(key.as_bytes(), serialized.as_ref()).await;
         Ok(())
     }
@@ -73,10 +74,10 @@ impl Db {
         key: &str,
     ) -> Result<Option<T>> {
         let value: Option<bytes::Bytes> =
-            self.0.get(key.as_bytes()).await.map_err(Error::DbError)?;
+            self.0.get(key.as_bytes()).await.map_err(|e| Error::Database { source: e})?;
         value.map_or_else(
             || Ok(None),
-            |bytes| de::from_slice(&bytes).map_err(Error::DeserializeError),
+            |bytes| de::from_slice(&bytes).map_err(|e| Error::Deserialize { source: e}),
         )
     }
 
@@ -143,13 +144,13 @@ impl Db {
 
 impl From<SlateDBError> for Error {
     fn from(e: SlateDBError) -> Self {
-        Self::DbError(e)
+        Self::Database { source: e }
     }
 }
 
 impl From<serde_json::Error> for Error {
     fn from(e: serde_json::Error) -> Self {
-        Self::SerializeError(e)
+        Self::Serialize { source: e}
     }
 }
 
@@ -180,7 +181,7 @@ pub trait Repository {
     async fn _get(&self, id: Uuid) -> Result<Self::Entity> {
         let key = format!("{}.{}", Self::prefix(), id);
         let entity = self.db().get(&key).await?;
-        let entity = entity.ok_or(Error::ErrNotFound)?;
+        let entity = entity.ok_or(Error::NotFound)?;
         Ok(entity)
     }
 
