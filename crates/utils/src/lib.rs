@@ -26,26 +26,52 @@ type Result<T> = std::result::Result<T, Error>;
 pub struct Db(SlateDb);
 
 impl Db {
-    pub fn new(db: SlateDb) -> Self {
+    pub const fn new(db: SlateDb) -> Self {
         Self(db)
     }
 
+    
+    /// Closes the database connection.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `DbError` if the underlying database operation fails.
     pub async fn close(&self) -> Result<()> {
         self.0.close().await?;
         Ok(())
     }
 
+
+    /// Deletes a key-value pair from the database.
+    /// 
+    /// # Errors
+    /// 
+    /// This function will return a `DbError` if the underlying database operation fails.
     pub async fn delete(&self, key: &str) -> Result<()> {
         self.0.delete(key.as_bytes()).await;
         Ok(())
     }
 
-    pub async fn put<T: serde::Serialize>(&self, key: &str, value: &T) -> Result<()> {
-        let serialized = ser::to_vec(value).map_err(|e| Error::SerializeError(e))?;
+
+    /// Stores a key-value pair in the database.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `SerializeError` if the value cannot be serialized to JSON.
+    /// Returns a `DbError` if the underlying database operation fails.
+    pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
+        let serialized = ser::to_vec(value).map_err( Error::SerializeError)?;
         self.0.put(key.as_bytes(), serialized.as_ref()).await;
         Ok(())
     }
 
+
+    /// Retrieves a value from the database by its key.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `DbError` if the underlying database operation fails.
+    /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
     pub async fn get<T: for<'de> serde::de::Deserialize<'de>>(
         &self,
         key: &str,
@@ -54,18 +80,32 @@ impl Db {
             .0
             .get(key.as_bytes())
             .await
-            .map_err(|e| Error::DbError(e))?;
+            .map_err(Error::DbError)?;
         value.map_or_else(
             || Ok(None),
-            |bytes| de::from_slice(&bytes).map_err(|e| Error::DeserializeError(e)),
+            |bytes| de::from_slice(&bytes).map_err(Error::DeserializeError),
         )
     }
 
+
+    /// Retrieves a list of keys from the database.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `DbError` if the underlying database operation fails.
+    /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
     pub async fn keys(&self, key: &str) -> Result<Vec<String>> {
         let keys: Option<Vec<String>> = self.get(key).await?;
         Ok(keys.unwrap_or_default())
     }
 
+
+    /// Appends a value to a list stored in the database.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `DbError` if the database operations fail, or
+    /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
     pub async fn append(&self, key: &str, value: String) -> Result<()> {
         self.modify(key, |all_keys: &mut Vec<String>| {
             if !all_keys.contains(&value) {
@@ -76,6 +116,13 @@ impl Db {
         Ok(())
     }
 
+    
+    /// Removes a value from a list stored in the database.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `DbError` if the database operations fail, or
+    /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
     pub async fn remove(&self, key: &str, value: &str) -> Result<()> {
         self.modify(key, |all_keys: &mut Vec<String>| {
             all_keys.retain(|key| *key != value);
@@ -84,12 +131,15 @@ impl Db {
         Ok(())
     }
 
-    // function that takes closure as argument
-    // it reads value from the db, deserialize it and pass it to the closure
-    // it then gets value from the closure, serialize it and write it back to the db
+    /// Modifies a value in the database using the provided closure.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `DbError` if the database operations fail, or
+    /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
     pub async fn modify<T>(&self, key: &str, f: impl Fn(&mut T)) -> Result<()>
     where
-        T: serde::Serialize + DeserializeOwned + Default,
+        T: serde::Serialize + DeserializeOwned + Default + Sync,
     {
         let mut value: T = self.get(key).await?.unwrap_or_default();
 
@@ -103,19 +153,19 @@ impl Db {
 
 impl From<SlateDBError> for Error {
     fn from(e: SlateDBError) -> Self {
-        Error::DbError(e)
+        Self::DbError(e)
     }
 }
 
 impl From<serde_json::Error> for Error {
     fn from(e: serde_json::Error) -> Self {
-        Error::SerializeError(e)
+        Self::SerializeError(e)
     }
 }
 
 impl From<Error> for iceberg::Error {
     fn from(e: Error) -> Self {
-        iceberg::Error::new(iceberg::ErrorKind::Unexpected, e.to_string()).with_source(e)
+        Self::new(iceberg::ErrorKind::Unexpected, e.to_string()).with_source(e)
     }
 }
 
