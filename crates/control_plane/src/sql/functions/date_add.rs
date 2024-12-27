@@ -147,22 +147,22 @@ impl ScalarUDFImpl for DateAddFunc {
             ColumnarValue::Scalar(val) => val.clone(),
             _ => return plan_err!("Invalid datetime type"),
         };
-        //there should be overflows TODO: CHECK and FIX
+        //TODO: there should be overflows CHECK and FIX
         match date_or_time_part.as_str() {
             //TODO: should consider leap year (365-366 days)
-            "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" | "year" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 12 * 365 * 86_400_000_000_000))).unwrap())),
+            "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" | "year" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 12 * 365 * 86_400_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
             //TODO: should consider months 28-31 days
-            "mm" | "mon" | "mons" | "months" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 30 * 86_400_000_000_000))).unwrap())),
-            "d" | "dd" | "days" | "dayofmonth" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 86_400_000_000_000))).unwrap())),
-            "w" | "wk" | "weekofyear" | "woy" | "wy" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 7 * 86_400_000_000_000))).unwrap())),
+            "mm" | "mon" | "mons" | "months" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 30 * 86_400_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
+            "d" | "dd" | "days" | "dayofmonth" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 86_400_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
+            "w" | "wk" | "weekofyear" | "woy" | "wy" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 7 * 86_400_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
             //TODO: should consider months 28-31 days
-            "q" | "qtr" | "qtrs" | "quarters" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 3 * 30 * 86_400_000_000_000))).unwrap())),
-            "h" | "hh" | "hr" | "hours" | "hrs" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 3_600_000_000_000))).unwrap())),
-            "m" | "mi" | "min" | "minutes" | "mins" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 60_000_000_000))).unwrap())),
-            "s" | "sec" | "seconds" | "secs" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 1_000_000_000))).unwrap())),
-            "ms" | "msec" | "millieseconds" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 1_000_000))).unwrap())),
-            "us" | "usec" | "microseconds" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 1000))).unwrap())),
-            "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs" | "nseconds" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value))).unwrap())),
+            "q" | "qtr" | "qtrs" | "quarters" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 3 * 30 * 86_400_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
+            "h" | "hh" | "hr" | "hours" | "hrs" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 3_600_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
+            "m" | "mi" | "min" | "minutes" | "mins" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 60_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
+            "s" | "sec" | "seconds" | "secs" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 1_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
+            "ms" | "msec" | "millieseconds" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 1_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
+            "us" | "usec" | "microseconds" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 1000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
+            "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs" | "nseconds" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
             _ => {
                 return plan_err!("Invalid date_or_time_part type")
             },
