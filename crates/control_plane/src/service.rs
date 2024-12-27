@@ -286,15 +286,17 @@ impl ControlService for ControlServiceImpl {
 
         // let mut buffer = Vec::new();
         // let options = IpcWriteOptions::try_new(8, false, MetadataVersion::V5).unwrap();
-        // let mut stream_writer = StreamWriter::try_new_with_options(
-        //     &mut buffer, &records[0].schema_ref(), options).unwrap();
+        // let mut stream_writer =
+        //     StreamWriter::try_new_with_options(&mut buffer, &records[0].schema_ref(), options)
+        //         .unwrap();
         // stream_writer.write(&records[0]).unwrap();
         // stream_writer.finish().unwrap();
         // drop(stream_writer);
-        //
+
         // // Try to add flatbuffer verification
         // println!("{:?}", buffer.len());
-        // let res = general_purpose::STANDARD.encode(buffer);
+        // let base64 = general_purpose::STANDARD.encode(buffer);
+        // Ok((base64, columns))
         // let encoded = general_purpose::STANDARD.decode(res.clone()).unwrap();
         //
         // let mut verifier = Verifier::new(&VerifierOptions::default(), &encoded);

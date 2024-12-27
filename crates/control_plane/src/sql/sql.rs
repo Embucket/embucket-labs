@@ -1,5 +1,8 @@
 use crate::models::created_entity_response;
 use crate::sql::context::CustomContextProvider;
+use crate::sql::functions::date_add::DateAddFunc;
+use crate::sql::functions::greatest::GreatestFunc;
+use crate::sql::functions::least::LeastFunc;
 use crate::sql::functions::parse_json::ParseJsonFunc;
 use crate::sql::planner::ExtendedSqlToRel;
 use arrow::array::RecordBatch;
@@ -35,6 +38,9 @@ pub struct SqlExecutor {
 impl SqlExecutor {
     pub fn new(mut ctx: SessionContext) -> Self {
         ctx.register_udf(ScalarUDF::from(ParseJsonFunc::new()));
+        ctx.register_udf(ScalarUDF::from(DateAddFunc::new()));
+        ctx.register_udf(ScalarUDF::from(LeastFunc::new()));
+        ctx.register_udf(ScalarUDF::from(GreatestFunc::new()));
         register_all(&mut ctx).expect("Cannot register UDF JSON funcs");
         Self { ctx }
     }
