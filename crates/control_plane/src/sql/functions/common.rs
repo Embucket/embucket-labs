@@ -119,7 +119,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: &TimeUnit) -> ArrayRef {
                 .unwrap();
             let epoch: Int64Array = array
                 .iter()
-                .map(|x| x.unwrap_or_else(now) / 1_000_000_000)
+                .map(|x| x.unwrap_or(now) / 1_000_000_000)
                 .collect();
             let fraction: Int32Array = array
                 .iter()

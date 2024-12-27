@@ -3,7 +3,7 @@ use arrow::datatypes::DataType::{
     Date32, Date64, Int64, Time32, Time64, Timestamp, Utf8,
 };
 use arrow::datatypes::TimeUnit::{Microsecond, Millisecond, Nanosecond, Second};
-use arrow::datatypes::{DataType, Fields};
+use arrow::datatypes::{ArrowNativeType, DataType, Fields};
 use datafusion::common::{plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Exact;
 use datafusion::logical_expr::{
@@ -11,6 +11,7 @@ use datafusion::logical_expr::{
 };
 use datafusion::scalar::ScalarValue;
 use std::any::Any;
+use arrow::array::types::{IntervalMonthDayNano, IntervalDayTime};
 
 #[derive(Debug)]
 pub struct DateAddFunc {
@@ -138,6 +139,15 @@ impl ScalarUDFImpl for DateAddFunc {
             _ => return plan_err!("Invalid value type"),
         };
         // TODO add logic
-        Ok(args[2].clone())
+        let date_or_time_expr = match &args[2] {
+            ColumnarValue::Scalar(val) => val.clone(),
+            _ => return plan_err!("Invalid datetime type"),
+        };
+        match date_or_time_part.as_str() {
+            "days" | "DAYS" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::new_interval_mdn(0, value as i32, 0)).unwrap())),
+            _ => {
+                return plan_err!("Invalid value type")
+            },
+        }
     }
 }
