@@ -93,7 +93,7 @@ pub struct ResponseData {
     #[serde(rename = "rowsetBase64")]
     pub row_set_base_64: Option<String>,
     #[serde(rename = "rowset")]
-    pub row_set: Vec<IndexMap<String, serde_json::Value>>,
+    pub row_set: Vec<Vec<serde_json::Value>>,
     pub total: Option<u32>,
     #[serde(rename = "queryResultFormat")]
     pub query_result_format: Option<String>,
@@ -101,6 +101,15 @@ pub struct ResponseData {
     pub error_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sql_state: Option<String>,
+}
+
+impl ResponseData {
+    pub fn rows_to_vec(json_rows_string: String) -> Vec<Vec<serde_json::Value>> {
+        let json_array: Vec<IndexMap<String, serde_json::Value>> = serde_json::from_str(&json_rows_string).unwrap();
+        json_array.into_iter().map(|obj| {
+            obj.values().cloned().collect()
+        }).collect()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
