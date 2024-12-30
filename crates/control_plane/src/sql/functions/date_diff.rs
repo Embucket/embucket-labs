@@ -138,6 +138,6 @@ impl ScalarUDFImpl for DateDiffFunc {
             ColumnarValue::Scalar(val) => val.clone(),
             _ => return plan_err!("Invalid datetime type"),
         };
-        Ok(ColumnarValue::Scalar(ScalarValue::Int64))
+        Ok(ColumnarValue::Scalar(ScalarValue::Int64(Some(0))))
     }
 }
