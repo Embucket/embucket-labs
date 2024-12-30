@@ -80,6 +80,27 @@ impl DateAddFunc {
                 .unwrap_or(ScalarValue::DurationNanosecond(Some(0))),
         ))
     }
+    fn add_years(val: &ScalarValue, years: i64) -> Result<ColumnarValue> {
+        Ok(ColumnarValue::Scalar(
+            val.add(ScalarValue::new_interval_ym(i32::try_from(years)
+            .unwrap_or(0), 0)
+        ).unwrap_or(ScalarValue::new_interval_ym(0, 0))
+        ))
+    }
+    fn add_months(val: &ScalarValue, months: i64) -> Result<ColumnarValue> {
+        Ok(ColumnarValue::Scalar(
+            val.add(ScalarValue::new_interval_ym(0, i32::try_from(months)
+            .unwrap_or(0))
+        ).unwrap_or(ScalarValue::new_interval_ym(0, 0))
+        ))
+    }
+    fn add_days(val: &ScalarValue, days: i64) -> Result<ColumnarValue> {
+        Ok(ColumnarValue::Scalar(
+            val.add(ScalarValue::new_interval_dt(i32::try_from(days)
+            .unwrap_or(0), 0)
+        ).unwrap_or(ScalarValue::new_interval_dt(0, 0))
+        ))
+    }
 }
 
 /// dateadd SQL function
@@ -140,37 +161,36 @@ impl ScalarUDFImpl for DateAddFunc {
             ColumnarValue::Scalar(ScalarValue::Int64(Some(val))) => *val,
             _ => return plan_err!("Invalid value type"),
         };
-        // TODO add logic
         let date_or_time_expr = match &args[2] {
             ColumnarValue::Scalar(val) => val.clone(),
             _ => return plan_err!("Invalid datetime type"),
         };
-        //TODO: there should be overflows CHECK and FIX
+        //there shouldn't be overflows
         match date_or_time_part.as_str() {
-            //TODO: should consider leap year (365-366 days)
-            "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" | "year" => DateAddFunc::add_nanoseconds(
-                &date_or_time_expr, value * 12 * 365 * 86_400_000_000_000),
-            //TODO: should consider months 28-31 days
-            "mm" | "mon" | "mons" | "months" => DateAddFunc::add_nanoseconds(
-                &date_or_time_expr, value * 30 * 86_400_000_000_000),
-            "d" | "dd" | "days" | "dayofmonth" => DateAddFunc::add_nanoseconds(
-                &date_or_time_expr, value * 86_400_000_000_000),
-            "w" | "wk" | "weekofyear" | "woy" | "wy" => DateAddFunc::add_nanoseconds(
-                &date_or_time_expr, value * 7 * 86_400_000_000_000),
-            //TODO: should consider months 28-31 days
-            "q" | "qtr" | "qtrs" | "quarters" => DateAddFunc::add_nanoseconds(
-                &date_or_time_expr, value * 3 * 30 * 86_400_000_000_000),
-            "h" | "hh" | "hr" | "hours" | "hrs" => DateAddFunc::add_nanoseconds(
+            //should consider leap year (365-366 days)
+            "year" | "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" => DateAddFunc::add_years(
+                &date_or_time_expr, value),
+            //should consider months 28-31 days
+            "month" | "mm" | "mon" | "mons" | "months" => DateAddFunc::add_months(
+                &date_or_time_expr, value),
+            "day" | "d" | "dd" | "days" | "dayofmonth" => DateAddFunc::add_days(
+                &date_or_time_expr, value),
+            "week" | "w" | "wk" | "weekofyear" | "woy" | "wy" => DateAddFunc::add_days(
+                &date_or_time_expr, value * 7),
+            //should consider months 28-31 days
+            "quarter" | "q" | "qtr" | "qtrs" | "quarters" => DateAddFunc::add_months(
+                &date_or_time_expr, value * 3),
+            "hour" | "h" | "hh" | "hr" | "hours" | "hrs" => DateAddFunc::add_nanoseconds(
                 &date_or_time_expr, value * 3_600_000_000_000),
-            "m" | "mi" | "min" | "minutes" | "mins" => DateAddFunc::add_nanoseconds(
+            "minute" | "m" | "mi" | "min" | "minutes" | "mins" => DateAddFunc::add_nanoseconds(
                 &date_or_time_expr, value * 60_000_000_000),
-            "s" | "sec" | "seconds" | "secs" => DateAddFunc::add_nanoseconds(
+            "second" | "s" | "sec" | "seconds" | "secs" => DateAddFunc::add_nanoseconds(
                 &date_or_time_expr, value * 1_000_000_000),
-            "ms" | "msec" | "millieseconds" => DateAddFunc::add_nanoseconds(
+            "millisecond" | "ms" | "msec" | "milliseconds" => DateAddFunc::add_nanoseconds(
                 &date_or_time_expr, value * 1_000_000),
-            "us" | "usec" | "microseconds" => DateAddFunc::add_nanoseconds(
+            "microsecond" | "us" | "usec" | "microseconds" => DateAddFunc::add_nanoseconds(
                 &date_or_time_expr, value * 1000),
-            "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs" | "nseconds" =>
+            "nanosecond" | "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs" | "nseconds" =>
                 DateAddFunc::add_nanoseconds(&date_or_time_expr, value),
             _ => return plan_err!("Invalid date_or_time_part type"),
         }
