@@ -87,7 +87,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: &TimeUnit) -> ArrayRef {
                 .as_any()
                 .downcast_ref::<TimestampSecondArray>()
                 .unwrap();
-            let epoch: Int64Array = array.iter().map_or(now, |x| x).collect();
+            let epoch: Int64Array = array.iter().map(|x| x.unwrap_or(now)).collect();
             let fraction: Int32Array = Int32Array::from(vec![0; column.len()]);
             (epoch, fraction)
         }
@@ -96,10 +96,11 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: &TimeUnit) -> ArrayRef {
                 .as_any()
                 .downcast_ref::<TimestampMillisecondArray>()
                 .unwrap();
-            let epoch: Int64Array = array.iter().map_or(now, |x| x / 1_000).collect();
+            let now_millis = now * 1_000;
+            let epoch: Int64Array = array.iter().map(|x| x.unwrap_or(now_millis) / 1_000).collect();
             let fraction: Int32Array = array
                 .iter()
-                .map_or(0, |x| x % 1_000 * 1_000_000i32)
+                .map(|x| (x.unwrap_or(0) % 1_000 * 1_000_000) as i32)
                 .collect();
             (epoch, fraction)
         }
@@ -108,10 +109,11 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: &TimeUnit) -> ArrayRef {
                 .as_any()
                 .downcast_ref::<TimestampMicrosecondArray>()
                 .unwrap();
-            let epoch: Int64Array = array.iter().map_or(now, |x| x / 1_000_000).collect();
+            let now_micros = now * 1_000_000;
+            let epoch: Int64Array = array.iter().map(|x| x.unwrap_or(now_micros) / 1_000_000).collect();
             let fraction: Int32Array = array
                 .iter()
-                .map_or(0, |x| x % 1_000_000 * 1_000i32)
+                .map(|x| (x.unwrap_or(0) % 1_000_000 * 1_000) as i32)
                 .collect();
             (epoch, fraction)
         }
@@ -120,8 +122,12 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: &TimeUnit) -> ArrayRef {
                 .as_any()
                 .downcast_ref::<TimestampNanosecondArray>()
                 .unwrap();
-            let epoch: Int64Array = array.iter().map_or(now, |x| x / 1_000_000_000).collect();
-            let fraction: Int32Array = array.iter().map_or(0, |x| x % 1_000_000_000i32).collect();
+            let now_nanos = now * 1_000_000_000;
+            let epoch: Int64Array = array.iter().map(|x| x.unwrap_or(now_nanos) / 1_000_000_000).collect();
+            let fraction: Int32Array = array
+                .iter()
+                .map(|x| (x.unwrap_or(0) % 1_000_000_000) as i32)
+                .collect();
             (epoch, fraction)
         }
     };
