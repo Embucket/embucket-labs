@@ -31,6 +31,9 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::functions::convert_timezone::ConvertTimezoneFunc;
+use super::functions::date_diff::DateDiffFunc;
+
 pub struct SqlExecutor {
     ctx: SessionContext,
 }
@@ -41,6 +44,8 @@ impl SqlExecutor {
         ctx.register_udf(ScalarUDF::from(DateAddFunc::new()));
         ctx.register_udf(ScalarUDF::from(LeastFunc::new()));
         ctx.register_udf(ScalarUDF::from(GreatestFunc::new()));
+        ctx.register_udf(ScalarUDF::from(DateDiffFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ConvertTimezoneFunc::new()));
         register_all(&mut ctx).expect("Cannot register UDF JSON funcs");
         Self { ctx }
     }
