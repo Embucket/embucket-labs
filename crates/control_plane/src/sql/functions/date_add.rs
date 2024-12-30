@@ -1,9 +1,7 @@
 use arrow::array::Array;
-use arrow::datatypes::DataType::{
-    Date32, Date64, Int64, Time32, Time64, Timestamp, Utf8,
-};
+use arrow::datatypes::DataType::{Date32, Date64, Int64, Time32, Time64, Timestamp, Utf8};
 use arrow::datatypes::TimeUnit::{Microsecond, Millisecond, Nanosecond, Second};
-use arrow::datatypes::{ArrowNativeType, DataType, Fields};
+use arrow::datatypes::{DataType, Fields};
 use datafusion::common::{plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Exact;
 use datafusion::logical_expr::{
@@ -11,7 +9,6 @@ use datafusion::logical_expr::{
 };
 use datafusion::scalar::ScalarValue;
 use std::any::Any;
-use arrow::array::types::{IntervalMonthDayNano, IntervalDayTime};
 
 #[derive(Debug)]
 pub struct DateAddFunc {
@@ -32,22 +29,18 @@ impl DateAddFunc {
                 vec![
                     Exact(vec![Utf8, Int64, Date32]),
                     Exact(vec![Utf8, Int64, Date64]),
-
                     Exact(vec![Utf8, Int64, Time32(Second)]),
                     Exact(vec![Utf8, Int64, Time32(Nanosecond)]),
                     Exact(vec![Utf8, Int64, Time32(Microsecond)]),
                     Exact(vec![Utf8, Int64, Time32(Millisecond)]),
-
                     Exact(vec![Utf8, Int64, Time64(Second)]),
                     Exact(vec![Utf8, Int64, Time64(Nanosecond)]),
                     Exact(vec![Utf8, Int64, Time64(Microsecond)]),
                     Exact(vec![Utf8, Int64, Time64(Millisecond)]),
-
                     Exact(vec![Utf8, Int64, Timestamp(Second, None)]),
                     Exact(vec![Utf8, Int64, Timestamp(Millisecond, None)]),
                     Exact(vec![Utf8, Int64, Timestamp(Microsecond, None)]),
                     Exact(vec![Utf8, Int64, Timestamp(Nanosecond, None)]),
-
                     Exact(vec![
                         Utf8,
                         Int64,
@@ -79,6 +72,13 @@ impl DateAddFunc {
                 String::from("timestampadd"),
             ],
         }
+    }
+
+    fn add_nanoseconds(val: &ScalarValue, nanoseconds: i64) -> Result<ColumnarValue> {
+        Ok(ColumnarValue::Scalar(
+            val.add(ScalarValue::DurationNanosecond(Some(nanoseconds)))
+                .unwrap_or(ScalarValue::DurationNanosecond(Some(0))),
+        ))
     }
 }
 
@@ -123,7 +123,6 @@ impl ScalarUDFImpl for DateAddFunc {
         if arg_types.len() != 3 {
             return plan_err!("function requires three arguments");
         }
-        println!("arg_types: {:?}", arg_types);
         Ok(arg_types[2].clone())
     }
 
@@ -131,7 +130,6 @@ impl ScalarUDFImpl for DateAddFunc {
         if args.len() != 3 {
             return plan_err!("function requires three arguments");
         }
-        println!("args: {:?}", args);
 
         let date_or_time_part = match &args[0] {
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
@@ -150,22 +148,31 @@ impl ScalarUDFImpl for DateAddFunc {
         //TODO: there should be overflows CHECK and FIX
         match date_or_time_part.as_str() {
             //TODO: should consider leap year (365-366 days)
-            "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" | "year" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 12 * 365 * 86_400_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
+            "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" | "year" => DateAddFunc::add_nanoseconds(
+                &date_or_time_expr, value * 12 * 365 * 86_400_000_000_000),
             //TODO: should consider months 28-31 days
-            "mm" | "mon" | "mons" | "months" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 30 * 86_400_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
-            "d" | "dd" | "days" | "dayofmonth" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 86_400_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
-            "w" | "wk" | "weekofyear" | "woy" | "wy" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 7 * 86_400_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
+            "mm" | "mon" | "mons" | "months" => DateAddFunc::add_nanoseconds(
+                &date_or_time_expr, value * 30 * 86_400_000_000_000),
+            "d" | "dd" | "days" | "dayofmonth" => DateAddFunc::add_nanoseconds(
+                &date_or_time_expr, value * 86_400_000_000_000),
+            "w" | "wk" | "weekofyear" | "woy" | "wy" => DateAddFunc::add_nanoseconds(
+                &date_or_time_expr, value * 7 * 86_400_000_000_000),
             //TODO: should consider months 28-31 days
-            "q" | "qtr" | "qtrs" | "quarters" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 3 * 30 * 86_400_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
-            "h" | "hh" | "hr" | "hours" | "hrs" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 3_600_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
-            "m" | "mi" | "min" | "minutes" | "mins" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 60_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
-            "s" | "sec" | "seconds" | "secs" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 1_000_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
-            "ms" | "msec" | "millieseconds" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 1_000_000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
-            "us" | "usec" | "microseconds" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value * 1000))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
-            "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs" | "nseconds" => Ok(ColumnarValue::Scalar(date_or_time_expr.add(ScalarValue::DurationNanosecond(Some(value))).unwrap_or(ScalarValue::DurationNanosecond(Some(0))))),
-            _ => {
-                return plan_err!("Invalid date_or_time_part type")
-            },
+            "q" | "qtr" | "qtrs" | "quarters" => DateAddFunc::add_nanoseconds(
+                &date_or_time_expr, value * 3 * 30 * 86_400_000_000_000),
+            "h" | "hh" | "hr" | "hours" | "hrs" => DateAddFunc::add_nanoseconds(
+                &date_or_time_expr, value * 3_600_000_000_000),
+            "m" | "mi" | "min" | "minutes" | "mins" => DateAddFunc::add_nanoseconds(
+                &date_or_time_expr, value * 60_000_000_000),
+            "s" | "sec" | "seconds" | "secs" => DateAddFunc::add_nanoseconds(
+                &date_or_time_expr, value * 1_000_000_000),
+            "ms" | "msec" | "millieseconds" => DateAddFunc::add_nanoseconds(
+                &date_or_time_expr, value * 1_000_000),
+            "us" | "usec" | "microseconds" => DateAddFunc::add_nanoseconds(
+                &date_or_time_expr, value * 1000),
+            "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs" | "nseconds" =>
+                DateAddFunc::add_nanoseconds(&date_or_time_expr, value),
+            _ => return plan_err!("Invalid date_or_time_part type"),
         }
     }
 }
