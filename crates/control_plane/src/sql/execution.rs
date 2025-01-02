@@ -1,3 +1,6 @@
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
+
 use crate::models::created_entity_response;
 use crate::sql::context::CustomContextProvider;
 use crate::sql::functions::parse_json::ParseJsonFunc;
@@ -23,22 +26,21 @@ use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
-use regex;
 use snafu::ResultExt;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
-use super::error::Result;
+use super::error::{self as sql_error, Result};
 
 pub struct SqlExecutor {
     ctx: SessionContext,
 }
 
 impl SqlExecutor {
-    pub fn new(mut ctx: SessionContext) -> Self {
+    pub fn new(mut ctx: SessionContext) -> Result<Self> {
         ctx.register_udf(ScalarUDF::from(ParseJsonFunc::new()));
-        register_all(&mut ctx).expect("Cannot register UDF JSON funcs");
-        Self { ctx }
+        register_all(&mut ctx).context(sql_error::RegisterUDFJSONSnafu)?;
+        Ok(Self { ctx })
     }
 
     pub async fn query(&self, query: &str, warehouse_name: &str) -> Result<Vec<RecordBatch>> {
@@ -55,16 +57,14 @@ impl SqlExecutor {
         if let DFStatement::Statement(s) = statement.clone() {
             match *s {
                 Statement::CreateTable { .. } => {
-                    return self.create_table_query(*s, warehouse_name).await;
+                    return Box::pin(self.create_table_query(*s, warehouse_name)).await;
                 }
                 Statement::CreateSchema { schema_name, .. } => {
                     return self.create_schema(schema_name, warehouse_name).await;
                 }
-                Statement::ShowVariable { .. } => {
-                    return self.execute_with_custom_plan(&query, warehouse_name).await;
-                }
+                Statement::ShowVariable { .. } |
                 Statement::Drop { .. } => {
-                    return self.execute_with_custom_plan(&query, warehouse_name).await;
+                    return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
                 }
                 Statement::Query { .. } => {
                     return self.execute_with_custom_plan(&query, warehouse_name).await;
@@ -80,8 +80,17 @@ impl SqlExecutor {
             .context(super::error::DataFusionSnafu)
     }
 
+
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    #[must_use]
     pub fn preprocess_query(&self, query: &str) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
+        #[allow(clippy::unwrap_used)]
+        // TODO: This regex should be a static allocation
         let re = regex::Regex::new(r"(\w+)\[(\d+)]\.(\w+)").unwrap();
         let query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
@@ -103,21 +112,21 @@ impl SqlExecutor {
             let mut new_table_full_name = create_table_statement.name.to_string();
             let mut ident = create_table_statement.name.0;
             if !new_table_full_name.starts_with(warehouse_name) {
-                new_table_full_name = format!("{}.{}", warehouse_name, new_table_full_name);
+                new_table_full_name = format!("{warehouse_name}.{new_table_full_name}");
                 ident.insert(0, Ident::new(warehouse_name));
             }
             let _new_table_wh_id = ident[0].clone();
             // Get database identifier from warehouse.db.schema.table_name
             let new_table_db = &ident[1..ident.len() - 1];
+
+            #[allow(clippy::unwrap_used)]
             let new_table_name = ident.last().unwrap().clone();
             let location = create_table_statement.location.clone();
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
             let modified_statement = CreateTableStatement {
-                name: ObjectName {
-                    0: vec![new_table_name.clone()],
-                },
+                name: ObjectName(vec![new_table_name.clone()]),
                 transient: false,
                 ..create_table_statement
             };
@@ -132,32 +141,34 @@ impl SqlExecutor {
                 .collect()
                 .await
                 .context(super::error::DataFusionSnafu)?;
+            #[allow(clippy::unwrap_used)]
+            let fields = StructType::try_from(plan.schema().as_arrow()).unwrap();
             let schema = Schema::builder()
                 .with_schema_id(0)
                 .with_identifier_field_ids(vec![])
-                .with_fields(StructType::try_from(plan.schema().as_arrow()).unwrap())
+                .with_fields(fields)
                 .build()
-                .unwrap();
+                .context(sql_error::SchemaBuilderSnafu)?;
 
             // Check if it already exists, if it is - drop it
             // For now we behave as CREATE OR REPLACE
             // TODO support CREATE without REPLACE
-            let catalog = self.ctx.catalog(warehouse_name).unwrap();
-            let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().unwrap();
+            let catalog = self.ctx.catalog(warehouse_name)
+                .ok_or(sql_error::Error::WarehouseNotFound { name: warehouse_name.to_string() })?;
+            let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>()
+                .ok_or(sql_error::Error::IcebergCatalogNotFound { warehouse_name: warehouse_name.to_string() })?;
             let rest_catalog = iceberg_catalog.catalog();
             let new_table_ident = Identifier::new(
                 &new_table_db
-                    .into_iter()
+                    .iter()
                     .map(|v| v.value.clone())
                     .collect::<Vec<String>>(),
                 &new_table_name.value,
             );
-            match rest_catalog.tabular_exists(&new_table_ident).await {
-                Ok(true) => {
-                    rest_catalog.drop_table(&new_table_ident).await.unwrap();
-                }
-                Ok(false) => {}
-                Err(_) => {}
+            if matches!(rest_catalog.tabular_exists(&new_table_ident).await, Ok(true)) {
+                rest_catalog.drop_table(&new_table_ident)
+                    .await
+                    .context(sql_error::IcebergSnafu)?;
             };
             // Create new table
             rest_catalog
@@ -174,7 +185,7 @@ impl SqlExecutor {
                     },
                 )
                 .await
-                .unwrap();
+                .context(sql_error::IcebergSnafu)?;
 
             // we don't need physical table for transient tables
             // if !transient {
@@ -194,7 +205,7 @@ impl SqlExecutor {
                 .collect()
                 .await
                 .context(super::error::DataFusionSnafu)?;
-            return Ok(result);
+            Ok(result)
             // }
             // Ok(created_entity_response())
         } else {
@@ -211,9 +222,12 @@ impl SqlExecutor {
     ) -> Result<Vec<RecordBatch>> {
         match name {
             SchemaName::Simple(schema_name) => {
-                println!("Creating simple schema: {:?}", schema_name);
-                let catalog = self.ctx.catalog(warehouse_name).unwrap();
-                let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().unwrap();
+                //println!("Creating simple schema: {:?}", schema_name);
+                // TODO: Abstract the Iceberg catalog 
+                let catalog = self.ctx.catalog(warehouse_name)
+                    .ok_or(sql_error::Error::WarehouseNotFound { name: warehouse_name.to_string() })?;
+                let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>()
+                    .ok_or(sql_error::Error::IcebergCatalogNotFound { warehouse_name: warehouse_name.to_string() })?;
                 let rest_catalog = iceberg_catalog.catalog();
                 let namespace_vec: Vec<String> = schema_name
                     .0
@@ -221,15 +235,21 @@ impl SqlExecutor {
                     .map(|ident| ident.value.clone())
                     .collect();
                 let single_layer_namespace = vec![namespace_vec.join(".")];
+                #[allow(clippy::unwrap_used)]
+                let namespace = Namespace::try_new(&single_layer_namespace).unwrap();
+                // Why are we checking if namespace exists as a single layer and then creating it?
+                // There are multiple possible Error scenarios here that are not handled
                 if rest_catalog
-                    .load_namespace(&Namespace::try_new(&single_layer_namespace).unwrap())
+                    .load_namespace(&namespace)
                     .await
                     .is_err()
                 {
+                    #[allow(clippy::unwrap_used)]
+                    let namespace = Namespace::try_new(&namespace_vec).unwrap();
                     rest_catalog
-                        .create_namespace(&Namespace::try_new(&namespace_vec).unwrap(), None)
+                        .create_namespace(&namespace, None)
                         .await
-                        .unwrap();
+                        .context(sql_error::IcebergSnafu)?;
                 }
             }
             _ => {
@@ -251,9 +271,9 @@ impl SqlExecutor {
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let mut statement = state.sql_to_statement(query, dialect)
             .context(super::error::DataFusionSnafu)?;
-        println!("raw query: {:?}", statement.to_string());
+        //println!("raw query: {:?}", statement.to_string());
         statement = self.update_statement_references(statement, warehouse_name);
-        println!("modified query: {:?}", statement.to_string());
+        //println!("modified query: {:?}", statement.to_string());
 
         if let DFStatement::Statement(s) = statement.clone() {
             let mut ctx_provider = CustomContextProvider {
@@ -262,7 +282,7 @@ impl SqlExecutor {
             };
             let references = state.resolve_table_references(&statement)
                 .context(super::error::DataFusionSnafu)?;
-            println!("References: {:?}", references);
+            //println!("References: {:?}", references);
             for reference in references {
                 let resolved = self.resolve_table_ref(reference);
                 if let Entry::Vacant(v) = ctx_provider.tables.entry(resolved.to_string()) {
@@ -274,6 +294,8 @@ impl SqlExecutor {
                     }
                 }
             }
+            #[allow(clippy::unwrap_used)]
+            // Unwraps are allowed here because we are sure that objects exists
             for catalog in self.ctx.state().catalog_list().catalog_names() {
                 let provider = self.ctx.state().catalog_list().catalog(&catalog).unwrap();
                 for schema in provider.schema_names() {
@@ -352,13 +374,14 @@ impl SqlExecutor {
             .context(super::error::DataFusionSnafu)
     }
 
+    #[must_use]
     pub fn update_statement_references(
         &self,
         statement: DFStatement,
         warehouse_name: &str,
     ) -> DFStatement {
         if let DFStatement::Statement(s) = statement.clone() {
-            match *s.clone() {
+            match *s {
                 Statement::Insert(insert_statement) => {
                     let table_name =
                         self.compress_database_name(insert_statement.table_name.0, warehouse_name);
@@ -401,20 +424,23 @@ impl SqlExecutor {
     }
 
     // Combine database name identifiers into single Ident
+    #[must_use]
     pub fn compress_database_name(
         &self,
         mut table_name: Vec<Ident>,
         warehouse_name: &str,
     ) -> Vec<Ident> {
-        if warehouse_name.len() > 0 && !table_name.starts_with(&[Ident::new(warehouse_name)]) {
+        if !warehouse_name.is_empty() && !table_name.starts_with(&[Ident::new(warehouse_name)]) {
             table_name.insert(0, Ident::new(warehouse_name));
         }
+        #[allow(clippy::unwrap_used)]
         if table_name.len() > 3 {
             let new_table_db = &table_name[1..table_name.len() - 1]
-                .into_iter()
+                .iter()
                 .map(|v| v.value.clone())
                 .collect::<Vec<String>>()
                 .join(".");
+            
             table_name = vec![
                 table_name[0].clone(),
                 Ident::new(new_table_db),

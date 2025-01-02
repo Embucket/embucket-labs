@@ -221,7 +221,11 @@ impl ControlService for ControlServiceImpl {
         let catalog_name = warehouse.name.clone();
         ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
 
-        let records: Vec<RecordBatch> = SqlExecutor::new(ctx)
+        // TODO: Should be shared context
+        let executor = SqlExecutor::new(ctx)
+            .context(crate::error::ExecutionSnafu)?;
+
+        let records: Vec<RecordBatch> = executor
             .query(query, &catalog_name.clone().to_string())
             .await
             .context(crate::error::ExecutionSnafu)?
