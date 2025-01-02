@@ -21,6 +21,7 @@ impl Default for ParseJsonFunc {
 }
 
 impl ParseJsonFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::variadic_any(Volatility::Immutable),
@@ -46,7 +47,7 @@ impl ScalarUDFImpl for ParseJsonFunc {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "parse_json"
     }
 
@@ -80,9 +81,11 @@ impl ScalarUDFImpl for ParseJsonFunc {
     }
 }
 
+#[allow(dead_code)]
 fn parse_raw_json(json_str: &ColumnarValue) -> Result<ColumnarValue> {
     let result = match json_str {
         ColumnarValue::Array(array) => {
+            #[allow(clippy::unwrap_used)]
             let string_array = array.as_any().downcast_ref::<StringArray>().unwrap();
             if string_array.len() != 1 {
                 return exec_err!("Expected a single JSON string");
@@ -97,9 +100,14 @@ fn parse_raw_json(json_str: &ColumnarValue) -> Result<ColumnarValue> {
             }
         }
     };
-    let parsed: Value = serde_json::from_str(result).unwrap();
-    let result = json_value_to_columnar_value(&parsed);
-    Ok(result)
+    match serde_json::from_str::<Value>(result) {
+        Ok(parsed) => {
+            let result = json_value_to_columnar_value(&parsed);
+            Ok(result)
+        }
+        Err(e) => exec_err!("Failed to parse JSON string: {}", e),
+    }
+
 }
 
 fn json_value_to_array_ref(value: &Value) -> ArrayRef {
@@ -107,6 +115,7 @@ fn json_value_to_array_ref(value: &Value) -> ArrayRef {
         Value::Null => Arc::new(StringArray::from(vec![None::<&str>])),
         Value::Bool(b) => Arc::new(BooleanArray::from(vec![*b])),
         Value::Number(num) => {
+            #[allow(clippy::option_if_let_else)]
             if let Some(i) = num.as_i64() {
                 Arc::new(Int64Array::from(vec![i]))
             } else if let Some(f) = num.as_f64() {
@@ -121,7 +130,7 @@ fn json_value_to_array_ref(value: &Value) -> ArrayRef {
             let fields: Vec<Field> = arrays
                 .iter()
                 .enumerate()
-                .map(|(i, v)| Field::new(&format!("field_{}", i), v.data_type().clone(), true))
+                .map(|(i, v)| Field::new(format!("field_{i}"), v.data_type().clone(), true))
                 .collect();
             let struct_array = StructArray::new(Fields::from(fields), arrays, None);
             Arc::new(struct_array)
@@ -140,23 +149,20 @@ fn json_value_to_array_ref(value: &Value) -> ArrayRef {
 
 fn json_value_to_data_type(value: &Value) -> DataType {
     match value {
-        Value::Null => DataType::Utf8,
+        Value::Null | Value::String(_) => DataType::Utf8,
         Value::Bool(_) => DataType::Boolean,
         Value::Number(num) => {
-            if let Some(_) = num.as_i64() {
+            if num.as_i64().is_some() {
                 DataType::Int64
-            } else if let Some(_) = num.as_f64() {
-                DataType::Float64
             } else {
                 DataType::Float64
             }
         }
-        Value::String(_) => DataType::Utf8,
         Value::Array(arr) => {
             let fields: Vec<Field> = arr
                 .iter()
                 .enumerate()
-                .map(|(i, v)| Field::new(&format!("field_{}", i), json_value_to_data_type(v), true))
+                .map(|(i, v)| Field::new(format!("field_{i}"), json_value_to_data_type(v), true))
                 .collect();
             DataType::Struct(Fields::from(fields))
         }
@@ -175,6 +181,7 @@ fn json_value_to_columnar_value(value: &Value) -> ColumnarValue {
         Value::Null => ColumnarValue::Scalar(ScalarValue::Null),
         Value::Bool(b) => ColumnarValue::Scalar(ScalarValue::Boolean(Some(*b))),
         Value::Number(num) => {
+            #[allow(clippy::option_if_let_else)]
             if let Some(i) = num.as_i64() {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(i)))
             } else if let Some(f) = num.as_f64() {
@@ -189,7 +196,7 @@ fn json_value_to_columnar_value(value: &Value) -> ColumnarValue {
             let fields: Vec<Field> = arrays
                 .iter()
                 .enumerate()
-                .map(|(i, v)| Field::new(&format!("field_{}", i), v.data_type().clone(), true))
+                .map(|(i, v)| Field::new(format!("field_{i}"), v.data_type().clone(), true))
                 .collect();
             let struct_array = StructArray::new(Fields::from(fields), arrays, None);
             ColumnarValue::Array(Arc::new(struct_array))
@@ -206,6 +213,7 @@ fn json_value_to_columnar_value(value: &Value) -> ColumnarValue {
     }
 }
 
+#[allow(dead_code)]
 fn parse_data_type(data_type_str: &str) -> DataType {
     if data_type_str.starts_with("array<struct<") && data_type_str.ends_with(">>") {
         let struct_fields_str = &data_type_str["array<struct<".len()..data_type_str.len() - 2];
