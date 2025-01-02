@@ -1,4 +1,3 @@
-use iceberg_rest_catalog::models;
 #[warn(dead_code)]
 use quick_xml::de::from_str;
 use rusoto_core::RusotoError;
@@ -118,24 +117,24 @@ impl<T: std::error::Error + Send + Sync + 'static> From<RusotoError<T>> for Erro
             RusotoError::Unknown(ref response) => {
                 let body_string = String::from_utf8_lossy(&response.body);
                 if let Ok(s3_error) = from_str::<S3ErrorMessage>(body_string.as_ref()) {
-                    Error::S3Unknown { code: s3_error.code, message: s3_error.message }
+                    Self::S3Unknown { code: s3_error.code, message: s3_error.message }
                 } else {
-                    Error::S3Unknown { code: "unknown".to_string(), message: body_string.to_string() }
+                    Self::S3Unknown { code: "unknown".to_string(), message: body_string.to_string() }
                 }
             }
-            _ => Error::S3 { source: Box::new(e) }
+            _ => Self::S3 { source: Box::new(e) }
         }
     }
 }
 
 impl From<datafusion::error::DataFusionError> for Error {
     fn from(err: datafusion::error::DataFusionError) -> Self {
-        Error::DataFusion { source: err }
+        Self::DataFusion { source: err }
     }
 }
 
 impl From<icelake::Error> for Error {
     fn from(err: icelake::Error) -> Self {
-        Error::IceLake { source: err }
+        Self::IceLake { source: err }
     }
 }

@@ -9,7 +9,6 @@ use arrow_json::writer::JsonArray;
 use arrow_json::WriterBuilder;
 use async_trait::async_trait;
 use bytes::Bytes;
-use chrono::format;
 use datafusion::execution::context::SessionContext;
 use datafusion::prelude::{CsvReadOptions, SessionConfig};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -144,7 +143,7 @@ impl ControlService for ControlServiceImpl {
                     endpoint: profile
                         .endpoint
                         .clone()
-                        .unwrap_or_else(|| format!("https://s3.{}.amazonaws.com", profile_region)),
+                        .unwrap_or_else(|| format!("https://s3.{profile_region}.amazonaws.com")),
                 };
 
                 let dispatcher = HttpClient::new().context(crate::error::InvalidTLSConfigurationSnafu)?;
@@ -158,7 +157,7 @@ impl ControlService for ControlServiceImpl {
                     .await?;
                 Ok(())
             }
-            _ => { 
+            Credentials::Role(_) => { 
                 Err(crate::error::Error::UnsupportedAuthenticationMethod { method: profile.credentials.to_string() })
             }
         }
@@ -193,7 +192,7 @@ impl ControlService for ControlServiceImpl {
     async fn query(
         &self,
         warehouse_id: &Uuid,
-        database_name: &str,
+        _database_name: &str,
         _table_name: &str,
         query: &str,
     ) -> Result<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
@@ -361,7 +360,7 @@ impl ControlService for ControlServiceImpl {
                     "{storage_endpoint_url}/{path_string}",
                 )
             }
-            _ => path_string,
+            Credentials::Role(_) => path_string,
         };
         let endpoint_url = Url::parse(storage_endpoint_url)
             .context(crate::error::InvalidStorageEndpointURLSnafu { 
