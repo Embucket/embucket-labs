@@ -153,9 +153,9 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                     }
                 };
 
-                if (target_tz.as_str() == tz.clone()) {
+                // if (target_tz.as_str() == tz.clone()) {
                     
-                }
+                // }
             }
             _ => {
                 return plan_err!("function requires three or two arguments, got {}", args.len());
