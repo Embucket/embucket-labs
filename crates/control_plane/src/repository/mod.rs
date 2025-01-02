@@ -147,13 +147,13 @@ impl StorageProfileRepository for InMemoryStorageProfileRepository {
 
     async fn get(&self, id: Uuid) -> Result<StorageProfile> {
         let profiles = self.profiles.lock().unwrap();
-        let profile = profiles.get(&id).ok_or(Error::ErrNotFound)?;
+        let profile = profiles.get(&id).ok_or(Error::WarehouseNotFound { id })?;
         Ok(profile.clone())
     }
 
     async fn delete(&self, id: Uuid) -> Result<()> {
         let mut profiles = self.profiles.lock().unwrap();
-        profiles.remove(&id).ok_or(Error::ErrNotFound)?;
+        profiles.remove(&id).ok_or(Error::WarehouseNotFound { id })?;
         Ok(())
     }
 
@@ -173,13 +173,13 @@ impl WarehouseRepository for InMemoryWarehouseRepository {
 
     async fn get(&self, id: Uuid) -> Result<Warehouse> {
         let warehouses = self.warehouses.lock().unwrap();
-        let warehouse = warehouses.get(&id).ok_or(Error::ErrNotFound)?;
+        let warehouse = warehouses.get(&id).ok_or(Error::WarehouseNotFound { id })?;
         Ok(warehouse.clone())
     }
 
     async fn delete(&self, id: Uuid) -> Result<()> {
         let mut warehouses = self.warehouses.lock().unwrap();
-        warehouses.remove(&id).ok_or(Error::ErrNotFound)?;
+        warehouses.remove(&id).ok_or(Error::WarehouseNotFound { id })?;
         Ok(())
     }
 

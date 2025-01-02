@@ -7,6 +7,7 @@ use object_store::aws::AmazonS3Builder;
 use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
 use serde::{Deserialize, Serialize};
+use snafu::ResultExt;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
@@ -17,7 +18,7 @@ pub mod error;
 pub use error::{Error, Result};
 
 // Enum for supported cloud providers
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 pub enum CloudProvider {
     AWS,
     AZURE,
@@ -41,7 +42,7 @@ pub struct AwsRoleCredential {
 }
 
 // Composite enum for credentials
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, strum::Display)]
 #[serde(tag = "credential_type")] // Enables tagged union based on credential type
 #[serde(rename_all = "kebab-case")]
 pub enum Credentials {
@@ -165,22 +166,26 @@ impl StorageProfile {
         self.updated_at = Utc::now().naive_utc();
     }
 
-    #[must_use] 
+    
+    /// Returns the get base url of this [`StorageProfile`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the cloud platform isn't supported.
     pub fn get_base_url(&self) -> Result<String> {
         // Doing this for every call is not efficient
         dotenv().ok();
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .unwrap_or("true".to_string())
+            .unwrap_or_else(|_| "true".to_string())
             .parse::<bool>()
-            .expect(
-                "Failed to parse \
-            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD",
-            ); 
+            .map_err(|e| {
+                error::Error::UnableToParseConfiguration { key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(), source: Box::new(e) }
+            })?; 
         if use_file_system_instead_of_cloud {
             let current_directory = env::current_dir()
-                .map_err(|_| Error::InvalidCurrentDirectory)
-                .and_then(|cd| cd.to_str().map(String::from).ok_or(Error::InvalidCurrentDirectory))?;
-            Ok(format!("file://{}", current_directory))
+                .map_err(|_| Error::InvalidDirectory { directory: ".".to_string() })
+                .and_then(|cd| cd.to_str().map(String::from).ok_or(Error::InvalidDirectory { directory: ".".to_string() }))?;
+            Ok(format!("file://{current_directory}"))
         } else {
             match self.r#type {
                 CloudProvider::AWS => {
@@ -197,22 +202,21 @@ impl StorageProfile {
     }
 
     // This is needed to initialize the catalog used in JanKaul code
-    pub fn get_object_store_builder(&self) -> ObjectStoreBuilder {
+    pub fn get_object_store_builder(&self) -> Result<ObjectStoreBuilder> {
         // TODO remove duplicated code
         dotenv().ok();
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
             .ok()
             .unwrap()
             .parse::<bool>()
-            .expect(
-                "Failed to parse \
-            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD",
-            );
+            .map_err(|e| {
+                error::Error::UnableToParseConfiguration { key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(), source: Box::new(e) }
+            })?;
         if use_file_system_instead_of_cloud {
             // Here we initialise filesystem object store without root directory, because this code is used
             // by our catalog when we read metadata from the table - paths are absolute
             // In get_object_store function we are using the root directory
-            ObjectStoreBuilder::Filesystem(Arc::new(LocalFileSystem::new()))
+            Ok(ObjectStoreBuilder::Filesystem(Arc::new(LocalFileSystem::new())))
         } else {
             match self.r#type {
                 CloudProvider::AWS => {
@@ -226,42 +230,41 @@ impl StorageProfile {
                         builder
                     };
                     match &self.credentials {
-                        Credentials::AccessKey(creds) => ObjectStoreBuilder::S3(
+                        Credentials::AccessKey(creds) => Ok(ObjectStoreBuilder::S3(
                             builder
                                 .with_access_key_id(&creds.aws_access_key_id)
                                 .with_secret_access_key(&creds.aws_secret_access_key),
-                        ),
+                        )),
                         Credentials::Role(_) => {
-                            panic!("Not implemented")
+                            Err(error::Error::RoleBasedCredentialsNotSupported)
                         }
                     }
                 }
-                CloudProvider::AZURE => {
-                    panic!("Not implemented")
-                }
-                CloudProvider::GCS => {
-                    panic!("Not implemented")
+                CloudProvider::AZURE | CloudProvider::GCS => {
+                    Err(error::Error::CloudProviderNotImplemented {
+                        provider: self.r#type.to_string(),
+                    })
                 }
             }
         }
     }
 
-    pub fn get_object_store(&self) -> Box<dyn ObjectStore> {
+    pub fn get_object_store(&self) -> Result<Box<dyn ObjectStore>> {
         // TODO remove duplicated code
         dotenv().ok();
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
             .ok()
             .unwrap()
             .parse::<bool>()
-            .expect(
-                "Failed to parse \
-            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD",
-            );
+            .map_err(|e| {
+                error::Error::UnableToParseConfiguration { key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(), source: Box::new(e) }
+            })?;
         if use_file_system_instead_of_cloud {
             // Here we initialise filesystem object store without current directory as root, because this code is used
             // by our catalog when we write metadata file - we use relative path
             // In get_object_store_builder function we are using absolute paths
-            Box::new(LocalFileSystem::new_with_prefix(".").unwrap())
+            let lfs = LocalFileSystem::new_with_prefix(".").map_err(|_| error::Error::InvalidDirectory { directory: ".".to_string() })?;
+            Ok(Box::new(lfs))
         } else {
             match self.r#type {
                 CloudProvider::AWS => {
@@ -275,23 +278,22 @@ impl StorageProfile {
                         builder
                     };
                     match &self.credentials {
-                        Credentials::AccessKey(creds) => Box::new(
+                        Credentials::AccessKey(creds) => Ok(Box::new(
                             builder
                                 .with_access_key_id(&creds.aws_access_key_id)
                                 .with_secret_access_key(&creds.aws_secret_access_key)
                                 .build()
                                 .expect("error creating AWS object store"),
-                        ),
+                        )),
                         Credentials::Role(_) => {
-                            panic!("Not implemented")
+                            Err(error::Error::RoleBasedCredentialsNotSupported)
                         }
                     }
                 }
-                CloudProvider::AZURE => {
-                    panic!("Not implemented")
-                }
-                CloudProvider::GCS => {
-                    panic!("Not implemented")
+                CloudProvider::AZURE | CloudProvider::GCS => {
+                    Err(error::Error::CloudProviderNotImplemented {
+                        provider: self.r#type.to_string(),
+                    })
                 }
             }
         }
