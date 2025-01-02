@@ -86,18 +86,12 @@ impl SqlExecutor {
     pub fn preprocess_query(&self, query: &String) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         let re = regex::Regex::new(r"(\w+)\[(\d+)]\.(\w+)").unwrap();
+        let date_add = regex::Regex::new(r"(date|time|timestamp)(_?add)\(\s*([a-zA-Z]+),").unwrap();
         let query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
             .to_string();
-
-        let statement = self.ctx.state().sql_to_statement(&query, 
-            self.ctx.state().config().options().sql_parser.dialect.as_str())
-            .unwrap()
-            .to_string();
-
-        let date_add = regex::Regex::new(r"(date|time|timestamp)(_?add)\(([a-zA-Z]+),").unwrap();
         let query = date_add
-            .replace_all(statement.as_str(), "$1$2('$3',")
+            .replace_all(&query, "$1$2('$3',")
             .to_string();
         // TODO implement alter session logic
         query.replace(

@@ -13,7 +13,6 @@ use std::any::Any;
 #[derive(Debug)]
 pub struct ConvertTimezoneFunc {
     signature: Signature,
-    aliases: Vec<String>,
 }
 
 impl Default for ConvertTimezoneFunc {
@@ -25,53 +24,42 @@ impl Default for ConvertTimezoneFunc {
 impl ConvertTimezoneFunc {
     pub fn new() -> Self {
         Self {
-            //TODO: Fix signature
             signature: Signature::one_of(
                 vec![
-                    Exact(vec![Utf8, Int64, Date32]),
-                    Exact(vec![Utf8, Int64, Date64]),
-                    Exact(vec![Utf8, Int64, Time32(Second)]),
-                    Exact(vec![Utf8, Int64, Time32(Nanosecond)]),
-                    Exact(vec![Utf8, Int64, Time32(Microsecond)]),
-                    Exact(vec![Utf8, Int64, Time32(Millisecond)]),
-                    Exact(vec![Utf8, Int64, Time64(Second)]),
-                    Exact(vec![Utf8, Int64, Time64(Nanosecond)]),
-                    Exact(vec![Utf8, Int64, Time64(Microsecond)]),
-                    Exact(vec![Utf8, Int64, Time64(Millisecond)]),
-                    Exact(vec![Utf8, Int64, Timestamp(Second, None)]),
-                    Exact(vec![Utf8, Int64, Timestamp(Millisecond, None)]),
-                    Exact(vec![Utf8, Int64, Timestamp(Microsecond, None)]),
-                    Exact(vec![Utf8, Int64, Timestamp(Nanosecond, None)]),
+                    Exact(vec![Utf8, Utf8, Timestamp(Second, None)]),
+                    Exact(vec![Utf8, Utf8, Timestamp(Millisecond, None)]),
+                    Exact(vec![Utf8, Utf8, Timestamp(Microsecond, None)]),
+                    Exact(vec![Utf8, Utf8, Timestamp(Nanosecond, None)]),
                     Exact(vec![
                         Utf8,
-                        Int64,
                         Timestamp(Second, Some(TIMEZONE_WILDCARD.into())),
                     ]),
                     Exact(vec![
                         Utf8,
-                        Int64,
                         Timestamp(Millisecond, Some(TIMEZONE_WILDCARD.into())),
                     ]),
                     Exact(vec![
                         Utf8,
-                        Int64,
                         Timestamp(Microsecond, Some(TIMEZONE_WILDCARD.into())),
                     ]),
                     Exact(vec![
                         Utf8,
-                        Int64,
                         Timestamp(Nanosecond, Some(TIMEZONE_WILDCARD.into())),
                     ]),
                 ],
                 Volatility::Immutable,
             ),
-            aliases: vec![
-                String::from("date_diff"),
-                String::from("timediff"),
-                String::from("time_diff"),
-                String::from("timestampdiff"),
-                String::from("timestamp_dif"),
-            ],
+        }
+    }
+    //TODO: add all timezones
+    fn timezone_to_hours_in_ns(tz: &str) -> Result<i64> {
+        match tz {
+            "UTC" => {
+                Ok(0)
+            }
+            _ => {
+                plan_err!("")
+            }
         }
     }
 }
@@ -114,32 +102,67 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
     }
     //TODO: FIX return type
     fn return_type(&self, arg_types: &[DataType]) -> Result<DataType> {
-        //two or three
-        if arg_types.len() != 3 {
-            return plan_err!("function requires three arguments");
+        //can be done matheamtically
+        match arg_types.len() {
+            3 => {
+                Ok(arg_types[2].clone())
+            }
+            2 => {
+                Ok(arg_types[1].clone())
+            }
+            _ => {
+                return plan_err!("function requires three arguments");
+            }
         }
-        Ok(DataType::Int64)
     }
     //TODO: FIX general logic
     fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
         //two or three
-        if args.len() != 3 {
-            return plan_err!("function requires three arguments");
+        match args.len() {
+            3 => {
+                let source_tz = match &args[0] {
+                    ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
+                    _ => return plan_err!("Invalid source_tz type format"),
+                };
+                let target_tz = match &args[1] {
+                    ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
+                    _ => return plan_err!("Invalid target_tz type"),
+                };
+                let source_timestamp_ntz = match &args[2] {
+                    ColumnarValue::Scalar(val) => val.clone(),
+                    _ => return plan_err!("Invalid source_timestamp_ntz type"),
+                };
+
+            }
+            2 => {
+                let target_tz = match &args[0] {
+                    ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
+                    _ => return plan_err!("Invalid datetime type"),
+                };
+                let source_timestamp_tz = match &args[1] {
+                    ColumnarValue::Scalar(val) => val.clone(),
+                    _ => return plan_err!("Invalid datetime type"),
+                };
+                let tz = match &source_timestamp_tz {
+                    ScalarValue::TimestampSecond(_, Some(val)) => val.clone(),
+                    ScalarValue::TimestampMillisecond(_, Some(val)) => val.clone(),
+                    ScalarValue::TimestampMicrosecond(_, Some(val)) => val.clone(),
+                    ScalarValue::TimestampNanosecond(_, Some(val)) => val.clone(),
+                    _ => {
+                        return plan_err!("Invalid datetime type")
+                    }
+                };
+
+                if (target_tz.as_str() == tz.clone()) {
+                    
+                }
+            }
+            _ => {
+                return plan_err!("function requires three or two arguments, got {}", args.len());
+            }
         }
 
-        let date_or_time_part = match &args[0] {
-            ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
-            _ => return plan_err!("Invalid unit type format"),
-        };
-
-        let date_or_time_expr1 = match &args[2] {
-            ColumnarValue::Scalar(val) => val.clone(),
-            _ => return plan_err!("Invalid datetime type"),
-        };
-        let date_or_time_expr2 = match &args[2] {
-            ColumnarValue::Scalar(val) => val.clone(),
-            _ => return plan_err!("Invalid datetime type"),
-        };
+        
         Ok(ColumnarValue::Scalar(ScalarValue::Int64(Some(0))))
     }
 }

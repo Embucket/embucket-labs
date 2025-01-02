@@ -130,7 +130,7 @@ impl ScalarUDFImpl for DateDiffFunc {
             _ => return plan_err!("Invalid unit type format"),
         };
 
-        let date_or_time_expr1 = match &args[2] {
+        let date_or_time_expr1 = match &args[1] {
             ColumnarValue::Scalar(val) => val.clone(),
             _ => return plan_err!("Invalid datetime type"),
         };
