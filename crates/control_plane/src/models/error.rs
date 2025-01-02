@@ -2,6 +2,7 @@ use snafu::prelude::*;
 
 // Errors that are specific to the `models` crate
 #[derive(Snafu, Debug)]
+#[snafu(visibility(pub(crate)))]
 pub enum Error {
     #[snafu(display("Invalid bucket name `{bucket_name}`. Reason: {reason}"))]
     InvalidBucketName { bucket_name: String, reason: String },
@@ -17,6 +18,17 @@ pub enum Error {
 
     #[snafu(display("Role-based credentials aren't supported"))]
     RoleBasedCredentialsNotSupported,
+
+    #[snafu(display("Missing environment variable `{var}`"))]
+    MissingEnvironmentVariable { source: std::env::VarError, var: String },
+
+    // Duplicated in `control_plane` crate, needs refactoring
+    #[snafu(display("Object store error: {source}"))]
+    ObjectStore { source: object_store::Error },
+
+    // Duplicate in `control_plane` crate, needs refactoring
+    #[snafu(display("Arrow error: {source}"))]
+    Arrow { source: arrow::error::ArrowError },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

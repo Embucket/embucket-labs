@@ -206,8 +206,7 @@ impl StorageProfile {
         // TODO remove duplicated code
         dotenv().ok();
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .ok()
-            .unwrap()
+            .context(error::MissingEnvironmentVariableSnafu { var: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string() })?
             .parse::<bool>()
             .map_err(|e| {
                 error::Error::UnableToParseConfiguration { key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(), source: Box::new(e) }
@@ -253,8 +252,7 @@ impl StorageProfile {
         // TODO remove duplicated code
         dotenv().ok();
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .ok()
-            .unwrap()
+            .context(error::MissingEnvironmentVariableSnafu { var: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string() })?
             .parse::<bool>()
             .map_err(|e| {
                 error::Error::UnableToParseConfiguration { key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(), source: Box::new(e) }
@@ -283,7 +281,7 @@ impl StorageProfile {
                                 .with_access_key_id(&creds.aws_access_key_id)
                                 .with_secret_access_key(&creds.aws_secret_access_key)
                                 .build()
-                                .expect("error creating AWS object store"),
+                                .context(error::ObjectStoreSnafu)?,
                         )),
                         Credentials::Role(_) => {
                             Err(error::Error::RoleBasedCredentialsNotSupported)
@@ -469,11 +467,14 @@ impl ColumnInfo {
     }
 }
 
-pub fn created_entity_response() -> Vec<RecordBatch> {
+pub fn created_entity_response() -> error::Result<Vec<RecordBatch>> {
     let schema = Arc::new(ArrowSchema::new(vec![Field::new(
         "count",
         DataType::UInt64,
         false,
     )]));
-    vec![RecordBatch::try_new(schema, vec![Arc::new(UInt64Array::from(vec![0]))]).unwrap()]
+    Ok(vec![
+        RecordBatch::try_new(schema, vec![Arc::new(UInt64Array::from(vec![0]))])
+            .context(error::ArrowSnafu)?,
+    ])
 }
