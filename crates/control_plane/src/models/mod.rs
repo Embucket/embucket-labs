@@ -115,7 +115,7 @@ impl StorageProfile {
         // Example validation: Ensure bucket name length
         if bucket.len() < 6 || bucket.len() > 63 {
             return Err(Error::InvalidBucketName {
-                bucket_name: bucket.clone(),
+                bucket_name: bucket,
                 reason: "Bucket name must be between 6 and 63 characters".to_owned(),
             });
         }
@@ -124,7 +124,7 @@ impl StorageProfile {
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
         {
             return Err(Error::InvalidBucketName {
-                bucket_name: bucket.clone(),
+                bucket_name: bucket,
                 reason: "Bucket name must only contain alphanumeric characters, hyphens, or underscores".to_owned(),
             });
         }
@@ -134,7 +134,7 @@ impl StorageProfile {
             || bucket.ends_with('_')
         {
             return Err(Error::InvalidBucketName {
-                bucket_name: bucket.clone(),
+                bucket_name: bucket,
                 reason: "Bucket name must not start or end with a hyphen or underscore".to_owned(),
             });
         }
@@ -339,7 +339,7 @@ impl TryFrom<WarehouseCreateRequest> for Warehouse {
     type Error = Error;
 
     fn try_from(value: WarehouseCreateRequest) -> Result<Self> {
-        Warehouse::new(
+        Self::new(
             value.prefix.clone(),
             value.name.clone(),
             value.storage_profile_id,
@@ -351,7 +351,7 @@ impl TryFrom<&WarehouseCreateRequest> for Warehouse {
     type Error = Error;
 
     fn try_from(value: &WarehouseCreateRequest) -> Result<Self> {
-        Warehouse::new(
+        Self::new(
             value.prefix.clone(),
             value.name.clone(),
             value.storage_profile_id,
@@ -375,6 +375,7 @@ pub struct ColumnInfo {
 }
 
 impl ColumnInfo {
+    #[must_use]
     pub fn to_metadata(&self) -> HashMap<String, String> {
         let mut metadata = HashMap::new();
         metadata.insert("logicalType".to_string(), self.r#type.to_uppercase());
@@ -389,24 +390,27 @@ impl ColumnInfo {
         );
         metadata
     }
-    pub fn from_batch(records: Vec<RecordBatch>) -> Vec<ColumnInfo> {
+
+    #[must_use]
+    pub fn from_batch(records: &[RecordBatch]) -> Vec<Self> {
         let mut column_infos = Vec::new();
 
         if records.is_empty() {
             return column_infos;
         }
         for field in records[0].schema().fields() {
-            column_infos.push(ColumnInfo::from_field(field));
+            column_infos.push(Self::from_field(field));
         }
         column_infos
     }
 
-    pub fn from_field(field: &Field) -> ColumnInfo {
-        let mut column_info = ColumnInfo {
+    #[must_use]
+    pub fn from_field(field: &Field) -> Self {
+        let mut column_info = Self {
             name: field.name().clone(),
-            database: "".to_string(), // TODO
-            schema: "".to_string(),   // TODO
-            table: "".to_string(),    // TODO
+            database: String::new(), // TODO
+            schema: String::new(),   // TODO
+            table: String::new(),    // TODO
             nullable: field.is_nullable(),
             r#type: field.data_type().to_string(),
             byte_length: None,

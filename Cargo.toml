@@ -42,3 +42,7 @@ nursery={ level="warn", priority=1 }
 unwrap_used="deny"
 expect_used="deny"
 print_stdout="deny"
+
+# These should be removed eventually
+missing_errors_doc={ level="allow", priority=2 }
+missing_panics_doc={ level="allow", priority=2 }
