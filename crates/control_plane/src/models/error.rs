@@ -25,10 +25,6 @@ pub enum Error {
     // Duplicated in `control_plane` crate, needs refactoring
     #[snafu(display("Object store error: {source}"))]
     ObjectStore { source: object_store::Error },
-
-    // Duplicate in `control_plane` crate, needs refactoring
-    #[snafu(display("Arrow error: {source}"))]
-    Arrow { source: arrow::error::ArrowError },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

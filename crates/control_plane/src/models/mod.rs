@@ -467,14 +467,13 @@ impl ColumnInfo {
     }
 }
 
-pub fn created_entity_response() -> error::Result<Vec<RecordBatch>> {
+pub fn created_entity_response() -> std::result::Result<Vec<RecordBatch>, arrow::error::ArrowError> {
     let schema = Arc::new(ArrowSchema::new(vec![Field::new(
         "count",
         DataType::UInt64,
         false,
     )]));
     Ok(vec![
-        RecordBatch::try_new(schema, vec![Arc::new(UInt64Array::from(vec![0]))])
-            .context(error::ArrowSnafu)?,
+        RecordBatch::try_new(schema, vec![Arc::new(UInt64Array::from(vec![0]))])?,
     ])
 }

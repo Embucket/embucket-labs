@@ -6,7 +6,7 @@ use arrow::array::RecordBatch;
 use datafusion::catalog::SchemaProvider;
 use datafusion::catalog_common::information_schema::InformationSchemaProvider;
 use datafusion::catalog_common::{ResolvedTableReference, TableReference};
-use datafusion::common::{plan_datafusion_err, Result};
+use datafusion::common::plan_datafusion_err;
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::sqlparser::ast::Insert;
@@ -24,9 +24,11 @@ use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use regex;
+use snafu::ResultExt;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
+use super::error::Result;
 
 pub struct SqlExecutor {
     ctx: SessionContext,
@@ -44,7 +46,8 @@ impl SqlExecutor {
         let dialect = state.config().options().sql_parser.dialect.as_str();
         // Update query to use custom JSON functions
         let query = self.preprocess_query(query);
-        let statement = state.sql_to_statement(&query, dialect)?;
+        let statement = state.sql_to_statement(&query, dialect)
+            .context(super::error::DataFusionSnafu)?;
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
         // println!("Query fixed: {}", query);
@@ -69,7 +72,12 @@ impl SqlExecutor {
                 _ => {}
             }
         }
-        self.ctx.sql(&query).await?.collect().await
+        self.ctx.sql(&query)
+            .await
+            .context(super::error::DataFusionSnafu)?
+            .collect()
+            .await
+            .context(super::error::DataFusionSnafu)
     }
 
     pub fn preprocess_query(&self, query: &str) -> String {
@@ -119,9 +127,11 @@ impl SqlExecutor {
             let plan = self.get_custom_logical_plan(&updated_query, "").await?;
             self.ctx
                 .execute_logical_plan(plan.clone())
-                .await?
+                .await
+                .context(super::error::DataFusionSnafu)?
                 .collect()
-                .await?;
+                .await
+                .context(super::error::DataFusionSnafu)?;
             let schema = Schema::builder()
                 .with_schema_id(0)
                 .with_identifier_field_ids(vec![])
@@ -178,14 +188,19 @@ impl SqlExecutor {
 
             // Drop InMemory table
             let drop_query = format!("DROP TABLE {new_table_name}");
-            self.ctx.sql(&drop_query).await?.collect().await?;
+            self.ctx.sql(&drop_query)
+                .await
+                .context(super::error::DataFusionSnafu)?
+                .collect()
+                .await
+                .context(super::error::DataFusionSnafu)?;
             return Ok(result);
             // }
             // Ok(created_entity_response())
         } else {
-            Err(datafusion::error::DataFusionError::NotImplemented(
+            Err(super::error::Error::DataFusion{ source: datafusion::error::DataFusionError::NotImplemented(
                 "Only CREATE TABLE statements are supported".to_string(),
-            ))
+            )})
         }
     }
 
@@ -218,12 +233,13 @@ impl SqlExecutor {
                 }
             }
             _ => {
-                return Err(datafusion::error::DataFusionError::NotImplemented(
+                return Err(super::error::Error::DataFusion{ source: datafusion::error::DataFusionError::NotImplemented(
                     "Only simple schema names are supported".to_string(),
-                ));
+                )});
             }
         }
-        Ok(created_entity_response())
+        created_entity_response()
+            .context(super::error::ArrowSnafu)
     }
 
     pub async fn get_custom_logical_plan(
@@ -233,7 +249,8 @@ impl SqlExecutor {
     ) -> Result<LogicalPlan> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
-        let mut statement = state.sql_to_statement(query, dialect)?;
+        let mut statement = state.sql_to_statement(query, dialect)
+            .context(super::error::DataFusionSnafu)?;
         println!("raw query: {:?}", statement.to_string());
         statement = self.update_statement_references(statement, warehouse_name);
         println!("modified query: {:?}", statement.to_string());
@@ -243,13 +260,15 @@ impl SqlExecutor {
                 state: &state,
                 tables: HashMap::new(),
             };
-            let references = state.resolve_table_references(&statement)?;
+            let references = state.resolve_table_references(&statement)
+                .context(super::error::DataFusionSnafu)?;
             println!("References: {:?}", references);
             for reference in references {
                 let resolved = self.resolve_table_ref(reference);
                 if let Entry::Vacant(v) = ctx_provider.tables.entry(resolved.to_string()) {
                     if let Ok(schema) = self.schema_for_ref(resolved.clone()) {
-                        if let Some(table) = schema.table(&resolved.table).await? {
+                        if let Some(table) = schema.table(&resolved.table).await
+                            .context(super::error::DataFusionSnafu)? {
                             v.insert(provider_as_source(table));
                         }
                     }
@@ -263,8 +282,9 @@ impl SqlExecutor {
                             .schema(&schema)
                             .unwrap()
                             .table(&table)
-                            .await?
-                            .unwrap();
+                            .await
+                            .context(super::error::DataFusionSnafu)?
+                            .ok_or(super::error::Error::TableProviderNotFound { table_name: table.clone() })?;
                         ctx_provider.tables.insert(
                             format!("{catalog}.{schema}.{table}"),
                             provider_as_source(table_source),
@@ -275,10 +295,11 @@ impl SqlExecutor {
             // println!("Tables: {:?}", ctx_provider.tables.keys());
             let planner = ExtendedSqlToRel::new(&ctx_provider);
             planner.sql_statement_to_plan(*s)
+                .context(super::error::DataFusionSnafu)
         } else {
-            Err(datafusion::error::DataFusionError::NotImplemented(
+            Err(super::error::Error::DataFusion { source: datafusion::error::DataFusionError::NotImplemented(
                 "Only SQL statements are supported".to_string(),
-            ))
+            )})
         }
     }
 
@@ -304,15 +325,16 @@ impl SqlExecutor {
             )));
         }
 
+        // Need better error handling here instead of just DF errors
         state
             .catalog_list()
             .catalog(&resolved_ref.catalog)
             .ok_or_else(|| {
-                plan_datafusion_err!("failed to resolve catalog: {}", resolved_ref.catalog)
+                super::error::Error::DataFusion { source: plan_datafusion_err!("failed to resolve catalog: {}", resolved_ref.catalog) }
             })?
             .schema(&resolved_ref.schema)
             .ok_or_else(|| {
-                plan_datafusion_err!("failed to resolve schema: {}", resolved_ref.schema)
+                super::error::Error::DataFusion { source: plan_datafusion_err!("failed to resolve schema: {}", resolved_ref.schema) }
             })
     }
 
@@ -322,9 +344,12 @@ impl SqlExecutor {
         warehouse_name: &str,
     ) -> Result<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
-        let res = self.ctx.execute_logical_plan(plan).await?.collect().await;
-        println!("Result: {:?}", res);
-        res
+        self.ctx.execute_logical_plan(plan)
+            .await
+            .context(super::error::DataFusionSnafu)?
+            .collect()
+            .await
+            .context(super::error::DataFusionSnafu)
     }
 
     pub fn update_statement_references(
