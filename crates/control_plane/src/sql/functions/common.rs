@@ -10,6 +10,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
 use std::sync::Arc;
 
+#[must_use] 
 pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, ArrayRef)> {
     for i in 0..union_array.type_ids().len() {
         let type_id = union_array.type_id(i);
@@ -25,7 +26,7 @@ pub fn convert_record_batches(
     records: Vec<RecordBatch>,
 ) -> DataFusionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
     let mut converted_batches = Vec::new();
-    let column_infos = ColumnInfo::from_batch(records.clone());
+    let column_infos = ColumnInfo::from_batch(&records);
 
     for batch in records {
         let mut columns = Vec::new();
@@ -52,7 +53,7 @@ pub fn convert_record_batches(
                     }
                 }
                 DataType::Timestamp(unit, _) => {
-                    let converted_column = convert_timestamp_to_struct(column, unit);
+                    let converted_column = convert_timestamp_to_struct(column, *unit);
                     fields.push(
                         Field::new(
                             field.name(),
@@ -71,8 +72,8 @@ pub fn convert_record_batches(
             columns.push(converted_column);
         }
         let new_schema = Arc::new(Schema::new(fields));
-        println!("new schema: {:?}", new_schema);
-        println!("columns: {:?}", columns);
+        //println!("new schema: {:?}", new_schema);
+        //println!("columns: {:?}", columns);
         let converted_batch = RecordBatch::try_new(new_schema, columns)?;
         converted_batches.push(converted_batch);
     }
@@ -80,7 +81,8 @@ pub fn convert_record_batches(
     Ok((converted_batches.clone(), column_infos))
 }
 
-fn convert_timestamp_to_struct(column: &ArrayRef, unit: &TimeUnit) -> ArrayRef {
+#[allow(clippy::unwrap_used, clippy::as_conversions, clippy::cast_possible_truncation)]
+fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
     let (epoch, fraction) = match unit {
         TimeUnit::Second => {
             let array = column

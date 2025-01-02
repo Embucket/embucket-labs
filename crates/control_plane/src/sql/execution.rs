@@ -491,7 +491,6 @@ impl SqlExecutor {
             TableFactor::Derived { subquery, .. } => {
                 self.update_tables_in_query(subquery, warehouse_name);
             }
-            TableFactor::TableFunction { .. } => {}
             TableFactor::NestedJoin {
                 table_with_joins, ..
             } => {

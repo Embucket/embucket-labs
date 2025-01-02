@@ -435,8 +435,8 @@ impl ColumnInfo {
             }
             DataType::Decimal128(precision, scale) | DataType::Decimal256(precision, scale) => {
                 column_info.r#type = "fixed".to_string();
-                column_info.precision = Some(*precision as i32);
-                column_info.scale = Some(*scale as i32);
+                column_info.precision = Some(i32::from(*precision));
+                column_info.scale = Some(i32::from(*scale));
             }
             DataType::Boolean => {
                 column_info.r#type = "boolean".to_string();

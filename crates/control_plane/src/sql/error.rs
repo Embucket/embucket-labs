@@ -28,6 +28,15 @@ pub enum Error {
 
     #[snafu(display("Iceberg error: {source}"))]
     Iceberg { source: iceberg_rust::error::Error },
+
+    #[snafu(display("Invalid precision: {precision}"))]
+    InvalidPrecision { precision: String},
+
+    #[snafu(display("Invalid scale: {scale}"))]
+    InvalidScale { scale: String },
+
+    #[snafu(display("Not implemented: {message}"))]
+    NotImplemented { message: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

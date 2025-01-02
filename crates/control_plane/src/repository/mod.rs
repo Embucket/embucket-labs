@@ -1,7 +1,6 @@
 use crate::error::{Error, Result};
 use crate::models::{StorageProfile, Warehouse};
 use async_trait::async_trait;
-use snafu::ResultExt;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
@@ -47,7 +46,7 @@ pub struct StorageProfileRepositoryDb {
 }
 
 impl StorageProfileRepositoryDb {
-    pub fn new(db: Arc<Db>) -> Self {
+    pub const fn new(db: Arc<Db>) -> Self {
         Self { db }
     }
 }
@@ -57,7 +56,7 @@ pub struct WarehouseRepositoryDb {
 }
 
 impl WarehouseRepositoryDb {
-    pub fn new(db: Arc<Db>) -> Self {
+    pub const fn new(db: Arc<Db>) -> Self {
         Self { db }
     }
 }
@@ -142,26 +141,39 @@ pub struct InMemoryStorageProfileRepository {
 #[allow(clippy::unwrap_used)]
 impl StorageProfileRepository for InMemoryStorageProfileRepository {
     async fn create(&self, profile: &StorageProfile) -> Result<()> {
-        let mut profiles = self.profiles.lock().unwrap();
-        profiles.insert(profile.id, profile.clone());
+        self.profiles
+            .lock()
+            .unwrap()
+            .insert(profile.id, profile.clone());
         Ok(())
     }
 
     async fn get(&self, id: Uuid) -> Result<StorageProfile> {
-        let profiles = self.profiles.lock().unwrap();
-        let profile = profiles.get(&id).ok_or(Error::WarehouseNotFound { id })?;
-        Ok(profile.clone())
+        Ok(self.profiles
+            .lock()
+            .unwrap()
+            .get(&id)
+            .ok_or(Error::WarehouseNotFound { id })?
+            .clone())
     }
 
     async fn delete(&self, id: Uuid) -> Result<()> {
-        let mut profiles = self.profiles.lock().unwrap();
-        profiles.remove(&id).ok_or(Error::WarehouseNotFound { id })?;
+        self.profiles
+            .lock()
+            .unwrap()
+            .remove(&id)
+            .ok_or(Error::WarehouseNotFound { id })?;
         Ok(())
     }
 
     async fn list(&self) -> Result<Vec<StorageProfile>> {
-        let profiles = self.profiles.lock().unwrap();
-        Ok(profiles.values().cloned().collect())
+        Ok(self.profiles
+            .lock()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect()
+        )
     }
 }
 
@@ -169,26 +181,42 @@ impl StorageProfileRepository for InMemoryStorageProfileRepository {
 #[allow(clippy::unwrap_used)]
 impl WarehouseRepository for InMemoryWarehouseRepository {
     async fn create(&self, warehouse: &Warehouse) -> Result<()> {
-        let mut warehouses = self.warehouses.lock().unwrap();
-        warehouses.insert(warehouse.id, warehouse.clone());
+        self.warehouses
+            .lock()
+            .unwrap()
+            .insert(warehouse.id, warehouse.clone());
         Ok(())
     }
 
     async fn get(&self, id: Uuid) -> Result<Warehouse> {
-        let warehouses = self.warehouses.lock().unwrap();
-        let warehouse = warehouses.get(&id).ok_or(Error::WarehouseNotFound { id })?;
-        Ok(warehouse.clone())
+        Ok(
+            self.warehouses
+                .lock()
+                .unwrap()
+                .get(&id)
+                .ok_or(Error::WarehouseNotFound { id })?
+                .clone()
+        )
     }
 
     async fn delete(&self, id: Uuid) -> Result<()> {
-        let mut warehouses = self.warehouses.lock().unwrap();
-        warehouses.remove(&id).ok_or(Error::WarehouseNotFound { id })?;
+        self.warehouses
+            .lock()
+            .unwrap()
+            .remove(&id)
+            .ok_or(Error::WarehouseNotFound { id })?;
         Ok(())
     }
 
     async fn list(&self) -> Result<Vec<Warehouse>> {
-        let warehouses = self.warehouses.lock().unwrap();
-        Ok(warehouses.values().cloned().collect())
+        Ok(
+            self.warehouses
+                .lock()
+                .unwrap()
+                .values()
+                .cloned()
+                .collect()
+        )
     }
 }
 
