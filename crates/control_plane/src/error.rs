@@ -76,6 +76,9 @@ pub enum Error {
     #[snafu(display("Object store error: {source}"))]
     ObjectStore { source: object_store::Error },
 
+    #[snafu(display("Execution error: {source}"))]
+    Execution { source: crate::sql::error::Error },
+
     /*#[error("not found")]
     ErrNotFound,
 
@@ -114,7 +117,7 @@ impl<T: std::error::Error + Send + Sync + 'static> From<RusotoError<T>> for Erro
         match e {
             RusotoError::Unknown(ref response) => {
                 let body_string = String::from_utf8_lossy(&response.body);
-                if let Ok(s3_error) = from_str::<S3ErrorMessage>(&body_string.as_ref()) {
+                if let Ok(s3_error) = from_str::<S3ErrorMessage>(body_string.as_ref()) {
                     Error::S3Unknown { code: s3_error.code, message: s3_error.message }
                 } else {
                     Error::S3Unknown { code: "unknown".to_string(), message: body_string.to_string() }

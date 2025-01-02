@@ -1,6 +1,7 @@
 use crate::error::{Error, Result};
 use crate::models::{StorageProfile, Warehouse};
 use async_trait::async_trait;
+use snafu::ResultExt;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
@@ -138,6 +139,7 @@ pub struct InMemoryStorageProfileRepository {
 }
 
 #[async_trait]
+#[allow(clippy::unwrap_used)]
 impl StorageProfileRepository for InMemoryStorageProfileRepository {
     async fn create(&self, profile: &StorageProfile) -> Result<()> {
         let mut profiles = self.profiles.lock().unwrap();
@@ -164,6 +166,7 @@ impl StorageProfileRepository for InMemoryStorageProfileRepository {
 }
 
 #[async_trait]
+#[allow(clippy::unwrap_used)]
 impl WarehouseRepository for InMemoryWarehouseRepository {
     async fn create(&self, warehouse: &Warehouse) -> Result<()> {
         let mut warehouses = self.warehouses.lock().unwrap();
@@ -195,6 +198,8 @@ pub struct InMemoryWarehouseRepository {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::models::{AwsAccessKeyCredential, CloudProvider, Credentials};

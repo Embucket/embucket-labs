@@ -223,7 +223,8 @@ impl ControlService for ControlServiceImpl {
 
         let records: Vec<RecordBatch> = SqlExecutor::new(ctx)
             .query(query, &catalog_name.clone().to_string())
-            .await?
+            .await
+            .context(crate::error::ExecutionSnafu)?
             .into_iter()
             .collect::<Vec<_>>();
         // Add columns dbt metadata to each field
