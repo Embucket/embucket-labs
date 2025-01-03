@@ -9,6 +9,9 @@ use datafusion::logical_expr::{
 };
 use datafusion::scalar::ScalarValue;
 use std::any::Any;
+use std::borrow::Borrow;
+use arrow::array::timezone::{Tz, TzOffset};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ConvertTimezoneFunc {
@@ -132,37 +135,41 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                     ColumnarValue::Scalar(val) => val.clone(),
                     _ => return plan_err!("Invalid source_timestamp_ntz type"),
                 };
-
+                //TODO: add logic for addring removing time
+                Ok(ColumnarValue::Scalar(ScalarValue::new_timestamp(Some(0), None)))
             }
             2 => {
                 let target_tz = match &args[0] {
                     ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
-                    _ => return plan_err!("Invalid datetime type"),
+                    _ => return plan_err!("Invalid target_tz type"),
                 };
+                //TODO: change err messages
                 let source_timestamp_tz = match &args[1] {
                     ColumnarValue::Scalar(val) => val.clone(),
-                    _ => return plan_err!("Invalid datetime type"),
+                    _ => return plan_err!("Invalid source_timestamp_tz type"),
                 };
-                let tz = match &source_timestamp_tz {
-                    ScalarValue::TimestampSecond(_, Some(val)) => val.clone(),
-                    ScalarValue::TimestampMillisecond(_, Some(val)) => val.clone(),
-                    ScalarValue::TimestampMicrosecond(_, Some(val)) => val.clone(),
-                    ScalarValue::TimestampNanosecond(_, Some(val)) => val.clone(),
+                let (ts, tz) = match &source_timestamp_tz {
+                    ScalarValue::TimestampSecond(Some(ts), Some(val)) => (ts, val.clone()),
+                    ScalarValue::TimestampMillisecond(Some(ts), Some(val)) => (ts, val.clone()),
+                    ScalarValue::TimestampMicrosecond(Some(ts), Some(val)) => (ts, val.clone()),
+                    ScalarValue::TimestampNanosecond(Some(ts), Some(val)) => (ts, val.clone()),
                     _ => {
-                        return plan_err!("Invalid datetime type")
+                        return plan_err!("Invalid source_timestamp_tz type")
                     }
                 };
-
-                // if (target_tz.as_str() == tz.clone()) {
-                    
-                // }
+                if target_tz == *tz {
+                    return plan_err!("Timezones are the same")
+                }
+                //TODO: unwarp removal
+                if target_tz.parse::<Tz>().is_err() {
+                    return plan_err!("No such timezone");
+                }
+                //TODO: add logic for addring removing time, am i understanding this corectly? we may no need this
+                Ok(ColumnarValue::Scalar(ScalarValue::new_timestamp(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))))
             }
             _ => {
                 return plan_err!("function requires three or two arguments, got {}", args.len());
             }
         }
-
-        
-        Ok(ColumnarValue::Scalar(ScalarValue::Int64(Some(0))))
     }
 }

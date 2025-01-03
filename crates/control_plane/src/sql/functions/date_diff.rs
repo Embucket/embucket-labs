@@ -70,7 +70,7 @@ impl DateDiffFunc {
                 String::from("timediff"),
                 String::from("time_diff"),
                 String::from("timestampdiff"),
-                String::from("timestamp_dif"),
+                String::from("timestamp_diff"),
             ],
         }
     }
