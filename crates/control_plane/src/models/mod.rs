@@ -3,7 +3,7 @@ use arrow::array::{RecordBatch, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use chrono::{NaiveDateTime, Utc};
 use dotenv::dotenv;
-use iceberg_rust::catalog::bucket::ObjectStoreBuilder;
+use iceberg_rust::object_store::ObjectStoreBuilder;
 use object_store::aws::AmazonS3Builder;
 use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;

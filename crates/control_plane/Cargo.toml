@@ -14,9 +14,9 @@ futures = { workspace = true }
 serde = { workspace = true }
 datafusion = { workspace = true }
 flatbuffers = { version = "24.3.25" }
-iceberg-rust = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "4f1bd30" }
-iceberg-rest-catalog = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "4f1bd30" }
-datafusion_iceberg = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "4f1bd30" }
+iceberg-rust = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "836f11f" }
+iceberg-rest-catalog = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "836f11f" }
+datafusion_iceberg = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "836f11f" }
 arrow = { version = "53" }
 arrow-json = { version = "53" }
 datafusion-functions-json = { version = "0.43.0" }
