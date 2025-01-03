@@ -1,3 +1,4 @@
+use axum::extract::multipart::MultipartError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use catalog::error::Error as CatalogError;
@@ -58,7 +59,9 @@ impl IntoResponse for AppError {
             AppError::InternalServerError(ref _e) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
             }
-            AppError::InvalidCredentials(ref _e) => (StatusCode::UNPROCESSABLE_ENTITY, self.to_string()),
+            AppError::InvalidCredentials(ref _e) => {
+                (StatusCode::UNPROCESSABLE_ENTITY, self.to_string())
+            }
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             AppError::UnprocessableEntity(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
@@ -92,5 +95,11 @@ impl From<CatalogError> for AppError {
             CatalogError::IcebergError(e) => AppError::IcebergError(e.to_string()),
             _ => AppError::InternalServerError(e.to_string()),
         }
+    }
+}
+
+impl From<MultipartError> for AppError {
+    fn from(e: MultipartError) -> Self {
+        AppError::InternalServerError(e.to_string())
     }
 }

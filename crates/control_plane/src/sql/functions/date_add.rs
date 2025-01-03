@@ -83,22 +83,22 @@ impl DateAddFunc {
     fn add_years(val: &ScalarValue, years: i64) -> Result<ColumnarValue> {
         Ok(ColumnarValue::Scalar(
             val.add(ScalarValue::new_interval_ym(i32::try_from(years)
-            .unwrap_or(0), 0)
-        ).unwrap_or(ScalarValue::new_interval_ym(0, 0))
+                                                     .unwrap_or(0), 0)
+            ).unwrap_or(ScalarValue::new_interval_ym(0, 0))
         ))
     }
     fn add_months(val: &ScalarValue, months: i64) -> Result<ColumnarValue> {
         Ok(ColumnarValue::Scalar(
             val.add(ScalarValue::new_interval_ym(0, i32::try_from(months)
-            .unwrap_or(0))
-        ).unwrap_or(ScalarValue::new_interval_ym(0, 0))
+                .unwrap_or(0))
+            ).unwrap_or(ScalarValue::new_interval_ym(0, 0))
         ))
     }
     fn add_days(val: &ScalarValue, days: i64) -> Result<ColumnarValue> {
         Ok(ColumnarValue::Scalar(
             val.add(ScalarValue::new_interval_dt(i32::try_from(days)
-            .unwrap_or(0), 0)
-        ).unwrap_or(ScalarValue::new_interval_dt(0, 0))
+                                                     .unwrap_or(0), 0)
+            ).unwrap_or(ScalarValue::new_interval_dt(0, 0))
         ))
     }
 }
@@ -163,6 +163,7 @@ impl ScalarUDFImpl for DateAddFunc {
         };
         let date_or_time_expr = match &args[2] {
             ColumnarValue::Scalar(val) => val.clone(),
+            ColumnarValue::Array(array) => ScalarValue::try_from_array(&array, 0)?,
             _ => return plan_err!("Invalid datetime type"),
         };
         //there shouldn't be overflows

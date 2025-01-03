@@ -1,5 +1,6 @@
 use crate::models::created_entity_response;
 use crate::sql::context::CustomContextProvider;
+use crate::sql::functions::convert_timezone::ConvertTimezoneFunc;
 use crate::sql::functions::date_add::DateAddFunc;
 use crate::sql::functions::greatest::GreatestFunc;
 use crate::sql::functions::least::LeastFunc;
@@ -16,8 +17,8 @@ use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::{LogicalPlan, ScalarUDF};
 use datafusion::sql::parser::Statement as DFStatement;
 use datafusion::sql::sqlparser::ast::{
-    CreateTable as CreateTableStatement, Ident, ObjectName, Query, SchemaName, Statement,
-    TableFactor, TableWithJoins,
+    CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName,
+    Statement, TableFactor, TableWithJoins,
 };
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -41,6 +42,7 @@ impl SqlExecutor {
         ctx.register_udf(ScalarUDF::from(DateAddFunc::new()));
         ctx.register_udf(ScalarUDF::from(LeastFunc::new()));
         ctx.register_udf(ScalarUDF::from(GreatestFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ConvertTimezoneFunc::new()));
         register_all(&mut ctx).expect("Cannot register UDF JSON funcs");
         Self { ctx }
     }
@@ -81,7 +83,9 @@ impl SqlExecutor {
     pub fn preprocess_query(&self, query: &String) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         let re = regex::Regex::new(r"(\w+)\[(\d+)]\.(\w+)").unwrap();
-        let date_add = regex::Regex::new(r"(date|time|timestamp)(_?add)\(([a-zA-Z]+),").unwrap();
+        let date_add = regex::Regex::new(r"(date|time|timestamp)(_?add)\(\s*([a-zA-Z]+),").unwrap();
+
+        // Replace what is not supported by sql parser
         let query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
             .to_string();
@@ -126,7 +130,7 @@ impl SqlExecutor {
             let updated_query = modified_statement.to_string();
 
             // Get schema of new table
-            let plan = self.get_custom_logical_plan(&updated_query, "").await?;
+            let plan = self.get_custom_logical_plan(&updated_query, warehouse_name).await?;
             self.ctx
                 .execute_logical_plan(plan.clone())
                 .await?
@@ -377,6 +381,19 @@ impl SqlExecutor {
                     self.update_tables_in_query(query.as_mut(), warehouse_name);
                     DFStatement::Statement(Box::new(Statement::Query(query)))
                 }
+                Statement::CreateTable(create_table_statement) => {
+                    if create_table_statement.query.is_some() {
+                        let mut query = create_table_statement.query.unwrap().clone();
+                        self.update_tables_in_query(&mut query, warehouse_name);
+                        let modified_statement = CreateTableStatement {
+                            query: Some(query),
+                            ..create_table_statement
+                        };
+                        DFStatement::Statement(Box::new(Statement::CreateTable(modified_statement)))
+                    } else {
+                        statement
+                    }
+                }
                 _ => statement,
             }
         } else {
@@ -390,7 +407,9 @@ impl SqlExecutor {
         mut table_name: Vec<Ident>,
         warehouse_name: &str,
     ) -> Vec<Ident> {
-        if warehouse_name.len() > 0 && !table_name.starts_with(&[Ident::new(warehouse_name)]) {
+        if warehouse_name.len() > 0
+            && !table_name.starts_with(&[Ident::new(warehouse_name)])
+            && table_name.len() > 1 {
             table_name.insert(0, Ident::new(warehouse_name));
         }
         if table_name.len() > 3 {
@@ -420,9 +439,29 @@ impl SqlExecutor {
                 for table_with_joins in &mut select.from {
                     self.update_tables_in_table_with_joins(table_with_joins, warehouse_name);
                 }
+
+                for expr in &mut select.selection {
+                    self.update_tables_in_expr(expr, warehouse_name);
+                }
             }
             datafusion::sql::sqlparser::ast::SetExpr::Query(q) => {
                 self.update_tables_in_query(q, warehouse_name);
+            }
+            _ => {}
+        }
+    }
+
+    fn update_tables_in_expr(&self, expr: &mut Expr, warehouse_name: &str) {
+        match expr {
+            Expr::BinaryOp { left, right, .. } => {
+                self.update_tables_in_expr(left, warehouse_name);
+                self.update_tables_in_expr(right, warehouse_name);
+            }
+            Expr::Subquery(q) => {
+                self.update_tables_in_query(q, warehouse_name);
+            }
+            Expr::Exists { subquery, .. } => {
+                self.update_tables_in_query(subquery, warehouse_name);
             }
             _ => {}
         }

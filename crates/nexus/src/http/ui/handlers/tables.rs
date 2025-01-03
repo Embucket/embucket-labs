@@ -5,7 +5,7 @@ use crate::http::ui::models::properties::{
 };
 use crate::http::ui::models::table::{
     Table, TableCreatePayload, TableQueryRequest, TableQueryResponse, TableRegisterRequest,
-    TableUploadPayload
+    TableUploadPayload,
 };
 use crate::http::utils::get_default_properties;
 use crate::state::AppState;
@@ -428,7 +428,10 @@ pub async fn upload_data_to_table(
             continue;
         }
         let file_name = field.file_name().unwrap().to_string();
-        let data = field.bytes().await.unwrap();
+        let data = field.bytes().await.map_err(|e| {
+            let fmt = format!("{}: failed to read the file", e);
+            AppError::new(e, fmt.as_str())
+        })?;
 
         let _result = state
             .control_svc

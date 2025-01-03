@@ -183,7 +183,7 @@ async fn shutdown_signal(db: Arc<Db>) {
     let terminate = async {
         signal::unix::signal(signal::unix::SignalKind::terminate())
             .expect("failed to install signal handler")
-            .recv() 
+            .recv()
             .await;
     };
 
@@ -243,7 +243,9 @@ where
     };
 
     if let Ok(body) = std::str::from_utf8(&bytes) {
-        tracing::debug!("{direction} {method} {uri} body = {body:?}");
+        if !uri.contains("upload") {
+            tracing::debug!("{direction} {method} {uri} body = {body}");
+        }
     }
 
     Ok(bytes)
