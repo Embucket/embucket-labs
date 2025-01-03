@@ -85,7 +85,6 @@ impl SqlExecutor {
         let re = regex::Regex::new(r"(\w+)\[(\d+)]\.(\w+)").unwrap();
         let date_add = regex::Regex::new(r"(date|time|timestamp)(_?add)\(\s*([a-zA-Z]+),").unwrap();
 
-        // Replace what is not supported by sql parser
         let query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
             .to_string();
