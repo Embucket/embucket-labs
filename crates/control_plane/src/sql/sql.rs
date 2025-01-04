@@ -30,6 +30,8 @@ use regex;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
+use datafusion::error::DataFusionError;
+use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 
 pub struct SqlExecutor {
     ctx: SessionContext,
@@ -132,10 +134,13 @@ impl SqlExecutor {
                 .await?
                 .collect()
                 .await?;
+            let fields_with_ids = StructType::try_from(&new_fields_with_ids(
+                plan.schema().as_arrow().fields(),
+                &mut 0)).map_err(|err| DataFusionError::External(Box::new(err)))?;
             let schema = Schema::builder()
                 .with_schema_id(0)
                 .with_identifier_field_ids(vec![])
-                .with_fields(StructType::try_from(plan.schema().as_arrow()).unwrap())
+                .with_fields(fields_with_ids)
                 .build()
                 .unwrap();
 
