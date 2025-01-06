@@ -1,6 +1,6 @@
 use control_plane::models::ColumnInfo as ColumnInfoModel;
 use indexmap::IndexMap;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

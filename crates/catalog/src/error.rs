@@ -41,6 +41,6 @@ pub enum Error {
 
 impl From<utils::Error> for Error {
     fn from(value: utils::Error) -> Self {
-        Error::Database { source: value }
+        Self::Database { source: value }
     }
 }

@@ -39,7 +39,7 @@ pub async fn login(
         .control_svc
         .list_warehouses()
         .await
-        .map_err(|e| {
+        .map_err(|_e| {
             Json(LoginResponse {
                 data: None,
                 success: false,
@@ -64,7 +64,7 @@ pub async fn login(
 
 pub async fn query(
     State(state): State<AppState>,
-    Query(query): Query<QueryRequest>,
+    Query(_query): Query<QueryRequest>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Json<JsonResponse> {
@@ -75,7 +75,7 @@ pub async fn query(
 
     // Deserialize the JSON body
     let body_json: QueryRequestBody = serde_json::from_str(&s).unwrap();
-    let (params, sql_query) = body_json.get_sql_text();
+    let (_params, _sql_query) = body_json.get_sql_text();
     println!("Query raw: {:?}", body_json.sql_text);
 
     // if let Err(e) = log_query(body_json.sql_text.as_str()).await {
@@ -141,7 +141,7 @@ pub async fn query(
     })
 }
 
-pub async fn abort() -> Result<Json<(serde_json::value::Value)>, AppError> {
+pub async fn abort() -> Result<Json<serde_json::value::Value>, AppError> {
     Ok(Json(json!({"success": true})))
 }
 
