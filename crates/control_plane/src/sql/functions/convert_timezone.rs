@@ -137,33 +137,33 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                     return plan_err!("No such target_tz timezone");
                 }
 
-                //TODO: bug with convert_timezone('+00', '2025-01-06 08:00:00+01:00') from some table
+                //TODO: bug with "select convert_timezone('+00', '2025-01-06 08:00:00+01:00') from some table"
                 match &source_timestamp_tz {
                     ScalarValue::TimestampSecond(Some(ts), Some(tz)) => {
-                        if target_tz == **tz {
-                            return plan_err!("Timezones are the same")
-                        }
+                        // if target_tz == **tz {
+                        //     return plan_err!("Timezones are the same")
+                        // }
                         let data = ScalarValue::TimestampSecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str()))).cast_to(&Utf8)?;
                         Ok(ColumnarValue::Scalar(data))
                     },
                     ScalarValue::TimestampMillisecond(Some(ts), Some(tz)) => {
-                        if target_tz == **tz {
-                            return plan_err!("Timezones are the same")
-                        }
+                        // if target_tz == **tz {
+                        //     return plan_err!("Timezones are the same")
+                        // }
                         let data = ScalarValue::TimestampMillisecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str()))).cast_to(&Utf8)?;
                         Ok(ColumnarValue::Scalar(data))
                     },
                     ScalarValue::TimestampMicrosecond(Some(ts), Some(tz)) => {
-                        if target_tz == **tz {
-                            return plan_err!("Timezones are the same")
-                        }
+                        // if target_tz == **tz {
+                        //     return plan_err!("Timezones are the same")
+                        // }
                         let data = ScalarValue::TimestampMicrosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str()))).cast_to(&Utf8)?;
                         Ok(ColumnarValue::Scalar(data))
                     },
                     ScalarValue::TimestampNanosecond(Some(ts), Some(tz)) => {
-                        if target_tz == **tz {
-                            return plan_err!("Timezones are the same")
-                        }
+                        // if target_tz == **tz {
+                        //     return plan_err!("Timezones are the same")
+                        // }
                         let data = ScalarValue::TimestampNanosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str()))).cast_to(&Utf8)?;
                         Ok(ColumnarValue::Scalar(data))                    
                     },
