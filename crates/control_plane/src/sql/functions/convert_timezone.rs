@@ -29,10 +29,6 @@ impl ConvertTimezoneFunc {
         Self {
             signature: Signature::one_of(
                 vec![
-                    Exact(vec![Utf8, Utf8, Timestamp(Second, None)]),
-                    Exact(vec![Utf8, Utf8, Timestamp(Millisecond, None)]),
-                    Exact(vec![Utf8, Utf8, Timestamp(Microsecond, None)]),
-                    Exact(vec![Utf8, Utf8, Timestamp(Nanosecond, None)]),
                     Exact(vec![
                         Utf8,
                         Timestamp(Second, Some(TIMEZONE_WILDCARD.into())),
@@ -49,6 +45,10 @@ impl ConvertTimezoneFunc {
                         Utf8,
                         Timestamp(Nanosecond, Some(TIMEZONE_WILDCARD.into())),
                     ]),
+                    // Exact(vec![Utf8, Utf8, Timestamp(Second, None)]),
+                    // Exact(vec![Utf8, Utf8, Timestamp(Millisecond, None)]),
+                    // Exact(vec![Utf8, Utf8, Timestamp(Microsecond, None)]),
+                    // Exact(vec![Utf8, Utf8, Timestamp(Nanosecond, None)]),
                 ],
                 Volatility::Immutable,
             ),
@@ -122,6 +122,57 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
     fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
         //two or three
         match args.len() {
+            2 => {
+                let target_tz = match &args[0] {
+                    ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
+                    _ => return plan_err!("Invalid target_tz type format"),
+                };
+                //TODO: change err messages
+                let source_timestamp_tz = match &args[1] {
+                    ColumnarValue::Scalar(val) => val.clone(),
+                    _ => return plan_err!("Invalid source_timestamp_tz type format"),
+                };
+
+                //TODO: unwarp removal
+                if target_tz.parse::<Tz>().is_err() {
+                    return plan_err!("No such target_tz timezone");
+                }
+
+                
+                match &source_timestamp_tz {
+                    ScalarValue::TimestampSecond(Some(ts), Some(tz)) => {
+                        if target_tz == **tz {
+                            return plan_err!("Timezones are the same")
+                        }
+                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
+                        Ok(ColumnarValue::Scalar(ScalarValue::TimestampSecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))))
+                    },
+                    ScalarValue::TimestampMillisecond(Some(ts), Some(tz)) => {
+                        if target_tz == **tz {
+                            return plan_err!("Timezones are the same")
+                        }
+                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
+                        Ok(ColumnarValue::Scalar(ScalarValue::TimestampMillisecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))))
+                    },
+                    ScalarValue::TimestampMicrosecond(Some(ts), Some(tz)) => {
+                        if target_tz == **tz {
+                            return plan_err!("Timezones are the same")
+                        }
+                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
+                        Ok(ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))))
+                    },
+                    ScalarValue::TimestampNanosecond(Some(ts), Some(tz)) => {
+                        if target_tz == **tz {
+                            return plan_err!("Timezones are the same")
+                        }
+                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
+                        Ok(ColumnarValue::Scalar(ScalarValue::TimestampNanosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))))
+                    },
+                    _ => {
+                        return plan_err!("Invalid source_timestamp_tz type format")
+                    }
+                }
+            },
             3 => {
                 let source_tz = match &args[0] {
                     ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
@@ -129,44 +180,52 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                 };
                 let target_tz = match &args[1] {
                     ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
-                    _ => return plan_err!("Invalid target_tz type"),
+                    _ => return plan_err!("Invalid target_tz type format"),
                 };
                 let source_timestamp_ntz = match &args[2] {
                     ColumnarValue::Scalar(val) => val.clone(),
-                    _ => return plan_err!("Invalid source_timestamp_ntz type"),
+                    _ => return plan_err!("Invalid source_timestamp_ntz type format"),
                 };
-                //TODO: add logic for addring removing time
-                Ok(ColumnarValue::Scalar(ScalarValue::new_timestamp(Some(0), None)))
-            }
-            2 => {
-                let target_tz = match &args[0] {
-                    ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
-                    _ => return plan_err!("Invalid target_tz type"),
-                };
-                //TODO: change err messages
-                let source_timestamp_tz = match &args[1] {
-                    ColumnarValue::Scalar(val) => val.clone(),
-                    _ => return plan_err!("Invalid source_timestamp_tz type"),
-                };
-                let (ts, tz) = match &source_timestamp_tz {
-                    ScalarValue::TimestampSecond(Some(ts), Some(val)) => (ts, val.clone()),
-                    ScalarValue::TimestampMillisecond(Some(ts), Some(val)) => (ts, val.clone()),
-                    ScalarValue::TimestampMicrosecond(Some(ts), Some(val)) => (ts, val.clone()),
-                    ScalarValue::TimestampNanosecond(Some(ts), Some(val)) => (ts, val.clone()),
-                    _ => {
-                        return plan_err!("Invalid source_timestamp_tz type")
-                    }
-                };
-                if target_tz == *tz {
-                    return plan_err!("Timezones are the same")
+
+                //TODO: unwarp removal
+                if source_tz.parse::<Tz>().is_err() {
+                    return plan_err!("No such source_tz timezone");
                 }
                 //TODO: unwarp removal
                 if target_tz.parse::<Tz>().is_err() {
-                    return plan_err!("No such timezone");
+                    return plan_err!("No such target_tz timezone");
                 }
-                //TODO: add logic for addring removing time, am i understanding this corectly? we may no need this
-                Ok(ColumnarValue::Scalar(ScalarValue::new_timestamp(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))))
-            }
+                
+                if target_tz == source_tz {
+                    return plan_err!("Timezones are the same")
+                }
+
+                match &source_timestamp_ntz {
+                    ScalarValue::TimestampSecond(Some(ts), None) => {
+                        
+                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
+                        Ok(ColumnarValue::Scalar(ScalarValue::TimestampSecond(Some(*ts), None)))
+                    },
+                    ScalarValue::TimestampMillisecond(Some(ts), None) => {
+                        
+                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
+                        Ok(ColumnarValue::Scalar(ScalarValue::TimestampMillisecond(Some(*ts), None)))
+                    },
+                    ScalarValue::TimestampMicrosecond(Some(ts), None) => {
+                        
+                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
+                        Ok(ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(Some(*ts), None)))
+                    },
+                    ScalarValue::TimestampNanosecond(Some(ts), None) => {
+                        
+                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
+                        Ok(ColumnarValue::Scalar(ScalarValue::TimestampNanosecond(Some(*ts), None)))
+                    },
+                    _ => {
+                        return plan_err!("Invalid source_timestamp_tz type")
+                    }
+                }
+            },
             _ => {
                 return plan_err!("function requires three or two arguments, got {}", args.len());
             }
