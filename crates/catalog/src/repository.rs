@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use utils::Db;
 
-use crate::error::Result;
+use crate::error::CatalogResult;
 use crate::models::{Database, DatabaseIdent, Table, TableIdent, WarehouseIdent};
 
 const DBPREFIX: &str = "db";
@@ -13,18 +13,18 @@ const TBLPREFIX: &str = "tbl";
 
 #[async_trait]
 pub trait TableRepository: Send + Sync {
-    async fn put(&self, params: &Table) -> Result<()>;
-    async fn get(&self, id: &TableIdent) -> Result<Table>;
-    async fn delete(&self, id: &TableIdent) -> Result<()>;
-    async fn list(&self, db: &DatabaseIdent) -> Result<Vec<Table>>;
+    async fn put(&self, params: &Table) -> CatalogResult<()>;
+    async fn get(&self, id: &TableIdent) -> CatalogResult<Table>;
+    async fn delete(&self, id: &TableIdent) -> CatalogResult<()>;
+    async fn list(&self, db: &DatabaseIdent) -> CatalogResult<Vec<Table>>;
 }
 
 #[async_trait]
 pub trait DatabaseRepository: Send + Sync {
-    async fn put(&self, params: &Database) -> Result<()>;
-    async fn get(&self, id: &DatabaseIdent) -> Result<Database>;
-    async fn delete(&self, id: &DatabaseIdent) -> Result<()>;
-    async fn list(&self, wh: &WarehouseIdent) -> Result<Vec<Database>>;
+    async fn put(&self, params: &Database) -> CatalogResult<()>;
+    async fn get(&self, id: &DatabaseIdent) -> CatalogResult<Database>;
+    async fn delete(&self, id: &DatabaseIdent) -> CatalogResult<()>;
+    async fn list(&self, wh: &WarehouseIdent) -> CatalogResult<Vec<Database>>;
 }
 
 pub struct TableRepositoryDb {
@@ -39,7 +39,7 @@ impl TableRepositoryDb {
 
 #[async_trait]
 impl TableRepository for TableRepositoryDb {
-    async fn put(&self, params: &Table) -> Result<()> {
+    async fn put(&self, params: &Table) -> CatalogResult<()> {
         let key = format!("{TBLPREFIX}.{}", params.ident);
         self.db.put(&key, &params).await?;
         self.db
@@ -48,14 +48,14 @@ impl TableRepository for TableRepositoryDb {
         Ok(())
     }
 
-    async fn get(&self, id: &TableIdent) -> Result<Table> {
+    async fn get(&self, id: &TableIdent) -> CatalogResult<Table> {
         let key = format!("{TBLPREFIX}.{id}");
         let table = self.db.get(&key).await?;
         let table = table.ok_or(crate::error::CatalogError::TableNotFound { key })?;
         Ok(table)
     }
 
-    async fn delete(&self, id: &TableIdent) -> Result<()> {
+    async fn delete(&self, id: &TableIdent) -> CatalogResult<()> {
         let key = format!("{TBLPREFIX}.{id}");
         self.db.delete(&key).await?;
         self.db
@@ -64,7 +64,7 @@ impl TableRepository for TableRepositoryDb {
         Ok(())
     }
 
-    async fn list(&self, db: &DatabaseIdent) -> Result<Vec<Table>> {
+    async fn list(&self, db: &DatabaseIdent) -> CatalogResult<Vec<Table>> {
         let key = &format!("{TBLPREFIX}.{db}");
         let keys = self.db.keys(key).await?;
         let futures = keys.iter().map(|key| self.db.get(key)).collect::<Vec<_>>();
@@ -76,7 +76,7 @@ impl TableRepository for TableRepositoryDb {
 
 #[async_trait]
 impl DatabaseRepository for DatabaseRepositoryDb {
-    async fn put(&self, params: &Database) -> Result<()> {
+    async fn put(&self, params: &Database) -> CatalogResult<()> {
         let key = format!("{DBPREFIX}.{}", params.ident);
         self.db.put(&key, &params).await?;
         self.db
@@ -85,14 +85,14 @@ impl DatabaseRepository for DatabaseRepositoryDb {
         Ok(())
     }
 
-    async fn get(&self, id: &DatabaseIdent) -> Result<Database> {
+    async fn get(&self, id: &DatabaseIdent) -> CatalogResult<Database> {
         let key = format!("{DBPREFIX}.{id}");
         let db = self.db.get(&key).await?;
         let db = db.ok_or(crate::error::CatalogError::DatabaseNotFound { key })?;
         Ok(db)
     }
 
-    async fn delete(&self, id: &DatabaseIdent) -> Result<()> {
+    async fn delete(&self, id: &DatabaseIdent) -> CatalogResult<()> {
         let key = format!("{DBPREFIX}.{id}");
         self.db.delete(&key).await?;
         self.db
@@ -101,7 +101,7 @@ impl DatabaseRepository for DatabaseRepositoryDb {
         Ok(())
     }
 
-    async fn list(&self, wh: &WarehouseIdent) -> Result<Vec<Database>> {
+    async fn list(&self, wh: &WarehouseIdent) -> CatalogResult<Vec<Database>> {
         let key = &format!("{DBPREFIX}.{wh}");
         let keys = self.db.keys(key).await?;
         let futures = keys.iter().map(|key| self.db.get(key)).collect::<Vec<_>>();

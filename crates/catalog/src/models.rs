@@ -10,7 +10,7 @@ pub use iceberg::spec::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::error::{CatalogError, Result};
+use crate::error::{CatalogError, CatalogResult};
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -49,7 +49,7 @@ impl TableRequirementExt {
         &self.0
     }
 
-    pub fn assert(&self, metadata: &TableMetadata, exists: bool) -> Result<()> {
+    pub fn assert(&self, metadata: &TableMetadata, exists: bool) -> CatalogResult<()> {
         match self.inner() {
             TableRequirement::NotExist => {
                 if exists {

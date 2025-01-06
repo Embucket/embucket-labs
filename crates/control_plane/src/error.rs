@@ -36,10 +36,10 @@ pub enum Error {
     StorageProfileInUse { id: Uuid },
 
     #[snafu(display("Invalid storage profile: {source}"))]
-    InvalidStorageProfile { source: crate::models::Error },
+    InvalidStorageProfile { source: crate::models::ControlPlaneModelError },
 
     #[snafu(display("Unable to create Warehouse from request: {source}"))]
-    InvalidCreateWarehouse { source: crate::models::Error },
+    InvalidCreateWarehouse { source: crate::models::ControlPlaneModelError },
 
     #[snafu(display("Warehouse not found: {id}"))]
     WarehouseNotFound { id: Uuid },
@@ -76,7 +76,7 @@ pub enum Error {
     ObjectStore { source: object_store::Error },
 
     #[snafu(display("Execution error: {source}"))]
-    Execution { source: crate::sql::error::Error },
+    Execution { source: crate::sql::error::SQLError },
 
     /*#[error("not found")]
     ErrNotFound,

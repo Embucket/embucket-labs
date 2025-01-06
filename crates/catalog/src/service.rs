@@ -1,4 +1,4 @@
-use crate::error::{CatalogError, Result, self};
+use crate::error::{CatalogError, CatalogResult, self};
 // TODO: Replace this with this crate error and result
 use crate::models::{
     Config, Database, DatabaseIdent, Table, TableCommit, TableIdent, TableRequirementExt,
@@ -30,25 +30,25 @@ pub trait Catalog: Debug + Sync + Send {
         &self,
         ident: Option<WarehouseIdent>,
         storage_profile: Option<StorageProfile>,
-    ) -> Result<Config>;
+    ) -> CatalogResult<Config>;
     async fn list_namespaces(
         &self,
         warehouse: &WarehouseIdent,
         parent: Option<&DatabaseIdent>,
-    ) -> Result<Vec<Database>>;
+    ) -> CatalogResult<Vec<Database>>;
     async fn create_namespace(
         &self,
         namespace: &DatabaseIdent,
         properties: HashMap<String, String>,
-    ) -> Result<Database>;
-    async fn get_namespace(&self, namespace: &DatabaseIdent) -> Result<Database>;
+    ) -> CatalogResult<Database>;
+    async fn get_namespace(&self, namespace: &DatabaseIdent) -> CatalogResult<Database>;
     async fn update_namespace(
         &self,
         namespace: &DatabaseIdent,
         properties: HashMap<String, String>,
-    ) -> Result<()>;
-    async fn drop_namespace(&self, namespace: &DatabaseIdent) -> Result<()>;
-    async fn list_tables(&self, namespace: &DatabaseIdent) -> Result<Vec<Table>>;
+    ) -> CatalogResult<()>;
+    async fn drop_namespace(&self, namespace: &DatabaseIdent) -> CatalogResult<()>;
+    async fn list_tables(&self, namespace: &DatabaseIdent) -> CatalogResult<Vec<Table>>;
     // TODO: We need warehouse and storage profile objects here
     // to generate location and actually write metadata contents
     async fn create_table(
@@ -58,7 +58,7 @@ pub trait Catalog: Debug + Sync + Send {
         warehouse: &Warehouse,
         creation: TableCreation,
         properties: Option<HashMap<String, String>>,
-    ) -> Result<Table>;
+    ) -> CatalogResult<Table>;
     async fn register_table(
         &self,
         namespace: &DatabaseIdent,
@@ -67,15 +67,15 @@ pub trait Catalog: Debug + Sync + Send {
         table_name: String,
         metadata_location: String,
         properties: Option<HashMap<String, String>>,
-    ) -> Result<Table>;
-    async fn load_table(&self, table: &TableIdent) -> Result<Table>;
-    async fn drop_table(&self, table: &TableIdent) -> Result<()>;
+    ) -> CatalogResult<Table>;
+    async fn load_table(&self, table: &TableIdent) -> CatalogResult<Table>;
+    async fn drop_table(&self, table: &TableIdent) -> CatalogResult<()>;
     async fn update_table(
         &self,
         storage_profile: &StorageProfile,
         warehouse: &Warehouse,
         commit: TableCommit,
-    ) -> Result<Table>;
+    ) -> CatalogResult<Table>;
 }
 
 #[derive(Clone)]
@@ -109,7 +109,7 @@ impl Catalog for CatalogImpl {
         &self,
         ident: Option<WarehouseIdent>,
         storage_profile: Option<StorageProfile>,
-    ) -> Result<Config> {
+    ) -> CatalogResult<Config> {
         // TODO: Implement warehouse config
         // TODO: Should it include prefix from Warehouse or not?
         // As per https://github.com/apache/iceberg-python/blob/main/pyiceberg/catalog/rest.py#L298
@@ -147,7 +147,7 @@ impl Catalog for CatalogImpl {
         storage_profile: &StorageProfile,
         warehouse: &Warehouse,
         commit: TableCommit,
-    ) -> Result<Table> {
+    ) -> CatalogResult<Table> {
         let table = self.load_table(&commit.ident).await?;
 
         commit
@@ -200,7 +200,7 @@ impl Catalog for CatalogImpl {
         &self,
         warehouse: &WarehouseIdent,
         _parent: Option<&DatabaseIdent>,
-    ) -> Result<Vec<Database>> {
+    ) -> CatalogResult<Vec<Database>> {
         // TODO: Implement parent filtering
         let keys = self.db_repo.list(warehouse).await?;
 
@@ -212,7 +212,7 @@ impl Catalog for CatalogImpl {
         &self,
         namespace: &DatabaseIdent,
         properties: HashMap<String, String>,
-    ) -> Result<Database> {
+    ) -> CatalogResult<Database> {
         let db = Database {
             ident: namespace.clone(),
             properties,
@@ -228,7 +228,7 @@ impl Catalog for CatalogImpl {
     }
 
     /// Get a namespace information from the catalog.
-    async fn get_namespace(&self, namespace: &DatabaseIdent) -> Result<Database> {
+    async fn get_namespace(&self, namespace: &DatabaseIdent) -> CatalogResult<Database> {
         self.db_repo.get(namespace).await
     }
 
@@ -241,7 +241,7 @@ impl Catalog for CatalogImpl {
         &self,
         namespace: &DatabaseIdent,
         properties: HashMap<String, String>,
-    ) -> Result<()> {
+    ) -> CatalogResult<()> {
         // Check if the namespace exists
         _ = self.get_namespace(namespace).await?;
         let params = Database {
@@ -253,7 +253,7 @@ impl Catalog for CatalogImpl {
     }
 
     /// Drop a namespace from the catalog.
-    async fn drop_namespace(&self, namespace: &DatabaseIdent) -> Result<()> {
+    async fn drop_namespace(&self, namespace: &DatabaseIdent) -> CatalogResult<()> {
         // Check if the namespace exists
         _ = self.get_namespace(namespace).await?;
         // Check if there are tables in the namespace
@@ -268,7 +268,7 @@ impl Catalog for CatalogImpl {
     }
 
     /// List tables from namespace.
-    async fn list_tables(&self, namespace: &DatabaseIdent) -> Result<Vec<Table>> {
+    async fn list_tables(&self, namespace: &DatabaseIdent) -> CatalogResult<Vec<Table>> {
         // Check namespace exists
         _ = self.get_namespace(namespace).await?;
 
@@ -285,7 +285,7 @@ impl Catalog for CatalogImpl {
         warehouse: &Warehouse,
         table_creation: TableCreation,
         properties: Option<HashMap<String, String>>,
-    ) -> Result<Table> {
+    ) -> CatalogResult<Table> {
         // Check if namespace exists
         _ = self.get_namespace(namespace).await?;
         // Check if table exists
@@ -355,7 +355,7 @@ impl Catalog for CatalogImpl {
         table_name: String,
         metadata_location: String,
         properties: Option<HashMap<String, String>>,
-    ) -> Result<Table> {
+    ) -> CatalogResult<Table> {
         // Check if namespace exists
         self.get_namespace(namespace).await?;
         // Check if table exists
@@ -392,13 +392,13 @@ impl Catalog for CatalogImpl {
     }
 
     /// Load table from the catalog.
-    async fn load_table(&self, table: &TableIdent) -> Result<Table> {
+    async fn load_table(&self, table: &TableIdent) -> CatalogResult<Table> {
         let table = self.table_repo.get(table).await?;
         Ok(table)
     }
 
     /// Drop a table from the catalog.
-    async fn drop_table(&self, table: &TableIdent) -> Result<()> {
+    async fn drop_table(&self, table: &TableIdent) -> CatalogResult<()> {
         // Check if table exists
         _ = self.load_table(table).await?;
         self.table_repo.delete(table).await?;

@@ -11,7 +11,7 @@ pub enum CatalogError {
     ObjectStore { source: object_store::Error },
 
     #[snafu(display("Model error: {source}"))]
-    Model { source: control_plane::models::Error },
+    Model { source: control_plane::models::ControlPlaneModelError },
 
     #[snafu(display("Namespace already exists: {key}"))]
     NamespaceAlreadyExists { key: String },
