@@ -1,42 +1,46 @@
+use snafu::prelude::*;
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(Snafu, Debug)]
+#[snafu(visibility(pub(crate)))]
 pub enum Error {
-    #[error("not found")]
-    ErrNotFound,
+    #[snafu(display("Iceberg error: {source}"))]
+    Iceberg { source: iceberg::Error },
 
-    #[error("already exists")]
-    ErrAlreadyExists,
+    #[snafu(display("Object store error: {source}"))]
+    ObjectStore { source: object_store::Error },
 
-    #[error("not empty")]
-    ErrNotEmpty,
+    #[snafu(display("Model error: {source}"))]
+    Model { source: control_plane::models::Error },
 
-    #[error("not implemented")]
-    NotImplemented,
+    #[snafu(display("Namespace already exists"))]
+    NamespaceAlreadyExists,
 
-    #[error("invalid input: {0}")]
-    InvalidInput(String),
+    #[snafu(display("Namespace not empty"))]
+    NamespaceNotEmpty,
 
-    #[error("not empty: {0}")]
-    NotEmpty(String),
+    // TODO: These might need to have more information
+    #[snafu(display("Table already exists"))]
+    TableAlreadyExists,
+    
+    #[snafu(display("Table not found"))]
+    TableNotFound,
 
-    #[error("failed requirement: {0}")]
-    FailedRequirement(String),
+    #[snafu(display("Database not found"))]
+    DatabaseNotFound,
 
-    #[error("DB error: {0}")]
-    DbError(String),
+    #[snafu(display("Table requirement failed: {message}"))]
+    TableRequirementFailed { message: String },
 
-    #[error("Iceberg error: {0}")]
-    IcebergError(#[from] iceberg::Error),
+    #[snafu(display("Database error: {source}"))]
+    Database { source: utils::Error },
+
+    #[snafu(display("Serde error: {source}"))]
+    Serde { source: serde_json::Error },
 }
 
 impl From<utils::Error> for Error {
-    fn from(e: utils::Error) -> Self {
-        match e {
-            utils::Error::DbError(e) => Error::DbError(e.to_string()),
-            utils::Error::SerializeError(e) => Error::DbError(e.to_string()),
-            utils::Error::DeserializeError(e) => Error::DbError(e.to_string()),
-            utils::Error::ErrNotFound => Error::ErrNotFound,
-        }
+    fn from(value: utils::Error) -> Self {
+        Error::Database { source: value }
     }
 }

@@ -8,9 +8,9 @@ use crate::error::Result;
 use crate::models::{Database, DatabaseIdent, Table, TableIdent, WarehouseIdent};
 
 const DBPREFIX: &str = "db";
-const SEP: &str = "\u{001f}";
+//const SEP: &str = "\u{001f}";
 const TBLPREFIX: &str = "tbl";
-const ALL: &str = "all";
+//const ALL: &str = "all";
 
 #[async_trait]
 pub trait TableRepository: Send + Sync {
@@ -33,7 +33,7 @@ pub struct TableRepositoryDb {
 }
 
 impl TableRepositoryDb {
-    pub fn new(db: Arc<Db>) -> Self {
+    pub const fn new(db: Arc<Db>) -> Self {
         Self { db }
     }
 }
@@ -70,7 +70,7 @@ impl TableRepository for TableRepositoryDb {
     async fn get(&self, id: &TableIdent) -> Result<Table> {
         let key = format!("{TBLPREFIX}.{id}");
         let table = self.db.get(&key).await?;
-        let table = table.ok_or(crate::error::Error::ErrNotFound)?;
+        let table = table.ok_or(crate::error::Error::TableNotFound)?;
         Ok(table)
     }
 
@@ -107,7 +107,7 @@ impl DatabaseRepository for DatabaseRepositoryDb {
     async fn get(&self, id: &DatabaseIdent) -> Result<Database> {
         let key = format!("{DBPREFIX}.{id}");
         let db = self.db.get(&key).await?;
-        let db = db.ok_or(crate::error::Error::ErrNotFound)?;
+        let db = db.ok_or(crate::error::Error::DatabaseNotFound)?;
         Ok(db)
     }
 
@@ -135,12 +135,13 @@ pub struct DatabaseRepositoryDb {
 }
 
 impl DatabaseRepositoryDb {
-    pub fn new(db: Arc<Db>) -> Self {
+    pub const fn new(db: Arc<Db>) -> Self {
         Self { db }
     }
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use iceberg::spec::TableMetadata;
@@ -148,6 +149,7 @@ mod tests {
     use object_store::{memory::InMemory, path::Path, ObjectStore};
     use slatedb::config::DbOptions;
     use slatedb::db::Db as SlateDb;
+    use std::collections::HashMap;
     use std::sync::Arc;
     use utils::Db;
     use uuid::Uuid;
@@ -242,7 +244,7 @@ mod tests {
             },
             metadata_location: "s3://bucket/path".to_string(),
             metadata: create_table_metadata(),
-            properties: Default::default(),
+            properties: HashMap::default(),
         };
 
         repo.put(&table).await.expect("failed to create table");

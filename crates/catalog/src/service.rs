@@ -1,4 +1,4 @@
-use crate::error::{Error, Result};
+use crate::error::{Error, Result, self};
 // TODO: Replace this with this crate error and result
 use crate::models::{
     Config, Database, DatabaseIdent, Table, TableCommit, TableIdent, TableRequirementExt,
@@ -13,6 +13,7 @@ use iceberg::spec::{FormatVersion, TableMetadata};
 use iceberg::{spec::TableMetadataBuilder, TableCreation};
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
+use snafu::ResultExt;
 use std::collections::HashMap;
 use std::env;
 use std::fmt::Debug;
@@ -98,7 +99,7 @@ impl CatalogImpl {
     }
 
     fn generate_metadata_filename() -> String {
-        format!("{}.metadata.json", Uuid::new_v4().to_string())
+        format!("{}.metadata.json", Uuid::new_v4())
     }
 }
 
@@ -122,19 +123,21 @@ impl Catalog for CatalogImpl {
             defaults: HashMap::new(),
             overrides: HashMap::from([
                 // ("warehouse".to_string(), ident.id().to_string()),
-                ("uri".to_string(), format! {"{}/catalog", control_plane_url}),
+                ("uri".to_string(), format!("{control_plane_url}/catalog")),
             ]),
         };
         if let Some(wh_ident) = ident {
             // we parse it as warehouse id in catalog url
             config
                 .overrides
-                .insert("prefix".to_string(), format! {"{}", wh_ident.id()});
+                .insert("prefix".to_string(), format!("{}", wh_ident.id()));
         }
         if let Some(sp) = storage_profile {
-            config
-                .overrides
-                .insert("s3.endpoint".to_string(), sp.endpoint.clone().unwrap());
+            if let Some(endpoint) = sp.endpoint {
+                config
+                    .overrides
+                    .insert("s3.endpoint".to_string(), endpoint);
+            }
         }
         Ok(config)
     }
@@ -162,13 +165,13 @@ impl Catalog for CatalogImpl {
         );
 
         for update in commit.updates {
-            builder = update.apply(builder)?;
+            builder = update.apply(builder).context(error::IcebergSnafu)?;
         }
-        let result = builder.build()?;
+        let result = builder.build().context(error::IcebergSnafu)?;
 
-        let base_part = storage_profile.get_base_url();
+        let base_part = storage_profile.get_base_url().context(error::ModelSnafu)?;
         let table_part = format!("{}/{}", warehouse.location, commit.ident.table);
-        let metadata_part = format!("metadata/{}", CatalogImpl::generate_metadata_filename());
+        let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
 
         let mut properties = table.properties.clone();
         properties.insert("updated_at".to_string(), Utc::now().to_rfc3339());
@@ -181,13 +184,13 @@ impl Catalog for CatalogImpl {
         };
         self.table_repo.put(&table).await?;
 
-        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store();
-        let data = Bytes::from(serde_json::to_vec(&table.metadata).unwrap());
+        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store().context(error::ModelSnafu)?;
+        let data = Bytes::from(serde_json::to_vec(&table.metadata).context(error::SerdeSnafu)?);
         let path = Path::from(format!("{table_part}/{metadata_part}"));
         object_store
             .put(&path, PutPayload::from(data))
             .await
-            .unwrap();
+            .context(error::ObjectStoreSnafu)?;
 
         Ok(table)
     }
@@ -216,20 +219,19 @@ impl Catalog for CatalogImpl {
         };
         let database = self.get_namespace(namespace).await;
         if database.is_ok() {
-            return Err(Error::ErrAlreadyExists);
+            return Err(Error::NamespaceAlreadyExists);
         }
         // put bluntly saves to db no matter what
-        self.db_repo.put(&db).await?;
+        self.db_repo.put(&db).await.ok();
 
         Ok(db)
     }
 
     /// Get a namespace information from the catalog.
     async fn get_namespace(&self, namespace: &DatabaseIdent) -> Result<Database> {
-        let db = self.db_repo.get(namespace).await?;
-
-        Ok(db)
+        self.db_repo.get(namespace).await
     }
+
     /// Update a namespace inside the catalog.
     ///
     /// # Behavior
@@ -257,7 +259,7 @@ impl Catalog for CatalogImpl {
         // Check if there are tables in the namespace
         let tables = self.list_tables(namespace).await?;
         if !tables.is_empty() {
-            return Err(Error::ErrNotEmpty);
+            return Err(Error::NamespaceNotEmpty);
         }
 
         self.db_repo.delete(namespace).await?;
@@ -293,7 +295,7 @@ impl Catalog for CatalogImpl {
         };
         let res = self.load_table(&ident).await;
         if res.is_ok() {
-            return Err(Error::ErrAlreadyExists);
+            return Err(Error::TableAlreadyExists);
         }
 
         // TODO: Robust location generation
@@ -301,9 +303,10 @@ impl Catalog for CatalogImpl {
         // Take into account provided location if present
         // If none, generate location based on warehouse location
 
-        let base_part = storage_profile.get_base_url();
+        let base_part = storage_profile.get_base_url()
+            .context(error::ModelSnafu)?;
         let table_part = format!("{}/{}", warehouse.location, table_creation.name);
-        let metadata_part = format!("metadata/{}", CatalogImpl::generate_metadata_filename());
+        let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
 
         let table_creation = {
             let mut creation = table_creation;
@@ -315,9 +318,10 @@ impl Catalog for CatalogImpl {
         // - Check if storage profile is valid (writable)
 
         let table_name = table_creation.name.clone();
-        let result = TableMetadataBuilder::from_table_creation(table_creation)?
-            .upgrade_format_version(FormatVersion::V2)?
-            .build()?;
+        let result = TableMetadataBuilder::from_table_creation(table_creation)
+            .and_then(|builder| builder.upgrade_format_version(FormatVersion::V2))
+            .and_then(iceberg::spec::TableMetadataBuilder::build)
+            .context(error::IcebergSnafu)?;
         let metadata = result.metadata.clone();
 
         let table = Table {
@@ -331,13 +335,14 @@ impl Catalog for CatalogImpl {
         };
         self.table_repo.put(&table).await?;
 
-        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store();
-        let data = Bytes::from(serde_json::to_vec(&table.metadata).unwrap());
+        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store()
+            .context(error::ModelSnafu)?;
+        let data = Bytes::from(serde_json::to_vec(&table.metadata).context(error::SerdeSnafu)?);
         let path = Path::from(format!("{table_part}/{metadata_part}"));
         object_store
             .put(&path, PutPayload::from(data))
             .await
-            .unwrap();
+            .context(error::ObjectStoreSnafu)?;
 
         Ok(table)
     }
@@ -360,17 +365,19 @@ impl Catalog for CatalogImpl {
         };
         let res = self.load_table(&ident).await;
         if res.is_ok() {
-            return Err(Error::ErrAlreadyExists);
+            return Err(Error::TableAlreadyExists);
         }
 
         // Load metadata from the provided location
-        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store();
+        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store()
+            .context(error::ModelSnafu)?;
         let path = Path::from(metadata_location.clone());
         let data = object_store
             .get(&path)
             .await
-            .map_err(|e| Error::DbError(e.to_string()))?;
-        let metadata: TableMetadata = serde_json::from_slice(&data.bytes().await.unwrap()).unwrap();
+            .context(error::ObjectStoreSnafu)?;
+        let bytes = data.bytes().await.context(error::ObjectStoreSnafu)?;
+        let metadata: TableMetadata = serde_json::from_slice(&bytes).context(error::SerdeSnafu)?;
         let table = Table {
             metadata: metadata.clone(),
             metadata_location,
@@ -401,9 +408,11 @@ impl Catalog for CatalogImpl {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::repository::{DatabaseRepositoryDb, TableRepositoryDb};
+    use control_plane::models::{AwsAccessKeyCredential, CloudProvider, Credentials};
     use iceberg::NamespaceIdent;
     use object_store::{memory::InMemory, path::Path, ObjectStore};
     use slatedb::config::DbOptions;
@@ -422,7 +431,7 @@ mod tests {
         ));
 
         let t_repo = TableRepositoryDb::new(db.clone());
-        let db_repo = DatabaseRepositoryDb::new(db.clone());
+        let db_repo = DatabaseRepositoryDb::new(db);
 
         CatalogImpl::new(Arc::new(t_repo), Arc::new(db_repo))
     }
@@ -482,8 +491,7 @@ mod tests {
         let res = service.create_namespace(&ident, properties).await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
 
-        let properties = [("key".to_string(), "value".to_string())]
-            .iter()
+        let properties = std::iter::once(&("key".to_string(), "value".to_string()))
             .cloned()
             .collect();
 
@@ -605,7 +613,30 @@ mod tests {
             properties: HashMap::new(),
             sort_order: None,
         };
-        let res = service.create_table(&ident, creation).await;
+
+        let sp = StorageProfile::new(
+            CloudProvider::AWS,
+            "us-west-1".to_string(),
+            "bucket".to_string(),
+            Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "access_key".to_string(),
+                aws_secret_access_key: "secret_key".to_string(),
+            }),
+            None,
+            None,
+        ).expect("failed to create profile");
+        let warehouse = Warehouse::new(
+            "prefix".to_string(), 
+            "name".to_string(), 
+            Uuid::new_v4())
+        .expect("failed to create warehouse");
+
+        let res = service.create_table(
+            &ident, 
+            &sp,
+            &warehouse,
+            creation,
+            None).await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
         let tident = res.unwrap().ident;
 
@@ -618,7 +649,13 @@ mod tests {
             properties: HashMap::new(),
             sort_order: None,
         };
-        let res = service.create_table(&ident, creation).await;
+        
+        let res = service.create_table(
+            &ident, 
+            &sp,
+            &warehouse,
+            creation,
+            None).await;
         assert!(res.is_err());
 
         let res = service.load_table(&tident).await;
@@ -669,8 +706,30 @@ mod tests {
             properties: HashMap::new(),
             sort_order: None,
         };
+        let sp = StorageProfile::new(
+            CloudProvider::AWS,
+            "us-west-1".to_string(),
+            "bucket".to_string(),
+            Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "access_key".to_string(),
+                aws_secret_access_key: "secret_key".to_string(),
+            }),
+            None,
+            None,
+        ).expect("failed to create profile");
+        let warehouse = Warehouse::new(
+            "prefix".to_string(), 
+            "name".to_string(), 
+            Uuid::new_v4())
+        .expect("failed to create warehouse");
 
-        let res = service.create_table(&ident, creation).await;
+        let res = service.create_table(
+            &ident, 
+            &sp,
+            &warehouse,
+            creation,
+            None
+        ).await;
         assert!(res.is_err());
     }
 
@@ -722,7 +781,27 @@ mod tests {
             updates: vec![],
         };
 
-        let res = service.update_table(commit).await;
+        let sp = StorageProfile::new(
+            CloudProvider::AWS,
+            "us-west-1".to_string(),
+            "bucket".to_string(),
+            Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "access_key".to_string(),
+                aws_secret_access_key: "secret_key".to_string(),
+            }),
+            None,
+            None,
+        ).expect("failed to create profile");
+        let warehouse = Warehouse::new(
+            "prefix".to_string(), 
+            "name".to_string(), 
+            Uuid::new_v4())
+        .expect("failed to create warehouse");
+
+        let res = service.update_table(
+            &sp,
+            &warehouse,
+            commit).await;
         assert!(res.is_err());
     }
 
@@ -770,8 +849,29 @@ mod tests {
             properties: HashMap::new(),
             sort_order: None,
         };
+        let sp = StorageProfile::new(
+            CloudProvider::AWS,
+            "us-west-1".to_string(),
+            "bucket".to_string(),
+            Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "access_key".to_string(),
+                aws_secret_access_key: "secret_key".to_string(),
+            }),
+            None,
+            None,
+        ).expect("failed to create profile");
+        let warehouse = Warehouse::new(
+            "prefix".to_string(), 
+            "name".to_string(), 
+            Uuid::new_v4())
+        .expect("failed to create warehouse");
 
-        let res = service.create_table(&ident, creation).await;
+        let res = service.create_table(
+            &ident, 
+            &sp,
+            &warehouse,
+            creation,
+            None).await;
         assert!(res.is_err());
     }
 
@@ -819,7 +919,30 @@ mod tests {
             properties: HashMap::new(),
             sort_order: None,
         };
-        let res = service.create_table(&ident, creation).await;
+        let sp = StorageProfile::new(
+            CloudProvider::AWS,
+            "us-west-1".to_string(),
+            "bucket".to_string(),
+            Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "access_key".to_string(),
+                aws_secret_access_key: "secret_key".to_string(),
+            }),
+            None,
+            None,
+        ).expect("failed to create profile");
+        let warehouse = Warehouse::new(
+            "prefix".to_string(), 
+            "name".to_string(), 
+            Uuid::new_v4())
+        .expect("failed to create warehouse");
+
+        let res = service.create_table(
+            &ident, 
+            &sp,
+            &warehouse,
+            creation,
+            None
+        ).await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
 
         let res = service.drop_namespace(&ident).await;
@@ -827,6 +950,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::too_many_lines)]
     async fn test_update_table() {
         let service = create_service().await;
         let ident = test_database().ident;
@@ -869,7 +993,29 @@ mod tests {
             properties: HashMap::new(),
             sort_order: None,
         };
-        let res = service.create_table(&ident, creation).await;
+        let sp = StorageProfile::new(
+            CloudProvider::AWS,
+            "us-west-1".to_string(),
+            "bucket".to_string(),
+            Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "access_key".to_string(),
+                aws_secret_access_key: "secret_key".to_string(),
+            }),
+            None,
+            None,
+        ).expect("failed to create profile");
+        let warehouse = Warehouse::new(
+            "prefix".to_string(), 
+            "name".to_string(), 
+            Uuid::new_v4())
+        .expect("failed to create warehouse");
+        let res = service.create_table(
+            &ident, 
+            &sp,
+            &warehouse,
+            creation,
+            None
+        ).await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
 
         let json = r#"
@@ -896,7 +1042,27 @@ mod tests {
             updates: vec![update],
         };
 
-        let res = service.update_table(commit).await;
+        let sp = StorageProfile::new(
+            CloudProvider::AWS,
+            "us-west-1".to_string(),
+            "bucket".to_string(),
+            Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "access_key".to_string(),
+                aws_secret_access_key: "secret_key".to_string(),
+            }),
+            None,
+            None,
+        ).expect("failed to create profile");
+        let warehouse = Warehouse::new(
+            "prefix".to_string(), 
+            "name".to_string(), 
+            Uuid::new_v4())
+        .expect("failed to create warehouse");
+
+        let res = service.update_table(
+            &sp,
+            &warehouse,
+            commit).await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
 
         let res = service.load_table(&res.unwrap().ident).await;

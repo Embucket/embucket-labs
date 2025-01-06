@@ -14,7 +14,7 @@ pub enum Error {
     CloudProviderNotImplemented { provider: String },
 
     #[snafu(display("Unable to parse key `{key}`"))]
-    UnableToParseConfiguration { key: String, source: Box<dyn std::error::Error> },
+    UnableToParseConfiguration { key: String, source: Box<dyn std::error::Error + Send> },
 
     #[snafu(display("Role-based credentials aren't supported"))]
     RoleBasedCredentialsNotSupported,
