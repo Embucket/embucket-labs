@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use utils::Db;
@@ -38,24 +37,6 @@ impl TableRepositoryDb {
     }
 }
 
-impl Display for TableIdent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}", self.database, self.table)
-    }
-}
-
-impl Display for DatabaseIdent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}", self.warehouse, self.namespace.to_url_string())
-    }
-}
-
-impl Display for WarehouseIdent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.id())
-    }
-}
-
 #[async_trait]
 impl TableRepository for TableRepositoryDb {
     async fn put(&self, params: &Table) -> Result<()> {
@@ -70,7 +51,7 @@ impl TableRepository for TableRepositoryDb {
     async fn get(&self, id: &TableIdent) -> Result<Table> {
         let key = format!("{TBLPREFIX}.{id}");
         let table = self.db.get(&key).await?;
-        let table = table.ok_or(crate::error::Error::TableNotFound)?;
+        let table = table.ok_or(crate::error::CatalogError::TableNotFound { key })?;
         Ok(table)
     }
 
@@ -107,7 +88,7 @@ impl DatabaseRepository for DatabaseRepositoryDb {
     async fn get(&self, id: &DatabaseIdent) -> Result<Database> {
         let key = format!("{DBPREFIX}.{id}");
         let db = self.db.get(&key).await?;
-        let db = db.ok_or(crate::error::Error::DatabaseNotFound)?;
+        let db = db.ok_or(crate::error::CatalogError::DatabaseNotFound { key })?;
         Ok(db)
     }
 

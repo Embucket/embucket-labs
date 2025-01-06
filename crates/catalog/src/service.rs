@@ -1,4 +1,4 @@
-use crate::error::{Error, Result, self};
+use crate::error::{CatalogError, Result, self};
 // TODO: Replace this with this crate error and result
 use crate::models::{
     Config, Database, DatabaseIdent, Table, TableCommit, TableIdent, TableRequirementExt,
@@ -219,7 +219,7 @@ impl Catalog for CatalogImpl {
         };
         let database = self.get_namespace(namespace).await;
         if database.is_ok() {
-            return Err(Error::NamespaceAlreadyExists);
+            return Err(CatalogError::NamespaceAlreadyExists { key: namespace.to_string() });
         }
         // put bluntly saves to db no matter what
         self.db_repo.put(&db).await.ok();
@@ -259,7 +259,7 @@ impl Catalog for CatalogImpl {
         // Check if there are tables in the namespace
         let tables = self.list_tables(namespace).await?;
         if !tables.is_empty() {
-            return Err(Error::NamespaceNotEmpty);
+            return Err(CatalogError::NamespaceNotEmpty { key: namespace.to_string() });
         }
 
         self.db_repo.delete(namespace).await?;
@@ -295,7 +295,7 @@ impl Catalog for CatalogImpl {
         };
         let res = self.load_table(&ident).await;
         if res.is_ok() {
-            return Err(Error::TableAlreadyExists);
+            return Err(CatalogError::TableAlreadyExists { key: ident.to_string() });
         }
 
         // TODO: Robust location generation
@@ -365,7 +365,7 @@ impl Catalog for CatalogImpl {
         };
         let res = self.load_table(&ident).await;
         if res.is_ok() {
-            return Err(Error::TableAlreadyExists);
+            return Err(CatalogError::TableAlreadyExists { key: ident.to_string() });
         }
 
         // Load metadata from the provided location

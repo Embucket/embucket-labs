@@ -1,9 +1,9 @@
 use snafu::prelude::*;
-pub type Result<T> = std::result::Result<T, Error>;
+pub type CatalogResult<T> = std::result::Result<T, CatalogError>;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
-pub enum Error {
+pub enum CatalogError {
     #[snafu(display("Iceberg error: {source}"))]
     Iceberg { source: iceberg::Error },
 
@@ -13,34 +13,33 @@ pub enum Error {
     #[snafu(display("Model error: {source}"))]
     Model { source: control_plane::models::Error },
 
-    #[snafu(display("Namespace already exists"))]
-    NamespaceAlreadyExists,
+    #[snafu(display("Namespace already exists: {key}"))]
+    NamespaceAlreadyExists { key: String },
 
-    #[snafu(display("Namespace not empty"))]
-    NamespaceNotEmpty,
+    #[snafu(display("Namespace not empty: {key}"))]
+    NamespaceNotEmpty { key: String},
 
-    // TODO: These might need to have more information
-    #[snafu(display("Table already exists"))]
-    TableAlreadyExists,
+    #[snafu(display("Table already exists: {key}"))]
+    TableAlreadyExists { key: String },
     
-    #[snafu(display("Table not found"))]
-    TableNotFound,
+    #[snafu(display("Table not found: {key}"))]
+    TableNotFound { key: String },
 
-    #[snafu(display("Database not found"))]
-    DatabaseNotFound,
+    #[snafu(display("Database not found: {key}"))]
+    DatabaseNotFound { key: String },
 
     #[snafu(display("Table requirement failed: {message}"))]
     TableRequirementFailed { message: String },
 
-    #[snafu(display("Database error: {source}"))]
-    Database { source: utils::Error },
+    #[snafu(display("State store error: {source}"))]
+    StateStore { source: utils::Error },
 
     #[snafu(display("Serde error: {source}"))]
     Serde { source: serde_json::Error },
 }
 
-impl From<utils::Error> for Error {
+impl From<utils::Error> for CatalogError {
     fn from(value: utils::Error) -> Self {
-        Self::Database { source: value }
+        Self::StateStore { source: value }
     }
 }
