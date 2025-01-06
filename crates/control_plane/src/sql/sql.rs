@@ -12,17 +12,19 @@ use datafusion::catalog_common::information_schema::InformationSchemaProvider;
 use datafusion::catalog_common::{ResolvedTableReference, TableReference};
 use datafusion::common::{plan_datafusion_err, Result};
 use datafusion::datasource::default_table_source::provider_as_source;
+use datafusion::error::DataFusionError;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::{LogicalPlan, ScalarUDF};
 use datafusion::sql::parser::Statement as DFStatement;
 use datafusion::sql::sqlparser::ast::{
-    CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName,
-    Statement, TableFactor, TableWithJoins,
+    CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
+    TableFactor, TableWithJoins,
 };
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
+use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
@@ -31,8 +33,6 @@ use regex;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
-use datafusion::error::DataFusionError;
-use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 
 pub struct SqlExecutor {
     ctx: SessionContext,
@@ -197,7 +197,7 @@ impl SqlExecutor {
             // Drop InMemory table
             let drop_query = format!("DROP TABLE {new_table_name}");
             self.ctx.sql(&drop_query).await?.collect().await?;
-            return Ok(result);
+            Ok(result)
             // }
             // Ok(created_entity_response())
         } else {
@@ -413,7 +413,8 @@ impl SqlExecutor {
     ) -> Vec<Ident> {
         if warehouse_name.len() > 0
             && !table_name.starts_with(&[Ident::new(warehouse_name)])
-            && table_name.len() > 1 {
+            && table_name.len() > 1
+        {
             table_name.insert(0, Ident::new(warehouse_name));
         }
         if table_name.len() > 3 {
