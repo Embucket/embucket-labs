@@ -2,28 +2,28 @@
 members = [
     "crates/utils",
     "crates/catalog",
-    "crates/control_plane", 
+    "crates/control_plane",
     "crates/nexus",
 ]
-resolver= "2"
+resolver = "2"
 
 [workspace.dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 futures = { version = "0.3" }
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
-axum = { version = "0.7", features = ["multipart"]}
+axum = { version = "0.7", features = ["multipart"] }
 axum-macros = "0.4"
 tokio = { version = "1", features = ["full"] }
-async-trait = { version = "0.1" }
+async-trait = { version = "0.1.84" }
 serde = { version = "1.0", features = ["derive"] }
 slatedb = { version = "0.2.0" }
 bytes = { version = "1" }
-object_store = { version = "0.11.1", features=["aws","gcp", "azure"]}
+object_store = { version = "0.11.1", features = ["aws", "gcp", "azure"] }
 serde_json = "1.0"
 serde_yaml = "0.8"
 tower = { version = "0.4", features = ["util"] }
 http-body-util = "0.1.0"
-thiserror = { version = "1" }
+thiserror = { version = "2.0.9" }
 iceberg = { git = "https://github.com/hansetag/iceberg-rust.git", branch = "ct/builder-upstream-20241002" }
 tempfile = { version = "3" }
 utoipa = { version = "5.0.0-beta.0", features = ["uuid", "chrono"] }
