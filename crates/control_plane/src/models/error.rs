@@ -3,7 +3,7 @@ use snafu::prelude::*;
 // Errors that are specific to the `models` crate
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
-pub enum Error {
+pub enum ControlPlaneModelError {
     #[snafu(display("Invalid bucket name `{bucket_name}`. Reason: {reason}"))]
     InvalidBucketName { bucket_name: String, reason: String },
 
@@ -27,4 +27,4 @@ pub enum Error {
     ObjectStore { source: object_store::Error },
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type ControlPlaneModelResult<T> = std::result::Result<T, ControlPlaneModelError>;

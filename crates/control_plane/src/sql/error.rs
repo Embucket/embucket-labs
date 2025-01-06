@@ -4,7 +4,7 @@ use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
-pub enum Error {
+pub enum SQLError {
     #[snafu(display("Arrow error: {source}"))]
     Arrow { source: arrow::error::ArrowError },
 
@@ -39,4 +39,4 @@ pub enum Error {
     NotImplemented { message: String },
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type SQLResult<T> = std::result::Result<T, SQLError>;

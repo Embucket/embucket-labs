@@ -30,20 +30,20 @@ use snafu::ResultExt;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
-use super::error::{self as sql_error, Result};
+use super::error::{self as sql_error, SQLResult};
 
 pub struct SqlExecutor {
     ctx: SessionContext,
 }
 
 impl SqlExecutor {
-    pub fn new(mut ctx: SessionContext) -> Result<Self> {
+    pub fn new(mut ctx: SessionContext) -> SQLResult<Self> {
         ctx.register_udf(ScalarUDF::from(ParseJsonFunc::new()));
         register_all(&mut ctx).context(sql_error::RegisterUDFJSONSnafu)?;
         Ok(Self { ctx })
     }
 
-    pub async fn query(&self, query: &str, warehouse_name: &str) -> Result<Vec<RecordBatch>> {
+    pub async fn query(&self, query: &str, warehouse_name: &str) -> SQLResult<Vec<RecordBatch>> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         // Update query to use custom JSON functions
@@ -107,7 +107,7 @@ impl SqlExecutor {
         &self,
         statement: Statement,
         warehouse_name: &str,
-    ) -> Result<Vec<RecordBatch>> {
+    ) -> SQLResult<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
             let mut new_table_full_name = create_table_statement.name.to_string();
             let mut ident = create_table_statement.name.0;
@@ -154,9 +154,9 @@ impl SqlExecutor {
             // For now we behave as CREATE OR REPLACE
             // TODO support CREATE without REPLACE
             let catalog = self.ctx.catalog(warehouse_name)
-                .ok_or(sql_error::Error::WarehouseNotFound { name: warehouse_name.to_string() })?;
+                .ok_or(sql_error::SQLError::WarehouseNotFound { name: warehouse_name.to_string() })?;
             let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>()
-                .ok_or(sql_error::Error::IcebergCatalogNotFound { warehouse_name: warehouse_name.to_string() })?;
+                .ok_or(sql_error::SQLError::IcebergCatalogNotFound { warehouse_name: warehouse_name.to_string() })?;
             let rest_catalog = iceberg_catalog.catalog();
             let new_table_ident = Identifier::new(
                 &new_table_db
@@ -209,7 +209,7 @@ impl SqlExecutor {
             // }
             // Ok(created_entity_response())
         } else {
-            Err(super::error::Error::DataFusion{ source: datafusion::error::DataFusionError::NotImplemented(
+            Err(super::error::SQLError::DataFusion{ source: datafusion::error::DataFusionError::NotImplemented(
                 "Only CREATE TABLE statements are supported".to_string(),
             )})
         }
@@ -219,15 +219,15 @@ impl SqlExecutor {
         &self,
         name: SchemaName,
         warehouse_name: &str,
-    ) -> Result<Vec<RecordBatch>> {
+    ) -> SQLResult<Vec<RecordBatch>> {
         match name {
             SchemaName::Simple(schema_name) => {
                 //println!("Creating simple schema: {:?}", schema_name);
                 // TODO: Abstract the Iceberg catalog 
                 let catalog = self.ctx.catalog(warehouse_name)
-                    .ok_or(sql_error::Error::WarehouseNotFound { name: warehouse_name.to_string() })?;
+                    .ok_or(sql_error::SQLError::WarehouseNotFound { name: warehouse_name.to_string() })?;
                 let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>()
-                    .ok_or(sql_error::Error::IcebergCatalogNotFound { warehouse_name: warehouse_name.to_string() })?;
+                    .ok_or(sql_error::SQLError::IcebergCatalogNotFound { warehouse_name: warehouse_name.to_string() })?;
                 let rest_catalog = iceberg_catalog.catalog();
                 let namespace_vec: Vec<String> = schema_name
                     .0
@@ -253,7 +253,7 @@ impl SqlExecutor {
                 }
             }
             _ => {
-                return Err(super::error::Error::DataFusion{ source: datafusion::error::DataFusionError::NotImplemented(
+                return Err(super::error::SQLError::DataFusion{ source: datafusion::error::DataFusionError::NotImplemented(
                     "Only simple schema names are supported".to_string(),
                 )});
             }
@@ -266,7 +266,7 @@ impl SqlExecutor {
         &self,
         query: &str,
         warehouse_name: &str,
-    ) -> Result<LogicalPlan> {
+    ) -> SQLResult<LogicalPlan> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let mut statement = state.sql_to_statement(query, dialect)
@@ -306,7 +306,7 @@ impl SqlExecutor {
                             .table(&table)
                             .await
                             .context(super::error::DataFusionSnafu)?
-                            .ok_or(super::error::Error::TableProviderNotFound { table_name: table.clone() })?;
+                            .ok_or(super::error::SQLError::TableProviderNotFound { table_name: table.clone() })?;
                         ctx_provider.tables.insert(
                             format!("{catalog}.{schema}.{table}"),
                             provider_as_source(table_source),
@@ -319,7 +319,7 @@ impl SqlExecutor {
             planner.sql_statement_to_plan(*s)
                 .context(super::error::DataFusionSnafu)
         } else {
-            Err(super::error::Error::DataFusion { source: datafusion::error::DataFusionError::NotImplemented(
+            Err(super::error::SQLError::DataFusion { source: datafusion::error::DataFusionError::NotImplemented(
                 "Only SQL statements are supported".to_string(),
             )})
         }
@@ -338,7 +338,7 @@ impl SqlExecutor {
     pub fn schema_for_ref(
         &self,
         table_ref: impl Into<TableReference>,
-    ) -> Result<Arc<dyn SchemaProvider>> {
+    ) -> SQLResult<Arc<dyn SchemaProvider>> {
         let state = self.ctx.state();
         let resolved_ref = self.resolve_table_ref(table_ref);
         if state.config().information_schema() && *resolved_ref.schema == *"information_schema" {
@@ -352,11 +352,11 @@ impl SqlExecutor {
             .catalog_list()
             .catalog(&resolved_ref.catalog)
             .ok_or_else(|| {
-                super::error::Error::DataFusion { source: plan_datafusion_err!("failed to resolve catalog: {}", resolved_ref.catalog) }
+                super::error::SQLError::DataFusion { source: plan_datafusion_err!("failed to resolve catalog: {}", resolved_ref.catalog) }
             })?
             .schema(&resolved_ref.schema)
             .ok_or_else(|| {
-                super::error::Error::DataFusion { source: plan_datafusion_err!("failed to resolve schema: {}", resolved_ref.schema) }
+                super::error::SQLError::DataFusion { source: plan_datafusion_err!("failed to resolve schema: {}", resolved_ref.schema) }
             })
     }
 
@@ -364,7 +364,7 @@ impl SqlExecutor {
         &self,
         query: &str,
         warehouse_name: &str,
-    ) -> Result<Vec<RecordBatch>> {
+    ) -> SQLResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
         self.ctx.execute_logical_plan(plan)
             .await
