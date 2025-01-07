@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 use crate::error::AppError;
 use crate::http::catalog::schemas;
 use crate::http::utils::{get_default_properties, update_properties_timestamps};
@@ -38,7 +40,7 @@ pub async fn get_namespace(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::from_vec(
             namespace_id
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
@@ -59,7 +61,7 @@ pub async fn delete_namespace(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::from_vec(
             namespace_id
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
@@ -99,7 +101,7 @@ pub async fn create_table(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::from_vec(
             namespace_id
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
@@ -130,7 +132,7 @@ pub async fn register_table(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::from_vec(
             namespace_id
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
@@ -161,7 +163,7 @@ pub async fn commit_table(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::from_vec(
             namespace_id
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
@@ -192,7 +194,7 @@ pub async fn get_table(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::from_vec(
             namespace_id
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
@@ -217,7 +219,7 @@ pub async fn delete_table(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::from_vec(
             namespace_id
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
@@ -242,7 +244,7 @@ pub async fn list_tables(
         warehouse: WarehouseIdent::new(wh.id),
         namespace: NamespaceIdent::from_vec(
             namespace_id
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
@@ -258,9 +260,9 @@ pub async fn list_tables(
 pub async fn report_metrics(
     State(_state): State<AppState>,
     Path((_id, _namespace_id, _table_id)): Path<(Uuid, String, String)>,
-    Json(payload): Json<()>,
+    Json(_payload): Json<()>,
 ) -> Result<(), AppError> {
-    println!("add_table_metrics: {:?}", payload);
+    //println!("add_table_metrics: {:?}", payload);
     Ok(())
 }
 
@@ -279,7 +281,7 @@ pub async fn get_config(
 
     let config = state.catalog_svc.get_config(ident, sp).await?;
 
-    Ok(Json(config.into()))
+    Ok(Json(config))
 }
 
 // only one endpoint is defined for the catalog implementation to work

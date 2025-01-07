@@ -169,7 +169,7 @@ impl Catalog for CatalogImpl {
         }
         let result = builder.build().context(error::IcebergSnafu)?;
 
-        let base_part = storage_profile.get_base_url().context(error::ModelSnafu)?;
+        let base_part = storage_profile.get_base_url().context(error::ControlPlaneSnafu)?;
         let table_part = format!("{}/{}", warehouse.location, commit.ident.table);
         let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
 
@@ -184,7 +184,7 @@ impl Catalog for CatalogImpl {
         };
         self.table_repo.put(&table).await?;
 
-        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store().context(error::ModelSnafu)?;
+        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store().context(error::ControlPlaneSnafu)?;
         let data = Bytes::from(serde_json::to_vec(&table.metadata).context(error::SerdeSnafu)?);
         let path = Path::from(format!("{table_part}/{metadata_part}"));
         object_store
@@ -304,7 +304,7 @@ impl Catalog for CatalogImpl {
         // If none, generate location based on warehouse location
 
         let base_part = storage_profile.get_base_url()
-            .context(error::ModelSnafu)?;
+            .context(error::ControlPlaneSnafu)?;
         let table_part = format!("{}/{}", warehouse.location, table_creation.name);
         let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
 
@@ -336,7 +336,7 @@ impl Catalog for CatalogImpl {
         self.table_repo.put(&table).await?;
 
         let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store()
-            .context(error::ModelSnafu)?;
+            .context(error::ControlPlaneSnafu)?;
         let data = Bytes::from(serde_json::to_vec(&table.metadata).context(error::SerdeSnafu)?);
         let path = Path::from(format!("{table_part}/{metadata_part}"));
         object_store
@@ -370,7 +370,7 @@ impl Catalog for CatalogImpl {
 
         // Load metadata from the provided location
         let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store()
-            .context(error::ModelSnafu)?;
+            .context(error::ControlPlaneSnafu)?;
         let path = Path::from(metadata_location.clone());
         let data = object_store
             .get(&path)

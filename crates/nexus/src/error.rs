@@ -1,15 +1,15 @@
 use axum::{response::IntoResponse, response::Response};
 
-impl From<control_plane::error::Error> for AppError {
-    fn from(_err: control_plane::error::Error) -> Self {
+impl From<control_plane::error::ControlPlaneError> for AppError {
+    fn from(_err: control_plane::error::ControlPlaneError) -> Self {
         Self {
             message: _err.to_string(),
         }
     }
 }
 
-impl From<catalog::error::Error> for AppError {
-    fn from(_err: catalog::error::Error) -> Self {
+impl From<catalog::error::CatalogError> for AppError {
+    fn from(_err: catalog::error::CatalogError) -> Self {
         Self {
             message: _err.to_string(),
         }

@@ -1,4 +1,4 @@
-use crate::error::{Error, Result};
+use crate::error::{ControlPlaneError, ControlPlaneResult};
 use crate::models::{StorageProfile, Warehouse};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -15,18 +15,18 @@ const WAREHOUSES: &str = "wh.all";
 
 #[async_trait]
 pub trait StorageProfileRepository: Send + Sync {
-    async fn create(&self, params: &StorageProfile) -> Result<()>;
-    async fn get(&self, id: Uuid) -> Result<StorageProfile>;
-    async fn delete(&self, id: Uuid) -> Result<()>;
-    async fn list(&self) -> Result<Vec<StorageProfile>>;
+    async fn create(&self, params: &StorageProfile) -> ControlPlaneResult<()>;
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<StorageProfile>;
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()>;
+    async fn list(&self) -> ControlPlaneResult<Vec<StorageProfile>>;
 }
 
 #[async_trait]
 pub trait WarehouseRepository: Send + Sync {
-    async fn create(&self, params: &Warehouse) -> Result<()>;
-    async fn get(&self, id: Uuid) -> Result<Warehouse>;
-    async fn delete(&self, id: Uuid) -> Result<()>;
-    async fn list(&self) -> Result<Vec<Warehouse>>;
+    async fn create(&self, params: &Warehouse) -> ControlPlaneResult<()>;
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<Warehouse>;
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()>;
+    async fn list(&self) -> ControlPlaneResult<Vec<Warehouse>>;
 }
 
 impl Entity for StorageProfile {
@@ -79,19 +79,19 @@ impl Repository for StorageProfileRepositoryDb {
 
 #[async_trait]
 impl StorageProfileRepository for StorageProfileRepositoryDb {
-    async fn create(&self, entity: &StorageProfile) -> Result<()> {
+    async fn create(&self, entity: &StorageProfile) -> ControlPlaneResult<()> {
         Repository::_create(self, entity).await.map_err(Into::into)
     }
 
-    async fn get(&self, id: Uuid) -> Result<StorageProfile> {
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<StorageProfile> {
         Repository::_get(self, id).await.map_err(Into::into)
     }
 
-    async fn delete(&self, id: Uuid) -> Result<()> {
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()> {
         Repository::_delete(self, id).await.map_err(Into::into)
     }
 
-    async fn list(&self) -> Result<Vec<StorageProfile>> {
+    async fn list(&self) -> ControlPlaneResult<Vec<StorageProfile>> {
         Repository::_list(self).await.map_err(Into::into)
     }
 }
@@ -114,19 +114,19 @@ impl Repository for WarehouseRepositoryDb {
 
 #[async_trait]
 impl WarehouseRepository for WarehouseRepositoryDb {
-    async fn create(&self, entity: &Warehouse) -> Result<()> {
+    async fn create(&self, entity: &Warehouse) -> ControlPlaneResult<()> {
         Repository::_create(self, entity).await.map_err(Into::into)
     }
 
-    async fn get(&self, id: Uuid) -> Result<Warehouse> {
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
         Repository::_get(self, id).await.map_err(Into::into)
     }
 
-    async fn delete(&self, id: Uuid) -> Result<()> {
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()> {
         Repository::_delete(self, id).await.map_err(Into::into)
     }
 
-    async fn list(&self) -> Result<Vec<Warehouse>> {
+    async fn list(&self) -> ControlPlaneResult<Vec<Warehouse>> {
         Repository::_list(self).await.map_err(Into::into)
     }
 }
@@ -140,7 +140,7 @@ pub struct InMemoryStorageProfileRepository {
 #[async_trait]
 #[allow(clippy::unwrap_used)]
 impl StorageProfileRepository for InMemoryStorageProfileRepository {
-    async fn create(&self, profile: &StorageProfile) -> Result<()> {
+    async fn create(&self, profile: &StorageProfile) -> ControlPlaneResult<()> {
         self.profiles
             .lock()
             .unwrap()
@@ -148,25 +148,25 @@ impl StorageProfileRepository for InMemoryStorageProfileRepository {
         Ok(())
     }
 
-    async fn get(&self, id: Uuid) -> Result<StorageProfile> {
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<StorageProfile> {
         Ok(self.profiles
             .lock()
             .unwrap()
             .get(&id)
-            .ok_or(Error::WarehouseNotFound { id })?
+            .ok_or(ControlPlaneError::StorageProfileNotFound { id })?
             .clone())
     }
 
-    async fn delete(&self, id: Uuid) -> Result<()> {
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()> {
         self.profiles
             .lock()
             .unwrap()
             .remove(&id)
-            .ok_or(Error::WarehouseNotFound { id })?;
+            .ok_or(ControlPlaneError::StorageProfileNotFound { id })?;
         Ok(())
     }
 
-    async fn list(&self) -> Result<Vec<StorageProfile>> {
+    async fn list(&self) -> ControlPlaneResult<Vec<StorageProfile>> {
         Ok(self.profiles
             .lock()
             .unwrap()
@@ -180,7 +180,7 @@ impl StorageProfileRepository for InMemoryStorageProfileRepository {
 #[async_trait]
 #[allow(clippy::unwrap_used)]
 impl WarehouseRepository for InMemoryWarehouseRepository {
-    async fn create(&self, warehouse: &Warehouse) -> Result<()> {
+    async fn create(&self, warehouse: &Warehouse) -> ControlPlaneResult<()> {
         self.warehouses
             .lock()
             .unwrap()
@@ -188,27 +188,27 @@ impl WarehouseRepository for InMemoryWarehouseRepository {
         Ok(())
     }
 
-    async fn get(&self, id: Uuid) -> Result<Warehouse> {
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
         Ok(
             self.warehouses
                 .lock()
                 .unwrap()
                 .get(&id)
-                .ok_or(Error::WarehouseNotFound { id })?
+                .ok_or(ControlPlaneError::WarehouseNotFound { id })?
                 .clone()
         )
     }
 
-    async fn delete(&self, id: Uuid) -> Result<()> {
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()> {
         self.warehouses
             .lock()
             .unwrap()
             .remove(&id)
-            .ok_or(Error::WarehouseNotFound { id })?;
+            .ok_or(ControlPlaneError::WarehouseNotFound { id })?;
         Ok(())
     }
 
-    async fn list(&self) -> Result<Vec<Warehouse>> {
+    async fn list(&self) -> ControlPlaneResult<Vec<Warehouse>> {
         Ok(
             self.warehouses
                 .lock()

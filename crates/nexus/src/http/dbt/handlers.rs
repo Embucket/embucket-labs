@@ -23,6 +23,7 @@ pub async fn login(
     body: Bytes,
 ) -> Json<LoginResponse> {
     // Decompress the gzip-encoded body
+    // TODO: Investigate replacing this with a middleware
     let mut d = GzDecoder::new(&body[..]);
     let mut s = String::new();
     d.read_to_string(&mut s).unwrap();
@@ -30,8 +31,8 @@ pub async fn login(
     // Deserialize the JSON body
     let body_json: LoginRequestBody = serde_json::from_str(&s).unwrap();
 
-    println!("Received login request: {:?}", query);
-    println!("Body data parameters: {:?}", body_json);
+    //println!("Received login request: {:?}", query);
+    //println!("Body data parameters: {:?}", body_json);
     let token = uuid::Uuid::new_v4().to_string();
 
     // Save warehouse id and db name in state
@@ -145,9 +146,11 @@ pub async fn abort() -> Result<Json<serde_json::value::Value>, AppError> {
     Ok(Json(json!({"success": true})))
 }
 
+#[must_use] 
 pub fn extract_token(headers: &HeaderMap) -> Option<String> {
     headers.get("authorization").and_then(|value| {
         value.to_str().ok().and_then(|auth| {
+            #[allow(clippy::unwrap_used)]
             let re = Regex::new(r#"Snowflake Token="([a-f0-9\-]+)""#).unwrap();
             re.captures(auth)
                 .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))

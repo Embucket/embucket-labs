@@ -6,11 +6,11 @@ use snafu::prelude::*;
 use datafusion::error::DataFusionError;
 use uuid::Uuid;
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type ControlPlaneResult<T> = std::result::Result<T, ControlPlaneError>;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
-pub enum Error {
+pub enum ControlPlaneError {
     #[snafu(display("DataFusion error: {source}"))]
     DataFusion { source: DataFusionError},
 
@@ -31,6 +31,9 @@ pub enum Error {
 
     #[snafu(display("Unknown S3 error: Code: {code} Message: {message}"))]
     S3Unknown { code: String, message: String },
+
+    #[snafu(display("Storage profile not found for id {id}"))]
+    StorageProfileNotFound { id: Uuid },
 
     #[snafu(display("Storage profile {} already in use", id))]
     StorageProfileInUse { id: Uuid },
@@ -77,33 +80,15 @@ pub enum Error {
 
     #[snafu(display("Execution error: {source}"))]
     Execution { source: crate::sql::error::SQLError },
-
-    /*#[error("not found")]
-    ErrNotFound,
-
-    #[error("invalid input: {0}")]
-    InvalidInput(String),
-
-    #[error("not empty: {0}")]
-    NotEmpty(String),
-
-    #[error("invalid credentials: {0}")]
-    InvalidCredentials(String),
-
-    #[error("datafusion error: {0}")]
-    DataFusionError(String),
-
-    #[error("datafusion error: {0}")]
-    IceLakeError(String),*/
 }
 
-impl From<utils::Error> for Error {
+impl From<utils::Error> for ControlPlaneError {
     fn from(e: utils::Error) -> Self {
         Self::SlateDB { source: e }
     }
 }
 
-impl<T: std::error::Error + Send + Sync + 'static> From<RusotoError<T>> for Error {
+impl<T: std::error::Error + Send + Sync + 'static> From<RusotoError<T>> for ControlPlaneError {
     fn from(e: RusotoError<T>) -> Self {
         #[derive(Snafu, Debug, Deserialize)]
         struct S3ErrorMessage {
@@ -127,13 +112,13 @@ impl<T: std::error::Error + Send + Sync + 'static> From<RusotoError<T>> for Erro
     }
 }
 
-impl From<datafusion::error::DataFusionError> for Error {
+impl From<datafusion::error::DataFusionError> for ControlPlaneError {
     fn from(err: datafusion::error::DataFusionError) -> Self {
         Self::DataFusion { source: err }
     }
 }
 
-impl From<icelake::Error> for Error {
+impl From<icelake::Error> for ControlPlaneError {
     fn from(err: icelake::Error) -> Self {
         Self::IceLake { source: err }
     }

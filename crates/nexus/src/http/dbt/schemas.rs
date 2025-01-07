@@ -22,19 +22,19 @@ pub struct LoginRequestBody {
     pub data: ClientData,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoginResponse {
     pub data: Option<LoginData>,
     pub success: bool,
     pub message: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoginData {
     pub token: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub struct ClientData {
     pub client_app_id: String,
@@ -47,7 +47,7 @@ pub struct ClientData {
     pub session_parameters: HashMap<String, serde_json::Value>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub struct ClientEnvironment {
     pub application: String,
@@ -63,7 +63,7 @@ pub struct ClientEnvironment {
     pub socket_timeout: Option<u32>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryRequest {
     #[serde(rename = "requestId")]
     pub request_id: String,

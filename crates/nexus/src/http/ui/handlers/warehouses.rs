@@ -1,4 +1,4 @@
-use crate::http::ui::models::errors::AppError;
+use super::super::models::error::{self as model_error, NexusError, NexusResult};
 use crate::http::ui::models::table::Statistics;
 use crate::http::ui::models::warehouse::{
     CreateWarehousePayload, Navigation, Warehouse, WarehousesDashboard,
@@ -6,6 +6,7 @@ use crate::http::ui::models::warehouse::{
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
 use control_plane::models::{Warehouse as WarehouseModel, WarehouseCreateRequest};
+use snafu::ResultExt;
 use utoipa::OpenApi;
 use uuid::Uuid;
 
@@ -23,7 +24,7 @@ use uuid::Uuid;
             CreateWarehousePayload,
             Warehouse,
             Navigation,
-            AppError,
+            NexusError,
         )
     ),
     tags(
@@ -41,7 +42,7 @@ pub struct ApiDoc;
         (status = 200, description = "List all warehouses fot navigation", body = Navigation),
     )
 )]
-pub async fn navigation(State(state): State<AppState>) -> Result<Json<Navigation>, AppError> {
+pub async fn navigation(State(state): State<AppState>) -> NexusResult<Json<Navigation>> {
     let warehouses = state.list_warehouses().await?;
     Ok(Json(Navigation { warehouses }))
 }
@@ -52,13 +53,13 @@ pub async fn navigation(State(state): State<AppState>) -> Result<Json<Navigation
     operation_id = "warehousesDashboard",
     responses(
         (status = 200, description = "List all warehouses", body = WarehousesDashboard),
-        (status = 500, description = "List all warehouses error", body = AppError),
+        (status = 500, description = "List all warehouses error", body = NexusError),
 
     )
 )]
 pub async fn list_warehouses(
     State(state): State<AppState>,
-) -> Result<Json<WarehousesDashboard>, AppError> {
+) -> NexusResult<Json<WarehousesDashboard>> {
     let warehouses = state.list_warehouses().await?;
 
     let mut total_statistics = Statistics::default();
@@ -66,7 +67,7 @@ pub async fn list_warehouses(
         .into_iter()
         .map(|warehouse| {
             total_statistics = total_statistics.aggregate(&warehouse.statistics);
-            warehouse.into()
+            warehouse
         })
         .collect();
 
@@ -87,13 +88,13 @@ pub async fn list_warehouses(
     ),
     responses(
         (status = 200, description = "Warehouse found", body = Warehouse),
-        (status = 404, description = "Warehouse not found", body = AppError)
+        (status = 404, description = "Warehouse not found", body = NexusError)
     )
 )]
 pub async fn get_warehouse(
     State(state): State<AppState>,
     Path(warehouse_id): Path<Uuid>,
-) -> Result<Json<Warehouse>, AppError> {
+) -> NexusResult<Json<Warehouse>> {
     let mut warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let profile = state
         .get_profile_by_id(warehouse.storage_profile_id)
@@ -120,36 +121,33 @@ pub async fn get_warehouse(
     tags = ["warehouses"],
     responses(
         (status = 201, description = "Warehouse created", body = Warehouse),
-        (status = 422, description = "Unprocessable Entity", body = AppError),
-        (status = 500, description = "Internal server error", body = AppError)
+        (status = 422, description = "Unprocessable Entity", body = NexusError),
+        (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
 pub async fn create_warehouse(
     State(state): State<AppState>,
     Json(payload): Json<CreateWarehousePayload>,
-) -> Result<Json<Warehouse>, AppError> {
+) -> NexusResult<Json<Warehouse>> {
     let request: WarehouseCreateRequest = payload.into();
     let profile = state.get_profile_by_id(request.storage_profile_id).await?;
-    let warehouses = state.control_svc.list_warehouses().await?;
+    let warehouses = state
+        .control_svc
+        .list_warehouses()
+        .await
+        .context(model_error::WarehouseListSnafu)?;
 
     if warehouses.iter().any(|w| w.name == request.name) {
-        return Err(AppError::AlreadyExists(format!(
-            "warehouse with name {} already exists",
-            request.name
-        )));
+        return Err(NexusError::WarehouseAlreadyExists {
+            name: request.name.clone(),
+        });
     }
     let warehouse: WarehouseModel =
         state
             .control_svc
             .create_warehouse(&request)
             .await
-            .map_err(|e| {
-                let fmt = format!(
-                    "{}: failed to get create warehouse with name {}",
-                    e, request.name
-                );
-                AppError::new(e, fmt.as_str())
-            })?;
+            .context(model_error::WarehouseCreateSnafu)?;
     let mut warehouse: Warehouse = warehouse.into();
     warehouse.storage_profile = profile;
     Ok(Json(warehouse))
@@ -165,23 +163,17 @@ pub async fn create_warehouse(
     ),
     responses(
         (status = 204, description = "Warehouse deleted"),
-        (status = 404, description = "Warehouse not found", body = AppError)
+        (status = 404, description = "Warehouse not found", body = NexusError)
     )
 )]
 pub async fn delete_warehouse(
     State(state): State<AppState>,
     Path(warehouse_id): Path<Uuid>,
-) -> Result<Json<()>, AppError> {
+) -> NexusResult<Json<()>> {
     state
         .control_svc
         .delete_warehouse(warehouse_id)
         .await
-        .map_err(|e| {
-            let fmt = format!(
-                "{}: failed to get delete warehouse with id {}",
-                e, warehouse_id
-            );
-            AppError::new(e, fmt.as_str())
-        })?;
+        .context(model_error::WarehouseDeleteSnafu { id: warehouse_id })?;
     Ok(Json(()))
 }

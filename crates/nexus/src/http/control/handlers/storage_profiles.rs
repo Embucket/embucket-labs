@@ -90,5 +90,5 @@ pub async fn list_storage_profiles(
 ) -> Result<Json<Vec<StorageProfile>>, AppError> {
     let profiles = state.control_svc.list_profiles().await?;
 
-    Ok(Json(profiles.into_iter().map(|p| p.into()).collect()))
+    Ok(Json(profiles.into_iter().map(Into::into).collect()))
 }

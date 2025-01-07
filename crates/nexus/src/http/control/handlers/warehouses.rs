@@ -82,5 +82,5 @@ pub async fn list_warehouses(
 ) -> Result<Json<Vec<Warehouse>>, AppError> {
     let profiles = state.control_svc.list_warehouses().await?;
 
-    Ok(Json(profiles.into_iter().map(|p| p.into()).collect()))
+    Ok(Json(profiles.into_iter().map(Into::into).collect()))
 }

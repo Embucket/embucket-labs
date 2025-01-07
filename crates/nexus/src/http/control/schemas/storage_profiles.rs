@@ -16,18 +16,18 @@ pub enum CloudProvider {
 impl From<CloudProvider> for models::CloudProvider {
     fn from(provider: CloudProvider) -> Self {
         match provider {
-            CloudProvider::Aws => models::CloudProvider::AWS,
-            CloudProvider::Azure => models::CloudProvider::AZURE,
-            CloudProvider::Gcp => models::CloudProvider::GCS,
+            CloudProvider::Aws => Self::AWS,
+            CloudProvider::Azure => Self::AZURE,
+            CloudProvider::Gcp => Self::GCS,
         }
     }
 }
 impl From<models::CloudProvider> for CloudProvider {
     fn from(provider: models::CloudProvider) -> Self {
         match provider {
-            models::CloudProvider::AWS => CloudProvider::Aws,
-            models::CloudProvider::AZURE => CloudProvider::Azure,
-            models::CloudProvider::GCS => CloudProvider::Gcp,
+            models::CloudProvider::AWS => Self::Aws,
+            models::CloudProvider::AZURE => Self::Azure,
+            models::CloudProvider::GCS => Self::Gcp,
         }
     }
 }
@@ -41,7 +41,7 @@ pub struct AwsAccessKeyCredential {
 
 impl From<AwsAccessKeyCredential> for models::AwsAccessKeyCredential {
     fn from(credential: AwsAccessKeyCredential) -> Self {
-        models::AwsAccessKeyCredential {
+        Self {
             aws_access_key_id: credential.aws_access_key_id,
             aws_secret_access_key: credential.aws_secret_access_key,
         }
@@ -49,7 +49,7 @@ impl From<AwsAccessKeyCredential> for models::AwsAccessKeyCredential {
 }
 impl From<models::AwsAccessKeyCredential> for AwsAccessKeyCredential {
     fn from(credential: models::AwsAccessKeyCredential) -> Self {
-        AwsAccessKeyCredential {
+        Self {
             aws_access_key_id: credential.aws_access_key_id,
             aws_secret_access_key: credential.aws_secret_access_key,
         }
@@ -65,7 +65,7 @@ pub struct AwsRoleCredential {
 
 impl From<AwsRoleCredential> for models::AwsRoleCredential {
     fn from(credential: AwsRoleCredential) -> Self {
-        models::AwsRoleCredential {
+        Self {
             role_arn: credential.role_arn,
             external_id: credential.external_id,
         }
@@ -73,7 +73,7 @@ impl From<AwsRoleCredential> for models::AwsRoleCredential {
 }
 impl From<models::AwsRoleCredential> for AwsRoleCredential {
     fn from(credential: models::AwsRoleCredential) -> Self {
-        AwsRoleCredential {
+        Self {
             role_arn: credential.role_arn,
             external_id: credential.external_id,
         }
@@ -94,9 +94,9 @@ impl From<Credentials> for models::Credentials {
     fn from(credential: Credentials) -> Self {
         match credential {
             Credentials::AccessKey(aws_credential) => {
-                models::Credentials::AccessKey(aws_credential.into())
+                Self::AccessKey(aws_credential.into())
             }
-            Credentials::Role(role_credential) => models::Credentials::Role(role_credential.into()),
+            Credentials::Role(role_credential) => Self::Role(role_credential.into()),
         }
     }
 }
@@ -104,9 +104,9 @@ impl From<models::Credentials> for Credentials {
     fn from(credential: models::Credentials) -> Self {
         match credential {
             models::Credentials::AccessKey(aws_credential) => {
-                Credentials::AccessKey(aws_credential.into())
+                Self::AccessKey(aws_credential.into())
             }
-            models::Credentials::Role(role_credential) => Credentials::Role(role_credential.into()),
+            models::Credentials::Role(role_credential) => Self::Role(role_credential.into()),
         }
     }
 }
@@ -125,7 +125,7 @@ pub struct CreateStorageProfilePayload {
 
 impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
     fn from(payload: CreateStorageProfilePayload) -> Self {
-        models::StorageProfileCreateRequest {
+        Self {
             r#type: payload.provider_type.into(),
             region: payload.region,
             bucket: payload.bucket,
@@ -155,7 +155,7 @@ pub struct StorageProfile {
 
 impl From<models::StorageProfile> for StorageProfile {
     fn from(profile: models::StorageProfile) -> Self {
-        StorageProfile {
+        Self {
             id: profile.id,
             r#type: profile.r#type.into(),
             region: profile.region,
@@ -170,6 +170,7 @@ impl From<models::StorageProfile> for StorageProfile {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -216,7 +217,7 @@ mod tests {
         };
 
         let result = serde_json::to_string(&payload).unwrap();
-        println!("{result}");
+        
         let expected = r#"{"type":"aws","region":"us-west-2","bucket":"my-bucket","credentials":{"credential-type":"access-key","aws-access-key-id":"my-access-key","aws-secret-access-key":"my-secret-access-key"},"sts-role-arn":null,"endpoint":null}"#;
         assert_eq!(result, expected);
     }

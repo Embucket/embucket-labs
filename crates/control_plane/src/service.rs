@@ -1,4 +1,4 @@
-use crate::error::{Error, Result};
+use crate::error::{ControlPlaneError, ControlPlaneResult};
 use crate::models::{ColumnInfo, Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
@@ -28,26 +28,26 @@ use uuid::Uuid;
 
 #[async_trait]
 pub trait ControlService: Send + Sync {
-    async fn create_profile(&self, params: &StorageProfileCreateRequest) -> Result<StorageProfile>;
-    async fn get_profile(&self, id: Uuid) -> Result<StorageProfile>;
-    async fn delete_profile(&self, id: Uuid) -> Result<()>;
-    async fn list_profiles(&self) -> Result<Vec<StorageProfile>>;
-    async fn validate_credentials(&self, profile: &StorageProfile) -> Result<()>;
+    async fn create_profile(&self, params: &StorageProfileCreateRequest) -> ControlPlaneResult<StorageProfile>;
+    async fn get_profile(&self, id: Uuid) -> ControlPlaneResult<StorageProfile>;
+    async fn delete_profile(&self, id: Uuid) -> ControlPlaneResult<()>;
+    async fn list_profiles(&self) -> ControlPlaneResult<Vec<StorageProfile>>;
+    async fn validate_credentials(&self, profile: &StorageProfile) -> ControlPlaneResult<()>;
 
-    async fn create_warehouse(&self, params: &WarehouseCreateRequest) -> Result<Warehouse>;
-    async fn get_warehouse(&self, id: Uuid) -> Result<Warehouse>;
-    async fn delete_warehouse(&self, id: Uuid) -> Result<()>;
-    async fn list_warehouses(&self) -> Result<Vec<Warehouse>>;
+    async fn create_warehouse(&self, params: &WarehouseCreateRequest) -> ControlPlaneResult<Warehouse>;
+    async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse>;
+    async fn delete_warehouse(&self, id: Uuid) -> ControlPlaneResult<()>;
+    async fn list_warehouses(&self) -> ControlPlaneResult<Vec<Warehouse>>;
 
-    // async fn create_database(&self, params: &DatabaseCreateRequest) -> Result<Database>;
-    // async fn get_database(&self, id: Uuid) -> Result<Database>;
-    // async fn delete_database(&self, id: Uuid) -> Result<()>;
-    // async fn list_databases(&self) -> Result<Vec<Database>>;
+    // async fn create_database(&self, params: &DatabaseCreateRequest) -> ControlPlaneResult<Database>;
+    // async fn get_database(&self, id: Uuid) -> ControlPlaneResult<Database>;
+    // async fn delete_database(&self, id: Uuid) -> ControlPlaneResult<()>;
+    // async fn list_databases(&self) -> ControlPlaneResult<Vec<Database>>;
 
-    // async fn create_table(&self, params: &TableCreateRequest) -> Result<Table>;
-    // async fn get_table(&self, id: Uuid) -> Result<Table>;
-    // async fn delete_table(&self, id: Uuid) -> Result<()>;
-    // async fn list_tables(&self) -> Result<Vec<Table>>;
+    // async fn create_table(&self, params: &TableCreateRequest) -> ControlPlaneResult<Table>;
+    // async fn get_table(&self, id: Uuid) -> ControlPlaneResult<Table>;
+    // async fn delete_table(&self, id: Uuid) -> ControlPlaneResult<()>;
+    // async fn list_tables(&self) -> ControlPlaneResult<Vec<Table>>;
 
     async fn query(
         &self,
@@ -55,7 +55,7 @@ pub trait ControlService: Send + Sync {
         database_name: &str,
         table_name: &str,
         query: &str,
-    ) -> Result<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
+    ) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
 
     async fn query_table(
         &self,
@@ -63,7 +63,7 @@ pub trait ControlService: Send + Sync {
         database_name: &str,
         table_name: &str,
         query: &str,
-    ) -> Result<String>;
+    ) -> ControlPlaneResult<String>;
 
     async fn query_dbt(
         &self,
@@ -71,7 +71,7 @@ pub trait ControlService: Send + Sync {
         database_name: &str,
         table_name: &str,
         query: &str,
-    ) -> Result<(String, Vec<ColumnInfo>)>;
+    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)>;
 
     async fn upload_data_to_table(
         &self,
@@ -80,7 +80,7 @@ pub trait ControlService: Send + Sync {
         table_name: &str,
         data: Bytes,
         file_name: String,
-    ) -> Result<()>;
+    ) -> ControlPlaneResult<()>;
 }
 
 pub struct ControlServiceImpl {
@@ -102,7 +102,7 @@ impl ControlServiceImpl {
 
 #[async_trait]
 impl ControlService for ControlServiceImpl {
-    async fn create_profile(&self, params: &StorageProfileCreateRequest) -> Result<StorageProfile> {
+    async fn create_profile(&self, params: &StorageProfileCreateRequest) -> ControlPlaneResult<StorageProfile> {
         let profile = params.try_into()
             .context(crate::error::InvalidStorageProfileSnafu)?;
 
@@ -114,23 +114,23 @@ impl ControlService for ControlServiceImpl {
         Ok(profile)
     }
 
-    async fn get_profile(&self, id: Uuid) -> Result<StorageProfile> {
+    async fn get_profile(&self, id: Uuid) -> ControlPlaneResult<StorageProfile> {
         self.storage_profile_repo.get(id).await
     }
 
-    async fn delete_profile(&self, id: Uuid) -> Result<()> {
+    async fn delete_profile(&self, id: Uuid) -> ControlPlaneResult<()> {
         let wh = self.list_warehouses().await?;
         if wh.iter().any(|wh| wh.storage_profile_id == id) {
-            return Err(Error::StorageProfileInUse { id });
+            return Err(ControlPlaneError::StorageProfileInUse { id });
         }
         self.storage_profile_repo.delete(id).await
     }
 
-    async fn list_profiles(&self) -> Result<Vec<StorageProfile>> {
+    async fn list_profiles(&self) -> ControlPlaneResult<Vec<StorageProfile>> {
         self.storage_profile_repo.list().await
     }
 
-    async fn validate_credentials(&self, profile: &StorageProfile) -> Result<()> {
+    async fn validate_credentials(&self, profile: &StorageProfile) -> ControlPlaneResult<()> {
         match profile.credentials.clone() {
             Credentials::AccessKey(creds) => {
                 let profile_region = profile.region.clone();
@@ -158,12 +158,12 @@ impl ControlService for ControlServiceImpl {
                 Ok(())
             }
             Credentials::Role(_) => { 
-                Err(crate::error::Error::UnsupportedAuthenticationMethod { method: profile.credentials.to_string() })
+                Err(ControlPlaneError::UnsupportedAuthenticationMethod { method: profile.credentials.to_string() })
             }
         }
     }
 
-    async fn create_warehouse(&self, params: &WarehouseCreateRequest) -> Result<Warehouse> {
+    async fn create_warehouse(&self, params: &WarehouseCreateRequest) -> ControlPlaneResult<Warehouse> {
         // TODO: Check if storage profile exists
         // - Check if its valid
         // - Generate id, update created_at and updated_at
@@ -174,17 +174,17 @@ impl ControlService for ControlServiceImpl {
         Ok(wh)
     }
 
-    async fn get_warehouse(&self, id: Uuid) -> Result<Warehouse> {
+    async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
         self.warehouse_repo.get(id).await
     }
 
-    async fn delete_warehouse(&self, id: Uuid) -> Result<()> {
+    async fn delete_warehouse(&self, id: Uuid) -> ControlPlaneResult<()> {
         // let db = self.list_databases().await?;
         // db.iter().filter(|db| db.warehouse_id == id).next().ok_or(Error::NotEmpty("Warehouse is in use".to_string()))?;
         self.warehouse_repo.delete(id).await
     }
 
-    async fn list_warehouses(&self) -> Result<Vec<Warehouse>> {
+    async fn list_warehouses(&self) -> ControlPlaneResult<Vec<Warehouse>> {
         self.warehouse_repo.list().await
     }
 
@@ -195,7 +195,7 @@ impl ControlService for ControlServiceImpl {
         _database_name: &str,
         _table_name: &str,
         query: &str,
-    ) -> Result<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
+    ) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
         let warehouse = self.get_warehouse(*warehouse_id).await?;
         let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
 
@@ -241,7 +241,7 @@ impl ControlService for ControlServiceImpl {
         database_name: &str,
         _table_name: &str,
         query: &str,
-    ) -> Result<String> {
+    ) -> ControlPlaneResult<String> {
         let (records, _) = self
             .query(warehouse_id, database_name, _table_name, query)
             .await?;
@@ -268,7 +268,7 @@ impl ControlService for ControlServiceImpl {
         database_name: &str,
         _table_name: &str,
         query: &str,
-    ) -> Result<(String, Vec<ColumnInfo>)> {
+    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)> {
         let (records, columns) = self
             .query(warehouse_id, database_name, _table_name, query)
             .await?;
@@ -329,7 +329,7 @@ impl ControlService for ControlServiceImpl {
         table_name: &str,
         data: Bytes,
         file_name: String,
-    ) -> Result<()> {
+    ) -> ControlPlaneResult<()> {
         //println!("{:?}", warehouse_id);
 
         let warehouse = self.get_warehouse(*warehouse_id).await?;
@@ -351,7 +351,7 @@ impl ControlService for ControlServiceImpl {
 
         let ctx = SessionContext::new();
 
-        let storage_endpoint_url = storage_profile.endpoint.as_ref().ok_or(crate::error::Error::MissingStorageEndpointURL)?;
+        let storage_endpoint_url = storage_profile.endpoint.as_ref().ok_or(ControlPlaneError::MissingStorageEndpointURL)?;
 
         let path_string = match &storage_profile.credentials {
             Credentials::AccessKey(_) => {
@@ -468,7 +468,7 @@ impl ControlService for ControlServiceImpl {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::error::Error;
+    use crate::error::ControlPlaneError;
     use crate::models::{
         AwsAccessKeyCredential, CloudProvider, Credentials, StorageProfileCreateRequest,
     };
@@ -488,7 +488,7 @@ mod tests {
         };
 
         let err = service.create_warehouse(&request).await;
-        assert!(matches!(err, Err(Error::WarehouseNotFound { id: _ })));
+        assert!(matches!(err, Err(ControlPlaneError::WarehouseNotFound { id: _ })));
     }
 
     #[tokio::test]
@@ -521,6 +521,6 @@ mod tests {
             .delete_profile(wh.storage_profile_id)
             .await
             .unwrap_err();
-        assert!(matches!(result, Error::WarehouseNotEmpty { id:_ }));
+        assert!(matches!(result, ControlPlaneError::WarehouseNotEmpty { id:_ }));
     }
 }

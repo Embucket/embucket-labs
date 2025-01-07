@@ -10,8 +10,8 @@ pub enum CatalogError {
     #[snafu(display("Object store error: {source}"))]
     ObjectStore { source: object_store::Error },
 
-    #[snafu(display("Model error: {source}"))]
-    Model { source: control_plane::models::ControlPlaneModelError },
+    #[snafu(display("Control plane error: {source}"))]
+    ControlPlane { source: control_plane::models::ControlPlaneModelError },
 
     #[snafu(display("Namespace already exists: {key}"))]
     NamespaceAlreadyExists { key: String },
