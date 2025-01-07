@@ -13,24 +13,15 @@ use datafusion::catalog_common::{ResolvedTableReference, TableReference};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::common::{plan_datafusion_err, Result};
 use datafusion::datasource::default_table_source::provider_as_source;
-use datafusion::error::DataFusionError;
 use datafusion::execution::context::SessionContext;
-use datafusion::logical_expr::sqlparser::ast::{CreateTable, Insert};
+use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::{LogicalPlan, ScalarUDF};
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
-use datafusion::sql::sqlparser::ast::{
-    CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
-    TableFactor, TableWithJoins,
-};
+use datafusion::sql::sqlparser::ast::{CreateTable as CreateTableStatement, Expr, FileFormat, Ident, ObjectName, Query, SchemaName, Statement, TableFactor, TableWithJoins};
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::iceberg_transform;
-use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
-use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
-use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::namespace::Namespace;
-use iceberg_rust::spec::schema::Schema;
-use iceberg_rust::spec::types::StructType;
 use regex;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -62,10 +53,8 @@ impl SqlExecutor {
 
         match statement {
             DFStatement::Statement(s) => match *s {
-                Statement::CreateTable(create_table_statement) => {
-                    return self
-                        .create_external_table_query(create_table_statement, warehouse)
-                        .await;
+                Statement::CreateTable { .. } => {
+                    return self.create_table_query(*s, warehouse).await;
                 }
                 Statement::CreateSchema { schema_name, .. } => {
                     return self.create_schema(schema_name, warehouse).await;
@@ -119,12 +108,11 @@ impl SqlExecutor {
             // Get database identifier from warehouse.db.schema.table_name
             let new_table_db = &ident[1..ident.len() - 1];
             let new_table_name = ident.last().unwrap().clone();
-            let location = create_table_statement.location.clone();
-            let transient = create_table_statement.transient;
+            let location = warehouse.location.clone();
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
-            let modified_statement = CreateTableStatement {
+            let mut modified_statement = CreateTableStatement {
                 name: ObjectName {
                     0: vec![new_table_name.clone()],
                 },
@@ -132,141 +120,44 @@ impl SqlExecutor {
                 ..create_table_statement
             };
             let updated_query = modified_statement.to_string();
-
-            // Get schema of new table
+            // Create InMemory table
             let plan = self
                 .get_custom_logical_plan(&updated_query, warehouse_name)
                 .await?;
-            self.ctx
-                .execute_logical_plan(plan.clone())
-                .await?
-                .collect()
-                .await?;
-            let fields_with_ids = StructType::try_from(&new_fields_with_ids(
-                plan.schema().columns().as_arrow().fields(),
-                &mut 0,
-            ))
-                .map_err(|err| DataFusionError::External(Box::new(err)))?;
-            let schema = Schema::builder()
-                .with_schema_id(0)
-                .with_identifier_field_ids(vec![])
-                .with_fields(fields_with_ids)
-                .build()
-                .unwrap();
+            self.ctx.execute_logical_plan(plan.clone()).await?.collect().await?;
 
-            // Check if it already exists, if it is - drop it
-            // For now we behave as CREATE OR REPLACE
-            // TODO support CREATE without REPLACE
-            let catalog = self.ctx.catalog(warehouse_name).unwrap();
-            let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().unwrap();
-            let rest_catalog = iceberg_catalog.catalog();
-            let new_table_ident = Identifier::new(
-                &new_table_db
-                    .into_iter()
-                    .map(|v| v.value.clone())
-                    .collect::<Vec<String>>(),
-                &new_table_name.value,
-            );
-            match rest_catalog.tabular_exists(&new_table_ident).await {
-                Ok(true) => {
-                    rest_catalog.drop_table(&new_table_ident).await.unwrap();
-                }
-                Ok(false) => {}
-                Err(_) => {}
-            };
-            // Create new table
-            rest_catalog
-                .create_table(
-                    new_table_ident.clone(),
-                    CreateTableCatalog {
-                        name: new_table_name.value.clone(),
-                        location,
-                        schema,
-                        partition_spec: None,
-                        write_order: None,
-                        stage_create: None,
-                        properties: None,
-                    },
-                )
-                .await
-                .unwrap();
+            // Create External table
+            // modified_statement.query = None;
+            // modified_statement.columns = plan.schema().columns();
+            modified_statement.name = ObjectName(ident);
+            modified_statement.external = true;
+            modified_statement.location = Some(location);
+            modified_statement.or_replace = false;
+            modified_statement.file_format = Option::from(FileFormat::PARQUET);
+            modified_statement.
 
-            // we don't need physical table for transient tables
-            // if !transient {
-            // Copy data from InMemory table to created table
+            let external_table_query = modified_statement.to_string();
+            println!("External table query: {:?}", external_table_query);
+            let external_table_plan = self.get_custom_logical_plan(&external_table_query, warehouse_name).await?;
+            let transformed = external_table_plan.transform(iceberg_transform).data()?;
+            self.ctx.execute_logical_plan(transformed).await?.collect().await?;
+
+            // Insert data to External table
             let insert_query =
                 format!("INSERT INTO {new_table_full_name} SELECT * FROM {new_table_name}");
             let result = self
                 .execute_with_custom_plan(&insert_query, warehouse)
                 .await?;
-            // self.ctx.sql(&insert_query).await?.collect().await?;
+
             // Drop InMemory table
             let drop_query = format!("DROP TABLE {new_table_name}");
             self.ctx.sql(&drop_query).await?.collect().await?;
-            Ok(result)
-            // }
-            // Ok(created_entity_response())
+            Ok(created_entity_response())
         } else {
             Err(datafusion::error::DataFusionError::NotImplemented(
                 "Only CREATE TABLE statements are supported".to_string(),
             ))
         }
-    }
-
-    pub async fn create_external_table_query(
-        &self,
-        statement: CreateTable,
-        warehouse: &Warehouse,
-    ) -> Result<Vec<RecordBatch>> {
-        println!("raw statement: {:?}", statement);
-        let initial_statement = statement.clone();
-        let warehouse_name = &*warehouse.name;
-        let mut new_table_full_name = statement.name.to_string();
-        let mut ident = statement.name.0;
-        if !new_table_full_name.starts_with(warehouse_name) {
-            new_table_full_name = format!("{}.{}", warehouse_name, new_table_full_name);
-            ident.insert(0, Ident::new(warehouse_name));
-        }
-        let _new_table_wh_id = ident[0].clone();
-        let new_table_name = ident.last().unwrap().clone();
-
-        let modified_statement = CreateExternalTable {
-            name: ObjectName(ident),
-            location: format!("{}/{}", warehouse.location, new_table_name),
-            file_type: "iceberg".to_string(),
-            table_partition_cols: vec![],
-            if_not_exists: statement.if_not_exists,
-            temporary: statement.temporary,
-            order_exprs: vec![],
-            unbounded: false,
-            options: vec![],
-            constraints: statement.constraints,
-            columns: statement.columns,
-        };
-
-        let ctx_provider = CustomContextProvider {
-            state: &self.ctx.state(),
-            tables: HashMap::new(),
-        };
-        let updated_statement = self.update_statement_references(
-            DFStatement::CreateExternalTable(modified_statement),
-            warehouse_name,
-        );
-        println!("updated_statement: {:?}", updated_statement);
-
-        // println!("Tables: {:?}", ctx_provider.tables.keys());
-        let planner = ExtendedSqlToRel::new(&ctx_provider);
-        let initial_plan = planner.statement_to_plan(DFStatement::Statement(
-            Box::from(Statement::CreateTable(initial_statement))))?;
-        let plan = planner.statement_to_plan(updated_statement)?;
-        let transformed = plan.transform(iceberg_transform).data()?;
-
-        self.ctx
-            .execute_logical_plan(transformed)
-            .await?
-            .collect()
-            .await?;
-        Ok(created_entity_response())
     }
 
     pub async fn create_schema(
@@ -316,6 +207,7 @@ impl SqlExecutor {
         println!("raw query: {:?}", statement.to_string());
         statement = self.update_statement_references(statement, warehouse_name);
         println!("modified query: {:?}", statement.to_string());
+        println!("modified statement: {:?}", statement);
 
         let mut ctx_provider = CustomContextProvider {
             state: &state,
@@ -408,7 +300,8 @@ impl SqlExecutor {
     ) -> DFStatement {
         match statement.clone() {
             DFStatement::CreateExternalTable(create_external) => {
-                let table_name = self.compress_database_name(create_external.name.0, warehouse_name);
+                let table_name =
+                    self.compress_database_name(create_external.name.0, warehouse_name);
                 let modified_statement = CreateExternalTable {
                     name: ObjectName(table_name),
                     ..create_external
@@ -463,9 +356,9 @@ impl SqlExecutor {
                         statement
                     }
                 }
-                _ => statement
-            }
-            _ => statement
+                _ => statement,
+            },
+            _ => statement,
         }
     }
 

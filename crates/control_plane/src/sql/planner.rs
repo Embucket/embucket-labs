@@ -220,7 +220,7 @@ where
                 schema: df_schema,
                 name,
                 location,
-                file_type,
+                file_type: "ICEBERG".to_string(),
                 table_partition_cols,
                 if_not_exists,
                 temporary,
@@ -791,4 +791,3 @@ pub fn normalize_ident(id: Ident) -> String {
         None => id.value.to_ascii_lowercase(),
     }
 }
-
