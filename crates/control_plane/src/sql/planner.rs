@@ -21,6 +21,7 @@ use arrow::datatypes::{
 };
 use datafusion::catalog_common::TableReference;
 use datafusion::common::error::_plan_err;
+use datafusion::common::parsers::CompressionTypeVariant;
 use datafusion::common::{
     not_impl_err, plan_datafusion_err, plan_err, Constraint, Constraints, DFSchema, DFSchemaRef,
     ToDFSchema,
@@ -28,18 +29,24 @@ use datafusion::common::{
 use datafusion::common::{DataFusionError, Result, SchemaError};
 use datafusion::logical_expr::sqlparser::ast;
 use datafusion::logical_expr::sqlparser::ast::{
-    ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, ObjectName, TableConstraint,
+    ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, ObjectName, TableConstraint, Value,
 };
-use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
+use datafusion::logical_expr::{
+    CreateExternalTable as PlanCreateExternalTable, CreateMemoryTable, DdlStatement, EmptyRelation,
+    LogicalPlan,
+};
 use datafusion::prelude::*;
-use datafusion::sql::parser::{DFParser, Statement as DFStatement};
+use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{
     object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel,
+    ValueNormalizer,
 };
 use datafusion::sql::sqlparser::ast::{
     ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement,
     DataType as SQLDataType, Statement, TimezoneInfo,
 };
+use datafusion::sql::sqlparser::parser::ParserError;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct ExtendedSqlToRel<'a, S>
@@ -48,7 +55,8 @@ where
 {
     inner: SqlToRel<'a, S>, // The wrapped type
     provider: &'a S,
-    normalizer: IdentNormalizer,
+    ident_normalizer: IdentNormalizer,
+    value_normalizer: ValueNormalizer,
 }
 
 impl<'a, S> ExtendedSqlToRel<'a, S>
@@ -60,7 +68,16 @@ where
         Self {
             inner: SqlToRel::new(provider),
             provider,
-            normalizer: Default::default(),
+            ident_normalizer: Default::default(),
+            value_normalizer: Default::default(),
+        }
+    }
+
+    pub fn statement_to_plan(&self, statement: DFStatement) -> Result<LogicalPlan> {
+        match statement {
+            DFStatement::CreateExternalTable(s) => self.external_table_to_plan(s),
+            DFStatement::Statement(s) => self.sql_statement_to_plan(*s),
+            _ => self.inner.statement_to_plan(statement),
         }
     }
 
@@ -138,6 +155,85 @@ where
         }
     }
 
+    pub fn external_table_to_plan(&self, statement: CreateExternalTable) -> Result<LogicalPlan> {
+        let definition = Some(statement.to_string());
+        let CreateExternalTable {
+            name,
+            columns,
+            file_type,
+            location,
+            table_partition_cols,
+            if_not_exists,
+            temporary,
+            order_exprs,
+            unbounded,
+            options,
+            constraints,
+        } = statement;
+
+        // Merge inline constraints and existing constraints
+        let mut all_constraints = constraints;
+        let inline_constraints = calc_inline_constraints_from_columns(&columns);
+        all_constraints.extend(inline_constraints);
+
+        let options_map = self.parse_options_map(options, false)?;
+
+        let compression = options_map
+            .get("format.compression")
+            .map(|c| {
+                match c.to_uppercase().as_str() {
+                    "GZIP" | "GZ" => Ok(CompressionTypeVariant::GZIP),
+                    "BZIP2" | "BZ2" => Ok(CompressionTypeVariant::BZIP2),
+                    "XZ" => Ok(CompressionTypeVariant::XZ),
+                    "ZST" | "ZSTD" => Ok(CompressionTypeVariant::ZSTD),
+                    "" | "UNCOMPRESSED" => Ok(CompressionTypeVariant::UNCOMPRESSED),
+                    _ => Err(ParserError::ParserError(format!(
+                        "Unsupported file compression type {c}"
+                    ))),
+                }
+            })
+            .transpose()?;
+        if (file_type == "PARQUET" || file_type == "AVRO" || file_type == "ARROW")
+            && compression
+            .map(|c| c != CompressionTypeVariant::UNCOMPRESSED)
+            .unwrap_or(false)
+        {
+            plan_err!("File compression type cannot be set for PARQUET, AVRO, or ARROW files.")?;
+        }
+
+        let mut planner_context = PlannerContext::new();
+
+        let column_defaults = self
+            .build_column_defaults(&columns, &mut planner_context)?
+            .into_iter()
+            .collect();
+
+        let schema = self.build_schema(columns)?;
+        let df_schema = schema.to_dfschema_ref()?;
+        df_schema.check_names()?;
+
+        let name = object_name_to_table_reference(name, true)?;
+        let constraints =
+            Self::new_constraint_from_table_constraints(&all_constraints, &df_schema)?;
+        Ok(LogicalPlan::Ddl(DdlStatement::CreateExternalTable(
+            PlanCreateExternalTable {
+                schema: df_schema,
+                name,
+                location,
+                file_type,
+                table_partition_cols,
+                if_not_exists,
+                temporary,
+                definition,
+                order_exprs: vec![],
+                unbounded,
+                options: options_map,
+                constraints,
+                column_defaults,
+            },
+        )))
+    }
+
     /// Returns a vector of (column_name, default_expr) pairs
     pub fn build_column_defaults(
         &self,
@@ -166,8 +262,10 @@ where
                     .inner
                     .sql_to_expr(default_sql_expr.clone(), &empty_schema, planner_context)
                     .map_err(error_desc)?;
-                column_defaults
-                    .push((self.normalizer.normalize(column.name.clone()), default_expr));
+                column_defaults.push((
+                    self.ident_normalizer.normalize(column.name.clone()),
+                    default_expr,
+                ));
             }
         }
         Ok(column_defaults)
@@ -183,7 +281,7 @@ where
                 .iter()
                 .any(|x| x.option == ColumnOption::NotNull);
             let mut field = Field::new(
-                self.normalizer.normalize(column.name),
+                self.ident_normalizer.normalize(column.name),
                 data_type,
                 !not_nullable,
             );
@@ -293,7 +391,7 @@ where
                             None => Ident::new(format!("c{idx}"))
                         };
                         Ok(Arc::new(Field::new(
-                            self.normalizer.normalize(field_name),
+                            self.ident_normalizer.normalize(field_name),
                             data_type,
                             true,
                         )))
@@ -546,12 +644,7 @@ where
         };
 
         let statement = DFParser::parse_sql(&query.as_str())?.pop_front().unwrap();
-
-        if let DFStatement::Statement(s) = statement {
-            self.sql_statement_to_plan(*s)
-        } else {
-            plan_err!("Failed to parse SQL statement")
-        }
+        self.statement_to_plan(statement)
     }
 
     fn has_table(&self, schema: &str, table: &str) -> bool {
@@ -560,6 +653,35 @@ where
             table: table.into(),
         };
         self.provider.get_table_source(tables_reference).is_ok()
+    }
+
+    fn parse_options_map(
+        &self,
+        options: Vec<(String, Value)>,
+        allow_duplicates: bool,
+    ) -> Result<HashMap<String, String>> {
+        let mut options_map = HashMap::new();
+        for (key, value) in options {
+            if !allow_duplicates && options_map.contains_key(&key) {
+                return plan_err!("Option {key} is specified multiple times");
+            }
+
+            let Some(value_string) = self.value_normalizer.normalize(value.clone()) else {
+                return plan_err!("Unsupported Value {}", value);
+            };
+
+            if !(&key.contains('.')) {
+                // If config does not belong to any namespace, assume it is
+                // a format option and apply the format prefix for backwards
+                // compatibility.
+                let renamed_key = format!("format.{}", key);
+                options_map.insert(renamed_key.to_lowercase(), value_string);
+            } else {
+                options_map.insert(key.to_lowercase(), value_string);
+            }
+        }
+
+        Ok(options_map)
     }
 }
 
@@ -669,3 +791,4 @@ pub fn normalize_ident(id: Ident) -> String {
         None => id.value.to_ascii_lowercase(),
     }
 }
+

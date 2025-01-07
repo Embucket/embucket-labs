@@ -10,7 +10,6 @@ use arrow_json::WriterBuilder;
 use async_trait::async_trait;
 use base64::Engine;
 use bytes::Bytes;
-use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion::execution::context::SessionContext;
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{CsvReadOptions, SessionConfig};
@@ -18,12 +17,13 @@ use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use iceberg_rest_catalog::apis::configuration::Configuration;
 use iceberg_rest_catalog::catalog::RestCatalog;
-use object_store::local::LocalFileSystem;
+use icelake::TableIdentifier;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
+use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
@@ -232,7 +232,7 @@ impl ControlService for ControlServiceImpl {
         }
 
         let records: Vec<RecordBatch> = SqlExecutor::new(ctx)
-            .query(query, &catalog_name.clone().to_string())
+            .query(query, &warehouse)
             .await?
             .into_iter()
             .collect::<Vec<_>>();
@@ -373,105 +373,105 @@ impl ControlService for ControlServiceImpl {
         // Commented code is writing with iceberg-rust-jankaul
         // Let it sit here just in case
         //////////////////////////////////////
-
-        let config = {
-            let mut config = Configuration::new();
-            config.base_path = "http://0.0.0.0:3000/catalog".to_string();
-            config
-        };
-        let rest_client = RestCatalog::new(
-            Some(warehouse_id.to_string().as_str()),
-            config,
-            storage_profile.get_object_store_builder(),
-        );
-        let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
-        let ctx = SessionContext::new();
-        let catalog_name = warehouse.name.clone();
-        ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
-
-        // register a local file system object store for /tmp directory
-        // create partitioned input file and context
-        let local = Arc::new(LocalFileSystem::new_with_prefix("").unwrap());
-        let local_url = Url::parse("file://").unwrap();
-        ctx.register_object_store(&local_url, local);
-
-        let provider = ctx.catalog(catalog_name.clone().as_str()).unwrap();
-        let table = provider.schema(database_name).unwrap().table(table_name).await?;
-        let table_schema = table.unwrap().schema();
-        let df = ctx
-            .read_csv(path_string.clone(), CsvReadOptions::new().schema(&*table_schema))
-            .await?;
-        let data = df.collect().await?;
-
-
-        let input = ctx.read_batches(data)?;
-        input.write_table(format!("{catalog_name}.{database_name}.{table_name}").as_str(),
-                          DataFrameWriteOptions::default()).await?;
-        Ok(())
-
-        //////////////////////////////////////
         //
         // let config = {
-        //     HashMap::from([
-        //         ("iceberg.catalog.type".to_string(), "rest".to_string()),
-        //         (
-        //             "iceberg.catalog.demo.warehouse".to_string(),
-        //             warehouse_id.to_string(),
-        //         ),
-        //         ("iceberg.catalog.name".to_string(), "demo".to_string()),
-        //         (
-        //             "iceberg.catalog.demo.uri".to_string(),
-        //             "http://0.0.0.0:3000/catalog".to_string(),
-        //         ),
-        //         (
-        //             "iceberg.table.io.region".to_string(),
-        //             storage_profile.region.to_string(),
-        //         ),
-        //         (
-        //             "iceberg.table.io.endpoint".to_string(),
-        //             storage_profile.endpoint.unwrap().to_string(),
-        //         ),
-        //         // (
-        //         //     "iceberg.table.io.bucket".to_string(),
-        //         //     "examples".to_string(),
-        //         // ),
-        //         // (
-        //         //     "iceberg.table.io.access_key_id".to_string(),
-        //         //     "minioadmin".to_string(),
-        //         // ),
-        //         // (
-        //         //     "iceberg.table.io.secret_access_key".to_string(),
-        //         //     "minioadmin".to_string(),
-        //         // ),
-        //     ])
+        //     let mut config = Configuration::new();
+        //     config.base_path = "http://0.0.0.0:3000/catalog".to_string();
+        //     config
         // };
-        // let catalog = icelake::catalog::load_catalog(&config).await?;
-        // let table_ident = TableIdentifier::new(vec![database_name, table_name])?;
-        // let mut table = catalog.load_table(&table_ident).await?;
-        // let table_schema = table.current_arrow_schema()?;
-        // println!("{:?}", table.table_name());
+        // let rest_client = RestCatalog::new(
+        //     Some(warehouse_id.to_string().as_str()),
+        //     config,
+        //     storage_profile.get_object_store_builder(),
+        // );
+        // let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
+        // let ctx = SessionContext::new();
+        // let catalog_name = warehouse.name.clone();
+        // ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
         //
+        // // register a local file system object store for /tmp directory
+        // // create partitioned input file and context
+        // let local = Arc::new(LocalFileSystem::new_with_prefix("").unwrap());
+        // let local_url = Url::parse("file://").unwrap();
+        // ctx.register_object_store(&local_url, local);
+        //
+        // let provider = ctx.catalog(catalog_name.clone().as_str()).unwrap();
+        // let table = provider.schema(database_name).unwrap().table(table_name).await?;
+        // let table_schema = table.unwrap().schema();
         // let df = ctx
-        //     .read_csv(path_string, CsvReadOptions::new().schema(&*table_schema))
+        //     .read_csv(path_string.clone(), CsvReadOptions::new().schema(&*table_schema))
         //     .await?;
         // let data = df.collect().await?;
         //
-        // let builder = table.writer_builder()?.rolling_writer_builder(None)?;
-        // let mut writer = table
-        //     .writer_builder()?
-        //     .build_append_only_writer(builder)
-        //     .await?;
         //
-        // for r in data {
-        //     writer.write(&r).await?;
-        // }
-        //
-        // let res: Vec<icelake::types::DataFile> = writer.close().await?;
-        // let mut txn = icelake::transaction::Transaction::new(&mut table);
-        // txn.append_data_file(res);
-        // txn.commit().await?;
-        //
+        // let input = ctx.read_batches(data)?;
+        // input.write_table(format!("{catalog_name}.{database_name}.{table_name}").as_str(),
+        //                   DataFrameWriteOptions::default()).await?;
         // Ok(())
+
+        //////////////////////////////////////
+
+        let config = {
+            HashMap::from([
+                ("iceberg.catalog.type".to_string(), "rest".to_string()),
+                (
+                    "iceberg.catalog.demo.warehouse".to_string(),
+                    warehouse_id.to_string(),
+                ),
+                ("iceberg.catalog.name".to_string(), "demo".to_string()),
+                (
+                    "iceberg.catalog.demo.uri".to_string(),
+                    "http://0.0.0.0:3000/catalog".to_string(),
+                ),
+                (
+                    "iceberg.table.io.region".to_string(),
+                    storage_profile.region.to_string(),
+                ),
+                (
+                    "iceberg.table.io.endpoint".to_string(),
+                    storage_profile.endpoint.unwrap().to_string(),
+                ),
+                // (
+                //     "iceberg.table.io.bucket".to_string(),
+                //     "examples".to_string(),
+                // ),
+                // (
+                //     "iceberg.table.io.access_key_id".to_string(),
+                //     "minioadmin".to_string(),
+                // ),
+                // (
+                //     "iceberg.table.io.secret_access_key".to_string(),
+                //     "minioadmin".to_string(),
+                // ),
+            ])
+        };
+        let catalog = icelake::catalog::load_catalog(&config).await?;
+        let table_ident = TableIdentifier::new(vec![database_name, table_name])?;
+        let mut table = catalog.load_table(&table_ident).await?;
+        let table_schema = table.current_arrow_schema()?;
+        println!("{:?}", table.table_name());
+
+        let df = ctx
+            .read_csv(path_string, CsvReadOptions::new().schema(&*table_schema))
+            .await?;
+        let data = df.collect().await?;
+
+        let builder = table.writer_builder()?.rolling_writer_builder(None)?;
+        let mut writer = table
+            .writer_builder()?
+            .build_append_only_writer(builder)
+            .await?;
+
+        for r in data {
+            writer.write(&r).await?;
+        }
+
+        let res: Vec<icelake::types::DataFile> = writer.close().await?;
+        let mut txn = icelake::transaction::Transaction::new(&mut table);
+        txn.append_data_file(res);
+        txn.commit().await?;
+
+        Ok(())
     }
 }
 
