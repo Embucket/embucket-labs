@@ -1,6 +1,6 @@
 use arrow::array::Array;
 use arrow::datatypes::DataType::{Date32, Date64, Int64, Time32, Time64, Timestamp, Utf8};
-use arrow::datatypes::TimeUnit::{Microsecond, Millisecond, Nanosecond, Second};
+use arrow::datatypes::TimeUnit::{self, Microsecond, Millisecond, Nanosecond, Second};
 use arrow::datatypes::{DataType, Fields};
 use datafusion::common::{plan_err, Result};
 use datafusion::logical_expr::TypeSignature::{Exact, Any as TSAny};
@@ -143,29 +143,39 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                         // if target_tz == **tz {
                         //     return plan_err!("Timezones are the same")
                         // }
-                        let data = ScalarValue::TimestampSecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str()))).cast_to(&Utf8)?;
+                        let data = ScalarValue::TimestampSecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))
+                            .cast_to(&Utf8)?;
                         Ok(ColumnarValue::Scalar(data))
                     },
                     ScalarValue::TimestampMillisecond(Some(ts), Some(tz)) => {
                         // if target_tz == **tz {
                         //     return plan_err!("Timezones are the same")
                         // }
-                        let data = ScalarValue::TimestampMillisecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str()))).cast_to(&Utf8)?;
+                        let data = ScalarValue::TimestampMillisecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))
+                            .cast_to(&Utf8)?;
                         Ok(ColumnarValue::Scalar(data))
                     },
                     ScalarValue::TimestampMicrosecond(Some(ts), Some(tz)) => {
                         // if target_tz == **tz {
                         //     return plan_err!("Timezones are the same")
                         // }
-                        let data = ScalarValue::TimestampMicrosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str()))).cast_to(&Utf8)?;
+                        let data = ScalarValue::TimestampMicrosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))
+                            .cast_to(&Utf8)?;
                         Ok(ColumnarValue::Scalar(data))
                     },
                     ScalarValue::TimestampNanosecond(Some(ts), Some(tz)) => {
                         // if target_tz == **tz {
                         //     return plan_err!("Timezones are the same")
                         // }
-                        let data = ScalarValue::TimestampNanosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str()))).cast_to(&Utf8)?;
+                        let data = ScalarValue::TimestampNanosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))
+                            .cast_to(&Utf8)?;
                         Ok(ColumnarValue::Scalar(data))                    
+                    },
+                    ScalarValue::Utf8(Some(val)) => {
+                        let data = ScalarValue::Utf8(Some(val.clone()))
+                            .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(target_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?;
+                        Ok(ColumnarValue::Scalar(data))
                     },
                     _ => {
                         return plan_err!("Invalid source_timestamp_tz type format")
@@ -183,7 +193,8 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                 };
                 let source_timestamp_ntz = match &args[2] {
                     ColumnarValue::Scalar(val) => val.clone(),
-                    _ => return plan_err!("Invalid source_timestamp_ntz type format"),
+                    ColumnarValue::Array(array) => ScalarValue::try_from_array(&array, 0)?,
+                    //_ => return plan_err!("Invalid source_timestamp_ntz type format"),
                 };
 
                 //TODO: unwarp removal
@@ -195,31 +206,57 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                     return plan_err!("No such target_tz timezone");
                 }
                 
-                if target_tz == source_tz {
-                    return plan_err!("Timezones are the same")
-                }
+                // if target_tz == source_tz {
+                //     return plan_err!("Timezones are the same")
+                // }
 
                 match &source_timestamp_ntz {
                     ScalarValue::TimestampSecond(Some(ts), None) => {
-                        let data = ScalarValue::TimestampSecond(Some(*ts), None).cast_to(&Utf8)?;
-                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
-                        Ok(ColumnarValue::Scalar(data))
+                        let modified_timestamp = ScalarValue::TimestampSecond(Some(*ts), None)
+                            .cast_to(&Timestamp(TimeUnit::Second, Some(Arc::from(source_tz.into_boxed_str()))))?                            .cast_to(&Utf8)?
+                            .cast_to(&Utf8)?
+                            .cast_to(&Timestamp(TimeUnit::Second, Some(Arc::from(target_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?;
+
+                        Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
                     ScalarValue::TimestampMillisecond(Some(ts), None) => {
-                        let data = ScalarValue::TimestampMillisecond(Some(*ts), None).cast_to(&Utf8)?;
-                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
-                        Ok(ColumnarValue::Scalar(data))
+                        let modified_timestamp = ScalarValue::TimestampMillisecond(Some(*ts), None)
+                            .cast_to(&Timestamp(TimeUnit::Millisecond, Some(Arc::from(source_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?
+                            .cast_to(&Timestamp(TimeUnit::Millisecond, Some(Arc::from(target_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?;
+
+                        Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
                     ScalarValue::TimestampMicrosecond(Some(ts), None) => {
-                        let data = ScalarValue::TimestampMicrosecond(Some(*ts), None).cast_to(&Utf8)?;
-                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
-                        Ok(ColumnarValue::Scalar(data))
+                        let modified_timestamp = ScalarValue::TimestampMicrosecond(Some(*ts), None)
+                            .cast_to(&Timestamp(TimeUnit::Microsecond, Some(Arc::from(source_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?
+                            .cast_to(&Timestamp(TimeUnit::Microsecond, Some(Arc::from(target_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?;
+
+                        Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
                     ScalarValue::TimestampNanosecond(Some(ts), None) => {
-                        let data = ScalarValue::TimestampNanosecond(Some(*ts), None).cast_to(&Utf8)?;
-                        //TODO: add logic for addring removing time, am i understanding this corectly? we may not need this
-                        Ok(ColumnarValue::Scalar(data))                    
+                        let modified_timestamp = ScalarValue::TimestampNanosecond(Some(*ts), None)
+                            .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(source_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?
+                            .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(target_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?;
+
+                        Ok(ColumnarValue::Scalar(modified_timestamp))                    
                     },
+                    // ScalarValue::Utf8(Some(val)) => {
+                    //     let modified_timestamp = ScalarValue::Utf8(Some(val.clone()))
+                    //         .cast_to(&Timestamp(TimeUnit::Nanosecond, None))?
+                    //         .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(source_tz.into_boxed_str()))))?
+                    //         .cast_to(&Utf8)?
+                    //         .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(target_tz.into_boxed_str()))))?
+                    //         .cast_to(&Utf8)?;
+
+                    //     Ok(ColumnarValue::Scalar(modified_timestamp))
+                    // },
                     _ => {
                         return plan_err!("Invalid source_timestamp_tz type format")
                     }
