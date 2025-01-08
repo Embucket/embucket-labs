@@ -213,7 +213,10 @@ where
     };
 
     if let Ok(body) = std::str::from_utf8(&bytes) {
-        tracing::debug!("{direction} {method} {uri} body = {body:?}");
+        // Skip upload endpoint logs as they can be large
+        if !uri.contains("upload") {
+            tracing::debug!("{direction} {method} {uri} body = {body}");
+        }
     }
 
     Ok(bytes)

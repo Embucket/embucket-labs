@@ -1,14 +1,17 @@
 use crate::models::ColumnInfo;
 use arrow::array::{
-    Array, Int32Array, Int64Array, StructArray, TimestampMicrosecondArray,
-    TimestampMillisecondArray, TimestampNanosecondArray, TimestampSecondArray, UnionArray,
+    Array, StringArray, TimestampMicrosecondArray, TimestampMillisecondArray,
+    TimestampNanosecondArray, TimestampSecondArray, UnionArray,
 };
 use arrow::datatypes::{Field, Schema, TimeUnit};
 use arrow::record_batch::RecordBatch;
+use chrono::{DateTime, Utc};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
 use std::sync::Arc;
+
+const TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H:%M:%S%.9f";
 
 #[must_use] 
 pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, ArrayRef)> {
@@ -83,60 +86,116 @@ pub fn convert_record_batches(
 
 #[allow(clippy::unwrap_used, clippy::as_conversions, clippy::cast_possible_truncation)]
 fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
-    let (epoch, fraction) = match unit {
-        TimeUnit::Second => {
-            let array = column
-                .as_any()
-                .downcast_ref::<TimestampSecondArray>()
-                .unwrap();
-            let epoch: Int64Array = array.clone().unary(|x| x);
-            let fraction: Int32Array = Int32Array::from(vec![0; column.len()]);
-            (epoch, fraction)
-        }
-        TimeUnit::Millisecond => {
-            let array = column
-                .as_any()
-                .downcast_ref::<TimestampMillisecondArray>()
-                .unwrap();
-            let epoch: Int64Array = array.clone().unary(|x| x / 1_000);
-            let fraction: Int32Array = array.clone().unary(|x| (x % 1_000 * 1_000_000) as i32);
-            (epoch, fraction)
-        }
-        TimeUnit::Microsecond => {
-            let array = column
-                .as_any()
-                .downcast_ref::<TimestampMicrosecondArray>()
-                .unwrap();
-            let epoch: Int64Array = array.clone().unary(|x| x / 1_000_000);
-            let fraction: Int32Array = array.clone().unary(|x| (x % 1_000_000 * 1_000) as i32);
-            (epoch, fraction)
-        }
-        TimeUnit::Nanosecond => {
-            let array = column
-                .as_any()
-                .downcast_ref::<TimestampNanosecondArray>()
-                .unwrap();
-            let epoch: Int64Array = array.clone().unary(|x| x / 1_000_000_000);
-            let fraction: Int32Array = array.clone().unary(|x| (x % 1_000_000_000) as i32);
-            (epoch, fraction)
-        }
+    let now = Utc::now();
+    let timestamps: Vec<_> = match unit {
+        TimeUnit::Second => column
+            .as_any()
+            .downcast_ref::<TimestampSecondArray>()
+            .unwrap()
+            .iter()
+            .map(|x| {
+                let ts = DateTime::from_timestamp(x.unwrap_or(now.timestamp()), 0).unwrap();
+                format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
+            })
+            .collect(),
+        TimeUnit::Millisecond => column
+            .as_any()
+            .downcast_ref::<TimestampMillisecondArray>()
+            .unwrap()
+            .iter()
+            .map(|x| {
+                let ts =
+                    DateTime::from_timestamp_millis(x.unwrap_or(now.timestamp_millis())).unwrap();
+                format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
+            })
+            .collect(),
+        TimeUnit::Microsecond => column
+            .as_any()
+            .downcast_ref::<TimestampMicrosecondArray>()
+            .unwrap()
+            .iter()
+            .map(|x| {
+                let ts =
+                    DateTime::from_timestamp_micros(x.unwrap_or(now.timestamp_micros())).unwrap();
+                format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
+            })
+            .collect(),
+        TimeUnit::Nanosecond => column
+            .as_any()
+            .downcast_ref::<TimestampNanosecondArray>()
+            .unwrap()
+            .iter()
+            .map(|x| {
+                let ts =
+                    DateTime::from_timestamp_nanos(x.unwrap_or(now.timestamp_nanos_opt().unwrap()));
+                format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
+            })
+            .collect(),
     };
-
+    // let (epoch, fraction) = match unit {
+    //     TimeUnit::Second => {
+    //         let array = column
+    //             .as_any()
+    //             .downcast_ref::<TimestampSecondArray>()
+    //             .unwrap();
+    //         let epoch: Int64Array = array.iter().map(|x| x.unwrap_or(now)).collect();
+    //         let fraction: Int32Array = Int32Array::from(vec![0; column.len()]);
+    //         (epoch, fraction)
+    //     }
+    //     TimeUnit::Millisecond => {
+    //         let array = column
+    //             .as_any()
+    //             .downcast_ref::<TimestampMillisecondArray>()
+    //             .unwrap();
+    //         let now_millis = now * 1_000;
+    //         let epoch: Int64Array = array.iter().map(|x| x.unwrap_or(now_millis) / 1_000).collect();
+    //         let fraction: Int32Array = array
+    //             .iter()
+    //             .map(|x| (x.unwrap_or(0) % 1_000 * 1_000_000) as i32)
+    //             .collect();
+    //         (epoch, fraction)
+    //     }
+    //     TimeUnit::Microsecond => {
+    //         let array = column
+    //             .as_any()
+    //             .downcast_ref::<TimestampMicrosecondArray>()
+    //             .unwrap();
+    //         let now_micros = now * 1_000_000;
+    //         let epoch: Int64Array = array.iter().map(|x| x.unwrap_or(now_micros) / 1_000_000).collect();
+    //         let fraction: Int32Array = array
+    //             .iter()
+    //             .map(|x| (x.unwrap_or(0) % 1_000_000 * 1_000) as i32)
+    //             .collect();
+    //         (epoch, fraction)
+    //     }
+    //     TimeUnit::Nanosecond => {
+    //         let array = column
+    //             .as_any()
+    //             .downcast_ref::<TimestampNanosecondArray>()
+    //             .unwrap();
+    //         let now_nanos = now * 1_000_000_000;
+    //         let epoch: Int64Array = array.iter().map(|x| x.unwrap_or(now_nanos) / 1_000_000_000).collect();
+    //         let fraction: Int32Array = array
+    //             .iter()
+    //             .map(|x| (x.unwrap_or(0) % 1_000_000_000) as i32)
+    //             .collect();
+    //         (epoch, fraction)
+    //     }
+    // };
+    // let string_values: Vec<_> = epoch.iter().map(|x| x.unwrap_or(0).to_string()).collect();
+    // let string_array = StringArray::from(string_values);
     // let timezone = Int32Array::from(vec![1440; column.len()]); // Assuming UTC timezone
-    let struct_array = StructArray::from(vec![
-        (
-            Arc::new(Field::new("epoch", DataType::Int64, false)),
-            Arc::new(epoch) as ArrayRef,
-        ),
-        (
-            Arc::new(Field::new("fraction", DataType::Int32, false)),
-            Arc::new(fraction) as ArrayRef,
-        ),
-        // (
-        //     Arc::new(Field::new("timezone", DataType::Int32, false)),
-        //     Arc::new(timezone) as ArrayRef,
-        // ),
-    ]);
+    // let struct_array = StructArray::try_new(
+    //     vec![
+    //         Arc::new(Field::new("epoch", DataType::Int64, false)),
+    //         Arc::new(Field::new("fraction", DataType::Int32, false)),
+    //     ]
+    //         .into(),
+    //     vec![Arc::new(epoch) as ArrayRef, Arc::new(fraction) as ArrayRef],
+    //     None,
+    // )
+    //     .unwrap();
+    // Arc::new(epoch) as ArrayRef
 
-    Arc::new(struct_array) as ArrayRef
+    Arc::new(StringArray::from(timestamps)) as ArrayRef
 }

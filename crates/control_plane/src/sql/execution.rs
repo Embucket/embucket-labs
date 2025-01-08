@@ -3,6 +3,10 @@
 
 use crate::models::created_entity_response;
 use crate::sql::context::CustomContextProvider;
+use crate::sql::functions::convert_timezone::ConvertTimezoneFunc;
+use crate::sql::functions::date_add::DateAddFunc;
+use crate::sql::functions::greatest::GreatestFunc;
+use crate::sql::functions::least::LeastFunc;
 use crate::sql::functions::parse_json::ParseJsonFunc;
 use crate::sql::planner::ExtendedSqlToRel;
 use arrow::array::RecordBatch;
@@ -16,8 +20,8 @@ use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::{LogicalPlan, ScalarUDF};
 use datafusion::sql::parser::Statement as DFStatement;
 use datafusion::sql::sqlparser::ast::{
-    CreateTable as CreateTableStatement, Ident, ObjectName, Query, SchemaName, Statement,
-    TableFactor, TableWithJoins,
+    CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName,
+    Statement, TableFactor, TableWithJoins,
 };
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -31,6 +35,8 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
 use super::error::{self as sql_error, SQLResult};
+use datafusion::error::DataFusionError;
+use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 
 pub struct SqlExecutor {
     ctx: SessionContext,
@@ -39,8 +45,12 @@ pub struct SqlExecutor {
 impl SqlExecutor {
     pub fn new(mut ctx: SessionContext) -> SQLResult<Self> {
         ctx.register_udf(ScalarUDF::from(ParseJsonFunc::new()));
-        register_all(&mut ctx).context(sql_error::RegisterUDFJSONSnafu)?;
-        Ok(Self { ctx })
+        ctx.register_udf(ScalarUDF::from(DateAddFunc::new()));
+        ctx.register_udf(ScalarUDF::from(LeastFunc::new()));
+        ctx.register_udf(ScalarUDF::from(GreatestFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ConvertTimezoneFunc::new()));
+        register_all(&mut ctx).expect("Cannot register UDF JSON funcs");
+        Self { ctx }
     }
 
     pub async fn query(&self, query: &str, warehouse_name: &str) -> SQLResult<Vec<RecordBatch>> {
@@ -92,8 +102,13 @@ impl SqlExecutor {
         #[allow(clippy::unwrap_used)]
         // TODO: This regex should be a static allocation
         let re = regex::Regex::new(r"(\w+)\[(\d+)]\.(\w+)").unwrap();
+        let date_add = regex::Regex::new(r"(date|time|timestamp)(_?add)\(\s*([a-zA-Z]+),").unwrap();
+
         let query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
+            .to_string();
+        let query = date_add
+            .replace_all(&query, "$1$2('$3',")
             .to_string();
         // TODO implement alter session logic
         query.replace(
@@ -133,20 +148,20 @@ impl SqlExecutor {
             let updated_query = modified_statement.to_string();
 
             // Get schema of new table
-            let plan = self.get_custom_logical_plan(&updated_query, "").await?;
+            let plan = self.get_custom_logical_plan(&updated_query, warehouse_name).await?;
             self.ctx
                 .execute_logical_plan(plan.clone())
                 .await
                 .context(super::error::DataFusionSnafu)?
                 .collect()
-                .await
-                .context(super::error::DataFusionSnafu)?;
-            #[allow(clippy::unwrap_used)]
-            let fields = StructType::try_from(plan.schema().as_arrow()).unwrap();
+                .await?;
+            let fields_with_ids = StructType::try_from(&new_fields_with_ids(
+                plan.schema().as_arrow().fields(),
+                &mut 0)).map_err(|err| DataFusionError::External(Box::new(err)))?;
             let schema = Schema::builder()
                 .with_schema_id(0)
                 .with_identifier_field_ids(vec![])
-                .with_fields(fields)
+                .with_fields(fields_with_ids)
                 .build()
                 .context(sql_error::SchemaBuilderSnafu)?;
 
@@ -416,6 +431,19 @@ impl SqlExecutor {
                     self.update_tables_in_query(query.as_mut(), warehouse_name);
                     DFStatement::Statement(Box::new(Statement::Query(query)))
                 }
+                Statement::CreateTable(create_table_statement) => {
+                    if create_table_statement.query.is_some() {
+                        let mut query = create_table_statement.query.unwrap().clone();
+                        self.update_tables_in_query(&mut query, warehouse_name);
+                        let modified_statement = CreateTableStatement {
+                            query: Some(query),
+                            ..create_table_statement
+                        };
+                        DFStatement::Statement(Box::new(Statement::CreateTable(modified_statement)))
+                    } else {
+                        statement
+                    }
+                }
                 _ => statement,
             }
         } else {
@@ -462,9 +490,29 @@ impl SqlExecutor {
                 for table_with_joins in &mut select.from {
                     self.update_tables_in_table_with_joins(table_with_joins, warehouse_name);
                 }
+
+                for expr in &mut select.selection {
+                    self.update_tables_in_expr(expr, warehouse_name);
+                }
             }
             datafusion::sql::sqlparser::ast::SetExpr::Query(q) => {
                 self.update_tables_in_query(q, warehouse_name);
+            }
+            _ => {}
+        }
+    }
+
+    fn update_tables_in_expr(&self, expr: &mut Expr, warehouse_name: &str) {
+        match expr {
+            Expr::BinaryOp { left, right, .. } => {
+                self.update_tables_in_expr(left, warehouse_name);
+                self.update_tables_in_expr(right, warehouse_name);
+            }
+            Expr::Subquery(q) => {
+                self.update_tables_in_query(q, warehouse_name);
+            }
+            Expr::Exists { subquery, .. } => {
+                self.update_tables_in_query(subquery, warehouse_name);
             }
             _ => {}
         }
