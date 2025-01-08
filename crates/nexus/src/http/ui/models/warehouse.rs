@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Navigation {
     pub warehouses: Vec<Warehouse>,
@@ -17,12 +17,13 @@ pub struct Navigation {
 
 impl Navigation {
     #[allow(clippy::new_without_default)]
-    pub fn new(warehouses: Vec<Warehouse>) -> Navigation {
-        Navigation { warehouses }
+    #[must_use]
+    pub const fn new(warehouses: Vec<Warehouse>) -> Self {
+        Self { warehouses }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateWarehousePayload {
     #[validate(length(min = 1))]
@@ -34,12 +35,13 @@ pub struct CreateWarehousePayload {
 
 impl CreateWarehousePayload {
     #[allow(clippy::new_without_default)]
-    pub fn new(
+    #[must_use]
+    pub const fn new(
         name: String,
         storage_profile_id: uuid::Uuid,
         key_prefix: String,
-    ) -> CreateWarehousePayload {
-        CreateWarehousePayload {
+    ) -> Self {
+        Self {
             name,
             storage_profile_id,
             key_prefix,
@@ -49,7 +51,7 @@ impl CreateWarehousePayload {
 
 impl From<CreateWarehousePayload> for models::WarehouseCreateRequest {
     fn from(payload: CreateWarehousePayload) -> Self {
-        models::WarehouseCreateRequest {
+        Self {
             prefix: payload.key_prefix,
             name: payload.name,
             storage_profile_id: payload.storage_profile_id,
@@ -57,7 +59,7 @@ impl From<CreateWarehousePayload> for models::WarehouseCreateRequest {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Warehouse {
     pub id: uuid::Uuid,
@@ -81,7 +83,7 @@ pub struct Warehouse {
 
 impl From<control_plane::models::Warehouse> for Warehouse {
     fn from(warehouse: control_plane::models::Warehouse) -> Self {
-        Warehouse {
+        Self {
             id: warehouse.id,
             key_prefix: warehouse.prefix,
             name: warehouse.name,
@@ -89,16 +91,16 @@ impl From<control_plane::models::Warehouse> for Warehouse {
             storage_profile_id: warehouse.storage_profile_id,
             created_at: DateTime::from_naive_utc_and_offset(warehouse.created_at, Utc),
             updated_at: DateTime::from_naive_utc_and_offset(warehouse.updated_at, Utc),
-            storage_profile: Default::default(),
-            statistics: Default::default(),
-            external_id: Default::default(),
+            storage_profile: StorageProfile::default(),
+            statistics: Statistics::default(),
+            external_id: Option::default(),
             compaction_summary: None,
             databases: vec![],
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WarehousesDashboard {
     pub warehouses: Vec<Warehouse>,
@@ -109,8 +111,9 @@ pub struct WarehousesDashboard {
 
 impl WarehousesDashboard {
     #[allow(clippy::new_without_default)]
-    pub fn new(warehouses: Vec<Warehouse>, statistics: Statistics) -> WarehousesDashboard {
-        WarehousesDashboard {
+    #[must_use]
+    pub const fn new(warehouses: Vec<Warehouse>, statistics: Statistics) -> Self {
+        Self {
             warehouses,
             statistics,
             compaction_summary: None,

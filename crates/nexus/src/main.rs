@@ -1,12 +1,9 @@
-use axum::http::Method;
 use axum::{
     body::{Body, Bytes},
     extract::Request,
     http::StatusCode,
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::post,
-    Router,
 };
 use catalog::repository::{DatabaseRepositoryDb, TableRepositoryDb};
 use catalog::service::CatalogImpl;
@@ -144,8 +141,8 @@ async fn main() {
 ///
 /// # Panics
 /// If the function fails to install the signal handler, it will panic.
-#[allow(clippy::expect_used)]
-async fn shutdown_signal(db: Arc<Db>) {
+#[allow(clippy::expect_used, clippy::redundant_pub_crate)]
+async fn shutdown_signal(_db: Arc<Db>) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -164,11 +161,11 @@ async fn shutdown_signal(db: Arc<Db>) {
     let terminate = std::future::pending::<()>();
 
     tokio::select! {
-        _ = ctrl_c => {
+        () = ctrl_c => {
             tracing::warn!("Ctrl+C received, starting graceful shutdown");
             //db.close().await.unwrap();
         },
-        _ = terminate => {
+        () = terminate => {
             tracing::warn!("SIGTERM received, starting graceful shutdown");
             //db.close().await.unwrap();
         },

@@ -82,11 +82,17 @@ pub enum NexusError {
     #[snafu(display("Malformed namespace ident"))]
     MalformedNamespaceIdent { source: iceberg::Error },
 
+    #[snafu(display("Invalid Iceberg snapshot timestamp"))]
+    InvalidIcebergSnapshotTimestamp { source: iceberg::Error },
+
     #[snafu(display("Malformed multipart message"))]
     MalformedMultipart { source: axum::extract::multipart::MultipartError },
 
     #[snafu(display("Malformed file upload request"))]
     MalformedFileUploadRequest,
+
+    #[snafu(display("Failed to parse table metadata"))]
+    ParseTableMetadata { source: Box<dyn std::error::Error + Send + Sync>, field: String },
 }
 
 pub type NexusResult<T> = std::result::Result<T, NexusError>;
@@ -131,7 +137,9 @@ impl IntoResponse for NexusError {
             Self::Query { .. } |
             Self::StorageProfileList { .. } |
             Self::DataUpload { .. } | 
-            Self::WarehouseCreate { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::WarehouseCreate { .. } |
+            Self::InvalidIcebergSnapshotTimestamp { .. } |
+            Self::ParseTableMetadata { .. } => StatusCode::INTERNAL_SERVER_ERROR,
 
             Self::DatabaseAlreadyExists { .. } |
             Self::WarehouseAlreadyExists { .. } => StatusCode::CONFLICT,

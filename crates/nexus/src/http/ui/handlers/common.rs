@@ -1,5 +1,5 @@
 use crate::http::ui::models::database::Database;
-use super::super::models::error::{self as model_error, NexusError, NexusResult};
+use super::super::models::error::{self as model_error, NexusResult};
 use crate::http::ui::models::storage_profile::StorageProfile;
 use crate::http::ui::models::table::{Statistics, Table};
 use crate::http::ui::models::warehouse::Warehouse;
@@ -45,6 +45,7 @@ impl AppState {
             .map(std::convert::Into::into)
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::as_conversions, clippy::cast_possible_wrap)]
     pub async fn list_warehouses(&self) -> NexusResult<Vec<Warehouse>> {
         let warehouses: Vec<Warehouse> = self
             .control_svc
@@ -61,6 +62,7 @@ impl AppState {
 
             let databases = self.list_databases(warehouse.id, profile.clone()).await?;
 
+            
             let mut total_statistics = Statistics {
                 database_count: Some(databases.len() as i32),
                 ..Default::default()
@@ -115,7 +117,7 @@ impl AppState {
             .await
             .context(model_error::TableListSnafu { id: ident.clone() } )?
             .into_iter()
-            .map(|table| table.into())
+            .map(Into::into)
             .collect();
         Ok(tables)
     }
