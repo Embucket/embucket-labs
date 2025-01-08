@@ -56,9 +56,9 @@ pub async fn create_database(
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::from_vec(
-            name.split(".").map(String::from).collect::<Vec<String>>(),
+            name.split('.').map(String::from).collect::<Vec<String>>(),
         )
-        .unwrap(),
+        .context(model_error::MalformedNamespaceIdentSnafu)?,
     };
 
     if databases
@@ -81,7 +81,7 @@ pub async fn create_database(
         .await
         .context(model_error::DatabaseCreateSnafu { ident: ident.clone() })?;
     let mut database: Database = database.into();
-    database.with_details(warehouse_id, profile, vec![]);
+    database.with_details(warehouse_id, &profile, vec![]);
 
     Ok(Json(database))
 }
@@ -109,11 +109,11 @@ pub async fn delete_database(
         warehouse: WarehouseIdent::new(warehouse_id),
         namespace: NamespaceIdent::from_vec(
             database_name
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-        .unwrap(),
+        .context(model_error::MalformedNamespaceIdentSnafu)?,
     };
 
     state
@@ -151,15 +151,15 @@ pub async fn get_database(
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::from_vec(
             database_name
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-        .unwrap(),
+        .context(model_error::MalformedNamespaceIdentSnafu)?,
     };
     let mut database = state.get_database(&ident).await?;
     let tables = state.list_tables(&ident).await?;
 
-    database.with_details(warehouse_id, profile, tables);
+    database.with_details(warehouse_id, &profile, tables);
     Ok(Json(database))
 }

@@ -26,39 +26,12 @@ use tokio::signal;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::Db;
 
-pub mod http {
-    pub mod router;
-
-    pub mod layers;
-    pub mod control {
-        pub mod handlers;
-        pub mod router;
-        pub mod schemas;
-    }
-    pub mod catalog {
-        pub mod handlers;
-        pub mod router;
-        pub mod schemas;
-    }
-
-    pub mod dbt {
-        pub mod handlers;
-        pub mod router;
-        pub mod schemas;
-    }
-
-    pub mod ui {
-        pub mod handlers;
-        pub mod models;
-        pub mod router;
-    }
-
-    pub mod utils;
-}
+pub mod http;
 pub mod error;
 pub mod state;
 
 #[tokio::main]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 async fn main() {
     dotenv().ok();
 
@@ -122,12 +95,11 @@ async fn main() {
 
     let db = {
         let options = DbOptions::default();
-        let db = Arc::new(Db::new(
+        Arc::new(Db::new(
             SlateDb::open_with_opts(Path::from(slatedb_prefix), options, object_store.into())
                 .await
                 .unwrap(),
-        ));
-        db
+        ))
     };
 
     // Initialize the repository and concrete service implementation
@@ -172,6 +144,7 @@ async fn main() {
 ///
 /// # Panics
 /// If the function fails to install the signal handler, it will panic.
+#[allow(clippy::expect_used)]
 async fn shutdown_signal(db: Arc<Db>) {
     let ctrl_c = async {
         signal::ctrl_c()

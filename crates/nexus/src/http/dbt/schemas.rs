@@ -1,9 +1,11 @@
 use control_plane::models::ColumnInfo as ColumnInfoModel;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use snafu::ResultExt;
 use std::collections::HashMap;
+use super::error::{self as dbt_error, DbtResult};
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoginRequestQuery {
     #[serde(rename = "request_id")]
     pub request_id: String,
@@ -17,7 +19,7 @@ pub struct LoginRequestQuery {
     pub role_name: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoginRequestBody {
     pub data: ClientData,
 }
@@ -69,19 +71,20 @@ pub struct QueryRequest {
     pub request_id: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryRequestBody {
     #[serde(rename = "sqlText")]
     pub sql_text: String,
 }
 impl QueryRequestBody {
-    pub fn get_sql_text(&self) -> (HashMap<String, String>, String) {
+    pub fn get_sql_text(&self) -> DbtResult<(HashMap<String, String>, String)> {
         let sql_text = self.sql_text.clone();
-        let comment_end = sql_text.find("*/").map(|i| i + 2).unwrap_or(0);
+        let comment_end = sql_text.find("*/").map_or(0, |i| i + 2);
         let metadata_str = &sql_text[2..comment_end - 2].trim();
-        let metadata: HashMap<String, String> = serde_json::from_str(metadata_str).unwrap();
+        let metadata: HashMap<String, String> = serde_json::from_str(metadata_str)
+            .context(dbt_error::QueryBodyParseSnafu)?;
         let query = sql_text[comment_end..].trim().to_string();
-        (metadata, query)
+        Ok((metadata, query))
     }
 }
 
@@ -109,17 +112,6 @@ pub struct JsonResponse {
     pub success: bool,
     pub message: Option<String>,
     pub code: Option<String>,
-}
-
-impl JsonResponse {
-    pub(crate) fn bad_default(msg: String) -> Self {
-        Self {
-            data: None,
-            success: false,
-            message: Option::from(msg),
-            code: Some(format!("{:06}", 422)),
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

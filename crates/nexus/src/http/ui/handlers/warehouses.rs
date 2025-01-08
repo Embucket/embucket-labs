@@ -65,9 +65,8 @@ pub async fn list_warehouses(
     let mut total_statistics = Statistics::default();
     let dashboards = warehouses
         .into_iter()
-        .map(|warehouse| {
+        .inspect(|warehouse| {
             total_statistics = total_statistics.aggregate(&warehouse.statistics);
-            warehouse
         })
         .collect();
 
@@ -91,6 +90,7 @@ pub async fn list_warehouses(
         (status = 404, description = "Warehouse not found", body = NexusError)
     )
 )]
+#[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::as_conversions)]
 pub async fn get_warehouse(
     State(state): State<AppState>,
     Path(warehouse_id): Path<Uuid>,
@@ -101,12 +101,14 @@ pub async fn get_warehouse(
         .await?;
     let databases = state.list_databases(warehouse_id, profile.clone()).await?;
 
-    let mut total_statistics = Statistics::default();
-    total_statistics.database_count = Some(databases.len() as i32);
-    databases.iter().for_each(|database| {
+    let mut total_statistics = Statistics {
+        database_count: Some(databases.len() as i32),
+        ..Default::default()
+    };
+    for database in &databases {
         let stats = database.clone().statistics;
         total_statistics = total_statistics.aggregate(&stats);
-    });
+    }
     warehouse.storage_profile = profile;
     warehouse.databases = databases;
     warehouse.statistics = total_statistics;

@@ -78,7 +78,7 @@ pub async fn get_storage_profile(
     Path(storage_profile_id): Path<Uuid>,
 ) -> NexusResult<Json<storage_profile::StorageProfile>> {
     let profile = state.get_profile_by_id(storage_profile_id).await?;
-    Ok(Json(profile.into()))
+    Ok(Json(profile))
 }
 
 #[utoipa::path(
@@ -124,5 +124,5 @@ pub async fn list_storage_profiles(
         .list_profiles()
         .await
         .context(model_error::StorageProfileListSnafu)?;
-    Ok(Json(profiles.into_iter().map(|p| p.into()).collect()))
+    Ok(Json(profiles.into_iter().map(Into::into).collect()))
 }

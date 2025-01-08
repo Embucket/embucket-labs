@@ -8,7 +8,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateDatabasePayload {
     pub name: String,
@@ -18,7 +18,8 @@ pub struct CreateDatabasePayload {
 
 impl CreateDatabasePayload {
     #[allow(clippy::new_without_default)]
-    pub fn new(name: String) -> CreateDatabasePayload {
+    #[must_use]
+    pub const fn new(name: String) -> CreateDatabasePayload {
         CreateDatabasePayload {
             name,
             properties: None,
@@ -46,14 +47,14 @@ impl Database {
     pub fn with_details(
         &mut self,
         warehouse_id: Uuid,
-        profile: StorageProfile,
+        profile: &StorageProfile,
         mut tables: Vec<Table>,
     ) {
         self.storage_profile = profile.clone();
 
         let mut total_statistics = Statistics::default();
         tables.iter_mut().for_each(|t| {
-            t.with_details(warehouse_id.clone(), profile.clone(), self.name.clone());
+            t.with_details(warehouse_id, profile.clone(), self.name.clone());
             total_statistics = total_statistics.aggregate(&t.statistics);
         });
         total_statistics.database_count = Some(1);

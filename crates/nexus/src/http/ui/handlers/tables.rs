@@ -79,11 +79,11 @@ pub async fn get_table(
             warehouse: WarehouseIdent::new(warehouse.id),
             namespace: NamespaceIdent::from_vec(
                 database_name
-                    .split(".")
+                    .split('.')
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-            .unwrap(),
+            .context(model_error::MalformedNamespaceIdentSnafu)?,
         },
         table: table_name,
     };
@@ -123,11 +123,11 @@ pub async fn create_table(
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::from_vec(
             database_name
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-        .unwrap(),
+        .context(model_error::MalformedNamespaceIdentSnafu)?,
     };
     let table = state
         .catalog_svc
@@ -142,7 +142,7 @@ pub async fn create_table(
         .context(model_error::TableCreateSnafu)?;
     let mut table: Table = table.into();
     table.with_details(warehouse_id, profile.into(), database_name);
-    Ok(Json(table.into()))
+    Ok(Json(table))
 }
 
 #[utoipa::path(
@@ -176,11 +176,11 @@ pub async fn register_table(
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::from_vec(
             database_name
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-        .unwrap(),
+        .context(model_error::MalformedNamespaceIdentSnafu)?,
     };
     let table = state
         .catalog_svc
@@ -196,7 +196,7 @@ pub async fn register_table(
         .context(model_error::TableRegisterSnafu)?;
     let mut table: Table = table.into();
     table.with_details(warehouse_id, profile.into(), database_name);
-    Ok(Json(table.into()))
+    Ok(Json(table))
 }
 
 #[utoipa::path(
@@ -224,11 +224,11 @@ pub async fn delete_table(
             warehouse: WarehouseIdent::new(warehouse.id),
             namespace: NamespaceIdent::from_vec(
                 database_name
-                    .split(".")
+                    .split('.')
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-            .unwrap(),
+            .context(model_error::MalformedNamespaceIdentSnafu)?,
         },
         table: table_name,
     };
@@ -263,7 +263,7 @@ pub async fn query_table(
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
     Json(payload): Json<TableQueryRequest>,
 ) -> NexusResult<Json<TableQueryResponse>> {
-    let request: TableQueryRequest = payload.into();
+    let request: TableQueryRequest = payload;
     let start = Instant::now();
     let result = state
         .control_svc
@@ -273,7 +273,7 @@ pub async fn query_table(
     let duration = start.elapsed();
     Ok(Json(TableQueryResponse {
         query: request.query.clone(),
-        result: result.to_string(),
+        result,
         duration_seconds: duration.as_secs_f32(),
     }))
 }
@@ -306,11 +306,11 @@ pub async fn get_settings(
             warehouse: WarehouseIdent::new(warehouse.id),
             namespace: NamespaceIdent::from_vec(
                 database_name
-                    .split(".")
+                    .split('.')
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-            .unwrap(),
+            .context(model_error::MalformedNamespaceIdentSnafu)?,
         },
         table: table_name,
     };
@@ -359,11 +359,11 @@ pub async fn update_table_properties(
             warehouse: WarehouseIdent::new(warehouse.id),
             namespace: NamespaceIdent::from_vec(
                 database_name
-                    .split(".")
+                    .split('.')
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-            .unwrap(),
+            .context(model_error::MalformedNamespaceIdentSnafu)?,
         },
         table: table_name,
     };
@@ -375,7 +375,7 @@ pub async fn update_table_properties(
         .context(model_error::TablePropertiesUpdateSnafu)?;
     let mut table: Table = updated_table.into();
     table.with_details(warehouse_id, profile.into(), database_name);
-    Ok(Json(table.into()))
+    Ok(Json(table))
 }
 
 #[utoipa::path(
@@ -404,22 +404,33 @@ pub async fn upload_data_to_table(
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
     mut multipart: Multipart,
 ) -> NexusResult<()> {
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .expect("Failed to get next field!")
-    {
-        if field.name().unwrap() != "upload_file" {
-            continue;
-        }
-        let file_name = field.file_name().unwrap().to_string();
-        let data = field.bytes().await.unwrap();
-
-        let _result = state
-            .control_svc
-            .upload_data_to_table(&warehouse_id, &database_name, &table_name, data, file_name)
+    loop {
+        let next_field = multipart
+            .next_field()
             .await
-            .context(model_error::DataUploadSnafu)?;
+            .context(model_error::MalformedMultipartSnafu)?;
+        match next_field {
+            Some(field) => {
+                if field.name().ok_or(NexusError::MalformedFileUploadRequest)? != "upload_file" {
+                    continue;
+                }
+                let file_name = field.file_name()
+                    .ok_or(NexusError::MalformedFileUploadRequest)?
+                    .to_string();
+                let data = field.bytes()
+                    .await
+                    .context(model_error::MalformedMultipartSnafu)?;
+        
+                state
+                    .control_svc
+                    .upload_data_to_table(&warehouse_id, &database_name, &table_name, data, file_name)
+                    .await
+                    .context(model_error::DataUploadSnafu)?;
+            }
+            None => {
+                break;
+            }
+        }
     }
     Ok(())
 }
@@ -452,11 +463,11 @@ pub async fn get_snapshots(
             warehouse: WarehouseIdent::new(warehouse.id),
             namespace: NamespaceIdent::from_vec(
                 database_name
-                    .split(".")
+                    .split('.')
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-            .unwrap(),
+            .context(model_error::MalformedNamespaceIdentSnafu)?,
         },
         table: table_name,
     };

@@ -102,7 +102,7 @@ impl AppState {
         for database in databases {
             let tables = self.list_tables(&database.ident).await?;
             let mut entity = Database::from(database);
-            entity.with_details(warehouse_id, profile.clone(), tables);
+            entity.with_details(warehouse_id, &profile, tables);
             database_entities.push(entity);
         }
         Ok(database_entities)

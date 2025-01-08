@@ -21,7 +21,7 @@ impl AppState {
         Self {
             control_svc,
             catalog_svc: catalog_repo,
-            dbt_sessions: Arc::new(Default::default()),
+            dbt_sessions: Arc::new(Mutex::default()),
         }
     }
 }
