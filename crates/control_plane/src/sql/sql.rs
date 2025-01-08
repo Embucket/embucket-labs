@@ -14,10 +14,15 @@ use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::common::{plan_datafusion_err, Result};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
-use datafusion::logical_expr::sqlparser::ast::Insert;
-use datafusion::logical_expr::{LogicalPlan, ScalarUDF};
+use datafusion::logical_expr::sqlparser::ast::{ColumnDef, Insert};
+use datafusion::logical_expr::{
+    CreateExternalTable as PlanCreateExternalTable, DdlStatement, LogicalPlan, ScalarUDF,
+};
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
-use datafusion::sql::sqlparser::ast::{CreateTable as CreateTableStatement, Expr, FileFormat, Ident, ObjectName, Query, SchemaName, Statement, TableFactor, TableWithJoins};
+use datafusion::sql::sqlparser::ast::{
+    CreateTable as CreateTableStatement, DataType, Expr, Ident, ObjectName, Query, SchemaName,
+    SelectItem, Statement, TableFactor, TableWithJoins,
+};
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::iceberg_transform;
@@ -105,9 +110,17 @@ impl SqlExecutor {
                 ident.insert(0, Ident::new(warehouse_name));
             }
             let _new_table_wh_id = ident[0].clone();
-            // Get database identifier from warehouse.db.schema.table_name
-            let new_table_db = &ident[1..ident.len() - 1];
-            let new_table_name = ident.last().unwrap().clone();
+            let new_table_db = &ident[1..ident.len() - 1]
+                .into_iter()
+                .map(|v| v.value.clone())
+                .collect::<Vec<String>>()
+                .join(".");
+            let new_table_name = ident.last().unwrap();
+            let new_table_ref = TableReference::full(
+                warehouse_name,
+                new_table_db.to_string(),
+                new_table_name.value.clone(),
+            );
             let location = warehouse.location.clone();
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
@@ -119,28 +132,46 @@ impl SqlExecutor {
                 transient: false,
                 ..create_table_statement
             };
+            // Create InMemory table since external tables with "AS SELECT" are not supported
             let updated_query = modified_statement.to_string();
-            // Create InMemory table
             let plan = self
                 .get_custom_logical_plan(&updated_query, warehouse_name)
                 .await?;
-            self.ctx.execute_logical_plan(plan.clone()).await?.collect().await?;
+            self.ctx
+                .execute_logical_plan(plan.clone())
+                .await?
+                .collect()
+                .await?;
 
             // Create External table
-            // modified_statement.query = None;
-            // modified_statement.columns = plan.schema().columns();
-            modified_statement.name = ObjectName(ident);
-            modified_statement.external = true;
-            modified_statement.location = Some(location);
-            modified_statement.or_replace = false;
-            modified_statement.file_format = Option::from(FileFormat::PARQUET);
-            modified_statement.
-
-            let external_table_query = modified_statement.to_string();
-            println!("External table query: {:?}", external_table_query);
-            let external_table_plan = self.get_custom_logical_plan(&external_table_query, warehouse_name).await?;
-            let transformed = external_table_plan.transform(iceberg_transform).data()?;
-            self.ctx.execute_logical_plan(transformed).await?.collect().await?;
+            match plan {
+                LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(table)) => {
+                    let external_table_plan = LogicalPlan::Ddl(DdlStatement::CreateExternalTable(
+                        PlanCreateExternalTable {
+                            schema: table.input.schema().clone(),
+                            name: new_table_ref,
+                            location, // Specify the external location
+                            file_type: "ICEBERG".to_string(), // Specify the file type
+                            table_partition_cols: vec![], // Specify partition columns if any
+                            if_not_exists: table.if_not_exists,
+                            temporary: table.temporary,
+                            definition: None, // Specify the SQL definition if available
+                            order_exprs: vec![], // Specify order expressions if any
+                            unbounded: false, // Specify if the table is unbounded
+                            options: HashMap::new(), // Specify table-specific options if any
+                            constraints: table.constraints.clone(),
+                            column_defaults: HashMap::new(),
+                        },
+                    ));
+                    let transformed = external_table_plan.transform(iceberg_transform).data()?;
+                    self.ctx
+                        .execute_logical_plan(transformed)
+                        .await?
+                        .collect()
+                        .await?;
+                }
+                _ => {}
+            }
 
             // Insert data to External table
             let insert_query =
@@ -207,7 +238,6 @@ impl SqlExecutor {
         println!("raw query: {:?}", statement.to_string());
         statement = self.update_statement_references(statement, warehouse_name);
         println!("modified query: {:?}", statement.to_string());
-        println!("modified statement: {:?}", statement);
 
         let mut ctx_provider = CustomContextProvider {
             state: &state,
@@ -458,5 +488,58 @@ impl SqlExecutor {
             }
             _ => {}
         }
+    }
+
+    fn get_columns_from_query(&self, query: Query) -> Vec<ColumnDef> {
+        let mut columns = vec![];
+
+        if let Some(with) = query.with {
+            for cte in with.cte_tables {
+                columns.extend(self.get_columns_from_query(*cte.query));
+            }
+        }
+
+        match *query.body {
+            datafusion::sql::sqlparser::ast::SetExpr::Select(select) => {
+                for projection in select.projection {
+                    match projection {
+                        SelectItem::ExprWithAlias { expr, alias } => {
+                            let data_type = match expr {
+                                Expr::Cast { data_type, .. } => data_type,
+                                _ => DataType::Text, // Default to Text if data type is not specified
+                            };
+                            columns.push(ColumnDef {
+                                name: alias,
+                                data_type,
+                                collation: None,
+                                options: vec![],
+                            });
+                        }
+                        SelectItem::UnnamedExpr(expr) => {
+                            let name = match &expr {
+                                Expr::Identifier(ident) => ident.clone(),
+                                _ => Ident::new("unknown"), // Default to "unknown" if name is not specified
+                            };
+                            let data_type = match expr {
+                                Expr::Cast { data_type, .. } => data_type,
+                                _ => DataType::Text, // Default to Text if data type is not specified
+                            };
+                            columns.push(ColumnDef {
+                                name,
+                                data_type,
+                                collation: None,
+                                options: vec![],
+                            });
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            datafusion::sql::sqlparser::ast::SetExpr::Query(q) => {
+                columns.extend(self.get_columns_from_query(*q));
+            }
+            _ => {}
+        }
+        columns
     }
 }
