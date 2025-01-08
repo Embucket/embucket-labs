@@ -37,8 +37,8 @@ use datafusion::logical_expr::{
 use datafusion::prelude::*;
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{
-    object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel,
-    ValueNormalizer,
+    object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel
+    ,
 };
 use datafusion::sql::sqlparser::ast::{
     ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement,
@@ -53,7 +53,6 @@ where
     inner: SqlToRel<'a, S>, // The wrapped type
     provider: &'a S,
     ident_normalizer: IdentNormalizer,
-    value_normalizer: ValueNormalizer,
 }
 
 impl<'a, S> ExtendedSqlToRel<'a, S>
@@ -66,7 +65,6 @@ where
             inner: SqlToRel::new(provider),
             provider,
             ident_normalizer: Default::default(),
-            value_normalizer: Default::default(),
         }
     }
 

@@ -48,6 +48,7 @@ impl SqlExecutor {
     }
 
     pub async fn query(&self, query: &String, warehouse: &Warehouse) -> Result<Vec<RecordBatch>> {
+        let warehouse_name = &*warehouse.name;
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         // Update query to use custom JSON functions
@@ -62,16 +63,16 @@ impl SqlExecutor {
                     return self.create_table_query(*s, warehouse).await;
                 }
                 Statement::CreateSchema { schema_name, .. } => {
-                    return self.create_schema(schema_name, warehouse).await;
+                    return self.create_schema(schema_name, warehouse_name).await;
                 }
                 Statement::ShowVariable { .. } => {
-                    return self.execute_with_custom_plan(&query, warehouse).await;
+                    return self.execute_with_custom_plan(&query, warehouse_name).await;
                 }
                 Statement::Drop { .. } => {
-                    return self.execute_with_custom_plan(&query, warehouse).await;
+                    return self.execute_with_custom_plan(&query, warehouse_name).await;
                 }
                 Statement::Query { .. } => {
-                    return self.execute_with_custom_plan(&query, warehouse).await;
+                    return self.execute_with_custom_plan(&query, warehouse_name).await;
                 }
                 _ => {}
             },
@@ -177,7 +178,7 @@ impl SqlExecutor {
             let insert_query =
                 format!("INSERT INTO {new_table_full_name} SELECT * FROM {new_table_name}");
             let result = self
-                .execute_with_custom_plan(&insert_query, warehouse)
+                .execute_with_custom_plan(&insert_query, warehouse_name)
                 .await?;
 
             // Drop InMemory table
@@ -194,11 +195,11 @@ impl SqlExecutor {
     pub async fn create_schema(
         &self,
         name: SchemaName,
-        warehouse: &Warehouse,
+        warehouse_name: &str,
     ) -> Result<Vec<RecordBatch>> {
         match name {
             SchemaName::Simple(schema_name) => {
-                let catalog = self.ctx.catalog(&*warehouse.name).unwrap();
+                let catalog = self.ctx.catalog(warehouse_name).unwrap();
                 let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().unwrap();
                 let rest_catalog = iceberg_catalog.catalog();
                 let namespace_vec: Vec<String> = schema_name
@@ -314,10 +315,10 @@ impl SqlExecutor {
     pub async fn execute_with_custom_plan(
         &self,
         query: &String,
-        warehouse: &Warehouse,
+        warehouse_name: &str,
     ) -> Result<Vec<RecordBatch>> {
         let plan = self
-            .get_custom_logical_plan(query, &*warehouse.name)
+            .get_custom_logical_plan(query, warehouse_name)
             .await?;
         let res = self.ctx.execute_logical_plan(plan).await?.collect().await;
         res
