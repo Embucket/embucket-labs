@@ -14,14 +14,14 @@ use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::common::{plan_datafusion_err, Result};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
-use datafusion::logical_expr::sqlparser::ast::{ColumnDef, Insert};
+use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::{
     CreateExternalTable as PlanCreateExternalTable, DdlStatement, LogicalPlan, ScalarUDF,
 };
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
-    CreateTable as CreateTableStatement, DataType, Expr, Ident, ObjectName, Query, SchemaName,
-    SelectItem, Statement, TableFactor, TableWithJoins,
+    CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName
+    , Statement, TableFactor, TableWithJoins,
 };
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -126,7 +126,7 @@ impl SqlExecutor {
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
-            let mut modified_statement = CreateTableStatement {
+            let modified_statement = CreateTableStatement {
                 name: ObjectName {
                     0: vec![new_table_name.clone()],
                 },
@@ -489,58 +489,5 @@ impl SqlExecutor {
             }
             _ => {}
         }
-    }
-
-    fn get_columns_from_query(&self, query: Query) -> Vec<ColumnDef> {
-        let mut columns = vec![];
-
-        if let Some(with) = query.with {
-            for cte in with.cte_tables {
-                columns.extend(self.get_columns_from_query(*cte.query));
-            }
-        }
-
-        match *query.body {
-            datafusion::sql::sqlparser::ast::SetExpr::Select(select) => {
-                for projection in select.projection {
-                    match projection {
-                        SelectItem::ExprWithAlias { expr, alias } => {
-                            let data_type = match expr {
-                                Expr::Cast { data_type, .. } => data_type,
-                                _ => DataType::Text, // Default to Text if data type is not specified
-                            };
-                            columns.push(ColumnDef {
-                                name: alias,
-                                data_type,
-                                collation: None,
-                                options: vec![],
-                            });
-                        }
-                        SelectItem::UnnamedExpr(expr) => {
-                            let name = match &expr {
-                                Expr::Identifier(ident) => ident.clone(),
-                                _ => Ident::new("unknown"), // Default to "unknown" if name is not specified
-                            };
-                            let data_type = match expr {
-                                Expr::Cast { data_type, .. } => data_type,
-                                _ => DataType::Text, // Default to Text if data type is not specified
-                            };
-                            columns.push(ColumnDef {
-                                name,
-                                data_type,
-                                collation: None,
-                                options: vec![],
-                            });
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            datafusion::sql::sqlparser::ast::SetExpr::Query(q) => {
-                columns.extend(self.get_columns_from_query(*q));
-            }
-            _ => {}
-        }
-        columns
     }
 }
