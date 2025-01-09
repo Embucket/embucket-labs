@@ -233,7 +233,7 @@ where
                 }
             }
             SQLDataType::UnsignedBigInt(_) | SQLDataType::UnsignedInt8(_) => Ok(DataType::UInt64),
-            SQLDataType::Real | 
+            SQLDataType::Real |
             SQLDataType::Float4 |
             SQLDataType::Float(_) => Ok(DataType::Float32),
             SQLDataType::Double | SQLDataType::DoublePrecision | SQLDataType::Float8 => Ok(DataType::Float64),
