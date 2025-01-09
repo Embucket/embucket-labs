@@ -825,7 +825,7 @@ mod tests {
                     "id":2,
                     "name":"bar",
                     "required":true,
-                    "typ":"int"
+                    "type":"int"
                 },
                 {
                     "id":3,
