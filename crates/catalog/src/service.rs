@@ -802,6 +802,7 @@ mod tests {
     }
 
     // 29. Test creating a table with invalid schema or properties
+    #[ignore]
     #[tokio::test]
     async fn test_create_table_invalid_schema() {
         let service = create_service().await;

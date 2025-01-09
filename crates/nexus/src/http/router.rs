@@ -152,9 +152,9 @@ mod tests {
             "region": "us-west-2",
             "bucket": "my-bucket",
             "credentials": {
-                "credential-type": "access-key",
-                "aws-access-key-id": "my-access-key",
-                "aws-secret-access-key": "my-secret-access-key"
+                "credential_type": "access_key",
+                "aws_access_key_id": "my-access-key",
+                "aws_secret_access_key": "my-secret-access-key"
             }
         });
         let response = app
@@ -168,7 +168,7 @@ mod tests {
             )
             .await
             .unwrap();
-
+        
         assert_eq!(response.status(), StatusCode::OK);
     }
 
@@ -180,9 +180,9 @@ mod tests {
             "region": "us-west-2",
             "bucket": "my-bucket",
             "credentials": {
-                "credential-type": "access-key",
-                "aws-access-key-id": "my-access-key",
-                "aws-secret-access-key": "my-secret-access-key"
+                "credential_type": "access_key",
+                "aws_access_key_id": "my-access-key",
+                "aws_secret_access_key": "my-secret-access-key"
             }
         });
         let request = Request::builder()
@@ -207,7 +207,7 @@ mod tests {
         // Now create warehouse
         let payload = json!({
             "name": "my-warehouse",
-            "storage-profile-id": sid,
+            "storage_profile_id": sid,
             "prefix": "my-prefix",
         });
         let request = Request::builder()
@@ -236,7 +236,7 @@ mod tests {
             }
         });
         let request = Request::builder()
-            .uri(format!("/catalog/{wid}/v1/namespace"))
+            .uri(format!("/catalog/v1/{wid}/namespaces"))
             .method(http::Method::POST)
             .header(http::header::CONTENT_TYPE, "application/json")
             .body(Body::from(serde_json::to_vec(&payload).unwrap()))
@@ -250,6 +250,7 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
+
         let namespace_id = serde_json::from_slice::<NamespaceSchema>(&body)
             .unwrap()
             .namespace;
@@ -257,7 +258,7 @@ mod tests {
 
         // Now get namespace
         let request = Request::builder()
-            .uri(format!("/catalog/{wid}/v1/namespace/{namespace_id}"))
+            .uri(format!("/catalog/v1/{wid}/namespaces/{namespace_id}"))
             .method(http::Method::GET)
             .header(http::header::CONTENT_TYPE, "application/json")
             .body(Body::empty())
@@ -302,7 +303,7 @@ mod tests {
         },
         });
         let request = Request::builder()
-            .uri(format!("/catalog/{wid}/v1/namespace/my-namespace/table"))
+            .uri(format!("/catalog/v1/{wid}/namespace/my-namespace/table"))
             .method(http::Method::POST)
             .header(http::header::CONTENT_TYPE, "application/json")
             .body(Body::from(serde_json::to_vec(&payload).unwrap()))

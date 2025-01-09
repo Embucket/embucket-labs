@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 // Define the cloud provider enum
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "lowercase")]
 pub enum CloudProvider {
     Aws,
     Azure,
@@ -180,9 +181,9 @@ mod tests {
                 "region": "us-west-2",
                 "bucket": "my-bucket",
                 "credentials": {
-                    "credential-type": "access-key",
-                    "aws-access-key-id": "my-access-key",
-                    "aws-secret-access-key": "my-secret-access-key"
+                    "credential_type": "access_key",
+                    "aws_access_key_id": "my-access-key",
+                    "aws_secret_access_key": "my-secret-access-key"
                 }
             }
         "#;
@@ -216,7 +217,7 @@ mod tests {
 
         let result = serde_json::to_string(&payload).unwrap();
 
-        let expected = r#"{"type":"aws","region":"us-west-2","bucket":"my-bucket","credentials":{"credential-type":"access-key","aws-access-key-id":"my-access-key","aws-secret-access-key":"my-secret-access-key"},"sts-role-arn":null,"endpoint":null}"#;
+        let expected = r#"{"type":"aws","region":"us-west-2","bucket":"my-bucket","credentials":{"credential_type":"access_key","aws_access_key_id":"my-access-key","aws_secret_access_key":"my-secret-access-key"},"sts_role_arn":null,"endpoint":null}"#;
         assert_eq!(result, expected);
     }
 }
