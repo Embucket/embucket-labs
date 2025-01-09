@@ -30,15 +30,11 @@ use datafusion::logical_expr::sqlparser::ast;
 use datafusion::logical_expr::sqlparser::ast::{
     ArrayElemTypeDef, ColumnDef, ExactNumberInfo, Ident, ObjectName, TableConstraint,
 };
-use datafusion::logical_expr::{
-    CreateMemoryTable, DdlStatement, EmptyRelation,
-    LogicalPlan,
-};
+use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
 use datafusion::prelude::*;
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{
-    object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel
-    ,
+    object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel,
 };
 use datafusion::sql::sqlparser::ast::{
     ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement,

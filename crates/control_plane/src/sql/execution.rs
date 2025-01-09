@@ -14,10 +14,9 @@ use arrow::array::RecordBatch;
 use datafusion::catalog::SchemaProvider;
 use datafusion::catalog_common::information_schema::InformationSchemaProvider;
 use datafusion::catalog_common::{ResolvedTableReference, TableReference};
-use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::common::plan_datafusion_err;
+use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::datasource::default_table_source::provider_as_source;
-use datafusion::error::DataFusionError;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::{
@@ -32,8 +31,6 @@ use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::iceberg_transform;
 use iceberg_rust::spec::namespace::Namespace;
-use iceberg_rust::spec::schema::Schema;
-use iceberg_rust::spec::types::StructType;
 use snafu::ResultExt;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -54,7 +51,7 @@ impl SqlExecutor {
         Ok(Self { ctx })
     }
 
-    pub async fn query(&self, query: &String, warehouse: &Warehouse) -> Result<Vec<RecordBatch>> {
+    pub async fn query(&self, query: &str, warehouse: &Warehouse) -> SQLResult<Vec<RecordBatch>> {
         let warehouse_name = &*warehouse.name;
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
@@ -66,8 +63,8 @@ impl SqlExecutor {
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
 
-        match statement {
-            DFStatement::Statement(s) => match *s {
+        if let DFStatement::Statement(s) = statement {
+            match *s {
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s, warehouse)).await;
                 }
@@ -81,8 +78,7 @@ impl SqlExecutor {
                     return self.execute_with_custom_plan(&query, warehouse_name).await;
                 }
                 _ => {}
-            },
-            _ => {}
+            }
         }
         self.ctx
             .sql(&query)
@@ -133,7 +129,7 @@ impl SqlExecutor {
             }
             let _new_table_wh_id = ident[0].clone();
             let new_table_db = &ident[1..ident.len() - 1]
-                .into_iter()
+                .iter()
                 .map(|v| v.value.clone())
                 .collect::<Vec<String>>()
                 .join(".");
@@ -167,40 +163,40 @@ impl SqlExecutor {
                 .context(super::error::DataFusionSnafu)?;
 
             // Create External table
-            match plan {
-                LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(table)) => {
-                    let external_table_plan = LogicalPlan::Ddl(DdlStatement::CreateExternalTable(
-                        PlanCreateExternalTable {
-                            schema: table.input.schema().clone(),
-                            name: new_table_ref,
-                            location, // Specify the external location
-                            file_type: "ICEBERG".to_string(), // Specify the file type
-                            table_partition_cols: vec![], // Specify partition columns if any
-                            if_not_exists: table.if_not_exists,
-                            temporary: table.temporary,
-                            definition: None, // Specify the SQL definition if available
-                            order_exprs: vec![], // Specify order expressions if any
-                            unbounded: false, // Specify if the table is unbounded
-                            options: HashMap::new(), // Specify table-specific options if any
-                            constraints: table.constraints.clone(),
-                            column_defaults: HashMap::new(),
-                        },
-                    ));
-                    let transformed = external_table_plan.transform(iceberg_transform).data()?;
-                    self.ctx
-                        .execute_logical_plan(transformed)
-                        .await?
-                        .collect()
-                        .await?;
-                }
-                _ => {}
+            if let LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(table)) = plan {
+                let external_table_plan =
+                    LogicalPlan::Ddl(DdlStatement::CreateExternalTable(PlanCreateExternalTable {
+                        schema: table.input.schema().clone(),
+                        name: new_table_ref,
+                        location,                         // Specify the external location
+                        file_type: "ICEBERG".to_string(), // Specify the file type
+                        table_partition_cols: vec![],     // Specify partition columns if any
+                        if_not_exists: table.if_not_exists,
+                        temporary: table.temporary,
+                        definition: None, // Specify the SQL definition if available
+                        order_exprs: vec![], // Specify order expressions if any
+                        unbounded: false, // Specify if the table is unbounded
+                        options: HashMap::new(), // Specify table-specific options if any
+                        constraints: table.constraints.clone(),
+                        column_defaults: HashMap::new(),
+                    }));
+                let transformed = external_table_plan
+                    .transform(iceberg_transform)
+                    .data()
+                    .context(sql_error::DataFusionSnafu)?;
+                self.ctx
+                    .execute_logical_plan(transformed)
+                    .await
+                    .context(sql_error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(sql_error::DataFusionSnafu)?;
             }
 
             // Insert data to External table
             let insert_query =
                 format!("INSERT INTO {new_table_full_name} SELECT * FROM {new_table_name}");
-            let result = self
-                .execute_with_custom_plan(&insert_query, warehouse_name)
+            self.execute_with_custom_plan(&insert_query, warehouse_name)
                 .await?;
 
             // Drop InMemory table
@@ -212,8 +208,8 @@ impl SqlExecutor {
                 .collect()
                 .await
                 .context(super::error::DataFusionSnafu)?;
-            
-            Ok(created_entity_response())
+
+            created_entity_response().context(sql_error::ArrowSnafu)
         } else {
             Err(super::error::SQLError::DataFusion {
                 source: datafusion::error::DataFusionError::NotImplemented(
@@ -474,7 +470,9 @@ impl SqlExecutor {
         mut table_name: Vec<Ident>,
         warehouse_name: &str,
     ) -> Vec<Ident> {
-        if !warehouse_name.is_empty() && !table_name.starts_with(&[Ident::new(warehouse_name)]) && table_name.len() > 1
+        if !warehouse_name.is_empty()
+            && !table_name.starts_with(&[Ident::new(warehouse_name)])
+            && table_name.len() > 1
         {
             table_name.insert(0, Ident::new(warehouse_name));
         }
