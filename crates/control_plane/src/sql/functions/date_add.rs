@@ -12,6 +12,7 @@ use std::any::Any;
 #[derive(Debug)]
 pub struct DateAddFunc {
     signature: Signature,
+    #[allow(dead_code)]
     aliases: Vec<String>,
 }
 

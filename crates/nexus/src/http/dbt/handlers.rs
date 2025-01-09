@@ -12,9 +12,6 @@ use flate2::read::GzDecoder;
 use regex::Regex;
 use snafu::ResultExt;
 use std::io::Read;
-use std::result::Result;
-use tokio::fs::OpenOptions;
-use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 pub async fn login(
@@ -141,7 +138,7 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
     })
 }
 
-async fn log_query(query: &str) -> Result<(), std::io::Error> {
+/*async fn log_query(query: &str) -> Result<(), std::io::Error> {
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -151,4 +148,4 @@ async fn log_query(query: &str) -> Result<(), std::io::Error> {
     file.write_all(query.as_bytes()).await?;
     file.write_all(b"\n").await?;
     Ok(())
-}
+}*/

@@ -11,6 +11,7 @@ use std::any::Any;
 #[derive(Debug)]
 pub struct ConvertTimezoneFunc {
     signature: Signature,
+    #[allow(dead_code)]
     aliases: Vec<String>,
 }
 

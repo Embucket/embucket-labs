@@ -85,6 +85,7 @@ pub struct TableSettingsResponse {
 impl TryFrom<Table> for TableSettingsResponse {
     type Error = NexusError;
 
+    #[allow(clippy::match_same_arms)]
     fn try_from(table: Table) -> NexusResult<Self> {
         let mut response = Self::default();
         for (id, value) in &table.metadata.0.properties {

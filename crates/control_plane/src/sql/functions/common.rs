@@ -11,7 +11,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
 use std::sync::Arc;
 
-const TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H:%M:%S%.9f";
+//const TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H:%M:%S%.9f";
 
 #[must_use]
 pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, ArrayRef)> {

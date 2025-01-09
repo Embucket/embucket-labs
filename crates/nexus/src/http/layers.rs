@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use axum::http::HeaderMap;
 use axum::{middleware::Next, response::Response};
 use std::str::FromStr;
