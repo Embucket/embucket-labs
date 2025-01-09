@@ -102,7 +102,6 @@ impl ControlServiceImpl {
     }
 }
 
-
 #[async_trait]
 impl ControlService for ControlServiceImpl {
     async fn create_profile(&self, params: &StorageProfileCreateRequest) -> Result<StorageProfile> {
@@ -373,7 +372,7 @@ impl ControlService for ControlServiceImpl {
         // Commented code is writing with iceberg-rust-jankaul
         // Let it sit here just in case
         //////////////////////////////////////
-        //
+
         // let config = {
         //     let mut config = Configuration::new();
         //     config.base_path = "http://0.0.0.0:3000/catalog".to_string();
@@ -398,11 +397,11 @@ impl ControlService for ControlServiceImpl {
         // let provider = ctx.catalog(catalog_name.clone().as_str()).unwrap();
         // let table = provider.schema(database_name).unwrap().table(table_name).await?;
         // let table_schema = table.unwrap().schema();
-        // let df = ctx
-        //     .read_csv(path_string.clone(), CsvReadOptions::new().schema(&*table_schema))
-        //     .await?;
-        // let data = df.collect().await?;
-        //
+        let df = ctx
+            .read_csv(path_string.clone(), CsvReadOptions::new().schema(&*table_schema))
+            .await?;
+        let data = df.collect().await?;
+
         //
         // let input = ctx.read_batches(data)?;
         // input.write_table(format!("{catalog_name}.{database_name}.{table_name}").as_str(),
