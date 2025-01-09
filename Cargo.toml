@@ -48,3 +48,4 @@ similar_names={ level="allow", priority=2 }
 missing_errors_doc={ level="allow", priority=2 }
 missing_panics_doc={ level="allow", priority=2 }
 significant_drop_tightening={ level="allow", priority=2 }
+module_name_repetitions={ level="allow", priority=2 }
