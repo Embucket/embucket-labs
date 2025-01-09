@@ -397,10 +397,10 @@ impl ControlService for ControlServiceImpl {
         // let provider = ctx.catalog(catalog_name.clone().as_str()).unwrap();
         // let table = provider.schema(database_name).unwrap().table(table_name).await?;
         // let table_schema = table.unwrap().schema();
-        let df = ctx
-            .read_csv(path_string.clone(), CsvReadOptions::new().schema(&*table_schema))
-            .await?;
-        let data = df.collect().await?;
+        // let df = ctx
+        //     .read_csv(path_string.clone(), CsvReadOptions::new().schema(&*table_schema))
+        //     .await?;
+        // let data = df.collect().await?;
 
         //
         // let input = ctx.read_batches(data)?;
