@@ -134,11 +134,9 @@ impl PartialSchema for NexusError {
 impl IntoResponse for NexusError {
     fn into_response(self) -> Response {
         let status = match &self {
-            Self::WarehouseFetch { id: _, source } => match source {
-                ControlPlaneError::WarehouseNotFound { .. } => StatusCode::NOT_FOUND,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
-            Self::StorageProfileFetch { id: _, source } => match source {
+            Self::StorageProfileFetch { id: _, source } |
+            Self::WarehouseFetch { id: _, source } |
+            Self::StorageProfileDelete { id: _, source } => match source {
                 ControlPlaneError::StorageProfileNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
@@ -180,10 +178,6 @@ impl IntoResponse for NexusError {
                 CatalogError::DatabaseNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::StorageProfileDelete { id: _, source } => match source {
-                ControlPlaneError::StorageProfileNotFound { .. } => StatusCode::NOT_FOUND,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
 
             Self::WarehouseDelete { id: _, source } => match source {
                 ControlPlaneError::WarehouseNotFound { .. } => StatusCode::NOT_FOUND,
@@ -194,53 +188,3 @@ impl IntoResponse for NexusError {
         (status, self.to_string()).into_response()
     }
 }
-
-/*
-
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        let (status, error_message) = match self {
-            AppError::NotFound(ref _e) => (StatusCode::NOT_FOUND, self.to_string()),
-            AppError::DbError(ref _e) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
-            AppError::InternalServerError(ref _e) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
-            }
-            AppError::InvalidCredentials(ref _e) => {
-                (StatusCode::UNPROCESSABLE_ENTITY, self.to_string())
-            }
-            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
-            AppError::UnprocessableEntity(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg),
-            _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
-        };
-
-        (status, error_message).into_response()
-    }
-}
-impl From<ControlError> for AppError {
-    fn from(e: ControlError) -> Self {
-        match e {
-            ControlError::NotEmpty(e) => AppError::AlreadyExists(e.to_string()),
-            ControlError::InvalidInput(e) => AppError::BadRequest(e.to_string()),
-            ControlError::ErrNotFound => AppError::NotFound(e.to_string()),
-            ControlError::InvalidCredentials(e) => AppError::InvalidCredentials(e.to_string()),
-            ControlError::DataFusionError(e) => AppError::UnprocessableEntity(e.to_string()),
-            ControlError::IceLakeError(e) => AppError::UnprocessableEntity(e.to_string()),
-        }
-    }
-}
-impl From<CatalogError> for AppError {
-    fn from(e: CatalogError) -> Self {
-        match e {
-            CatalogError::ErrNotFound => AppError::NotFound(e.to_string()),
-            CatalogError::ErrAlreadyExists => AppError::AlreadyExists(e.to_string()),
-            CatalogError::NotEmpty(e) => AppError::NotEmpty(e.to_string()),
-            CatalogError::NotImplemented => AppError::NotImplemented(e.to_string()),
-            CatalogError::InvalidInput(e) => AppError::BadRequest(e.to_string()),
-            CatalogError::FailedRequirement(e) => AppError::UnprocessableEntity(e.to_string()),
-            CatalogError::DbError(e) => AppError::DbError(e.to_string()),
-            CatalogError::IcebergError(e) => AppError::IcebergError(e.to_string()),
-            _ => AppError::InternalServerError(e.to_string()),
-        }
-    }
-}
-*/

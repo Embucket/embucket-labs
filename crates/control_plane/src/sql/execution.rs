@@ -115,7 +115,7 @@ impl SqlExecutor {
         )
     }
 
-    #[allow(clippy::redundant_else)]
+    #[allow(clippy::redundant_else, clippy::too_many_lines)]
     pub async fn create_table_query(
         &self,
         statement: Statement,
