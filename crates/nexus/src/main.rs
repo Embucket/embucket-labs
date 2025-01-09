@@ -23,8 +23,8 @@ use tokio::signal;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::Db;
 
-pub mod http;
 pub mod error;
+pub mod http;
 pub mod state;
 
 #[tokio::main]

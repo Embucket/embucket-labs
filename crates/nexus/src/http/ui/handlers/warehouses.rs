@@ -90,7 +90,11 @@ pub async fn list_warehouses(
         (status = 404, description = "Warehouse not found", body = NexusError)
     )
 )]
-#[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::as_conversions)]
+#[allow(
+    clippy::cast_possible_wrap,
+    clippy::cast_possible_truncation,
+    clippy::as_conversions
+)]
 pub async fn get_warehouse(
     State(state): State<AppState>,
     Path(warehouse_id): Path<Uuid>,
@@ -144,12 +148,11 @@ pub async fn create_warehouse(
             name: request.name.clone(),
         });
     }
-    let warehouse: WarehouseModel =
-        state
-            .control_svc
-            .create_warehouse(&request)
-            .await
-            .context(model_error::WarehouseCreateSnafu)?;
+    let warehouse: WarehouseModel = state
+        .control_svc
+        .create_warehouse(&request)
+        .await
+        .context(model_error::WarehouseCreateSnafu)?;
     let mut warehouse: Warehouse = warehouse.into();
     warehouse.storage_profile = profile;
     Ok(Json(warehouse))

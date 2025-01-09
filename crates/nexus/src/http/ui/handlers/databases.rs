@@ -1,5 +1,5 @@
+use super::super::models::error::{self as model_error, NexusError, NexusResult};
 use crate::http::ui::models::database::{CreateDatabasePayload, Database};
-use super::super::models::error::{self as model_error, NexusResult, NexusError};
 use crate::http::utils::update_properties_timestamps;
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
@@ -65,7 +65,7 @@ pub async fn create_database(
         .iter()
         .any(|db| db.ident.namespace == ident.namespace)
     {
-        return Err(NexusError::DatabaseAlreadyExists{ name });
+        return Err(NexusError::DatabaseAlreadyExists { name });
     }
 
     let profile = state
@@ -79,7 +79,9 @@ pub async fn create_database(
         .catalog_svc
         .create_namespace(&ident, properties)
         .await
-        .context(model_error::DatabaseCreateSnafu { ident: ident.clone() })?;
+        .context(model_error::DatabaseCreateSnafu {
+            ident: ident.clone(),
+        })?;
     let mut database: Database = database.into();
     database.with_details(warehouse_id, &profile, vec![]);
 
@@ -120,7 +122,9 @@ pub async fn delete_database(
         .catalog_svc
         .drop_namespace(&ident)
         .await
-        .context(model_error::DatabaseDeleteSnafu { ident: ident.clone() })?;
+        .context(model_error::DatabaseDeleteSnafu {
+            ident: ident.clone(),
+        })?;
     Ok(Json(()))
 }
 

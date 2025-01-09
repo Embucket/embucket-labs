@@ -9,7 +9,7 @@ pub enum SQLError {
     Arrow { source: arrow::error::ArrowError },
 
     #[snafu(display("DataFusion error: {source}"))]
-    DataFusion { source: DataFusionError},
+    DataFusion { source: DataFusionError },
 
     #[snafu(display("No Table Provider found for table: {table_name}"))]
     TableProviderNotFound { table_name: String },
@@ -30,7 +30,7 @@ pub enum SQLError {
     Iceberg { source: iceberg_rust::error::Error },
 
     #[snafu(display("Invalid precision: {precision}"))]
-    InvalidPrecision { precision: String},
+    InvalidPrecision { precision: String },
 
     #[snafu(display("Invalid scale: {scale}"))]
     InvalidScale { scale: String },

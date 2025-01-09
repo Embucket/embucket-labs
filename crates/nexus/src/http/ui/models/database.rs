@@ -67,9 +67,8 @@ impl Database {
             if let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(created_at) {
                 self.created_at = DateTime::from(created_at);
             }
-
         }
-        if let Some(updated_at) = self.properties.get("updated_at") { 
+        if let Some(updated_at) = self.properties.get("updated_at") {
             if let Ok(updated_at) = chrono::DateTime::parse_from_rfc3339(updated_at) {
                 self.updated_at = DateTime::from(updated_at);
             }
@@ -96,10 +95,7 @@ impl From<models::Database> for Database {
 
 #[must_use]
 pub fn get_database_id(ident: &models::DatabaseIdent) -> Uuid {
-    Uuid::new_v5(
-        &Uuid::NAMESPACE_DNS,
-        ident.namespace.join("__").as_bytes(),
-    )
+    Uuid::new_v5(&Uuid::NAMESPACE_DNS, ident.namespace.join("__").as_bytes())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]

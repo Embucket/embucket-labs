@@ -93,9 +93,7 @@ pub enum Credentials {
 impl From<Credentials> for models::Credentials {
     fn from(credential: Credentials) -> Self {
         match credential {
-            Credentials::AccessKey(aws_credential) => {
-                Self::AccessKey(aws_credential.into())
-            }
+            Credentials::AccessKey(aws_credential) => Self::AccessKey(aws_credential.into()),
             Credentials::Role(role_credential) => Self::Role(role_credential.into()),
         }
     }
@@ -217,7 +215,7 @@ mod tests {
         };
 
         let result = serde_json::to_string(&payload).unwrap();
-        
+
         let expected = r#"{"type":"aws","region":"us-west-2","bucket":"my-bucket","credentials":{"credential-type":"access-key","aws-access-key-id":"my-access-key","aws-secret-access-key":"my-secret-access-key"},"sts-role-arn":null,"endpoint":null}"#;
         assert_eq!(result, expected);
     }

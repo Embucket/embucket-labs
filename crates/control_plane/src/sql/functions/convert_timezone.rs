@@ -1,6 +1,6 @@
+use arrow::datatypes::DataType;
 use arrow::datatypes::DataType::{Date32, Date64, Time32, Time64, Timestamp, Utf8};
 use arrow::datatypes::TimeUnit::{Microsecond, Millisecond, Nanosecond, Second};
-use arrow::datatypes::DataType;
 use datafusion::common::{plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Exact;
 use datafusion::logical_expr::{

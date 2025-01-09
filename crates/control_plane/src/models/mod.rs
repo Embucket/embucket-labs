@@ -97,9 +97,9 @@ impl TryFrom<&StorageProfileCreateRequest> for StorageProfile {
 
 impl StorageProfile {
     /// Creates a new `StorageProfile` with validation.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an `ControlPlaneModelError::InvalidInput` if:
     /// - Bucket name length is less than 6 or greater than 63 characters
     /// - Bucket name contains non-alphanumeric characters (other than hyphens or underscores)
@@ -125,7 +125,9 @@ impl StorageProfile {
         {
             return Err(ControlPlaneModelError::InvalidBucketName {
                 bucket_name: bucket,
-                reason: "Bucket name must only contain alphanumeric characters, hyphens, or underscores".to_owned(),
+                reason:
+                    "Bucket name must only contain alphanumeric characters, hyphens, or underscores"
+                        .to_owned(),
             });
         }
         if bucket.starts_with('-')
@@ -166,7 +168,6 @@ impl StorageProfile {
         self.updated_at = Utc::now().naive_utc();
     }
 
-    
     /// Returns the get base url of this [`StorageProfile`].
     ///
     /// # Errors
@@ -178,25 +179,34 @@ impl StorageProfile {
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
             .unwrap_or_else(|_| "true".to_string())
             .parse::<bool>()
-            .map_err(|e| {
-                error::ControlPlaneModelError::UnableToParseConfiguration { key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(), source: Box::new(e) }
-            })?; 
+            .map_err(
+                |e| error::ControlPlaneModelError::UnableToParseConfiguration {
+                    key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
+                    source: Box::new(e),
+                },
+            )?;
         if use_file_system_instead_of_cloud {
             let current_directory = env::current_dir()
-                .map_err(|_| ControlPlaneModelError::InvalidDirectory { directory: ".".to_string() })
-                .and_then(|cd| cd.to_str().map(String::from).ok_or(ControlPlaneModelError::InvalidDirectory { directory: ".".to_string() }))?;
+                .map_err(|_| ControlPlaneModelError::InvalidDirectory {
+                    directory: ".".to_string(),
+                })
+                .and_then(|cd| {
+                    cd.to_str()
+                        .map(String::from)
+                        .ok_or(ControlPlaneModelError::InvalidDirectory {
+                            directory: ".".to_string(),
+                        })
+                })?;
             Ok(format!("file://{current_directory}"))
         } else {
             match self.r#type {
-                CloudProvider::AWS => {
-                    Ok(format!("s3://{}", &self.bucket))
-                }
-                CloudProvider::AZURE => {
-                    Err(ControlPlaneModelError::CloudProviderNotImplemented { provider: "Azure".to_string() })
-                }
-                CloudProvider::GCS => {
-                    Err(ControlPlaneModelError::CloudProviderNotImplemented { provider: "GCS".to_string() })
-                }
+                CloudProvider::AWS => Ok(format!("s3://{}", &self.bucket)),
+                CloudProvider::AZURE => Err(ControlPlaneModelError::CloudProviderNotImplemented {
+                    provider: "Azure".to_string(),
+                }),
+                CloudProvider::GCS => Err(ControlPlaneModelError::CloudProviderNotImplemented {
+                    provider: "GCS".to_string(),
+                }),
             }
         }
     }
@@ -206,16 +216,23 @@ impl StorageProfile {
         // TODO remove duplicated code
         dotenv().ok();
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .context(error::MissingEnvironmentVariableSnafu { var: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string() })?
+            .context(error::MissingEnvironmentVariableSnafu {
+                var: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
+            })?
             .parse::<bool>()
-            .map_err(|e| {
-                error::ControlPlaneModelError::UnableToParseConfiguration { key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(), source: Box::new(e) }
-            })?;
+            .map_err(
+                |e| error::ControlPlaneModelError::UnableToParseConfiguration {
+                    key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
+                    source: Box::new(e),
+                },
+            )?;
         if use_file_system_instead_of_cloud {
             // Here we initialise filesystem object store without root directory, because this code is used
             // by our catalog when we read metadata from the table - paths are absolute
             // In get_object_store function we are using the root directory
-            Ok(ObjectStoreBuilder::Filesystem(Arc::new(LocalFileSystem::new())))
+            Ok(ObjectStoreBuilder::Filesystem(Arc::new(
+                LocalFileSystem::new(),
+            )))
         } else {
             match self.r#type {
                 CloudProvider::AWS => {
@@ -252,16 +269,25 @@ impl StorageProfile {
         // TODO remove duplicated code
         dotenv().ok();
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .context(error::MissingEnvironmentVariableSnafu { var: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string() })?
+            .context(error::MissingEnvironmentVariableSnafu {
+                var: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
+            })?
             .parse::<bool>()
-            .map_err(|e| {
-                error::ControlPlaneModelError::UnableToParseConfiguration { key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(), source: Box::new(e) }
-            })?;
+            .map_err(
+                |e| error::ControlPlaneModelError::UnableToParseConfiguration {
+                    key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
+                    source: Box::new(e),
+                },
+            )?;
         if use_file_system_instead_of_cloud {
             // Here we initialise filesystem object store without current directory as root, because this code is used
             // by our catalog when we write metadata file - we use relative path
             // In get_object_store_builder function we are using absolute paths
-            let lfs = LocalFileSystem::new_with_prefix(".").map_err(|_| error::ControlPlaneModelError::InvalidDirectory { directory: ".".to_string() })?;
+            let lfs = LocalFileSystem::new_with_prefix(".").map_err(|_| {
+                error::ControlPlaneModelError::InvalidDirectory {
+                    directory: ".".to_string(),
+                }
+            })?;
             Ok(Box::new(lfs))
         } else {
             match self.r#type {
@@ -319,7 +345,11 @@ pub struct Warehouse {
 }
 
 impl Warehouse {
-    pub fn new(prefix: String, name: String, storage_profile_id: Uuid) -> ControlPlaneModelResult<Self> {
+    pub fn new(
+        prefix: String,
+        name: String,
+        storage_profile_id: Uuid,
+    ) -> ControlPlaneModelResult<Self> {
         let id = Uuid::new_v4();
         let location = format!("{prefix}/{id}");
         let now = Utc::now().naive_utc();
@@ -471,13 +501,15 @@ impl ColumnInfo {
     }
 }
 
-pub fn created_entity_response() -> std::result::Result<Vec<RecordBatch>, arrow::error::ArrowError> {
+pub fn created_entity_response() -> std::result::Result<Vec<RecordBatch>, arrow::error::ArrowError>
+{
     let schema = Arc::new(ArrowSchema::new(vec![Field::new(
         "count",
         DataType::UInt64,
         false,
     )]));
-    Ok(vec![
-        RecordBatch::try_new(schema, vec![Arc::new(UInt64Array::from(vec![0]))])?,
-    ])
+    Ok(vec![RecordBatch::try_new(
+        schema,
+        vec![Arc::new(UInt64Array::from(vec![0]))],
+    )?])
 }

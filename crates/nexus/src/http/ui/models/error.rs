@@ -3,8 +3,8 @@ use axum::response::{IntoResponse, Response};
 use catalog::error::CatalogError;
 use catalog::models::{DatabaseIdent, TableIdent};
 use control_plane::error::ControlPlaneError;
-use utoipa::{PartialSchema, ToSchema};
 use snafu::prelude::*;
+use utoipa::{PartialSchema, ToSchema};
 use uuid::Uuid;
 
 #[derive(Snafu, Debug)]
@@ -17,7 +17,10 @@ pub enum NexusError {
     StorageProfileFetch { id: Uuid, source: ControlPlaneError },
 
     #[snafu(display("Failed to fetch database with id {id}"))]
-    DatabaseFetch { id: DatabaseIdent, source: CatalogError },
+    DatabaseFetch {
+        id: DatabaseIdent,
+        source: CatalogError,
+    },
 
     #[snafu(display("Failed to list warehouses"))]
     WarehouseList { source: ControlPlaneError },
@@ -29,13 +32,19 @@ pub enum NexusError {
     NamespaceList { id: Uuid, source: CatalogError },
 
     #[snafu(display("Failed to list tables for database with id {id}"))]
-    TableList { id: DatabaseIdent, source: CatalogError },
+    TableList {
+        id: DatabaseIdent,
+        source: CatalogError,
+    },
 
     #[snafu(display("Failed to create table"))]
     TableCreate { source: CatalogError },
 
     #[snafu(display("Failed to fetch table with id {id}"))]
-    TableFetch { id: TableIdent, source: CatalogError },
+    TableFetch {
+        id: TableIdent,
+        source: CatalogError,
+    },
 
     #[snafu(display("Failed to delete table"))]
     TableDelete { source: CatalogError },
@@ -47,10 +56,16 @@ pub enum NexusError {
     DatabaseAlreadyExists { name: String },
 
     #[snafu(display("Failed to create database with ident {ident}"))]
-    DatabaseCreate { ident: DatabaseIdent, source: CatalogError },
+    DatabaseCreate {
+        ident: DatabaseIdent,
+        source: CatalogError,
+    },
 
     #[snafu(display("Failed to delete database with ident {ident}"))]
-    DatabaseDelete { ident: DatabaseIdent, source: CatalogError },
+    DatabaseDelete {
+        ident: DatabaseIdent,
+        source: CatalogError,
+    },
 
     #[snafu(display("Failed to create storage profile"))]
     StorageProfileCreate { source: ControlPlaneError },
@@ -68,7 +83,7 @@ pub enum NexusError {
     TablePropertiesUpdate { source: CatalogError },
 
     #[snafu(display("Failed to upload data to table: {source}"))]
-    DataUpload { source: ControlPlaneError},
+    DataUpload { source: ControlPlaneError },
 
     #[snafu(display("Failed to create warehouse"))]
     WarehouseCreate { source: ControlPlaneError },
@@ -86,13 +101,18 @@ pub enum NexusError {
     InvalidIcebergSnapshotTimestamp { source: iceberg::Error },
 
     #[snafu(display("Malformed multipart message"))]
-    MalformedMultipart { source: axum::extract::multipart::MultipartError },
+    MalformedMultipart {
+        source: axum::extract::multipart::MultipartError,
+    },
 
     #[snafu(display("Malformed file upload request"))]
     MalformedFileUploadRequest,
 
     #[snafu(display("Failed to parse table metadata"))]
-    ParseTableMetadata { source: Box<dyn std::error::Error + Send + Sync>, field: String },
+    ParseTableMetadata {
+        source: Box<dyn std::error::Error + Send + Sync>,
+        field: String,
+    },
 }
 
 pub type NexusResult<T> = std::result::Result<T, NexusError>;
@@ -104,8 +124,7 @@ impl PartialSchema for NexusError {
         utoipa::openapi::ObjectBuilder::new()
             .property(
                 "error",
-                utoipa::openapi::ObjectBuilder::new()
-                    .schema_type(utoipa::openapi::Type::String)
+                utoipa::openapi::ObjectBuilder::new().schema_type(utoipa::openapi::Type::String),
             )
             .required("error")
             .into()
@@ -115,48 +134,44 @@ impl PartialSchema for NexusError {
 impl IntoResponse for NexusError {
     fn into_response(self) -> Response {
         let status = match &self {
-            Self::WarehouseFetch { id:_, source } => {
-                match source {
-                    ControlPlaneError::WarehouseNotFound { .. } => StatusCode::NOT_FOUND,
-                    _ => StatusCode::INTERNAL_SERVER_ERROR,
-                }
+            Self::WarehouseFetch { id: _, source } => match source {
+                ControlPlaneError::WarehouseNotFound { .. } => StatusCode::NOT_FOUND,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            },
+            Self::StorageProfileFetch { id: _, source } => match source {
+                ControlPlaneError::StorageProfileNotFound { .. } => StatusCode::NOT_FOUND,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            },
+            Self::DatabaseFetch { .. }
+            | Self::WarehouseList { .. }
+            | Self::DatabaseModelList { .. }
+            | Self::NamespaceList { .. }
+            | Self::TableList { .. }
+            | Self::DatabaseCreate { .. }
+            | Self::StorageProfileCreate { .. }
+            | Self::Query { .. }
+            | Self::StorageProfileList { .. }
+            | Self::DataUpload { .. }
+            | Self::WarehouseCreate { .. }
+            | Self::InvalidIcebergSnapshotTimestamp { .. }
+            | Self::ParseTableMetadata { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+
+            Self::DatabaseAlreadyExists { .. } | Self::WarehouseAlreadyExists { .. } => {
+                StatusCode::CONFLICT
             }
-            Self::StorageProfileFetch { id:_, source } => {
-                match source {
-                    ControlPlaneError::StorageProfileNotFound { .. } => StatusCode::NOT_FOUND,
-                    _ => StatusCode::INTERNAL_SERVER_ERROR,
-                }
-            }
-            Self::DatabaseFetch { .. } |
-            Self::WarehouseList { .. } |
-            Self::DatabaseModelList { .. } |
-            Self::NamespaceList { .. } |
-            Self::TableList { .. } | 
-            Self::DatabaseCreate { .. } |
-            Self::StorageProfileCreate { .. } |
-            Self::Query { .. } |
-            Self::StorageProfileList { .. } |
-            Self::DataUpload { .. } | 
-            Self::WarehouseCreate { .. } |
-            Self::InvalidIcebergSnapshotTimestamp { .. } |
-            Self::ParseTableMetadata { .. } => StatusCode::INTERNAL_SERVER_ERROR,
 
-            Self::DatabaseAlreadyExists { .. } |
-            Self::WarehouseAlreadyExists { .. } => StatusCode::CONFLICT,
+            Self::MalformedNamespaceIdent { .. }
+            | Self::MalformedMultipart { .. }
+            | Self::MalformedFileUploadRequest => StatusCode::BAD_REQUEST,
 
-            Self::MalformedNamespaceIdent { .. } |
-            Self::MalformedMultipart { .. } |
-            Self::MalformedFileUploadRequest => StatusCode::BAD_REQUEST,
-
-            Self::TableFetch { id: _, source } |
-            Self::TableDelete { source } |
-            Self::TablePropertiesUpdate { source } => match source {
+            Self::TableFetch { id: _, source }
+            | Self::TableDelete { source }
+            | Self::TablePropertiesUpdate { source } => match source {
                 CatalogError::TableNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
 
-            Self::TableCreate { source } |
-            Self::TableRegister { source } => match source {
+            Self::TableCreate { source } | Self::TableRegister { source } => match source {
                 CatalogError::TableAlreadyExists { .. } => StatusCode::CONFLICT,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
@@ -173,7 +188,7 @@ impl IntoResponse for NexusError {
             Self::WarehouseDelete { id: _, source } => match source {
                 ControlPlaneError::WarehouseNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
-            }
+            },
         };
 
         (status, self.to_string()).into_response()

@@ -1,3 +1,3 @@
 pub mod handlers;
-pub mod schemas;
 pub mod router;
+pub mod schemas;

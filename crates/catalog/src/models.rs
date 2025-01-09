@@ -44,7 +44,7 @@ impl TableRequirementExt {
         Self(requirement)
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn inner(&self) -> &TableRequirement {
         &self.0
     }
@@ -53,18 +53,24 @@ impl TableRequirementExt {
         match self.inner() {
             TableRequirement::NotExist => {
                 if exists {
-                    return Err(CatalogError::TableNotFound { key: metadata.uuid().to_string() });
+                    return Err(CatalogError::TableNotFound {
+                        key: metadata.uuid().to_string(),
+                    });
                 }
             }
             TableRequirement::UuidMatch { uuid } => {
                 if &metadata.uuid() != uuid {
-                    return Err(CatalogError::TableRequirementFailed { message: "Table uuid does not match".to_string() });
+                    return Err(CatalogError::TableRequirementFailed {
+                        message: "Table uuid does not match".to_string(),
+                    });
                 }
             }
             TableRequirement::CurrentSchemaIdMatch { current_schema_id } => {
                 // ToDo: Harmonize the types of current_schema_id
                 if i64::from(metadata.current_schema_id) != *current_schema_id {
-                    return Err(CatalogError::TableRequirementFailed { message: "Table current schema id does not match".to_string() });
+                    return Err(CatalogError::TableRequirementFailed {
+                        message: "Table current schema id does not match".to_string(),
+                    });
                 }
             }
             TableRequirement::DefaultSortOrderIdMatch {
@@ -78,13 +84,16 @@ impl TableRequirementExt {
             }
             TableRequirement::RefSnapshotIdMatch { r#ref, snapshot_id } => {
                 if let Some(snapshot_id) = snapshot_id {
-                    let snapshot_ref = metadata
-                        .refs
-                        .get(r#ref)
-                        .ok_or(CatalogError::TableRequirementFailed { message: "Table ref not found".to_string()})?;
+                    let snapshot_ref =
+                        metadata
+                            .refs
+                            .get(r#ref)
+                            .ok_or(CatalogError::TableRequirementFailed {
+                                message: "Table ref not found".to_string(),
+                            })?;
                     if snapshot_ref.snapshot_id != *snapshot_id {
-                        return Err(CatalogError::TableRequirementFailed  { message:
-                            "Table ref snapshot id does not match".to_string(),
+                        return Err(CatalogError::TableRequirementFailed {
+                            message: "Table ref snapshot id does not match".to_string(),
                         });
                     }
                 } else if metadata.refs.contains_key(r#ref) {
@@ -193,7 +202,6 @@ pub struct Database {
     pub ident: DatabaseIdent,
     pub properties: HashMap<String, String>,
 }
-
 
 impl Display for TableIdent {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

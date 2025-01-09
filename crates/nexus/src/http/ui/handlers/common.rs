@@ -1,5 +1,5 @@
-use crate::http::ui::models::database::Database;
 use super::super::models::error::{self as model_error, NexusResult};
+use crate::http::ui::models::database::Database;
 use crate::http::ui::models::storage_profile::StorageProfile;
 use crate::http::ui::models::table::{Statistics, Table};
 use crate::http::ui::models::warehouse::Warehouse;
@@ -10,10 +10,7 @@ use snafu::ResultExt;
 use uuid::Uuid;
 
 impl AppState {
-    pub async fn get_warehouse_model(
-        &self,
-        warehouse_id: Uuid,
-    ) -> NexusResult<WarehouseModel> {
+    pub async fn get_warehouse_model(&self, warehouse_id: Uuid) -> NexusResult<WarehouseModel> {
         self.control_svc
             .get_warehouse(warehouse_id)
             .await
@@ -26,14 +23,13 @@ impl AppState {
             .map(std::convert::Into::into)
     }
 
-    pub async fn get_profile_by_id(
-        &self,
-        storage_profile_id: Uuid,
-    ) -> NexusResult<StorageProfile> {
+    pub async fn get_profile_by_id(&self, storage_profile_id: Uuid) -> NexusResult<StorageProfile> {
         self.control_svc
             .get_profile(storage_profile_id)
             .await
-            .context(model_error::StorageProfileFetchSnafu { id: storage_profile_id })
+            .context(model_error::StorageProfileFetchSnafu {
+                id: storage_profile_id,
+            })
             .map(std::convert::Into::into)
     }
 
@@ -45,7 +41,11 @@ impl AppState {
             .map(std::convert::Into::into)
     }
 
-    #[allow(clippy::cast_possible_truncation, clippy::as_conversions, clippy::cast_possible_wrap)]
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::as_conversions,
+        clippy::cast_possible_wrap
+    )]
     pub async fn list_warehouses(&self) -> NexusResult<Vec<Warehouse>> {
         let warehouses: Vec<Warehouse> = self
             .control_svc
@@ -62,7 +62,6 @@ impl AppState {
 
             let databases = self.list_databases(warehouse.id, profile.clone()).await?;
 
-            
             let mut total_statistics = Statistics {
                 database_count: Some(databases.len() as i32),
                 ..Default::default()
@@ -115,7 +114,7 @@ impl AppState {
             .catalog_svc
             .list_tables(ident)
             .await
-            .context(model_error::TableListSnafu { id: ident.clone() } )?
+            .context(model_error::TableListSnafu { id: ident.clone() })?
             .into_iter()
             .map(Into::into)
             .collect();
@@ -123,7 +122,8 @@ impl AppState {
     }
 
     pub async fn get_table(&self, ident: &TableIdent) -> NexusResult<Table> {
-        let table = self.catalog_svc
+        let table = self
+            .catalog_svc
             .load_table(ident)
             .await
             .context(model_error::TableFetchSnafu { id: ident.clone() })?;

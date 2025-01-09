@@ -50,12 +50,11 @@ pub async fn create_storage_profile(
     Json(payload): Json<storage_profile::CreateStorageProfilePayload>,
 ) -> NexusResult<Json<storage_profile::StorageProfile>> {
     let request: StorageProfileCreateRequest = payload.into();
-    let profile: StorageProfile =
-        state
-            .control_svc
-            .create_profile(&request)
-            .await
-            .context(model_error::StorageProfileCreateSnafu)?;
+    let profile: StorageProfile = state
+        .control_svc
+        .create_profile(&request)
+        .await
+        .context(model_error::StorageProfileCreateSnafu)?;
     Ok(Json(profile.into()))
 }
 
@@ -103,7 +102,9 @@ pub async fn delete_storage_profile(
         .control_svc
         .delete_profile(storage_profile_id)
         .await
-        .context(model_error::StorageProfileDeleteSnafu { id: storage_profile_id })?;
+        .context(model_error::StorageProfileDeleteSnafu {
+            id: storage_profile_id,
+        })?;
     Ok(Json(()))
 }
 
@@ -120,7 +121,8 @@ pub async fn delete_storage_profile(
 pub async fn list_storage_profiles(
     State(state): State<AppState>,
 ) -> NexusResult<Json<Vec<storage_profile::StorageProfile>>> {
-    let profiles = state.control_svc
+    let profiles = state
+        .control_svc
         .list_profiles()
         .await
         .context(model_error::StorageProfileListSnafu)?;

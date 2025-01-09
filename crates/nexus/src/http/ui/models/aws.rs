@@ -151,9 +151,10 @@ impl Default for Credentials {
 impl From<models::Credentials> for Credentials {
     fn from(credentials: models::Credentials) -> Self {
         match credentials {
-            models::Credentials::AccessKey(creds) => Self::AccessKey(
-                AwsAccessKeyCredential::new(creds.aws_access_key_id, creds.aws_secret_access_key),
-            ),
+            models::Credentials::AccessKey(creds) => Self::AccessKey(AwsAccessKeyCredential::new(
+                creds.aws_access_key_id,
+                creds.aws_secret_access_key,
+            )),
             models::Credentials::Role(creds) => {
                 Self::Role(AwsRoleCredential::new(creds.role_arn, creds.external_id))
             }
@@ -164,12 +165,10 @@ impl From<models::Credentials> for Credentials {
 impl From<Credentials> for models::Credentials {
     fn from(credentials: Credentials) -> Self {
         match credentials {
-            Credentials::AccessKey(creds) => {
-                Self::AccessKey(models::AwsAccessKeyCredential {
-                    aws_access_key_id: creds.aws_access_key_id,
-                    aws_secret_access_key: creds.aws_secret_access_key,
-                })
-            }
+            Credentials::AccessKey(creds) => Self::AccessKey(models::AwsAccessKeyCredential {
+                aws_access_key_id: creds.aws_access_key_id,
+                aws_secret_access_key: creds.aws_secret_access_key,
+            }),
             Credentials::Role(creds) => Self::Role(models::AwsRoleCredential {
                 role_arn: creds.role_arn,
                 external_id: creds.external_id,

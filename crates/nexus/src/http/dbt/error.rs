@@ -16,7 +16,9 @@ pub enum DbtError {
     QueryBodyParse { source: serde_json::Error },
 
     #[snafu(display("Internal error"))]
-    ControlService { source: control_plane::error::ControlPlaneError },
+    ControlService {
+        source: control_plane::error::ControlPlaneError,
+    },
 
     #[snafu(display("Missing auth token"))]
     MissingAuthToken,
@@ -42,15 +44,16 @@ pub type DbtResult<T> = std::result::Result<T, DbtError>;
 impl IntoResponse for DbtError {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         let status_code = match &self {
-            Self::GZipDecompress { .. } |
-            Self::LoginRequestParse { .. } |
-            Self::QueryBodyParse { .. } |
-            Self::InvalidWarehouseIdFormat { .. } => http::StatusCode::BAD_REQUEST,
-            Self::ControlService { .. } |
-            Self::RowParse { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
-            Self::MissingAuthToken |
-            Self::MissingDbtSession |
-            Self::InvalidAuthData => http::StatusCode::UNAUTHORIZED,
+            Self::GZipDecompress { .. }
+            | Self::LoginRequestParse { .. }
+            | Self::QueryBodyParse { .. }
+            | Self::InvalidWarehouseIdFormat { .. } => http::StatusCode::BAD_REQUEST,
+            Self::ControlService { .. } | Self::RowParse { .. } => {
+                http::StatusCode::INTERNAL_SERVER_ERROR
+            }
+            Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
+                http::StatusCode::UNAUTHORIZED
+            }
             Self::NotImplemented => http::StatusCode::NOT_IMPLEMENTED,
         };
 

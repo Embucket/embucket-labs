@@ -11,17 +11,19 @@ pub enum CatalogError {
     ObjectStore { source: object_store::Error },
 
     #[snafu(display("Control plane error: {source}"))]
-    ControlPlane { source: control_plane::models::ControlPlaneModelError },
+    ControlPlane {
+        source: control_plane::models::ControlPlaneModelError,
+    },
 
     #[snafu(display("Namespace already exists: {key}"))]
     NamespaceAlreadyExists { key: String },
 
     #[snafu(display("Namespace not empty: {key}"))]
-    NamespaceNotEmpty { key: String},
+    NamespaceNotEmpty { key: String },
 
     #[snafu(display("Table already exists: {key}"))]
     TableAlreadyExists { key: String },
-    
+
     #[snafu(display("Table not found: {key}"))]
     TableNotFound { key: String },
 

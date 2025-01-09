@@ -30,14 +30,15 @@ pub async fn login(
         .context(dbt_error::GZipDecompressSnafu)?;
 
     // Deserialize the JSON body
-    let _body_json: LoginRequestBody = serde_json::from_str(&s)
-        .context(dbt_error::LoginRequestParseSnafu)?;
+    let _body_json: LoginRequestBody =
+        serde_json::from_str(&s).context(dbt_error::LoginRequestParseSnafu)?;
 
     //println!("Received login request: {:?}", query);
     //println!("Body data parameters: {:?}", body_json);
     let token = uuid::Uuid::new_v4().to_string();
 
-    let warehouses = state.control_svc
+    let warehouses = state
+        .control_svc
         .list_warehouses()
         .await
         .context(dbt_error::ControlServiceSnafu)?;
@@ -54,7 +55,6 @@ pub async fn login(
         success: true,
         message: Option::from("successfully executed".to_string()),
     }))
-
 }
 
 pub async fn query(
@@ -70,8 +70,8 @@ pub async fn query(
         .context(dbt_error::GZipDecompressSnafu)?;
 
     // Deserialize the JSON body
-    let body_json: QueryRequestBody = serde_json::from_str(&s)
-        .context(dbt_error::QueryBodyParseSnafu)?;
+    let body_json: QueryRequestBody =
+        serde_json::from_str(&s).context(dbt_error::QueryBodyParseSnafu)?;
     let (_params, _sql_query) = body_json.get_sql_text()?;
     //println!("Query raw: {:?}", body_json.sql_text);
 
@@ -90,22 +90,18 @@ pub async fn query(
         return Err(DbtError::MissingDbtSession);
     };
 
-    let (warehouse_id, database_name) = if let Some((warehouse_id, database_name)) = auth_data.split_once('.') {
-        let warehouse_id = Uuid::parse_str(warehouse_id)
-            .context(dbt_error::InvalidWarehouseIdFormatSnafu)?;
-        (warehouse_id, database_name)
-    } else {
-        return Err(DbtError::InvalidAuthData);
-    };
+    let (warehouse_id, database_name) =
+        if let Some((warehouse_id, database_name)) = auth_data.split_once('.') {
+            let warehouse_id =
+                Uuid::parse_str(warehouse_id).context(dbt_error::InvalidWarehouseIdFormatSnafu)?;
+            (warehouse_id, database_name)
+        } else {
+            return Err(DbtError::InvalidAuthData);
+        };
 
     let (result, columns) = state
         .control_svc
-        .query_dbt(
-            &warehouse_id,
-            database_name,
-            "",
-            &body_json.sql_text,
-        )
+        .query_dbt(&warehouse_id, database_name, "", &body_json.sql_text)
         .await
         .context(dbt_error::ControlServiceSnafu)?;
 
@@ -133,7 +129,7 @@ pub async fn abort() -> DbtResult<Json<serde_json::value::Value>> {
     Err(DbtError::NotImplemented)
 }
 
-#[must_use] 
+#[must_use]
 pub fn extract_token(headers: &HeaderMap) -> Option<String> {
     headers.get("authorization").and_then(|value| {
         value.to_str().ok().and_then(|auth| {

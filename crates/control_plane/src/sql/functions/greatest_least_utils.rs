@@ -78,22 +78,22 @@ pub(super) fn execute_conditional<Op: GreatestLeastOperator>(
                 ColumnarValue::Scalar(s) => s,
                 ColumnarValue::Array(_) => unreachable!(),
             });
-    
+
             // We have at least one scalar
             #[allow(clippy::unwrap_used)]
             let mut result_scalar = scalars_iter.next().unwrap();
-    
+
             for scalar in scalars_iter {
                 result_scalar = Op::keep_scalar(result_scalar, scalar)?;
             }
-    
+
             // If we only have scalars, return the one that we should keep (largest/least)
             if arrays.is_empty() {
                 return Ok(ColumnarValue::Scalar(result_scalar.clone()));
             }
-    
+
             // We have at least one array
-    
+
             // Start with the result value
             keep_array::<Op>(
                 &Arc::clone(first_array),

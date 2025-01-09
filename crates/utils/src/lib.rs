@@ -4,8 +4,8 @@ use serde_json::de;
 use serde_json::ser;
 use slatedb::db::Db as SlateDb;
 use slatedb::error::SlateDBError;
-use uuid::Uuid;
 use snafu::prelude::*;
+use uuid::Uuid;
 
 #[derive(Snafu, Debug)]
 //#[snafu(visibility(pub(crate)))]
@@ -41,10 +41,7 @@ impl Db {
     ///
     /// Returns a `DbError` if the underlying database operation fails.
     pub async fn close(&self) -> Result<()> {
-        self.0
-            .close()
-            .await
-            .context(DatabaseSnafu)?;
+        self.0.close().await.context(DatabaseSnafu)?;
         Ok(())
     }
 
@@ -65,8 +62,7 @@ impl Db {
     /// Returns a `SerializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.
     pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
-        let serialized = ser::to_vec(value)
-            .context(SerializeValueSnafu)?;
+        let serialized = ser::to_vec(value).context(SerializeValueSnafu)?;
         self.0.put(key.as_bytes(), serialized.as_ref()).await;
         Ok(())
     }
@@ -82,14 +78,12 @@ impl Db {
         key: &str,
     ) -> Result<Option<T>> {
         let value: Option<bytes::Bytes> =
-            self.0.get(key.as_bytes())
-                .await
-                .context(KeyGetSnafu { key: key.to_string() })?;
+            self.0.get(key.as_bytes()).await.context(KeyGetSnafu {
+                key: key.to_string(),
+            })?;
         value.map_or_else(
             || Ok(None),
-            |bytes| de::from_slice(&bytes)
-            .context(DeserializeValueSnafu)
-            //.map_err(|e| Error::Deserialize { source: e}),
+            |bytes| de::from_slice(&bytes).context(DeserializeValueSnafu), //.map_err(|e| Error::Deserialize { source: e}),
         )
     }
 

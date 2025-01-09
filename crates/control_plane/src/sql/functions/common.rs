@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 const TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H:%M:%S%.9f";
 
-#[must_use] 
+#[must_use]
 pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, ArrayRef)> {
     for i in 0..union_array.type_ids().len() {
         let type_id = union_array.type_id(i);
@@ -84,7 +84,11 @@ pub fn convert_record_batches(
     Ok((converted_batches.clone(), column_infos))
 }
 
-#[allow(clippy::unwrap_used, clippy::as_conversions, clippy::cast_possible_truncation)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::as_conversions,
+    clippy::cast_possible_truncation
+)]
 fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
     let now = Utc::now();
     let timestamps: Vec<_> = match unit {
@@ -106,7 +110,8 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .map(|x| {
                 #[allow(clippy::unwrap_used)]
                 let ts =
-                    DateTime::from_timestamp_millis(x.unwrap_or_else(|| now.timestamp_millis())).unwrap();
+                    DateTime::from_timestamp_millis(x.unwrap_or_else(|| now.timestamp_millis()))
+                        .unwrap();
                 format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
             })
             .collect(),
@@ -118,7 +123,8 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .map(|x| {
                 #[allow(clippy::unwrap_used)]
                 let ts =
-                    DateTime::from_timestamp_micros(x.unwrap_or_else(|| now.timestamp_micros())).unwrap();
+                    DateTime::from_timestamp_micros(x.unwrap_or_else(|| now.timestamp_micros()))
+                        .unwrap();
                 format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
             })
             .collect(),
@@ -129,8 +135,9 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .iter()
             .map(|x| {
                 #[allow(clippy::unwrap_used)]
-                let ts =
-                    DateTime::from_timestamp_nanos(x.unwrap_or_else(|| now.timestamp_nanos_opt().unwrap()));
+                let ts = DateTime::from_timestamp_nanos(
+                    x.unwrap_or_else(|| now.timestamp_nanos_opt().unwrap()),
+                );
                 format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
             })
             .collect(),

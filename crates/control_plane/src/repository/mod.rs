@@ -149,7 +149,8 @@ impl StorageProfileRepository for InMemoryStorageProfileRepository {
     }
 
     async fn get(&self, id: Uuid) -> ControlPlaneResult<StorageProfile> {
-        Ok(self.profiles
+        Ok(self
+            .profiles
             .lock()
             .unwrap()
             .get(&id)
@@ -167,13 +168,7 @@ impl StorageProfileRepository for InMemoryStorageProfileRepository {
     }
 
     async fn list(&self) -> ControlPlaneResult<Vec<StorageProfile>> {
-        Ok(self.profiles
-            .lock()
-            .unwrap()
-            .values()
-            .cloned()
-            .collect()
-        )
+        Ok(self.profiles.lock().unwrap().values().cloned().collect())
     }
 }
 
@@ -189,14 +184,13 @@ impl WarehouseRepository for InMemoryWarehouseRepository {
     }
 
     async fn get(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
-        Ok(
-            self.warehouses
-                .lock()
-                .unwrap()
-                .get(&id)
-                .ok_or(ControlPlaneError::WarehouseNotFound { id })?
-                .clone()
-        )
+        Ok(self
+            .warehouses
+            .lock()
+            .unwrap()
+            .get(&id)
+            .ok_or(ControlPlaneError::WarehouseNotFound { id })?
+            .clone())
     }
 
     async fn delete(&self, id: Uuid) -> ControlPlaneResult<()> {
@@ -209,14 +203,7 @@ impl WarehouseRepository for InMemoryWarehouseRepository {
     }
 
     async fn list(&self) -> ControlPlaneResult<Vec<Warehouse>> {
-        Ok(
-            self.warehouses
-                .lock()
-                .unwrap()
-                .values()
-                .cloned()
-                .collect()
-        )
+        Ok(self.warehouses.lock().unwrap().values().cloned().collect())
     }
 }
 

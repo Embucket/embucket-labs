@@ -370,7 +370,11 @@ pub async fn update_table_properties(
     let table = state.get_table(&table_ident).await?;
     let updated_table = state
         .catalog_svc
-        .update_table(&profile, &warehouse, payload.to_commit(&table, &table_ident))
+        .update_table(
+            &profile,
+            &warehouse,
+            payload.to_commit(&table, &table_ident),
+        )
         .await
         .context(model_error::TablePropertiesUpdateSnafu)?;
     let mut table: Table = updated_table.into();
@@ -414,16 +418,24 @@ pub async fn upload_data_to_table(
                 if field.name().ok_or(NexusError::MalformedFileUploadRequest)? != "upload_file" {
                     continue;
                 }
-                let file_name = field.file_name()
+                let file_name = field
+                    .file_name()
                     .ok_or(NexusError::MalformedFileUploadRequest)?
                     .to_string();
-                let data = field.bytes()
+                let data = field
+                    .bytes()
                     .await
                     .context(model_error::MalformedMultipartSnafu)?;
-        
+
                 state
                     .control_svc
-                    .upload_data_to_table(&warehouse_id, &database_name, &table_name, data, file_name)
+                    .upload_data_to_table(
+                        &warehouse_id,
+                        &database_name,
+                        &table_name,
+                        data,
+                        file_name,
+                    )
                     .await
                     .context(model_error::DataUploadSnafu)?;
             }

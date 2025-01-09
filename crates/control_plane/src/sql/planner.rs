@@ -198,8 +198,10 @@ where
 
     pub fn convert_data_type(&self, sql_type: &SQLDataType) -> Result<DataType> {
         match sql_type {
-            SQLDataType::Array(ArrayElemTypeDef::AngleBracket(inner_sql_type) |
-ArrayElemTypeDef::SquareBracket(inner_sql_type, _)) => {
+            SQLDataType::Array(
+                ArrayElemTypeDef::AngleBracket(inner_sql_type)
+                | ArrayElemTypeDef::SquareBracket(inner_sql_type, _),
+            ) => {
                 // Arrays may be multi-dimensional.
                 let inner_data_type = self.convert_data_type(inner_sql_type)?;
                 Ok(DataType::new_list(inner_data_type, true))
@@ -435,9 +437,9 @@ ArrayElemTypeDef::SquareBracket(inner_sql_type, _)) => {
                                 .iter()
                                 .position(|item| *item.to_lowercase() == u.value.to_lowercase())
                                 .ok_or_else(|| {
-                                    let name = name
-                                        .as_ref()
-                                        .map_or(String::new(), |name| format!("with name '{name}' "));
+                                    let name = name.as_ref().map_or(String::new(), |name| {
+                                        format!("with name '{name}' ")
+                                    });
                                     DataFusionError::Execution(format!(
                                         "Column for unique constraint {}not found in schema: {}",
                                         name, u.value
@@ -474,8 +476,7 @@ ArrayElemTypeDef::SquareBracket(inner_sql_type, _)) => {
                 TableConstraint::Check { .. } => {
                     _plan_err!("Check constraints are not currently supported")
                 }
-                TableConstraint::FulltextOrSpatial { .. } |
-                TableConstraint::Index {..} => {
+                TableConstraint::FulltextOrSpatial { .. } | TableConstraint::Index { .. } => {
                     _plan_err!("Indexes are not currently supported")
                 }
             })
@@ -505,11 +506,13 @@ ArrayElemTypeDef::SquareBracket(inner_sql_type, _)) => {
         }
 
         let query = if variable_vec.iter().any(|ident| ident.value == "objects") {
-            columns = ["table_catalog as 'database_name'",
+            columns = [
+                "table_catalog as 'database_name'",
                 "table_schema as 'schema_name'",
                 "table_name as 'name'",
                 "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
-                "null as 'comment'"]
+                "null as 'comment'",
+            ]
             .join(", ");
             format!("SELECT {columns} FROM information_schema.tables")
         } else {
@@ -544,11 +547,16 @@ ArrayElemTypeDef::SquareBracket(inner_sql_type, _)) => {
         };
 
         let mut statements = DFParser::parse_sql(query.as_str())?;
-        statements.pop_front().map_or_else(|| plan_err!("Failed to parse SQL statement"), |statement| if let DFStatement::Statement(s) = statement {
-                self.sql_statement_to_plan(*s)
-            } else {
-                plan_err!("Failed to parse SQL statement")
-            })
+        statements.pop_front().map_or_else(
+            || plan_err!("Failed to parse SQL statement"),
+            |statement| {
+                if let DFStatement::Statement(s) = statement {
+                    self.sql_statement_to_plan(*s)
+                } else {
+                    plan_err!("Failed to parse SQL statement")
+                }
+            },
+        )
     }
 
     fn has_table(&self, schema: &str, table: &str) -> bool {

@@ -1,5 +1,5 @@
+use super::error::{self as model_error, NexusError, NexusResult};
 use crate::http::ui::models::table::Table;
-use super::error::{self as model_error, NexusResult, NexusError};
 use catalog::models::{TableCommit, TableIdent};
 use chrono::{DateTime, Utc};
 use iceberg::spec::Operation;
@@ -42,7 +42,9 @@ impl TryFrom<Table> for TableSnapshotsResponse {
                 Operation::Delete => "delete",
             };
             snapshots.push(TableSnapshot {
-                timestamp: snapshot.timestamp().context(model_error::InvalidIcebergSnapshotTimestampSnafu)?,
+                timestamp: snapshot
+                    .timestamp()
+                    .context(model_error::InvalidIcebergSnapshotTimestampSnafu)?,
                 operation: operation.to_string(),
                 total_records: snapshot
                     .summary()
@@ -79,7 +81,6 @@ pub struct TableSettingsResponse {
     lifecycle_policies: LifecyclePolicies,
     user_managed: UserManaged,
 }
-
 
 impl TryFrom<Table> for TableSettingsResponse {
     type Error = NexusError;

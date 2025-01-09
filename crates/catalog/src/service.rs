@@ -1,4 +1,4 @@
-use crate::error::{CatalogError, CatalogResult, self};
+use crate::error::{self, CatalogError, CatalogResult};
 // TODO: Replace this with this crate error and result
 use crate::models::{
     Config, Database, DatabaseIdent, Table, TableCommit, TableIdent, TableRequirementExt,
@@ -134,9 +134,7 @@ impl Catalog for CatalogImpl {
         }
         if let Some(sp) = storage_profile {
             if let Some(endpoint) = sp.endpoint {
-                config
-                    .overrides
-                    .insert("s3.endpoint".to_string(), endpoint);
+                config.overrides.insert("s3.endpoint".to_string(), endpoint);
             }
         }
         Ok(config)
@@ -169,7 +167,9 @@ impl Catalog for CatalogImpl {
         }
         let result = builder.build().context(error::IcebergSnafu)?;
 
-        let base_part = storage_profile.get_base_url().context(error::ControlPlaneSnafu)?;
+        let base_part = storage_profile
+            .get_base_url()
+            .context(error::ControlPlaneSnafu)?;
         let table_part = format!("{}/{}", warehouse.location, commit.ident.table);
         let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
 
@@ -184,7 +184,9 @@ impl Catalog for CatalogImpl {
         };
         self.table_repo.put(&table).await?;
 
-        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store().context(error::ControlPlaneSnafu)?;
+        let object_store: Box<dyn ObjectStore> = storage_profile
+            .get_object_store()
+            .context(error::ControlPlaneSnafu)?;
         let data = Bytes::from(serde_json::to_vec(&table.metadata).context(error::SerdeSnafu)?);
         let path = Path::from(format!("{table_part}/{metadata_part}"));
         object_store
@@ -219,7 +221,9 @@ impl Catalog for CatalogImpl {
         };
         let database = self.get_namespace(namespace).await;
         if database.is_ok() {
-            return Err(CatalogError::NamespaceAlreadyExists { key: namespace.to_string() });
+            return Err(CatalogError::NamespaceAlreadyExists {
+                key: namespace.to_string(),
+            });
         }
         // put bluntly saves to db no matter what
         self.db_repo.put(&db).await.ok();
@@ -259,7 +263,9 @@ impl Catalog for CatalogImpl {
         // Check if there are tables in the namespace
         let tables = self.list_tables(namespace).await?;
         if !tables.is_empty() {
-            return Err(CatalogError::NamespaceNotEmpty { key: namespace.to_string() });
+            return Err(CatalogError::NamespaceNotEmpty {
+                key: namespace.to_string(),
+            });
         }
 
         self.db_repo.delete(namespace).await?;
@@ -295,7 +301,9 @@ impl Catalog for CatalogImpl {
         };
         let res = self.load_table(&ident).await;
         if res.is_ok() {
-            return Err(CatalogError::TableAlreadyExists { key: ident.to_string() });
+            return Err(CatalogError::TableAlreadyExists {
+                key: ident.to_string(),
+            });
         }
 
         // TODO: Robust location generation
@@ -303,7 +311,8 @@ impl Catalog for CatalogImpl {
         // Take into account provided location if present
         // If none, generate location based on warehouse location
 
-        let base_part = storage_profile.get_base_url()
+        let base_part = storage_profile
+            .get_base_url()
             .context(error::ControlPlaneSnafu)?;
         let table_part = format!("{}/{}", warehouse.location, table_creation.name);
         let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
@@ -335,7 +344,8 @@ impl Catalog for CatalogImpl {
         };
         self.table_repo.put(&table).await?;
 
-        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store()
+        let object_store: Box<dyn ObjectStore> = storage_profile
+            .get_object_store()
             .context(error::ControlPlaneSnafu)?;
         let data = Bytes::from(serde_json::to_vec(&table.metadata).context(error::SerdeSnafu)?);
         let path = Path::from(format!("{table_part}/{metadata_part}"));
@@ -365,11 +375,14 @@ impl Catalog for CatalogImpl {
         };
         let res = self.load_table(&ident).await;
         if res.is_ok() {
-            return Err(CatalogError::TableAlreadyExists { key: ident.to_string() });
+            return Err(CatalogError::TableAlreadyExists {
+                key: ident.to_string(),
+            });
         }
 
         // Load metadata from the provided location
-        let object_store: Box<dyn ObjectStore> = storage_profile.get_object_store()
+        let object_store: Box<dyn ObjectStore> = storage_profile
+            .get_object_store()
             .context(error::ControlPlaneSnafu)?;
         let path = Path::from(metadata_location.clone());
         let data = object_store
@@ -417,11 +430,13 @@ mod tests {
     use object_store::{memory::InMemory, path::Path, ObjectStore};
     use slatedb::config::DbOptions;
     use slatedb::db::Db as SlateDb;
+    use std::env;
     use std::sync::Arc;
     use utils::Db;
     use uuid::Uuid;
 
     async fn create_service() -> impl Catalog {
+        env::set_var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD", "true");
         let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
         let options = DbOptions::default();
         let db = Arc::new(Db::new(
@@ -624,19 +639,14 @@ mod tests {
             }),
             None,
             None,
-        ).expect("failed to create profile");
-        let warehouse = Warehouse::new(
-            "prefix".to_string(), 
-            "name".to_string(), 
-            Uuid::new_v4())
-        .expect("failed to create warehouse");
+        )
+        .expect("failed to create profile");
+        let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
+            .expect("failed to create warehouse");
 
-        let res = service.create_table(
-            &ident, 
-            &sp,
-            &warehouse,
-            creation,
-            None).await;
+        let res = service
+            .create_table(&ident, &sp, &warehouse, creation, None)
+            .await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
         let tident = res.unwrap().ident;
 
@@ -649,13 +659,10 @@ mod tests {
             properties: HashMap::new(),
             sort_order: None,
         };
-        
-        let res = service.create_table(
-            &ident, 
-            &sp,
-            &warehouse,
-            creation,
-            None).await;
+
+        let res = service
+            .create_table(&ident, &sp, &warehouse, creation, None)
+            .await;
         assert!(res.is_err());
 
         let res = service.load_table(&tident).await;
@@ -716,20 +723,14 @@ mod tests {
             }),
             None,
             None,
-        ).expect("failed to create profile");
-        let warehouse = Warehouse::new(
-            "prefix".to_string(), 
-            "name".to_string(), 
-            Uuid::new_v4())
-        .expect("failed to create warehouse");
+        )
+        .expect("failed to create profile");
+        let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
+            .expect("failed to create warehouse");
 
-        let res = service.create_table(
-            &ident, 
-            &sp,
-            &warehouse,
-            creation,
-            None
-        ).await;
+        let res = service
+            .create_table(&ident, &sp, &warehouse, creation, None)
+            .await;
         assert!(res.is_err());
     }
 
@@ -791,17 +792,12 @@ mod tests {
             }),
             None,
             None,
-        ).expect("failed to create profile");
-        let warehouse = Warehouse::new(
-            "prefix".to_string(), 
-            "name".to_string(), 
-            Uuid::new_v4())
-        .expect("failed to create warehouse");
+        )
+        .expect("failed to create profile");
+        let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
+            .expect("failed to create warehouse");
 
-        let res = service.update_table(
-            &sp,
-            &warehouse,
-            commit).await;
+        let res = service.update_table(&sp, &warehouse, commit).await;
         assert!(res.is_err());
     }
 
@@ -829,7 +825,7 @@ mod tests {
                     "id":2,
                     "name":"bar",
                     "required":true,
-                    "type":"int"
+                    "typ":"int"
                 },
                 {
                     "id":3,
@@ -859,19 +855,15 @@ mod tests {
             }),
             None,
             None,
-        ).expect("failed to create profile");
-        let warehouse = Warehouse::new(
-            "prefix".to_string(), 
-            "name".to_string(), 
-            Uuid::new_v4())
-        .expect("failed to create warehouse");
+        )
+        .expect("failed to create profile");
+        let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
+            .expect("failed to create warehouse");
 
-        let res = service.create_table(
-            &ident, 
-            &sp,
-            &warehouse,
-            creation,
-            None).await;
+        let res = service
+            .create_table(&ident, &sp, &warehouse, creation, None)
+            .await;
+        dbg!(&res);
         assert!(res.is_err());
     }
 
@@ -929,20 +921,14 @@ mod tests {
             }),
             None,
             None,
-        ).expect("failed to create profile");
-        let warehouse = Warehouse::new(
-            "prefix".to_string(), 
-            "name".to_string(), 
-            Uuid::new_v4())
-        .expect("failed to create warehouse");
+        )
+        .expect("failed to create profile");
+        let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
+            .expect("failed to create warehouse");
 
-        let res = service.create_table(
-            &ident, 
-            &sp,
-            &warehouse,
-            creation,
-            None
-        ).await;
+        let res = service
+            .create_table(&ident, &sp, &warehouse, creation, None)
+            .await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
 
         let res = service.drop_namespace(&ident).await;
@@ -1003,19 +989,13 @@ mod tests {
             }),
             None,
             None,
-        ).expect("failed to create profile");
-        let warehouse = Warehouse::new(
-            "prefix".to_string(), 
-            "name".to_string(), 
-            Uuid::new_v4())
-        .expect("failed to create warehouse");
-        let res = service.create_table(
-            &ident, 
-            &sp,
-            &warehouse,
-            creation,
-            None
-        ).await;
+        )
+        .expect("failed to create profile");
+        let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
+            .expect("failed to create warehouse");
+        let res = service
+            .create_table(&ident, &sp, &warehouse, creation, None)
+            .await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
 
         let json = r#"
@@ -1052,17 +1032,12 @@ mod tests {
             }),
             None,
             None,
-        ).expect("failed to create profile");
-        let warehouse = Warehouse::new(
-            "prefix".to_string(), 
-            "name".to_string(), 
-            Uuid::new_v4())
-        .expect("failed to create warehouse");
+        )
+        .expect("failed to create profile");
+        let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
+            .expect("failed to create warehouse");
 
-        let res = service.update_table(
-            &sp,
-            &warehouse,
-            commit).await;
+        let res = service.update_table(&sp, &warehouse, commit).await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
 
         let res = service.load_table(&res.unwrap().ident).await;

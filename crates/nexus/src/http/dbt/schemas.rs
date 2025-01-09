@@ -1,9 +1,9 @@
+use super::error::{self as dbt_error, DbtResult};
 use control_plane::models::ColumnInfo as ColumnInfoModel;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use std::collections::HashMap;
-use super::error::{self as dbt_error, DbtResult};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoginRequestQuery {
@@ -81,8 +81,8 @@ impl QueryRequestBody {
         let sql_text = self.sql_text.clone();
         let comment_end = sql_text.find("*/").map_or(0, |i| i + 2);
         let metadata_str = &sql_text[2..comment_end - 2].trim();
-        let metadata: HashMap<String, String> = serde_json::from_str(metadata_str)
-            .context(dbt_error::QueryBodyParseSnafu)?;
+        let metadata: HashMap<String, String> =
+            serde_json::from_str(metadata_str).context(dbt_error::QueryBodyParseSnafu)?;
         let query = sql_text[comment_end..].trim().to_string();
         Ok((metadata, query))
     }
@@ -108,11 +108,12 @@ pub struct ResponseData {
 
 impl ResponseData {
     pub fn rows_to_vec(json_rows_string: &str) -> DbtResult<Vec<Vec<serde_json::Value>>> {
-        let json_array: Vec<IndexMap<String, serde_json::Value>> = serde_json::from_str(json_rows_string)
-            .context(dbt_error::RowParseSnafu)?;
-        Ok( json_array.into_iter().map(|obj| {
-            obj.values().cloned().collect()
-        }).collect())
+        let json_array: Vec<IndexMap<String, serde_json::Value>> =
+            serde_json::from_str(json_rows_string).context(dbt_error::RowParseSnafu)?;
+        Ok(json_array
+            .into_iter()
+            .map(|obj| obj.values().cloned().collect())
+            .collect())
     }
 }
 

@@ -1,6 +1,6 @@
+use arrow::datatypes::DataType;
 use arrow::datatypes::DataType::{Date32, Date64, Int64, Time32, Time64, Timestamp, Utf8};
 use arrow::datatypes::TimeUnit::{Microsecond, Millisecond, Nanosecond, Second};
-use arrow::datatypes::DataType;
 use datafusion::common::{plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Exact;
 use datafusion::logical_expr::{
@@ -86,7 +86,8 @@ impl DateAddFunc {
             val.add(ScalarValue::new_interval_ym(
                 i32::try_from(years).unwrap_or(0),
                 0,
-            )).unwrap_or_else(|_| ScalarValue::new_interval_ym(0, 0)),
+            ))
+            .unwrap_or_else(|_| ScalarValue::new_interval_ym(0, 0)),
         ))
     }
     fn add_months(val: &ScalarValue, months: i64) -> Result<ColumnarValue> {
@@ -94,7 +95,8 @@ impl DateAddFunc {
             val.add(ScalarValue::new_interval_ym(
                 0,
                 i32::try_from(months).unwrap_or(0),
-            )).unwrap_or_else(|_| ScalarValue::new_interval_ym(0, 0)),
+            ))
+            .unwrap_or_else(|_| ScalarValue::new_interval_ym(0, 0)),
         ))
     }
     fn add_days(val: &ScalarValue, days: i64) -> Result<ColumnarValue> {
@@ -102,7 +104,8 @@ impl DateAddFunc {
             val.add(ScalarValue::new_interval_dt(
                 i32::try_from(days).unwrap_or(0),
                 0,
-            )).unwrap_or_else(|_| ScalarValue::new_interval_dt(0, 0)),
+            ))
+            .unwrap_or_else(|_| ScalarValue::new_interval_dt(0, 0)),
         ))
     }
 }
@@ -179,9 +182,7 @@ impl ScalarUDFImpl for DateAddFunc {
             "month" | "mm" | "mon" | "mons" | "months" => {
                 Self::add_months(&date_or_time_expr, value)
             }
-            "day" | "d" | "dd" | "days" | "dayofmonth" => {
-                Self::add_days(&date_or_time_expr, value)
-            }
+            "day" | "d" | "dd" | "days" | "dayofmonth" => Self::add_days(&date_or_time_expr, value),
             "week" | "w" | "wk" | "weekofyear" | "woy" | "wy" => {
                 Self::add_days(&date_or_time_expr, value * 7)
             }

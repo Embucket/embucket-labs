@@ -14,13 +14,19 @@ pub enum ControlPlaneModelError {
     CloudProviderNotImplemented { provider: String },
 
     #[snafu(display("Unable to parse key `{key}`"))]
-    UnableToParseConfiguration { key: String, source: Box<dyn std::error::Error + Send> },
+    UnableToParseConfiguration {
+        key: String,
+        source: Box<dyn std::error::Error + Send>,
+    },
 
     #[snafu(display("Role-based credentials aren't supported"))]
     RoleBasedCredentialsNotSupported,
 
     #[snafu(display("Missing environment variable `{var}`"))]
-    MissingEnvironmentVariable { source: std::env::VarError, var: String },
+    MissingEnvironmentVariable {
+        source: std::env::VarError,
+        var: String,
+    },
 
     // Duplicated in `control_plane` crate, needs refactoring
     #[snafu(display("Object store error: {source}"))]

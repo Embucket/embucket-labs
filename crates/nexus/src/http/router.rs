@@ -111,7 +111,6 @@ mod tests {
     use tower::{Service, ServiceExt};
     use utils::Db;
 
-    
     lazy_static::lazy_static! {
         static ref TEMP_DIR: TempDir = TempDir::new().unwrap();
     }

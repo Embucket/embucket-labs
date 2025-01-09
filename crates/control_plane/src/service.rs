@@ -2,8 +2,8 @@ use crate::error::{ControlPlaneError, ControlPlaneResult};
 use crate::models::{ColumnInfo, Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
-use crate::sql::functions::common::convert_record_batches;
 use crate::sql::execution::SqlExecutor;
+use crate::sql::functions::common::convert_record_batches;
 use arrow::record_batch::RecordBatch;
 use arrow_json::writer::JsonArray;
 use arrow_json::WriterBuilder;
@@ -28,13 +28,19 @@ use uuid::Uuid;
 
 #[async_trait]
 pub trait ControlService: Send + Sync {
-    async fn create_profile(&self, params: &StorageProfileCreateRequest) -> ControlPlaneResult<StorageProfile>;
+    async fn create_profile(
+        &self,
+        params: &StorageProfileCreateRequest,
+    ) -> ControlPlaneResult<StorageProfile>;
     async fn get_profile(&self, id: Uuid) -> ControlPlaneResult<StorageProfile>;
     async fn delete_profile(&self, id: Uuid) -> ControlPlaneResult<()>;
     async fn list_profiles(&self) -> ControlPlaneResult<Vec<StorageProfile>>;
     async fn validate_credentials(&self, profile: &StorageProfile) -> ControlPlaneResult<()>;
 
-    async fn create_warehouse(&self, params: &WarehouseCreateRequest) -> ControlPlaneResult<Warehouse>;
+    async fn create_warehouse(
+        &self,
+        params: &WarehouseCreateRequest,
+    ) -> ControlPlaneResult<Warehouse>;
     async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse>;
     async fn delete_warehouse(&self, id: Uuid) -> ControlPlaneResult<()>;
     async fn list_warehouses(&self) -> ControlPlaneResult<Vec<Warehouse>>;
@@ -102,8 +108,12 @@ impl ControlServiceImpl {
 
 #[async_trait]
 impl ControlService for ControlServiceImpl {
-    async fn create_profile(&self, params: &StorageProfileCreateRequest) -> ControlPlaneResult<StorageProfile> {
-        let profile = params.try_into()
+    async fn create_profile(
+        &self,
+        params: &StorageProfileCreateRequest,
+    ) -> ControlPlaneResult<StorageProfile> {
+        let profile = params
+            .try_into()
             .context(crate::error::InvalidStorageProfileSnafu)?;
 
         if params.validate_credentials.unwrap_or_default() {
@@ -146,29 +156,33 @@ impl ControlService for ControlServiceImpl {
                         .unwrap_or_else(|| format!("https://s3.{profile_region}.amazonaws.com")),
                 };
 
-                let dispatcher = HttpClient::new().context(crate::error::InvalidTLSConfigurationSnafu)?;
+                let dispatcher =
+                    HttpClient::new().context(crate::error::InvalidTLSConfigurationSnafu)?;
                 let client = S3Client::new_with(dispatcher, credentials, region);
                 let request = GetBucketAclRequest {
                     bucket: profile.bucket.clone(),
                     expected_bucket_owner: None,
                 };
-                client
-                    .get_bucket_acl(request)
-                    .await?;
+                client.get_bucket_acl(request).await?;
                 Ok(())
             }
-            Credentials::Role(_) => { 
-                Err(ControlPlaneError::UnsupportedAuthenticationMethod { method: profile.credentials.to_string() })
-            }
+            Credentials::Role(_) => Err(ControlPlaneError::UnsupportedAuthenticationMethod {
+                method: profile.credentials.to_string(),
+            }),
         }
     }
 
-    async fn create_warehouse(&self, params: &WarehouseCreateRequest) -> ControlPlaneResult<Warehouse> {
+    async fn create_warehouse(
+        &self,
+        params: &WarehouseCreateRequest,
+    ) -> ControlPlaneResult<Warehouse> {
         // TODO: Check if storage profile exists
         // - Check if its valid
         // - Generate id, update created_at and updated_at
         // - Try create Warehouse from WarehouseCreateRequest
-        let wh: Warehouse = params.try_into().context(crate::error::InvalidCreateWarehouseSnafu)?;
+        let wh: Warehouse = params
+            .try_into()
+            .context(crate::error::InvalidCreateWarehouseSnafu)?;
         let _ = self.get_profile(wh.storage_profile_id).await?;
         self.warehouse_repo.create(&wh).await?;
         Ok(wh)
@@ -204,7 +218,8 @@ impl ControlService for ControlServiceImpl {
             config.base_path = "http://0.0.0.0:3000/catalog".to_string();
             config
         };
-        let object_store = storage_profile.get_object_store_builder()
+        let object_store = storage_profile
+            .get_object_store_builder()
             .context(crate::error::InvalidStorageProfileSnafu)?;
         let rest_client = RestCatalog::new(
             Some(warehouse_id.to_string().as_str()),
@@ -221,8 +236,7 @@ impl ControlService for ControlServiceImpl {
         ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
 
         // TODO: Should be shared context
-        let executor = SqlExecutor::new(ctx)
-            .context(crate::error::ExecutionSnafu)?;
+        let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
 
         let records: Vec<RecordBatch> = executor
             .query(query, &catalog_name.clone().to_string())
@@ -231,8 +245,9 @@ impl ControlService for ControlServiceImpl {
             .into_iter()
             .collect::<Vec<_>>();
         // Add columns dbt metadata to each field
-        convert_record_batches(records)
-            .context(crate::error::DataFusionQuerySnafu { query: query.to_string()})
+        convert_record_batches(records).context(crate::error::DataFusionQuerySnafu {
+            query: query.to_string(),
+        })
     }
 
     async fn query_table(
@@ -251,10 +266,10 @@ impl ControlService for ControlServiceImpl {
         let mut writer = write_builder.build::<_, JsonArray>(buf);
 
         let record_refs: Vec<&RecordBatch> = records.iter().collect();
-        writer.write_batches(&record_refs)
+        writer
+            .write_batches(&record_refs)
             .context(crate::error::ArrowSnafu)?;
-        writer.finish()
-            .context(crate::error::ArrowSnafu)?;
+        writer.finish().context(crate::error::ArrowSnafu)?;
 
         // Get the underlying buffer back,
         let buf = writer.into_inner();
@@ -315,13 +330,17 @@ impl ControlService for ControlServiceImpl {
         let mut writer = write_builder.build::<_, JsonArray>(buf);
 
         let record_refs: Vec<&RecordBatch> = records.iter().collect();
-        writer.write_batches(&record_refs)
+        writer
+            .write_batches(&record_refs)
             .context(crate::error::ArrowSnafu)?;
         writer.finish().context(crate::error::ArrowSnafu)?;
 
         // Get the underlying buffer back,
         let buf = writer.into_inner();
-        Ok((String::from_utf8(buf).context(crate::error::Utf8Snafu)?, columns))
+        Ok((
+            String::from_utf8(buf).context(crate::error::Utf8Snafu)?,
+            columns,
+        ))
     }
 
     async fn upload_data_to_table(
@@ -336,7 +355,8 @@ impl ControlService for ControlServiceImpl {
 
         let warehouse = self.get_warehouse(*warehouse_id).await?;
         let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
-        let object_store = storage_profile.get_object_store()
+        let object_store = storage_profile
+            .get_object_store()
             .context(crate::error::InvalidStorageProfileSnafu)?;
         let unique_file_id = Uuid::new_v4().to_string();
 
@@ -353,21 +373,23 @@ impl ControlService for ControlServiceImpl {
 
         let ctx = SessionContext::new();
 
-        let storage_endpoint_url = storage_profile.endpoint.as_ref().ok_or(ControlPlaneError::MissingStorageEndpointURL)?;
+        let storage_endpoint_url = storage_profile
+            .endpoint
+            .as_ref()
+            .ok_or(ControlPlaneError::MissingStorageEndpointURL)?;
 
         let path_string = match &storage_profile.credentials {
             Credentials::AccessKey(_) => {
                 // If the storage profile is AWS S3, modify the path_string with the S3 prefix
-                format!(
-                    "{storage_endpoint_url}/{path_string}",
-                )
+                format!("{storage_endpoint_url}/{path_string}",)
             }
             Credentials::Role(_) => path_string,
         };
-        let endpoint_url = Url::parse(storage_endpoint_url)
-            .context(crate::error::InvalidStorageEndpointURLSnafu { 
-                url: storage_endpoint_url
-            })?;
+        let endpoint_url = Url::parse(storage_endpoint_url).context(
+            crate::error::InvalidStorageEndpointURLSnafu {
+                url: storage_endpoint_url,
+            },
+        )?;
         ctx.register_object_store(&endpoint_url, Arc::from(object_store));
 
         // println!("{:?}", data);
@@ -490,7 +512,10 @@ mod tests {
         };
 
         let err = service.create_warehouse(&request).await;
-        assert!(matches!(err, Err(ControlPlaneError::WarehouseNotFound { id: _ })));
+        assert!(matches!(
+            err,
+            Err(ControlPlaneError::StorageProfileNotFound { id: _ })
+        ));
     }
 
     #[tokio::test]
@@ -523,6 +548,9 @@ mod tests {
             .delete_profile(wh.storage_profile_id)
             .await
             .unwrap_err();
-        assert!(matches!(result, ControlPlaneError::WarehouseNotEmpty { id:_ }));
+        assert!(matches!(
+            result,
+            ControlPlaneError::StorageProfileInUse { id: _ }
+        ));
     }
 }

@@ -36,11 +36,7 @@ pub struct CreateWarehousePayload {
 impl CreateWarehousePayload {
     #[allow(clippy::new_without_default)]
     #[must_use]
-    pub const fn new(
-        name: String,
-        storage_profile_id: uuid::Uuid,
-        key_prefix: String,
-    ) -> Self {
+    pub const fn new(name: String, storage_profile_id: uuid::Uuid, key_prefix: String) -> Self {
         Self {
             name,
             storage_profile_id,

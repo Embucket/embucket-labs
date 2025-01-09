@@ -21,16 +21,15 @@ pub async fn add_request_metadata(
     mut request: axum::extract::Request,
     next: Next,
 ) -> Response {
-    let request_id: Uuid = headers.get("x-request-id")
-        .map_or_else(Uuid::now_v7, |hv| {
-            hv.to_str()
-                .map(Uuid::from_str)
-                .ok()
-                .transpose()
-                .ok()
-                .flatten()
-                .unwrap_or_else(Uuid::now_v7)
-        });
+    let request_id: Uuid = headers.get("x-request-id").map_or_else(Uuid::now_v7, |hv| {
+        hv.to_str()
+            .map(Uuid::from_str)
+            .ok()
+            .transpose()
+            .ok()
+            .flatten()
+            .unwrap_or_else(Uuid::now_v7)
+    });
     request.extensions_mut().insert(RequestMetadata {
         request_id,
         auth_details: AuthDetails::Unauthenticated,

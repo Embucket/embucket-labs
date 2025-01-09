@@ -1,9 +1,9 @@
+use datafusion::error::DataFusionError;
 #[warn(dead_code)]
 use quick_xml::de::from_str;
 use rusoto_core::RusotoError;
 use serde::Deserialize;
 use snafu::prelude::*;
-use datafusion::error::DataFusionError;
 use uuid::Uuid;
 
 pub type ControlPlaneResult<T> = std::result::Result<T, ControlPlaneError>;
@@ -12,14 +12,16 @@ pub type ControlPlaneResult<T> = std::result::Result<T, ControlPlaneError>;
 #[snafu(visibility(pub(crate)))]
 pub enum ControlPlaneError {
     #[snafu(display("DataFusion error: {source}"))]
-    DataFusion { source: DataFusionError},
+    DataFusion { source: DataFusionError },
 
     #[snafu(display("DataFusion query error: {source}, query: {query}"))]
-    DataFusionQuery { source: DataFusionError, query: String },
+    DataFusionQuery {
+        source: DataFusionError,
+        query: String,
+    },
 
     //#[snafu(display("Failed to upload data to table {warehouse_id}/{database_name}/{table_name}: {source}"))]
     //UploadData { warehouse_id: Uuid, database_name: String, table_name: String, source: DataFusionError },
-
     #[snafu(display("SlateDB error: {source}"))]
     SlateDB { source: utils::Error },
 
@@ -39,10 +41,14 @@ pub enum ControlPlaneError {
     StorageProfileInUse { id: Uuid },
 
     #[snafu(display("Invalid storage profile: {source}"))]
-    InvalidStorageProfile { source: crate::models::ControlPlaneModelError },
+    InvalidStorageProfile {
+        source: crate::models::ControlPlaneModelError,
+    },
 
     #[snafu(display("Unable to create Warehouse from request: {source}"))]
-    InvalidCreateWarehouse { source: crate::models::ControlPlaneModelError },
+    InvalidCreateWarehouse {
+        source: crate::models::ControlPlaneModelError,
+    },
 
     #[snafu(display("Warehouse not found: {id}"))]
     WarehouseNotFound { id: Uuid },
@@ -54,14 +60,19 @@ pub enum ControlPlaneError {
     MissingStorageEndpointURL,
 
     #[snafu(display("Invalid storage endpoint URL: {url}, source: {source}"))]
-    InvalidStorageEndpointURL { url: String, source: url::ParseError },
+    InvalidStorageEndpointURL {
+        url: String,
+        source: url::ParseError,
+    },
 
     // This should be refined later
     #[snafu(display("Unspported Authentication method: {method}"))]
     UnsupportedAuthenticationMethod { method: String },
 
     #[snafu(display("Invalid TLS configuration: {source}"))]
-    InvalidTLSConfiguration { source: rusoto_core::request::TlsError },
+    InvalidTLSConfiguration {
+        source: rusoto_core::request::TlsError,
+    },
 
     #[snafu(display("Catalog not found for name {name}"))]
     CatalogNotFound { name: String },
@@ -102,12 +113,20 @@ impl<T: std::error::Error + Send + Sync + 'static> From<RusotoError<T>> for Cont
             RusotoError::Unknown(ref response) => {
                 let body_string = String::from_utf8_lossy(&response.body);
                 if let Ok(s3_error) = from_str::<S3ErrorMessage>(body_string.as_ref()) {
-                    Self::S3Unknown { code: s3_error.code, message: s3_error.message }
+                    Self::S3Unknown {
+                        code: s3_error.code,
+                        message: s3_error.message,
+                    }
                 } else {
-                    Self::S3Unknown { code: "unknown".to_string(), message: body_string.to_string() }
+                    Self::S3Unknown {
+                        code: "unknown".to_string(),
+                        message: body_string.to_string(),
+                    }
                 }
             }
-            _ => Self::S3 { source: Box::new(e) }
+            _ => Self::S3 {
+                source: Box::new(e),
+            },
         }
     }
 }

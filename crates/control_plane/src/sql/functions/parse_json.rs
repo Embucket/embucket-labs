@@ -107,14 +107,14 @@ fn parse_raw_json(json_str: &ColumnarValue) -> Result<ColumnarValue> {
         }
         Err(e) => exec_err!("Failed to parse JSON string: {}", e),
     }
-
 }
 
 fn json_value_to_array_ref(value: &Value) -> ArrayRef {
     match value {
         Value::Null => Arc::new(StringArray::from(vec![None::<&str>])),
         Value::Bool(b) => Arc::new(BooleanArray::from(vec![*b])),
-        Value::Number(num) => {
+        Value::Number(num) =>
+        {
             #[allow(clippy::option_if_let_else)]
             if let Some(i) = num.as_i64() {
                 Arc::new(Int64Array::from(vec![i]))
@@ -180,7 +180,8 @@ fn json_value_to_columnar_value(value: &Value) -> ColumnarValue {
     match value {
         Value::Null => ColumnarValue::Scalar(ScalarValue::Null),
         Value::Bool(b) => ColumnarValue::Scalar(ScalarValue::Boolean(Some(*b))),
-        Value::Number(num) => {
+        Value::Number(num) =>
+        {
             #[allow(clippy::option_if_let_else)]
             if let Some(i) = num.as_i64() {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(i)))
