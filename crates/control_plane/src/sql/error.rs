@@ -14,8 +14,8 @@ pub enum SQLError {
     #[snafu(display("No Table Provider found for table: {table_name}"))]
     TableProviderNotFound { table_name: String },
 
-    #[snafu(display("Cannot register UDF JSON functions"))]
-    RegisterUDFJSON { source: DataFusionError },
+    #[snafu(display("Cannot register UDF functions"))]
+    RegisterUDF { source: DataFusionError },
 
     #[snafu(display("Schema builder error: {source}"))]
     SchemaBuilder { source: SchemaBuilderError },

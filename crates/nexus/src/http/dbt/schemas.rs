@@ -107,11 +107,12 @@ pub struct ResponseData {
 }
 
 impl ResponseData {
-    pub fn rows_to_vec(json_rows_string: String) -> Vec<Vec<serde_json::Value>> {
-        let json_array: Vec<IndexMap<String, serde_json::Value>> = serde_json::from_str(&json_rows_string).unwrap();
-        json_array.into_iter().map(|obj| {
+    pub fn rows_to_vec(json_rows_string: &str) -> DbtResult<Vec<Vec<serde_json::Value>>> {
+        let json_array: Vec<IndexMap<String, serde_json::Value>> = serde_json::from_str(json_rows_string)
+            .context(dbt_error::RowParseSnafu)?;
+        Ok( json_array.into_iter().map(|obj| {
             obj.values().cloned().collect()
-        }).collect()
+        }).collect())
     }
 }
 

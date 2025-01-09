@@ -43,11 +43,12 @@ pub struct GreatestFunc {
 
 impl Default for GreatestFunc {
     fn default() -> Self {
-        GreatestFunc::new()
+        Self::new()
     }
 }
 
 impl GreatestFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::user_defined(Volatility::Immutable),
@@ -88,7 +89,7 @@ impl GreatestLeastOperator for GreatestFunc {
             && lhs.logical_null_count() == 0
             && rhs.logical_null_count() == 0
         {
-            return cmp::gt_eq(&lhs, &rhs).map_err(|e| e.into());
+            return cmp::gt_eq(&lhs, &rhs).map_err(Into::into);
         }
 
         let cmp = make_comparator(lhs, rhs, SORT_OPTIONS)?;
@@ -109,7 +110,7 @@ impl ScalarUDFImpl for GreatestFunc {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "greatest"
     }
 
@@ -137,17 +138,18 @@ impl ScalarUDFImpl for GreatestFunc {
 }
 static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
 
+#[allow(clippy::unwrap_used)]
 fn get_greatest_doc() -> &'static Documentation {
     DOCUMENTATION.get_or_init(|| {
         Documentation::builder().with_doc_section(DOC_SECTION_CONDITIONAL)
-            .with_sql_example(r#"```sql
+            .with_sql_example("```sql
 > select greatest(4, 7, 5);
 +---------------------------+
 | greatest(4,7,5)           |
 +---------------------------+
 | 7                         |
 +---------------------------+
-```"#,
+```",
             )
             .with_argument(
                 "expression1, expression_n",

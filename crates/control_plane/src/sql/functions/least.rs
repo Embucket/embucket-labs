@@ -43,11 +43,12 @@ pub struct LeastFunc {
 
 impl Default for LeastFunc {
     fn default() -> Self {
-        LeastFunc::new()
+        Self::new()
     }
 }
 
 impl LeastFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::user_defined(Volatility::Immutable),
@@ -101,7 +102,7 @@ impl GreatestLeastOperator for LeastFunc {
             && lhs.logical_null_count() == 0
             && rhs.logical_null_count() == 0
         {
-            return cmp::lt_eq(&lhs, &rhs).map_err(|e| e.into());
+            return cmp::lt_eq(&lhs, &rhs).map_err(Into::into);
         }
 
         let cmp = make_comparator(lhs, rhs, SORT_OPTIONS)?;
@@ -122,7 +123,7 @@ impl ScalarUDFImpl for LeastFunc {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "least"
     }
 
@@ -150,17 +151,18 @@ impl ScalarUDFImpl for LeastFunc {
 }
 static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
 
+#[allow(clippy::unwrap_used)]
 fn get_smallest_doc() -> &'static Documentation {
     DOCUMENTATION.get_or_init(|| {
         Documentation::builder().with_doc_section(DOC_SECTION_CONDITIONAL)
-            .with_sql_example(r#"```sql
+            .with_sql_example(r"```sql
 > select least(4, 7, 5);
 +---------------------------+
 | least(4,7,5)              |
 +---------------------------+
 | 4                         |
 +---------------------------+
-```"#,
+```",
             )
             .with_argument(
                 "expression1, expression_n",

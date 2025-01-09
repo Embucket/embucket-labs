@@ -32,7 +32,7 @@ pub(super) trait GreatestLeastOperator {
     fn get_indexes_to_keep(lhs: &dyn Array, rhs: &dyn Array) -> Result<BooleanArray>;
 }
 
-fn keep_array<Op: GreatestLeastOperator>(lhs: ArrayRef, rhs: ArrayRef) -> Result<ArrayRef> {
+fn keep_array<Op: GreatestLeastOperator>(lhs: &ArrayRef, rhs: &ArrayRef) -> Result<ArrayRef> {
     // True for values that we should keep from the left array
     let keep_lhs = Op::get_indexes_to_keep(lhs.as_ref(), rhs.as_ref())?;
 
@@ -64,51 +64,50 @@ pub(super) fn execute_conditional<Op: GreatestLeastOperator>(
 
     let mut arrays_iter = arrays.iter().map(|x| match x {
         ColumnarValue::Array(a) => a,
-        _ => unreachable!(),
+        ColumnarValue::Scalar(_) => unreachable!(),
     });
 
-    let first_array = arrays_iter.next();
+    //let first_array = arrays_iter.next();
+    if let Some(first_array) = arrays_iter.next() {
+        let mut result: ArrayRef = if scalars.is_empty() {
+            // If we only have arrays, start with the first array
+            // (We must have at least one array)
+            Arc::clone(first_array)
+        } else {
+            let mut scalars_iter = scalars.iter().map(|x| match x {
+                ColumnarValue::Scalar(s) => s,
+                ColumnarValue::Array(_) => unreachable!(),
+            });
+    
+            // We have at least one scalar
+            #[allow(clippy::unwrap_used)]
+            let mut result_scalar = scalars_iter.next().unwrap();
+    
+            for scalar in scalars_iter {
+                result_scalar = Op::keep_scalar(result_scalar, scalar)?;
+            }
+    
+            // If we only have scalars, return the one that we should keep (largest/least)
+            if arrays.is_empty() {
+                return Ok(ColumnarValue::Scalar(result_scalar.clone()));
+            }
+    
+            // We have at least one array
+    
+            // Start with the result value
+            keep_array::<Op>(
+                &Arc::clone(first_array),
+                &result_scalar.to_array_of_size(first_array.len())?,
+            )?
+        };
 
-    let mut result: ArrayRef;
-
-    // Optimization: merge all scalars into one to avoid recomputing (constant folding)
-    if !scalars.is_empty() {
-        let mut scalars_iter = scalars.iter().map(|x| match x {
-            ColumnarValue::Scalar(s) => s,
-            _ => unreachable!(),
-        });
-
-        // We have at least one scalar
-        let mut result_scalar = scalars_iter.next().unwrap();
-
-        for scalar in scalars_iter {
-            result_scalar = Op::keep_scalar(result_scalar, scalar)?;
+        for array in arrays_iter {
+            result = keep_array::<Op>(&Arc::clone(array), &result)?;
         }
-
-        // If we only have scalars, return the one that we should keep (largest/least)
-        if arrays.is_empty() {
-            return Ok(ColumnarValue::Scalar(result_scalar.clone()));
-        }
-
-        // We have at least one array
-        let first_array = first_array.unwrap();
-
-        // Start with the result value
-        result = keep_array::<Op>(
-            Arc::clone(first_array),
-            result_scalar.to_array_of_size(first_array.len())?,
-        )?;
+        Ok(ColumnarValue::Array(result))
     } else {
-        // If we only have arrays, start with the first array
-        // (We must have at least one array)
-        result = Arc::clone(first_array.unwrap());
+        internal_err!("Expected at least one array argument")
     }
-
-    for array in arrays_iter {
-        result = keep_array::<Op>(Arc::clone(array), result)?;
-    }
-
-    Ok(ColumnarValue::Array(result))
 }
 
 pub(super) fn find_coerced_type<Op: GreatestLeastOperator>(

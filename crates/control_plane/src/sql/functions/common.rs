@@ -94,7 +94,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .unwrap()
             .iter()
             .map(|x| {
-                let ts = DateTime::from_timestamp(x.unwrap_or(now.timestamp()), 0).unwrap();
+                let ts = DateTime::from_timestamp(x.unwrap_or_else(|| now.timestamp()), 0).unwrap();
                 format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
             })
             .collect(),
@@ -104,8 +104,9 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .unwrap()
             .iter()
             .map(|x| {
+                #[allow(clippy::unwrap_used)]
                 let ts =
-                    DateTime::from_timestamp_millis(x.unwrap_or(now.timestamp_millis())).unwrap();
+                    DateTime::from_timestamp_millis(x.unwrap_or_else(|| now.timestamp_millis())).unwrap();
                 format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
             })
             .collect(),
@@ -115,8 +116,9 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .unwrap()
             .iter()
             .map(|x| {
+                #[allow(clippy::unwrap_used)]
                 let ts =
-                    DateTime::from_timestamp_micros(x.unwrap_or(now.timestamp_micros())).unwrap();
+                    DateTime::from_timestamp_micros(x.unwrap_or_else(|| now.timestamp_micros())).unwrap();
                 format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
             })
             .collect(),
@@ -126,8 +128,9 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .unwrap()
             .iter()
             .map(|x| {
+                #[allow(clippy::unwrap_used)]
                 let ts =
-                    DateTime::from_timestamp_nanos(x.unwrap_or(now.timestamp_nanos_opt().unwrap()));
+                    DateTime::from_timestamp_nanos(x.unwrap_or_else(|| now.timestamp_nanos_opt().unwrap()));
                 format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
             })
             .collect(),

@@ -32,6 +32,9 @@ pub enum DbtError {
 
     #[snafu(display("Feature not implemented"))]
     NotImplemented,
+
+    #[snafu(display("Failed to parse row JSON"))]
+    RowParse { source: serde_json::Error },
 }
 
 pub type DbtResult<T> = std::result::Result<T, DbtError>;
@@ -43,7 +46,8 @@ impl IntoResponse for DbtError {
             Self::LoginRequestParse { .. } |
             Self::QueryBodyParse { .. } |
             Self::InvalidWarehouseIdFormat { .. } => http::StatusCode::BAD_REQUEST,
-            Self::ControlService { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+            Self::ControlService { .. } |
+            Self::RowParse { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             Self::MissingAuthToken |
             Self::MissingDbtSession |
             Self::InvalidAuthData => http::StatusCode::UNAUTHORIZED,
