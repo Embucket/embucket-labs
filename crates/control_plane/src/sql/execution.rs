@@ -72,7 +72,10 @@ impl SqlExecutor {
                     return self.create_schema(schema_name, warehouse_name).await;
                 }
                 Statement::ShowVariable { .. } | Statement::Drop { .. } => {
-                    return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
+                    return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await
+                }
+                Statement::Drop { .. } => {
+                    return self.drop_table_query(&query, warehouse_name).await;
                 }
                 Statement::Query { .. } => {
                     return self.execute_with_custom_plan(&query, warehouse_name).await;
@@ -217,6 +220,17 @@ impl SqlExecutor {
                 ),
             })
         }
+    }
+
+    pub async fn drop_table_query(
+        &self,
+        query: &String,
+        warehouse_name: &str,
+    ) -> Result<Vec<RecordBatch>> {
+        let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
+        let transformed = plan.transform(iceberg_transform).data()?;
+        let res = self.ctx.execute_logical_plan(transformed).await?.collect().await;
+        res
     }
 
     pub async fn create_schema(
