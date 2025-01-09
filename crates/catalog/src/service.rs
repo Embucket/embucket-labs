@@ -863,7 +863,6 @@ mod tests {
         let res = service
             .create_table(&ident, &sp, &warehouse, creation, None)
             .await;
-        dbg!(&res);
         assert!(res.is_err());
     }
 
