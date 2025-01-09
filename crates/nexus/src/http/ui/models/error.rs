@@ -134,9 +134,9 @@ impl PartialSchema for NexusError {
 impl IntoResponse for NexusError {
     fn into_response(self) -> Response {
         let status = match &self {
-            Self::StorageProfileFetch { id: _, source } |
-            Self::WarehouseFetch { id: _, source } |
-            Self::StorageProfileDelete { id: _, source } => match source {
+            Self::StorageProfileFetch { id: _, source }
+            | Self::WarehouseFetch { id: _, source }
+            | Self::StorageProfileDelete { id: _, source } => match source {
                 ControlPlaneError::StorageProfileNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
