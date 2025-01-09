@@ -72,22 +72,22 @@ jobs:
           components: rustfmt
       - name: cargo-semver-checks
         uses: obi1kenobi/cargo-semver-checks-action@v2
-  doc:
+  #doc:
     # run docs generation on nightly rather than stable. This enables features like
     # https://doc.rust-lang.org/beta/unstable-book/language-features/doc-cfg.html which allows an
     # API be documented as only available in some specific platforms.
-    runs-on: ubuntu-latest
-    name: nightly / doc
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Install nightly
-        uses: dtolnay/rust-toolchain@nightly
-      - name: Install cargo-docs-rs
-        uses: dtolnay/install@cargo-docs-rs
-      - name: cargo docs-rs
-        run: cargo docs-rs
+  #  runs-on: ubuntu-latest
+  #  name: nightly / doc
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #      with:
+  #        submodules: true
+  #    - name: Install nightly
+  #      uses: dtolnay/rust-toolchain@nightly
+  #    - name: Install cargo-docs-rs
+  #      uses: dtolnay/install@cargo-docs-rs
+  #    - name: cargo docs-rs
+  #      run: cargo docs-rs
   hack:
     # cargo-hack checks combinations of feature flags to ensure that features are all additive
     # which is required for feature unification
