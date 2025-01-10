@@ -225,8 +225,18 @@ impl SqlExecutor {
         warehouse_name: &str,
     ) -> SQLResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
-        let transformed = plan.transform(iceberg_transform).data().context(sql_error::DataFusionSnafu)?;
-        let res = self.ctx.execute_logical_plan(transformed).await.context(sql_error::DataFusionSnafu)?.collect().await.context(sql_error::DataFusionSnafu)?;
+        let transformed = plan
+            .transform(iceberg_transform)
+            .data()
+            .context(sql_error::DataFusionSnafu)?;
+        let res = self
+            .ctx
+            .execute_logical_plan(transformed)
+            .await
+            .context(sql_error::DataFusionSnafu)?
+            .collect()
+            .await
+            .context(sql_error::DataFusionSnafu)?;
         Ok(res)
     }
 
