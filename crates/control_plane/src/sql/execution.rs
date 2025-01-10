@@ -75,7 +75,7 @@ impl SqlExecutor {
                     return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await
                 }
                 Statement::Drop { .. } => {
-                    return self.drop_table_query(&query, warehouse_name).await;
+                    return Box::pin(self.drop_table_query(&query, warehouse_name)).await;
                 }
                 _ => {}
             }
@@ -221,7 +221,7 @@ impl SqlExecutor {
 
     pub async fn drop_table_query(
         &self,
-        query: &String,
+        query: &str,
         warehouse_name: &str,
     ) -> SQLResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
