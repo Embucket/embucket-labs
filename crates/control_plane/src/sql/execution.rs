@@ -222,7 +222,7 @@ impl SqlExecutor {
     pub async fn drop_table_query(
         &self,
         query: &String,
-        warehouse_name: &String,
+        warehouse_name: &str,
     ) -> SQLResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
         let transformed = plan
