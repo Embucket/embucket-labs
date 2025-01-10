@@ -11,7 +11,7 @@ resolver = "2"
 chrono = { version = "0.4", features = ["serde"] }
 futures = { version = "0.3" }
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
-axum = { version = "0.7", features = ["multipart", "macros"]}
+axum = { version = "0.8", features = ["multipart", "macros"]}
 axum-macros = "0.5"
 tokio = { version = "1", features = ["full"] }
 async-trait = { version = "0.1.84" }
