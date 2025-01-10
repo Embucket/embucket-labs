@@ -71,14 +71,11 @@ impl SqlExecutor {
                 Statement::CreateSchema { schema_name, .. } => {
                     return self.create_schema(schema_name, warehouse_name).await;
                 }
-                Statement::ShowVariable { .. } | Statement::Drop { .. } => {
+                Statement::ShowVariable { .. } | Statement::Query { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await
                 }
                 Statement::Drop { .. } => {
                     return self.drop_table_query(&query, warehouse_name).await;
-                }
-                Statement::Query { .. } => {
-                    return self.execute_with_custom_plan(&query, warehouse_name).await;
                 }
                 _ => {}
             }
@@ -226,11 +223,11 @@ impl SqlExecutor {
         &self,
         query: &String,
         warehouse_name: &str,
-    ) -> Result<Vec<RecordBatch>> {
+    ) -> SQLResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
-        let transformed = plan.transform(iceberg_transform).data()?;
-        let res = self.ctx.execute_logical_plan(transformed).await?.collect().await;
-        res
+        let transformed = plan.transform(iceberg_transform).data().context(sql_error::DataFusionSnafu)?;
+        let res = self.ctx.execute_logical_plan(transformed).await.context(sql_error::DataFusionSnafu)?.collect().await.context(sql_error::DataFusionSnafu)?;
+        Ok(res)
     }
 
     pub async fn create_schema(
