@@ -143,6 +143,7 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
             other => return internal_err!("This function can only take two or three arguments, got {}", other),
         }
     }
+    //TODO: select convert_timezone('UTC', v3) with v3 a timestamp with value = '2025-01-06 08:00:00 America/New_York'
     fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
         match args.len() {
             2 => {
