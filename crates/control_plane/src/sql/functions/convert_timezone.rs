@@ -16,7 +16,6 @@ use arrow::array::timezone::{Tz, TzOffset};
 use std::sync::Arc;
 use datafusion::prelude::Expr;
 use datafusion::common::ExprSchema;
-use datafusion_expr_common::signature::TypeSignatureClass;
 
 #[derive(Debug)]
 pub struct ConvertTimezoneFunc {
@@ -121,7 +120,7 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
         &self.signature
     }
     //TODO: FIX return type
-    fn return_type(&self, arg_types: &[DataType]) -> Result<DataType> {
+    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
         //can be done matheamtically
         // match arg_types.len() {
         //     3 => {
@@ -145,45 +144,29 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
             &self,
             args: &[Expr],
             _schema: &dyn ExprSchema,
-            _arg_types: &[DataType],
+            arg_types: &[DataType],
         ) -> Result<DataType> {
-        if args.len() > 3 {
-            return internal_err!("This function can only take two or three arguments, got {}", args.len());
-        }
-        match &args[args.len() - 1] {
-            Expr::Literal(ScalarValue::TimestampSecond(_, Some(_))) => {
-                let tz = match &args[args.len() - 2] {
+        match args.len() {
+            2 => {
+                let tz = match &args[0] {
                     Expr::Literal(ScalarValue::Utf8(Some(part))) => part.clone(),
-                    _ => return internal_err!("Invalid target_tz type")
+                    _ => return internal_err!("Invalid target_tz type"),
                 };
-                Ok(DataType::Timestamp(TimeUnit::Second, Some(Arc::from(tz.into_boxed_str()))))
+
+                match &arg_types[1] {
+                    DataType::Timestamp(tu, _) => Ok(DataType::Timestamp(*tu, Some(Arc::from(tz.into_boxed_str())))),
+                    DataType::Utf8 => Ok(DataType::Timestamp(TimeUnit::Nanosecond, Some(Arc::from(tz.into_boxed_str())))),
+                    _ => return internal_err!("Invalid source_timestamp_tz type"),
+                }
             },
-            Expr::Literal(ScalarValue::TimestampMillisecond(_, Some(_))) => {
-                let tz = match &args[args.len() - 2] {
-                    Expr::Literal(ScalarValue::Utf8(Some(part))) => part.clone(),
-                    _ => return internal_err!("Invalid target_tz type format")
-                };
-                Ok(DataType::Timestamp(TimeUnit::Millisecond, Some(Arc::from(tz.into_boxed_str()))))
+            3 => {
+                match &arg_types[2] {
+                    DataType::Timestamp(tu, None) => Ok(DataType::Timestamp(*tu, None)),
+                    DataType::Utf8 => Ok(DataType::Timestamp(TimeUnit::Nanosecond, None)),
+                    _ => return internal_err!("Invalid source_timestamp_ntz type"),
+                }
             },
-            Expr::Literal(ScalarValue::TimestampMicrosecond(_, Some(_))) => {
-                let tz = match &args[args.len() - 2] {
-                    Expr::Literal(ScalarValue::Utf8(Some(part))) => part.clone(),
-                    _ => return internal_err!("Invalid target_tz type format")
-                };
-                Ok(DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from(tz.into_boxed_str()))))
-            },
-            Expr::Literal(ScalarValue::TimestampNanosecond(_, Some(_))) => {
-                let tz = match &args[args.len() - 2] {
-                    Expr::Literal(ScalarValue::Utf8(Some(part))) => part.clone(),
-                    _ => return internal_err!("Invalid target_tz type format")
-                };
-                Ok(DataType::Timestamp(TimeUnit::Nanosecond, Some(Arc::from(tz.into_boxed_str()))))
-            },
-            Expr::Literal(ScalarValue::TimestampSecond(_, None)) => Ok(DataType::Timestamp(TimeUnit::Second, None)),
-            Expr::Literal(ScalarValue::TimestampMillisecond(_, None)) => Ok(DataType::Timestamp(TimeUnit::Millisecond, None)),
-            Expr::Literal(ScalarValue::TimestampMicrosecond(_, None)) => Ok(DataType::Timestamp(TimeUnit::Microsecond, None)),
-            Expr::Literal(ScalarValue::TimestampNanosecond(_, None)) => Ok(DataType::Timestamp(TimeUnit::Nanosecond, None)),
-            other => return internal_err!("Invalid source_timestamp_(-n)tz type, got {:?}", other)
+            other => return internal_err!("This function can only take two or three arguments, got {}", other),
         }
     }
     //TODO: FIX general logic
@@ -214,87 +197,96 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                         //     return plan_err!("Timezones are the same")
                         // }
                         //let local_timezone = Local::now().offset().to_string();
-                        let data = ScalarValue::TimestampSecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))
-                            .cast_to(&Utf8)?;
-                        Ok(ColumnarValue::Scalar(data))
+                        let modified_timestamp = ScalarValue::TimestampSecond(Some(*ts), Some(tz.clone()))
+                            .cast_to(&Timestamp(TimeUnit::Second, Some(Arc::from(target_tz.into_boxed_str()))))?;
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
+                        Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
                     ScalarValue::TimestampMillisecond(Some(ts), Some(tz)) => {
                         // if target_tz == **tz {
                         //     return plan_err!("Timezones are the same")
                         // }
-                        let data = ScalarValue::TimestampMillisecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))
-                            .cast_to(&Utf8)?;
-                        Ok(ColumnarValue::Scalar(data))
+                        let modified_timestamp = ScalarValue::TimestampMillisecond(Some(*ts), Some(tz.clone()))
+                            ;
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
+                        Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
-                    ScalarValue::TimestampMicrosecond(Some(ts), Some(tz)) => {
+                    ScalarValue::TimestampMicrosecond(Some(ts), Some(_)) => {
                         // if target_tz == **tz {
                         //     return plan_err!("Timezones are the same")
                         // }
-                        let data = ScalarValue::TimestampMicrosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))
+                        let modified_timestamp = ScalarValue::TimestampMicrosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))
                             ;
-                        Ok(ColumnarValue::Scalar(data))
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
+                        Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
-                    ScalarValue::TimestampNanosecond(Some(ts), Some(tz)) => {
+                    ScalarValue::TimestampNanosecond(Some(ts), Some(_)) => {
                         // if target_tz == **tz {
                         //     return plan_err!("Timezones are the same")
                         // }
-                        let data = ScalarValue::TimestampNanosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))
+                        let modified_timestamp = ScalarValue::TimestampNanosecond(Some(*ts), Some(Arc::from(target_tz.into_boxed_str())))
                             ;
-                        Ok(ColumnarValue::Scalar(data))                    
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
+                        Ok(ColumnarValue::Scalar(modified_timestamp))                    
                     },
                     ScalarValue::Utf8(Some(val)) => {
-                        let data = ScalarValue::Utf8(Some(val.clone()))
+                        let modified_timestamp = ScalarValue::Utf8(Some(val.clone()))
                             .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(target_tz.into_boxed_str()))))?
                             ;
-                        Ok(ColumnarValue::Scalar(data))
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
+                        Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
                     ScalarValue::TimestampSecond(Some(ts), None) => {
                         // if target_tz == **tz {
                         //     return plan_err!("Timezones are the same")
                         // }
                         let local_tz = Local::now().offset().to_string();
-                        let data = ScalarValue::TimestampSecond(Some(*ts), None)
+                        let modified_timestamp = ScalarValue::TimestampSecond(Some(*ts), None)
                             .cast_to(&Timestamp(TimeUnit::Second, Some(Arc::from(local_tz.into_boxed_str()))))?
                             .cast_to(&Utf8)?
                             .cast_to(&Timestamp(TimeUnit::Second, Some(Arc::from(target_tz.into_boxed_str()))))?
                             ;
-                        Ok(ColumnarValue::Scalar(data))
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
+                        Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
                     ScalarValue::TimestampMillisecond(Some(ts), None) => {
                         // if target_tz == **tz {
                         //     return plan_err!("Timezones are the same")
                         // }
                         let local_tz = Local::now().offset().to_string();
-                        let data = ScalarValue::TimestampMillisecond(Some(*ts), None)
+                        let modified_timestamp = ScalarValue::TimestampMillisecond(Some(*ts), None)
                             .cast_to(&Timestamp(TimeUnit::Millisecond, Some(Arc::from(local_tz.into_boxed_str()))))?
                             .cast_to(&Utf8)?
                             .cast_to(&Timestamp(TimeUnit::Millisecond, Some(Arc::from(target_tz.into_boxed_str()))))?
                             ;
-                        Ok(ColumnarValue::Scalar(data))
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
+                        Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
                     ScalarValue::TimestampMicrosecond(Some(ts), None) => {
                         // if target_tz == **tz {
                         //     return plan_err!("Timezones are the same")
                         // }
                         let local_tz = Local::now().offset().to_string();
-                        let data = ScalarValue::TimestampMicrosecond(Some(*ts), None)
+                        let modified_timestamp = ScalarValue::TimestampMicrosecond(Some(*ts), None)
                             .cast_to(&Timestamp(TimeUnit::Microsecond, Some(Arc::from(local_tz.into_boxed_str()))))?
                             .cast_to(&Utf8)?
                             .cast_to(&Timestamp(TimeUnit::Microsecond, Some(Arc::from(target_tz.into_boxed_str()))))?
                             ;
-                        Ok(ColumnarValue::Scalar(data))
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
+                        Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
                     ScalarValue::TimestampNanosecond(Some(ts), None) => {
                         // if target_tz == **tz {
                         //     return plan_err!("Timezones are the same")
                         // }
                         let local_tz = Local::now().offset().to_string();
-                        let data = ScalarValue::TimestampNanosecond(Some(*ts), None)
+                        let modified_timestamp = ScalarValue::TimestampNanosecond(Some(*ts), None)
                             .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(local_tz.into_boxed_str()))))?
                             .cast_to(&Utf8)?
                             .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(target_tz.into_boxed_str()))))?
                             ;
-                        Ok(ColumnarValue::Scalar(data))                    
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
+                        Ok(ColumnarValue::Scalar(modified_timestamp))                    
                     },
                     _ => {
                         return plan_err!("Invalid source_timestamp_tz type format")
@@ -335,7 +327,10 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                             .cast_to(&Timestamp(TimeUnit::Second, Some(Arc::from(source_tz.into_boxed_str()))))?                            .cast_to(&Utf8)?
                             .cast_to(&Utf8)?
                             .cast_to(&Timestamp(TimeUnit::Second, Some(Arc::from(target_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?
+                            .cast_to(&Timestamp(TimeUnit::Second, None))?
                             ;
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
 
                         Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
@@ -344,7 +339,10 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                             .cast_to(&Timestamp(TimeUnit::Millisecond, Some(Arc::from(source_tz.into_boxed_str()))))?
                             .cast_to(&Utf8)?
                             .cast_to(&Timestamp(TimeUnit::Millisecond, Some(Arc::from(target_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?
+                            .cast_to(&Timestamp(TimeUnit::Millisecond, None))?
                             ;
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
 
                         Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
@@ -353,7 +351,10 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                             .cast_to(&Timestamp(TimeUnit::Microsecond, Some(Arc::from(source_tz.into_boxed_str()))))?
                             .cast_to(&Utf8)?
                             .cast_to(&Timestamp(TimeUnit::Microsecond, Some(Arc::from(target_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?
+                            .cast_to(&Timestamp(TimeUnit::Microsecond, None))?
                             ;
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
 
                         Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
@@ -362,7 +363,10 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                             .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(source_tz.into_boxed_str()))))?
                             .cast_to(&Utf8)?
                             .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(target_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?
+                            .cast_to(&Timestamp(TimeUnit::Nanosecond, None))?
                             ;
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
 
                         Ok(ColumnarValue::Scalar(modified_timestamp))                    
                     },
@@ -372,22 +376,25 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                             .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(source_tz.into_boxed_str()))))?
                             .cast_to(&Utf8)?
                             .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(target_tz.into_boxed_str()))))?
+                            .cast_to(&Utf8)?
+                            .cast_to(&Timestamp(TimeUnit::Nanosecond, None))?
                             ;
+                        dbg!(&modified_timestamp.cast_to(&Utf8)?);
 
                         Ok(ColumnarValue::Scalar(modified_timestamp))
                     },
-                    ScalarValue::TimestampSecond(Some(_), Some(_)) => {
-                        return plan_err!("Invalid source_timestamp_tz type format")
-                    },
-                    ScalarValue::TimestampMillisecond(Some(_), Some(_)) => {
-                        return plan_err!("Invalid source_timestamp_tz type format")
-                    },
-                    ScalarValue::TimestampMicrosecond(Some(_), Some(_)) => {
-                        return plan_err!("Invalid source_timestamp_tz type format")
-                    },
-                    ScalarValue::TimestampNanosecond(Some(_), Some(_)) => {
-                        return plan_err!("Invalid source_timestamp_tz type format")
-                    },
+                    // ScalarValue::TimestampSecond(Some(_), Some(_)) => {
+                    //     return plan_err!("Invalid source_timestamp_tz type format")
+                    // },
+                    // ScalarValue::TimestampMillisecond(Some(_), Some(_)) => {
+                    //     return plan_err!("Invalid source_timestamp_tz type format")
+                    // },
+                    // ScalarValue::TimestampMicrosecond(Some(_), Some(_)) => {
+                    //     return plan_err!("Invalid source_timestamp_tz type format")
+                    // },
+                    // ScalarValue::TimestampNanosecond(Some(_), Some(_)) => {
+                    //     return plan_err!("Invalid source_timestamp_tz type format")
+                    // },
                     _ => {
                         return plan_err!("Invalid source_timestamp_tz type format")
                     }
