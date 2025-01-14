@@ -4,17 +4,12 @@ use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::Scal
 
 mod convert_timezone;
 mod date_add;
-mod greatest;
-mod greatest_least_utils;
-mod least;
 mod parse_json;
 
 pub(crate) fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
         convert_timezone::get_udf(),
         date_add::get_udf(),
-        greatest::get_udf(),
-        least::get_udf(),
         parse_json::get_udf(),
     ];
 

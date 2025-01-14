@@ -134,6 +134,7 @@ impl Db {
     ///
     /// Returns a `DbError` if the database operations fail, or
     /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
+    #[allow(clippy::future_not_send)]
     pub async fn modify<T>(&self, key: &str, f: impl Fn(&mut T)) -> Result<()>
     where
         T: serde::Serialize + DeserializeOwned + Default + Sync,

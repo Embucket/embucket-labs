@@ -35,6 +35,9 @@ pub enum IcehutSQLError {
     #[snafu(display("Invalid scale: {scale}"))]
     InvalidScale { scale: String },
 
+    #[snafu(display("Invalid table identifier: {ident}"))]
+    InvalidIdentifier { ident: String },
+
     #[snafu(display("Not implemented: {message}"))]
     NotImplemented { message: String },
 }

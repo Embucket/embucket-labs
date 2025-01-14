@@ -192,6 +192,7 @@ async fn print_request_response(
     Ok(res)
 }
 
+#[allow(clippy::future_not_send)]
 async fn buffer_and_print<B>(
     direction: &str,
     method: &String,

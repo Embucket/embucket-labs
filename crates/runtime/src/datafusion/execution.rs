@@ -7,27 +7,28 @@ use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
 use arrow::array::{RecordBatch, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
-use datafusion::catalog::SchemaProvider;
-use datafusion::catalog_common::information_schema::InformationSchemaProvider;
-use datafusion::catalog_common::{ResolvedTableReference, TableReference};
-use datafusion::common::plan_datafusion_err;
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::sqlparser::ast::Insert;
-use datafusion::logical_expr::{
-    CreateExternalTable as PlanCreateExternalTable, DdlStatement, LogicalPlan,
-};
+use datafusion::logical_expr::LogicalPlan;
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableWithJoins,
 };
+use datafusion_common::DataFusionError;
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::iceberg_transform;
+use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
+use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
+use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::namespace::Namespace;
+use iceberg_rust::spec::schema::Schema;
+use iceberg_rust::spec::types::StructType;
 use snafu::ResultExt;
+use sqlparser::ast::{MergeAction, MergeClauseKind, MergeInsertKind, Query as AstQuery};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -72,11 +73,17 @@ impl SqlExecutor {
                 Statement::CreateSchema { schema_name, .. } => {
                     return self.create_schema(schema_name, warehouse_name).await;
                 }
-                Statement::ShowVariable { .. } | Statement::Query { .. } => {
+                Statement::AlterTable { .. }
+                | Statement::Query { .. }
+                | Statement::ShowSchemas { .. }
+                | Statement::ShowVariable { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
                 }
                 Statement::Drop { .. } => {
                     return Box::pin(self.drop_table_query(&query, warehouse_name)).await;
+                }
+                Statement::Merge { .. } => {
+                    return Box::pin(self.merge_query(*s, warehouse_name)).await;
                 }
                 _ => {}
             }
@@ -119,7 +126,7 @@ impl SqlExecutor {
         &self,
         statement: Statement,
         warehouse_name: &str,
-        warehouse_location: &str,
+        _warehouse_location: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
             let mut new_table_full_name = create_table_statement.name.to_string();
@@ -129,18 +136,14 @@ impl SqlExecutor {
                 ident.insert(0, Ident::new(warehouse_name));
             }
             let _new_table_wh_id = ident[0].clone();
-            let new_table_db = &ident[1..ident.len() - 1]
-                .iter()
-                .map(|v| v.value.clone())
-                .collect::<Vec<String>>()
-                .join(".");
-            #[allow(clippy::unwrap_used)]
-            let new_table_name = ident.last().unwrap();
-            let new_table_ref = TableReference::full(
-                warehouse_name,
-                new_table_db.to_string(),
-                new_table_name.value.clone(),
-            );
+            let new_table_db = &ident[1..ident.len() - 1];
+            let new_table_name = ident
+                .last()
+                .ok_or(ih_error::IcehutSQLError::InvalidIdentifier {
+                    ident: new_table_full_name.clone(),
+                })?
+                .clone();
+            let location = create_table_statement.location.clone();
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
@@ -162,38 +165,70 @@ impl SqlExecutor {
                 .await
                 .context(super::error::DataFusionSnafu)?;
 
-            // Create External table
-            if let LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(table)) = plan {
-                let external_table_plan =
-                    LogicalPlan::Ddl(DdlStatement::CreateExternalTable(PlanCreateExternalTable {
-                        schema: table.input.schema().clone(),
-                        name: new_table_ref,
-                        location: warehouse_location.to_string(), // Specify the external location
-                        file_type: "ICEBERG".to_string(),         // Specify the file type
-                        table_partition_cols: vec![], // Specify partition columns if any
-                        if_not_exists: table.if_not_exists,
-                        temporary: table.temporary,
-                        definition: None, // Specify the SQL definition if available
-                        order_exprs: vec![], // Specify order expressions if any
-                        unbounded: false, // Specify if the table is unbounded
-                        options: HashMap::new(), // Specify table-specific options if any
-                        constraints: table.constraints.clone(),
-                        column_defaults: HashMap::new(),
-                    }));
-                let transformed = external_table_plan
-                    .transform(iceberg_transform)
-                    .data()
-                    .context(ih_error::DataFusionSnafu)?;
-                self.ctx
-                    .execute_logical_plan(transformed)
-                    .await
-                    .context(ih_error::DataFusionSnafu)?
-                    .collect()
-                    .await
-                    .context(ih_error::DataFusionSnafu)?;
-            }
+            let fields_with_ids = StructType::try_from(&new_fields_with_ids(
+                plan.schema().as_arrow().fields(),
+                &mut 0,
+            ))
+            .map_err(|err| DataFusionError::External(Box::new(err)))
+            .context(super::error::DataFusionSnafu)?;
+            let schema = Schema::builder()
+                .with_schema_id(0)
+                .with_identifier_field_ids(vec![])
+                .with_fields(fields_with_ids)
+                .build()
+                .map_err(|err| DataFusionError::External(Box::new(err)))
+                .context(super::error::DataFusionSnafu)?;
 
-            // Insert data to External table
+            // Check if it already exists, if it is - drop it
+            // For now we behave as CREATE OR REPLACE
+            // TODO support CREATE without REPLACE
+            let catalog = self.ctx.catalog(warehouse_name).ok_or(
+                ih_error::IcehutSQLError::WarehouseNotFound {
+                    name: warehouse_name.to_string(),
+                },
+            )?;
+            let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().ok_or(
+                ih_error::IcehutSQLError::IcebergCatalogNotFound {
+                    warehouse_name: warehouse_name.to_string(),
+                },
+            )?;
+            let rest_catalog = iceberg_catalog.catalog();
+            let new_table_ident = Identifier::new(
+                &new_table_db
+                    .iter()
+                    .map(|v| v.value.clone())
+                    .collect::<Vec<String>>(),
+                &new_table_name.value,
+            );
+            if matches!(
+                rest_catalog.tabular_exists(&new_table_ident).await,
+                Ok(true)
+            ) {
+                rest_catalog
+                    .drop_table(&new_table_ident)
+                    .await
+                    .context(ih_error::IcebergSnafu)?;
+            };
+
+            // Create new table
+            rest_catalog
+                .create_table(
+                    new_table_ident.clone(),
+                    CreateTableCatalog {
+                        name: new_table_name.value.clone(),
+                        location,
+                        schema,
+                        partition_spec: None,
+                        write_order: None,
+                        stage_create: None,
+                        properties: None,
+                    },
+                )
+                .await
+                .map_err(|err| DataFusionError::External(Box::new(err)))
+                .context(super::error::DataFusionSnafu)?;
+
+            // Insert data to new table
             let insert_query =
                 format!("INSERT INTO {new_table_full_name} SELECT * FROM {new_table_name}");
             self.execute_with_custom_plan(&insert_query, warehouse_name)
@@ -213,6 +248,94 @@ impl SqlExecutor {
         } else {
             Err(super::error::IcehutSQLError::DataFusion {
                 source: datafusion::error::DataFusionError::NotImplemented(
+                    "Only CREATE TABLE statements are supported".to_string(),
+                ),
+            })
+        }
+    }
+
+    pub async fn merge_query(
+        &self,
+        statement: Statement,
+        warehouse_name: &str,
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+        if let Statement::Merge {
+            mut table,
+            mut source,
+            on,
+            clauses,
+            ..
+        } = statement
+        {
+            self.update_tables_in_table_factor(&mut table, warehouse_name);
+            self.update_tables_in_table_factor(&mut source, warehouse_name);
+
+            let (target_table, target_alias) = self.get_table_with_alias(table);
+            let (source_table, _source_alias) = self.get_table_with_alias(source.clone());
+
+            let source_query = if let TableFactor::Derived {
+                subquery,
+                lateral,
+                alias,
+            } = source
+            {
+                source = TableFactor::Derived {
+                    lateral,
+                    subquery,
+                    alias: None,
+                };
+                alias.map_or_else(|| source.to_string(), |alias| format!("{source} {alias}"))
+            } else {
+                source.to_string()
+            };
+
+            // Construct the SELECT statement with JOIN ON
+            let select_query =
+                format!("SELECT * FROM {source_query} JOIN {target_table} {target_alias} ON {on}");
+            let source_result = self
+                .execute_with_custom_plan(&select_query, warehouse_name)
+                .await?;
+
+            // Check NOT MATCHED part with the fallback INSERT
+            let insert_query = if source_result.is_empty() {
+                // Extract columns and values from clauses
+                let mut columns = Vec::new();
+                let mut values = Vec::new();
+                for clause in clauses {
+                    if clause.clause_kind == MergeClauseKind::NotMatched {
+                        if let MergeAction::Insert(insert) = clause.action {
+                            columns = insert.columns;
+                            if let MergeInsertKind::Values(values_insert) = insert.kind {
+                                values = values_insert.rows.into_iter().flatten().collect();
+                            }
+                        }
+                    }
+                }
+                // Construct the INSERT statement
+                format!(
+                    "INSERT INTO {} ({}) SELECT {} FROM {}",
+                    target_table,
+                    columns
+                        .iter()
+                        .map(std::string::ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    values
+                        .iter()
+                        .map(std::string::ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    source_table
+                )
+            } else {
+                format!("INSERT INTO {warehouse_name} {select_query}")
+            };
+
+            self.execute_with_custom_plan(&insert_query, warehouse_name)
+                .await
+        } else {
+            Err(super::error::IcehutSQLError::DataFusion {
+                source: DataFusionError::NotImplemented(
                     "Only CREATE TABLE statements are supported".to_string(),
                 ),
             })
@@ -314,9 +437,9 @@ impl SqlExecutor {
                 .context(super::error::DataFusionSnafu)?;
             //println!("References: {:?}", references);
             for reference in references {
-                let resolved = self.resolve_table_ref(reference);
+                let resolved = state.resolve_table_ref(reference);
                 if let Entry::Vacant(v) = ctx_provider.tables.entry(resolved.to_string()) {
-                    if let Ok(schema) = self.schema_for_ref(resolved.clone()) {
+                    if let Ok(schema) = state.schema_for_ref(resolved.clone()) {
                         if let Some(table) = schema
                             .table(&resolved.table)
                             .await
@@ -362,42 +485,6 @@ impl SqlExecutor {
             })
         }
     }
-
-    pub fn resolve_table_ref(
-        &self,
-        table_ref: impl Into<TableReference>,
-    ) -> ResolvedTableReference {
-        let catalog = &self.ctx.state().config_options().catalog.clone();
-        table_ref
-            .into()
-            .resolve(&catalog.default_catalog, &catalog.default_schema)
-    }
-
-    pub fn schema_for_ref(
-        &self,
-        table_ref: impl Into<TableReference>,
-    ) -> IcehutSQLResult<Arc<dyn SchemaProvider>> {
-        let state = self.ctx.state();
-        let resolved_ref = self.resolve_table_ref(table_ref);
-        if state.config().information_schema() && *resolved_ref.schema == *"information_schema" {
-            return Ok(Arc::new(InformationSchemaProvider::new(
-                state.catalog_list().clone(),
-            )));
-        }
-
-        // Need better error handling here instead of just DF errors
-        state
-            .catalog_list()
-            .catalog(&resolved_ref.catalog)
-            .ok_or_else(|| super::error::IcehutSQLError::DataFusion {
-                source: plan_datafusion_err!("failed to resolve catalog: {}", resolved_ref.catalog),
-            })?
-            .schema(&resolved_ref.schema)
-            .ok_or_else(|| super::error::IcehutSQLError::DataFusion {
-                source: plan_datafusion_err!("failed to resolve schema: {}", resolved_ref.schema),
-            })
-    }
-
     pub async fn execute_with_custom_plan(
         &self,
         query: &str,
@@ -430,11 +517,40 @@ impl SqlExecutor {
                 DFStatement::CreateExternalTable(modified_statement)
             }
             DFStatement::Statement(s) => match *s {
+                Statement::AlterTable {
+                    name,
+                    if_exists,
+                    only,
+                    operations,
+                    location,
+                    on_cluster,
+                } => {
+                    let name = self.compress_database_name(name.0, warehouse_name);
+                    let modified_statement = Statement::AlterTable {
+                        name: ObjectName(name),
+                        if_exists,
+                        only,
+                        operations,
+                        location,
+                        on_cluster,
+                    };
+                    DFStatement::Statement(Box::new(modified_statement))
+                }
                 Statement::Insert(insert_statement) => {
                     let table_name =
                         self.compress_database_name(insert_statement.table_name.0, warehouse_name);
+
+                    let source = insert_statement.source.map_or_else(
+                        || None,
+                        |mut query| {
+                            self.update_tables_in_query(query.as_mut(), warehouse_name);
+                            Some(Box::new(AstQuery { ..*query }))
+                        },
+                    );
+
                     let modified_statement = Insert {
                         table_name: ObjectName(table_name),
+                        source,
                         ..insert_statement
                     };
                     DFStatement::Statement(Box::new(Statement::Insert(modified_statement)))
@@ -512,6 +628,28 @@ impl SqlExecutor {
             ];
         }
         table_name
+    }
+
+    #[allow(clippy::only_used_in_recursion)]
+    fn get_table_with_alias(&self, factor: TableFactor) -> (ObjectName, String) {
+        match factor {
+            TableFactor::Table { name, alias, .. } => {
+                let target_alias = alias.map_or_else(String::new, |alias| alias.to_string());
+                (name, target_alias)
+            }
+            TableFactor::Derived {
+                subquery, alias, ..
+            } => {
+                let target_alias = alias.map_or_else(String::new, |alias| alias.to_string());
+                if let sqlparser::ast::SetExpr::Select(select) = subquery.body.as_ref() {
+                    if let Some(table_with_joins) = select.from.first() {
+                        return self.get_table_with_alias(table_with_joins.relation.clone());
+                    }
+                }
+                (ObjectName(vec![]), target_alias)
+            }
+            _ => (ObjectName(vec![]), String::new()),
+        }
     }
 
     fn update_tables_in_query(&self, query: &mut Query, warehouse_name: &str) {

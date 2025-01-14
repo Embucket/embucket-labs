@@ -18,13 +18,13 @@ flatbuffers = { version = "24.3.25" }
 #iceberg-rest-catalog = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "836f11f" }
 #datafusion_iceberg = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "836f11f" }
 
-datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "073a3b110852f97ccb7085ce4bfd19473b8a3f4f" }
-datafusion-common = { git="https://github.com/Embucket/datafusion.git", rev = "073a3b110852f97ccb7085ce4bfd19473b8a3f4f" }
-datafusion-expr = { git="https://github.com/Embucket/datafusion.git", rev = "073a3b110852f97ccb7085ce4bfd19473b8a3f4f" }
+datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "bc5a978a4102391b2b7427dfdf94dd4e2667be49" }
+datafusion-common = { git="https://github.com/Embucket/datafusion.git", rev = "bc5a978a4102391b2b7427dfdf94dd4e2667be49" }
+datafusion-expr = { git="https://github.com/Embucket/datafusion.git", rev = "bc5a978a4102391b2b7427dfdf94dd4e2667be49" }
 
-iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "be8d668450f2f940a0bc8f428b6338644b3f4ef3" }
-iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "be8d668450f2f940a0bc8f428b6338644b3f4ef3" }
-datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "be8d668450f2f940a0bc8f428b6338644b3f4ef3" }
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "5d4211521085722de35b14c444da087c52309771" }
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "5d4211521085722de35b14c444da087c52309771" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "5d4211521085722de35b14c444da087c52309771" }
 
 arrow = { version = "53" }
 arrow-json = { version = "53" }
