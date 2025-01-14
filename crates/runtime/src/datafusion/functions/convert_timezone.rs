@@ -2,7 +2,7 @@ use arrow::array::timezone::Tz;
 use arrow::datatypes::DataType;
 use arrow::datatypes::DataType::{Timestamp, Utf8};
 use arrow::datatypes::TimeUnit::{self, Microsecond, Millisecond, Nanosecond, Second};
-use chrono::Local;
+// use chrono::Local;
 use datafusion::common::ExprSchema;
 use datafusion::common::{internal_err, plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Exact;
@@ -11,7 +11,7 @@ use datafusion::logical_expr::{
 };
 use datafusion::prelude::Expr;
 use datafusion::scalar::ScalarValue;
-use regex::Regex;
+// use regex::Regex;
 use std::any::Any;
 use std::sync::Arc;
 
