@@ -109,11 +109,8 @@ where
                 all_constraints.extend(inline_constraints);
                 // Build column default values
                 let column_defaults = self.build_column_defaults(&columns, planner_context)?;
-<<<<<<< HEAD:crates/control_plane/src/sql/planner.rs
-=======
                 // println!("column_defaults: {:?}", column_defaults);
                 // println!("statement 11: {:?}", statement);
->>>>>>> origin/main:crates/runtime/src/datafusion/planner.rs
                 let has_columns = !columns.is_empty();
                 let schema = self.build_schema(columns.clone())?.to_dfschema_ref()?;
                 if has_columns {

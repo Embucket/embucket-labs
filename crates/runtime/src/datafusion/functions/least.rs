@@ -15,11 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/least.rs
-use crate::sql::functions::greatest_least_utils::GreatestLeastOperator;
-=======
 use crate::datafusion::functions::greatest_least_utils::GreatestLeastOperator;
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/least.rs
 use arrow::array::{make_comparator, Array, BooleanArray};
 use arrow::buffer::BooleanBuffer;
 use arrow::compute::kernels::cmp;
@@ -47,19 +43,12 @@ pub struct LeastFunc {
 
 impl Default for LeastFunc {
     fn default() -> Self {
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/least.rs
-        LeastFunc::new()
-=======
         Self::new()
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/least.rs
     }
 }
 
 impl LeastFunc {
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/least.rs
-=======
     #[must_use]
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/least.rs
     pub fn new() -> Self {
         Self {
             signature: Signature::user_defined(Volatility::Immutable),
@@ -113,11 +102,7 @@ impl GreatestLeastOperator for LeastFunc {
             && lhs.logical_null_count() == 0
             && rhs.logical_null_count() == 0
         {
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/least.rs
-            return cmp::lt_eq(&lhs, &rhs).map_err(|e| e.into());
-=======
             return cmp::lt_eq(&lhs, &rhs).map_err(Into::into);
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/least.rs
         }
 
         let cmp = make_comparator(lhs, rhs, SORT_OPTIONS)?;
@@ -138,11 +123,7 @@ impl ScalarUDFImpl for LeastFunc {
         self
     }
 
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/least.rs
-    fn name(&self) -> &str {
-=======
     fn name(&self) -> &'static str {
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/least.rs
         "least"
     }
 
@@ -170,42 +151,25 @@ impl ScalarUDFImpl for LeastFunc {
 }
 static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
 
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/least.rs
-fn get_smallest_doc() -> &'static Documentation {
-    DOCUMENTATION.get_or_init(|| {
-        Documentation::builder().with_doc_section(DOC_SECTION_CONDITIONAL)
-            .with_sql_example(r#"```sql
-=======
 #[allow(clippy::unwrap_used)]
 fn get_smallest_doc() -> &'static Documentation {
     DOCUMENTATION.get_or_init(|| {
         Documentation::builder(DOC_SECTION_CONDITIONAL, "return the expression with the smallest value", "least(4,7,5)")
             .with_sql_example(r"```sql
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/least.rs
 > select least(4, 7, 5);
 +---------------------------+
 | least(4,7,5)              |
 +---------------------------+
 | 4                         |
 +---------------------------+
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/least.rs
-```"#,
-=======
 ```",
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/least.rs
             )
             .with_argument(
                 "expression1, expression_n",
                 "Expressions to compare and return the smallest value. Can be a constant, column, or function, and any combination of arithmetic operators. Pass as many expression arguments as necessary.",
             )
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/least.rs
-            .build().unwrap()
-    })
-}
-=======
             .build()
     })
 }
 
 super::macros::make_udf_function!(LeastFunc);
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/least.rs

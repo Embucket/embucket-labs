@@ -15,11 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
-use crate::sql::functions::greatest_least_utils::GreatestLeastOperator;
-=======
 use crate::datafusion::functions::greatest_least_utils::GreatestLeastOperator;
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
 use arrow::array::{make_comparator, Array, BooleanArray};
 use arrow::buffer::BooleanBuffer;
 use arrow::compute::kernels::cmp;
@@ -32,11 +28,8 @@ use datafusion::logical_expr::{ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::OnceLock;
 
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
-=======
 use super::macros::make_udf_function;
 
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
 const SORT_OPTIONS: SortOptions = SortOptions {
     // We want greatest first
     descending: false,
@@ -52,19 +45,12 @@ pub struct GreatestFunc {
 
 impl Default for GreatestFunc {
     fn default() -> Self {
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
-        GreatestFunc::new()
-=======
         Self::new()
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
     }
 }
 
 impl GreatestFunc {
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
-=======
     #[must_use]
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
     pub fn new() -> Self {
         Self {
             signature: Signature::user_defined(Volatility::Immutable),
@@ -105,11 +91,7 @@ impl GreatestLeastOperator for GreatestFunc {
             && lhs.logical_null_count() == 0
             && rhs.logical_null_count() == 0
         {
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
-            return cmp::gt_eq(&lhs, &rhs).map_err(|e| e.into());
-=======
             return cmp::gt_eq(&lhs, &rhs).map_err(Into::into);
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
         }
 
         let cmp = make_comparator(lhs, rhs, SORT_OPTIONS)?;
@@ -130,11 +112,7 @@ impl ScalarUDFImpl for GreatestFunc {
         self
     }
 
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
-    fn name(&self) -> &str {
-=======
     fn name(&self) -> &'static str {
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
         "greatest"
     }
 
@@ -162,42 +140,25 @@ impl ScalarUDFImpl for GreatestFunc {
 }
 static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
 
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
-fn get_greatest_doc() -> &'static Documentation {
-    DOCUMENTATION.get_or_init(|| {
-        Documentation::builder().with_doc_section(DOC_SECTION_CONDITIONAL)
-            .with_sql_example(r#"```sql
-=======
 #[allow(clippy::unwrap_used)]
 fn get_greatest_doc() -> &'static Documentation {
     DOCUMENTATION.get_or_init(|| {
         Documentation::builder(DOC_SECTION_CONDITIONAL, "return the expression with the greatest value", "greatest(4, 7, 5)")
             .with_sql_example("```sql
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
 > select greatest(4, 7, 5);
 +---------------------------+
 | greatest(4,7,5)           |
 +---------------------------+
 | 7                         |
 +---------------------------+
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
-```"#,
-=======
 ```",
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
             )
             .with_argument(
                 "expression1, expression_n",
                 "Expressions to compare and return the greatest value.. Can be a constant, column, or function, and any combination of arithmetic operators. Pass as many expression arguments as necessary.",
             )
-<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
-            .build().unwrap()
-    })
-}
-=======
             .build()
     })
 }
 
 make_udf_function!(GreatestFunc);
->>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
