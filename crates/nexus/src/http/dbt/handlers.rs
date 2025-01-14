@@ -110,7 +110,7 @@ pub async fn query(
             // row_set_base_64: Option::from(result.clone()),
             row_set_base_64: None,
             #[allow(clippy::unwrap_used)]
-            row_set: serde_json::from_str(&result).unwrap(),
+            row_set: ResponseData::rows_to_vec(result.as_str())?,
             total: Some(1),
             query_result_format: Option::from("json".to_string()),
             error_code: None,

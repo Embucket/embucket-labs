@@ -80,6 +80,9 @@ pub enum ControlPlaneError {
     #[snafu(display("Schema {schema} not found in database {database}"))]
     SchemaNotFound { schema: String, database: String },
 
+    #[snafu(display("Table {table} not found in database {database}"))]
+    TableNotFound { table: String, database: String },
+
     #[snafu(display("Arrow error: {source}"))]
     Arrow { source: arrow::error::ArrowError },
 
