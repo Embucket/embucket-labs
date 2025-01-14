@@ -79,30 +79,30 @@ impl ConvertTimezoneFunc {
     }
 }
 //TODO: FIX docs
-/// ConvertTimezone SQL function
-/// Syntax: `DATEADD(<date_or_time_part>, <value>, <date_or_time_expr>)`
-/// - <date_or_time_part>: This indicates the units of time that you want to add.
-/// For example if you want to add two days, then specify day. This unit of measure must be one of the values listed in Supported date and time parts.
-/// - <value>: This is the number of units of time that you want to add.
-/// For example, if the units of time is day, and you want to add two days, specify 2. If you want to subtract two days, specify -2.
-/// - <date_or_time_expr>: Must evaluate to a date, time, or timestamp.
-/// This is the date, time, or timestamp to which you want to add.
-/// For example, if you want to add two days to August 1, 2024, then specify '2024-08-01'::DATE.
-/// If the data type is TIME, then the date_or_time_part must be in units of hours or smaller, not days or bigger.
-/// If the input data type is DATE, and the date_or_time_part is hours or smaller, the input value will not be rejected,
-/// but instead will be treated as a TIMESTAMP with hours, minutes, seconds, and fractions of a second all initially set to 0 (e.g. midnight on the specified date).
-///
-/// Note: `dateadd` returns
-/// If date_or_time_expr is a time, then the return data type is a time.
-/// If date_or_time_expr is a timestamp, then the return data type is a timestamp.
-/// If date_or_time_expr is a date:
-/// - If date_or_time_part is day or larger (for example, month, year), the function returns a DATE value.
-/// - If date_or_time_part is smaller than a day (for example, hour, minute, second), the function returns a TIMESTAMP_NTZ value, with 00:00:00.000 as the starting time for the date.
-/// Usage notes:
-/// - When date_or_time_part is year, quarter, or month (or any of their variations),
-/// if the result month has fewer days than the original day of the month, the result day of the month might be different from the original day.
-/// Examples
-/// - dateadd(day, 30, CAST('2024-12-26' AS TIMESTAMP))
+// convert_timezone SQL function
+// Syntax: `DATEADD(<date_or_time_part>, <value>, <date_or_time_expr>)`
+// - <date_or_time_part>: This indicates the units of time that you want to add.
+// For example if you want to add two days, then specify day. This unit of measure must be one of the values listed in Supported date and time parts.
+// - <value>: This is the number of units of time that you want to add.
+// For example, if the units of time is day, and you want to add two days, specify 2. If you want to subtract two days, specify -2.
+// - <date_or_time_expr>: Must evaluate to a date, time, or timestamp.
+// This is the date, time, or timestamp to which you want to add.
+// For example, if you want to add two days to August 1, 2024, then specify '2024-08-01'::DATE.
+// If the data type is TIME, then the date_or_time_part must be in units of hours or smaller, not days or bigger.
+// If the input data type is DATE, and the date_or_time_part is hours or smaller, the input value will not be rejected,
+// but instead will be treated as a TIMESTAMP with hours, minutes, seconds, and fractions of a second all initially set to 0 (e.g. midnight on the specified date).
+//
+// Note: `dateadd` returns
+// If date_or_time_expr is a time, then the return data type is a time.
+// If date_or_time_expr is a timestamp, then the return data type is a timestamp.
+// If date_or_time_expr is a date:
+// - If date_or_time_part is day or larger (for example, month, year), the function returns a DATE value.
+// - If date_or_time_part is smaller than a day (for example, hour, minute, second), the function returns a TIMESTAMP_NTZ value, with 00:00:00.000 as the starting time for the date.
+// Usage notes:
+// - When date_or_time_part is year, quarter, or month (or any of their variations),
+// if the result month has fewer days than the original day of the month, the result day of the month might be different from the original day.
+// Examples
+// - dateadd(day, 30, CAST('2024-12-26' AS TIMESTAMP))
 impl ScalarUDFImpl for ConvertTimezoneFunc {
     fn as_any(&self) -> &dyn Any {
         self
@@ -114,7 +114,7 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
         &self.signature
     }
     fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
-        return internal_err!("return_types_from_exprs should be called");
+        internal_err!("return_types_from_exprs should be called")
     }
     fn return_type_from_exprs(
         &self,
@@ -135,18 +135,18 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                         Some(Arc::from(tz.into_boxed_str())),
                     )),
                     // DataType::Utf8 => Ok(DataType::Timestamp(TimeUnit::Nanosecond, Some(Arc::from(tz.into_boxed_str())))),
-                    _ => return internal_err!("Invalid source_timestamp_tz type"),
+                    _ => internal_err!("Invalid source_timestamp_tz type"),
                 }
             }
             3 => {
                 match &arg_types[2] {
                     DataType::Timestamp(tu, None) => Ok(DataType::Timestamp(*tu, None)),
                     // DataType::Utf8 => Ok(DataType::Timestamp(TimeUnit::Nanosecond, None)),
-                    _ => return internal_err!("Invalid source_timestamp_ntz type"),
+                    _ => internal_err!("Invalid source_timestamp_ntz type"),
                 }
             }
             other => {
-                return internal_err!(
+                internal_err!(
                     "This function can only take two or three arguments, got {}",
                     other
                 )
@@ -239,7 +239,7 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                     //             .cast_to(&Utf8)?
                     //             .cast_to(&Timestamp(TimeUnit::Nanosecond, Some(Arc::from(target_tz.into_boxed_str()))))?;
                     //         //dbg!(&modified_timestamp.cast_to(&Utf8)?);
-                    //         return Ok(ColumnarValue::Scalar(modified_timestamp))
+                    //         Ok(ColumnarValue::Scalar(modified_timestamp))
                     //     }
                     //     let local_tz = Local::now().offset().to_string();
                     //     let modified_timestamp = ScalarValue::Utf8(Some(part.clone()))
@@ -289,7 +289,7 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                     //     dbg!(&modified_timestamp.cast_to(&Utf8)?);
                     //     Ok(ColumnarValue::Scalar(modified_timestamp))
                     // },
-                    _ => return plan_err!("Invalid source_timestamp_tz type format"),
+                    _ => plan_err!("Invalid source_timestamp_tz type format"),
                 }
             }
             3 => {
@@ -392,14 +392,14 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
 
                     //     Ok(ColumnarValue::Scalar(modified_timestamp))
                     // },
-                    _ => return plan_err!("Invalid source_timestamp_tz type format"),
+                    _ => plan_err!("Invalid source_timestamp_tz type format"),
                 }
             }
             _ => {
-                return plan_err!(
+                plan_err!(
                     "This function can only take two or three arguments, got {}",
                     args.len()
-                );
+                )
             }
         }
     }
