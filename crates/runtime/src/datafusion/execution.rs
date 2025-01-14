@@ -62,11 +62,11 @@ impl SqlExecutor {
                 Statement::CreateSchema { schema_name, .. } => {
                     return self.create_schema(schema_name, warehouse_name).await;
                 }
-                Statement::ShowVariable { .. } | Statement::Drop { .. } => {
-                    return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
+                Statement::ShowVariable { .. } | Statement::Query { .. } => {
+                    return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await
                 }
-                Statement::Query { .. } => {
-                    return self.execute_with_custom_plan(&query, warehouse_name).await;
+                Statement::Drop { .. } => {
+                    return Box::pin(self.drop_table_query(&query, warehouse_name)).await;
                 }
                 _ => {}
             }
@@ -207,6 +207,27 @@ impl SqlExecutor {
                 ),
             })
         }
+    }
+
+    pub async fn drop_table_query(
+        &self,
+        query: &str,
+        warehouse_name: &str,
+    ) -> SQLResult<Vec<RecordBatch>> {
+        let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
+        let transformed = plan
+            .transform(iceberg_transform)
+            .data()
+            .context(sql_error::DataFusionSnafu)?;
+        let res = self
+            .ctx
+            .execute_logical_plan(transformed)
+            .await
+            .context(sql_error::DataFusionSnafu)?
+            .collect()
+            .await
+            .context(sql_error::DataFusionSnafu)?;
+        Ok(res)
     }
 
     pub async fn create_schema(
