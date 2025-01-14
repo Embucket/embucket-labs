@@ -187,6 +187,7 @@ where
         let mut fields = Vec::with_capacity(columns.len());
 
         for column in columns {
+            
             let data_type = self.convert_data_type(&column.data_type)?;
             let not_nullable = column
                 .options
@@ -241,6 +242,7 @@ where
                     _ => Ok(DataType::Utf8),
                 }
             }
+            SQLDataType::Blob(_) => Ok(DataType::Binary),
             SQLDataType::UnsignedBigInt(_) | SQLDataType::UnsignedInt8(_) => Ok(DataType::UInt64),
             SQLDataType::Real |
             SQLDataType::Float4 |
@@ -356,11 +358,10 @@ where
             | SQLDataType::Uuid
             | SQLDataType::Binary(_)
             | SQLDataType::Varbinary(_)
-            | SQLDataType::Blob(_)
             | SQLDataType::Datetime(_)
             | SQLDataType::Regclass
             | SQLDataType::Array(_)
-            | SQLDataType::Enum(_)
+            | SQLDataType::Enum(_, _)
             | SQLDataType::Set(_)
             | SQLDataType::MediumInt(_)
             | SQLDataType::UnsignedMediumInt(_)
@@ -399,6 +400,14 @@ where
             | SQLDataType::LowCardinality(_)
             | SQLDataType::Trigger
             | SQLDataType::JSONB
+            | SQLDataType::TinyBlob
+            | SQLDataType::MediumBlob
+            | SQLDataType::LongBlob
+            | SQLDataType::TinyText
+            | SQLDataType::MediumText
+            | SQLDataType::LongText
+            | SQLDataType::Bit(_)
+            | SQLDataType::BitVarying(_)
             | SQLDataType::Unspecified
             => not_impl_err!(
                 "Unsupported SQL type {sql_type:?}"
@@ -592,6 +601,7 @@ fn calc_inline_constraints_from_columns(columns: &[ColumnDef]) -> Vec<TableConst
                     index_type_display: ast::KeyOrIndexDisplay::None,
                     index_type: None,
                     index_options: vec![],
+                    nulls_distinct: ast::NullsDistinctOption::None,
                 }),
                 ColumnOption::Unique {
                     is_primary: true,
@@ -624,18 +634,13 @@ fn calc_inline_constraints_from_columns(columns: &[ColumnDef]) -> Vec<TableConst
                     expr: Box::new(expr.clone()),
                 }),
                 // Other options are not constraint related.
-                ColumnOption::Default(_)
-                | ColumnOption::Null
-                | ColumnOption::NotNull
-                | ColumnOption::DialectSpecific(_)
-                | ColumnOption::CharacterSet(_)
-                | ColumnOption::Generated { .. }
-                | ColumnOption::Comment(_)
-                | ColumnOption::Options(_)
-                | ColumnOption::Materialized(_)
-                | ColumnOption::Ephemeral(_)
-                | ColumnOption::Alias(_)
-                | ColumnOption::OnUpdate(_) => {}
+                ColumnOption::Default(_) | ColumnOption::Null | ColumnOption::NotNull |
+                ColumnOption::DialectSpecific(_) | ColumnOption::CharacterSet(_) |
+                ColumnOption::Generated { .. } | ColumnOption::Comment(_) |
+                ColumnOption::Options(_) | ColumnOption::Materialized(_) |
+                ColumnOption::Ephemeral(_) | ColumnOption::Alias(_) |
+                ColumnOption::OnUpdate(_) | ColumnOption::Identity(_) |
+                ColumnOption::OnConflict(_) | ColumnOption::Policy(_) | ColumnOption::Tags(_) => {}
             }
         }
     }

@@ -212,3 +212,5 @@ impl ScalarUDFImpl for DateAddFunc {
         }
     }
 }
+
+super::macros::make_udf_function!(DateAddFunc);

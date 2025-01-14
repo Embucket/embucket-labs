@@ -214,6 +214,7 @@ fn json_value_to_columnar_value(value: &Value) -> ColumnarValue {
     }
 }
 
+// TODO: Revisit this function
 #[allow(dead_code)]
 fn parse_data_type(data_type_str: &str) -> DataType {
     if data_type_str.starts_with("array<struct<") && data_type_str.ends_with(">>") {
@@ -241,3 +242,5 @@ fn parse_data_type(data_type_str: &str) -> DataType {
         DataType::Struct(Fields::empty())
     }
 }
+
+super::macros::make_udf_function!(ParseJsonFunc);

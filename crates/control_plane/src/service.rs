@@ -2,8 +2,8 @@ use crate::error::{ControlPlaneError, ControlPlaneResult};
 use crate::models::{ColumnInfo, Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
-use crate::sql::execution::SqlExecutor;
-use crate::sql::functions::common::convert_record_batches;
+use runtime::datafusion::execution::SqlExecutor;
+use crate::utils::convert_record_batches;
 use arrow::record_batch::RecordBatch;
 use arrow_json::writer::JsonArray;
 use arrow_json::WriterBuilder;
@@ -243,7 +243,7 @@ impl ControlService for ControlServiceImpl {
         let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
 
         let records: Vec<RecordBatch> = executor
-            .query(query, &warehouse)
+            .query(query, &catalog_name, &warehouse.location)
             .await
             .context(crate::error::ExecutionSnafu)?
             .into_iter()

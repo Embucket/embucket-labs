@@ -94,3 +94,5 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
         Ok(args[1].clone())
     }
 }
+
+super::macros::make_udf_function!(ConvertTimezoneFunc);

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::sql::functions::greatest_least_utils::GreatestLeastOperator;
+use crate::datafusion::functions::greatest_least_utils::GreatestLeastOperator;
 use arrow::array::{make_comparator, Array, BooleanArray};
 use arrow::buffer::BooleanBuffer;
 use arrow::compute::kernels::cmp;
@@ -27,6 +27,8 @@ use datafusion::logical_expr::{ColumnarValue, Documentation};
 use datafusion::logical_expr::{ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::OnceLock;
+
+use super::macros::make_udf_function;
 
 const SORT_OPTIONS: SortOptions = SortOptions {
     // We want greatest first
@@ -141,7 +143,8 @@ static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
 #[allow(clippy::unwrap_used)]
 fn get_greatest_doc() -> &'static Documentation {
     DOCUMENTATION.get_or_init(|| {
-        Documentation::builder().with_doc_section(DOC_SECTION_CONDITIONAL)
+        
+        Documentation::builder(DOC_SECTION_CONDITIONAL, "return the expression with the greatest value", "greatest(4, 7, 5)")
             .with_sql_example("```sql
 > select greatest(4, 7, 5);
 +---------------------------+
@@ -155,6 +158,8 @@ fn get_greatest_doc() -> &'static Documentation {
                 "expression1, expression_n",
                 "Expressions to compare and return the greatest value.. Can be a constant, column, or function, and any combination of arithmetic operators. Pass as many expression arguments as necessary.",
             )
-            .build().unwrap()
+            .build()
     })
 }
+
+make_udf_function!(GreatestFunc);

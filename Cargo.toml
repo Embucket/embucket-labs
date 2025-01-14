@@ -3,7 +3,8 @@ members = [
     "crates/utils",
     "crates/catalog",
     "crates/control_plane",
-    "crates/nexus",
+    "crates/nexus", 
+    "crates/runtime",
 ]
 resolver = "2"
 
@@ -32,6 +33,9 @@ lazy_static = { version = "1.5" }
 dotenv = { version = "0.15.0" }
 datafusion = { version = "43" }
 snafu = { version = "0.8.5", features = ["futures"] }
+
+[patch.crates-io]
+datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "073a3b110852f97ccb7085ce4bfd19473b8a3f4f" }
 
 
 [workspace.lints.clippy]

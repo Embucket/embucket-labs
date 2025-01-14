@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::sql::functions::greatest_least_utils::GreatestLeastOperator;
+use crate::datafusion::functions::greatest_least_utils::GreatestLeastOperator;
 use arrow::array::{make_comparator, Array, BooleanArray};
 use arrow::buffer::BooleanBuffer;
 use arrow::compute::kernels::cmp;
@@ -154,7 +154,7 @@ static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
 #[allow(clippy::unwrap_used)]
 fn get_smallest_doc() -> &'static Documentation {
     DOCUMENTATION.get_or_init(|| {
-        Documentation::builder().with_doc_section(DOC_SECTION_CONDITIONAL)
+        Documentation::builder(DOC_SECTION_CONDITIONAL, "return the expression with the smallest value", "least(4,7,5)")
             .with_sql_example(r"```sql
 > select least(4, 7, 5);
 +---------------------------+
@@ -168,6 +168,8 @@ fn get_smallest_doc() -> &'static Documentation {
                 "expression1, expression_n",
                 "Expressions to compare and return the smallest value. Can be a constant, column, or function, and any combination of arithmetic operators. Pass as many expression arguments as necessary.",
             )
-            .build().unwrap()
+            .build()
     })
 }
+
+super::macros::make_udf_function!(LeastFunc);

@@ -1,10 +1,10 @@
-use datafusion::error::DataFusionError;
+use datafusion::common::error::DataFusionError;
 use iceberg_rust::spec::schema::SchemaBuilderError;
 use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
-pub enum SQLError {
+pub enum IcehutSQLError {
     #[snafu(display("Arrow error: {source}"))]
     Arrow { source: arrow::error::ArrowError },
 
@@ -39,4 +39,4 @@ pub enum SQLError {
     NotImplemented { message: String },
 }
 
-pub type SQLResult<T> = std::result::Result<T, SQLError>;
+pub type IcehutSQLResult<T> = std::result::Result<T, IcehutSQLError>;

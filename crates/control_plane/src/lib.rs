@@ -9,4 +9,4 @@ pub mod service; // This will expose everything inside service.rs
 
 pub mod error;
 
-pub mod sql;
+pub mod utils;

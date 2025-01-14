@@ -1,16 +1,12 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
-use super::error::{self as sql_error, SQLResult};
-use crate::models::{created_entity_response, Warehouse};
-use crate::sql::context::CustomContextProvider;
-use crate::sql::functions::convert_timezone::ConvertTimezoneFunc;
-use crate::sql::functions::date_add::DateAddFunc;
-use crate::sql::functions::greatest::GreatestFunc;
-use crate::sql::functions::least::LeastFunc;
-use crate::sql::functions::parse_json::ParseJsonFunc;
-use crate::sql::planner::ExtendedSqlToRel;
-use arrow::array::RecordBatch;
+use super::error::{self as ih_error, IcehutSQLResult};
+use arrow::array::{RecordBatch, UInt64Array};
+use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
+use crate::datafusion::context::CustomContextProvider;
+use crate::datafusion::functions::register_udfs;
+use crate::datafusion::planner::ExtendedSqlToRel;
 use datafusion::catalog::SchemaProvider;
 use datafusion::catalog_common::information_schema::InformationSchemaProvider;
 use datafusion::catalog_common::{ResolvedTableReference, TableReference};
@@ -20,7 +16,7 @@ use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::{
-    CreateExternalTable as PlanCreateExternalTable, DdlStatement, LogicalPlan, ScalarUDF,
+    CreateExternalTable as PlanCreateExternalTable, DdlStatement, LogicalPlan
 };
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
@@ -41,18 +37,13 @@ pub struct SqlExecutor {
 }
 
 impl SqlExecutor {
-    pub fn new(mut ctx: SessionContext) -> SQLResult<Self> {
-        ctx.register_udf(ScalarUDF::from(ParseJsonFunc::new()));
-        ctx.register_udf(ScalarUDF::from(DateAddFunc::new()));
-        ctx.register_udf(ScalarUDF::from(LeastFunc::new()));
-        ctx.register_udf(ScalarUDF::from(GreatestFunc::new()));
-        ctx.register_udf(ScalarUDF::from(ConvertTimezoneFunc::new()));
-        register_all(&mut ctx).context(sql_error::RegisterUDFSnafu)?;
+    pub fn new(mut ctx: SessionContext) -> IcehutSQLResult<Self> {
+        register_udfs(&mut ctx).context(ih_error::RegisterUDFSnafu)?;
+        register_all(&mut ctx).context(ih_error::RegisterUDFSnafu)?;
         Ok(Self { ctx })
     }
 
-    pub async fn query(&self, query: &str, warehouse: &Warehouse) -> SQLResult<Vec<RecordBatch>> {
-        let warehouse_name = &*warehouse.name;
+    pub async fn query(&self, query: &str, warehouse_name: &str, warehouse_location: &str) -> IcehutSQLResult<Vec<RecordBatch>> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         // Update query to use custom JSON functions
@@ -66,7 +57,7 @@ impl SqlExecutor {
         if let DFStatement::Statement(s) = statement {
             match *s {
                 Statement::CreateTable { .. } => {
-                    return Box::pin(self.create_table_query(*s, warehouse)).await;
+                    return Box::pin(self.create_table_query(*s, warehouse_name, warehouse_location)).await;
                 }
                 Statement::CreateSchema { schema_name, .. } => {
                     return self.create_schema(schema_name, warehouse_name).await;
@@ -117,10 +108,10 @@ impl SqlExecutor {
     pub async fn create_table_query(
         &self,
         statement: Statement,
-        warehouse: &Warehouse,
-    ) -> SQLResult<Vec<RecordBatch>> {
+        warehouse_name: &str,
+        warehouse_location: &str
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
-            let warehouse_name = &*warehouse.name;
             let mut new_table_full_name = create_table_statement.name.to_string();
             let mut ident = create_table_statement.name.0;
             if !new_table_full_name.starts_with(warehouse_name) {
@@ -140,7 +131,6 @@ impl SqlExecutor {
                 new_table_db.to_string(),
                 new_table_name.value.clone(),
             );
-            let location = warehouse.location.clone();
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
@@ -168,7 +158,7 @@ impl SqlExecutor {
                     LogicalPlan::Ddl(DdlStatement::CreateExternalTable(PlanCreateExternalTable {
                         schema: table.input.schema().clone(),
                         name: new_table_ref,
-                        location,                         // Specify the external location
+                        location: warehouse_location.to_string(),                         // Specify the external location
                         file_type: "ICEBERG".to_string(), // Specify the file type
                         table_partition_cols: vec![],     // Specify partition columns if any
                         if_not_exists: table.if_not_exists,
@@ -183,14 +173,14 @@ impl SqlExecutor {
                 let transformed = external_table_plan
                     .transform(iceberg_transform)
                     .data()
-                    .context(sql_error::DataFusionSnafu)?;
+                    .context(ih_error::DataFusionSnafu)?;
                 self.ctx
                     .execute_logical_plan(transformed)
                     .await
-                    .context(sql_error::DataFusionSnafu)?
+                    .context(ih_error::DataFusionSnafu)?
                     .collect()
                     .await
-                    .context(sql_error::DataFusionSnafu)?;
+                    .context(ih_error::DataFusionSnafu)?;
             }
 
             // Insert data to External table
@@ -209,9 +199,9 @@ impl SqlExecutor {
                 .await
                 .context(super::error::DataFusionSnafu)?;
 
-            created_entity_response().context(sql_error::ArrowSnafu)
+            created_entity_response().context(ih_error::ArrowSnafu)
         } else {
-            Err(super::error::SQLError::DataFusion {
+            Err(super::error::IcehutSQLError::DataFusion {
                 source: datafusion::error::DataFusionError::NotImplemented(
                     "Only CREATE TABLE statements are supported".to_string(),
                 ),
@@ -223,18 +213,18 @@ impl SqlExecutor {
         &self,
         name: SchemaName,
         warehouse_name: &str,
-    ) -> SQLResult<Vec<RecordBatch>> {
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
         match name {
             SchemaName::Simple(schema_name) => {
                 //println!("Creating simple schema: {:?}", schema_name);
                 // TODO: Abstract the Iceberg catalog
                 let catalog = self.ctx.catalog(warehouse_name).ok_or(
-                    sql_error::SQLError::WarehouseNotFound {
+                    ih_error::IcehutSQLError::WarehouseNotFound {
                         name: warehouse_name.to_string(),
                     },
                 )?;
                 let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().ok_or(
-                    sql_error::SQLError::IcebergCatalogNotFound {
+                    ih_error::IcehutSQLError::IcebergCatalogNotFound {
                         warehouse_name: warehouse_name.to_string(),
                     },
                 )?;
@@ -255,11 +245,11 @@ impl SqlExecutor {
                     rest_catalog
                         .create_namespace(&namespace, None)
                         .await
-                        .context(sql_error::IcebergSnafu)?;
+                        .context(ih_error::IcebergSnafu)?;
                 }
             }
             _ => {
-                return Err(super::error::SQLError::DataFusion {
+                return Err(super::error::IcehutSQLError::DataFusion {
                     source: datafusion::error::DataFusionError::NotImplemented(
                         "Only simple schema names are supported".to_string(),
                     ),
@@ -273,7 +263,7 @@ impl SqlExecutor {
         &self,
         query: &str,
         warehouse_name: &str,
-    ) -> SQLResult<LogicalPlan> {
+    ) -> IcehutSQLResult<LogicalPlan> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let mut statement = state
@@ -318,7 +308,7 @@ impl SqlExecutor {
                             .table(&table)
                             .await
                             .context(super::error::DataFusionSnafu)?
-                            .ok_or(super::error::SQLError::TableProviderNotFound {
+                            .ok_or(super::error::IcehutSQLError::TableProviderNotFound {
                                 table_name: table.clone(),
                             })?;
                         ctx_provider.tables.insert(
@@ -334,7 +324,7 @@ impl SqlExecutor {
                 .sql_statement_to_plan(*s)
                 .context(super::error::DataFusionSnafu)
         } else {
-            Err(super::error::SQLError::DataFusion {
+            Err(super::error::IcehutSQLError::DataFusion {
                 source: datafusion::error::DataFusionError::NotImplemented(
                     "Only SQL statements are supported".to_string(),
                 ),
@@ -355,7 +345,7 @@ impl SqlExecutor {
     pub fn schema_for_ref(
         &self,
         table_ref: impl Into<TableReference>,
-    ) -> SQLResult<Arc<dyn SchemaProvider>> {
+    ) -> IcehutSQLResult<Arc<dyn SchemaProvider>> {
         let state = self.ctx.state();
         let resolved_ref = self.resolve_table_ref(table_ref);
         if state.config().information_schema() && *resolved_ref.schema == *"information_schema" {
@@ -368,11 +358,11 @@ impl SqlExecutor {
         state
             .catalog_list()
             .catalog(&resolved_ref.catalog)
-            .ok_or_else(|| super::error::SQLError::DataFusion {
+            .ok_or_else(|| super::error::IcehutSQLError::DataFusion {
                 source: plan_datafusion_err!("failed to resolve catalog: {}", resolved_ref.catalog),
             })?
             .schema(&resolved_ref.schema)
-            .ok_or_else(|| super::error::SQLError::DataFusion {
+            .ok_or_else(|| super::error::IcehutSQLError::DataFusion {
                 source: plan_datafusion_err!("failed to resolve schema: {}", resolved_ref.schema),
             })
     }
@@ -381,7 +371,7 @@ impl SqlExecutor {
         &self,
         query: &str,
         warehouse_name: &str,
-    ) -> SQLResult<Vec<RecordBatch>> {
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
         self.ctx
             .execute_logical_plan(plan)
@@ -562,4 +552,17 @@ impl SqlExecutor {
             _ => {}
         }
     }
+}
+
+pub fn created_entity_response() -> std::result::Result<Vec<RecordBatch>, arrow::error::ArrowError>
+{
+    let schema = Arc::new(ArrowSchema::new(vec![Field::new(
+        "count",
+        DataType::UInt64,
+        false,
+    )]));
+    Ok(vec![RecordBatch::try_new(
+        schema,
+        vec![Arc::new(UInt64Array::from(vec![0]))],
+    )?])
 }
