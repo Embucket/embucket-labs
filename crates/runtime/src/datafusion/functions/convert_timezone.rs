@@ -107,7 +107,7 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "convert_timezone"
     }
     fn signature(&self) -> &Signature {
