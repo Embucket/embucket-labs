@@ -18,9 +18,9 @@
 use arrow::array::{Array, ArrayRef, BooleanArray};
 use arrow::compute::kernels::zip::zip;
 use arrow::datatypes::DataType;
-use datafusion::common::{Result, ScalarValue, internal_err, plan_err};
-use datafusion::logical_expr::ColumnarValue;
+use datafusion::common::{internal_err, plan_err, Result, ScalarValue};
 use datafusion::logical_expr::type_coercion::binary::type_union_resolution;
+use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;
 
 pub(super) trait GreatestLeastOperator {

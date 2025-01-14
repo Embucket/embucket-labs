@@ -16,14 +16,14 @@
 // under the License.
 
 use arrow::datatypes::{
-    DECIMAL_DEFAULT_SCALE, DECIMAL128_MAX_PRECISION, DECIMAL256_MAX_PRECISION, DataType, Field,
-    Fields, IntervalUnit, Schema, TimeUnit,
+    DataType, Field, Fields, IntervalUnit, Schema, TimeUnit, DECIMAL128_MAX_PRECISION,
+    DECIMAL256_MAX_PRECISION, DECIMAL_DEFAULT_SCALE,
 };
 use datafusion::catalog_common::TableReference;
 use datafusion::common::error::_plan_err;
 use datafusion::common::{
-    Constraint, Constraints, DFSchema, DFSchemaRef, ToDFSchema, not_impl_err, plan_datafusion_err,
-    plan_err,
+    not_impl_err, plan_datafusion_err, plan_err, Constraint, Constraints, DFSchema, DFSchemaRef,
+    ToDFSchema,
 };
 use datafusion::common::{DataFusionError, Result, SchemaError};
 use datafusion::logical_expr::sqlparser::ast;
@@ -34,7 +34,7 @@ use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, L
 use datafusion::prelude::*;
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{
-    ContextProvider, IdentNormalizer, PlannerContext, SqlToRel, object_name_to_table_reference,
+    object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel,
 };
 use datafusion::sql::sqlparser::ast::{
     ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement,

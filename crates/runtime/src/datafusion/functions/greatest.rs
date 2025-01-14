@@ -16,12 +16,12 @@
 // under the License.
 
 use crate::datafusion::functions::greatest_least_utils::GreatestLeastOperator;
-use arrow::array::{Array, BooleanArray, make_comparator};
+use arrow::array::{make_comparator, Array, BooleanArray};
 use arrow::buffer::BooleanBuffer;
-use arrow::compute::SortOptions;
 use arrow::compute::kernels::cmp;
+use arrow::compute::SortOptions;
 use arrow::datatypes::DataType;
-use datafusion::common::{Result, ScalarValue, internal_err};
+use datafusion::common::{internal_err, Result, ScalarValue};
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_CONDITIONAL;
 use datafusion::logical_expr::{ColumnarValue, Documentation};
 use datafusion::logical_expr::{ScalarUDFImpl, Signature, Volatility};
@@ -73,7 +73,11 @@ impl GreatestLeastOperator for GreatestFunc {
             SORT_OPTIONS,
         )?;
 
-        if cmp(0, 0).is_ge() { Ok(lhs) } else { Ok(rhs) }
+        if cmp(0, 0).is_ge() {
+            Ok(lhs)
+        } else {
+            Ok(rhs)
+        }
     }
 
     /// Return boolean array where `arr[i] = lhs[i] >= rhs[i]` for all i, where `arr` is the result array

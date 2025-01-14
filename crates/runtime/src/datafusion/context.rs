@@ -18,18 +18,18 @@
 use arrow::datatypes::{DataType, SchemaRef};
 use std::{collections::HashMap, sync::Arc};
 
-use datafusion::common::Result;
 use datafusion::common::file_options::file_type::FileType;
 use datafusion::common::plan_datafusion_err;
+use datafusion::common::Result;
 use datafusion::config::ConfigOptions;
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionState;
-use datafusion::logical_expr::WindowUDF;
 use datafusion::logical_expr::var_provider::is_system_variables;
+use datafusion::logical_expr::WindowUDF;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF, TableSource};
 use datafusion::prelude::*;
-use datafusion::sql::TableReference;
 use datafusion::sql::planner::ContextProvider;
+use datafusion::sql::TableReference;
 use datafusion::variable::VarType;
 
 pub struct CustomContextProvider<'a> {

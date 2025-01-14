@@ -28,8 +28,8 @@ use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::iceberg_transform;
 use iceberg_rust::spec::namespace::Namespace;
 use snafu::ResultExt;
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct SqlExecutor {
@@ -592,7 +592,8 @@ pub fn created_entity_response() -> std::result::Result<Vec<RecordBatch>, arrow:
         DataType::UInt64,
         false,
     )]));
-    Ok(vec![RecordBatch::try_new(schema, vec![Arc::new(
-        UInt64Array::from(vec![0]),
-    )])?])
+    Ok(vec![RecordBatch::try_new(
+        schema,
+        vec![Arc::new(UInt64Array::from(vec![0]))],
+    )?])
 }
