@@ -64,7 +64,6 @@ impl SqlExecutor {
             .context(super::error::DataFusionSnafu)?;
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
-        println!("statement: {:?}", statement);
 
         if let DFStatement::Statement(s) = statement {
             match *s {
@@ -352,7 +351,6 @@ impl SqlExecutor {
             for catalog in self.ctx.state().catalog_list().catalog_names() {
                 let provider = self.ctx.state().catalog_list().catalog(&catalog).unwrap();
                 for schema in provider.schema_names() {
-                    println!("catalog {:?} Schema: {:?}", catalog, schema);
                     for table in provider.schema(&schema).unwrap().table_names() {
                         let table_source = provider
                             .schema(&schema)

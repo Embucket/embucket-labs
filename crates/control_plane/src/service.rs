@@ -11,7 +11,6 @@ use bytes::Bytes;
 use datafusion::execution::context::SessionContext;
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{CsvReadOptions, SessionConfig};
-use datafusion_common::ToDFSchema;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use iceberg_rest_catalog::apis::configuration::Configuration;
