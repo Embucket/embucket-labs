@@ -85,6 +85,7 @@ impl SqlExecutor {
 
     pub fn preprocess_query(&self, query: &String) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
+        // dbg!(query);
         let re = regex::Regex::new(r"(\w+)\[(\d+)]\.(\w+)").unwrap();
         let date_add = regex::Regex::new(r"(date|time|timestamp)(_?add)\(\s*([a-zA-Z]+),").unwrap();
         let query = re
