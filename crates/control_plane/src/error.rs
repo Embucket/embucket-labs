@@ -90,7 +90,9 @@ pub enum ControlPlaneError {
     ObjectStore { source: object_store::Error },
 
     #[snafu(display("Execution error: {source}"))]
-    Execution { source: runtime::datafusion::error::IcehutSQLError },
+    Execution {
+        source: runtime::datafusion::error::IcehutSQLError,
+    },
 }
 
 impl From<utils::Error> for ControlPlaneError {

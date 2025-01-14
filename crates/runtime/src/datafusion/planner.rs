@@ -16,14 +16,14 @@
 // under the License.
 
 use arrow::datatypes::{
-    DataType, Field, Fields, IntervalUnit, Schema, TimeUnit, DECIMAL128_MAX_PRECISION,
-    DECIMAL256_MAX_PRECISION, DECIMAL_DEFAULT_SCALE,
+    DECIMAL_DEFAULT_SCALE, DECIMAL128_MAX_PRECISION, DECIMAL256_MAX_PRECISION, DataType, Field,
+    Fields, IntervalUnit, Schema, TimeUnit,
 };
 use datafusion::catalog_common::TableReference;
 use datafusion::common::error::_plan_err;
 use datafusion::common::{
-    not_impl_err, plan_datafusion_err, plan_err, Constraint, Constraints, DFSchema, DFSchemaRef,
-    ToDFSchema,
+    Constraint, Constraints, DFSchema, DFSchemaRef, ToDFSchema, not_impl_err, plan_datafusion_err,
+    plan_err,
 };
 use datafusion::common::{DataFusionError, Result, SchemaError};
 use datafusion::logical_expr::sqlparser::ast;
@@ -34,7 +34,7 @@ use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, L
 use datafusion::prelude::*;
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{
-    object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel,
+    ContextProvider, IdentNormalizer, PlannerContext, SqlToRel, object_name_to_table_reference,
 };
 use datafusion::sql::sqlparser::ast::{
     ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement,
@@ -187,7 +187,6 @@ where
         let mut fields = Vec::with_capacity(columns.len());
 
         for column in columns {
-            
             let data_type = self.convert_data_type(&column.data_type)?;
             let not_nullable = column
                 .options
@@ -229,28 +228,30 @@ where
             SQLDataType::Boolean | SQLDataType::Bool => Ok(DataType::Boolean),
             SQLDataType::TinyInt(_) => Ok(DataType::Int8),
             SQLDataType::SmallInt(_) | SQLDataType::Int2(_) => Ok(DataType::Int16),
-            SQLDataType::Int(_) | SQLDataType::Integer(_) | SQLDataType::Int4(_) => Ok(DataType::Int32),
+            SQLDataType::Int(_) | SQLDataType::Integer(_) | SQLDataType::Int4(_) => {
+                Ok(DataType::Int32)
+            }
             SQLDataType::BigInt(_) | SQLDataType::Int8(_) => Ok(DataType::Int64),
             SQLDataType::UnsignedTinyInt(_) => Ok(DataType::UInt8),
             SQLDataType::UnsignedSmallInt(_) | SQLDataType::UnsignedInt2(_) => Ok(DataType::UInt16),
-            SQLDataType::UnsignedInt(_) | SQLDataType::UnsignedInteger(_) | SQLDataType::UnsignedInt4(_) => {
-                Ok(DataType::UInt32)
-            }
-            SQLDataType::Varchar(length) => {
-                match (length, true) {
-                    (Some(_), false) => plan_err!("does not support Varchar with length, please set `support_varchar_with_length` to be true"),
-                    _ => Ok(DataType::Utf8),
-                }
-            }
+            SQLDataType::UnsignedInt(_)
+            | SQLDataType::UnsignedInteger(_)
+            | SQLDataType::UnsignedInt4(_) => Ok(DataType::UInt32),
+            SQLDataType::Varchar(length) => match (length, true) {
+                (Some(_), false) => plan_err!(
+                    "does not support Varchar with length, please set `support_varchar_with_length` to be true"
+                ),
+                _ => Ok(DataType::Utf8),
+            },
             SQLDataType::Blob(_) => Ok(DataType::Binary),
             SQLDataType::UnsignedBigInt(_) | SQLDataType::UnsignedInt8(_) => Ok(DataType::UInt64),
-            SQLDataType::Real |
-            SQLDataType::Float4 |
-            SQLDataType::Float(_) => Ok(DataType::Float32),
-            SQLDataType::Double | SQLDataType::DoublePrecision | SQLDataType::Float8 => Ok(DataType::Float64),
-            SQLDataType::Char(_)
-            | SQLDataType::Text
-            | SQLDataType::String(_) => Ok(DataType::Utf8),
+            SQLDataType::Real | SQLDataType::Float4 | SQLDataType::Float(_) => {
+                Ok(DataType::Float32)
+            }
+            SQLDataType::Double | SQLDataType::DoublePrecision | SQLDataType::Float8 => {
+                Ok(DataType::Float64)
+            }
+            SQLDataType::Char(_) | SQLDataType::Text | SQLDataType::String(_) => Ok(DataType::Utf8),
             SQLDataType::Timestamp(precision, tz_info) => {
                 let tz = if matches!(tz_info, TimezoneInfo::Tz)
                     || matches!(tz_info, TimezoneInfo::WithTimeZone)
@@ -280,13 +281,10 @@ where
                     Ok(DataType::Time64(TimeUnit::Nanosecond))
                 } else {
                     // We dont support TIMETZ and TIME WITH TIME ZONE for now
-                    not_impl_err!(
-                        "Unsupported SQL type {sql_type:?}"
-                    )
+                    not_impl_err!("Unsupported SQL type {sql_type:?}")
                 }
             }
-            SQLDataType::Numeric(exact_number_info)
-            | SQLDataType::Decimal(exact_number_info) => {
+            SQLDataType::Numeric(exact_number_info) | SQLDataType::Decimal(exact_number_info) => {
                 let (precision, scale) = match *exact_number_info {
                     ExactNumberInfo::None => (None, None),
                     ExactNumberInfo::Precision(precision) => (Some(precision), None),
@@ -304,7 +302,10 @@ where
                     .enumerate()
                     .map(|(idx, field)| {
                         let data_type = self.convert_data_type(&field.field_type)?;
-                        let field_name = field.field_name.as_ref().map_or_else(|| Ident::new(format!("c{idx}")), std::clone::Clone::clone);
+                        let field_name = field.field_name.as_ref().map_or_else(
+                            || Ident::new(format!("c{idx}")),
+                            std::clone::Clone::clone,
+                        );
                         Ok(Arc::new(Field::new(
                             self.ident_normalizer.normalize(field_name),
                             data_type,
@@ -316,41 +317,46 @@ where
             }
             // https://github.com/apache/datafusion/issues/12644
             SQLDataType::JSON => Ok(DataType::Utf8),
-            SQLDataType::Custom(a, b) => {
-                match a.to_string().to_uppercase().as_str() {
-                    "VARIANT" => Ok(DataType::Utf8),
-                    "TIMESTAMP_NTZ" => {
-                        let parsed_b: Option<u64> = b.iter().next().and_then(|s| s.parse().ok());
-                        match parsed_b {
-                            Some(0) => Ok(DataType::Timestamp(TimeUnit::Second, None)),
-                            Some(3) => Ok(DataType::Timestamp(TimeUnit::Millisecond, None)),
-                            Some(6) => Ok(DataType::Timestamp(TimeUnit::Microsecond, None)),
-                            Some(9) => Ok(DataType::Timestamp(TimeUnit::Nanosecond, None)),
-                            _ => not_impl_err!("Unsupported SQL TIMESTAMP_NZT precision {parsed_b:?}")
-                        }
+            SQLDataType::Custom(a, b) => match a.to_string().to_uppercase().as_str() {
+                "VARIANT" => Ok(DataType::Utf8),
+                "TIMESTAMP_NTZ" => {
+                    let parsed_b: Option<u64> = b.iter().next().and_then(|s| s.parse().ok());
+                    match parsed_b {
+                        Some(0) => Ok(DataType::Timestamp(TimeUnit::Second, None)),
+                        Some(3) => Ok(DataType::Timestamp(TimeUnit::Millisecond, None)),
+                        Some(6) => Ok(DataType::Timestamp(TimeUnit::Microsecond, None)),
+                        Some(9) => Ok(DataType::Timestamp(TimeUnit::Nanosecond, None)),
+                        _ => not_impl_err!("Unsupported SQL TIMESTAMP_NZT precision {parsed_b:?}"),
                     }
-                    "NUMBER" => {
-                        let (precision, scale) = match b.len() {
-                            0 => (None, None),
-                            1 => {
-                                let precision = b[0].parse()
-                                    .map_err(|_| DataFusionError::Plan(format!("Invalid precision: {}", b[0])))?;
-                                (Some(precision), None)
-                            }
-                            2 => {
-                                let precision = b[0].parse()
-                                    .map_err(|_| DataFusionError::Plan(format!("Invalid precision: {}", b[0])))?;
-                                let scale = b[1].parse()
-                                    .map_err(|_| DataFusionError::Plan(format!("Invalid scale: {}", b[1])))?;
-                                (Some(precision), Some(scale))
-                            }
-                            _ => return Err(DataFusionError::Plan(format!("Invalid NUMBER type format: {b:?}"))),
-                        };
-                        make_decimal_type(precision, scale)
-                    }
-                    _ => Ok(DataType::Utf8)
                 }
-            }
+                "NUMBER" => {
+                    let (precision, scale) = match b.len() {
+                        0 => (None, None),
+                        1 => {
+                            let precision = b[0].parse().map_err(|_| {
+                                DataFusionError::Plan(format!("Invalid precision: {}", b[0]))
+                            })?;
+                            (Some(precision), None)
+                        }
+                        2 => {
+                            let precision = b[0].parse().map_err(|_| {
+                                DataFusionError::Plan(format!("Invalid precision: {}", b[0]))
+                            })?;
+                            let scale = b[1].parse().map_err(|_| {
+                                DataFusionError::Plan(format!("Invalid scale: {}", b[1]))
+                            })?;
+                            (Some(precision), Some(scale))
+                        }
+                        _ => {
+                            return Err(DataFusionError::Plan(format!(
+                                "Invalid NUMBER type format: {b:?}"
+                            )));
+                        }
+                    };
+                    make_decimal_type(precision, scale)
+                }
+                _ => Ok(DataType::Utf8),
+            },
             // Explicitly list all other types so that if sqlparser
             // adds/changes the `SQLDataType` the compiler will tell us on upgrade
             // and avoid bugs like https://github.com/apache/datafusion/issues/3059
@@ -408,10 +414,7 @@ where
             | SQLDataType::LongText
             | SQLDataType::Bit(_)
             | SQLDataType::BitVarying(_)
-            | SQLDataType::Unspecified
-            => not_impl_err!(
-                "Unsupported SQL type {sql_type:?}"
-            ),
+            | SQLDataType::Unspecified => not_impl_err!("Unsupported SQL type {sql_type:?}"),
         }
     }
 
@@ -634,13 +637,22 @@ fn calc_inline_constraints_from_columns(columns: &[ColumnDef]) -> Vec<TableConst
                     expr: Box::new(expr.clone()),
                 }),
                 // Other options are not constraint related.
-                ColumnOption::Default(_) | ColumnOption::Null | ColumnOption::NotNull |
-                ColumnOption::DialectSpecific(_) | ColumnOption::CharacterSet(_) |
-                ColumnOption::Generated { .. } | ColumnOption::Comment(_) |
-                ColumnOption::Options(_) | ColumnOption::Materialized(_) |
-                ColumnOption::Ephemeral(_) | ColumnOption::Alias(_) |
-                ColumnOption::OnUpdate(_) | ColumnOption::Identity(_) |
-                ColumnOption::OnConflict(_) | ColumnOption::Policy(_) | ColumnOption::Tags(_) => {}
+                ColumnOption::Default(_)
+                | ColumnOption::Null
+                | ColumnOption::NotNull
+                | ColumnOption::DialectSpecific(_)
+                | ColumnOption::CharacterSet(_)
+                | ColumnOption::Generated { .. }
+                | ColumnOption::Comment(_)
+                | ColumnOption::Options(_)
+                | ColumnOption::Materialized(_)
+                | ColumnOption::Ephemeral(_)
+                | ColumnOption::Alias(_)
+                | ColumnOption::OnUpdate(_)
+                | ColumnOption::Identity(_)
+                | ColumnOption::OnConflict(_)
+                | ColumnOption::Policy(_)
+                | ColumnOption::Tags(_) => {}
             }
         }
     }

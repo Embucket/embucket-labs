@@ -1,10 +1,10 @@
 use arrow::datatypes::DataType;
 use arrow::datatypes::DataType::{Date32, Date64, Time32, Time64, Timestamp, Utf8};
 use arrow::datatypes::TimeUnit::{Microsecond, Millisecond, Nanosecond, Second};
-use datafusion::common::{plan_err, Result};
+use datafusion::common::{Result, plan_err};
 use datafusion::logical_expr::TypeSignature::Exact;
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarUDFImpl, Signature, Volatility, TIMEZONE_WILDCARD,
+    ColumnarValue, ScalarUDFImpl, Signature, TIMEZONE_WILDCARD, Volatility,
 };
 use std::any::Any;
 

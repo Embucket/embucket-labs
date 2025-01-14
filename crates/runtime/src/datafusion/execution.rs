@@ -2,11 +2,11 @@
 #![allow(clippy::missing_panics_doc)]
 
 use super::error::{self as ih_error, IcehutSQLResult};
-use arrow::array::{RecordBatch, UInt64Array};
-use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use crate::datafusion::context::CustomContextProvider;
 use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
+use arrow::array::{RecordBatch, UInt64Array};
+use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::catalog::SchemaProvider;
 use datafusion::catalog_common::information_schema::InformationSchemaProvider;
 use datafusion::catalog_common::{ResolvedTableReference, TableReference};
@@ -16,7 +16,7 @@ use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::{
-    CreateExternalTable as PlanCreateExternalTable, DdlStatement, LogicalPlan
+    CreateExternalTable as PlanCreateExternalTable, DdlStatement, LogicalPlan,
 };
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
@@ -28,8 +28,8 @@ use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::iceberg_transform;
 use iceberg_rust::spec::namespace::Namespace;
 use snafu::ResultExt;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 
 pub struct SqlExecutor {
@@ -43,7 +43,12 @@ impl SqlExecutor {
         Ok(Self { ctx })
     }
 
-    pub async fn query(&self, query: &str, warehouse_name: &str, warehouse_location: &str) -> IcehutSQLResult<Vec<RecordBatch>> {
+    pub async fn query(
+        &self,
+        query: &str,
+        warehouse_name: &str,
+        warehouse_location: &str,
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         // Update query to use custom JSON functions
@@ -57,13 +62,18 @@ impl SqlExecutor {
         if let DFStatement::Statement(s) = statement {
             match *s {
                 Statement::CreateTable { .. } => {
-                    return Box::pin(self.create_table_query(*s, warehouse_name, warehouse_location)).await;
+                    return Box::pin(self.create_table_query(
+                        *s,
+                        warehouse_name,
+                        warehouse_location,
+                    ))
+                    .await;
                 }
                 Statement::CreateSchema { schema_name, .. } => {
                     return self.create_schema(schema_name, warehouse_name).await;
                 }
                 Statement::ShowVariable { .. } | Statement::Query { .. } => {
-                    return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await
+                    return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
                 }
                 Statement::Drop { .. } => {
                     return Box::pin(self.drop_table_query(&query, warehouse_name)).await;
@@ -109,7 +119,7 @@ impl SqlExecutor {
         &self,
         statement: Statement,
         warehouse_name: &str,
-        warehouse_location: &str
+        warehouse_location: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
             let mut new_table_full_name = create_table_statement.name.to_string();
@@ -158,9 +168,9 @@ impl SqlExecutor {
                     LogicalPlan::Ddl(DdlStatement::CreateExternalTable(PlanCreateExternalTable {
                         schema: table.input.schema().clone(),
                         name: new_table_ref,
-                        location: warehouse_location.to_string(),                         // Specify the external location
-                        file_type: "ICEBERG".to_string(), // Specify the file type
-                        table_partition_cols: vec![],     // Specify partition columns if any
+                        location: warehouse_location.to_string(), // Specify the external location
+                        file_type: "ICEBERG".to_string(),         // Specify the file type
+                        table_partition_cols: vec![], // Specify partition columns if any
                         if_not_exists: table.if_not_exists,
                         temporary: table.temporary,
                         definition: None, // Specify the SQL definition if available
@@ -582,8 +592,7 @@ pub fn created_entity_response() -> std::result::Result<Vec<RecordBatch>, arrow:
         DataType::UInt64,
         false,
     )]));
-    Ok(vec![RecordBatch::try_new(
-        schema,
-        vec![Arc::new(UInt64Array::from(vec![0]))],
-    )?])
+    Ok(vec![RecordBatch::try_new(schema, vec![Arc::new(
+        UInt64Array::from(vec![0]),
+    )])?])
 }
