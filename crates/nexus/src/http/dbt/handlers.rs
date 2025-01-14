@@ -109,12 +109,8 @@ pub async fn query(
             row_type: columns.into_iter().map(Into::into).collect(),
             // row_set_base_64: Option::from(result.clone()),
             row_set_base_64: None,
-<<<<<<< HEAD
-            row_set: ResponseData::rows_to_vec(result),
-=======
             #[allow(clippy::unwrap_used)]
             row_set: serde_json::from_str(&result).unwrap(),
->>>>>>> origin/main
             total: Some(1),
             query_result_format: Option::from("json".to_string()),
             error_code: None,
