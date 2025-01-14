@@ -1,21 +1,24 @@
-use crate::error::Error;
 use arrow::array::{RecordBatch, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use chrono::{NaiveDateTime, Utc};
 use dotenv::dotenv;
-use iceberg_rust::catalog::bucket::ObjectStoreBuilder;
+use iceberg_rust::object_store::ObjectStoreBuilder;
 use object_store::aws::AmazonS3Builder;
 use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
 use serde::{Deserialize, Serialize};
+use snafu::ResultExt;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
 use std::sync::Arc;
 use uuid::Uuid;
 
+pub mod error;
+pub use error::{ControlPlaneModelError, ControlPlaneModelResult};
+
 // Enum for supported cloud providers
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 pub enum CloudProvider {
     AWS,
     AZURE,
@@ -39,7 +42,7 @@ pub struct AwsRoleCredential {
 }
 
 // Composite enum for credentials
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, strum::Display)]
 #[serde(tag = "credential_type")] // Enables tagged union based on credential type
 #[serde(rename_all = "kebab-case")]
 pub enum Credentials {
@@ -78,10 +81,10 @@ pub struct StorageProfileCreateRequest {
 }
 
 impl TryFrom<&StorageProfileCreateRequest> for StorageProfile {
-    type Error = Error;
+    type Error = ControlPlaneModelError;
 
-    fn try_from(value: &StorageProfileCreateRequest) -> Result<Self, Self::Error> {
-        StorageProfile::new(
+    fn try_from(value: &StorageProfileCreateRequest) -> ControlPlaneModelResult<Self> {
+        Self::new(
             value.r#type,
             value.region.clone(),
             value.bucket.clone(),
@@ -93,7 +96,14 @@ impl TryFrom<&StorageProfileCreateRequest> for StorageProfile {
 }
 
 impl StorageProfile {
-    // Method to create a new StorageProfile with validation
+    /// Creates a new `StorageProfile` with validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `ControlPlaneModelError::InvalidInput` if:
+    /// - Bucket name length is less than 6 or greater than 63 characters
+    /// - Bucket name contains non-alphanumeric characters (other than hyphens or underscores)
+    /// - Bucket name starts or ends with a hyphen or underscore
     pub fn new(
         cloud_provider: CloudProvider,
         region: String,
@@ -101,30 +111,34 @@ impl StorageProfile {
         credentials: Credentials,
         sts_role_arn: Option<String>,
         endpoint: Option<String>,
-    ) -> Result<Self, Error> {
+    ) -> ControlPlaneModelResult<Self> {
         // Example validation: Ensure bucket name length
         if bucket.len() < 6 || bucket.len() > 63 {
-            return Err(Error::InvalidInput(
-                "Bucket name must be between 6 and 63 characters".to_owned(),
-            ));
+            return Err(ControlPlaneModelError::InvalidBucketName {
+                bucket_name: bucket,
+                reason: "Bucket name must be between 6 and 63 characters".to_owned(),
+            });
         }
         if !bucket
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
         {
-            return Err(Error::InvalidInput(
-                "Bucket name must only contain alphanumeric characters, hyphens, or underscores"
-                    .to_owned(),
-            ));
+            return Err(ControlPlaneModelError::InvalidBucketName {
+                bucket_name: bucket,
+                reason:
+                    "Bucket name must only contain alphanumeric characters, hyphens, or underscores"
+                        .to_owned(),
+            });
         }
         if bucket.starts_with('-')
             || bucket.starts_with('_')
             || bucket.ends_with('-')
             || bucket.ends_with('_')
         {
-            return Err(Error::InvalidInput(
-                "Bucket name must not start or end with a hyphen or underscore".to_owned(),
-            ));
+            return Err(ControlPlaneModelError::InvalidBucketName {
+                bucket_name: bucket,
+                reason: "Bucket name must not start or end with a hyphen or underscore".to_owned(),
+            });
         }
 
         let now = Utc::now().naive_utc();
@@ -154,49 +168,71 @@ impl StorageProfile {
         self.updated_at = Utc::now().naive_utc();
     }
 
-    pub fn get_base_url(&self) -> String {
+    /// Returns the get base url of this [`StorageProfile`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the cloud platform isn't supported.
+    pub fn get_base_url(&self) -> ControlPlaneModelResult<String> {
+        // Doing this for every call is not efficient
         dotenv().ok();
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .unwrap_or("true".to_string())
+            .unwrap_or_else(|_| "true".to_string())
             .parse::<bool>()
-            .expect(
-                "Failed to parse \
-            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD",
-            );
+            .map_err(
+                |e| error::ControlPlaneModelError::UnableToParseConfiguration {
+                    key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
+                    source: Box::new(e),
+                },
+            )?;
         if use_file_system_instead_of_cloud {
-            format!("file://{}", env::current_dir().unwrap().to_str().unwrap())
+            let current_directory = env::current_dir()
+                .map_err(|_| ControlPlaneModelError::InvalidDirectory {
+                    directory: ".".to_string(),
+                })
+                .and_then(|cd| {
+                    cd.to_str()
+                        .map(String::from)
+                        .ok_or(ControlPlaneModelError::InvalidDirectory {
+                            directory: ".".to_string(),
+                        })
+                })?;
+            Ok(format!("file://{current_directory}"))
         } else {
             match self.r#type {
-                CloudProvider::AWS => {
-                    format!("s3://{}", &self.bucket)
-                }
-                CloudProvider::AZURE => {
-                    panic!("Not implemented")
-                }
-                CloudProvider::GCS => {
-                    panic!("Not implemented")
-                }
+                CloudProvider::AWS => Ok(format!("s3://{}", &self.bucket)),
+                CloudProvider::AZURE => Err(ControlPlaneModelError::CloudProviderNotImplemented {
+                    provider: "Azure".to_string(),
+                }),
+                CloudProvider::GCS => Err(ControlPlaneModelError::CloudProviderNotImplemented {
+                    provider: "GCS".to_string(),
+                }),
             }
         }
     }
 
     // This is needed to initialize the catalog used in JanKaul code
-    pub fn get_object_store_builder(&self) -> ObjectStoreBuilder {
+    pub fn get_object_store_builder(&self) -> ControlPlaneModelResult<ObjectStoreBuilder> {
         // TODO remove duplicated code
         dotenv().ok();
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .ok()
-            .unwrap()
+            .context(error::MissingEnvironmentVariableSnafu {
+                var: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
+            })?
             .parse::<bool>()
-            .expect(
-                "Failed to parse \
-            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD",
-            );
+            .map_err(
+                |e| error::ControlPlaneModelError::UnableToParseConfiguration {
+                    key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
+                    source: Box::new(e),
+                },
+            )?;
         if use_file_system_instead_of_cloud {
             // Here we initialise filesystem object store without root directory, because this code is used
             // by our catalog when we read metadata from the table - paths are absolute
             // In get_object_store function we are using the root directory
-            ObjectStoreBuilder::Filesystem(Arc::new(LocalFileSystem::new()))
+            Ok(ObjectStoreBuilder::Filesystem(Arc::new(
+                LocalFileSystem::new(),
+            )))
         } else {
             match self.r#type {
                 CloudProvider::AWS => {
@@ -210,42 +246,49 @@ impl StorageProfile {
                         builder
                     };
                     match &self.credentials {
-                        Credentials::AccessKey(creds) => ObjectStoreBuilder::S3(
+                        Credentials::AccessKey(creds) => Ok(ObjectStoreBuilder::S3(
                             builder
                                 .with_access_key_id(&creds.aws_access_key_id)
                                 .with_secret_access_key(&creds.aws_secret_access_key),
-                        ),
+                        )),
                         Credentials::Role(_) => {
-                            panic!("Not implemented")
+                            Err(error::ControlPlaneModelError::RoleBasedCredentialsNotSupported)
                         }
                     }
                 }
-                CloudProvider::AZURE => {
-                    panic!("Not implemented")
-                }
-                CloudProvider::GCS => {
-                    panic!("Not implemented")
+                CloudProvider::AZURE | CloudProvider::GCS => {
+                    Err(error::ControlPlaneModelError::CloudProviderNotImplemented {
+                        provider: self.r#type.to_string(),
+                    })
                 }
             }
         }
     }
 
-    pub fn get_object_store(&self) -> Box<dyn ObjectStore> {
+    pub fn get_object_store(&self) -> ControlPlaneModelResult<Box<dyn ObjectStore>> {
         // TODO remove duplicated code
         dotenv().ok();
         let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .ok()
-            .unwrap()
+            .context(error::MissingEnvironmentVariableSnafu {
+                var: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
+            })?
             .parse::<bool>()
-            .expect(
-                "Failed to parse \
-            USE_FILE_SYSTEM_INSTEAD_OF_CLOUD",
-            );
+            .map_err(
+                |e| error::ControlPlaneModelError::UnableToParseConfiguration {
+                    key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
+                    source: Box::new(e),
+                },
+            )?;
         if use_file_system_instead_of_cloud {
             // Here we initialise filesystem object store without current directory as root, because this code is used
             // by our catalog when we write metadata file - we use relative path
             // In get_object_store_builder function we are using absolute paths
-            Box::new(LocalFileSystem::new_with_prefix(".").unwrap())
+            let lfs = LocalFileSystem::new_with_prefix(".").map_err(|_| {
+                error::ControlPlaneModelError::InvalidDirectory {
+                    directory: ".".to_string(),
+                }
+            })?;
+            Ok(Box::new(lfs))
         } else {
             match self.r#type {
                 CloudProvider::AWS => {
@@ -259,23 +302,22 @@ impl StorageProfile {
                         builder
                     };
                     match &self.credentials {
-                        Credentials::AccessKey(creds) => Box::new(
+                        Credentials::AccessKey(creds) => Ok(Box::new(
                             builder
                                 .with_access_key_id(&creds.aws_access_key_id)
                                 .with_secret_access_key(&creds.aws_secret_access_key)
                                 .build()
-                                .expect("error creating AWS object store"),
-                        ),
+                                .context(error::ObjectStoreSnafu)?,
+                        )),
                         Credentials::Role(_) => {
-                            panic!("Not implemented")
+                            Err(error::ControlPlaneModelError::RoleBasedCredentialsNotSupported)
                         }
                     }
                 }
-                CloudProvider::AZURE => {
-                    panic!("Not implemented")
-                }
-                CloudProvider::GCS => {
-                    panic!("Not implemented")
+                CloudProvider::AZURE | CloudProvider::GCS => {
+                    Err(error::ControlPlaneModelError::CloudProviderNotImplemented {
+                        provider: self.r#type.to_string(),
+                    })
                 }
             }
         }
@@ -303,7 +345,11 @@ pub struct Warehouse {
 }
 
 impl Warehouse {
-    pub fn new(prefix: String, name: String, storage_profile_id: Uuid) -> Result<Self, Error> {
+    pub fn new(
+        prefix: String,
+        name: String,
+        storage_profile_id: Uuid,
+    ) -> ControlPlaneModelResult<Self> {
         let id = Uuid::new_v4();
         let location = format!("{prefix}/{id}");
         let now = Utc::now().naive_utc();
@@ -320,10 +366,10 @@ impl Warehouse {
 }
 
 impl TryFrom<WarehouseCreateRequest> for Warehouse {
-    type Error = Error;
+    type Error = ControlPlaneModelError;
 
-    fn try_from(value: WarehouseCreateRequest) -> Result<Self, Self::Error> {
-        Warehouse::new(
+    fn try_from(value: WarehouseCreateRequest) -> ControlPlaneModelResult<Self> {
+        Self::new(
             value.prefix.clone(),
             value.name.clone(),
             value.storage_profile_id,
@@ -332,10 +378,10 @@ impl TryFrom<WarehouseCreateRequest> for Warehouse {
 }
 
 impl TryFrom<&WarehouseCreateRequest> for Warehouse {
-    type Error = Error;
+    type Error = ControlPlaneModelError;
 
-    fn try_from(value: &WarehouseCreateRequest) -> Result<Self, Self::Error> {
-        Warehouse::new(
+    fn try_from(value: &WarehouseCreateRequest) -> ControlPlaneModelResult<Self> {
+        Self::new(
             value.prefix.clone(),
             value.name.clone(),
             value.storage_profile_id,
@@ -359,32 +405,42 @@ pub struct ColumnInfo {
 }
 
 impl ColumnInfo {
+    #[must_use]
     pub fn to_metadata(&self) -> HashMap<String, String> {
         let mut metadata = HashMap::new();
         metadata.insert("logicalType".to_string(), self.r#type.to_uppercase());
-        metadata.insert("precision".to_string(), self.precision.unwrap_or(38).to_string());
+        metadata.insert(
+            "precision".to_string(),
+            self.precision.unwrap_or(38).to_string(),
+        );
         metadata.insert("scale".to_string(), self.scale.unwrap_or(0).to_string());
-        metadata.insert("charLength".to_string(), self.length.unwrap_or(0).to_string());
+        metadata.insert(
+            "charLength".to_string(),
+            self.length.unwrap_or(0).to_string(),
+        );
         metadata
     }
-    pub fn from_batch(records: Vec<RecordBatch>) -> Vec<ColumnInfo> {
+
+    #[must_use]
+    pub fn from_batch(records: &[RecordBatch]) -> Vec<Self> {
         let mut column_infos = Vec::new();
 
         if records.is_empty() {
             return column_infos;
         }
         for field in records[0].schema().fields() {
-            column_infos.push(ColumnInfo::from_field(field));
+            column_infos.push(Self::from_field(field));
         }
         column_infos
     }
 
-    pub fn from_field(field: &Field) -> ColumnInfo {
-        let mut column_info = ColumnInfo {
+    #[must_use]
+    pub fn from_field(field: &Field) -> Self {
+        let mut column_info = Self {
             name: field.name().clone(),
-            database: "".to_string(), // TODO
-            schema: "".to_string(),   // TODO
-            table: "".to_string(),    // TODO
+            database: String::new(), // TODO
+            schema: String::new(),   // TODO
+            table: String::new(),    // TODO
             nullable: field.is_nullable(),
             r#type: field.data_type().to_string(),
             byte_length: None,
@@ -409,8 +465,8 @@ impl ColumnInfo {
             }
             DataType::Decimal128(precision, scale) | DataType::Decimal256(precision, scale) => {
                 column_info.r#type = "fixed".to_string();
-                column_info.precision = Some(*precision as i32);
-                column_info.scale = Some(*scale as i32);
+                column_info.precision = Some(i32::from(*precision));
+                column_info.scale = Some(i32::from(*scale));
             }
             DataType::Boolean => {
                 column_info.r#type = "boolean".to_string();
@@ -418,8 +474,8 @@ impl ColumnInfo {
             // Varchar, Char, Utf8
             DataType::Utf8 => {
                 column_info.r#type = "text".to_string();
-                column_info.byte_length = Some(16777216);
-                column_info.length = Some(16777216);
+                column_info.byte_length = Some(16_777_216);
+                column_info.length = Some(16_777_216);
             }
             DataType::Time32(_) | DataType::Time64(_) => {
                 column_info.r#type = "time".to_string();
@@ -436,8 +492,8 @@ impl ColumnInfo {
             }
             DataType::Binary => {
                 column_info.r#type = "binary".to_string();
-                column_info.byte_length = Some(8388608);
-                column_info.length = Some(8388608);
+                column_info.byte_length = Some(8_388_608);
+                column_info.length = Some(8_388_608);
             }
             _ => {}
         }
@@ -445,11 +501,15 @@ impl ColumnInfo {
     }
 }
 
-pub fn created_entity_response() -> Vec<RecordBatch> {
+pub fn created_entity_response() -> std::result::Result<Vec<RecordBatch>, arrow::error::ArrowError>
+{
     let schema = Arc::new(ArrowSchema::new(vec![Field::new(
         "count",
         DataType::UInt64,
         false,
     )]));
-    vec![RecordBatch::try_new(schema, vec![Arc::new(UInt64Array::from(vec![0]))]).unwrap()]
+    Ok(vec![RecordBatch::try_new(
+        schema,
+        vec![Arc::new(UInt64Array::from(vec![0]))],
+    )?])
 }

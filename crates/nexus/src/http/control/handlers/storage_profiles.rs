@@ -31,7 +31,7 @@ use crate::state::AppState;
 pub struct StorageProfileApi;
 
 #[utoipa::path(
-    post, 
+    post,
     operation_id = "createStorageProfile",
     path = "", 
     request_body = CreateStorageProfilePayload,
@@ -48,7 +48,7 @@ pub async fn create_storage_profile(
 }
 
 #[utoipa::path(
-    get, 
+    get,
     operation_id = "getStorageProfile",
     path = "/{storageProfileId}", 
     params(("storageProfileId" = Uuid, description = "Storage profile ID")),
@@ -64,7 +64,7 @@ pub async fn get_storage_profile(
 }
 
 #[utoipa::path(
-    delete, 
+    delete,
     operation_id = "deleteStorageProfile",
     path = "/{storageProfileId}", 
     params(("storageProfileId" = Uuid, description = "Storage profile ID")),
@@ -80,7 +80,7 @@ pub async fn delete_storage_profile(
 }
 
 #[utoipa::path(
-    get, 
+    get,
     operation_id = "listStorageProfiles",
     path = "", 
     responses((status = 200, body = Vec<StorageProfile>))
@@ -90,5 +90,5 @@ pub async fn list_storage_profiles(
 ) -> Result<Json<Vec<StorageProfile>>, AppError> {
     let profiles = state.control_svc.list_profiles().await?;
 
-    Ok(Json(profiles.into_iter().map(|p| p.into()).collect()))
+    Ok(Json(profiles.into_iter().map(Into::into).collect()))
 }

@@ -1,10 +1,11 @@
+use super::super::models::error::{self as model_error, NexusError, NexusResult};
 use crate::http::ui::models::database::{CreateDatabasePayload, Database};
-use crate::http::ui::models::errors::AppError;
 use crate::http::utils::update_properties_timestamps;
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
 use catalog::models::{DatabaseIdent, WarehouseIdent};
 use iceberg::NamespaceIdent;
+use snafu::ResultExt;
 use utoipa::OpenApi;
 use uuid::Uuid;
 
@@ -19,7 +20,7 @@ use uuid::Uuid;
         schemas(
             CreateDatabasePayload,
             Database,
-            AppError,
+            NexusError,
         )
     ),
     tags(
@@ -39,35 +40,32 @@ pub struct ApiDoc;
     request_body = CreateDatabasePayload,
     responses(
         (status = 200, description = "Successful Response", body = Database),
-        (status = 400, description = "Bad request", body = AppError),
-        (status = 422, description = "Unprocessable entity", body = AppError),
-        (status = 500, description = "Internal server error", body = AppError)
+        (status = 400, description = "Bad request", body = NexusError),
+        (status = 422, description = "Unprocessable entity", body = NexusError),
+        (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
 pub async fn create_database(
     State(state): State<AppState>,
     Path(warehouse_id): Path<Uuid>,
     Json(payload): Json<CreateDatabasePayload>,
-) -> Result<Json<Database>, AppError> {
+) -> NexusResult<Json<Database>> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let databases = state.list_databases_models(warehouse_id).await?;
     let name = payload.name;
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::from_vec(
-            name.split(".").map(String::from).collect::<Vec<String>>(),
+            name.split('.').map(String::from).collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .context(model_error::MalformedNamespaceIdentSnafu)?,
     };
 
     if databases
         .iter()
         .any(|db| db.ident.namespace == ident.namespace)
     {
-        return Err(AppError::AlreadyExists(format!(
-            "database with name {:?} already exists",
-            name
-        )));
+        return Err(NexusError::DatabaseAlreadyExists { name });
     }
 
     let profile = state
@@ -81,12 +79,11 @@ pub async fn create_database(
         .catalog_svc
         .create_namespace(&ident, properties)
         .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to create database with ident {}", e, &ident);
-            AppError::new(e, fmt.as_str())
+        .context(model_error::DatabaseCreateSnafu {
+            ident: ident.clone(),
         })?;
     let mut database: Database = database.into();
-    database.with_details(warehouse_id, profile, vec![]);
+    database.with_details(warehouse_id, &profile, vec![]);
 
     Ok(Json(database))
 }
@@ -102,32 +99,31 @@ pub async fn create_database(
     ),
     responses(
         (status = 204, description = "Successful Response"),
-        (status = 404, description = "Database not found", body = AppError),
-        (status = 422, description = "Unprocessable entity", body = AppError),
+        (status = 404, description = "Database not found", body = NexusError),
+        (status = 422, description = "Unprocessable entity", body = NexusError),
     )
 )]
 pub async fn delete_database(
     State(state): State<AppState>,
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
-) -> Result<Json<()>, AppError> {
+) -> NexusResult<Json<()>> {
     let ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse_id),
         namespace: NamespaceIdent::from_vec(
             database_name
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .context(model_error::MalformedNamespaceIdentSnafu)?,
     };
 
     state
         .catalog_svc
         .drop_namespace(&ident)
         .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to delete database with ident {}", e, &ident);
-            AppError::new(e, fmt.as_str())
+        .context(model_error::DatabaseDeleteSnafu {
+            ident: ident.clone(),
         })?;
     Ok(Json(()))
 }
@@ -143,14 +139,14 @@ pub async fn delete_database(
     tags = ["databases"],
     responses(
         (status = 200, description = "Successful Response", body = Database),
-        (status = 404, description = "Database not found", body = AppError),
-        (status = 422, description = "Unprocessable entity", body = AppError),
+        (status = 404, description = "Database not found", body = NexusError),
+        (status = 422, description = "Unprocessable entity", body = NexusError),
     )
 )]
 pub async fn get_database(
     State(state): State<AppState>,
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
-) -> Result<Json<Database>, AppError> {
+) -> NexusResult<Json<Database>> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let profile = state
         .get_profile_by_id(warehouse.storage_profile_id)
@@ -159,15 +155,15 @@ pub async fn get_database(
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::from_vec(
             database_name
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .context(model_error::MalformedNamespaceIdentSnafu)?,
     };
     let mut database = state.get_database(&ident).await?;
     let tables = state.list_tables(&ident).await?;
 
-    database.with_details(warehouse_id, profile, tables);
+    database.with_details(warehouse_id, &profile, tables);
     Ok(Json(database))
 }

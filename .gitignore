@@ -33,3 +33,4 @@ __pycache__
 slatedb-prefix/
 warehouse-prefix/
 **/*.parquet
+crates/catalog/prefix/**

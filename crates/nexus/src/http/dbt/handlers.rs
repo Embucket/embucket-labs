@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use super::error::{self as dbt_error, DbtError, DbtResult};
 use crate::http::dbt::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
     QueryRequestBody, ResponseData,
@@ -10,126 +10,111 @@ use axum::http::HeaderMap;
 use axum::Json;
 use flate2::read::GzDecoder;
 use regex::Regex;
-use serde_json::json;
+use snafu::ResultExt;
 use std::io::Read;
-use std::result::Result;
-use tokio::fs::OpenOptions;
-use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 pub async fn login(
     State(state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
     body: Bytes,
-) -> Json<LoginResponse> {
+) -> DbtResult<Json<LoginResponse>> {
     // Decompress the gzip-encoded body
+    // TODO: Investigate replacing this with a middleware
     let mut d = GzDecoder::new(&body[..]);
     let mut s = String::new();
-    d.read_to_string(&mut s).unwrap();
+    d.read_to_string(&mut s)
+        .context(dbt_error::GZipDecompressSnafu)?;
 
     // Deserialize the JSON body
-    let body_json: LoginRequestBody = serde_json::from_str(&s).unwrap();
+    let _body_json: LoginRequestBody =
+        serde_json::from_str(&s).context(dbt_error::LoginRequestParseSnafu)?;
 
-    println!("Received login request: {:?}", query);
-    println!("Body data parameters: {:?}", body_json);
+    //println!("Received login request: {:?}", query);
+    //println!("Body data parameters: {:?}", body_json);
     let token = uuid::Uuid::new_v4().to_string();
 
-    // Save warehouse id and db name in state
-    for warehouse in state
+    let warehouses = state
         .control_svc
         .list_warehouses()
         .await
-        .map_err(|e| {
-            Json(LoginResponse {
-                data: None,
-                success: false,
-                message: None,
-            })
-        })
-        .unwrap()
-        .into_iter()
-        .filter(|w| w.name == query.warehouse)
-    {
+        .context(dbt_error::ControlServiceSnafu)?;
+
+    for warehouse in warehouses.into_iter().filter(|w| w.name == query.warehouse) {
+        // Save warehouse id and db name in state
         state.dbt_sessions.lock().await.insert(
             token.clone(),
             format!("{}.{}", warehouse.id, query.database_name),
         );
     }
-    Json(LoginResponse {
+    Ok(Json(LoginResponse {
         data: Option::from(LoginData { token }),
         success: true,
         message: Option::from("successfully executed".to_string()),
-    })
+    }))
 }
 
 pub async fn query(
     State(state): State<AppState>,
-    Query(query): Query<QueryRequest>,
+    Query(_query): Query<QueryRequest>,
     headers: HeaderMap,
     body: Bytes,
-) -> Json<JsonResponse> {
+) -> DbtResult<Json<JsonResponse>> {
     // Decompress the gzip-encoded body
     let mut d = GzDecoder::new(&body[..]);
     let mut s = String::new();
-    d.read_to_string(&mut s).unwrap();
+    d.read_to_string(&mut s)
+        .context(dbt_error::GZipDecompressSnafu)?;
 
     // Deserialize the JSON body
-    let body_json: QueryRequestBody = serde_json::from_str(&s).unwrap();
-    let (params, sql_query) = body_json.get_sql_text();
-    println!("Query raw: {:?}", body_json.sql_text);
+    let body_json: QueryRequestBody =
+        serde_json::from_str(&s).context(dbt_error::QueryBodyParseSnafu)?;
+    let (_params, _sql_query) = body_json.get_sql_text()?;
+    //println!("Query raw: {:?}", body_json.sql_text);
 
     // if let Err(e) = log_query(body_json.sql_text.as_str()).await {
     //     eprintln!("Failed to log query: {}", e);
     // }
 
-    let token = match extract_token(&headers) {
-        Some(token) => token,
-        None => {
-            return Json(JsonResponse::bad_default("missing auth token".to_string()));
-        }
+    let Some(token) = extract_token(&headers) else {
+        return Err(DbtError::MissingAuthToken);
     };
 
-    let dbt_sessions = state.dbt_sessions.lock().await;
-    let auth_data = dbt_sessions.get(token.as_str());
+    let sessions = state.dbt_sessions.lock().await;
+    let auth_data = sessions.get(token.as_str());
 
-    if auth_data.is_none() {
-        return Json(JsonResponse::bad_default("missing session".to_string()));
-    }
-
-    let (warehouse_id, database_name) = auth_data.unwrap().split_once('.').unwrap();
-    let warehouse_id = match Uuid::parse_str(warehouse_id) {
-        Ok(w_id) => w_id,
-        Err(e) => {
-            return Json(JsonResponse::bad_default(format!(
-                "{}: {}",
-                "invalid warehouse_id format".to_string(),
-                e
-            )));
-        }
+    let Some(auth_data) = auth_data else {
+        return Err(DbtError::MissingDbtSession);
     };
 
-    let (result, columns) = match state
+    let (warehouse_id, database_name) =
+        if let Some((warehouse_id, database_name)) = auth_data.split_once('.') {
+            let warehouse_id =
+                Uuid::parse_str(warehouse_id).context(dbt_error::InvalidWarehouseIdFormatSnafu)?;
+            (warehouse_id, database_name)
+        } else {
+            return Err(DbtError::InvalidAuthData);
+        };
+
+    let (result, columns) = state
         .control_svc
-        .query_dbt(
-            &warehouse_id,
-            &database_name.to_string(),
-            &"".to_string(),
-            &body_json.sql_text,
-        )
+        .query_dbt(&warehouse_id, database_name, "", &body_json.sql_text)
         .await
-    {
-        Ok((result, columns)) => (result, columns),
-        Err(e) => return Json(JsonResponse::bad_default(format!("{}", e))),
-    };
+        .context(dbt_error::ControlServiceSnafu)?;
 
     // query_result_format now is JSON since arrow IPC has flatbuffers bug
     // https://github.com/apache/arrow-rs/pull/6426
-    Json(JsonResponse {
+    Ok(Json(JsonResponse {
         data: Option::from(ResponseData {
-            row_type: columns.into_iter().map(|c| c.into()).collect(),
+            row_type: columns.into_iter().map(Into::into).collect(),
             // row_set_base_64: Option::from(result.clone()),
             row_set_base_64: None,
+<<<<<<< HEAD
             row_set: ResponseData::rows_to_vec(result),
+=======
+            #[allow(clippy::unwrap_used)]
+            row_set: serde_json::from_str(&result).unwrap(),
+>>>>>>> origin/main
             total: Some(1),
             query_result_format: Option::from("json".to_string()),
             error_code: None,
@@ -138,16 +123,18 @@ pub async fn query(
         success: true,
         message: Option::from("successfully executed".to_string()),
         code: Some(format!("{:06}", 200)),
-    })
+    }))
 }
 
-pub async fn abort() -> Result<Json<(serde_json::value::Value)>, AppError> {
-    Ok(Json(json!({"success": true})))
+pub async fn abort() -> DbtResult<Json<serde_json::value::Value>> {
+    Err(DbtError::NotImplemented)
 }
 
+#[must_use]
 pub fn extract_token(headers: &HeaderMap) -> Option<String> {
     headers.get("authorization").and_then(|value| {
         value.to_str().ok().and_then(|auth| {
+            #[allow(clippy::unwrap_used)]
             let re = Regex::new(r#"Snowflake Token="([a-f0-9\-]+)""#).unwrap();
             re.captures(auth)
                 .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
@@ -155,13 +142,14 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
     })
 }
 
-async fn log_query(query: &str) -> Result<(), std::io::Error> {
+/*async fn log_query(query: &str) -> Result<(), std::io::Error> {
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
         .open("queries.log")
-        .await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        .await
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     file.write_all(query.as_bytes()).await?;
     file.write_all(b"\n").await?;
     Ok(())
-}
+}*/

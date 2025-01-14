@@ -15,7 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
 use crate::sql::functions::greatest_least_utils::GreatestLeastOperator;
+=======
+use crate::datafusion::functions::greatest_least_utils::GreatestLeastOperator;
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
 use arrow::array::{make_comparator, Array, BooleanArray};
 use arrow::buffer::BooleanBuffer;
 use arrow::compute::kernels::cmp;
@@ -28,26 +32,39 @@ use datafusion::logical_expr::{ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::OnceLock;
 
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
+=======
+use super::macros::make_udf_function;
+
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
 const SORT_OPTIONS: SortOptions = SortOptions {
-    // Having the smallest result first
+    // We want greatest first
     descending: false,
 
-    // NULL will be greater than any other value
-    nulls_first: false,
+    // NULL will be less than any other value
+    nulls_first: true,
 };
 
 #[derive(Debug)]
-pub struct LeastFunc {
+pub struct GreatestFunc {
     signature: Signature,
 }
 
-impl Default for LeastFunc {
+impl Default for GreatestFunc {
     fn default() -> Self {
-        LeastFunc::new()
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
+        GreatestFunc::new()
+=======
+        Self::new()
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
     }
 }
 
-impl LeastFunc {
+impl GreatestFunc {
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
+=======
+    #[must_use]
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
     pub fn new() -> Self {
         Self {
             signature: Signature::user_defined(Volatility::Immutable),
@@ -55,75 +72,70 @@ impl LeastFunc {
     }
 }
 
-impl GreatestLeastOperator for LeastFunc {
-    const NAME: &'static str = "least";
+impl GreatestLeastOperator for GreatestFunc {
+    const NAME: &'static str = "greatest";
 
     fn keep_scalar<'a>(lhs: &'a ScalarValue, rhs: &'a ScalarValue) -> Result<&'a ScalarValue> {
-        // Manual checking for nulls as:
-        // 1. If we're going to use <=, in Rust None is smaller than Some(T), which we don't want
-        // 2. And we can't use make_comparator as it has no natural order (Arrow error)
-        if lhs.is_null() {
-            return Ok(rhs);
-        }
-
-        if rhs.is_null() {
-            return Ok(lhs);
-        }
-
         if !lhs.data_type().is_nested() {
-            return if lhs <= rhs { Ok(lhs) } else { Ok(rhs) };
+            return if lhs >= rhs { Ok(lhs) } else { Ok(rhs) };
         }
 
-        // Not using <= as in Rust None is smaller than Some(T)
-
-        // If complex type we can't compare directly as we want null values to be larger
+        // If complex type we can't compare directly as we want null values to be smaller
         let cmp = make_comparator(
             lhs.to_array()?.as_ref(),
             rhs.to_array()?.as_ref(),
             SORT_OPTIONS,
         )?;
 
-        if cmp(0, 0).is_le() {
+        if cmp(0, 0).is_ge() {
             Ok(lhs)
         } else {
             Ok(rhs)
         }
     }
 
-    /// Return boolean array where `arr[i] = lhs[i] <= rhs[i]` for all i, where `arr` is the result array
-    /// Nulls are always considered larger than any other value
+    /// Return boolean array where `arr[i] = lhs[i] >= rhs[i]` for all i, where `arr` is the result array
+    /// Nulls are always considered smaller than any other value
     fn get_indexes_to_keep(lhs: &dyn Array, rhs: &dyn Array) -> Result<BooleanArray> {
         // Fast path:
         // If both arrays are not nested, have the same length and no nulls, we can use the faster vectorized kernel
         // - If both arrays are not nested: Nested types, such as lists, are not supported as the null semantics are not well-defined.
-        // - both array does not have any nulls: cmp::lt_eq will return null if any of the input is null while we want to return false in that case
+        // - both array does not have any nulls: cmp::gt_eq will return null if any of the input is null while we want to return false in that case
         if !lhs.data_type().is_nested()
             && lhs.logical_null_count() == 0
             && rhs.logical_null_count() == 0
         {
-            return cmp::lt_eq(&lhs, &rhs).map_err(|e| e.into());
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
+            return cmp::gt_eq(&lhs, &rhs).map_err(|e| e.into());
+=======
+            return cmp::gt_eq(&lhs, &rhs).map_err(Into::into);
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
         }
 
         let cmp = make_comparator(lhs, rhs, SORT_OPTIONS)?;
 
         if lhs.len() != rhs.len() {
-            return internal_err!("All arrays should have the same length for least comparison");
+            return internal_err!("All arrays should have the same length for greatest comparison");
         }
 
-        let values = BooleanBuffer::collect_bool(lhs.len(), |i| cmp(i, i).is_le());
+        let values = BooleanBuffer::collect_bool(lhs.len(), |i| cmp(i, i).is_ge());
 
-        // No nulls as we only want to keep the values that are smaller, its either true or false
+        // No nulls as we only want to keep the values that are larger, its either true or false
         Ok(BooleanArray::new(values, None))
     }
 }
 
-impl ScalarUDFImpl for LeastFunc {
+impl ScalarUDFImpl for GreatestFunc {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
     fn name(&self) -> &str {
-        "least"
+=======
+    fn name(&self) -> &'static str {
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
+        "greatest"
     }
 
     fn signature(&self) -> &Signature {
@@ -145,27 +157,47 @@ impl ScalarUDFImpl for LeastFunc {
     }
 
     fn documentation(&self) -> Option<&Documentation> {
-        Some(get_smallest_doc())
+        Some(get_greatest_doc())
     }
 }
 static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
 
-fn get_smallest_doc() -> &'static Documentation {
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
+fn get_greatest_doc() -> &'static Documentation {
     DOCUMENTATION.get_or_init(|| {
         Documentation::builder().with_doc_section(DOC_SECTION_CONDITIONAL)
             .with_sql_example(r#"```sql
-> select least(4, 7, 5);
+=======
+#[allow(clippy::unwrap_used)]
+fn get_greatest_doc() -> &'static Documentation {
+    DOCUMENTATION.get_or_init(|| {
+        Documentation::builder(DOC_SECTION_CONDITIONAL, "return the expression with the greatest value", "greatest(4, 7, 5)")
+            .with_sql_example("```sql
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
+> select greatest(4, 7, 5);
 +---------------------------+
-| least(4,7,5)              |
+| greatest(4,7,5)           |
 +---------------------------+
-| 4                         |
+| 7                         |
 +---------------------------+
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
 ```"#,
+=======
+```",
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs
             )
             .with_argument(
                 "expression1, expression_n",
-                "Expressions to compare and return the smallest value. Can be a constant, column, or function, and any combination of arithmetic operators. Pass as many expression arguments as necessary.",
+                "Expressions to compare and return the greatest value.. Can be a constant, column, or function, and any combination of arithmetic operators. Pass as many expression arguments as necessary.",
             )
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/greatest.rs
             .build().unwrap()
     })
 }
+=======
+            .build()
+    })
+}
+
+make_udf_function!(GreatestFunc);
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/greatest.rs

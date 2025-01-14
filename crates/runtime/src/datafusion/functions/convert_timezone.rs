@@ -1,12 +1,20 @@
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/convert_timezone.rs
 use arrow::datatypes::DataType::{Timestamp, Utf8};
 use arrow::datatypes::TimeUnit::{self, Microsecond, Millisecond, Nanosecond, Second};
 use arrow::datatypes::DataType;
 use chrono::Local;
 use datafusion::common::{internal_err, plan_err, Result};
+=======
+use arrow::datatypes::DataType;
+use arrow::datatypes::DataType::{Date32, Date64, Time32, Time64, Timestamp, Utf8};
+use arrow::datatypes::TimeUnit::{Microsecond, Millisecond, Nanosecond, Second};
+use datafusion::common::{plan_err, Result};
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/convert_timezone.rs
 use datafusion::logical_expr::TypeSignature::Exact;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, Volatility, TIMEZONE_WILDCARD,
 };
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/convert_timezone.rs
 use datafusion::scalar::ScalarValue;
 use regex::Regex;
 use std::any::Any;
@@ -14,10 +22,18 @@ use arrow::array::timezone::Tz;
 use std::sync::Arc;
 use datafusion::prelude::Expr;
 use datafusion::common::ExprSchema;
+=======
+use std::any::Any;
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/convert_timezone.rs
 
 #[derive(Debug)]
 pub struct ConvertTimezoneFunc {
     signature: Signature,
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/convert_timezone.rs
+=======
+    #[allow(dead_code)]
+    aliases: Vec<String>,
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/convert_timezone.rs
 }
 
 impl Default for ConvertTimezoneFunc {
@@ -27,10 +43,32 @@ impl Default for ConvertTimezoneFunc {
 }
 
 impl ConvertTimezoneFunc {
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/convert_timezone.rs
     pub fn new() -> Self { 
         Self {
             signature: Signature::one_of(
                 vec![
+=======
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::one_of(
+                vec![
+                    Exact(vec![Utf8, Date32]),
+                    Exact(vec![Utf8, Date64]),
+                    Exact(vec![Utf8, Time32(Second)]),
+                    Exact(vec![Utf8, Time32(Nanosecond)]),
+                    Exact(vec![Utf8, Time32(Microsecond)]),
+                    Exact(vec![Utf8, Time32(Millisecond)]),
+                    Exact(vec![Utf8, Time64(Second)]),
+                    Exact(vec![Utf8, Time64(Nanosecond)]),
+                    Exact(vec![Utf8, Time64(Microsecond)]),
+                    Exact(vec![Utf8, Time64(Millisecond)]),
+                    Exact(vec![Utf8, Timestamp(Second, None)]),
+                    Exact(vec![Utf8, Timestamp(Millisecond, None)]),
+                    Exact(vec![Utf8, Timestamp(Microsecond, None)]),
+                    Exact(vec![Utf8, Timestamp(Nanosecond, None)]),
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/convert_timezone.rs
                     Exact(vec![
                         Utf8,
                         Timestamp(Second, Some(TIMEZONE_WILDCARD.into())),
@@ -47,6 +85,7 @@ impl ConvertTimezoneFunc {
                         Utf8,
                         Timestamp(Nanosecond, Some(TIMEZONE_WILDCARD.into())),
                     ]),
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/convert_timezone.rs
                     // Exact(vec![
                     //     Utf8,
                     //     Utf8,
@@ -103,10 +142,21 @@ impl ConvertTimezoneFunc {
 /// if the result month has fewer days than the original day of the month, the result day of the month might be different from the original day.
 /// Examples
 /// - dateadd(day, 30, CAST('2024-12-26' AS TIMESTAMP))
+=======
+                ],
+                Volatility::Immutable,
+            ),
+            aliases: vec![String::from("convert_timezone")],
+        }
+    }
+}
+
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/convert_timezone.rs
 impl ScalarUDFImpl for ConvertTimezoneFunc {
     fn as_any(&self) -> &dyn Any {
         self
     }
+<<<<<<< HEAD:crates/control_plane/src/sql/functions/convert_timezone.rs
     fn name(&self) -> &str {
         "convert_timezone"
     }
@@ -349,3 +399,32 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
         }
     }
 }
+=======
+
+    fn name(&self) -> &'static str {
+        "convert_timezone"
+    }
+
+    fn signature(&self) -> &Signature {
+        &self.signature
+    }
+
+    fn return_type(&self, arg_types: &[DataType]) -> Result<DataType> {
+        //two or three
+        if arg_types.len() != 2 {
+            return plan_err!("function requires three arguments");
+        }
+        Ok(arg_types[1].clone())
+    }
+    //TODO: FIX general logic
+    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
+        if args.len() != 2 {
+            return plan_err!("function requires three arguments");
+        }
+
+        Ok(args[1].clone())
+    }
+}
+
+super::macros::make_udf_function!(ConvertTimezoneFunc);
+>>>>>>> origin/main:crates/runtime/src/datafusion/functions/convert_timezone.rs

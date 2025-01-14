@@ -12,30 +12,31 @@ use utoipa::{PartialSchema, ToSchema};
 use uuid::Uuid;
 use validator::Validate;
 
-pub fn get_table_id(ident: CatalogModels::TableIdent) -> Uuid {
-    Uuid::new_v5(&Uuid::NAMESPACE_DNS, ident.table.to_string().as_bytes())
+#[must_use]
+pub fn get_table_id(ident: &CatalogModels::TableIdent) -> Uuid {
+    Uuid::new_v5(&Uuid::NAMESPACE_DNS, ident.table.as_bytes())
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableMetadataWrapper(pub TableMetadata);
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UnboundPartitionSpecWrapper(pub(crate) UnboundPartitionSpec);
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SortOrderWrapper(pub(crate) SortOrder);
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TableRegisterRequest {
     pub name: String,
     pub metadata_location: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct TableCreatePayload {
     pub name: String,
@@ -49,7 +50,7 @@ pub struct TableCreatePayload {
 
 impl From<TableCreatePayload> for catalog::models::TableCreation {
     fn from(payload: TableCreatePayload) -> Self {
-        catalog::models::TableCreation {
+        Self {
             name: payload.name,
             location: payload.location,
             schema: payload.schema.0,
@@ -87,7 +88,7 @@ impl PartialSchema for TableCreatePayload {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Table {
     pub id: Uuid,
@@ -116,28 +117,32 @@ impl Table {
         self.warehouse_id = warehouse_id;
         self.database_name = database_name;
         self.properties = self.properties.clone();
-        self.properties.get("created_at").map(|created_at| {
-            self.created_at = DateTime::from(DateTime::parse_from_rfc3339(created_at).unwrap());
-        });
-        self.properties.get("updated_at").map(|updated_at| {
-            self.updated_at = DateTime::from(DateTime::parse_from_rfc3339(updated_at).unwrap());
-        });
+        if let Some(created_at) = self.properties.get("created_at") {
+            if let Ok(created_at) = DateTime::parse_from_rfc3339(created_at) {
+                self.created_at = DateTime::from(created_at);
+            }
+        }
+        if let Some(updated_at) = self.properties.get("updated_at") {
+            if let Ok(updated_at) = DateTime::parse_from_rfc3339(updated_at) {
+                self.updated_at = DateTime::from(updated_at);
+            }
+        }
     }
 }
 
 impl From<catalog::models::Table> for Table {
     fn from(table: catalog::models::Table) -> Self {
         Self {
-            id: get_table_id(table.clone().ident),
+            id: get_table_id(&table.ident),
             name: table.ident.table,
-            storage_profile: Default::default(),
-            database_name: Default::default(),
-            warehouse_id: Default::default(),
+            storage_profile: StorageProfile::default(),
+            database_name: String::default(),
+            warehouse_id: Uuid::default(),
             properties: table.properties,
             metadata: TableMetadataWrapper(table.metadata.clone()),
             metadata_location: table.metadata_location,
-            created_at: Default::default(),
-            updated_at: Default::default(),
+            created_at: DateTime::default(),
+            updated_at: DateTime::default(),
             statistics: Statistics::from_table_metadata(&table.metadata),
             compaction_summary: None,
         }
@@ -197,7 +202,7 @@ impl PartialSchema for Table {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Statistics {
     pub commit_count: i32,
@@ -220,7 +225,8 @@ pub struct Statistics {
 }
 
 impl Statistics {
-    pub fn from_table_metadata(metadata: &TableMetadata) -> Statistics {
+    #[must_use]
+    pub fn from_table_metadata(metadata: &TableMetadata) -> Self {
         let mut commit_count = 0;
         let mut total_bytes = 0;
         let mut total_rows = 0;
@@ -292,7 +298,7 @@ impl Statistics {
             }
         });
 
-        Statistics {
+        Self {
             commit_count,
             op_append_count,
             op_overwrite_count,
@@ -311,8 +317,9 @@ impl Statistics {
         }
     }
 
-    pub fn aggregate(&self, other: &Statistics) -> Statistics {
-        Statistics {
+    #[must_use]
+    pub fn aggregate(&self, other: &Self) -> Self {
+        Self {
             commit_count: self.commit_count + other.commit_count,
             op_append_count: self.op_append_count + other.op_append_count,
             op_overwrite_count: self.op_overwrite_count + other.op_overwrite_count,
@@ -336,7 +343,7 @@ impl Statistics {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TableQueryRequest {
     pub query: String,
@@ -344,8 +351,9 @@ pub struct TableQueryRequest {
 
 impl TableQueryRequest {
     #[allow(clippy::new_without_default)]
-    pub fn new(query: String) -> TableQueryRequest {
-        TableQueryRequest { query }
+    #[must_use]
+    pub const fn new(query: String) -> Self {
+        Self { query }
     }
 }
 
@@ -359,8 +367,9 @@ pub struct TableQueryResponse {
 
 impl TableQueryResponse {
     #[allow(clippy::new_without_default)]
-    pub fn new(query: String, result: String, duration_seconds: f32) -> TableQueryResponse {
-        TableQueryResponse {
+    #[must_use]
+    pub const fn new(query: String, result: String, duration_seconds: f32) -> Self {
+        Self {
             query,
             result,
             duration_seconds,
@@ -368,11 +377,11 @@ impl TableQueryResponse {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaWrapper(Schema);
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TableUploadPayload {
     #[schema(format = "binary")]

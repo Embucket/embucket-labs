@@ -8,7 +8,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateDatabasePayload {
     pub name: String,
@@ -18,15 +18,16 @@ pub struct CreateDatabasePayload {
 
 impl CreateDatabasePayload {
     #[allow(clippy::new_without_default)]
-    pub fn new(name: String) -> CreateDatabasePayload {
-        CreateDatabasePayload {
+    #[must_use]
+    pub const fn new(name: String) -> Self {
+        Self {
             name,
             properties: None,
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Database {
     pub id: Uuid,
@@ -43,54 +44,61 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn with_details(&mut self, warehouse_id: Uuid, profile: StorageProfile, mut tables: Vec<Table>) {
+    pub fn with_details(
+        &mut self,
+        warehouse_id: Uuid,
+        profile: &StorageProfile,
+        mut tables: Vec<Table>,
+    ) {
         self.storage_profile = profile.clone();
 
         let mut total_statistics = Statistics::default();
-        tables.iter_mut().for_each(|t| {
-            t.with_details(warehouse_id.clone(), profile.clone(), self.name.clone());
+        for t in &mut tables {
+            t.with_details(warehouse_id, profile.clone(), self.name.clone());
             total_statistics = total_statistics.aggregate(&t.statistics);
-        });
+        }
         total_statistics.database_count = Some(1);
 
         self.statistics = total_statistics;
         self.warehouse_id = warehouse_id;
         self.tables = tables;
 
-        self.properties.get("created_at").map(|created_at| {
-            self.created_at = DateTime::from(chrono::DateTime::parse_from_rfc3339(created_at).unwrap());
-        });
-        self.properties.get("updated_at").map(|updated_at| {
-            self.updated_at = DateTime::from(chrono::DateTime::parse_from_rfc3339(updated_at).unwrap());
-        });
+        if let Some(created_at) = self.properties.get("created_at") {
+            if let Ok(created_at) = chrono::DateTime::parse_from_rfc3339(created_at) {
+                self.created_at = DateTime::from(created_at);
+            }
+        }
+        if let Some(updated_at) = self.properties.get("updated_at") {
+            if let Ok(updated_at) = chrono::DateTime::parse_from_rfc3339(updated_at) {
+                self.updated_at = DateTime::from(updated_at);
+            }
+        }
     }
 }
 
 impl From<models::Database> for Database {
     fn from(db: models::Database) -> Self {
-        Database {
-            id: get_database_id(db.ident.clone()),
-            name: db.ident.namespace.join(".").to_string(),
+        Self {
+            id: get_database_id(&db.ident),
+            name: db.ident.namespace.join("."),
             tables: vec![],
-            warehouse_id: Default::default(),
-            created_at: Default::default(),
-            updated_at: Default::default(),
-            statistics: Default::default(),
+            warehouse_id: Uuid::default(),
+            created_at: DateTime::default(),
+            updated_at: DateTime::default(),
+            statistics: Statistics::default(),
             compaction_summary: None,
             properties: db.properties,
-            storage_profile: Default::default(),
+            storage_profile: StorageProfile::default(),
         }
     }
 }
 
-pub fn get_database_id(ident: models::DatabaseIdent) -> Uuid {
-    Uuid::new_v5(
-        &Uuid::NAMESPACE_DNS,
-        ident.namespace.join("__").to_string().as_bytes(),
-    )
+#[must_use]
+pub fn get_database_id(ident: &models::DatabaseIdent) -> Uuid {
+    Uuid::new_v5(&Uuid::NAMESPACE_DNS, ident.namespace.join("__").as_bytes())
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CompactionSummary {
     pub compactions: i32,
@@ -104,8 +112,9 @@ pub struct CompactionSummary {
 }
 
 impl CompactionSummary {
-    #[allow(clippy::new_without_default)]
-    pub fn new(
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    #[must_use]
+    pub const fn new(
         compactions: i32,
         starting_files: i32,
         rewritten_files: i32,
@@ -114,8 +123,8 @@ impl CompactionSummary {
         rewritten_size: i32,
         size_change: i32,
         size_percent: i32,
-    ) -> CompactionSummary {
-        CompactionSummary {
+    ) -> Self {
+        Self {
             compactions,
             starting_files,
             rewritten_files,

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateStorageProfilePayload {
     #[serde(rename = "type")]
@@ -23,13 +23,14 @@ pub struct CreateStorageProfilePayload {
 
 impl CreateStorageProfilePayload {
     #[allow(clippy::new_without_default)]
-    pub fn new(
+    #[must_use]
+    pub const fn new(
         r#type: CloudProvider,
         region: String,
         bucket: String,
         credentials: Credentials,
-    ) -> CreateStorageProfilePayload {
-        CreateStorageProfilePayload {
+    ) -> Self {
+        Self {
             r#type,
             region,
             bucket,
@@ -42,7 +43,7 @@ impl CreateStorageProfilePayload {
 
 impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
     fn from(payload: CreateStorageProfilePayload) -> Self {
-        models::StorageProfileCreateRequest {
+        Self {
             r#type: payload.r#type.into(),
             region: payload.region,
             bucket: payload.bucket,
@@ -54,7 +55,7 @@ impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct StorageProfile {
     #[serde(rename = "type")]
@@ -75,7 +76,8 @@ pub struct StorageProfile {
 
 impl StorageProfile {
     #[allow(clippy::new_without_default)]
-    pub fn new(
+    #[must_use]
+    pub const fn new(
         r#type: CloudProvider,
         region: String,
         bucket: String,
@@ -83,8 +85,8 @@ impl StorageProfile {
         id: uuid::Uuid,
         created_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
-    ) -> StorageProfile {
-        StorageProfile {
+    ) -> Self {
+        Self {
             r#type,
             region,
             bucket,
@@ -100,7 +102,7 @@ impl StorageProfile {
 
 impl From<models::StorageProfile> for StorageProfile {
     fn from(profile: models::StorageProfile) -> Self {
-        StorageProfile {
+        Self {
             r#type: profile.r#type.into(),
             region: profile.region,
             bucket: profile.bucket,

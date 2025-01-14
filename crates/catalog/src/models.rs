@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use uuid::Uuid;
 
 pub use iceberg::{Namespace, NamespaceIdent, TableCreation, TableRequirement, TableUpdate};
@@ -9,9 +10,9 @@ pub use iceberg::spec::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::error::{Error, Result};
+use crate::error::{CatalogError, CatalogResult};
 
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Config {
     pub defaults: HashMap<String, String>,
     pub overrides: HashMap<String, String>,
@@ -38,77 +39,84 @@ impl From<TableRequirement> for TableRequirementExt {
 }
 
 impl TableRequirementExt {
-    pub fn new(requirement: TableRequirement) -> Self {
+    #[must_use]
+    pub const fn new(requirement: TableRequirement) -> Self {
         Self(requirement)
     }
 
-    pub fn inner(&self) -> &TableRequirement {
+    #[must_use]
+    pub const fn inner(&self) -> &TableRequirement {
         &self.0
     }
 
-    pub fn assert(&self, metadata: &TableMetadata, exists: bool) -> Result<()> {
+    pub fn assert(&self, metadata: &TableMetadata, exists: bool) -> CatalogResult<()> {
         match self.inner() {
             TableRequirement::NotExist => {
                 if exists {
-                    return Err(Error::ErrNotFound);
+                    return Err(CatalogError::TableNotFound {
+                        key: metadata.uuid().to_string(),
+                    });
                 }
             }
             TableRequirement::UuidMatch { uuid } => {
                 if &metadata.uuid() != uuid {
-                    return Err(Error::FailedRequirement(
-                        "Table uuid does not match".to_string(),
-                    ));
+                    return Err(CatalogError::TableRequirementFailed {
+                        message: "Table uuid does not match".to_string(),
+                    });
                 }
             }
             TableRequirement::CurrentSchemaIdMatch { current_schema_id } => {
                 // ToDo: Harmonize the types of current_schema_id
                 if i64::from(metadata.current_schema_id) != *current_schema_id {
-                    return Err(Error::FailedRequirement(
-                        "Table current schema id does not match".to_string(),
-                    ));
+                    return Err(CatalogError::TableRequirementFailed {
+                        message: "Table current schema id does not match".to_string(),
+                    });
                 }
             }
             TableRequirement::DefaultSortOrderIdMatch {
                 default_sort_order_id,
             } => {
                 if metadata.default_sort_order_id != *default_sort_order_id {
-                    return Err(Error::FailedRequirement(
-                        "Table default sort order id does not match".to_string(),
-                    ));
+                    return Err(CatalogError::TableRequirementFailed {
+                        message: "Table default sort order id does not match".to_string(),
+                    });
                 }
             }
             TableRequirement::RefSnapshotIdMatch { r#ref, snapshot_id } => {
                 if let Some(snapshot_id) = snapshot_id {
-                    let snapshot_ref = metadata
-                        .refs
-                        .get(r#ref)
-                        .ok_or(Error::FailedRequirement("Table ref not found".to_string()))?;
+                    let snapshot_ref =
+                        metadata
+                            .refs
+                            .get(r#ref)
+                            .ok_or(CatalogError::TableRequirementFailed {
+                                message: "Table ref not found".to_string(),
+                            })?;
                     if snapshot_ref.snapshot_id != *snapshot_id {
-                        return Err(Error::FailedRequirement(
-                            "Table ref snapshot id does not match".to_string(),
-                        ));
+                        return Err(CatalogError::TableRequirementFailed {
+                            message: "Table ref snapshot id does not match".to_string(),
+                        });
                     }
                 } else if metadata.refs.contains_key(r#ref) {
-                    return Err(Error::FailedRequirement(
-                        "Table ref snapshot id does not match".to_string(),
-                    ));
+                    return Err(CatalogError::TableRequirementFailed {
+                        message: "Table ref snapshot id does not match".to_string(),
+                    });
                 }
             }
             TableRequirement::DefaultSpecIdMatch { default_spec_id } => {
                 // ToDo: Harmonize the types of default_spec_id
                 if i64::from(metadata.default_partition_spec_id()) != *default_spec_id {
-                    return Err(Error::FailedRequirement(
-                        "Table default spec id does not match".to_string(),
-                    ));
+                    return Err(CatalogError::TableRequirementFailed {
+                        message: "Table default spec id does not match".to_string(),
+                    });
                 }
             }
             TableRequirement::LastAssignedPartitionIdMatch {
                 last_assigned_partition_id,
             } => {
                 if i64::from(metadata.last_partition_id) != *last_assigned_partition_id {
-                    return Err(Error::FailedRequirement(
-                        "Table last assigned partition id does not match".to_string(),
-                    ));
+                    return Err(CatalogError::TableRequirementFailed {
+                        message: "Table last assigned partition id does not match".to_string(),
+                    });
                 }
             }
             TableRequirement::LastAssignedFieldIdMatch {
@@ -117,9 +125,9 @@ impl TableRequirementExt {
                 // ToDo: Harmonize types
                 let last_column_id: i64 = metadata.last_column_id.into();
                 if &last_column_id != last_assigned_field_id {
-                    return Err(Error::FailedRequirement(
-                        "Table last assigned field id does not match".to_string(),
-                    ));
+                    return Err(CatalogError::TableRequirementFailed {
+                        message: "Table last assigned field id does not match".to_string(),
+                    });
                 }
             }
         };
@@ -127,7 +135,7 @@ impl TableRequirementExt {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Table {
     pub ident: TableIdent,
     pub metadata: TableMetadata,
@@ -135,7 +143,7 @@ pub struct Table {
     pub properties: HashMap<String, String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct TableIdent {
     pub database: DatabaseIdent,
     pub table: String,
@@ -150,7 +158,7 @@ impl From<Table> for iceberg::TableIdent {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WarehouseIdent(Uuid);
 
 impl From<Uuid> for WarehouseIdent {
@@ -160,25 +168,45 @@ impl From<Uuid> for WarehouseIdent {
 }
 
 impl WarehouseIdent {
-    pub fn new(uuid: Uuid) -> Self {
+    #[must_use]
+    pub const fn new(uuid: Uuid) -> Self {
         Self(uuid)
     }
 
-    pub fn id(&self) -> &Uuid {
+    #[must_use]
+    pub const fn id(&self) -> &Uuid {
         &self.0
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+impl Display for WarehouseIdent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.id())
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DatabaseIdent {
     pub namespace: NamespaceIdent,
     pub warehouse: WarehouseIdent,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+impl Display for DatabaseIdent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.warehouse, self.namespace.to_url_string())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Database {
     pub ident: DatabaseIdent,
     pub properties: HashMap<String, String>,
+}
+
+impl Display for TableIdent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.database, self.table)
+    }
 }
 
 impl From<Database> for NamespaceIdent {

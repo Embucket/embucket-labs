@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Namespace {
     /// Reference to one or more levels of a namespace
     pub namespace: NamespaceIdent,
@@ -26,7 +26,7 @@ impl From<catalog::models::Database> for Namespace {
 }
 
 /// Result used when a table is successfully loaded.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct TableResult {
     /// May be null if the table is staged as part of a transaction
@@ -45,7 +45,7 @@ impl From<Table> for TableResult {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TableCreateRequest {
     pub name: String,
     pub location: Option<String>,
@@ -61,7 +61,7 @@ impl From<TableCreateRequest> for catalog::models::TableCreation {
         let mut properties = schema.properties.unwrap_or_default();
         update_properties_timestamps(&mut properties);
 
-        catalog::models::TableCreation {
+        Self {
             name: schema.name,
             location: schema.location,
             schema: schema.schema,
@@ -72,18 +72,18 @@ impl From<TableCreateRequest> for catalog::models::TableCreation {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TableRegisterRequest {
     pub name: String,
     pub metadata_location: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TableListResponse {
     pub identifiers: Vec<TableIdent>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NamespaceListResponse {
     pub namespaces: Vec<NamespaceIdent>,
 }
@@ -96,7 +96,7 @@ pub struct TableCommitRequest {
     pub properties: Option<HashMap<String, String>>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TableCommitResponse {
     pub metadata_location: String,
     pub metadata: TableMetadata,

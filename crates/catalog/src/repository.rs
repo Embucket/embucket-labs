@@ -1,31 +1,30 @@
 use async_trait::async_trait;
-use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use utils::Db;
 
-use crate::error::Result;
+use crate::error::CatalogResult;
 use crate::models::{Database, DatabaseIdent, Table, TableIdent, WarehouseIdent};
 
 const DBPREFIX: &str = "db";
-const SEP: &str = "\u{001f}";
+//const SEP: &str = "\u{001f}";
 const TBLPREFIX: &str = "tbl";
-const ALL: &str = "all";
+//const ALL: &str = "all";
 
 #[async_trait]
 pub trait TableRepository: Send + Sync {
-    async fn put(&self, params: &Table) -> Result<()>;
-    async fn get(&self, id: &TableIdent) -> Result<Table>;
-    async fn delete(&self, id: &TableIdent) -> Result<()>;
-    async fn list(&self, db: &DatabaseIdent) -> Result<Vec<Table>>;
+    async fn put(&self, params: &Table) -> CatalogResult<()>;
+    async fn get(&self, id: &TableIdent) -> CatalogResult<Table>;
+    async fn delete(&self, id: &TableIdent) -> CatalogResult<()>;
+    async fn list(&self, db: &DatabaseIdent) -> CatalogResult<Vec<Table>>;
 }
 
 #[async_trait]
 pub trait DatabaseRepository: Send + Sync {
-    async fn put(&self, params: &Database) -> Result<()>;
-    async fn get(&self, id: &DatabaseIdent) -> Result<Database>;
-    async fn delete(&self, id: &DatabaseIdent) -> Result<()>;
-    async fn list(&self, wh: &WarehouseIdent) -> Result<Vec<Database>>;
+    async fn put(&self, params: &Database) -> CatalogResult<()>;
+    async fn get(&self, id: &DatabaseIdent) -> CatalogResult<Database>;
+    async fn delete(&self, id: &DatabaseIdent) -> CatalogResult<()>;
+    async fn list(&self, wh: &WarehouseIdent) -> CatalogResult<Vec<Database>>;
 }
 
 pub struct TableRepositoryDb {
@@ -33,32 +32,14 @@ pub struct TableRepositoryDb {
 }
 
 impl TableRepositoryDb {
-    pub fn new(db: Arc<Db>) -> Self {
+    pub const fn new(db: Arc<Db>) -> Self {
         Self { db }
-    }
-}
-
-impl Display for TableIdent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}", self.database, self.table)
-    }
-}
-
-impl Display for DatabaseIdent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}", self.warehouse, self.namespace.to_url_string())
-    }
-}
-
-impl Display for WarehouseIdent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.id())
     }
 }
 
 #[async_trait]
 impl TableRepository for TableRepositoryDb {
-    async fn put(&self, params: &Table) -> Result<()> {
+    async fn put(&self, params: &Table) -> CatalogResult<()> {
         let key = format!("{TBLPREFIX}.{}", params.ident);
         self.db.put(&key, &params).await?;
         self.db
@@ -67,14 +48,14 @@ impl TableRepository for TableRepositoryDb {
         Ok(())
     }
 
-    async fn get(&self, id: &TableIdent) -> Result<Table> {
+    async fn get(&self, id: &TableIdent) -> CatalogResult<Table> {
         let key = format!("{TBLPREFIX}.{id}");
         let table = self.db.get(&key).await?;
-        let table = table.ok_or(crate::error::Error::ErrNotFound)?;
+        let table = table.ok_or(crate::error::CatalogError::TableNotFound { key })?;
         Ok(table)
     }
 
-    async fn delete(&self, id: &TableIdent) -> Result<()> {
+    async fn delete(&self, id: &TableIdent) -> CatalogResult<()> {
         let key = format!("{TBLPREFIX}.{id}");
         self.db.delete(&key).await?;
         self.db
@@ -83,7 +64,7 @@ impl TableRepository for TableRepositoryDb {
         Ok(())
     }
 
-    async fn list(&self, db: &DatabaseIdent) -> Result<Vec<Table>> {
+    async fn list(&self, db: &DatabaseIdent) -> CatalogResult<Vec<Table>> {
         let key = &format!("{TBLPREFIX}.{db}");
         let keys = self.db.keys(key).await?;
         let futures = keys.iter().map(|key| self.db.get(key)).collect::<Vec<_>>();
@@ -95,7 +76,7 @@ impl TableRepository for TableRepositoryDb {
 
 #[async_trait]
 impl DatabaseRepository for DatabaseRepositoryDb {
-    async fn put(&self, params: &Database) -> Result<()> {
+    async fn put(&self, params: &Database) -> CatalogResult<()> {
         let key = format!("{DBPREFIX}.{}", params.ident);
         self.db.put(&key, &params).await?;
         self.db
@@ -104,14 +85,14 @@ impl DatabaseRepository for DatabaseRepositoryDb {
         Ok(())
     }
 
-    async fn get(&self, id: &DatabaseIdent) -> Result<Database> {
+    async fn get(&self, id: &DatabaseIdent) -> CatalogResult<Database> {
         let key = format!("{DBPREFIX}.{id}");
         let db = self.db.get(&key).await?;
-        let db = db.ok_or(crate::error::Error::ErrNotFound)?;
+        let db = db.ok_or(crate::error::CatalogError::DatabaseNotFound { key })?;
         Ok(db)
     }
 
-    async fn delete(&self, id: &DatabaseIdent) -> Result<()> {
+    async fn delete(&self, id: &DatabaseIdent) -> CatalogResult<()> {
         let key = format!("{DBPREFIX}.{id}");
         self.db.delete(&key).await?;
         self.db
@@ -120,7 +101,7 @@ impl DatabaseRepository for DatabaseRepositoryDb {
         Ok(())
     }
 
-    async fn list(&self, wh: &WarehouseIdent) -> Result<Vec<Database>> {
+    async fn list(&self, wh: &WarehouseIdent) -> CatalogResult<Vec<Database>> {
         let key = &format!("{DBPREFIX}.{wh}");
         let keys = self.db.keys(key).await?;
         let futures = keys.iter().map(|key| self.db.get(key)).collect::<Vec<_>>();
@@ -135,12 +116,13 @@ pub struct DatabaseRepositoryDb {
 }
 
 impl DatabaseRepositoryDb {
-    pub fn new(db: Arc<Db>) -> Self {
+    pub const fn new(db: Arc<Db>) -> Self {
         Self { db }
     }
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use iceberg::spec::TableMetadata;
@@ -148,6 +130,7 @@ mod tests {
     use object_store::{memory::InMemory, path::Path, ObjectStore};
     use slatedb::config::DbOptions;
     use slatedb::db::Db as SlateDb;
+    use std::collections::HashMap;
     use std::sync::Arc;
     use utils::Db;
     use uuid::Uuid;
@@ -242,7 +225,7 @@ mod tests {
             },
             metadata_location: "s3://bucket/path".to_string(),
             metadata: create_table_metadata(),
-            properties: Default::default(),
+            properties: HashMap::default(),
         };
 
         repo.put(&table).await.expect("failed to create table");

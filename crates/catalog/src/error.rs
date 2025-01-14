@@ -1,42 +1,47 @@
-pub type Result<T> = std::result::Result<T, Error>;
+use snafu::prelude::*;
+pub type CatalogResult<T> = std::result::Result<T, CatalogError>;
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("not found")]
-    ErrNotFound,
+#[derive(Snafu, Debug)]
+#[snafu(visibility(pub(crate)))]
+pub enum CatalogError {
+    #[snafu(display("Iceberg error: {source}"))]
+    Iceberg { source: iceberg::Error },
 
-    #[error("already exists")]
-    ErrAlreadyExists,
+    #[snafu(display("Object store error: {source}"))]
+    ObjectStore { source: object_store::Error },
 
-    #[error("not empty")]
-    ErrNotEmpty,
+    #[snafu(display("Control plane error: {source}"))]
+    ControlPlane {
+        source: control_plane::models::ControlPlaneModelError,
+    },
 
-    #[error("not implemented")]
-    NotImplemented,
+    #[snafu(display("Namespace already exists: {key}"))]
+    NamespaceAlreadyExists { key: String },
 
-    #[error("invalid input: {0}")]
-    InvalidInput(String),
+    #[snafu(display("Namespace not empty: {key}"))]
+    NamespaceNotEmpty { key: String },
 
-    #[error("not empty: {0}")]
-    NotEmpty(String),
+    #[snafu(display("Table already exists: {key}"))]
+    TableAlreadyExists { key: String },
 
-    #[error("failed requirement: {0}")]
-    FailedRequirement(String),
+    #[snafu(display("Table not found: {key}"))]
+    TableNotFound { key: String },
 
-    #[error("DB error: {0}")]
-    DbError(String),
+    #[snafu(display("Database not found: {key}"))]
+    DatabaseNotFound { key: String },
 
-    #[error("Iceberg error: {0}")]
-    IcebergError(#[from] iceberg::Error),
+    #[snafu(display("Table requirement failed: {message}"))]
+    TableRequirementFailed { message: String },
+
+    #[snafu(display("State store error: {source}"))]
+    StateStore { source: utils::Error },
+
+    #[snafu(display("Serde error: {source}"))]
+    Serde { source: serde_json::Error },
 }
 
-impl From<utils::Error> for Error {
-    fn from(e: utils::Error) -> Self {
-        match e {
-            utils::Error::DbError(e) => Error::DbError(e.to_string()),
-            utils::Error::SerializeError(e) => Error::DbError(e.to_string()),
-            utils::Error::DeserializeError(e) => Error::DbError(e.to_string()),
-            utils::Error::ErrNotFound => Error::ErrNotFound,
-        }
+impl From<utils::Error> for CatalogError {
+    fn from(value: utils::Error) -> Self {
+        Self::StateStore { source: value }
     }
 }

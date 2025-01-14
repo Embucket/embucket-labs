@@ -1,7 +1,7 @@
 pub mod aws;
 pub mod database;
-pub mod errors;
+pub mod error;
+pub mod properties;
 pub mod storage_profile;
 pub mod table;
 pub mod warehouse;
-pub mod properties;

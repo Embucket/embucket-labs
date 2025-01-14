@@ -1,17 +1,18 @@
-use crate::http::ui::models::errors::AppError;
+use super::super::models::error::{self as model_error, NexusError, NexusResult};
 use crate::http::ui::models::properties::{
     Properties, Property, TableSettingsResponse, TableSnapshotsResponse,
     TableUpdatePropertiesPayload,
 };
 use crate::http::ui::models::table::{
     Table, TableCreatePayload, TableQueryRequest, TableQueryResponse, TableRegisterRequest,
-    TableUploadPayload
+    TableUploadPayload,
 };
 use crate::http::utils::get_default_properties;
 use crate::state::AppState;
 use axum::{extract::Multipart, extract::Path, extract::State, Json};
 use catalog::models::{DatabaseIdent, TableIdent, WarehouseIdent};
 use iceberg::NamespaceIdent;
+use snafu::ResultExt;
 use std::time::Instant;
 use utoipa::OpenApi;
 use uuid::Uuid;
@@ -39,7 +40,7 @@ use uuid::Uuid;
             Table,
             Properties,
             Property,
-            AppError,
+            NexusError,
         )
     ),
     tags(
@@ -60,15 +61,15 @@ pub struct ApiDoc;
     ),
     responses(
         (status = 200, description = "Get table", body = Table),
-        (status = 404, description = "Not found", body = AppError),
-        (status = 422, description = "Unprocessable entity", body = AppError),
-        (status = 500, description = "Internal server error", body = AppError)
+        (status = 404, description = "Not found", body = NexusError),
+        (status = 422, description = "Unprocessable entity", body = NexusError),
+        (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
 pub async fn get_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
-) -> Result<Json<Table>, AppError> {
+) -> NexusResult<Json<Table>> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let profile = state
         .get_profile_by_id(warehouse.storage_profile_id)
@@ -78,11 +79,11 @@ pub async fn get_table(
             warehouse: WarehouseIdent::new(warehouse.id),
             namespace: NamespaceIdent::from_vec(
                 database_name
-                    .split(".")
+                    .split('.')
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-                .unwrap(),
+            .context(model_error::MalformedNamespaceIdentSnafu)?,
         },
         table: table_name,
     };
@@ -102,28 +103,31 @@ pub async fn get_table(
     ),
     responses(
         (status = 200, description = "Successful Response", body = Table),
-        (status = 404, description = "Not found", body = AppError),
+        (status = 404, description = "Not found", body = NexusError),
     )
 )]
 pub async fn create_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
     Json(payload): Json<TableCreatePayload>,
-) -> Result<Json<Table>, AppError> {
+) -> NexusResult<Json<Table>> {
     let warehouse = state.get_warehouse_model(warehouse_id).await?;
     let profile = state
         .control_svc
         .get_profile(warehouse.storage_profile_id)
-        .await?;
+        .await
+        .context(model_error::StorageProfileFetchSnafu {
+            id: warehouse.storage_profile_id,
+        })?;
     let db_ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::from_vec(
             database_name
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .context(model_error::MalformedNamespaceIdentSnafu)?,
     };
     let table = state
         .catalog_svc
@@ -135,13 +139,10 @@ pub async fn create_table(
             Option::from(get_default_properties()),
         )
         .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to create table", e);
-            AppError::new(e, fmt.as_str())
-        })?;
+        .context(model_error::TableCreateSnafu)?;
     let mut table: Table = table.into();
     table.with_details(warehouse_id, profile.into(), database_name);
-    Ok(Json(table.into()))
+    Ok(Json(table))
 }
 
 #[utoipa::path(
@@ -155,28 +156,31 @@ pub async fn create_table(
     ),
     responses(
         (status = 200, description = "Successful Response", body = Table),
-        (status = 404, description = "Not found", body = AppError),
+        (status = 404, description = "Not found", body = NexusError),
     )
 )]
 pub async fn register_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
     Json(payload): Json<TableRegisterRequest>,
-) -> Result<Json<Table>, AppError> {
+) -> NexusResult<Json<Table>> {
     let warehouse = state.get_warehouse_model(warehouse_id).await?;
     let profile = state
         .control_svc
         .get_profile(warehouse.storage_profile_id)
-        .await?;
+        .await
+        .context(model_error::StorageProfileFetchSnafu {
+            id: warehouse.storage_profile_id,
+        })?;
     let db_ident = DatabaseIdent {
         warehouse: WarehouseIdent::new(warehouse.id),
         namespace: NamespaceIdent::from_vec(
             database_name
-                .split(".")
+                .split('.')
                 .map(String::from)
                 .collect::<Vec<String>>(),
         )
-            .unwrap(),
+        .context(model_error::MalformedNamespaceIdentSnafu)?,
     };
     let table = state
         .catalog_svc
@@ -189,13 +193,10 @@ pub async fn register_table(
             Option::from(get_default_properties()),
         )
         .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to register table", e);
-            AppError::new(e, fmt.as_str())
-        })?;
+        .context(model_error::TableRegisterSnafu)?;
     let mut table: Table = table.into();
     table.with_details(warehouse_id, profile.into(), database_name);
-    Ok(Json(table.into()))
+    Ok(Json(table))
 }
 
 #[utoipa::path(
@@ -210,24 +211,24 @@ pub async fn register_table(
     ),
     responses(
         (status = 200, description = "Successful Response"),
-        (status = 404, description = "Not found", body=AppError),
+        (status = 404, description = "Not found", body=NexusError),
     )
 )]
 pub async fn delete_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
-) -> Result<(), AppError> {
+) -> NexusResult<()> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let table_ident = TableIdent {
         database: DatabaseIdent {
             warehouse: WarehouseIdent::new(warehouse.id),
             namespace: NamespaceIdent::from_vec(
                 database_name
-                    .split(".")
+                    .split('.')
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-                .unwrap(),
+            .context(model_error::MalformedNamespaceIdentSnafu)?,
         },
         table: table_name,
     };
@@ -235,10 +236,7 @@ pub async fn delete_table(
         .catalog_svc
         .drop_table(&table_ident)
         .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to delete table with ident {}", e, &table_ident);
-            AppError::new(e, fmt.as_str())
-        })?;
+        .context(model_error::TableDeleteSnafu)?;
     Ok(())
 }
 
@@ -255,8 +253,8 @@ pub async fn delete_table(
     ),
     responses(
         (status = 200, description = "Returns result of the query", body = TableQueryResponse),
-        (status = 422, description = "Unprocessable entity", body = AppError),
-        (status = 500, description = "Internal server error", body = AppError)
+        (status = 422, description = "Unprocessable entity", body = NexusError),
+        (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
 // Add time sql took
@@ -264,21 +262,18 @@ pub async fn query_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
     Json(payload): Json<TableQueryRequest>,
-) -> Result<Json<TableQueryResponse>, AppError> {
-    let request: TableQueryRequest = payload.into();
+) -> NexusResult<Json<TableQueryResponse>> {
+    let request: TableQueryRequest = payload;
     let start = Instant::now();
     let result = state
         .control_svc
         .query_table(&warehouse_id, &database_name, &table_name, &request.query)
         .await
-        .map_err(|e| {
-            let fmt = format!("{}", e);
-            AppError::new(e, fmt.as_str())
-        })?;
+        .context(model_error::QuerySnafu)?;
     let duration = start.elapsed();
     Ok(Json(TableQueryResponse {
         query: request.query.clone(),
-        result: result.to_string(),
+        result,
         duration_seconds: duration.as_secs_f32(),
     }))
 }
@@ -295,13 +290,13 @@ pub async fn query_table(
     ),
     responses(
         (status = 200, description = "Get table", body = TableSettingsResponse),
-        (status = 500, description = "Internal server error", body = AppError)
+        (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
 pub async fn get_settings(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
-) -> Result<Json<TableSettingsResponse>, AppError> {
+) -> NexusResult<Json<TableSettingsResponse>> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let profile = state
         .get_profile_by_id(warehouse.storage_profile_id)
@@ -311,17 +306,17 @@ pub async fn get_settings(
             warehouse: WarehouseIdent::new(warehouse.id),
             namespace: NamespaceIdent::from_vec(
                 database_name
-                    .split(".")
+                    .split('.')
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-                .unwrap(),
+            .context(model_error::MalformedNamespaceIdentSnafu)?,
         },
         table: table_name,
     };
     let mut table = state.get_table(&table_ident).await?;
     table.with_details(warehouse_id, profile, database_name);
-    Ok(Json(table.into()))
+    Ok(Json(table.try_into()?))
 }
 
 #[utoipa::path(
@@ -337,60 +332,54 @@ pub async fn get_settings(
     ),
     responses(
         (status = 200, description = "Get table", body = Table),
-        (status = 404, description = "Not found", body = AppError),
-        (status = 422, description = "Unprocessable entity", body = AppError),
-        (status = 500, description = "Internal server error", body = AppError)
+        (status = 404, description = "Not found", body = NexusError),
+        (status = 422, description = "Unprocessable entity", body = NexusError),
+        (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
 pub async fn update_table_properties(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
     Json(payload): Json<TableUpdatePropertiesPayload>,
-) -> Result<Json<Table>, AppError> {
+) -> NexusResult<Json<Table>> {
     let warehouse = state
         .control_svc
         .get_warehouse(warehouse_id)
         .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to get warehouse by id {}", e, warehouse_id);
-            AppError::new(e, fmt.as_str())
-        })?;
+        .context(model_error::WarehouseFetchSnafu { id: warehouse_id })?;
     let profile = state
         .control_svc
         .get_profile(warehouse.storage_profile_id)
         .await
-        .map_err(|e| {
-            let fmt = format!(
-                "{}: failed to get profile by id {}",
-                e, warehouse.storage_profile_id
-            );
-            AppError::new(e, fmt.as_str())
+        .context(model_error::StorageProfileFetchSnafu {
+            id: warehouse.storage_profile_id,
         })?;
     let table_ident = TableIdent {
         database: DatabaseIdent {
             warehouse: WarehouseIdent::new(warehouse.id),
             namespace: NamespaceIdent::from_vec(
                 database_name
-                    .split(".")
+                    .split('.')
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-                .unwrap(),
+            .context(model_error::MalformedNamespaceIdentSnafu)?,
         },
         table: table_name,
     };
     let table = state.get_table(&table_ident).await?;
     let updated_table = state
         .catalog_svc
-        .update_table(&profile, &warehouse, payload.to_commit(table, &table_ident))
+        .update_table(
+            &profile,
+            &warehouse,
+            payload.to_commit(&table, &table_ident),
+        )
         .await
-        .map_err(|e| {
-            let fmt = format!("{}: failed to update table properties", e);
-            AppError::new(e, fmt.as_str())
-        })?;
+        .context(model_error::TablePropertiesUpdateSnafu)?;
     let mut table: Table = updated_table.into();
     table.with_details(warehouse_id, profile.into(), database_name);
-    Ok(Json(table.into()))
+    Ok(Json(table))
 }
 
 #[utoipa::path(
@@ -410,34 +399,50 @@ pub async fn update_table_properties(
     ),
     responses(
         (status = 200, description = "Returns result of the query", body = TableQueryResponse),
-        (status = 422, description = "Unprocessable entity", body = AppError),
-        (status = 500, description = "Internal server error", body = AppError)
+        (status = 422, description = "Unprocessable entity", body = NexusError),
+        (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
 pub async fn upload_data_to_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
     mut multipart: Multipart,
-) -> Result<(), AppError> {
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .expect("Failed to get next field!")
-    {
-        if field.name().unwrap() != "upload_file" {
-            continue;
-        }
-        let file_name = field.file_name().unwrap().to_string();
-        let data = field.bytes().await.unwrap();
-
-        let _result = state
-            .control_svc
-            .upload_data_to_table(&warehouse_id, &database_name, &table_name, data, file_name)
+) -> NexusResult<()> {
+    loop {
+        let next_field = multipart
+            .next_field()
             .await
-            .map_err(|e| {
-                let fmt = format!("{}", e);
-                AppError::new(e, fmt.as_str())
-            })?;
+            .context(model_error::MalformedMultipartSnafu)?;
+        match next_field {
+            Some(field) => {
+                if field.name().ok_or(NexusError::MalformedFileUploadRequest)? != "upload_file" {
+                    continue;
+                }
+                let file_name = field
+                    .file_name()
+                    .ok_or(NexusError::MalformedFileUploadRequest)?
+                    .to_string();
+                let data = field
+                    .bytes()
+                    .await
+                    .context(model_error::MalformedMultipartSnafu)?;
+
+                state
+                    .control_svc
+                    .upload_data_to_table(
+                        &warehouse_id,
+                        &database_name,
+                        &table_name,
+                        data,
+                        file_name,
+                    )
+                    .await
+                    .context(model_error::DataUploadSnafu)?;
+            }
+            None => {
+                break;
+            }
+        }
     }
     Ok(())
 }
@@ -454,13 +459,13 @@ pub async fn upload_data_to_table(
     ),
     responses(
         (status = 200, description = "Get table", body = TableSnapshotsResponse),
-        (status = 500, description = "Internal server error", body = AppError)
+        (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
 pub async fn get_snapshots(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
-) -> Result<Json<TableSnapshotsResponse>, AppError> {
+) -> NexusResult<Json<TableSnapshotsResponse>> {
     let warehouse = state.get_warehouse_by_id(warehouse_id).await?;
     let profile = state
         .get_profile_by_id(warehouse.storage_profile_id)
@@ -470,15 +475,15 @@ pub async fn get_snapshots(
             warehouse: WarehouseIdent::new(warehouse.id),
             namespace: NamespaceIdent::from_vec(
                 database_name
-                    .split(".")
+                    .split('.')
                     .map(String::from)
                     .collect::<Vec<String>>(),
             )
-                .unwrap(),
+            .context(model_error::MalformedNamespaceIdentSnafu)?,
         },
         table: table_name,
     };
     let mut table = state.get_table(&table_ident).await?;
     table.with_details(warehouse_id, profile, database_name);
-    Ok(Json(table.into()))
+    Ok(Json(table.try_into()?))
 }

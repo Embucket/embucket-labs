@@ -10,6 +10,9 @@ slatedb = { workspace = true }
 bytes = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-thiserror = { workspace = true }
 iceberg = { workspace = true }
 uuid = { workspace = true }
+snafu = { workspace = true }
+
+[lints]
+workspace = true

@@ -37,7 +37,7 @@ pub struct CustomContextProvider<'a> {
     pub(crate) tables: HashMap<String, Arc<dyn TableSource>>,
 }
 
-impl<'a> ContextProvider for CustomContextProvider<'a> {
+impl ContextProvider for CustomContextProvider<'_> {
     fn get_table_source(&self, name: TableReference) -> Result<Arc<dyn TableSource>> {
         let catalog = self.state.config_options().catalog.clone();
         let name = name.resolve(&catalog.default_catalog, &catalog.default_schema);

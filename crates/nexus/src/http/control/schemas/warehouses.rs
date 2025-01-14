@@ -25,7 +25,7 @@ pub struct Warehouse {
 
 impl From<CreateWarehouseRequest> for models::WarehouseCreateRequest {
     fn from(request: CreateWarehouseRequest) -> Self {
-        models::WarehouseCreateRequest {
+        Self {
             prefix: request.prefix,
             name: request.name,
             storage_profile_id: request.storage_profile_id,
@@ -35,7 +35,7 @@ impl From<CreateWarehouseRequest> for models::WarehouseCreateRequest {
 
 impl From<models::Warehouse> for Warehouse {
     fn from(warehouse: models::Warehouse) -> Self {
-        Warehouse {
+        Self {
             id: warehouse.id,
             prefix: warehouse.prefix,
             name: warehouse.name,

@@ -7,7 +7,6 @@ edition = "2021"
 async-trait = { workspace = true }
 iceberg = { workspace = true }
 control_plane = { path = "../control_plane" }
-thiserror = { workspace = true }
 utils = { path = "../utils" }
 futures = { workspace = true }
 slatedb = { workspace = true }
@@ -19,5 +18,9 @@ uuid = { workspace = true }
 object_store = { workspace = true }
 url = "2.5.2"
 chrono = "0.4.38"
+snafu = { workspace = true }
 
 [dev-dependencies]
+
+[lints]
+workspace = true

@@ -1,20 +1,22 @@
+use super::error::{self as model_error, NexusError, NexusResult};
 use crate::http::ui::models::table::Table;
 use catalog::models::{TableCommit, TableIdent};
 use chrono::{DateTime, Utc};
 use iceberg::spec::Operation;
 use iceberg::TableUpdate;
 use serde::{Deserialize, Serialize};
+use snafu::ResultExt;
 use std::collections::HashMap;
 use utoipa::ToSchema;
 use validator::Validate;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Validate, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TableSnapshotsResponse {
     snapshots: Vec<TableSnapshot>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Validate, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TableSnapshot {
     pub timestamp: DateTime<Utc>,
@@ -25,8 +27,10 @@ pub struct TableSnapshot {
     pub snapshot_id: i64,
 }
 
-impl From<Table> for TableSnapshotsResponse {
-    fn from(table: Table) -> Self {
+impl TryFrom<Table> for TableSnapshotsResponse {
+    type Error = NexusError;
+
+    fn try_from(table: Table) -> NexusResult<Self> {
         let mut snapshots = vec![];
         // Sort the snapshots by timestamp
 
@@ -38,7 +42,9 @@ impl From<Table> for TableSnapshotsResponse {
                 Operation::Delete => "delete",
             };
             snapshots.push(TableSnapshot {
-                timestamp: snapshot.timestamp().unwrap(),
+                timestamp: snapshot
+                    .timestamp()
+                    .context(model_error::InvalidIcebergSnapshotTimestampSnafu)?,
                 operation: operation.to_string(),
                 total_records: snapshot
                     .summary()
@@ -63,11 +69,11 @@ impl From<Table> for TableSnapshotsResponse {
         }
         snapshots.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
 
-        TableSnapshotsResponse { snapshots }
+        Ok(Self { snapshots })
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Validate, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TableSettingsResponse {
     snapshots_management: SnapshotsManagement,
@@ -76,10 +82,13 @@ pub struct TableSettingsResponse {
     user_managed: UserManaged,
 }
 
-impl From<Table> for TableSettingsResponse {
-    fn from(table: Table) -> Self {
-        let mut response = TableSettingsResponse::default();
-        for (id, value) in table.metadata.0.properties.iter() {
+impl TryFrom<Table> for TableSettingsResponse {
+    type Error = NexusError;
+
+    #[allow(clippy::match_same_arms)]
+    fn try_from(table: Table) -> NexusResult<Self> {
+        let mut response = Self::default();
+        for (id, value) in &table.metadata.0.properties {
             match id.as_str() {
                 "history.expire.max-snapshot-age-ms" => {
                     response.snapshots_management.max_snapshot_age_ms = value.parse().ok();
@@ -109,6 +118,7 @@ impl From<Table> for TableSettingsResponse {
                             value: value.clone(),
                         });
                     }
+                    #[allow(clippy::unwrap_used)]
                     if id.starts_with("lifecycle.columns.") && id.ends_with(".max-data-age-ms") {
                         let column_name = id
                             .strip_prefix("lifecycle.columns.")
@@ -121,7 +131,7 @@ impl From<Table> for TableSettingsResponse {
                             .metadata
                             .0
                             .properties
-                            .get(&format!("lifecycle.columns.{}.transform", column_name))
+                            .get(&format!("lifecycle.columns.{column_name}.transform"))
                             .unwrap()
                             .as_str()
                         {
@@ -142,28 +152,28 @@ impl From<Table> for TableSettingsResponse {
                 }
             }
         }
-        response
+        Ok(response)
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TableUpdatePropertiesPayload {
     pub properties: Properties,
 }
 
 impl TableUpdatePropertiesPayload {
-    pub(crate) fn to_commit(&self, table: Table, ident: &TableIdent) -> TableCommit {
+    pub(crate) fn to_commit(&self, table: &Table, ident: &TableIdent) -> TableCommit {
         match &self.properties {
             Properties::SnapshotsManagement(p) => p.to_commit(ident),
             Properties::AutomaticCompaction(p) => p.to_commit(ident),
-            Properties::LifecyclePolicies(p) => p.to_commit(ident, table.metadata.0.properties),
+            Properties::LifecyclePolicies(p) => p.to_commit(ident, &table.metadata.0.properties),
             Properties::UserManaged(p) => p.to_commit(table, ident),
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum Properties {
     SnapshotsManagement(SnapshotsManagement),
@@ -172,7 +182,7 @@ pub enum Properties {
     UserManaged(UserManaged),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SnapshotsManagement {
     /// A positive number for the minimum number of snapshots to keep in a branch while expiring snapshots.
@@ -190,6 +200,7 @@ pub struct SnapshotsManagement {
 }
 
 impl SnapshotsManagement {
+    #[must_use]
     pub fn to_commit(&self, ident: &TableIdent) -> TableCommit {
         let mut properties = HashMap::new();
         let mut properties_to_remove = vec![];
@@ -233,7 +244,7 @@ impl SnapshotsManagement {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AutomaticCompaction {
     enabled: Option<bool>,
@@ -263,7 +274,7 @@ impl AutomaticCompaction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LifecyclePolicies {
     enabled: Option<bool>,
@@ -275,7 +286,7 @@ pub struct LifecyclePolicies {
     columns_max_data_age_ms: Option<Vec<ColumnLevelPolicy>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ColumnLevelPolicy {
     column_name: String,
@@ -283,17 +294,17 @@ pub struct ColumnLevelPolicy {
     transform: ColumnTransform,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub enum ColumnTransform {
     Nullify,
 }
 
 impl LifecyclePolicies {
-    fn to_commit(&self, ident: &TableIdent, properties: HashMap<String, String>) -> TableCommit {
+    fn to_commit(&self, ident: &TableIdent, properties: &HashMap<String, String>) -> TableCommit {
         let mut properties_to_add = HashMap::new();
         let mut properties_to_remove = vec![];
 
-        for (k, _) in properties.iter() {
+        for k in properties.keys() {
             if k.starts_with("lifecycle.") {
                 properties_to_remove.push(k.clone());
             }
@@ -348,13 +359,13 @@ impl LifecyclePolicies {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, Default, ToSchema)]
 pub struct UserManaged {
     items: Vec<Property>,
 }
 
 impl UserManaged {
-    fn to_commit(&self, table: Table, ident: &TableIdent) -> TableCommit {
+    fn to_commit(&self, table: &Table, ident: &TableIdent) -> TableCommit {
         // Find the properties that are managed by the user with prefix user_managed from the table
         let user_managed_prefix = "user_managed.";
 
@@ -395,7 +406,7 @@ impl UserManaged {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Default, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, Default, ToSchema)]
 pub struct Property {
     id: String,
     value: String,

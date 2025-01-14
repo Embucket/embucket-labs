@@ -23,7 +23,7 @@ use crate::state::AppState;
 pub struct WarehouseApi;
 
 #[utoipa::path(
-    post, 
+    post,
     operation_id = "createWarehouse",
     path = "", 
     request_body = CreateWarehouseRequest,
@@ -40,7 +40,7 @@ pub async fn create_warehouse(
 }
 
 #[utoipa::path(
-    get, 
+    get,
     operation_id = "getWarehouse",
     path = "/{warehouseId}", 
     params(("warehouseId" = Uuid, description = "Warehouse ID")),
@@ -56,7 +56,7 @@ pub async fn get_warehouse(
 }
 
 #[utoipa::path(
-    delete, 
+    delete,
     operation_id = "deleteWarehouse",
     path = "/{warehouseId}", 
     params(("warehouseId" = Uuid, description = "Warehouse ID")),
@@ -72,7 +72,7 @@ pub async fn delete_warehouse(
 }
 
 #[utoipa::path(
-    get, 
+    get,
     operation_id = "listWarehouses",
     path = "", 
     responses((status = 200, body = Vec<Warehouse>))
@@ -82,5 +82,5 @@ pub async fn list_warehouses(
 ) -> Result<Json<Vec<Warehouse>>, AppError> {
     let profiles = state.control_svc.list_warehouses().await?;
 
-    Ok(Json(profiles.into_iter().map(|p| p.into()).collect()))
+    Ok(Json(profiles.into_iter().map(Into::into).collect()))
 }

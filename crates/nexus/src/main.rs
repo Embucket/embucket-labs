@@ -1,12 +1,9 @@
-use axum::http::Method;
 use axum::{
     body::{Body, Bytes},
     extract::Request,
     http::StatusCode,
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::post,
-    Router,
 };
 use catalog::repository::{DatabaseRepositoryDb, TableRepositoryDb};
 use catalog::service::CatalogImpl;
@@ -26,39 +23,12 @@ use tokio::signal;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::Db;
 
-pub mod http {
-    pub mod router;
-
-    pub mod layers;
-    pub mod control {
-        pub mod handlers;
-        pub mod router;
-        pub mod schemas;
-    }
-    pub mod catalog {
-        pub mod handlers;
-        pub mod router;
-        pub mod schemas;
-    }
-
-    pub mod dbt {
-        pub mod handlers;
-        pub mod router;
-        pub mod schemas;
-    }
-
-    pub mod ui {
-        pub mod handlers;
-        pub mod models;
-        pub mod router;
-    }
-
-    pub mod utils;
-}
 pub mod error;
+pub mod http;
 pub mod state;
 
 #[tokio::main]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 async fn main() {
     dotenv().ok();
 
@@ -122,12 +92,11 @@ async fn main() {
 
     let db = {
         let options = DbOptions::default();
-        let db = Arc::new(Db::new(
+        Arc::new(Db::new(
             SlateDb::open_with_opts(Path::from(slatedb_prefix), options, object_store.into())
                 .await
                 .unwrap(),
-        ));
-        db
+        ))
     };
 
     // Initialize the repository and concrete service implementation
@@ -172,7 +141,8 @@ async fn main() {
 ///
 /// # Panics
 /// If the function fails to install the signal handler, it will panic.
-async fn shutdown_signal(db: Arc<Db>) {
+#[allow(clippy::expect_used, clippy::redundant_pub_crate)]
+async fn shutdown_signal(_db: Arc<Db>) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -183,7 +153,7 @@ async fn shutdown_signal(db: Arc<Db>) {
     let terminate = async {
         signal::unix::signal(signal::unix::SignalKind::terminate())
             .expect("failed to install signal handler")
-            .recv() 
+            .recv()
             .await;
     };
 
@@ -191,11 +161,11 @@ async fn shutdown_signal(db: Arc<Db>) {
     let terminate = std::future::pending::<()>();
 
     tokio::select! {
-        _ = ctrl_c => {
+        () = ctrl_c => {
             tracing::warn!("Ctrl+C received, starting graceful shutdown");
             //db.close().await.unwrap();
         },
-        _ = terminate => {
+        () = terminate => {
             tracing::warn!("SIGTERM received, starting graceful shutdown");
             //db.close().await.unwrap();
         },
@@ -229,7 +199,7 @@ async fn buffer_and_print<B>(
     body: B,
 ) -> Result<Bytes, (StatusCode, String)>
 where
-    B: axum::body::HttpBody<Data=Bytes>,
+    B: axum::body::HttpBody<Data = Bytes>,
     B::Error: std::fmt::Display,
 {
     let bytes = match body.collect().await {
@@ -243,7 +213,10 @@ where
     };
 
     if let Ok(body) = std::str::from_utf8(&bytes) {
-        tracing::debug!("{direction} {method} {uri} body = {body:?}");
+        // Skip upload endpoint logs as they can be large
+        if !uri.contains("upload") {
+            tracing::debug!("{direction} {method} {uri} body = {body}");
+        }
     }
 
     Ok(bytes)

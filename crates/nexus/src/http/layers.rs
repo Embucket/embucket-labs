@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use axum::http::HeaderMap;
 use axum::{middleware::Next, response::Response};
 use std::str::FromStr;
@@ -15,12 +16,13 @@ enum AuthDetails {
     Authenticated { user_id: String },
 }
 
+#[allow(clippy::unwrap_used)]
 pub async fn add_request_metadata(
     headers: HeaderMap,
     mut request: axum::extract::Request,
     next: Next,
 ) -> Response {
-    let request_id: Uuid = if let Some(hv) = headers.get("x-request-id") {
+    let request_id: Uuid = headers.get("x-request-id").map_or_else(Uuid::now_v7, |hv| {
         hv.to_str()
             .map(Uuid::from_str)
             .ok()
@@ -28,9 +30,7 @@ pub async fn add_request_metadata(
             .ok()
             .flatten()
             .unwrap_or_else(Uuid::now_v7)
-    } else {
-        Uuid::now_v7()
-    };
+    });
     request.extensions_mut().insert(RequestMetadata {
         request_id,
         auth_details: AuthDetails::Unauthenticated,

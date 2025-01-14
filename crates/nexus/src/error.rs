@@ -1,17 +1,17 @@
 use axum::{response::IntoResponse, response::Response};
 
-impl From<control_plane::error::Error> for AppError {
-    fn from(_err: control_plane::error::Error) -> Self {
+impl From<control_plane::error::ControlPlaneError> for AppError {
+    fn from(err: control_plane::error::ControlPlaneError) -> Self {
         Self {
-            message: _err.to_string(),
+            message: err.to_string(),
         }
     }
 }
 
-impl From<catalog::error::Error> for AppError {
-    fn from(_err: catalog::error::Error) -> Self {
+impl From<catalog::error::CatalogError> for AppError {
+    fn from(err: catalog::error::CatalogError) -> Self {
         Self {
-            message: _err.to_string(),
+            message: err.to_string(),
         }
     }
 }
@@ -27,7 +27,7 @@ impl IntoResponse for AppError {
             if self.message.is_empty() {
                 "Internal Server Error".to_string()
             } else {
-                self.message.clone()
+                self.message
             },
         );
         (status, message).into_response()

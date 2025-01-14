@@ -1,4 +1,4 @@
-use crate::error::{Error, Result};
+use crate::error::{ControlPlaneError, ControlPlaneResult};
 use crate::models::{StorageProfile, Warehouse};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -15,18 +15,18 @@ const WAREHOUSES: &str = "wh.all";
 
 #[async_trait]
 pub trait StorageProfileRepository: Send + Sync {
-    async fn create(&self, params: &StorageProfile) -> Result<()>;
-    async fn get(&self, id: Uuid) -> Result<StorageProfile>;
-    async fn delete(&self, id: Uuid) -> Result<()>;
-    async fn list(&self) -> Result<Vec<StorageProfile>>;
+    async fn create(&self, params: &StorageProfile) -> ControlPlaneResult<()>;
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<StorageProfile>;
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()>;
+    async fn list(&self) -> ControlPlaneResult<Vec<StorageProfile>>;
 }
 
 #[async_trait]
 pub trait WarehouseRepository: Send + Sync {
-    async fn create(&self, params: &Warehouse) -> Result<()>;
-    async fn get(&self, id: Uuid) -> Result<Warehouse>;
-    async fn delete(&self, id: Uuid) -> Result<()>;
-    async fn list(&self) -> Result<Vec<Warehouse>>;
+    async fn create(&self, params: &Warehouse) -> ControlPlaneResult<()>;
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<Warehouse>;
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()>;
+    async fn list(&self) -> ControlPlaneResult<Vec<Warehouse>>;
 }
 
 impl Entity for StorageProfile {
@@ -46,7 +46,7 @@ pub struct StorageProfileRepositoryDb {
 }
 
 impl StorageProfileRepositoryDb {
-    pub fn new(db: Arc<Db>) -> Self {
+    pub const fn new(db: Arc<Db>) -> Self {
         Self { db }
     }
 }
@@ -56,7 +56,7 @@ pub struct WarehouseRepositoryDb {
 }
 
 impl WarehouseRepositoryDb {
-    pub fn new(db: Arc<Db>) -> Self {
+    pub const fn new(db: Arc<Db>) -> Self {
         Self { db }
     }
 }
@@ -79,19 +79,19 @@ impl Repository for StorageProfileRepositoryDb {
 
 #[async_trait]
 impl StorageProfileRepository for StorageProfileRepositoryDb {
-    async fn create(&self, entity: &StorageProfile) -> Result<()> {
+    async fn create(&self, entity: &StorageProfile) -> ControlPlaneResult<()> {
         Repository::_create(self, entity).await.map_err(Into::into)
     }
 
-    async fn get(&self, id: Uuid) -> Result<StorageProfile> {
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<StorageProfile> {
         Repository::_get(self, id).await.map_err(Into::into)
     }
 
-    async fn delete(&self, id: Uuid) -> Result<()> {
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()> {
         Repository::_delete(self, id).await.map_err(Into::into)
     }
 
-    async fn list(&self) -> Result<Vec<StorageProfile>> {
+    async fn list(&self) -> ControlPlaneResult<Vec<StorageProfile>> {
         Repository::_list(self).await.map_err(Into::into)
     }
 }
@@ -114,19 +114,19 @@ impl Repository for WarehouseRepositoryDb {
 
 #[async_trait]
 impl WarehouseRepository for WarehouseRepositoryDb {
-    async fn create(&self, entity: &Warehouse) -> Result<()> {
+    async fn create(&self, entity: &Warehouse) -> ControlPlaneResult<()> {
         Repository::_create(self, entity).await.map_err(Into::into)
     }
 
-    async fn get(&self, id: Uuid) -> Result<Warehouse> {
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
         Repository::_get(self, id).await.map_err(Into::into)
     }
 
-    async fn delete(&self, id: Uuid) -> Result<()> {
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()> {
         Repository::_delete(self, id).await.map_err(Into::into)
     }
 
-    async fn list(&self) -> Result<Vec<Warehouse>> {
+    async fn list(&self) -> ControlPlaneResult<Vec<Warehouse>> {
         Repository::_list(self).await.map_err(Into::into)
     }
 }
@@ -138,54 +138,72 @@ pub struct InMemoryStorageProfileRepository {
 }
 
 #[async_trait]
+#[allow(clippy::unwrap_used)]
 impl StorageProfileRepository for InMemoryStorageProfileRepository {
-    async fn create(&self, profile: &StorageProfile) -> Result<()> {
-        let mut profiles = self.profiles.lock().unwrap();
-        profiles.insert(profile.id, profile.clone());
+    async fn create(&self, profile: &StorageProfile) -> ControlPlaneResult<()> {
+        self.profiles
+            .lock()
+            .unwrap()
+            .insert(profile.id, profile.clone());
         Ok(())
     }
 
-    async fn get(&self, id: Uuid) -> Result<StorageProfile> {
-        let profiles = self.profiles.lock().unwrap();
-        let profile = profiles.get(&id).ok_or(Error::ErrNotFound)?;
-        Ok(profile.clone())
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<StorageProfile> {
+        Ok(self
+            .profiles
+            .lock()
+            .unwrap()
+            .get(&id)
+            .ok_or(ControlPlaneError::StorageProfileNotFound { id })?
+            .clone())
     }
 
-    async fn delete(&self, id: Uuid) -> Result<()> {
-        let mut profiles = self.profiles.lock().unwrap();
-        profiles.remove(&id).ok_or(Error::ErrNotFound)?;
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()> {
+        self.profiles
+            .lock()
+            .unwrap()
+            .remove(&id)
+            .ok_or(ControlPlaneError::StorageProfileNotFound { id })?;
         Ok(())
     }
 
-    async fn list(&self) -> Result<Vec<StorageProfile>> {
-        let profiles = self.profiles.lock().unwrap();
-        Ok(profiles.values().cloned().collect())
+    async fn list(&self) -> ControlPlaneResult<Vec<StorageProfile>> {
+        Ok(self.profiles.lock().unwrap().values().cloned().collect())
     }
 }
 
 #[async_trait]
+#[allow(clippy::unwrap_used)]
 impl WarehouseRepository for InMemoryWarehouseRepository {
-    async fn create(&self, warehouse: &Warehouse) -> Result<()> {
-        let mut warehouses = self.warehouses.lock().unwrap();
-        warehouses.insert(warehouse.id, warehouse.clone());
+    async fn create(&self, warehouse: &Warehouse) -> ControlPlaneResult<()> {
+        self.warehouses
+            .lock()
+            .unwrap()
+            .insert(warehouse.id, warehouse.clone());
         Ok(())
     }
 
-    async fn get(&self, id: Uuid) -> Result<Warehouse> {
-        let warehouses = self.warehouses.lock().unwrap();
-        let warehouse = warehouses.get(&id).ok_or(Error::ErrNotFound)?;
-        Ok(warehouse.clone())
+    async fn get(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
+        Ok(self
+            .warehouses
+            .lock()
+            .unwrap()
+            .get(&id)
+            .ok_or(ControlPlaneError::WarehouseNotFound { id })?
+            .clone())
     }
 
-    async fn delete(&self, id: Uuid) -> Result<()> {
-        let mut warehouses = self.warehouses.lock().unwrap();
-        warehouses.remove(&id).ok_or(Error::ErrNotFound)?;
+    async fn delete(&self, id: Uuid) -> ControlPlaneResult<()> {
+        self.warehouses
+            .lock()
+            .unwrap()
+            .remove(&id)
+            .ok_or(ControlPlaneError::WarehouseNotFound { id })?;
         Ok(())
     }
 
-    async fn list(&self) -> Result<Vec<Warehouse>> {
-        let warehouses = self.warehouses.lock().unwrap();
-        Ok(warehouses.values().cloned().collect())
+    async fn list(&self) -> ControlPlaneResult<Vec<Warehouse>> {
+        Ok(self.warehouses.lock().unwrap().values().cloned().collect())
     }
 }
 
@@ -195,6 +213,8 @@ pub struct InMemoryWarehouseRepository {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::models::{AwsAccessKeyCredential, CloudProvider, Credentials};
@@ -217,7 +237,7 @@ mod tests {
             None,
             None,
         )
-            .expect("failed to create profile")
+        .expect("failed to create profile")
     }
 
     #[tokio::test]

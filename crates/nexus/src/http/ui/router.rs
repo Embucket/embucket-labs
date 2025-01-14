@@ -11,6 +11,7 @@ use crate::http::ui::handlers::warehouses::{
     create_warehouse, delete_warehouse, get_warehouse, list_warehouses, navigation,
 };
 use crate::state::AppState;
+use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
@@ -83,4 +84,5 @@ pub fn create_router() -> Router<AppState> {
             axum::http::header::AUTHORIZATION,
         ]))
         .layer(axum::middleware::from_fn(add_request_metadata))
+        .layer(DefaultBodyLimit::disable())
 }

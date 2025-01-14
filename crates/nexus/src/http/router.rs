@@ -85,7 +85,7 @@ fn load_openapi_spec() -> Option<openapi::OpenApi> {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::too_many_lines)]
+    #![allow(clippy::too_many_lines, clippy::unwrap_used)]
 
     use crate::http::catalog::schemas::Namespace as NamespaceSchema;
     use crate::http::control::schemas::storage_profiles::StorageProfile as StorageProfileSchema;
@@ -119,12 +119,11 @@ mod tests {
         let db = {
             let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
             let options = DbOptions::default();
-            let db = Arc::new(Db::new(
+            Arc::new(Db::new(
                 SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
                     .await
                     .unwrap(),
-            ));
-            db
+            ))
         };
 
         // Initialize the repository and concrete service implementation
@@ -136,7 +135,7 @@ mod tests {
 
         let catalog_svc = {
             let t_repo = TableRepositoryDb::new(db.clone());
-            let db_repo = DatabaseRepositoryDb::new(db.clone());
+            let db_repo = DatabaseRepositoryDb::new(db);
 
             CatalogImpl::new(Arc::new(t_repo), Arc::new(db_repo))
         };
@@ -153,9 +152,9 @@ mod tests {
             "region": "us-west-2",
             "bucket": "my-bucket",
             "credentials": {
-                "credential-type": "access-key",
-                "aws-access-key-id": "my-access-key",
-                "aws-secret-access-key": "my-secret-access-key"
+                "credential_type": "access_key",
+                "aws_access_key_id": "my-access-key",
+                "aws_secret_access_key": "my-secret-access-key"
             }
         });
         let response = app
@@ -181,9 +180,9 @@ mod tests {
             "region": "us-west-2",
             "bucket": "my-bucket",
             "credentials": {
-                "credential-type": "access-key",
-                "aws-access-key-id": "my-access-key",
-                "aws-secret-access-key": "my-secret-access-key"
+                "credential_type": "access_key",
+                "aws_access_key_id": "my-access-key",
+                "aws_secret_access_key": "my-secret-access-key"
             }
         });
         let request = Request::builder()
@@ -208,7 +207,7 @@ mod tests {
         // Now create warehouse
         let payload = json!({
             "name": "my-warehouse",
-            "storage-profile-id": sid,
+            "storage_profile_id": sid,
             "prefix": "my-prefix",
         });
         let request = Request::builder()
@@ -237,7 +236,7 @@ mod tests {
             }
         });
         let request = Request::builder()
-            .uri(format!("/catalog/{wid}/v1/namespace"))
+            .uri(format!("/catalog/v1/{wid}/namespaces"))
             .method(http::Method::POST)
             .header(http::header::CONTENT_TYPE, "application/json")
             .body(Body::from(serde_json::to_vec(&payload).unwrap()))
@@ -251,6 +250,7 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
+
         let namespace_id = serde_json::from_slice::<NamespaceSchema>(&body)
             .unwrap()
             .namespace;
@@ -258,7 +258,7 @@ mod tests {
 
         // Now get namespace
         let request = Request::builder()
-            .uri(format!("/catalog/{wid}/v1/namespace/{namespace_id}"))
+            .uri(format!("/catalog/v1/{wid}/namespaces/{namespace_id}"))
             .method(http::Method::GET)
             .header(http::header::CONTENT_TYPE, "application/json")
             .body(Body::empty())
@@ -276,7 +276,7 @@ mod tests {
             .unwrap()
             .namespace;
 
-        assert_eq!(namespace_id.inner(), vec!("my-namespace"));
+        assert_eq!(namespace_id.inner(), vec!["my-namespace"]);
 
         // Now let's create table
         let payload = json!({
@@ -303,19 +303,19 @@ mod tests {
         },
         });
         let request = Request::builder()
-            .uri(format!("/catalog/{wid}/v1/namespace/my-namespace/table"))
+            .uri(format!("/catalog/v1/{wid}/namespace/my-namespace/table"))
             .method(http::Method::POST)
             .header(http::header::CONTENT_TYPE, "application/json")
             .body(Body::from(serde_json::to_vec(&payload).unwrap()))
             .unwrap();
-        let response = ServiceExt::<Request<Body>>::ready(&mut app)
+        let _response = ServiceExt::<Request<Body>>::ready(&mut app)
             .await
             .unwrap()
             .call(request)
             .await
             .unwrap();
 
-        println!("{:?}", response.into_body().collect().await.unwrap());
+        //println!("{:?}", response.into_body().collect().await.unwrap());
         // assert_eq!(response.status(), StatusCode::OK);
     }
 
@@ -324,7 +324,7 @@ mod tests {
     async fn test_error_handling() {
         panic!("not implemented");
 
-        let app = create_router().await;
+        /*let app = create_router().await;
 
         // Mock service that returns an error
         let payload = json!({
@@ -350,6 +350,6 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);*/
     }
 }

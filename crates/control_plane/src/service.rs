@@ -1,26 +1,28 @@
-use crate::error::{extract_error_message, Error, Result};
+use crate::error::{ControlPlaneError, ControlPlaneResult};
 use crate::models::{ColumnInfo, Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
-use crate::sql::functions::common::convert_record_batches;
-use crate::sql::sql::SqlExecutor;
+use crate::utils::convert_record_batches;
 use arrow::record_batch::RecordBatch;
 use arrow_json::writer::JsonArray;
 use arrow_json::WriterBuilder;
 use async_trait::async_trait;
-use base64::Engine;
 use bytes::Bytes;
 use datafusion::execution::context::SessionContext;
+use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{CsvReadOptions, SessionConfig};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use datafusion_iceberg::planner::IcebergQueryPlanner;
 use iceberg_rest_catalog::apis::configuration::Configuration;
 use iceberg_rest_catalog::catalog::RestCatalog;
 use icelake::TableIdentifier;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
+use runtime::datafusion::execution::SqlExecutor;
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
+use snafu::ResultExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
@@ -28,59 +30,65 @@ use uuid::Uuid;
 
 #[async_trait]
 pub trait ControlService: Send + Sync {
-    async fn create_profile(&self, params: &StorageProfileCreateRequest) -> Result<StorageProfile>;
-    async fn get_profile(&self, id: Uuid) -> Result<StorageProfile>;
-    async fn delete_profile(&self, id: Uuid) -> Result<()>;
-    async fn list_profiles(&self) -> Result<Vec<StorageProfile>>;
-    async fn validate_credentials(&self, profile: &StorageProfile) -> Result<()>;
+    async fn create_profile(
+        &self,
+        params: &StorageProfileCreateRequest,
+    ) -> ControlPlaneResult<StorageProfile>;
+    async fn get_profile(&self, id: Uuid) -> ControlPlaneResult<StorageProfile>;
+    async fn delete_profile(&self, id: Uuid) -> ControlPlaneResult<()>;
+    async fn list_profiles(&self) -> ControlPlaneResult<Vec<StorageProfile>>;
+    async fn validate_credentials(&self, profile: &StorageProfile) -> ControlPlaneResult<()>;
 
-    async fn create_warehouse(&self, params: &WarehouseCreateRequest) -> Result<Warehouse>;
-    async fn get_warehouse(&self, id: Uuid) -> Result<Warehouse>;
-    async fn delete_warehouse(&self, id: Uuid) -> Result<()>;
-    async fn list_warehouses(&self) -> Result<Vec<Warehouse>>;
+    async fn create_warehouse(
+        &self,
+        params: &WarehouseCreateRequest,
+    ) -> ControlPlaneResult<Warehouse>;
+    async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse>;
+    async fn delete_warehouse(&self, id: Uuid) -> ControlPlaneResult<()>;
+    async fn list_warehouses(&self) -> ControlPlaneResult<Vec<Warehouse>>;
 
-    // async fn create_database(&self, params: &DatabaseCreateRequest) -> Result<Database>;
-    // async fn get_database(&self, id: Uuid) -> Result<Database>;
-    // async fn delete_database(&self, id: Uuid) -> Result<()>;
-    // async fn list_databases(&self) -> Result<Vec<Database>>;
+    // async fn create_database(&self, params: &DatabaseCreateRequest) -> ControlPlaneResult<Database>;
+    // async fn get_database(&self, id: Uuid) -> ControlPlaneResult<Database>;
+    // async fn delete_database(&self, id: Uuid) -> ControlPlaneResult<()>;
+    // async fn list_databases(&self) -> ControlPlaneResult<Vec<Database>>;
 
-    // async fn create_table(&self, params: &TableCreateRequest) -> Result<Table>;
-    // async fn get_table(&self, id: Uuid) -> Result<Table>;
-    // async fn delete_table(&self, id: Uuid) -> Result<()>;
-    // async fn list_tables(&self) -> Result<Vec<Table>>;
+    // async fn create_table(&self, params: &TableCreateRequest) -> ControlPlaneResult<Table>;
+    // async fn get_table(&self, id: Uuid) -> ControlPlaneResult<Table>;
+    // async fn delete_table(&self, id: Uuid) -> ControlPlaneResult<()>;
+    // async fn list_tables(&self) -> ControlPlaneResult<Vec<Table>>;
 
     async fn query(
         &self,
         warehouse_id: &Uuid,
-        database_name: &String,
-        table_name: &String,
-        query: &String,
-    ) -> Result<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
+        database_name: &str,
+        table_name: &str,
+        query: &str,
+    ) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
 
     async fn query_table(
         &self,
         warehouse_id: &Uuid,
-        database_name: &String,
-        table_name: &String,
-        query: &String,
-    ) -> Result<String>;
+        database_name: &str,
+        table_name: &str,
+        query: &str,
+    ) -> ControlPlaneResult<String>;
 
     async fn query_dbt(
         &self,
         warehouse_id: &Uuid,
-        database_name: &String,
-        table_name: &String,
-        query: &String,
-    ) -> Result<(String, Vec<ColumnInfo>)>;
+        database_name: &str,
+        table_name: &str,
+        query: &str,
+    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)>;
 
     async fn upload_data_to_table(
         &self,
         warehouse_id: &Uuid,
-        database_name: &String,
-        table_name: &String,
+        database_name: &str,
+        table_name: &str,
         data: Bytes,
         file_name: String,
-    ) -> Result<()>;
+    ) -> ControlPlaneResult<()>;
 }
 
 pub struct ControlServiceImpl {
@@ -102,8 +110,13 @@ impl ControlServiceImpl {
 
 #[async_trait]
 impl ControlService for ControlServiceImpl {
-    async fn create_profile(&self, params: &StorageProfileCreateRequest) -> Result<StorageProfile> {
-        let profile = params.try_into()?;
+    async fn create_profile(
+        &self,
+        params: &StorageProfileCreateRequest,
+    ) -> ControlPlaneResult<StorageProfile> {
+        let profile = params
+            .try_into()
+            .context(crate::error::InvalidStorageProfileSnafu)?;
 
         if params.validate_credentials.unwrap_or_default() {
             self.validate_credentials(&profile).await?;
@@ -113,23 +126,23 @@ impl ControlService for ControlServiceImpl {
         Ok(profile)
     }
 
-    async fn get_profile(&self, id: Uuid) -> Result<StorageProfile> {
+    async fn get_profile(&self, id: Uuid) -> ControlPlaneResult<StorageProfile> {
         self.storage_profile_repo.get(id).await
     }
 
-    async fn delete_profile(&self, id: Uuid) -> Result<()> {
+    async fn delete_profile(&self, id: Uuid) -> ControlPlaneResult<()> {
         let wh = self.list_warehouses().await?;
         if wh.iter().any(|wh| wh.storage_profile_id == id) {
-            return Err(Error::NotEmpty("Storage profile is in use".to_string()));
+            return Err(ControlPlaneError::StorageProfileInUse { id });
         }
         self.storage_profile_repo.delete(id).await
     }
 
-    async fn list_profiles(&self) -> Result<Vec<StorageProfile>> {
+    async fn list_profiles(&self) -> ControlPlaneResult<Vec<StorageProfile>> {
         self.storage_profile_repo.list().await
     }
 
-    async fn validate_credentials(&self, profile: &StorageProfile) -> Result<()> {
+    async fn validate_credentials(&self, profile: &StorageProfile) -> ControlPlaneResult<()> {
         match profile.credentials.clone() {
             Credentials::AccessKey(creds) => {
                 let profile_region = profile.region.clone();
@@ -142,57 +155,63 @@ impl ControlService for ControlServiceImpl {
                     endpoint: profile
                         .endpoint
                         .clone()
-                        .unwrap_or_else(|| format!("https://s3.{}.amazonaws.com", profile_region)),
+                        .unwrap_or_else(|| format!("https://s3.{profile_region}.amazonaws.com")),
                 };
 
-                let dispatcher = HttpClient::new().expect("Failed to create HTTP client");
+                let dispatcher =
+                    HttpClient::new().context(crate::error::InvalidTLSConfigurationSnafu)?;
                 let client = S3Client::new_with(dispatcher, credentials, region);
                 let request = GetBucketAclRequest {
                     bucket: profile.bucket.clone(),
                     expected_bucket_owner: None,
                 };
-                client
-                    .get_bucket_acl(request)
-                    .await
-                    .map_err(|e| Error::InvalidCredentials(extract_error_message(&e).unwrap()))?;
+                client.get_bucket_acl(request).await?;
+                Ok(())
             }
-            _ => {}
+            Credentials::Role(_) => Err(ControlPlaneError::UnsupportedAuthenticationMethod {
+                method: profile.credentials.to_string(),
+            }),
         }
-        Ok(())
     }
 
-    async fn create_warehouse(&self, params: &WarehouseCreateRequest) -> Result<Warehouse> {
+    async fn create_warehouse(
+        &self,
+        params: &WarehouseCreateRequest,
+    ) -> ControlPlaneResult<Warehouse> {
         // TODO: Check if storage profile exists
         // - Check if its valid
         // - Generate id, update created_at and updated_at
         // - Try create Warehouse from WarehouseCreateRequest
-        let wh: Warehouse = params.try_into()?;
+        let wh: Warehouse = params
+            .try_into()
+            .context(crate::error::InvalidCreateWarehouseSnafu)?;
         let _ = self.get_profile(wh.storage_profile_id).await?;
         self.warehouse_repo.create(&wh).await?;
         Ok(wh)
     }
 
-    async fn get_warehouse(&self, id: Uuid) -> Result<Warehouse> {
+    async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
         self.warehouse_repo.get(id).await
     }
 
-    async fn delete_warehouse(&self, id: Uuid) -> Result<()> {
+    async fn delete_warehouse(&self, id: Uuid) -> ControlPlaneResult<()> {
         // let db = self.list_databases().await?;
         // db.iter().filter(|db| db.warehouse_id == id).next().ok_or(Error::NotEmpty("Warehouse is in use".to_string()))?;
         self.warehouse_repo.delete(id).await
     }
 
-    async fn list_warehouses(&self) -> Result<Vec<Warehouse>> {
+    async fn list_warehouses(&self) -> ControlPlaneResult<Vec<Warehouse>> {
         self.warehouse_repo.list().await
     }
 
+    #[allow(clippy::large_futures)]
     async fn query(
         &self,
         warehouse_id: &Uuid,
-        database_name: &String,
-        _table_name: &String,
-        query: &String,
-    ) -> Result<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
+        _database_name: &str,
+        _table_name: &str,
+        query: &str,
+    ) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
         let warehouse = self.get_warehouse(*warehouse_id).await?;
         let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
 
@@ -201,44 +220,47 @@ impl ControlService for ControlServiceImpl {
             config.base_path = "http://0.0.0.0:3000/catalog".to_string();
             config
         };
+        let object_store = storage_profile
+            .get_object_store_builder()
+            .context(crate::error::InvalidStorageProfileSnafu)?;
         let rest_client = RestCatalog::new(
             Some(warehouse_id.to_string().as_str()),
             config,
-            storage_profile.get_object_store_builder(),
+            object_store,
         );
         let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
-        let ctx =
-            SessionContext::new_with_config(SessionConfig::new().with_information_schema(true));
+        let state = SessionStateBuilder::new()
+            .with_config(SessionConfig::new().with_information_schema(true))
+            .with_default_features()
+            .with_query_planner(Arc::new(IcebergQueryPlanner {}))
+            .build();
+        let ctx = SessionContext::new_with_state(state);
+
         let catalog_name = warehouse.name.clone();
         ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
 
-        let provider = ctx.catalog(catalog_name.clone().as_str()).unwrap();
-        let schemas = provider.schema_names();
-        println!("schemas {schemas:?}");
+        // TODO: Should be shared context
+        let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
 
-        for schema in schemas {
-            if schema.starts_with(format!("{database_name}.").as_str()) {
-                let tables = provider.schema(&*schema).unwrap().table_names();
-                println!("tables in {schema}: {tables:?}");
-            }
-        }
-
-        let records: Vec<RecordBatch> = SqlExecutor::new(ctx)
-            .query(query, &catalog_name.clone().to_string())
-            .await?
+        let records: Vec<RecordBatch> = executor
+            .query(query, &catalog_name, &warehouse.location)
+            .await
+            .context(crate::error::ExecutionSnafu)?
             .into_iter()
             .collect::<Vec<_>>();
         // Add columns dbt metadata to each field
-        convert_record_batches(records).map_err(|e| Error::DataFusionError(e.to_string()))
+        convert_record_batches(records).context(crate::error::DataFusionQuerySnafu {
+            query: query.to_string(),
+        })
     }
 
     async fn query_table(
         &self,
         warehouse_id: &Uuid,
-        database_name: &String,
-        _table_name: &String,
-        query: &String,
-    ) -> Result<String> {
+        database_name: &str,
+        _table_name: &str,
+        query: &str,
+    ) -> ControlPlaneResult<String> {
         let (records, _) = self
             .query(warehouse_id, database_name, _table_name, query)
             .await?;
@@ -248,22 +270,24 @@ impl ControlService for ControlServiceImpl {
         let mut writer = write_builder.build::<_, JsonArray>(buf);
 
         let record_refs: Vec<&RecordBatch> = records.iter().collect();
-        writer.write_batches(&record_refs).unwrap();
-        writer.finish().unwrap();
+        writer
+            .write_batches(&record_refs)
+            .context(crate::error::ArrowSnafu)?;
+        writer.finish().context(crate::error::ArrowSnafu)?;
 
         // Get the underlying buffer back,
         let buf = writer.into_inner();
 
-        Ok(String::from_utf8(buf).unwrap())
+        Ok(String::from_utf8(buf).context(crate::error::Utf8Snafu)?)
     }
 
     async fn query_dbt(
         &self,
         warehouse_id: &Uuid,
-        database_name: &String,
-        _table_name: &String,
-        query: &String,
-    ) -> Result<(String, Vec<ColumnInfo>)> {
+        database_name: &str,
+        _table_name: &str,
+        query: &str,
+    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)> {
         let (records, columns) = self
             .query(warehouse_id, database_name, _table_name, query)
             .await?;
@@ -310,27 +334,34 @@ impl ControlService for ControlServiceImpl {
         let mut writer = write_builder.build::<_, JsonArray>(buf);
 
         let record_refs: Vec<&RecordBatch> = records.iter().collect();
-        writer.write_batches(&record_refs).unwrap();
-        writer.finish().unwrap();
+        writer
+            .write_batches(&record_refs)
+            .context(crate::error::ArrowSnafu)?;
+        writer.finish().context(crate::error::ArrowSnafu)?;
 
         // Get the underlying buffer back,
         let buf = writer.into_inner();
-        Ok((String::from_utf8(buf).unwrap(), columns))
+        Ok((
+            String::from_utf8(buf).context(crate::error::Utf8Snafu)?,
+            columns,
+        ))
     }
 
     async fn upload_data_to_table(
         &self,
         warehouse_id: &Uuid,
-        database_name: &String,
-        table_name: &String,
+        database_name: &str,
+        table_name: &str,
         data: Bytes,
         file_name: String,
-    ) -> Result<()> {
-        println!("{:?}", warehouse_id);
+    ) -> ControlPlaneResult<()> {
+        //println!("{:?}", warehouse_id);
 
         let warehouse = self.get_warehouse(*warehouse_id).await?;
         let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
-        let object_store = storage_profile.get_object_store();
+        let object_store = storage_profile
+            .get_object_store()
+            .context(crate::error::InvalidStorageProfileSnafu)?;
         let unique_file_id = Uuid::new_v4().to_string();
 
         // this path also computes inside catalog service (create_table)
@@ -342,23 +373,27 @@ impl ControlService for ControlServiceImpl {
         object_store
             .put(&path, PutPayload::from(data))
             .await
-            .unwrap();
+            .context(crate::error::ObjectStoreSnafu)?;
 
         let ctx = SessionContext::new();
+
+        let storage_endpoint_url = storage_profile
+            .endpoint
+            .as_ref()
+            .ok_or(ControlPlaneError::MissingStorageEndpointURL)?;
 
         let path_string = match &storage_profile.credentials {
             Credentials::AccessKey(_) => {
                 // If the storage profile is AWS S3, modify the path_string with the S3 prefix
-                format!(
-                    "{}/{}",
-                    storage_profile.clone().endpoint.unwrap().as_str(),
-                    path_string
-                )
+                format!("{storage_endpoint_url}/{path_string}",)
             }
-            _ => path_string,
+            Credentials::Role(_) => path_string,
         };
-        let endpoint_url = Url::parse(storage_profile.endpoint.clone().unwrap().as_str())
-            .map_err(|e| Error::DataFusionError(format!("Invalid endpoint URL: {}", e)))?;
+        let endpoint_url = Url::parse(storage_endpoint_url).context(
+            crate::error::InvalidStorageEndpointURLSnafu {
+                url: storage_endpoint_url,
+            },
+        )?;
         ctx.register_object_store(&endpoint_url, Arc::from(object_store));
 
         // println!("{:?}", data);
@@ -376,20 +411,30 @@ impl ControlService for ControlServiceImpl {
         //     config,
         //     storage_profile.get_object_store_builder(),
         // );
-        // let catalog = IcebergCatalog::new(Arc::new(rest_client), None)
-        //     .await
-        //     .unwrap();
-        //
+        // let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
         // let ctx = SessionContext::new();
-        // ctx.register_catalog("catalog", Arc::new(catalog));
+        // let catalog_name = warehouse.name.clone();
+        // ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
         //
-        // let provider = ctx.catalog("catalog").unwrap();
+        // // register a local file system object store for /tmp directory
+        // // create partitioned input file and context
+        // let local = Arc::new(LocalFileSystem::new_with_prefix("").unwrap());
+        // let local_url = Url::parse("file://").unwrap();
+        // ctx.register_object_store(&local_url, local);
         //
-        // let tables = provider.schema(database_name).unwrap().table_names();
-        // println!("{tables:?}");
-        // let input = ctx.read_batches(data).unwrap();
-        // input.write_table(format!("catalog.`{database_name}`.`{table_name}`").as_str(),
-        //                   DataFrameWriteOptions::default()).await.unwrap();
+        // let provider = ctx.catalog(catalog_name.clone().as_str()).unwrap();
+        // let table = provider.schema(database_name).unwrap().table(table_name).await?;
+        // let table_schema = table.unwrap().schema();
+        // let df = ctx
+        //     .read_csv(path_string.clone(), CsvReadOptions::new().schema(&*table_schema))
+        //     .await?;
+        // let data = df.collect().await?;
+
+        //
+        // let input = ctx.read_batches(data)?;
+        // input.write_table(format!("{catalog_name}.{database_name}.{table_name}").as_str(),
+        //                   DataFrameWriteOptions::default()).await?;
+        // Ok(())
 
         //////////////////////////////////////
 
@@ -411,7 +456,7 @@ impl ControlService for ControlServiceImpl {
                 ),
                 (
                     "iceberg.table.io.endpoint".to_string(),
-                    storage_profile.endpoint.unwrap().to_string(),
+                    storage_endpoint_url.to_string(),
                 ),
                 // (
                 //     "iceberg.table.io.bucket".to_string(),
@@ -434,7 +479,7 @@ impl ControlService for ControlServiceImpl {
         println!("{:?}", table.table_name());
 
         let df = ctx
-            .read_csv(path_string, CsvReadOptions::new().schema(&*table_schema))
+            .read_csv(path_string, CsvReadOptions::new().schema(&table_schema))
             .await?;
         let data = df.collect().await?;
 
@@ -458,9 +503,10 @@ impl ControlService for ControlServiceImpl {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::error::Error;
+    use crate::error::ControlPlaneError;
     use crate::models::{
         AwsAccessKeyCredential, CloudProvider, Credentials, StorageProfileCreateRequest,
     };
@@ -472,14 +518,18 @@ mod tests {
         let storage_repo = Arc::new(InMemoryStorageProfileRepository::default());
         let warehouse_repo = Arc::new(InMemoryWarehouseRepository::default());
         let service = ControlServiceImpl::new(storage_repo, warehouse_repo);
+        let new_uuid = Uuid::new_v4();
         let request = WarehouseCreateRequest {
             name: "test-warehouse".to_string(),
-            storage_profile_id: Uuid::new_v4(),
+            storage_profile_id: new_uuid,
             prefix: "test-prefix".to_string(),
         };
 
-        let err = service.create_warehouse(&request).await.unwrap_err();
-        assert!(matches!(err, Error::ErrNotFound));
+        let err = service.create_warehouse(&request).await;
+        assert!(matches!(
+            err,
+            Err(ControlPlaneError::StorageProfileNotFound { id: _ })
+        ));
     }
 
     #[tokio::test]
@@ -512,6 +562,9 @@ mod tests {
             .delete_profile(wh.storage_profile_id)
             .await
             .unwrap_err();
-        assert!(matches!(result, Error::NotEmpty(_)));
+        assert!(matches!(
+            result,
+            ControlPlaneError::StorageProfileInUse { id: _ }
+        ));
     }
 }

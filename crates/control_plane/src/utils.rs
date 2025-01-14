@@ -11,8 +11,9 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
 use std::sync::Arc;
 
-const TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H:%M:%S%.9f";
+//const TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H:%M:%S%.9f";
 
+#[must_use]
 pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, ArrayRef)> {
     for i in 0..union_array.type_ids().len() {
         let type_id = union_array.type_id(i);
@@ -28,7 +29,7 @@ pub fn convert_record_batches(
     records: Vec<RecordBatch>,
 ) -> DataFusionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
     let mut converted_batches = Vec::new();
-    let column_infos = ColumnInfo::from_batch(records.clone());
+    let column_infos = ColumnInfo::from_batch(&records);
 
     for batch in records {
         let mut columns = Vec::new();
@@ -55,14 +56,14 @@ pub fn convert_record_batches(
                     }
                 }
                 DataType::Timestamp(unit, _) => {
-                    let converted_column = convert_timestamp_to_struct(column, unit);
+                    let converted_column = convert_timestamp_to_struct(column, *unit);
                     fields.push(
                         Field::new(
                             field.name(),
                             converted_column.data_type().clone(),
                             field.is_nullable(),
                         )
-                            .with_metadata(metadata),
+                        .with_metadata(metadata),
                     );
                     Arc::clone(&converted_column)
                 }
@@ -74,6 +75,8 @@ pub fn convert_record_batches(
             columns.push(converted_column);
         }
         let new_schema = Arc::new(Schema::new(fields));
+        //println!("new schema: {:?}", new_schema);
+        //println!("columns: {:?}", columns);
         let converted_batch = RecordBatch::try_new(new_schema, columns)?;
         converted_batches.push(converted_batch);
     }
@@ -81,7 +84,12 @@ pub fn convert_record_batches(
     Ok((converted_batches.clone(), column_infos))
 }
 
-fn convert_timestamp_to_struct(column: &ArrayRef, unit: &TimeUnit) -> ArrayRef {
+#[allow(
+    clippy::unwrap_used,
+    clippy::as_conversions,
+    clippy::cast_possible_truncation
+)]
+fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
     let now = Utc::now();
     let timestamps: Vec<_> = match unit {
         TimeUnit::Second => column
@@ -90,7 +98,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: &TimeUnit) -> ArrayRef {
             .unwrap()
             .iter()
             .map(|x| {
-                let ts = DateTime::from_timestamp(x.unwrap_or(now.timestamp()), 0).unwrap();
+                let ts = DateTime::from_timestamp(x.unwrap_or_else(|| now.timestamp()), 0).unwrap();
                 format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
             })
             .collect(),
@@ -100,8 +108,10 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: &TimeUnit) -> ArrayRef {
             .unwrap()
             .iter()
             .map(|x| {
+                #[allow(clippy::unwrap_used)]
                 let ts =
-                    DateTime::from_timestamp_millis(x.unwrap_or(now.timestamp_millis())).unwrap();
+                    DateTime::from_timestamp_millis(x.unwrap_or_else(|| now.timestamp_millis()))
+                        .unwrap();
                 format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
             })
             .collect(),
@@ -111,8 +121,10 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: &TimeUnit) -> ArrayRef {
             .unwrap()
             .iter()
             .map(|x| {
+                #[allow(clippy::unwrap_used)]
                 let ts =
-                    DateTime::from_timestamp_micros(x.unwrap_or(now.timestamp_micros())).unwrap();
+                    DateTime::from_timestamp_micros(x.unwrap_or_else(|| now.timestamp_micros()))
+                        .unwrap();
                 format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
             })
             .collect(),
@@ -122,8 +134,10 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: &TimeUnit) -> ArrayRef {
             .unwrap()
             .iter()
             .map(|x| {
-                let ts =
-                    DateTime::from_timestamp_nanos(x.unwrap_or(now.timestamp_nanos_opt().unwrap()));
+                #[allow(clippy::unwrap_used)]
+                let ts = DateTime::from_timestamp_nanos(
+                    x.unwrap_or_else(|| now.timestamp_nanos_opt().unwrap()),
+                );
                 format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
             })
             .collect(),

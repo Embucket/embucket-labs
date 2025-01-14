@@ -1,8 +1,9 @@
-use crate::http::ui::models::errors::AppError;
+use super::super::models::error::{self as model_error, NexusError, NexusResult};
 use crate::http::ui::models::{aws, storage_profile};
 use crate::state::AppState;
 use axum::{extract::Path, extract::State, Json};
 use control_plane::models::{StorageProfile, StorageProfileCreateRequest};
+use snafu::ResultExt;
 use utoipa::OpenApi;
 use uuid::Uuid;
 
@@ -22,7 +23,7 @@ use uuid::Uuid;
             aws::AwsAccessKeyCredential,
             aws::AwsRoleCredential,
             aws::CloudProvider,
-            AppError,
+            NexusError,
         )
     ),
     tags(
@@ -39,25 +40,21 @@ pub struct ApiDoc;
     request_body = storage_profile::CreateStorageProfilePayload,
     responses(
         (status = 200, description = "Successful Response", body = storage_profile::StorageProfile),
-        (status = 400, description = "Bad request", body = AppError),
-        (status = 422, description = "Unprocessable entity", body = AppError),
-        (status = 500, description = "Internal server error", body = AppError)
+        (status = 400, description = "Bad request", body = NexusError),
+        (status = 422, description = "Unprocessable entity", body = NexusError),
+        (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
 pub async fn create_storage_profile(
     State(state): State<AppState>,
     Json(payload): Json<storage_profile::CreateStorageProfilePayload>,
-) -> Result<Json<storage_profile::StorageProfile>, AppError> {
+) -> NexusResult<Json<storage_profile::StorageProfile>> {
     let request: StorageProfileCreateRequest = payload.into();
-    let profile: StorageProfile =
-        state
-            .control_svc
-            .create_profile(&request)
-            .await
-            .map_err(|e| {
-                let fmt = format!("{}: failed to create storage profile", e);
-                AppError::new(e, fmt.as_str())
-            })?;
+    let profile: StorageProfile = state
+        .control_svc
+        .create_profile(&request)
+        .await
+        .context(model_error::StorageProfileCreateSnafu)?;
     Ok(Json(profile.into()))
 }
 
@@ -71,16 +68,16 @@ pub async fn create_storage_profile(
     ),
     responses(
         (status = 200, description = "Successful Response", body = storage_profile::StorageProfile),
-        (status = 404, description = "Not found", body = AppError),
-        (status = 422, description = "Unprocessable entity", body = AppError),
+        (status = 404, description = "Not found", body = NexusError),
+        (status = 422, description = "Unprocessable entity", body = NexusError),
     )
 )]
 pub async fn get_storage_profile(
     State(state): State<AppState>,
     Path(storage_profile_id): Path<Uuid>,
-) -> Result<Json<storage_profile::StorageProfile>, AppError> {
+) -> NexusResult<Json<storage_profile::StorageProfile>> {
     let profile = state.get_profile_by_id(storage_profile_id).await?;
-    Ok(Json(profile.into()))
+    Ok(Json(profile))
 }
 
 #[utoipa::path(
@@ -93,24 +90,20 @@ pub async fn get_storage_profile(
     ),
     responses(
         (status = 200, description = "Successful Response", body = storage_profile::StorageProfile),
-        (status = 404, description = "Not found", body = AppError),
-        (status = 422, description = "Unprocessable entity", body = AppError),
+        (status = 404, description = "Not found", body = NexusError),
+        (status = 422, description = "Unprocessable entity", body = NexusError),
     )
 )]
 pub async fn delete_storage_profile(
     State(state): State<AppState>,
     Path(storage_profile_id): Path<Uuid>,
-) -> Result<Json<()>, AppError> {
+) -> NexusResult<Json<()>> {
     state
         .control_svc
         .delete_profile(storage_profile_id)
         .await
-        .map_err(|e| {
-            let fmt = format!(
-                "{}: failed to delete storage profile with id {}",
-                e, storage_profile_id
-            );
-            AppError::new(e, fmt.as_str())
+        .context(model_error::StorageProfileDeleteSnafu {
+            id: storage_profile_id,
         })?;
     Ok(Json(()))
 }
@@ -122,15 +115,16 @@ pub async fn delete_storage_profile(
     path = "/ui/storage-profiles",
     responses(
         (status = 200, body = Vec<storage_profile::StorageProfile>),
-        (status = 500, description = "Internal server error", body = AppError)
+        (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
 pub async fn list_storage_profiles(
     State(state): State<AppState>,
-) -> Result<Json<Vec<storage_profile::StorageProfile>>, AppError> {
-    let profiles = state.control_svc.list_profiles().await.map_err(|e| {
-        let fmt = format!("{}: failed to list storage profile", e);
-        AppError::new(e, fmt.as_str())
-    })?;
-    Ok(Json(profiles.into_iter().map(|p| p.into()).collect()))
+) -> NexusResult<Json<Vec<storage_profile::StorageProfile>>> {
+    let profiles = state
+        .control_svc
+        .list_profiles()
+        .await
+        .context(model_error::StorageProfileListSnafu)?;
+    Ok(Json(profiles.into_iter().map(Into::into).collect()))
 }
