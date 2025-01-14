@@ -1,4 +1,3 @@
-use crate::error::ControlPlaneError::{CatalogNotFound, SchemaNotFound, TableNotFound};
 use crate::error::{ControlPlaneError, ControlPlaneResult};
 use crate::models::{ColumnInfo, Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
