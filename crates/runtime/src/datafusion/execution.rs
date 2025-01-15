@@ -31,7 +31,7 @@ use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
-use snafu::{OptionExt, ResultExt};
+use snafu::ResultExt;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -71,7 +71,7 @@ impl SqlExecutor {
                         warehouse_name,
                         warehouse_location,
                     ))
-                    .await;
+                        .await;
                 }
                 Statement::CreateSchema { schema_name, .. } => {
                     return self.create_schema(schema_name, warehouse_name).await;
@@ -168,8 +168,8 @@ impl SqlExecutor {
                 plan.schema().as_arrow().fields(),
                 &mut 0,
             ))
-            .map_err(|err| DataFusionError::External(Box::new(err)))
-            .context(super::error::DataFusionSnafu)?;
+                .map_err(|err| DataFusionError::External(Box::new(err)))
+                .context(super::error::DataFusionSnafu)?;
             let schema = Schema::builder()
                 .with_schema_id(0)
                 .with_identifier_field_ids(vec![])
