@@ -15,9 +15,7 @@ use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::sqlparser::ast::Insert;
-use datafusion::logical_expr::{
-    CreateExternalTable as PlanCreateExternalTable, DdlStatement, LogicalPlan,
-};
+use datafusion::logical_expr::LogicalPlan;
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
@@ -33,7 +31,7 @@ use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
-use snafu::ResultExt;
+use snafu::{OptionExt, ResultExt};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -136,9 +134,11 @@ impl SqlExecutor {
             }
             let _new_table_wh_id = ident[0].clone();
             let new_table_db = &ident[1..ident.len() - 1];
-            let new_table_name = ident.last().unwrap().clone();
+            let new_table_name = ident.last().ok_or(
+                ih_error::IcehutSQLError::InvalidIdentifier {
+                    ident: new_table_full_name
+                })?.clone();
             let location = create_table_statement.location.clone();
-            let transient = create_table_statement.transient;
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
@@ -177,22 +177,31 @@ impl SqlExecutor {
             // Check if it already exists, if it is - drop it
             // For now we behave as CREATE OR REPLACE
             // TODO support CREATE without REPLACE
-            let catalog = self.ctx.catalog(warehouse_name).unwrap();
-            let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().unwrap();
+            let catalog = self.ctx.catalog(warehouse_name).ok_or(
+                ih_error::IcehutSQLError::WarehouseNotFound {
+                    name: warehouse_name.to_string(),
+                },
+            )?;
+            let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().ok_or(
+                ih_error::IcehutSQLError::IcebergCatalogNotFound {
+                    warehouse_name: warehouse_name.to_string(),
+                },
+            )?;
             let rest_catalog = iceberg_catalog.catalog();
             let new_table_ident = Identifier::new(
                 &new_table_db
-                    .into_iter()
+                    .iter()
                     .map(|v| v.value.clone())
                     .collect::<Vec<String>>(),
                 &new_table_name.value,
             );
             match rest_catalog.tabular_exists(&new_table_ident).await {
                 Ok(true) => {
-                    rest_catalog.drop_table(&new_table_ident).await.unwrap();
+                    rest_catalog.drop_table(&new_table_ident).await.context(
+                        ih_error::IcebergSnafu
+                    )?;
                 }
-                Ok(false) => {}
-                Err(_) => {}
+                Ok(false) | Err(_) => {}
             };
             // Create new table
             rest_catalog
