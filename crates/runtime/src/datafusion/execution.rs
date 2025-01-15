@@ -71,7 +71,7 @@ impl SqlExecutor {
                         warehouse_name,
                         warehouse_location,
                     ))
-                        .await;
+                    .await;
                 }
                 Statement::CreateSchema { schema_name, .. } => {
                     return self.create_schema(schema_name, warehouse_name).await;
@@ -168,8 +168,8 @@ impl SqlExecutor {
                 plan.schema().as_arrow().fields(),
                 &mut 0,
             ))
-                .map_err(|err| DataFusionError::External(Box::new(err)))
-                .context(super::error::DataFusionSnafu)?;
+            .map_err(|err| DataFusionError::External(Box::new(err)))
+            .context(super::error::DataFusionSnafu)?;
             let schema = Schema::builder()
                 .with_schema_id(0)
                 .with_identifier_field_ids(vec![])
@@ -199,7 +199,10 @@ impl SqlExecutor {
                     .collect::<Vec<String>>(),
                 &new_table_name.value,
             );
-            if matches!(rest_catalog.tabular_exists(&new_table_ident).await, Ok(true)) {
+            if matches!(
+                rest_catalog.tabular_exists(&new_table_ident).await,
+                Ok(true)
+            ) {
                 rest_catalog
                     .drop_table(&new_table_ident)
                     .await
