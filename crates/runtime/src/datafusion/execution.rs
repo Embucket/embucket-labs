@@ -71,12 +71,14 @@ impl SqlExecutor {
                         warehouse_name,
                         warehouse_location,
                     ))
-                        .await;
+                    .await;
                 }
                 Statement::CreateSchema { schema_name, .. } => {
                     return self.create_schema(schema_name, warehouse_name).await;
                 }
-                Statement::ShowSchemas { .. } | Statement::ShowVariable { .. } | Statement::Query { .. } => {
+                Statement::ShowSchemas { .. }
+                | Statement::ShowVariable { .. }
+                | Statement::Query { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
                 }
                 Statement::Drop { .. } => {
@@ -134,10 +136,12 @@ impl SqlExecutor {
             }
             let _new_table_wh_id = ident[0].clone();
             let new_table_db = &ident[1..ident.len() - 1];
-            let new_table_name = ident.last().ok_or(
-                ih_error::IcehutSQLError::InvalidIdentifier {
+            let new_table_name = ident
+                .last()
+                .ok_or(ih_error::IcehutSQLError::InvalidIdentifier {
                     ident: new_table_full_name.clone(),
-                })?.clone();
+                })?
+                .clone();
             let location = create_table_statement.location.clone();
 
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
@@ -164,8 +168,8 @@ impl SqlExecutor {
                 plan.schema().as_arrow().fields(),
                 &mut 0,
             ))
-                .map_err(|err| DataFusionError::External(Box::new(err)))
-                .context(super::error::DataFusionSnafu)?;
+            .map_err(|err| DataFusionError::External(Box::new(err)))
+            .context(super::error::DataFusionSnafu)?;
             let schema = Schema::builder()
                 .with_schema_id(0)
                 .with_identifier_field_ids(vec![])
@@ -197,9 +201,10 @@ impl SqlExecutor {
             );
             match rest_catalog.tabular_exists(&new_table_ident).await {
                 Ok(true) => {
-                    rest_catalog.drop_table(&new_table_ident).await.context(
-                        ih_error::IcebergSnafu
-                    )?;
+                    rest_catalog
+                        .drop_table(&new_table_ident)
+                        .await
+                        .context(ih_error::IcebergSnafu)?;
                 }
                 Ok(false) | Err(_) => {}
             };

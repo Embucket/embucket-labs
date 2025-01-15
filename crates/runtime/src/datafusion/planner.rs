@@ -91,9 +91,7 @@ where
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
         // Example: Custom handling for a specific statement
         match statement.clone() {
-            Statement::ShowSchemas { .. } => {
-                self.show_variable_to_plan(&["schemas".into()])
-            },
+            Statement::ShowSchemas { .. } => self.show_variable_to_plan(&["schemas".into()]),
             Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
             Statement::CreateTable(CreateTableStatement {
                 query,
