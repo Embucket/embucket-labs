@@ -123,7 +123,7 @@ impl SqlExecutor {
         &self,
         statement: Statement,
         warehouse_name: &str,
-        warehouse_location: &str,
+        _warehouse_location: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
             let mut new_table_full_name = create_table_statement.name.to_string();
@@ -136,7 +136,7 @@ impl SqlExecutor {
             let new_table_db = &ident[1..ident.len() - 1];
             let new_table_name = ident.last().ok_or(
                 ih_error::IcehutSQLError::InvalidIdentifier {
-                    ident: new_table_full_name
+                    ident: new_table_full_name.clone(),
                 })?.clone();
             let location = create_table_statement.location.clone();
 

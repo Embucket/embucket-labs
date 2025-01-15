@@ -12,7 +12,6 @@ pub struct CreateWarehouseRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-
 pub struct Warehouse {
     pub id: Uuid,
     pub prefix: String,
