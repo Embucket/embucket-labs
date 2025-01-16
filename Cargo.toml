@@ -35,7 +35,7 @@ datafusion = { version = "43" }
 snafu = { version = "0.8.5", features = ["futures"] }
 
 [patch.crates-io]
-datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "bc5a978a4102391b2b7427dfdf94dd4e2667be49" }
+datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "cc37c5920463b0cb0b224fc7f567fd4ae0368ffe" }
 
 
 [workspace.lints.clippy]

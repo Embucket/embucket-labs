@@ -32,7 +32,7 @@ pub async fn login(
 
     //println!("Received login request: {:?}", query);
     //println!("Body data parameters: {:?}", body_json);
-    let token = uuid::Uuid::new_v4().to_string();
+    let token = Uuid::new_v4().to_string();
 
     let warehouses = state
         .control_svc
