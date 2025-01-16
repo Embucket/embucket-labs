@@ -114,12 +114,10 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                     _ => internal_err!("Invalid source_timestamp_tz type"),
                 }
             }
-            3 => {
-                match &arg_types[2] {
-                    DataType::Timestamp(tu, None) => Ok(DataType::Timestamp(*tu, None)),
-                    _ => internal_err!("Invalid source_timestamp_ntz type"),
-                }
-            }
+            3 => match &arg_types[2] {
+                DataType::Timestamp(tu, None) => Ok(DataType::Timestamp(*tu, None)),
+                _ => internal_err!("Invalid source_timestamp_ntz type"),
+            },
             other => {
                 internal_err!(
                     "This function can only take two or three arguments, got {}",
@@ -303,9 +301,9 @@ super::macros::make_udf_function!(ConvertTimezoneFunc);
 #[cfg(test)]
 #[allow(clippy::unwrap_in_result)]
 mod tests {
-    use datafusion_expr::{ColumnarValue, ScalarUDFImpl};
-    use datafusion_common::ScalarValue;
     use super::ConvertTimezoneFunc;
+    use datafusion_common::ScalarValue;
+    use datafusion_expr::{ColumnarValue, ScalarUDFImpl};
     use std::sync::Arc;
 
     #[test]
@@ -315,8 +313,8 @@ mod tests {
         let source_timestamp_tz_timezone = String::from("+00");
         //2025-01-06 08:00:00 America/New_York, because it automaticly converts to 2025-01-06 13:00:00 in UTC
         let source_timestamp_tz = ScalarValue::TimestampMicrosecond(
-            Some(source_timestamp_tz_value), 
-            Some(Arc::from(source_timestamp_tz_timezone.into_boxed_str()))
+            Some(source_timestamp_tz_value),
+            Some(Arc::from(source_timestamp_tz_timezone.into_boxed_str())),
         );
         #[allow(deprecated)]
         let result_wrapped = ConvertTimezoneFunc::new().invoke(&[
@@ -326,15 +324,15 @@ mod tests {
         match result_wrapped {
             Ok(ColumnarValue::Scalar(result)) => {
                 let expected = ScalarValue::TimestampMicrosecond(
-                    Some(1736168400000000i64), 
-                    Some(Arc::from(target_tz.into_boxed_str()))
+                    Some(1736168400000000i64),
+                    Some(Arc::from(target_tz.into_boxed_str())),
                 );
                 assert_eq!(
                     result, expected,
                     "convert_timezone created wrong value for {}",
                     source_timestamp_tz_value
                 )
-            },
+            }
             _ => panic!("Conversion of {} failed", source_timestamp_tz),
         }
     }
@@ -343,22 +341,28 @@ mod tests {
         let source_tz = String::from("America/New_York");
         let target_tz = String::from("UTC");
         //2025-01-06 08:00:00 in UTC
-        let source_timestamp_tz_value= 1736150400000000i64;
+        let source_timestamp_tz_value = 1736150400000000i64;
         #[allow(deprecated)]
         let result_wrapped = ConvertTimezoneFunc::new().invoke(&[
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(source_tz))),
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(target_tz.clone()))),
-            ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(Some(source_timestamp_tz_value), None)),
+            ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
+                Some(source_timestamp_tz_value),
+                None,
+            )),
         ]);
         match result_wrapped {
             Ok(ColumnarValue::Scalar(result)) => {
-                let expected = ScalarValue::TimestampMicrosecond(Some(1736168400000000i64), Some(Arc::from(target_tz.into_boxed_str())));
+                let expected = ScalarValue::TimestampMicrosecond(
+                    Some(1736168400000000i64),
+                    Some(Arc::from(target_tz.into_boxed_str())),
+                );
                 assert_eq!(
                     result, expected,
                     "convert_timezone created wrong value for {}",
                     source_timestamp_tz_value
                 )
-            },
+            }
             _ => panic!("Conversion of {} failed", source_timestamp_tz_value),
         }
     }
@@ -369,22 +373,28 @@ mod tests {
         //2025-01-06 08:00:00 America/New_York, because it automaticly converts to 2025-01-06 13:00:00 in UTC
         //shouldn't even consider this value returns 2025-01-06 18:00:00 America/New_York, essentially,
         //beacuse of teh internal conversion it adds the America/New_York offset twice in this example
-        let source_timestamp_tz_value= 1736168400000000i64;
+        let source_timestamp_tz_value = 1736168400000000i64;
         #[allow(deprecated)]
         let result_wrapped = ConvertTimezoneFunc::new().invoke(&[
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(source_tz))),
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(target_tz.clone()))),
-            ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(Some(source_timestamp_tz_value), None)),
+            ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
+                Some(source_timestamp_tz_value),
+                None,
+            )),
         ]);
         match result_wrapped {
             Ok(ColumnarValue::Scalar(result)) => {
-                let expected = ScalarValue::TimestampMicrosecond(Some(1736168400000000i64), Some(Arc::from(target_tz.into_boxed_str())));
+                let expected = ScalarValue::TimestampMicrosecond(
+                    Some(1736168400000000i64),
+                    Some(Arc::from(target_tz.into_boxed_str())),
+                );
                 assert_ne!(
                     result, expected,
                     "convert_timezone created wrong value for {}",
                     source_timestamp_tz_value
                 )
-            },
+            }
             _ => panic!("Conversion of {} failed", source_timestamp_tz_value),
         }
     }
