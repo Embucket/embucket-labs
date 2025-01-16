@@ -1,5 +1,5 @@
-use datafusion::prelude::{SessionConfig, SessionContext};
 use crate::datafusion::functions::register_udfs;
+use datafusion::prelude::{SessionConfig, SessionContext};
 
 static TABLE_SETUP: &str = include_str!(r"./queries/table_setup.sql");
 
@@ -8,7 +8,7 @@ pub async fn create_df_session() -> SessionContext {
     let mut config = SessionConfig::new();
     config.options_mut().catalog.information_schema = true;
     let mut ctx = SessionContext::new_with_config(config);
-    
+
     register_udfs(&mut ctx).unwrap();
 
     for query in TABLE_SETUP.split(';') {
@@ -60,4 +60,3 @@ pub mod macros {
 
     pub(crate) use test_query;
 }
-
