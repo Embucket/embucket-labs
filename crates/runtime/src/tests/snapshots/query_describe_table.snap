@@ -1,0 +1,38 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"DESCRIBE TABLE departments;\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            ExplainTable {
+                describe_alias: Describe,
+                hive_format: None,
+                has_table_keyword: true,
+                table_name: ObjectName(
+                    [
+                        Ident {
+                            value: "departments",
+                            quote_style: None,
+                            span: Span(Location(0,0)..Location(0,0)),
+                        },
+                    ],
+                ),
+            },
+        ),
+    ),
+    Err(
+        SQL(
+            ParserError(
+                "Expected end of statement, found: departments",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

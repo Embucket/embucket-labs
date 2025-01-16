@@ -1,0 +1,38 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SHOW VIEWS LIKE '%TESTING%'\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            ShowViews {
+                terse: false,
+                materialized: false,
+                show_options: ShowStatementOptions {
+                    show_in: None,
+                    starts_with: None,
+                    limit: None,
+                    limit_from: None,
+                    filter_position: Some(
+                        Infix(
+                            Like(
+                                "%TESTING%",
+                            ),
+                        ),
+                    ),
+                },
+            },
+        ),
+    ),
+    Err(
+        NotImplemented(
+            "Unsupported SQL statement: SHOW VIEWS LIKE '%TESTING%'",
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

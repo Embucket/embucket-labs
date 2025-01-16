@@ -1,0 +1,28 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SELECT * FROM testtable TABLESAMPLE (100);\""
+snapshot_kind: text
+---
+(
+    Err(
+        SQL(
+            ParserError(
+                "Expected: identifier, found: 100",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        SQL(
+            ParserError(
+                "Expected: identifier, found: 100",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

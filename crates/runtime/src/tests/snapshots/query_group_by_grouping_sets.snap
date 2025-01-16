@@ -1,0 +1,28 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SELECT COUNT(*), medical_license, radio_license\n  FROM nurses\n  GROUP BY GROUPING SETS (medical_license, radio_license);\""
+snapshot_kind: text
+---
+(
+    Err(
+        SQL(
+            ParserError(
+                "Expected end of statement, found: SETS",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        SQL(
+            ParserError(
+                "Expected: (, found: medical_license",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

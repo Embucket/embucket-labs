@@ -1,0 +1,28 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SELECT * FROM testtable TABLESAMPLE BERNOULLI (20.3);\""
+snapshot_kind: text
+---
+(
+    Err(
+        SQL(
+            ParserError(
+                "Expected end of statement, found: BERNOULLI",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        SQL(
+            ParserError(
+                "Expected end of statement, found: BERNOULLI",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

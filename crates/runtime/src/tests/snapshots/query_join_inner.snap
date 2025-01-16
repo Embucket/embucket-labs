@@ -1,0 +1,221 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SELECT t1.col1, t2.col1\n    FROM t1 INNER JOIN t2\n        ON t2.col1 = t1.col1\n    ORDER BY 1,2;\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            Query(
+                Query {
+                    with: None,
+                    body: Select(
+                        Select {
+                            select_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "SELECT",
+                                        quote_style: None,
+                                        keyword: SELECT,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            distinct: None,
+                            top: None,
+                            top_before_distinct: false,
+                            projection: [
+                                UnnamedExpr(
+                                    CompoundIdentifier(
+                                        [
+                                            Ident {
+                                                value: "t1",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                            Ident {
+                                                value: "col1",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ],
+                                    ),
+                                ),
+                                UnnamedExpr(
+                                    CompoundIdentifier(
+                                        [
+                                            Ident {
+                                                value: "t2",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                            Ident {
+                                                value: "col1",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ],
+                                    ),
+                                ),
+                            ],
+                            into: None,
+                            from: [
+                                TableWithJoins {
+                                    relation: Table {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "t1",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        alias: None,
+                                        args: None,
+                                        with_hints: [],
+                                        version: None,
+                                        with_ordinality: false,
+                                        partitions: [],
+                                        json_path: None,
+                                    },
+                                    joins: [
+                                        Join {
+                                            relation: Table {
+                                                name: ObjectName(
+                                                    [
+                                                        Ident {
+                                                            value: "t2",
+                                                            quote_style: None,
+                                                            span: Span(Location(0,0)..Location(0,0)),
+                                                        },
+                                                    ],
+                                                ),
+                                                alias: None,
+                                                args: None,
+                                                with_hints: [],
+                                                version: None,
+                                                with_ordinality: false,
+                                                partitions: [],
+                                                json_path: None,
+                                            },
+                                            global: false,
+                                            join_operator: Inner(
+                                                On(
+                                                    BinaryOp {
+                                                        left: CompoundIdentifier(
+                                                            [
+                                                                Ident {
+                                                                    value: "t2",
+                                                                    quote_style: None,
+                                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                                },
+                                                                Ident {
+                                                                    value: "col1",
+                                                                    quote_style: None,
+                                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                                },
+                                                            ],
+                                                        ),
+                                                        op: Eq,
+                                                        right: CompoundIdentifier(
+                                                            [
+                                                                Ident {
+                                                                    value: "t1",
+                                                                    quote_style: None,
+                                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                                },
+                                                                Ident {
+                                                                    value: "col1",
+                                                                    quote_style: None,
+                                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                                },
+                                                            ],
+                                                        ),
+                                                    },
+                                                ),
+                                            ),
+                                        },
+                                    ],
+                                },
+                            ],
+                            lateral_views: [],
+                            prewhere: None,
+                            selection: None,
+                            group_by: Expressions(
+                                [],
+                                [],
+                            ),
+                            cluster_by: [],
+                            distribute_by: [],
+                            sort_by: [],
+                            having: None,
+                            named_window: [],
+                            qualify: None,
+                            window_before_qualify: false,
+                            value_table_mode: None,
+                            connect_by: None,
+                        },
+                    ),
+                    order_by: Some(
+                        OrderBy {
+                            exprs: [
+                                OrderByExpr {
+                                    expr: Value(
+                                        Number(
+                                            "1",
+                                            false,
+                                        ),
+                                    ),
+                                    asc: None,
+                                    nulls_first: None,
+                                    with_fill: None,
+                                },
+                                OrderByExpr {
+                                    expr: Value(
+                                        Number(
+                                            "2",
+                                            false,
+                                        ),
+                                    ),
+                                    asc: None,
+                                    nulls_first: None,
+                                    with_fill: None,
+                                },
+                            ],
+                            interpolate: None,
+                        },
+                    ),
+                    limit: None,
+                    limit_by: [],
+                    offset: None,
+                    fetch: None,
+                    locks: [],
+                    for_clause: None,
+                    settings: None,
+                    format_clause: None,
+                },
+            ),
+        ),
+    ),
+    Ok(
+        [
+            "Sort: t1.col1 ASC NULLS LAST, t2.col1 ASC NULLS LAST",
+            "  Projection: t1.col1, t2.col1",
+            "    Inner Join:  Filter: t2.col1 = t1.col1",
+            "      TableScan: t1",
+            "      TableScan: t2",
+        ],
+    ),
+    Ok(
+        [
+            "+------+------+",
+            "| col1 | col1 |",
+            "+------+------+",
+            "| 2    | 2    |",
+            "| 2    | 2    |",
+            "| 3    | 3    |",
+            "+------+------+",
+        ],
+    ),
+)

@@ -1,0 +1,402 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"WITH\n  src AS\n  (\n    SELECT *\n      FROM quarterly_sales\n        PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter))\n  )\nSELECT em.managerid, src.*\n  FROM emp_manager em\n  JOIN src ON em.empid = src.empid\n  ORDER BY empid;\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            Query(
+                Query {
+                    with: Some(
+                        With {
+                            with_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "WITH",
+                                        quote_style: None,
+                                        keyword: WITH,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            recursive: false,
+                            cte_tables: [
+                                Cte {
+                                    alias: TableAlias {
+                                        name: Ident {
+                                            value: "src",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                        columns: [],
+                                    },
+                                    query: Query {
+                                        with: None,
+                                        body: Select(
+                                            Select {
+                                                select_token: TokenWithSpan {
+                                                    token: Word(
+                                                        Word {
+                                                            value: "SELECT",
+                                                            quote_style: None,
+                                                            keyword: SELECT,
+                                                        },
+                                                    ),
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                                distinct: None,
+                                                top: None,
+                                                top_before_distinct: false,
+                                                projection: [
+                                                    Wildcard(
+                                                        WildcardAdditionalOptions {
+                                                            wildcard_token: TokenWithSpan {
+                                                                token: Mul,
+                                                                span: Span(Location(0,0)..Location(0,0)),
+                                                            },
+                                                            opt_ilike: None,
+                                                            opt_exclude: None,
+                                                            opt_except: None,
+                                                            opt_replace: None,
+                                                            opt_rename: None,
+                                                        },
+                                                    ),
+                                                ],
+                                                into: None,
+                                                from: [
+                                                    TableWithJoins {
+                                                        relation: Pivot {
+                                                            table: Table {
+                                                                name: ObjectName(
+                                                                    [
+                                                                        Ident {
+                                                                            value: "quarterly_sales",
+                                                                            quote_style: None,
+                                                                            span: Span(Location(0,0)..Location(0,0)),
+                                                                        },
+                                                                    ],
+                                                                ),
+                                                                alias: None,
+                                                                args: None,
+                                                                with_hints: [],
+                                                                version: None,
+                                                                with_ordinality: false,
+                                                                partitions: [],
+                                                                json_path: None,
+                                                            },
+                                                            aggregate_functions: [
+                                                                ExprWithAlias {
+                                                                    expr: Function(
+                                                                        Function {
+                                                                            name: ObjectName(
+                                                                                [
+                                                                                    Ident {
+                                                                                        value: "SUM",
+                                                                                        quote_style: None,
+                                                                                        span: Span(Location(0,0)..Location(0,0)),
+                                                                                    },
+                                                                                ],
+                                                                            ),
+                                                                            uses_odbc_syntax: false,
+                                                                            parameters: None,
+                                                                            args: List(
+                                                                                FunctionArgumentList {
+                                                                                    duplicate_treatment: None,
+                                                                                    args: [
+                                                                                        Unnamed(
+                                                                                            Expr(
+                                                                                                Identifier(
+                                                                                                    Ident {
+                                                                                                        value: "amount",
+                                                                                                        quote_style: None,
+                                                                                                        span: Span(Location(0,0)..Location(0,0)),
+                                                                                                    },
+                                                                                                ),
+                                                                                            ),
+                                                                                        ),
+                                                                                    ],
+                                                                                    clauses: [],
+                                                                                },
+                                                                            ),
+                                                                            filter: None,
+                                                                            null_treatment: None,
+                                                                            over: None,
+                                                                            within_group: [],
+                                                                        },
+                                                                    ),
+                                                                    alias: None,
+                                                                },
+                                                            ],
+                                                            value_column: [
+                                                                Ident {
+                                                                    value: "quarter",
+                                                                    quote_style: None,
+                                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                                },
+                                                            ],
+                                                            value_source: Any(
+                                                                [
+                                                                    OrderByExpr {
+                                                                        expr: Identifier(
+                                                                            Ident {
+                                                                                value: "quarter",
+                                                                                quote_style: None,
+                                                                                span: Span(Location(0,0)..Location(0,0)),
+                                                                            },
+                                                                        ),
+                                                                        asc: None,
+                                                                        nulls_first: None,
+                                                                        with_fill: None,
+                                                                    },
+                                                                ],
+                                                            ),
+                                                            default_on_null: None,
+                                                            alias: None,
+                                                        },
+                                                        joins: [],
+                                                    },
+                                                ],
+                                                lateral_views: [],
+                                                prewhere: None,
+                                                selection: None,
+                                                group_by: Expressions(
+                                                    [],
+                                                    [],
+                                                ),
+                                                cluster_by: [],
+                                                distribute_by: [],
+                                                sort_by: [],
+                                                having: None,
+                                                named_window: [],
+                                                qualify: None,
+                                                window_before_qualify: false,
+                                                value_table_mode: None,
+                                                connect_by: None,
+                                            },
+                                        ),
+                                        order_by: None,
+                                        limit: None,
+                                        limit_by: [],
+                                        offset: None,
+                                        fetch: None,
+                                        locks: [],
+                                        for_clause: None,
+                                        settings: None,
+                                        format_clause: None,
+                                    },
+                                    from: None,
+                                    materialized: None,
+                                    closing_paren_token: TokenWithSpan {
+                                        token: RParen,
+                                        span: Span(Location(0,0)..Location(0,0)),
+                                    },
+                                },
+                            ],
+                        },
+                    ),
+                    body: Select(
+                        Select {
+                            select_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "SELECT",
+                                        quote_style: None,
+                                        keyword: SELECT,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            distinct: None,
+                            top: None,
+                            top_before_distinct: false,
+                            projection: [
+                                UnnamedExpr(
+                                    CompoundIdentifier(
+                                        [
+                                            Ident {
+                                                value: "em",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                            Ident {
+                                                value: "managerid",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ],
+                                    ),
+                                ),
+                                QualifiedWildcard(
+                                    ObjectName(
+                                        [
+                                            Ident {
+                                                value: "src",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ],
+                                    ),
+                                    WildcardAdditionalOptions {
+                                        wildcard_token: TokenWithSpan {
+                                            token: Mul,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                        opt_ilike: None,
+                                        opt_exclude: None,
+                                        opt_except: None,
+                                        opt_replace: None,
+                                        opt_rename: None,
+                                    },
+                                ),
+                            ],
+                            into: None,
+                            from: [
+                                TableWithJoins {
+                                    relation: Table {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "emp_manager",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        alias: Some(
+                                            TableAlias {
+                                                name: Ident {
+                                                    value: "em",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                                columns: [],
+                                            },
+                                        ),
+                                        args: None,
+                                        with_hints: [],
+                                        version: None,
+                                        with_ordinality: false,
+                                        partitions: [],
+                                        json_path: None,
+                                    },
+                                    joins: [
+                                        Join {
+                                            relation: Table {
+                                                name: ObjectName(
+                                                    [
+                                                        Ident {
+                                                            value: "src",
+                                                            quote_style: None,
+                                                            span: Span(Location(0,0)..Location(0,0)),
+                                                        },
+                                                    ],
+                                                ),
+                                                alias: None,
+                                                args: None,
+                                                with_hints: [],
+                                                version: None,
+                                                with_ordinality: false,
+                                                partitions: [],
+                                                json_path: None,
+                                            },
+                                            global: false,
+                                            join_operator: Inner(
+                                                On(
+                                                    BinaryOp {
+                                                        left: CompoundIdentifier(
+                                                            [
+                                                                Ident {
+                                                                    value: "em",
+                                                                    quote_style: None,
+                                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                                },
+                                                                Ident {
+                                                                    value: "empid",
+                                                                    quote_style: None,
+                                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                                },
+                                                            ],
+                                                        ),
+                                                        op: Eq,
+                                                        right: CompoundIdentifier(
+                                                            [
+                                                                Ident {
+                                                                    value: "src",
+                                                                    quote_style: None,
+                                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                                },
+                                                                Ident {
+                                                                    value: "empid",
+                                                                    quote_style: None,
+                                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                                },
+                                                            ],
+                                                        ),
+                                                    },
+                                                ),
+                                            ),
+                                        },
+                                    ],
+                                },
+                            ],
+                            lateral_views: [],
+                            prewhere: None,
+                            selection: None,
+                            group_by: Expressions(
+                                [],
+                                [],
+                            ),
+                            cluster_by: [],
+                            distribute_by: [],
+                            sort_by: [],
+                            having: None,
+                            named_window: [],
+                            qualify: None,
+                            window_before_qualify: false,
+                            value_table_mode: None,
+                            connect_by: None,
+                        },
+                    ),
+                    order_by: Some(
+                        OrderBy {
+                            exprs: [
+                                OrderByExpr {
+                                    expr: Identifier(
+                                        Ident {
+                                            value: "empid",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                    ),
+                                    asc: None,
+                                    nulls_first: None,
+                                    with_fill: None,
+                                },
+                            ],
+                            interpolate: None,
+                        },
+                    ),
+                    limit: None,
+                    limit_by: [],
+                    offset: None,
+                    fetch: None,
+                    locks: [],
+                    for_clause: None,
+                    settings: None,
+                    format_clause: None,
+                },
+            ),
+        ),
+    ),
+    Err(
+        NotImplemented(
+            "Unsupported ast node Pivot { table: Table { name: ObjectName([Ident { value: \"quarterly_sales\", quote_style: None, span: Span(Location(0,0)..Location(0,0)) }]), alias: None, args: None, with_hints: [], version: None, with_ordinality: false, partitions: [], json_path: None }, aggregate_functions: [ExprWithAlias { expr: Function(Function { name: ObjectName([Ident { value: \"SUM\", quote_style: None, span: Span(Location(0,0)..Location(0,0)) }]), uses_odbc_syntax: false, parameters: None, args: List(FunctionArgumentList { duplicate_treatment: None, args: [Unnamed(Expr(Identifier(Ident { value: \"amount\", quote_style: None, span: Span(Location(0,0)..Location(0,0)) })))], clauses: [] }), filter: None, null_treatment: None, over: None, within_group: [] }), alias: None }], value_column: [Ident { value: \"quarter\", quote_style: None, span: Span(Location(0,0)..Location(0,0)) }], value_source: Any([OrderByExpr { expr: Identifier(Ident { value: \"quarter\", quote_style: None, span: Span(Location(0,0)..Location(0,0)) }), asc: None, nulls_first: None, with_fill: None }]), default_on_null: None, alias: None } in create_relation",
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

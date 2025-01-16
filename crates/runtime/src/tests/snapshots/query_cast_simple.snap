@@ -1,0 +1,127 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SELECT col1::NUMBER(6,5) AS varchar_to_number2\n  FROM t1;\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            Query(
+                Query {
+                    with: None,
+                    body: Select(
+                        Select {
+                            select_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "SELECT",
+                                        quote_style: None,
+                                        keyword: SELECT,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            distinct: None,
+                            top: None,
+                            top_before_distinct: false,
+                            projection: [
+                                ExprWithAlias {
+                                    expr: Cast {
+                                        kind: DoubleColon,
+                                        expr: Identifier(
+                                            Ident {
+                                                value: "col1",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ),
+                                        data_type: Custom(
+                                            ObjectName(
+                                                [
+                                                    Ident {
+                                                        value: "NUMBER",
+                                                        quote_style: None,
+                                                        span: Span(Location(0,0)..Location(0,0)),
+                                                    },
+                                                ],
+                                            ),
+                                            [
+                                                "6",
+                                                "5",
+                                            ],
+                                        ),
+                                        format: None,
+                                    },
+                                    alias: Ident {
+                                        value: "varchar_to_number2",
+                                        quote_style: None,
+                                        span: Span(Location(0,0)..Location(0,0)),
+                                    },
+                                },
+                            ],
+                            into: None,
+                            from: [
+                                TableWithJoins {
+                                    relation: Table {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "t1",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        alias: None,
+                                        args: None,
+                                        with_hints: [],
+                                        version: None,
+                                        with_ordinality: false,
+                                        partitions: [],
+                                        json_path: None,
+                                    },
+                                    joins: [],
+                                },
+                            ],
+                            lateral_views: [],
+                            prewhere: None,
+                            selection: None,
+                            group_by: Expressions(
+                                [],
+                                [],
+                            ),
+                            cluster_by: [],
+                            distribute_by: [],
+                            sort_by: [],
+                            having: None,
+                            named_window: [],
+                            qualify: None,
+                            window_before_qualify: false,
+                            value_table_mode: None,
+                            connect_by: None,
+                        },
+                    ),
+                    order_by: None,
+                    limit: None,
+                    limit_by: [],
+                    offset: None,
+                    fetch: None,
+                    locks: [],
+                    for_clause: None,
+                    settings: None,
+                    format_clause: None,
+                },
+            ),
+        ),
+    ),
+    Err(
+        NotImplemented(
+            "Unsupported SQL type Custom(ObjectName([Ident { value: \"NUMBER\", quote_style: None, span: Span(Location(0,0)..Location(0,0)) }]), [\"6\", \"5\"])",
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

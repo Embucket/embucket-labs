@@ -1,0 +1,345 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SELECT d.department_name, p.project_name, e.employee_name\n    FROM  departments d, projects p, employees e\n    WHERE\n            p.department_id = d.department_id\n        AND\n            e.project_id(+) = p.project_id\n    ORDER BY d.department_id, p.project_id, e.employee_id;\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            Query(
+                Query {
+                    with: None,
+                    body: Select(
+                        Select {
+                            select_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "SELECT",
+                                        quote_style: None,
+                                        keyword: SELECT,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            distinct: None,
+                            top: None,
+                            top_before_distinct: false,
+                            projection: [
+                                UnnamedExpr(
+                                    CompoundIdentifier(
+                                        [
+                                            Ident {
+                                                value: "d",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                            Ident {
+                                                value: "department_name",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ],
+                                    ),
+                                ),
+                                UnnamedExpr(
+                                    CompoundIdentifier(
+                                        [
+                                            Ident {
+                                                value: "p",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                            Ident {
+                                                value: "project_name",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ],
+                                    ),
+                                ),
+                                UnnamedExpr(
+                                    CompoundIdentifier(
+                                        [
+                                            Ident {
+                                                value: "e",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                            Ident {
+                                                value: "employee_name",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ],
+                                    ),
+                                ),
+                            ],
+                            into: None,
+                            from: [
+                                TableWithJoins {
+                                    relation: Table {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "departments",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        alias: Some(
+                                            TableAlias {
+                                                name: Ident {
+                                                    value: "d",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                                columns: [],
+                                            },
+                                        ),
+                                        args: None,
+                                        with_hints: [],
+                                        version: None,
+                                        with_ordinality: false,
+                                        partitions: [],
+                                        json_path: None,
+                                    },
+                                    joins: [],
+                                },
+                                TableWithJoins {
+                                    relation: Table {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "projects",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        alias: Some(
+                                            TableAlias {
+                                                name: Ident {
+                                                    value: "p",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                                columns: [],
+                                            },
+                                        ),
+                                        args: None,
+                                        with_hints: [],
+                                        version: None,
+                                        with_ordinality: false,
+                                        partitions: [],
+                                        json_path: None,
+                                    },
+                                    joins: [],
+                                },
+                                TableWithJoins {
+                                    relation: Table {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "employees",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        alias: Some(
+                                            TableAlias {
+                                                name: Ident {
+                                                    value: "e",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                                columns: [],
+                                            },
+                                        ),
+                                        args: None,
+                                        with_hints: [],
+                                        version: None,
+                                        with_ordinality: false,
+                                        partitions: [],
+                                        json_path: None,
+                                    },
+                                    joins: [],
+                                },
+                            ],
+                            lateral_views: [],
+                            prewhere: None,
+                            selection: Some(
+                                BinaryOp {
+                                    left: BinaryOp {
+                                        left: CompoundIdentifier(
+                                            [
+                                                Ident {
+                                                    value: "p",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                                Ident {
+                                                    value: "department_id",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        op: Eq,
+                                        right: CompoundIdentifier(
+                                            [
+                                                Ident {
+                                                    value: "d",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                                Ident {
+                                                    value: "department_id",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                    },
+                                    op: And,
+                                    right: BinaryOp {
+                                        left: OuterJoin(
+                                            CompoundIdentifier(
+                                                [
+                                                    Ident {
+                                                        value: "e",
+                                                        quote_style: None,
+                                                        span: Span(Location(0,0)..Location(0,0)),
+                                                    },
+                                                    Ident {
+                                                        value: "project_id",
+                                                        quote_style: None,
+                                                        span: Span(Location(0,0)..Location(0,0)),
+                                                    },
+                                                ],
+                                            ),
+                                        ),
+                                        op: Eq,
+                                        right: CompoundIdentifier(
+                                            [
+                                                Ident {
+                                                    value: "p",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                                Ident {
+                                                    value: "project_id",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                    },
+                                },
+                            ),
+                            group_by: Expressions(
+                                [],
+                                [],
+                            ),
+                            cluster_by: [],
+                            distribute_by: [],
+                            sort_by: [],
+                            having: None,
+                            named_window: [],
+                            qualify: None,
+                            window_before_qualify: false,
+                            value_table_mode: None,
+                            connect_by: None,
+                        },
+                    ),
+                    order_by: Some(
+                        OrderBy {
+                            exprs: [
+                                OrderByExpr {
+                                    expr: CompoundIdentifier(
+                                        [
+                                            Ident {
+                                                value: "d",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                            Ident {
+                                                value: "department_id",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ],
+                                    ),
+                                    asc: None,
+                                    nulls_first: None,
+                                    with_fill: None,
+                                },
+                                OrderByExpr {
+                                    expr: CompoundIdentifier(
+                                        [
+                                            Ident {
+                                                value: "p",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                            Ident {
+                                                value: "project_id",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ],
+                                    ),
+                                    asc: None,
+                                    nulls_first: None,
+                                    with_fill: None,
+                                },
+                                OrderByExpr {
+                                    expr: CompoundIdentifier(
+                                        [
+                                            Ident {
+                                                value: "e",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                            Ident {
+                                                value: "employee_id",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ],
+                                    ),
+                                    asc: None,
+                                    nulls_first: None,
+                                    with_fill: None,
+                                },
+                            ],
+                            interpolate: None,
+                        },
+                    ),
+                    limit: None,
+                    limit_by: [],
+                    offset: None,
+                    fetch: None,
+                    locks: [],
+                    for_clause: None,
+                    settings: None,
+                    format_clause: None,
+                },
+            ),
+        ),
+    ),
+    Err(
+        SQL(
+            ParserError(
+                "Expected: an expression, found: )",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

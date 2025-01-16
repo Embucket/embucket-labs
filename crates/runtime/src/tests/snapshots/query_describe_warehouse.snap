@@ -1,0 +1,28 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"DESCRIBE WAREHOUSE temporary_warehouse;\""
+snapshot_kind: text
+---
+(
+    Err(
+        SQL(
+            ParserError(
+                "Expected end of statement, found: temporary_warehouse",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        SQL(
+            ParserError(
+                "Expected end of statement, found: temporary_warehouse",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

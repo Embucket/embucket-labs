@@ -1,0 +1,196 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SELECT product_id, retail_price, quantity, city\n    FROM sales\n    QUALIFY ROW_NUMBER() OVER (PARTITION BY city ORDER BY retail_price) = 1\n    ;\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            Query(
+                Query {
+                    with: None,
+                    body: Select(
+                        Select {
+                            select_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "SELECT",
+                                        quote_style: None,
+                                        keyword: SELECT,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            distinct: None,
+                            top: None,
+                            top_before_distinct: false,
+                            projection: [
+                                UnnamedExpr(
+                                    Identifier(
+                                        Ident {
+                                            value: "product_id",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                    ),
+                                ),
+                                UnnamedExpr(
+                                    Identifier(
+                                        Ident {
+                                            value: "retail_price",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                    ),
+                                ),
+                                UnnamedExpr(
+                                    Identifier(
+                                        Ident {
+                                            value: "quantity",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                    ),
+                                ),
+                                UnnamedExpr(
+                                    Identifier(
+                                        Ident {
+                                            value: "city",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                    ),
+                                ),
+                            ],
+                            into: None,
+                            from: [
+                                TableWithJoins {
+                                    relation: Table {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "sales",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        alias: None,
+                                        args: None,
+                                        with_hints: [],
+                                        version: None,
+                                        with_ordinality: false,
+                                        partitions: [],
+                                        json_path: None,
+                                    },
+                                    joins: [],
+                                },
+                            ],
+                            lateral_views: [],
+                            prewhere: None,
+                            selection: None,
+                            group_by: Expressions(
+                                [],
+                                [],
+                            ),
+                            cluster_by: [],
+                            distribute_by: [],
+                            sort_by: [],
+                            having: None,
+                            named_window: [],
+                            qualify: Some(
+                                BinaryOp {
+                                    left: Function(
+                                        Function {
+                                            name: ObjectName(
+                                                [
+                                                    Ident {
+                                                        value: "ROW_NUMBER",
+                                                        quote_style: None,
+                                                        span: Span(Location(0,0)..Location(0,0)),
+                                                    },
+                                                ],
+                                            ),
+                                            uses_odbc_syntax: false,
+                                            parameters: None,
+                                            args: List(
+                                                FunctionArgumentList {
+                                                    duplicate_treatment: None,
+                                                    args: [],
+                                                    clauses: [],
+                                                },
+                                            ),
+                                            filter: None,
+                                            null_treatment: None,
+                                            over: Some(
+                                                WindowSpec(
+                                                    WindowSpec {
+                                                        window_name: None,
+                                                        partition_by: [
+                                                            Identifier(
+                                                                Ident {
+                                                                    value: "city",
+                                                                    quote_style: None,
+                                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                                },
+                                                            ),
+                                                        ],
+                                                        order_by: [
+                                                            OrderByExpr {
+                                                                expr: Identifier(
+                                                                    Ident {
+                                                                        value: "retail_price",
+                                                                        quote_style: None,
+                                                                        span: Span(Location(0,0)..Location(0,0)),
+                                                                    },
+                                                                ),
+                                                                asc: None,
+                                                                nulls_first: None,
+                                                                with_fill: None,
+                                                            },
+                                                        ],
+                                                        window_frame: None,
+                                                    },
+                                                ),
+                                            ),
+                                            within_group: [],
+                                        },
+                                    ),
+                                    op: Eq,
+                                    right: Value(
+                                        Number(
+                                            "1",
+                                            false,
+                                        ),
+                                    ),
+                                },
+                            ),
+                            window_before_qualify: false,
+                            value_table_mode: None,
+                            connect_by: None,
+                        },
+                    ),
+                    order_by: None,
+                    limit: None,
+                    limit_by: [],
+                    offset: None,
+                    fetch: None,
+                    locks: [],
+                    for_clause: None,
+                    settings: None,
+                    format_clause: None,
+                },
+            ),
+        ),
+    ),
+    Err(
+        NotImplemented(
+            "QUALIFY",
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

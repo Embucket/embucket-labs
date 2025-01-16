@@ -1,0 +1,32 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SHOW VIEWS\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            ShowViews {
+                terse: false,
+                materialized: false,
+                show_options: ShowStatementOptions {
+                    show_in: None,
+                    starts_with: None,
+                    limit: None,
+                    limit_from: None,
+                    filter_position: None,
+                },
+            },
+        ),
+    ),
+    Err(
+        NotImplemented(
+            "Unsupported SQL statement: SHOW VIEWS",
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

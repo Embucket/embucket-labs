@@ -37,4 +37,4 @@ snafu = { workspace = true }
 workspace = true
 
 [dev-dependencies]
-insta = "1.42.0"
+insta = { version="1.42.0", features=["yaml"] }

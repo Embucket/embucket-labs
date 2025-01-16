@@ -1,0 +1,28 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SELECT ARRAY_CONTAINS(10, [1, 10, 100]::ARRAY(NUMBER));\""
+snapshot_kind: text
+---
+(
+    Err(
+        SQL(
+            ParserError(
+                "Expected: ), found: (",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        SQL(
+            ParserError(
+                "Expected: <, found: (",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

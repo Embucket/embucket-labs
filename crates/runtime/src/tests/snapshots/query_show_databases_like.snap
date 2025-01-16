@@ -1,0 +1,38 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SHOW DATABASES LIKE '%TESTING%'\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            ShowDatabases {
+                terse: false,
+                history: false,
+                show_options: ShowStatementOptions {
+                    show_in: None,
+                    starts_with: None,
+                    limit: None,
+                    limit_from: None,
+                    filter_position: Some(
+                        Infix(
+                            Like(
+                                "%TESTING%",
+                            ),
+                        ),
+                    ),
+                },
+            },
+        ),
+    ),
+    Err(
+        NotImplemented(
+            "Unsupported SQL statement: SHOW DATABASES LIKE '%TESTING%'",
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

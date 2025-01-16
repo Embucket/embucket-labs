@@ -1,0 +1,28 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"CREATE ICEBERG TABLE my_delta_iceberg_table\n  CATALOG = delta_catalog_integration\n  EXTERNAL_VOLUME = delta_external_volume\n  BASE_LOCATION = 'relative/path/from/ext/vol/';\""
+snapshot_kind: text
+---
+(
+    Err(
+        SQL(
+            ParserError(
+                "Expected: an object type after CREATE, found: ICEBERG",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        SQL(
+            ParserError(
+                "Expected: an object type after CREATE, found: ICEBERG",
+            ),
+            None,
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

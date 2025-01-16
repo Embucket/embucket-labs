@@ -1,0 +1,128 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"select retail_price from sales limit 3 offset 3;\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            Query(
+                Query {
+                    with: None,
+                    body: Select(
+                        Select {
+                            select_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "select",
+                                        quote_style: None,
+                                        keyword: SELECT,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            distinct: None,
+                            top: None,
+                            top_before_distinct: false,
+                            projection: [
+                                UnnamedExpr(
+                                    Identifier(
+                                        Ident {
+                                            value: "retail_price",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                    ),
+                                ),
+                            ],
+                            into: None,
+                            from: [
+                                TableWithJoins {
+                                    relation: Table {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "sales",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        alias: None,
+                                        args: None,
+                                        with_hints: [],
+                                        version: None,
+                                        with_ordinality: false,
+                                        partitions: [],
+                                        json_path: None,
+                                    },
+                                    joins: [],
+                                },
+                            ],
+                            lateral_views: [],
+                            prewhere: None,
+                            selection: None,
+                            group_by: Expressions(
+                                [],
+                                [],
+                            ),
+                            cluster_by: [],
+                            distribute_by: [],
+                            sort_by: [],
+                            having: None,
+                            named_window: [],
+                            qualify: None,
+                            window_before_qualify: false,
+                            value_table_mode: None,
+                            connect_by: None,
+                        },
+                    ),
+                    order_by: None,
+                    limit: Some(
+                        Value(
+                            Number(
+                                "3",
+                                false,
+                            ),
+                        ),
+                    ),
+                    limit_by: [],
+                    offset: Some(
+                        Offset {
+                            value: Value(
+                                Number(
+                                    "3",
+                                    false,
+                                ),
+                            ),
+                            rows: None,
+                        },
+                    ),
+                    fetch: None,
+                    locks: [],
+                    for_clause: None,
+                    settings: None,
+                    format_clause: None,
+                },
+            ),
+        ),
+    ),
+    Ok(
+        [
+            "Limit: skip=3, fetch=3",
+            "  Projection: sales.retail_price",
+            "    TableScan: sales",
+        ],
+    ),
+    Ok(
+        [
+            "+--------------+",
+            "| retail_price |",
+            "+--------------+",
+            "| 5.0          |",
+            "| 5.0          |",
+            "| 5.0          |",
+            "+--------------+",
+        ],
+    ),
+)

@@ -1,0 +1,133 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"MERGE INTO target_table USING source_table \n    ON target_table.id = source_table.id\n    WHEN MATCHED THEN \n        UPDATE SET target_table.description = source_table.description;\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            Merge {
+                into: true,
+                table: Table {
+                    name: ObjectName(
+                        [
+                            Ident {
+                                value: "target_table",
+                                quote_style: None,
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                        ],
+                    ),
+                    alias: None,
+                    args: None,
+                    with_hints: [],
+                    version: None,
+                    with_ordinality: false,
+                    partitions: [],
+                    json_path: None,
+                },
+                source: Table {
+                    name: ObjectName(
+                        [
+                            Ident {
+                                value: "source_table",
+                                quote_style: None,
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                        ],
+                    ),
+                    alias: None,
+                    args: None,
+                    with_hints: [],
+                    version: None,
+                    with_ordinality: false,
+                    partitions: [],
+                    json_path: None,
+                },
+                on: BinaryOp {
+                    left: CompoundIdentifier(
+                        [
+                            Ident {
+                                value: "target_table",
+                                quote_style: None,
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            Ident {
+                                value: "id",
+                                quote_style: None,
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                        ],
+                    ),
+                    op: Eq,
+                    right: CompoundIdentifier(
+                        [
+                            Ident {
+                                value: "source_table",
+                                quote_style: None,
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            Ident {
+                                value: "id",
+                                quote_style: None,
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                        ],
+                    ),
+                },
+                clauses: [
+                    MergeClause {
+                        clause_kind: Matched,
+                        predicate: None,
+                        action: Update {
+                            assignments: [
+                                Assignment {
+                                    target: ColumnName(
+                                        ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "target_table",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                                Ident {
+                                                    value: "description",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                    ),
+                                    value: CompoundIdentifier(
+                                        [
+                                            Ident {
+                                                value: "source_table",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                            Ident {
+                                                value: "description",
+                                                quote_style: None,
+                                                span: Span(Location(0,0)..Location(0,0)),
+                                            },
+                                        ],
+                                    ),
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        ),
+    ),
+    Err(
+        NotImplemented(
+            "Unsupported SQL statement: MERGE INTO target_table USING source_table ON target_table.id = source_table.id WHEN MATCHED THEN UPDATE SET target_table.description = source_table.description",
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

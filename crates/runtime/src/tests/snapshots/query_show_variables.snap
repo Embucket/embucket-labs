@@ -1,0 +1,24 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SHOW VARIABLES\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            ShowVariable {
+                variable: [],
+            },
+        ),
+    ),
+    Err(
+        NotImplemented(
+            "Unsupported SQL statement: SHOW VARIABLES",
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)

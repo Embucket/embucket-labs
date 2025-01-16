@@ -1,0 +1,321 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"WITH\n    l AS (\n         SELECT 'a' AS userid\n         ),\n    r AS (\n         SELECT 'b' AS userid\n         )\n  SELECT *\n    FROM l LEFT JOIN r USING(userid)\n;\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            Query(
+                Query {
+                    with: Some(
+                        With {
+                            with_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "WITH",
+                                        quote_style: None,
+                                        keyword: WITH,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            recursive: false,
+                            cte_tables: [
+                                Cte {
+                                    alias: TableAlias {
+                                        name: Ident {
+                                            value: "l",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                        columns: [],
+                                    },
+                                    query: Query {
+                                        with: None,
+                                        body: Select(
+                                            Select {
+                                                select_token: TokenWithSpan {
+                                                    token: Word(
+                                                        Word {
+                                                            value: "SELECT",
+                                                            quote_style: None,
+                                                            keyword: SELECT,
+                                                        },
+                                                    ),
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                                distinct: None,
+                                                top: None,
+                                                top_before_distinct: false,
+                                                projection: [
+                                                    ExprWithAlias {
+                                                        expr: Value(
+                                                            SingleQuotedString(
+                                                                "a",
+                                                            ),
+                                                        ),
+                                                        alias: Ident {
+                                                            value: "userid",
+                                                            quote_style: None,
+                                                            span: Span(Location(0,0)..Location(0,0)),
+                                                        },
+                                                    },
+                                                ],
+                                                into: None,
+                                                from: [],
+                                                lateral_views: [],
+                                                prewhere: None,
+                                                selection: None,
+                                                group_by: Expressions(
+                                                    [],
+                                                    [],
+                                                ),
+                                                cluster_by: [],
+                                                distribute_by: [],
+                                                sort_by: [],
+                                                having: None,
+                                                named_window: [],
+                                                qualify: None,
+                                                window_before_qualify: false,
+                                                value_table_mode: None,
+                                                connect_by: None,
+                                            },
+                                        ),
+                                        order_by: None,
+                                        limit: None,
+                                        limit_by: [],
+                                        offset: None,
+                                        fetch: None,
+                                        locks: [],
+                                        for_clause: None,
+                                        settings: None,
+                                        format_clause: None,
+                                    },
+                                    from: None,
+                                    materialized: None,
+                                    closing_paren_token: TokenWithSpan {
+                                        token: RParen,
+                                        span: Span(Location(0,0)..Location(0,0)),
+                                    },
+                                },
+                                Cte {
+                                    alias: TableAlias {
+                                        name: Ident {
+                                            value: "r",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                        columns: [],
+                                    },
+                                    query: Query {
+                                        with: None,
+                                        body: Select(
+                                            Select {
+                                                select_token: TokenWithSpan {
+                                                    token: Word(
+                                                        Word {
+                                                            value: "SELECT",
+                                                            quote_style: None,
+                                                            keyword: SELECT,
+                                                        },
+                                                    ),
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                                distinct: None,
+                                                top: None,
+                                                top_before_distinct: false,
+                                                projection: [
+                                                    ExprWithAlias {
+                                                        expr: Value(
+                                                            SingleQuotedString(
+                                                                "b",
+                                                            ),
+                                                        ),
+                                                        alias: Ident {
+                                                            value: "userid",
+                                                            quote_style: None,
+                                                            span: Span(Location(0,0)..Location(0,0)),
+                                                        },
+                                                    },
+                                                ],
+                                                into: None,
+                                                from: [],
+                                                lateral_views: [],
+                                                prewhere: None,
+                                                selection: None,
+                                                group_by: Expressions(
+                                                    [],
+                                                    [],
+                                                ),
+                                                cluster_by: [],
+                                                distribute_by: [],
+                                                sort_by: [],
+                                                having: None,
+                                                named_window: [],
+                                                qualify: None,
+                                                window_before_qualify: false,
+                                                value_table_mode: None,
+                                                connect_by: None,
+                                            },
+                                        ),
+                                        order_by: None,
+                                        limit: None,
+                                        limit_by: [],
+                                        offset: None,
+                                        fetch: None,
+                                        locks: [],
+                                        for_clause: None,
+                                        settings: None,
+                                        format_clause: None,
+                                    },
+                                    from: None,
+                                    materialized: None,
+                                    closing_paren_token: TokenWithSpan {
+                                        token: RParen,
+                                        span: Span(Location(0,0)..Location(0,0)),
+                                    },
+                                },
+                            ],
+                        },
+                    ),
+                    body: Select(
+                        Select {
+                            select_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "SELECT",
+                                        quote_style: None,
+                                        keyword: SELECT,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            distinct: None,
+                            top: None,
+                            top_before_distinct: false,
+                            projection: [
+                                Wildcard(
+                                    WildcardAdditionalOptions {
+                                        wildcard_token: TokenWithSpan {
+                                            token: Mul,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                        opt_ilike: None,
+                                        opt_exclude: None,
+                                        opt_except: None,
+                                        opt_replace: None,
+                                        opt_rename: None,
+                                    },
+                                ),
+                            ],
+                            into: None,
+                            from: [
+                                TableWithJoins {
+                                    relation: Table {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "l",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        alias: None,
+                                        args: None,
+                                        with_hints: [],
+                                        version: None,
+                                        with_ordinality: false,
+                                        partitions: [],
+                                        json_path: None,
+                                    },
+                                    joins: [
+                                        Join {
+                                            relation: Table {
+                                                name: ObjectName(
+                                                    [
+                                                        Ident {
+                                                            value: "r",
+                                                            quote_style: None,
+                                                            span: Span(Location(0,0)..Location(0,0)),
+                                                        },
+                                                    ],
+                                                ),
+                                                alias: None,
+                                                args: None,
+                                                with_hints: [],
+                                                version: None,
+                                                with_ordinality: false,
+                                                partitions: [],
+                                                json_path: None,
+                                            },
+                                            global: false,
+                                            join_operator: LeftOuter(
+                                                Using(
+                                                    [
+                                                        Ident {
+                                                            value: "userid",
+                                                            quote_style: None,
+                                                            span: Span(Location(0,0)..Location(0,0)),
+                                                        },
+                                                    ],
+                                                ),
+                                            ),
+                                        },
+                                    ],
+                                },
+                            ],
+                            lateral_views: [],
+                            prewhere: None,
+                            selection: None,
+                            group_by: Expressions(
+                                [],
+                                [],
+                            ),
+                            cluster_by: [],
+                            distribute_by: [],
+                            sort_by: [],
+                            having: None,
+                            named_window: [],
+                            qualify: None,
+                            window_before_qualify: false,
+                            value_table_mode: None,
+                            connect_by: None,
+                        },
+                    ),
+                    order_by: None,
+                    limit: None,
+                    limit_by: [],
+                    offset: None,
+                    fetch: None,
+                    locks: [],
+                    for_clause: None,
+                    settings: None,
+                    format_clause: None,
+                },
+            ),
+        ),
+    ),
+    Ok(
+        [
+            "Projection: *",
+            "  Left Join: Using l.userid = r.userid",
+            "    SubqueryAlias: l",
+            "      Projection: Utf8(\"a\") AS userid",
+            "        EmptyRelation",
+            "    SubqueryAlias: r",
+            "      Projection: Utf8(\"b\") AS userid",
+            "        EmptyRelation",
+        ],
+    ),
+    Ok(
+        [
+            "+--------+",
+            "| userid |",
+            "+--------+",
+            "| a      |",
+            "+--------+",
+        ],
+    ),
+)

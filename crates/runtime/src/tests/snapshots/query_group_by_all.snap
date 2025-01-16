@@ -1,0 +1,176 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SELECT state, city, SUM(retail_price * quantity) AS gross_revenue\n  FROM sales\n  GROUP BY ALL;\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            Query(
+                Query {
+                    with: None,
+                    body: Select(
+                        Select {
+                            select_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "SELECT",
+                                        quote_style: None,
+                                        keyword: SELECT,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            distinct: None,
+                            top: None,
+                            top_before_distinct: false,
+                            projection: [
+                                UnnamedExpr(
+                                    Identifier(
+                                        Ident {
+                                            value: "state",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                    ),
+                                ),
+                                UnnamedExpr(
+                                    Identifier(
+                                        Ident {
+                                            value: "city",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                    ),
+                                ),
+                                ExprWithAlias {
+                                    expr: Function(
+                                        Function {
+                                            name: ObjectName(
+                                                [
+                                                    Ident {
+                                                        value: "SUM",
+                                                        quote_style: None,
+                                                        span: Span(Location(0,0)..Location(0,0)),
+                                                    },
+                                                ],
+                                            ),
+                                            uses_odbc_syntax: false,
+                                            parameters: None,
+                                            args: List(
+                                                FunctionArgumentList {
+                                                    duplicate_treatment: None,
+                                                    args: [
+                                                        Unnamed(
+                                                            Expr(
+                                                                BinaryOp {
+                                                                    left: Identifier(
+                                                                        Ident {
+                                                                            value: "retail_price",
+                                                                            quote_style: None,
+                                                                            span: Span(Location(0,0)..Location(0,0)),
+                                                                        },
+                                                                    ),
+                                                                    op: Multiply,
+                                                                    right: Identifier(
+                                                                        Ident {
+                                                                            value: "quantity",
+                                                                            quote_style: None,
+                                                                            span: Span(Location(0,0)..Location(0,0)),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                            ),
+                                                        ),
+                                                    ],
+                                                    clauses: [],
+                                                },
+                                            ),
+                                            filter: None,
+                                            null_treatment: None,
+                                            over: None,
+                                            within_group: [],
+                                        },
+                                    ),
+                                    alias: Ident {
+                                        value: "gross_revenue",
+                                        quote_style: None,
+                                        span: Span(Location(0,0)..Location(0,0)),
+                                    },
+                                },
+                            ],
+                            into: None,
+                            from: [
+                                TableWithJoins {
+                                    relation: Table {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "sales",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        alias: None,
+                                        args: None,
+                                        with_hints: [],
+                                        version: None,
+                                        with_ordinality: false,
+                                        partitions: [],
+                                        json_path: None,
+                                    },
+                                    joins: [],
+                                },
+                            ],
+                            lateral_views: [],
+                            prewhere: None,
+                            selection: None,
+                            group_by: All(
+                                [],
+                            ),
+                            cluster_by: [],
+                            distribute_by: [],
+                            sort_by: [],
+                            having: None,
+                            named_window: [],
+                            qualify: None,
+                            window_before_qualify: false,
+                            value_table_mode: None,
+                            connect_by: None,
+                        },
+                    ),
+                    order_by: None,
+                    limit: None,
+                    limit_by: [],
+                    offset: None,
+                    fetch: None,
+                    locks: [],
+                    for_clause: None,
+                    settings: None,
+                    format_clause: None,
+                },
+            ),
+        ),
+    ),
+    Ok(
+        [
+            "Projection: sales.state, sales.city, sum(sales.retail_price * sales.quantity) AS gross_revenue",
+            "  Aggregate: groupBy=[[sales.state, sales.city]], aggr=[[sum(sales.retail_price * sales.quantity)]]",
+            "    TableScan: sales",
+        ],
+    ),
+    Ok(
+        [
+            "+-------+---------+---------------+",
+            "| state | city    | gross_revenue |",
+            "+-------+---------+---------------+",
+            "| FL    | Miami   | 80.0          |",
+            "| PR    | SJ      | 320.0         |",
+            "| CA    | SF      | 22.0          |",
+            "| FL    | Orlando | 160.0         |",
+            "| CA    | SJ      | 44.0          |",
+            "+-------+---------+---------------+",
+        ],
+    ),
+)

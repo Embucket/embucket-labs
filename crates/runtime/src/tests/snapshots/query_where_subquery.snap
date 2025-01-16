@@ -1,0 +1,242 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SELECT * FROM sales\n    WHERE retail_price < (\n                   SELECT AVG(retail_price)\n                       FROM sales\n                   )\n    ;\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            Query(
+                Query {
+                    with: None,
+                    body: Select(
+                        Select {
+                            select_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "SELECT",
+                                        quote_style: None,
+                                        keyword: SELECT,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            distinct: None,
+                            top: None,
+                            top_before_distinct: false,
+                            projection: [
+                                Wildcard(
+                                    WildcardAdditionalOptions {
+                                        wildcard_token: TokenWithSpan {
+                                            token: Mul,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                        opt_ilike: None,
+                                        opt_exclude: None,
+                                        opt_except: None,
+                                        opt_replace: None,
+                                        opt_rename: None,
+                                    },
+                                ),
+                            ],
+                            into: None,
+                            from: [
+                                TableWithJoins {
+                                    relation: Table {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "sales",
+                                                    quote_style: None,
+                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                },
+                                            ],
+                                        ),
+                                        alias: None,
+                                        args: None,
+                                        with_hints: [],
+                                        version: None,
+                                        with_ordinality: false,
+                                        partitions: [],
+                                        json_path: None,
+                                    },
+                                    joins: [],
+                                },
+                            ],
+                            lateral_views: [],
+                            prewhere: None,
+                            selection: Some(
+                                BinaryOp {
+                                    left: Identifier(
+                                        Ident {
+                                            value: "retail_price",
+                                            quote_style: None,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                    ),
+                                    op: Lt,
+                                    right: Subquery(
+                                        Query {
+                                            with: None,
+                                            body: Select(
+                                                Select {
+                                                    select_token: TokenWithSpan {
+                                                        token: Word(
+                                                            Word {
+                                                                value: "SELECT",
+                                                                quote_style: None,
+                                                                keyword: SELECT,
+                                                            },
+                                                        ),
+                                                        span: Span(Location(0,0)..Location(0,0)),
+                                                    },
+                                                    distinct: None,
+                                                    top: None,
+                                                    top_before_distinct: false,
+                                                    projection: [
+                                                        UnnamedExpr(
+                                                            Function(
+                                                                Function {
+                                                                    name: ObjectName(
+                                                                        [
+                                                                            Ident {
+                                                                                value: "AVG",
+                                                                                quote_style: None,
+                                                                                span: Span(Location(0,0)..Location(0,0)),
+                                                                            },
+                                                                        ],
+                                                                    ),
+                                                                    uses_odbc_syntax: false,
+                                                                    parameters: None,
+                                                                    args: List(
+                                                                        FunctionArgumentList {
+                                                                            duplicate_treatment: None,
+                                                                            args: [
+                                                                                Unnamed(
+                                                                                    Expr(
+                                                                                        Identifier(
+                                                                                            Ident {
+                                                                                                value: "retail_price",
+                                                                                                quote_style: None,
+                                                                                                span: Span(Location(0,0)..Location(0,0)),
+                                                                                            },
+                                                                                        ),
+                                                                                    ),
+                                                                                ),
+                                                                            ],
+                                                                            clauses: [],
+                                                                        },
+                                                                    ),
+                                                                    filter: None,
+                                                                    null_treatment: None,
+                                                                    over: None,
+                                                                    within_group: [],
+                                                                },
+                                                            ),
+                                                        ),
+                                                    ],
+                                                    into: None,
+                                                    from: [
+                                                        TableWithJoins {
+                                                            relation: Table {
+                                                                name: ObjectName(
+                                                                    [
+                                                                        Ident {
+                                                                            value: "sales",
+                                                                            quote_style: None,
+                                                                            span: Span(Location(0,0)..Location(0,0)),
+                                                                        },
+                                                                    ],
+                                                                ),
+                                                                alias: None,
+                                                                args: None,
+                                                                with_hints: [],
+                                                                version: None,
+                                                                with_ordinality: false,
+                                                                partitions: [],
+                                                                json_path: None,
+                                                            },
+                                                            joins: [],
+                                                        },
+                                                    ],
+                                                    lateral_views: [],
+                                                    prewhere: None,
+                                                    selection: None,
+                                                    group_by: Expressions(
+                                                        [],
+                                                        [],
+                                                    ),
+                                                    cluster_by: [],
+                                                    distribute_by: [],
+                                                    sort_by: [],
+                                                    having: None,
+                                                    named_window: [],
+                                                    qualify: None,
+                                                    window_before_qualify: false,
+                                                    value_table_mode: None,
+                                                    connect_by: None,
+                                                },
+                                            ),
+                                            order_by: None,
+                                            limit: None,
+                                            limit_by: [],
+                                            offset: None,
+                                            fetch: None,
+                                            locks: [],
+                                            for_clause: None,
+                                            settings: None,
+                                            format_clause: None,
+                                        },
+                                    ),
+                                },
+                            ),
+                            group_by: Expressions(
+                                [],
+                                [],
+                            ),
+                            cluster_by: [],
+                            distribute_by: [],
+                            sort_by: [],
+                            having: None,
+                            named_window: [],
+                            qualify: None,
+                            window_before_qualify: false,
+                            value_table_mode: None,
+                            connect_by: None,
+                        },
+                    ),
+                    order_by: None,
+                    limit: None,
+                    limit_by: [],
+                    offset: None,
+                    fetch: None,
+                    locks: [],
+                    for_clause: None,
+                    settings: None,
+                    format_clause: None,
+                },
+            ),
+        ),
+    ),
+    Ok(
+        [
+            "Projection: *",
+            "  Filter: sales.retail_price < (<subquery>)",
+            "    Subquery:",
+            "      Projection: avg(sales.retail_price)",
+            "        Aggregate: groupBy=[[]], aggr=[[avg(sales.retail_price)]]",
+            "          TableScan: sales",
+            "    TableScan: sales",
+        ],
+    ),
+    Ok(
+        [
+            "+------------+--------------+----------+------+-------+",
+            "| product_id | retail_price | quantity | city | state |",
+            "+------------+--------------+----------+------+-------+",
+            "| 1          | 2.0          | 1        | SF   | CA    |",
+            "| 1          | 2.0          | 2        | SJ   | CA    |",
+            "+------------+--------------+----------+------+-------+",
+        ],
+    ),
+)

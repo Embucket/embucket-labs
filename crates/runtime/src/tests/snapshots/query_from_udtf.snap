@@ -1,0 +1,136 @@
+---
+source: crates/runtime/src/tests/queries.rs
+description: "\"SELECT *\n    FROM TABLE(Fibonacci_Sequence_UDTF(6.0::FLOAT));\""
+snapshot_kind: text
+---
+(
+    Ok(
+        Statement(
+            Query(
+                Query {
+                    with: None,
+                    body: Select(
+                        Select {
+                            select_token: TokenWithSpan {
+                                token: Word(
+                                    Word {
+                                        value: "SELECT",
+                                        quote_style: None,
+                                        keyword: SELECT,
+                                    },
+                                ),
+                                span: Span(Location(0,0)..Location(0,0)),
+                            },
+                            distinct: None,
+                            top: None,
+                            top_before_distinct: false,
+                            projection: [
+                                Wildcard(
+                                    WildcardAdditionalOptions {
+                                        wildcard_token: TokenWithSpan {
+                                            token: Mul,
+                                            span: Span(Location(0,0)..Location(0,0)),
+                                        },
+                                        opt_ilike: None,
+                                        opt_exclude: None,
+                                        opt_except: None,
+                                        opt_replace: None,
+                                        opt_rename: None,
+                                    },
+                                ),
+                            ],
+                            into: None,
+                            from: [
+                                TableWithJoins {
+                                    relation: TableFunction {
+                                        expr: Function(
+                                            Function {
+                                                name: ObjectName(
+                                                    [
+                                                        Ident {
+                                                            value: "Fibonacci_Sequence_UDTF",
+                                                            quote_style: None,
+                                                            span: Span(Location(0,0)..Location(0,0)),
+                                                        },
+                                                    ],
+                                                ),
+                                                uses_odbc_syntax: false,
+                                                parameters: None,
+                                                args: List(
+                                                    FunctionArgumentList {
+                                                        duplicate_treatment: None,
+                                                        args: [
+                                                            Unnamed(
+                                                                Expr(
+                                                                    Cast {
+                                                                        kind: DoubleColon,
+                                                                        expr: Value(
+                                                                            Number(
+                                                                                "6.0",
+                                                                                false,
+                                                                            ),
+                                                                        ),
+                                                                        data_type: Float(
+                                                                            None,
+                                                                        ),
+                                                                        format: None,
+                                                                    },
+                                                                ),
+                                                            ),
+                                                        ],
+                                                        clauses: [],
+                                                    },
+                                                ),
+                                                filter: None,
+                                                null_treatment: None,
+                                                over: None,
+                                                within_group: [],
+                                            },
+                                        ),
+                                        alias: None,
+                                    },
+                                    joins: [],
+                                },
+                            ],
+                            lateral_views: [],
+                            prewhere: None,
+                            selection: None,
+                            group_by: Expressions(
+                                [],
+                                [],
+                            ),
+                            cluster_by: [],
+                            distribute_by: [],
+                            sort_by: [],
+                            having: None,
+                            named_window: [],
+                            qualify: None,
+                            window_before_qualify: false,
+                            value_table_mode: None,
+                            connect_by: None,
+                        },
+                    ),
+                    order_by: None,
+                    limit: None,
+                    limit_by: [],
+                    offset: None,
+                    fetch: None,
+                    locks: [],
+                    for_clause: None,
+                    settings: None,
+                    format_clause: None,
+                },
+            ),
+        ),
+    ),
+    Err(
+        NotImplemented(
+            "Unsupported ast node TableFunction { expr: Function(Function { name: ObjectName([Ident { value: \"Fibonacci_Sequence_UDTF\", quote_style: None, span: Span(Location(0,0)..Location(0,0)) }]), uses_odbc_syntax: false, parameters: None, args: List(FunctionArgumentList { duplicate_treatment: None, args: [Unnamed(Expr(Cast { kind: DoubleColon, expr: Value(Number(\"6.0\", false)), data_type: Float(None), format: None }))], clauses: [] }), filter: None, null_treatment: None, over: None, within_group: [] }), alias: None } in create_relation",
+        ),
+    ),
+    Err(
+        Execution(
+            "Failed to create logical plan",
+        ),
+    ),
+)
