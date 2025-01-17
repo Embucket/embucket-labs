@@ -17,6 +17,7 @@ use arrow::compute::{date_part, DatePart};
 #[derive(Debug)]
 pub struct DateDiffFunc {
     signature: Signature,
+    #[allow(dead_code)]
     aliases: Vec<String>,
 }
 
@@ -127,59 +128,59 @@ impl ScalarUDFImpl for DateDiffFunc {
             "year" | "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" => {
                 let unit2 = date_part(&date_or_time_expr2, DatePart::Year)?;
                 let unit1 = date_part(&date_or_time_expr1, DatePart::Year)?;
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?.cast_to(&Int64)?))
             }
             //should consider months 28-31 days
             "month" | "mm" | "mon" | "mons" | "months" => {
                 let unit2 = date_part(&date_or_time_expr2, DatePart::Month)?;
                 let unit1 = date_part(&date_or_time_expr1, DatePart::Month)?;
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))  
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?.cast_to(&Int64)?))  
             }
             "day" | "d" | "dd" | "days" | "dayofmonth" => {
                 let unit2 = date_part(&date_or_time_expr2, DatePart::Day)?;
                 let unit1 = date_part(&date_or_time_expr1, DatePart::Day)?;
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))            
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?.cast_to(&Int64)?))            
             }
             "week" | "w" | "wk" | "weekofyear" | "woy" | "wy" => {
                 let unit2 = date_part(&date_or_time_expr2, DatePart::Week)?;
                 let unit1 = date_part(&date_or_time_expr1, DatePart::Week)?;
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?.cast_to(&Int64)?))
             }
             //should consider months 28-31 days
             "quarter" | "q" | "qtr" | "qtrs" | "quarters" => {
                 let unit2 = date_part(&date_or_time_expr2, DatePart::Quarter)?;
                 let unit1 = date_part(&date_or_time_expr1, DatePart::Quarter)?;
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?.cast_to(&Int64)?))
             }
             "hour" | "h" | "hh" | "hr" | "hours" | "hrs" => {
                 let unit2 = date_part(&date_or_time_expr2, DatePart::Hour)?;
                 let unit1 = date_part(&date_or_time_expr1, DatePart::Hour)?;
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?.cast_to(&Int64)?))
             }
             "minute" | "m" | "mi" | "min" | "minutes" | "mins" => {
                 let unit2 = date_part(&date_or_time_expr2, DatePart::Minute)?;
                 let unit1 = date_part(&date_or_time_expr1, DatePart::Minute)?;
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?.cast_to(&Int64)?))
             }
             "second" | "s" | "sec" | "seconds" | "secs" => {
                 let unit2 = date_part(&date_or_time_expr2, DatePart::Second)?;
                 let unit1 = date_part(&date_or_time_expr1, DatePart::Second)?;
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?.cast_to(&Int64)?))
             }
             "millisecond" | "ms" | "msec" | "milliseconds" => {
                 let unit2 = date_part(&date_or_time_expr2, DatePart::Millisecond)?;
                 let unit1 = date_part(&date_or_time_expr1, DatePart::Millisecond)?;
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?.cast_to(&Int64)?))
             }
             "microsecond" | "us" | "usec" | "microseconds" => {
                 let unit2 = date_part(&date_or_time_expr2, DatePart::Microsecond)?;
                 let unit1 = date_part(&date_or_time_expr1, DatePart::Microsecond)?;
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?.cast_to(&Int64)?))
             }
             "nanosecond" | "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs" => {
                 let unit2 = date_part(&date_or_time_expr2, DatePart::Nanosecond)?;
                 let unit1 = date_part(&date_or_time_expr1, DatePart::Nanosecond)?;
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?.cast_to(&Int64)?))
             }
             _ => plan_err!("Invalid date_or_time_part type")?,
         }
