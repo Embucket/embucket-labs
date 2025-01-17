@@ -171,6 +171,9 @@ impl ScalarUDFImpl for DateDiffFunc {
             _ => plan_err!("Invalid date_or_time_part type")?,
         }
     }
+    fn aliases(&self) -> &[String] {
+        &self.aliases
+    }
 }
 
 super::macros::make_udf_function!(DateDiffFunc);
