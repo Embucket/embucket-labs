@@ -3,12 +3,16 @@ use arrow::datatypes::DataType::{Date32, Date64, Int64, Time32, Time64, Timestam
 use arrow::datatypes::TimeUnit::{Microsecond, Millisecond, Nanosecond, Second};
 use arrow::datatypes::{DataType, Fields};
 use datafusion::common::{plan_err, Result};
-use datafusion::logical_expr::TypeSignature::Exact;
+use datafusion::logical_expr::TypeSignature::{Coercible, Exact};
+use datafusion::logical_expr::TypeSignatureClass;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, Volatility, TIMEZONE_WILDCARD,
 };
 use datafusion::scalar::ScalarValue;
+use datafusion_common::{internal_err, types::logical_string};
 use std::any::Any;
+use std::vec;
+use arrow::compute::{date_part, DatePart};
 
 #[derive(Debug)]
 pub struct DateDiffFunc {
@@ -28,39 +32,20 @@ impl DateDiffFunc {
             //TODO: Fix signature, can we diffretite between two differnt types? (ex.: date32 - timestamp)
             signature: Signature::one_of(
                 vec![
-                    Exact(vec![Utf8, Int64, Date32]),
-                    Exact(vec![Utf8, Int64, Date64]),
-                    Exact(vec![Utf8, Int64, Time32(Second)]),
-                    Exact(vec![Utf8, Int64, Time32(Nanosecond)]),
-                    Exact(vec![Utf8, Int64, Time32(Microsecond)]),
-                    Exact(vec![Utf8, Int64, Time32(Millisecond)]),
-                    Exact(vec![Utf8, Int64, Time64(Second)]),
-                    Exact(vec![Utf8, Int64, Time64(Nanosecond)]),
-                    Exact(vec![Utf8, Int64, Time64(Microsecond)]),
-                    Exact(vec![Utf8, Int64, Time64(Millisecond)]),
-                    Exact(vec![Utf8, Int64, Timestamp(Second, None)]),
-                    Exact(vec![Utf8, Int64, Timestamp(Millisecond, None)]),
-                    Exact(vec![Utf8, Int64, Timestamp(Microsecond, None)]),
-                    Exact(vec![Utf8, Int64, Timestamp(Nanosecond, None)]),
-                    Exact(vec![
-                        Utf8,
-                        Int64,
-                        Timestamp(Second, Some(TIMEZONE_WILDCARD.into())),
+                    Coercible(vec![
+                        TypeSignatureClass::Native(logical_string()),
+                        TypeSignatureClass::Timestamp,
+                        TypeSignatureClass::Timestamp,
                     ]),
-                    Exact(vec![
-                        Utf8,
-                        Int64,
-                        Timestamp(Millisecond, Some(TIMEZONE_WILDCARD.into())),
+                    Coercible(vec![
+                        TypeSignatureClass::Native(logical_string()),
+                        TypeSignatureClass::Time,
+                        TypeSignatureClass::Time,
                     ]),
-                    Exact(vec![
-                        Utf8,
-                        Int64,
-                        Timestamp(Microsecond, Some(TIMEZONE_WILDCARD.into())),
-                    ]),
-                    Exact(vec![
-                        Utf8,
-                        Int64,
-                        Timestamp(Nanosecond, Some(TIMEZONE_WILDCARD.into())),
+                    Coercible(vec![
+                        TypeSignatureClass::Native(logical_string()),
+                        TypeSignatureClass::Date,
+                        TypeSignatureClass::Date,
                     ]),
                 ],
                 Volatility::Immutable,
@@ -115,7 +100,7 @@ impl ScalarUDFImpl for DateDiffFunc {
 
     fn return_type(&self, arg_types: &[DataType]) -> Result<DataType> {
         if arg_types.len() != 3 {
-            return plan_err!("function requires three arguments");
+            return internal_err!("function requires three arguments");
         }
         Ok(DataType::Int64)
     }
@@ -124,20 +109,81 @@ impl ScalarUDFImpl for DateDiffFunc {
         if args.len() != 3 {
             return plan_err!("function requires three arguments");
         }
-
         let date_or_time_part = match &args[0] {
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
             _ => return plan_err!("Invalid unit type format"),
         };
-
         let date_or_time_expr1 = match &args[1] {
-            ColumnarValue::Scalar(val) => val.clone(),
-            _ => return plan_err!("Invalid datetime type"),
+            ColumnarValue::Scalar(val) => val.to_array()?,
+            ColumnarValue::Array(array) => array.clone(),
         };
         let date_or_time_expr2 = match &args[2] {
-            ColumnarValue::Scalar(val) => val.clone(),
-            _ => return plan_err!("Invalid datetime type"),
+            ColumnarValue::Scalar(val) => val.to_array()?,
+            ColumnarValue::Array(array) => array.clone(),
         };
-        Ok(ColumnarValue::Scalar(ScalarValue::Int64(Some(0))))
+
+        match date_or_time_part.as_str() {
+            //should consider leap year (365-366 days)
+            "year" | "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" => {
+                let unit2 = date_part(&date_or_time_expr2, DatePart::Year)?;
+                let unit1 = date_part(&date_or_time_expr1, DatePart::Year)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+            }
+            //should consider months 28-31 days
+            "month" | "mm" | "mon" | "mons" | "months" => {
+                let unit2 = date_part(&date_or_time_expr2, DatePart::Month)?;
+                let unit1 = date_part(&date_or_time_expr1, DatePart::Month)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))  
+            }
+            "day" | "d" | "dd" | "days" | "dayofmonth" => {
+                let unit2 = date_part(&date_or_time_expr2, DatePart::Day)?;
+                let unit1 = date_part(&date_or_time_expr1, DatePart::Day)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))            
+            }
+            "week" | "w" | "wk" | "weekofyear" | "woy" | "wy" => {
+                let unit2 = date_part(&date_or_time_expr2, DatePart::Week)?;
+                let unit1 = date_part(&date_or_time_expr1, DatePart::Week)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+            }
+            //should consider months 28-31 days
+            "quarter" | "q" | "qtr" | "qtrs" | "quarters" => {
+                let unit2 = date_part(&date_or_time_expr2, DatePart::Quarter)?;
+                let unit1 = date_part(&date_or_time_expr1, DatePart::Quarter)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+            }
+            "hour" | "h" | "hh" | "hr" | "hours" | "hrs" => {
+                let unit2 = date_part(&date_or_time_expr2, DatePart::Hour)?;
+                let unit1 = date_part(&date_or_time_expr1, DatePart::Hour)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+            }
+            "minute" | "m" | "mi" | "min" | "minutes" | "mins" => {
+                let unit2 = date_part(&date_or_time_expr2, DatePart::Minute)?;
+                let unit1 = date_part(&date_or_time_expr1, DatePart::Minute)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+            }
+            "second" | "s" | "sec" | "seconds" | "secs" => {
+                let unit2 = date_part(&date_or_time_expr2, DatePart::Second)?;
+                let unit1 = date_part(&date_or_time_expr1, DatePart::Second)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+            }
+            "millisecond" | "ms" | "msec" | "milliseconds" => {
+                let unit2 = date_part(&date_or_time_expr2, DatePart::Millisecond)?;
+                let unit1 = date_part(&date_or_time_expr1, DatePart::Millisecond)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+            }
+            "microsecond" | "us" | "usec" | "microseconds" => {
+                let unit2 = date_part(&date_or_time_expr2, DatePart::Microsecond)?;
+                let unit1 = date_part(&date_or_time_expr1, DatePart::Microsecond)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+            }
+            "nanosecond" | "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs" => {
+                let unit2 = date_part(&date_or_time_expr2, DatePart::Nanosecond)?;
+                let unit1 = date_part(&date_or_time_expr1, DatePart::Nanosecond)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&unit2, 0)?.sub(ScalarValue::try_from_array(&unit1, 0)?)?))
+            }
+            _ => plan_err!("Invalid date_or_time_part type")?,
+        }
     }
 }
+
+super::macros::make_udf_function!(DateDiffFunc);

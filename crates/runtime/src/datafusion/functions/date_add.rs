@@ -183,7 +183,9 @@ impl ScalarUDFImpl for DateAddFunc {
             "month" | "mm" | "mon" | "mons" | "months" => {
                 Self::add_months(&date_or_time_expr, value)
             }
-            "day" | "d" | "dd" | "days" | "dayofmonth" => Self::add_days(&date_or_time_expr, value),
+            "day" | "d" | "dd" | "days" | "dayofmonth" => {
+                Self::add_days(&date_or_time_expr, value)
+            },
             "week" | "w" | "wk" | "weekofyear" | "woy" | "wy" => {
                 Self::add_days(&date_or_time_expr, value * 7)
             }
