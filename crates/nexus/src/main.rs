@@ -192,7 +192,6 @@ async fn print_request_response(
     Ok(res)
 }
 
-#[allow(clippy::future_not_send)]
 async fn buffer_and_print<B>(
     direction: &str,
     method: &String,
@@ -200,7 +199,7 @@ async fn buffer_and_print<B>(
     body: B,
 ) -> Result<Bytes, (StatusCode, String)>
 where
-    B: axum::body::HttpBody<Data = Bytes>,
+    B: axum::body::HttpBody<Data = Bytes> + Send,
     B::Error: std::fmt::Display,
 {
     let bytes = match body.collect().await {

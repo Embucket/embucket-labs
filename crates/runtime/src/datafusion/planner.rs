@@ -229,16 +229,20 @@ where
         match sql_type {
             SQLDataType::Boolean | SQLDataType::Bool => Ok(DataType::Boolean),
             SQLDataType::TinyInt(_) => Ok(DataType::Int8),
-            SQLDataType::SmallInt(_) | SQLDataType::Int2(_) => Ok(DataType::Int16),
-            SQLDataType::Int(_) | SQLDataType::Integer(_) | SQLDataType::Int4(_) => {
-                Ok(DataType::Int32)
-            }
-            SQLDataType::BigInt(_) | SQLDataType::Int8(_) => Ok(DataType::Int64),
-            SQLDataType::UnsignedTinyInt(_) => Ok(DataType::UInt8),
-            SQLDataType::UnsignedSmallInt(_) | SQLDataType::UnsignedInt2(_) => Ok(DataType::UInt16),
+            SQLDataType::SmallInt(_) | SQLDataType::Int2(_)| SQLDataType::Int16 => Ok(DataType::Int16),
+            SQLDataType::Int(_)
+            | SQLDataType::Integer(_)
+            | SQLDataType::Int4(_)
+            | SQLDataType::Int32 => Ok(DataType::Int32) ,
+            SQLDataType::BigInt(_) | SQLDataType::Int8(_) | SQLDataType::Int64 => Ok(DataType::Int64),
+            SQLDataType::UnsignedTinyInt(_) | SQLDataType::UInt8 => Ok(DataType::UInt8),
+            SQLDataType::UnsignedSmallInt(_)
+            | SQLDataType::UnsignedInt2(_)
+            | SQLDataType::UInt16 => Ok(DataType::UInt16),
             SQLDataType::UnsignedInt(_)
             | SQLDataType::UnsignedInteger(_)
-            | SQLDataType::UnsignedInt4(_) => Ok(DataType::UInt32),
+            | SQLDataType::UnsignedInt4(_)
+            | SQLDataType::UInt32 => Ok(DataType::UInt32),
             SQLDataType::Varchar(length) => match (length, true) {
                 (Some(_), false) => plan_err!(
                     "does not support Varchar with length, please set `support_varchar_with_length` to be true"
@@ -246,13 +250,17 @@ where
                 _ => Ok(DataType::Utf8),
             },
             SQLDataType::Blob(_) => Ok(DataType::Binary),
-            SQLDataType::UnsignedBigInt(_) | SQLDataType::UnsignedInt8(_) => Ok(DataType::UInt64),
-            SQLDataType::Real | SQLDataType::Float4 | SQLDataType::Float(_) => {
-                Ok(DataType::Float32)
-            }
-            SQLDataType::Double | SQLDataType::DoublePrecision | SQLDataType::Float8 => {
-                Ok(DataType::Float64)
-            }
+            SQLDataType::UnsignedBigInt(_)
+            | SQLDataType::UnsignedInt8(_)
+            | SQLDataType::UInt64 => Ok(DataType::UInt64),
+            SQLDataType::Real
+            | SQLDataType::Float4
+            | SQLDataType::Float(_)
+            | SQLDataType::Float32=> Ok(DataType::Float32),
+            SQLDataType::Double
+            | SQLDataType::DoublePrecision
+            | SQLDataType::Float8
+            | SQLDataType::Float64 => Ok(DataType::Float64),
             SQLDataType::Char(_) | SQLDataType::Text | SQLDataType::String(_) => Ok(DataType::Utf8),
             SQLDataType::Timestamp(precision, tz_info) => {
                 let tz = if matches!(tz_info, TimezoneInfo::Tz)
@@ -384,19 +392,10 @@ where
             | SQLDataType::BigDecimal(_)
             | SQLDataType::Clob(_)
             | SQLDataType::Bytes(_)
-            | SQLDataType::Int16
-            | SQLDataType::Int32
-            | SQLDataType::Int64
             | SQLDataType::Int128
             | SQLDataType::Int256
-            | SQLDataType::UInt8
-            | SQLDataType::UInt16
-            | SQLDataType::UInt32
-            | SQLDataType::UInt64
             | SQLDataType::UInt128
             | SQLDataType::UInt256
-            | SQLDataType::Float32
-            | SQLDataType::Float64
             | SQLDataType::Date32
             | SQLDataType::Datetime64(_, _)
             | SQLDataType::FixedString(_)

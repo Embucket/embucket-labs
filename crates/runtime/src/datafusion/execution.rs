@@ -29,7 +29,10 @@ use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
-use sqlparser::ast::{BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, Query as AstQuery, Select, SelectItem};
+use sqlparser::ast::{
+    BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, Query as AstQuery,
+    Select, SelectItem,
+};
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -80,9 +83,12 @@ impl SqlExecutor {
                 | Statement::ShowVariable { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
                 }
-                Statement::Query(mut q) => {
-                    self.update_qualify_in_query(q.as_mut());
-                    return Box::pin(self.execute_with_custom_plan(&q.to_string(), warehouse_name)).await;
+                Statement::Query(mut subquery) => {
+                    self.update_qualify_in_query(subquery.as_mut());
+                    return Box::pin(
+                        self.execute_with_custom_plan(&subquery.to_string(), warehouse_name),
+                    )
+                    .await;
                 }
                 Statement::Drop { .. } => {
                     return Box::pin(self.drop_table_query(&query, warehouse_name)).await;
@@ -158,12 +164,13 @@ impl SqlExecutor {
                 ..create_table_statement
             };
 
+            // Replace qualify with nested select
             if let Some(ref mut query) = modified_statement.query {
                 self.update_qualify_in_query(query);
             }
             // Create InMemory table since external tables with "AS SELECT" are not supported
             let updated_query = modified_statement.to_string();
-            println!("Updated query: {:?}", updated_query);
+
             let plan = self
                 .get_custom_logical_plan(&updated_query, warehouse_name)
                 .await?;
@@ -179,8 +186,8 @@ impl SqlExecutor {
                 plan.schema().as_arrow().fields(),
                 &mut 0,
             ))
-                .map_err(|err| DataFusionError::External(Box::new(err)))
-                .context(super::error::DataFusionSnafu)?;
+            .map_err(|err| DataFusionError::External(Box::new(err)))
+            .context(super::error::DataFusionSnafu)?;
             let schema = Schema::builder()
                 .with_schema_id(0)
                 .with_identifier_field_ids(vec![])
@@ -482,7 +489,7 @@ impl SqlExecutor {
                     }
                 }
             }
-            // println!("Tables: {:?}", ctx_provider.tables.keys());
+
             let planner = ExtendedSqlToRel::new(&ctx_provider);
             planner
                 .sql_statement_to_plan(*s)
@@ -567,7 +574,11 @@ impl SqlExecutor {
                             lateral_views: vec![],
                             prewhere: None,
                             selection: Some(Expr::BinaryOp {
-                                left: Box::new(Expr::Identifier(Ident { value: "qualify_alias".to_string(), quote_style: None, span: Span::empty() })),
+                                left: Box::new(Expr::Identifier(Ident {
+                                    value: "qualify_alias".to_string(),
+                                    quote_style: None,
+                                    span: Span::empty(),
+                                })),
                                 op: BinaryOperator::Eq,
                                 right: Box::new(*right.clone()),
                             }),
@@ -582,7 +593,7 @@ impl SqlExecutor {
                             value_table_mode: None,
                             connect_by: None,
                         };
-    
+
                         *query.body = sqlparser::ast::SetExpr::Select(Box::new(outer_select));
                     }
                 }
