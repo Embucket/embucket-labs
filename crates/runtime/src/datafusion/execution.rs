@@ -74,6 +74,9 @@ impl SqlExecutor {
                     return self.create_schema(schema_name, warehouse_name).await;
                 }
                 Statement::AlterTable { .. }
+                | Statement::StartTransaction { .. }
+                | Statement::Commit { .. }
+                | Statement::Insert { .. }
                 | Statement::Query { .. }
                 | Statement::ShowSchemas { .. }
                 | Statement::ShowVariable { .. } => {
@@ -289,10 +292,21 @@ impl SqlExecutor {
                 source.to_string()
             };
 
+            // Prepare WHERE clause to filter unmatched records
+            let where_clause = self
+                .get_expr_where_clause(*on.clone(), target_alias.as_str())
+                .iter()
+                .map(|v| format!("{v} IS NULL"))
+                .collect::<Vec<_>>();
+            let where_clause_str = if where_clause.is_empty() {
+                String::new()
+            } else {
+                format!(" WHERE {}", where_clause.join(" AND "))
+            };
+
             // Check NOT MATCHED for records to INSERT
-            let where_clause = self.get_join_on_where_clause(*on.clone(), target_alias.as_str());
             let select_query =
-                format!("SELECT * FROM {source_query} JOIN {target_table} {target_alias} ON {on}{where_clause}");
+                format!("SELECT * FROM {source_query} JOIN {target_table} {target_alias} ON {on}{where_clause_str}");
             self.execute_with_custom_plan(&select_query, warehouse_name)
                 .await?;
 
@@ -495,20 +509,8 @@ impl SqlExecutor {
             .context(super::error::DataFusionSnafu)
     }
 
-    fn get_join_on_where_clause(&self, on: Expr, target_alias: &str) -> String {
-        if let Expr::BinaryOp { left, right, .. } = on {
-            let left_expr = self.get_expr_where_clause(*left, target_alias);
-            if left_expr.is_empty() {
-                return self.get_expr_where_clause(*right, target_alias);
-            }
-            return left_expr;
-        }
-        String::new()
-    }
-
     #[allow(clippy::only_used_in_recursion)]
-    fn get_expr_where_clause(&self, expr: Expr, target_alias: &str) -> String {
-        let where_clause = String::new();
+    fn get_expr_where_clause(&self, expr: Expr, target_alias: &str) -> Vec<String> {
         match expr {
             Expr::CompoundIdentifier(ident) => {
                 if ident.len() > 1 && ident[0].value == target_alias {
@@ -517,18 +519,17 @@ impl SqlExecutor {
                         .map(|v| v.value.clone())
                         .collect::<Vec<String>>()
                         .join(".");
-                    return format!(" WHERE {ident_str} IS NULL");
+                    return vec![ident_str];
                 }
-                where_clause
+                vec![]
             }
             Expr::BinaryOp { left, right, .. } => {
-                let left_expr = self.get_expr_where_clause(*left, target_alias);
-                if left_expr.is_empty() {
-                    return self.get_expr_where_clause(*right, target_alias);
-                }
+                let mut left_expr = self.get_expr_where_clause(*left, target_alias);
+                let right_expr = self.get_expr_where_clause(*right, target_alias);
+                left_expr.extend(right_expr);
                 left_expr
             }
-            _ => where_clause,
+            _ => vec![],
         }
     }
 
