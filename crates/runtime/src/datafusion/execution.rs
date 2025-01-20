@@ -79,6 +79,9 @@ impl SqlExecutor {
                     return self.create_schema(schema_name, warehouse_name).await;
                 }
                 Statement::AlterTable { .. }
+                | Statement::StartTransaction { .. }
+                | Statement::Commit { .. }
+                | Statement::Insert { .. }
                 | Statement::ShowSchemas { .. }
                 | Statement::ShowVariable { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
@@ -264,7 +267,7 @@ impl SqlExecutor {
             created_entity_response().context(ih_error::ArrowSnafu)
         } else {
             Err(super::error::IcehutSQLError::DataFusion {
-                source: datafusion::error::DataFusionError::NotImplemented(
+                source: DataFusionError::NotImplemented(
                     "Only CREATE TABLE statements are supported".to_string(),
                 ),
             })
@@ -306,54 +309,60 @@ impl SqlExecutor {
                 source.to_string()
             };
 
-            // Construct the SELECT statement with JOIN ON
+            // Prepare WHERE clause to filter unmatched records
+            let where_clause = self
+                .get_expr_where_clause(*on.clone(), target_alias.as_str())
+                .iter()
+                .map(|v| format!("{v} IS NULL"))
+                .collect::<Vec<_>>();
+            let where_clause_str = if where_clause.is_empty() {
+                String::new()
+            } else {
+                format!(" WHERE {}", where_clause.join(" AND "))
+            };
+
+            // Check NOT MATCHED for records to INSERT
             let select_query =
-                format!("SELECT * FROM {source_query} JOIN {target_table} {target_alias} ON {on}");
-            let source_result = self
-                .execute_with_custom_plan(&select_query, warehouse_name)
+                format!("SELECT * FROM {source_query} JOIN {target_table} {target_alias} ON {on}{where_clause_str}");
+            self.execute_with_custom_plan(&select_query, warehouse_name)
                 .await?;
 
-            // Check NOT MATCHED part with the fallback INSERT
-            let insert_query = if source_result.is_empty() {
-                // Extract columns and values from clauses
-                let mut columns = Vec::new();
-                let mut values = Vec::new();
-                for clause in clauses {
-                    if clause.clause_kind == MergeClauseKind::NotMatched {
-                        if let MergeAction::Insert(insert) = clause.action {
-                            columns = insert.columns;
-                            if let MergeInsertKind::Values(values_insert) = insert.kind {
-                                values = values_insert.rows.into_iter().flatten().collect();
-                            }
+            // Extract columns and values from clauses
+            let mut columns = Vec::new();
+            let mut values = Vec::new();
+            for clause in clauses {
+                if clause.clause_kind == MergeClauseKind::NotMatched {
+                    if let MergeAction::Insert(insert) = clause.action {
+                        columns = insert.columns;
+                        if let MergeInsertKind::Values(values_insert) = insert.kind {
+                            values = values_insert.rows.into_iter().flatten().collect();
                         }
                     }
                 }
-                // Construct the INSERT statement
-                format!(
-                    "INSERT INTO {} ({}) SELECT {} FROM {}",
-                    target_table,
-                    columns
-                        .iter()
-                        .map(std::string::ToString::to_string)
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    values
-                        .iter()
-                        .map(std::string::ToString::to_string)
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    source_table
-                )
-            } else {
-                format!("INSERT INTO {warehouse_name} {select_query}")
-            };
+            }
+            // Construct the INSERT statement
+            let insert_query = format!(
+                "INSERT INTO {} ({}) SELECT {} FROM {}",
+                target_table,
+                columns
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                values
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                source_table
+            );
 
             self.execute_with_custom_plan(&insert_query, warehouse_name)
                 .await
         } else {
             Err(super::error::IcehutSQLError::DataFusion {
                 source: DataFusionError::NotImplemented(
-                    "Only CREATE TABLE statements are supported".to_string(),
+                    "Only MERGE statements are supported".to_string(),
                 ),
             })
         }
@@ -421,7 +430,7 @@ impl SqlExecutor {
             }
             _ => {
                 return Err(super::error::IcehutSQLError::DataFusion {
-                    source: datafusion::error::DataFusionError::NotImplemented(
+                    source: DataFusionError::NotImplemented(
                         "Only simple schema names are supported".to_string(),
                     ),
                 });
@@ -602,6 +611,30 @@ impl SqlExecutor {
                 self.update_qualify_in_query(q);
             }
             _ => {}
+        }
+    }
+
+    #[allow(clippy::only_used_in_recursion)]
+    fn get_expr_where_clause(&self, expr: Expr, target_alias: &str) -> Vec<String> {
+        match expr {
+            Expr::CompoundIdentifier(ident) => {
+                if ident.len() > 1 && ident[0].value == target_alias {
+                    let ident_str = ident
+                        .iter()
+                        .map(|v| v.value.clone())
+                        .collect::<Vec<String>>()
+                        .join(".");
+                    return vec![ident_str];
+                }
+                vec![]
+            }
+            Expr::BinaryOp { left, right, .. } => {
+                let mut left_expr = self.get_expr_where_clause(*left, target_alias);
+                let right_expr = self.get_expr_where_clause(*right, target_alias);
+                left_expr.extend(right_expr);
+                left_expr
+            }
+            _ => vec![],
         }
     }
 
