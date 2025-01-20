@@ -199,7 +199,7 @@ async fn buffer_and_print<B>(
     body: B,
 ) -> Result<Bytes, (StatusCode, String)>
 where
-    B: axum::body::HttpBody<Data = Bytes>,
+    B: axum::body::HttpBody<Data = Bytes> + Send,
     B::Error: std::fmt::Display,
 {
     let bytes = match body.collect().await {

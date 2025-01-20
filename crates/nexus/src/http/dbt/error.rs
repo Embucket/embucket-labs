@@ -57,9 +57,24 @@ impl IntoResponse for DbtError {
             Self::NotImplemented => http::StatusCode::NOT_IMPLEMENTED,
         };
 
+        let message = match &self {
+            Self::GZipDecompress { source } => format!("failed to decompress GZip body: {source}"),
+            Self::LoginRequestParse { source } => {
+                format!("failed to parse login request: {source}")
+            }
+            Self::QueryBodyParse { source } => format!("failed to parse query body: {source}"),
+            Self::InvalidWarehouseIdFormat { source } => format!("invalid warehouse_id: {source}"),
+            Self::ControlService { source } => source.to_string(),
+            Self::RowParse { source } => format!("failed to parse row JSON: {source}"),
+            Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
+                "session error".to_string()
+            }
+            Self::NotImplemented => "feature not implemented".to_string(),
+        };
+
         let body = Json(JsonResponse {
             success: false,
-            message: Some(self.to_string()),
+            message: Some(message),
             data: None,
             code: Some(status_code.as_u16().to_string()),
         });

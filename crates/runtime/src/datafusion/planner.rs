@@ -91,6 +91,9 @@ where
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
         // Example: Custom handling for a specific statement
         match statement.clone() {
+            Statement::AlterTable { .. }
+            | Statement::StartTransaction { .. }
+            | Statement::Commit { .. } => Ok(LogicalPlan::default()),
             Statement::ShowSchemas { .. } => self.show_variable_to_plan(&["schemas".into()]),
             Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
             Statement::CreateTable(CreateTableStatement {
@@ -305,7 +308,7 @@ where
                         let data_type = self.convert_data_type(&field.field_type)?;
                         let field_name = field.field_name.as_ref().map_or_else(
                             || Ident::new(format!("c{idx}")),
-                            std::clone::Clone::clone,
+                            Clone::clone,
                         );
                         Ok(Arc::new(Field::new(
                             self.ident_normalizer.normalize(field_name),
