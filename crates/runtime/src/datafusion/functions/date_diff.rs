@@ -71,7 +71,7 @@ impl DateDiffFunc {
     }
 }
 //TODO: FIX docs
-// convert_timezone SQL function
+// date_diff SQL function
 // Syntax: `DATEADD(<date_or_time_part>, <value>, <date_or_time_expr>)`
 // - <date_or_time_part>: This indicates the units of time that you want to add.
 // For example if you want to add two days, then specify day. This unit of measure must be one of the values listed in Supported date and time parts.
