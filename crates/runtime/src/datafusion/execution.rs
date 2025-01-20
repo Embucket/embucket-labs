@@ -106,9 +106,8 @@ impl SqlExecutor {
     pub fn preprocess_query(&self, query: &str) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         // TODO: This regex should be a static allocation
-        let re = regex::Regex::new(r"(\w+)\[(\d+)]\.(\w+)").unwrap();
-        let date_add =
-            regex::Regex::new(r"(date|time|timestamp)(_?add|_?diff)\(\s*([a-zA-Z]+),").unwrap();
+        let re = regex::Regex::new(r"(\w+)\[(\d+)][:\.](\w+)").unwrap();
+        let date_add = regex::Regex::new(r"(date|time|timestamp)(_?add|_?diff)\(\s*([a-zA-Z]+),").unwrap();
 
         let query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
