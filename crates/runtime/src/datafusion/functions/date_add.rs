@@ -12,7 +12,6 @@ use std::any::Any;
 #[derive(Debug)]
 pub struct DateAddFunc {
     signature: Signature,
-    #[allow(dead_code)]
     aliases: Vec<String>,
 }
 
@@ -210,6 +209,9 @@ impl ScalarUDFImpl for DateAddFunc {
             | "nseconds" => Self::add_nanoseconds(&date_or_time_expr, value),
             _ => plan_err!("Invalid date_or_time_part type"),
         }
+    }
+    fn aliases(&self) -> &[String] {
+        &self.aliases
     }
 }
 
