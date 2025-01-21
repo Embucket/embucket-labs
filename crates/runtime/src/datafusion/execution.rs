@@ -537,7 +537,10 @@ impl SqlExecutor {
         match query.body.as_mut() {
             sqlparser::ast::SetExpr::Select(select) => {
                 if let Some(Expr::BinaryOp { left, op, right }) = select.qualify.as_ref() {
-                    if matches!(op, BinaryOperator::Eq) {
+                    if matches!(
+                        op,
+                        BinaryOperator::Eq | BinaryOperator::Lt | BinaryOperator::LtEq
+                    ) {
                         let mut inner_select = select.clone();
                         inner_select.qualify = None;
                         inner_select.projection.push(SelectItem::ExprWithAlias {
@@ -588,7 +591,7 @@ impl SqlExecutor {
                                     quote_style: None,
                                     span: Span::empty(),
                                 })),
-                                op: BinaryOperator::Eq,
+                                op: op.clone(),
                                 right: Box::new(*right.clone()),
                             }),
                             group_by: GroupByExpr::Expressions(vec![], vec![]),
