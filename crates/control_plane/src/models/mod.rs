@@ -1,5 +1,5 @@
-use arrow::array::{RecordBatch, UInt64Array};
-use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
+use arrow::array::RecordBatch;
+use arrow::datatypes::{DataType, Field};
 use chrono::{NaiveDateTime, Utc};
 use dotenv::dotenv;
 use iceberg_rust::object_store::ObjectStoreBuilder;
@@ -499,17 +499,4 @@ impl ColumnInfo {
         }
         column_info
     }
-}
-
-pub fn created_entity_response() -> std::result::Result<Vec<RecordBatch>, arrow::error::ArrowError>
-{
-    let schema = Arc::new(ArrowSchema::new(vec![Field::new(
-        "count",
-        DataType::UInt64,
-        false,
-    )]));
-    Ok(vec![RecordBatch::try_new(
-        schema,
-        vec![Arc::new(UInt64Array::from(vec![0]))],
-    )?])
 }

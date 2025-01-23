@@ -75,8 +75,22 @@ impl SqlExecutor {
                     ))
                     .await;
                 }
-                Statement::CreateSchema { schema_name, .. } => {
-                    return self.create_schema(schema_name, warehouse_name).await;
+                Statement::CreateDatabase {
+                    db_name,
+                    if_not_exists,
+                    ..
+                } => {
+                    return self
+                        .create_database(warehouse_name, db_name, if_not_exists)
+                        .await;
+                }
+                Statement::CreateSchema {
+                    schema_name,
+                    if_not_exists,
+                } => {
+                    return self
+                        .create_schema(warehouse_name, schema_name, if_not_exists)
+                        .await;
                 }
                 Statement::AlterTable { .. }
                 | Statement::StartTransaction { .. }
@@ -389,42 +403,14 @@ impl SqlExecutor {
 
     pub async fn create_schema(
         &self,
-        name: SchemaName,
         warehouse_name: &str,
+        name: SchemaName,
+        if_not_exists: bool,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         match name {
             SchemaName::Simple(schema_name) => {
-                //println!("Creating simple schema: {:?}", schema_name);
-                // TODO: Abstract the Iceberg catalog
-                let catalog = self.ctx.catalog(warehouse_name).ok_or(
-                    ih_error::IcehutSQLError::WarehouseNotFound {
-                        name: warehouse_name.to_string(),
-                    },
-                )?;
-                let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().ok_or(
-                    ih_error::IcehutSQLError::IcebergCatalogNotFound {
-                        warehouse_name: warehouse_name.to_string(),
-                    },
-                )?;
-                let rest_catalog = iceberg_catalog.catalog();
-                let namespace_vec: Vec<String> = schema_name
-                    .0
-                    .iter()
-                    .map(|ident| ident.value.clone())
-                    .collect();
-                let single_layer_namespace = vec![namespace_vec.join(".")];
-                #[allow(clippy::unwrap_used)]
-                let namespace = Namespace::try_new(&single_layer_namespace).unwrap();
-                // Why are we checking if namespace exists as a single layer and then creating it?
-                // There are multiple possible Error scenarios here that are not handled
-                if rest_catalog.load_namespace(&namespace).await.is_err() {
-                    #[allow(clippy::unwrap_used)]
-                    let namespace = Namespace::try_new(&namespace_vec).unwrap();
-                    rest_catalog
-                        .create_namespace(&namespace, None)
-                        .await
-                        .context(ih_error::IcebergSnafu)?;
-                }
+                self.create_database(warehouse_name, schema_name.clone(), if_not_exists)
+                    .await?;
             }
             _ => {
                 return Err(super::error::IcehutSQLError::DataFusion {
@@ -433,6 +419,48 @@ impl SqlExecutor {
                     ),
                 });
             }
+        }
+        created_entity_response().context(super::error::ArrowSnafu)
+    }
+
+    pub async fn create_database(
+        &self,
+        warehouse_name: &str,
+        name: ObjectName,
+        if_not_exists: bool,
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+        // TODO: Abstract the Iceberg catalog
+        let catalog = self.ctx.catalog(warehouse_name).ok_or(
+            ih_error::IcehutSQLError::WarehouseNotFound {
+                name: warehouse_name.to_string(),
+            },
+        )?;
+        let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().ok_or(
+            ih_error::IcehutSQLError::IcebergCatalogNotFound {
+                warehouse_name: warehouse_name.to_string(),
+            },
+        )?;
+        let rest_catalog = iceberg_catalog.catalog();
+        let namespace_vec: Vec<String> = name.0.iter().map(|ident| ident.value.clone()).collect();
+        let single_layer_namespace = vec![namespace_vec.join(".")];
+
+        #[allow(clippy::unwrap_used)]
+        let namespace = Namespace::try_new(&single_layer_namespace).unwrap();
+
+        // Why are we checking if namespace exists as a single layer and then creating it?
+        // There are multiple possible Error scenarios here that are not handled
+        let should_create = if if_not_exists {
+            rest_catalog.load_namespace(&namespace).await.is_err()
+        } else {
+            true
+        };
+        if should_create {
+            #[allow(clippy::unwrap_used)]
+            let namespace = Namespace::try_new(&namespace_vec).unwrap();
+            rest_catalog
+                .create_namespace(&namespace, None)
+                .await
+                .context(ih_error::IcebergSnafu)?;
         }
         created_entity_response().context(super::error::ArrowSnafu)
     }
@@ -879,8 +907,7 @@ impl SqlExecutor {
     }
 }
 
-pub fn created_entity_response() -> std::result::Result<Vec<RecordBatch>, arrow::error::ArrowError>
-{
+pub fn created_entity_response() -> Result<Vec<RecordBatch>, arrow::error::ArrowError> {
     let schema = Arc::new(ArrowSchema::new(vec![Field::new(
         "count",
         DataType::UInt64,
