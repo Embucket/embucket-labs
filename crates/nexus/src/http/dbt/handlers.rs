@@ -69,12 +69,6 @@ pub async fn query(
     // Deserialize the JSON body
     let body_json: QueryRequestBody =
         serde_json::from_str(&s).context(dbt_error::QueryBodyParseSnafu)?;
-    let (_params, _sql_query) = body_json.get_sql_text()?;
-    //println!("Query raw: {:?}", body_json.sql_text);
-
-    // if let Err(e) = log_query(body_json.sql_text.as_str()).await {
-    //     eprintln!("Failed to log query: {}", e);
-    // }
 
     let Some(token) = extract_token(&headers) else {
         return Err(DbtError::MissingAuthToken);

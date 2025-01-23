@@ -76,17 +76,6 @@ pub struct QueryRequestBody {
     #[serde(rename = "sqlText")]
     pub sql_text: String,
 }
-impl QueryRequestBody {
-    pub fn get_sql_text(&self) -> DbtResult<(HashMap<String, String>, String)> {
-        let sql_text = self.sql_text.clone();
-        let comment_end = sql_text.find("*/").map_or(0, |i| i + 2);
-        let metadata_str = &sql_text[2..comment_end - 2].trim();
-        let metadata: HashMap<String, String> =
-            serde_json::from_str(metadata_str).context(dbt_error::QueryBodyParseSnafu)?;
-        let query = sql_text[comment_end..].trim().to_string();
-        Ok((metadata, query))
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
