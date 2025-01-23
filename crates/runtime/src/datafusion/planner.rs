@@ -93,7 +93,8 @@ where
         match statement.clone() {
             Statement::AlterTable { .. }
             | Statement::StartTransaction { .. }
-            | Statement::Commit { .. } => Ok(LogicalPlan::default()),
+            | Statement::Commit { .. }
+            | Statement::Update { .. } => Ok(LogicalPlan::default()),
             Statement::ShowSchemas { .. } => self.show_variable_to_plan(&["schemas".into()]),
             Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
             Statement::CreateTable(CreateTableStatement {

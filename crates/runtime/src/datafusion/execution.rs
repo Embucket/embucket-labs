@@ -83,7 +83,8 @@ impl SqlExecutor {
                 | Statement::Commit { .. }
                 | Statement::Insert { .. }
                 | Statement::ShowSchemas { .. }
-                | Statement::ShowVariable { .. } => {
+                | Statement::ShowVariable { .. }
+                | Statement::Update { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
                 }
                 Statement::Query(mut subquery) => {
@@ -291,8 +292,8 @@ impl SqlExecutor {
             self.update_tables_in_table_factor(&mut table, warehouse_name);
             self.update_tables_in_table_factor(&mut source, warehouse_name);
 
-            let (target_table, target_alias) = self.get_table_with_alias(table);
-            let (source_table, _source_alias) = self.get_table_with_alias(source.clone());
+            let (target_table, target_alias) = Self::get_table_with_alias(table);
+            let (_source_table, source_alias) = Self::get_table_with_alias(source.clone());
 
             let source_query = if let TableFactor::Derived {
                 subquery,
@@ -323,41 +324,37 @@ impl SqlExecutor {
             };
 
             // Check NOT MATCHED for records to INSERT
-            let select_query =
-                format!("SELECT * FROM {source_query} JOIN {target_table} {target_alias} ON {on}{where_clause_str}");
-            self.execute_with_custom_plan(&select_query, warehouse_name)
-                .await?;
-
             // Extract columns and values from clauses
-            let mut columns = Vec::new();
-            let mut values = Vec::new();
+            let mut columns = String::new();
+            let mut values = String::new();
             for clause in clauses {
                 if clause.clause_kind == MergeClauseKind::NotMatched {
                     if let MergeAction::Insert(insert) = clause.action {
-                        columns = insert.columns;
+                        columns = insert
+                            .columns
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(", ");
                         if let MergeInsertKind::Values(values_insert) = insert.kind {
-                            values = values_insert.rows.into_iter().flatten().collect();
+                            values = values_insert
+                                .rows
+                                .into_iter()
+                                .flatten()
+                                .collect::<Vec<_>>()
+                                .iter()
+                                .map(|v| format!("{source_alias}.{v}"))
+                                .collect::<Vec<_>>()
+                                .join(", ");
                         }
                     }
                 }
             }
-            // Construct the INSERT statement
-            let insert_query = format!(
-                "INSERT INTO {} ({}) SELECT {} FROM {}",
-                target_table,
-                columns
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                values
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                source_table
-            );
+            let select_query =
+                format!("SELECT {values} FROM {source_query} JOIN {target_table} {target_alias} ON {on}{where_clause_str}");
 
+            // Construct the INSERT statement
+            let insert_query = format!("INSERT INTO {target_table} ({columns}) {select_query}");
             self.execute_with_custom_plan(&insert_query, warehouse_name)
                 .await
         } else {
@@ -643,6 +640,7 @@ impl SqlExecutor {
     }
 
     #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn update_statement_references(
         &self,
         statement: DFStatement,
@@ -736,6 +734,28 @@ impl SqlExecutor {
                         statement
                     }
                 }
+                Statement::Update {
+                    mut table,
+                    assignments,
+                    mut from,
+                    selection,
+                    returning,
+                    or,
+                } => {
+                    self.update_tables_in_table_with_joins(&mut table, warehouse_name);
+                    if let Some(from) = from.as_mut() {
+                        self.update_tables_in_table_with_joins(from, warehouse_name);
+                    }
+                    let modified_statement = Statement::Update {
+                        table,
+                        assignments,
+                        from,
+                        selection,
+                        returning,
+                        or,
+                    };
+                    DFStatement::Statement(Box::new(modified_statement))
+                }
                 _ => statement,
             },
             _ => statement,
@@ -773,21 +793,15 @@ impl SqlExecutor {
     }
 
     #[allow(clippy::only_used_in_recursion)]
-    fn get_table_with_alias(&self, factor: TableFactor) -> (ObjectName, String) {
+    fn get_table_with_alias(factor: TableFactor) -> (ObjectName, String) {
         match factor {
             TableFactor::Table { name, alias, .. } => {
                 let target_alias = alias.map_or_else(String::new, |alias| alias.to_string());
                 (name, target_alias)
             }
-            TableFactor::Derived {
-                subquery, alias, ..
-            } => {
+            // Return only alias for derived tables
+            TableFactor::Derived { alias, .. } => {
                 let target_alias = alias.map_or_else(String::new, |alias| alias.to_string());
-                if let sqlparser::ast::SetExpr::Select(select) = subquery.body.as_ref() {
-                    if let Some(table_with_joins) = select.from.first() {
-                        return self.get_table_with_alias(table_with_joins.relation.clone());
-                    }
-                }
                 (ObjectName(vec![]), target_alias)
             }
             _ => (ObjectName(vec![]), String::new()),
