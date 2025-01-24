@@ -29,6 +29,11 @@ pub enum IcehutSQLError {
     #[snafu(display("Iceberg error: {source}"))]
     Iceberg { source: iceberg_rust::error::Error },
 
+    #[snafu(display("Iceberg spec error: {source}"))]
+    IcebergSpec {
+        source: iceberg_rust::spec::error::Error,
+    },
+
     #[snafu(display("Invalid precision: {precision}"))]
     InvalidPrecision { precision: String },
 

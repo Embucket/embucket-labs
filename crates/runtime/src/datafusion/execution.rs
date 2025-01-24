@@ -1,7 +1,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
-use super::error::{self as ih_error, IcehutSQLResult};
+use super::error::{self as ih_error, IcehutSQLError, IcehutSQLResult};
 use crate::datafusion::context::CustomContextProvider;
 use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
@@ -427,7 +427,7 @@ impl SqlExecutor {
         &self,
         warehouse_name: &str,
         name: ObjectName,
-        if_not_exists: bool,
+        _if_not_exists: bool,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         // TODO: Abstract the Iceberg catalog
         let catalog = self.ctx.catalog(warehouse_name).ok_or(
@@ -444,19 +444,10 @@ impl SqlExecutor {
         let namespace_vec: Vec<String> = name.0.iter().map(|ident| ident.value.clone()).collect();
         let single_layer_namespace = vec![namespace_vec.join(".")];
 
-        #[allow(clippy::unwrap_used)]
-        let namespace = Namespace::try_new(&single_layer_namespace).unwrap();
-
-        // Why are we checking if namespace exists as a single layer and then creating it?
-        // There are multiple possible Error scenarios here that are not handled
-        let should_create = if if_not_exists {
-            rest_catalog.load_namespace(&namespace).await.is_err()
-        } else {
-            true
-        };
-        if should_create {
-            #[allow(clippy::unwrap_used)]
-            let namespace = Namespace::try_new(&namespace_vec).unwrap();
+        let namespace =
+            Namespace::try_new(&single_layer_namespace).context(ih_error::IcebergSpecSnafu)?;
+        let exists = rest_catalog.load_namespace(&namespace).await.is_ok();
+        if !exists {
             rest_catalog
                 .create_namespace(&namespace, None)
                 .await
@@ -514,7 +505,7 @@ impl SqlExecutor {
                             .table(&table)
                             .await
                             .context(super::error::DataFusionSnafu)?
-                            .ok_or(super::error::IcehutSQLError::TableProviderNotFound {
+                            .ok_or(IcehutSQLError::TableProviderNotFound {
                                 table_name: table.clone(),
                             })?;
                         ctx_provider.tables.insert(

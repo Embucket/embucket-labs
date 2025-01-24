@@ -193,7 +193,7 @@ pub struct DatabaseIdent {
 
 impl Display for DatabaseIdent {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}", self.warehouse, self.namespace.to_url_string())
+        write!(f, "{}.{}", self.warehouse, self.namespace.join("."))
     }
 }
 
