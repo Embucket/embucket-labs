@@ -16,6 +16,7 @@ impl From<catalog::error::CatalogError> for AppError {
     }
 }
 
+#[derive(Debug)]
 pub struct AppError {
     pub message: String,
 }
@@ -31,5 +32,11 @@ impl IntoResponse for AppError {
             },
         );
         (status, message).into_response()
+    }
+}
+
+impl std::fmt::Display for AppError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AppError(\"{}\")", self.message)
     }
 }

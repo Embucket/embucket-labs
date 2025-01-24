@@ -45,6 +45,7 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_storage_profile(
     State(state): State<AppState>,
     Json(payload): Json<storage_profile::CreateStorageProfilePayload>,
@@ -72,6 +73,7 @@ pub async fn create_storage_profile(
         (status = 422, description = "Unprocessable entity", body = NexusError),
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_storage_profile(
     State(state): State<AppState>,
     Path(storage_profile_id): Path<Uuid>,
@@ -94,6 +96,7 @@ pub async fn get_storage_profile(
         (status = 422, description = "Unprocessable entity", body = NexusError),
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_storage_profile(
     State(state): State<AppState>,
     Path(storage_profile_id): Path<Uuid>,
@@ -118,6 +121,7 @@ pub async fn delete_storage_profile(
         (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_storage_profiles(
     State(state): State<AppState>,
 ) -> NexusResult<Json<Vec<storage_profile::StorageProfile>>> {

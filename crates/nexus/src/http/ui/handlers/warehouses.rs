@@ -42,6 +42,7 @@ pub struct ApiDoc;
         (status = 200, description = "List all warehouses fot navigation", body = Navigation),
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn navigation(State(state): State<AppState>) -> NexusResult<Json<Navigation>> {
     let warehouses = state.list_warehouses().await?;
     Ok(Json(Navigation { warehouses }))
@@ -57,6 +58,7 @@ pub async fn navigation(State(state): State<AppState>) -> NexusResult<Json<Navig
 
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_warehouses(
     State(state): State<AppState>,
 ) -> NexusResult<Json<WarehousesDashboard>> {
@@ -95,6 +97,7 @@ pub async fn list_warehouses(
     clippy::cast_possible_truncation,
     clippy::as_conversions
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_warehouse(
     State(state): State<AppState>,
     Path(warehouse_id): Path<Uuid>,
@@ -131,6 +134,7 @@ pub async fn get_warehouse(
         (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_warehouse(
     State(state): State<AppState>,
     Json(payload): Json<CreateWarehousePayload>,
@@ -171,6 +175,7 @@ pub async fn create_warehouse(
         (status = 404, description = "Warehouse not found", body = NexusError)
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_warehouse(
     State(state): State<AppState>,
     Path(warehouse_id): Path<Uuid>,

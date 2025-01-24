@@ -49,6 +49,7 @@ impl SqlExecutor {
         Ok(Self { ctx })
     }
 
+    #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn query(
         &self,
         query: &str,
@@ -119,6 +120,7 @@ impl SqlExecutor {
     /// Panics if .
     #[must_use]
     #[allow(clippy::unwrap_used)]
+    #[tracing::instrument(level = "trace", skip(self), ret)]
     pub fn preprocess_query(&self, query: &str) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         // TODO: This regex should be a static allocation
@@ -138,11 +140,12 @@ impl SqlExecutor {
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_table_query(
         &self,
         statement: Statement,
         warehouse_name: &str,
-        _warehouse_location: &str,
+        warehouse_location: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
             let mut new_table_full_name = create_table_statement.name.to_string();
@@ -276,6 +279,7 @@ impl SqlExecutor {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn merge_query(
         &self,
         statement: Statement,
@@ -366,6 +370,7 @@ impl SqlExecutor {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn drop_table_query(
         &self,
         query: &str,
@@ -387,6 +392,7 @@ impl SqlExecutor {
         Ok(res)
     }
 
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_schema(
         &self,
         name: SchemaName,
@@ -437,6 +443,7 @@ impl SqlExecutor {
         created_entity_response().context(super::error::ArrowSnafu)
     }
 
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn get_custom_logical_plan(
         &self,
         query: &str,
@@ -509,6 +516,8 @@ impl SqlExecutor {
             })
         }
     }
+
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn execute_with_custom_plan(
         &self,
         query: &str,

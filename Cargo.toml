@@ -33,6 +33,7 @@ lazy_static = { version = "1.5" }
 dotenv = { version = "0.15.0" }
 datafusion = { version = "43" }
 snafu = { version = "0.8.5", features = ["futures"] }
+tracing = { version = "0.1" }
 
 [patch.crates-io]
 datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "d176c5872a93b0c5dfdd1d2bc717ad22739e9c18" }
