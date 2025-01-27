@@ -12,7 +12,7 @@ use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::LogicalPlan;
-use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
+use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableWithJoins,
@@ -103,6 +103,7 @@ impl SqlExecutor {
                 }
                 Statement::Query(mut subquery) => {
                     self.update_qualify_in_query(subquery.as_mut());
+                    Self::update_table_result_scan_in_query(subquery.as_mut());
                     return Box::pin(
                         self.execute_with_custom_plan(&subquery.to_string(), warehouse_name),
                     )
@@ -631,6 +632,61 @@ impl SqlExecutor {
                 self.update_qualify_in_query(q);
             }
             _ => {}
+        }
+    }
+
+    fn update_table_result_scan_in_query(query: &mut Query) {
+        // TODO: Add logic to get result_scan from the historical results
+        if let sqlparser::ast::SetExpr::Select(select) = query.body.as_mut() {
+            // Remove is_iceberg field since it is not supported by information_schema.tables
+            select.projection.retain(|field| {
+                if let SelectItem::UnnamedExpr(Expr::Identifier(ident)) = field {
+                    ident.value.to_lowercase() != "is_iceberg"
+                } else {
+                    true
+                }
+            });
+
+            // Replace result_scan with the select from information_schema.tables
+            for table_with_joins in &mut select.from {
+                if let TableFactor::TableFunction {
+                    expr: Expr::Function(f),
+                    alias,
+                } = &mut table_with_joins.relation
+                {
+                    if f.name.to_string().to_lowercase() == "result_scan" {
+                        let columns = [
+                            "table_catalog as 'database_name'",
+                            "table_schema as 'schema_name'",
+                            "table_name as 'name'",
+                            "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
+                            "null as 'comment'",
+                            "case when table_type='BASE TABLE' then True else False end as is_iceberg",
+                        ].join(", ");
+                        let information_schema_query =
+                            format!("SELECT {columns} FROM information_schema.tables");
+
+                        match DFParser::parse_sql(information_schema_query.as_str()) {
+                            Ok(mut statements) => {
+                                if let Some(DFStatement::Statement(s)) = statements.pop_front() {
+                                    if let Statement::Query(subquery) = *s {
+                                        select.from = vec![TableWithJoins {
+                                            relation: TableFactor::Derived {
+                                                lateral: false,
+                                                alias: alias.clone(),
+                                                subquery,
+                                            },
+                                            joins: table_with_joins.joins.clone(),
+                                        }];
+                                        break;
+                                    }
+                                }
+                            }
+                            Err(_) => return,
+                        }
+                    }
+                }
+            }
         }
     }
 
