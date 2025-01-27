@@ -22,6 +22,7 @@ use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
 use snafu::ResultExt;
+use std::env;
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
@@ -227,8 +228,14 @@ impl ControlService for ControlServiceImpl {
             object_store,
         );
         let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
+        let sql_parser_dialect =
+            env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
         let state = SessionStateBuilder::new()
-            .with_config(SessionConfig::new().with_information_schema(true))
+            .with_config(
+                SessionConfig::new()
+                    .with_information_schema(true)
+                    .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
+            )
             .with_default_features()
             .with_query_planner(Arc::new(IcebergQueryPlanner {}))
             .build();
