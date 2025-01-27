@@ -148,7 +148,6 @@ pub async fn register_table(
         .register_table(
             &ident,
             &sp,
-            &wh,
             payload.name,
             payload.metadata_location,
             Option::from(get_default_properties()),
