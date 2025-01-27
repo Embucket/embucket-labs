@@ -14,6 +14,7 @@ use snafu::ResultExt;
 use std::io::Read;
 use uuid::Uuid;
 
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
     State(state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
@@ -54,9 +55,10 @@ pub async fn login(
     }))
 }
 
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
     State(state): State<AppState>,
-    Query(_query): Query<QueryRequest>,
+    Query(query): Query<QueryRequest>,
     headers: HeaderMap,
     body: Bytes,
 ) -> DbtResult<Json<JsonResponse>> {

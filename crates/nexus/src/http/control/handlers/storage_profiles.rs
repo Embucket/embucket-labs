@@ -37,6 +37,7 @@ pub struct StorageProfileApi;
     request_body = CreateStorageProfilePayload,
     responses((status = 200, body = StorageProfile))
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_storage_profile(
     State(state): State<AppState>,
     Json(payload): Json<CreateStorageProfilePayload>,
@@ -54,6 +55,7 @@ pub async fn create_storage_profile(
     params(("storageProfileId" = Uuid, description = "Storage profile ID")),
     responses((status = 200, body = StorageProfile)),
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_storage_profile(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
@@ -70,6 +72,7 @@ pub async fn get_storage_profile(
     params(("storageProfileId" = Uuid, description = "Storage profile ID")),
     responses((status = 200))
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_storage_profile(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
@@ -85,6 +88,7 @@ pub async fn delete_storage_profile(
     path = "", 
     responses((status = 200, body = Vec<StorageProfile>))
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_storage_profiles(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<StorageProfile>>, AppError> {

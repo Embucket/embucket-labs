@@ -29,6 +29,7 @@ pub struct WarehouseApi;
     request_body = CreateWarehouseRequest,
     responses((status = 200, body = Warehouse))
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_warehouse(
     State(state): State<AppState>,
     Json(payload): Json<CreateWarehouseRequest>,
@@ -46,6 +47,7 @@ pub async fn create_warehouse(
     params(("warehouseId" = Uuid, description = "Warehouse ID")),
     responses((status = 200, body = Warehouse))
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_warehouse(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
@@ -62,6 +64,7 @@ pub async fn get_warehouse(
     params(("warehouseId" = Uuid, description = "Warehouse ID")),
     responses((status = 200))
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_warehouse(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
@@ -77,6 +80,7 @@ pub async fn delete_warehouse(
     path = "", 
     responses((status = 200, body = Vec<Warehouse>))
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_warehouses(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<Warehouse>>, AppError> {

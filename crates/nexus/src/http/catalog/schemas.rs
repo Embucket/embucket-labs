@@ -103,7 +103,7 @@ pub struct TableCommitResponse {
     pub config: Option<HashMap<String, String>>,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct GetConfigQueryParams {
     pub warehouse: Option<Uuid>,
 }

@@ -45,6 +45,7 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_database(
     State(state): State<AppState>,
     Path(warehouse_id): Path<Uuid>,
@@ -103,6 +104,7 @@ pub async fn create_database(
         (status = 422, description = "Unprocessable entity", body = NexusError),
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_database(
     State(state): State<AppState>,
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
@@ -143,6 +145,7 @@ pub async fn delete_database(
         (status = 422, description = "Unprocessable entity", body = NexusError),
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_database(
     State(state): State<AppState>,
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,

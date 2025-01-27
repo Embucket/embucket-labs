@@ -46,6 +46,7 @@ impl AppState {
         clippy::as_conversions,
         clippy::cast_possible_wrap
     )]
+    #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn list_warehouses(&self) -> NexusResult<Vec<Warehouse>> {
         let warehouses: Vec<Warehouse> = self
             .control_svc
@@ -78,6 +79,7 @@ impl AppState {
         Ok(result)
     }
 
+    #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn list_databases_models(
         &self,
         warehouse_id: Uuid,
@@ -87,6 +89,8 @@ impl AppState {
             .await
             .context(model_error::DatabaseModelListSnafu { id: warehouse_id })
     }
+
+    #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn list_databases(
         &self,
         warehouse_id: Uuid,
@@ -109,6 +113,7 @@ impl AppState {
         Ok(database_entities)
     }
 
+    #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn list_tables(&self, ident: &DatabaseIdent) -> NexusResult<Vec<Table>> {
         let tables = self
             .catalog_svc
@@ -121,6 +126,7 @@ impl AppState {
         Ok(tables)
     }
 
+    #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn get_table(&self, ident: &TableIdent) -> NexusResult<Table> {
         let table = self
             .catalog_svc

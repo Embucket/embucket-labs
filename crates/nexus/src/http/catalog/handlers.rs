@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use control_plane::models::StorageProfile;
 
+#[tracing::instrument(level = "debug", err, skip(state))]
 pub async fn create_namespace(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
@@ -30,6 +31,7 @@ pub async fn create_namespace(
     Ok(Json(res.into()))
 }
 
+#[tracing::instrument(level = "debug", err, skip(state))]
 pub async fn get_namespace(
     State(state): State<AppState>,
     Path((id, namespace_id)): Path<(Uuid, String)>,
@@ -51,6 +53,7 @@ pub async fn get_namespace(
     Ok(Json(namespace.into()))
 }
 
+#[tracing::instrument(level = "debug", err, skip(state))]
 pub async fn delete_namespace(
     State(state): State<AppState>,
     Path((id, namespace_id)): Path<(Uuid, String)>,
@@ -72,6 +75,7 @@ pub async fn delete_namespace(
     Ok(Json(()))
 }
 
+#[tracing::instrument(level = "debug", err, skip(state))]
 pub async fn list_namespaces(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
@@ -89,6 +93,7 @@ pub async fn list_namespaces(
     }))
 }
 
+#[tracing::instrument(level = "debug", err, skip(state))]
 pub async fn create_table(
     State(state): State<AppState>,
     Path((id, namespace_id)): Path<(Uuid, String)>,
@@ -120,6 +125,7 @@ pub async fn create_table(
     Ok(Json(table.into()))
 }
 
+#[tracing::instrument(level = "debug", err, skip(state))]
 pub async fn register_table(
     State(state): State<AppState>,
     Path((id, namespace_id)): Path<(Uuid, String)>,
@@ -151,6 +157,7 @@ pub async fn register_table(
     Ok(Json(table.into()))
 }
 
+#[tracing::instrument(level = "debug", err, skip(state))]
 pub async fn commit_table(
     State(state): State<AppState>,
     Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
@@ -184,6 +191,7 @@ pub async fn commit_table(
     Ok(Json(table.into()))
 }
 
+#[tracing::instrument(level = "debug", err, skip(state))]
 pub async fn get_table(
     State(state): State<AppState>,
     Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
@@ -209,6 +217,7 @@ pub async fn get_table(
     Ok(Json(table.into()))
 }
 
+#[tracing::instrument(level = "debug", err, skip(state))]
 pub async fn delete_table(
     State(state): State<AppState>,
     Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
@@ -234,6 +243,7 @@ pub async fn delete_table(
     Ok(Json(()))
 }
 
+#[tracing::instrument(level = "debug", err, skip(state))]
 pub async fn list_tables(
     State(state): State<AppState>,
     Path((id, namespace_id)): Path<(Uuid, String)>,
@@ -257,15 +267,17 @@ pub async fn list_tables(
     }))
 }
 
+#[tracing::instrument(level = "debug", err, skip(_state))]
 pub async fn report_metrics(
     State(_state): State<AppState>,
-    Path((_id, _namespace_id, _table_id)): Path<(Uuid, String, String)>,
-    Json(_payload): Json<()>,
+    Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
+    Json(payload): Json<()>,
 ) -> Result<(), AppError> {
     //println!("add_table_metrics: {:?}", payload);
     Ok(())
 }
 
+#[tracing::instrument(level = "debug", err, skip(state))]
 pub async fn get_config(
     State(state): State<AppState>,
     Query(params): Query<schemas::GetConfigQueryParams>,
@@ -286,9 +298,10 @@ pub async fn get_config(
 
 // only one endpoint is defined for the catalog implementation to work
 // we don't actually have functionality for views yet
+#[tracing::instrument(level = "debug", err, skip(_state))]
 pub async fn list_views(
     State(_state): State<AppState>,
-    Path((_id, _namespace_id)): Path<(Uuid, String)>,
+    Path((id, namespace_id)): Path<(Uuid, String)>,
 ) -> Result<Json<schemas::TableListResponse>, AppError> {
     Ok(Json(schemas::TableListResponse {
         identifiers: vec![],
