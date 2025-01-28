@@ -22,6 +22,7 @@ use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
 use snafu::ResultExt;
+use std::env;
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
@@ -108,6 +109,7 @@ impl ControlServiceImpl {
 
 #[async_trait]
 impl ControlService for ControlServiceImpl {
+    #[tracing::instrument(level = "trace", skip(self))]
     async fn create_profile(
         &self,
         params: &StorageProfileCreateRequest,
@@ -124,10 +126,12 @@ impl ControlService for ControlServiceImpl {
         Ok(profile)
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     async fn get_profile(&self, id: Uuid) -> ControlPlaneResult<StorageProfile> {
         self.storage_profile_repo.get(id).await
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     async fn delete_profile(&self, id: Uuid) -> ControlPlaneResult<()> {
         let wh = self.list_warehouses().await?;
         if wh.iter().any(|wh| wh.storage_profile_id == id) {
@@ -136,10 +140,12 @@ impl ControlService for ControlServiceImpl {
         self.storage_profile_repo.delete(id).await
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     async fn list_profiles(&self) -> ControlPlaneResult<Vec<StorageProfile>> {
         self.storage_profile_repo.list().await
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     async fn validate_credentials(&self, profile: &StorageProfile) -> ControlPlaneResult<()> {
         match profile.credentials.clone() {
             Credentials::AccessKey(creds) => {
@@ -172,6 +178,7 @@ impl ControlService for ControlServiceImpl {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     async fn create_warehouse(
         &self,
         params: &WarehouseCreateRequest,
@@ -188,20 +195,24 @@ impl ControlService for ControlServiceImpl {
         Ok(wh)
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
         self.warehouse_repo.get(id).await
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     async fn delete_warehouse(&self, id: Uuid) -> ControlPlaneResult<()> {
         // let db = self.list_databases().await?;
         // db.iter().filter(|db| db.warehouse_id == id).next().ok_or(Error::NotEmpty("Warehouse is in use".to_string()))?;
         self.warehouse_repo.delete(id).await
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     async fn list_warehouses(&self) -> ControlPlaneResult<Vec<Warehouse>> {
         self.warehouse_repo.list().await
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
     async fn query(
         &self,
@@ -227,8 +238,14 @@ impl ControlService for ControlServiceImpl {
             object_store,
         );
         let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
+        let sql_parser_dialect =
+            env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
         let state = SessionStateBuilder::new()
-            .with_config(SessionConfig::new().with_information_schema(true))
+            .with_config(
+                SessionConfig::new()
+                    .with_information_schema(true)
+                    .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
+            )
             .with_default_features()
             .with_query_planner(Arc::new(IcebergQueryPlanner {}))
             .build();
@@ -252,6 +269,7 @@ impl ControlService for ControlServiceImpl {
         })
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     async fn query_table(
         &self,
         warehouse_id: &Uuid,
@@ -279,6 +297,7 @@ impl ControlService for ControlServiceImpl {
         Ok(String::from_utf8(buf).context(crate::error::Utf8Snafu)?)
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     async fn query_dbt(
         &self,
         warehouse_id: &Uuid,
@@ -345,6 +364,7 @@ impl ControlService for ControlServiceImpl {
         ))
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     async fn upload_data_to_table(
         &self,
         warehouse_id: &Uuid,

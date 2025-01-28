@@ -66,6 +66,7 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
@@ -106,6 +107,7 @@ pub async fn get_table(
         (status = 404, description = "Not found", body = NexusError),
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
@@ -159,6 +161,7 @@ pub async fn create_table(
         (status = 404, description = "Not found", body = NexusError),
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn register_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name)): Path<(Uuid, String)>,
@@ -214,6 +217,7 @@ pub async fn register_table(
         (status = 404, description = "Not found", body=NexusError),
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
@@ -258,6 +262,7 @@ pub async fn delete_table(
     )
 )]
 // Add time sql took
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn query_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
@@ -293,6 +298,7 @@ pub async fn query_table(
         (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_settings(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
@@ -337,6 +343,7 @@ pub async fn get_settings(
         (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn update_table_properties(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
@@ -403,6 +410,7 @@ pub async fn update_table_properties(
         (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn upload_data_to_table(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
@@ -462,6 +470,7 @@ pub async fn upload_data_to_table(
         (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_snapshots(
     State(state): State<AppState>,
     Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,

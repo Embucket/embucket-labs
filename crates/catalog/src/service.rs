@@ -105,6 +105,7 @@ impl CatalogImpl {
 
 #[async_trait]
 impl Catalog for CatalogImpl {
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn get_config(
         &self,
         ident: Option<WarehouseIdent>,
@@ -140,6 +141,7 @@ impl Catalog for CatalogImpl {
         Ok(config)
     }
 
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn update_table(
         &self,
         storage_profile: &StorageProfile,
@@ -198,6 +200,7 @@ impl Catalog for CatalogImpl {
     }
 
     /// List namespaces inside the catalog.
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn list_namespaces(
         &self,
         warehouse: &WarehouseIdent,
@@ -210,6 +213,7 @@ impl Catalog for CatalogImpl {
     }
 
     /// Create a new namespace inside the catalog.
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn create_namespace(
         &self,
         namespace: &DatabaseIdent,
@@ -232,6 +236,7 @@ impl Catalog for CatalogImpl {
     }
 
     /// Get a namespace information from the catalog.
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn get_namespace(&self, namespace: &DatabaseIdent) -> CatalogResult<Database> {
         self.db_repo.get(namespace).await
     }
@@ -241,6 +246,7 @@ impl Catalog for CatalogImpl {
     /// # Behavior
     ///
     /// The properties must be the full set of namespace.
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn update_namespace(
         &self,
         namespace: &DatabaseIdent,
@@ -257,6 +263,7 @@ impl Catalog for CatalogImpl {
     }
 
     /// Drop a namespace from the catalog.
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn drop_namespace(&self, namespace: &DatabaseIdent) -> CatalogResult<()> {
         // Check if the namespace exists
         _ = self.get_namespace(namespace).await?;
@@ -274,6 +281,7 @@ impl Catalog for CatalogImpl {
     }
 
     /// List tables from namespace.
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn list_tables(&self, namespace: &DatabaseIdent) -> CatalogResult<Vec<Table>> {
         // Check namespace exists
         _ = self.get_namespace(namespace).await?;
@@ -284,6 +292,7 @@ impl Catalog for CatalogImpl {
     }
 
     /// Create a new table inside the namespace.
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn create_table(
         &self,
         namespace: &DatabaseIdent,
@@ -357,6 +366,7 @@ impl Catalog for CatalogImpl {
         Ok(table)
     }
 
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn register_table(
         &self,
         namespace: &DatabaseIdent,
@@ -405,12 +415,14 @@ impl Catalog for CatalogImpl {
     }
 
     /// Load table from the catalog.
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn load_table(&self, table: &TableIdent) -> CatalogResult<Table> {
         let table = self.table_repo.get(table).await?;
         Ok(table)
     }
 
     /// Drop a table from the catalog.
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn drop_table(&self, table: &TableIdent) -> CatalogResult<()> {
         // Check if table exists
         _ = self.load_table(table).await?;

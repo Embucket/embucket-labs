@@ -19,6 +19,7 @@ object_store = { workspace = true }
 url = "2.5.2"
 chrono = "0.4.38"
 snafu = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 

@@ -39,6 +39,7 @@ impl TableRepositoryDb {
 
 #[async_trait]
 impl TableRepository for TableRepositoryDb {
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn put(&self, params: &Table) -> CatalogResult<()> {
         let key = format!("{TBLPREFIX}.{}", params.ident);
         self.db.put(&key, &params).await?;
@@ -48,6 +49,7 @@ impl TableRepository for TableRepositoryDb {
         Ok(())
     }
 
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn get(&self, id: &TableIdent) -> CatalogResult<Table> {
         let key = format!("{TBLPREFIX}.{id}");
         let table = self.db.get(&key).await?;
@@ -55,6 +57,7 @@ impl TableRepository for TableRepositoryDb {
         Ok(table)
     }
 
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn delete(&self, id: &TableIdent) -> CatalogResult<()> {
         let key = format!("{TBLPREFIX}.{id}");
         self.db.delete(&key).await?;
@@ -64,6 +67,7 @@ impl TableRepository for TableRepositoryDb {
         Ok(())
     }
 
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn list(&self, db: &DatabaseIdent) -> CatalogResult<Vec<Table>> {
         let key = &format!("{TBLPREFIX}.{db}");
         let keys = self.db.keys(key).await?;
@@ -76,6 +80,7 @@ impl TableRepository for TableRepositoryDb {
 
 #[async_trait]
 impl DatabaseRepository for DatabaseRepositoryDb {
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn put(&self, params: &Database) -> CatalogResult<()> {
         let key = format!("{DBPREFIX}.{}", params.ident);
         self.db.put(&key, &params).await?;
@@ -85,6 +90,7 @@ impl DatabaseRepository for DatabaseRepositoryDb {
         Ok(())
     }
 
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn get(&self, id: &DatabaseIdent) -> CatalogResult<Database> {
         let key = format!("{DBPREFIX}.{id}");
         let db = self.db.get(&key).await?;
@@ -92,6 +98,7 @@ impl DatabaseRepository for DatabaseRepositoryDb {
         Ok(db)
     }
 
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn delete(&self, id: &DatabaseIdent) -> CatalogResult<()> {
         let key = format!("{DBPREFIX}.{id}");
         self.db.delete(&key).await?;
@@ -101,6 +108,7 @@ impl DatabaseRepository for DatabaseRepositoryDb {
         Ok(())
     }
 
+    #[tracing::instrument(level = "trace", err, skip(self))]
     async fn list(&self, wh: &WarehouseIdent) -> CatalogResult<Vec<Database>> {
         let key = &format!("{DBPREFIX}.{wh}");
         let keys = self.db.keys(key).await?;

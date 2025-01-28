@@ -13,6 +13,7 @@ futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 object_store = { workspace = true }
+tracing = { workspace = true}
 
 datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "d176c5872a93b0c5dfdd1d2bc717ad22739e9c18" }
 datafusion-common = { git="https://github.com/Embucket/datafusion.git", rev = "d176c5872a93b0c5dfdd1d2bc717ad22739e9c18" }
