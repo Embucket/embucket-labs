@@ -30,8 +30,8 @@ use iceberg_rust::spec::types::StructType;
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, Query as AstQuery,
-    Select, SelectItem,
+    BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType,
+    Query as AstQuery, Select, SelectItem,
 };
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
@@ -111,7 +111,7 @@ impl SqlExecutor {
                     .await;
                 }
                 Statement::Drop { .. } => {
-                    return Box::pin(self.drop_table_query(&query, warehouse_name)).await;
+                    return Box::pin(self.drop_query(&query, warehouse_name)).await;
                 }
                 Statement::Merge { .. } => {
                     return Box::pin(self.merge_query(*s, warehouse_name)).await;
@@ -386,7 +386,7 @@ impl SqlExecutor {
     }
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
-    pub async fn drop_table_query(
+    pub async fn drop_query(
         &self,
         query: &str,
         warehouse_name: &str,
@@ -782,12 +782,25 @@ impl SqlExecutor {
                 Statement::Drop {
                     object_type,
                     if_exists,
-                    names,
+                    mut names,
                     cascade,
                     restrict,
                     purge,
                     temporary,
                 } => {
+                    match object_type {
+                        ObjectType::Database | ObjectType::Schema => {
+                            let mut table_name = names[0].0.clone();
+                            if !warehouse_name.is_empty()
+                                && !table_name.starts_with(&[Ident::new(warehouse_name)])
+                            {
+                                table_name.insert(0, Ident::new(warehouse_name));
+                            }
+                            names = vec![ObjectName(table_name)];
+                        }
+                        _ => {}
+                    }
+
                     let names = self.compress_database_name(names[0].clone().0, warehouse_name);
                     let modified_statement = Statement::Drop {
                         object_type,

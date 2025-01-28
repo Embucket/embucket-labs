@@ -40,6 +40,9 @@ use datafusion::sql::sqlparser::ast::{
     ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement,
     DataType as SQLDataType, Statement, TimezoneInfo,
 };
+use datafusion_common::SchemaReference;
+use datafusion_expr::DropCatalogSchema;
+use sqlparser::ast::ObjectType;
 use std::sync::Arc;
 
 pub struct ExtendedSqlToRel<'a, S>
@@ -97,6 +100,40 @@ where
             | Statement::Update { .. } => Ok(LogicalPlan::default()),
             Statement::ShowSchemas { .. } => self.show_variable_to_plan(&["schemas".into()]),
             Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
+            Statement::Drop {
+                object_type,
+                if_exists,
+                mut names,
+                cascade,
+                ..
+            } => match object_type {
+                ObjectType::Database => {
+                    #[allow(clippy::unwrap_used)]
+                    let name = object_name_to_table_reference(names.pop().unwrap(), true)?;
+                    let schema_name = match name {
+                        TableReference::Bare { table } => {
+                            Ok(SchemaReference::Bare { schema: table })
+                        }
+                        TableReference::Partial { schema, table } => Ok(SchemaReference::Full {
+                            schema: table,
+                            catalog: schema,
+                        }),
+                        TableReference::Full { .. } => {
+                            plan_err!("Invalid schema specifier (has 3 parts)")
+                        }
+                    }?;
+
+                    Ok(LogicalPlan::Ddl(DdlStatement::DropCatalogSchema(
+                        DropCatalogSchema {
+                            name: schema_name,
+                            if_exists,
+                            cascade,
+                            schema: DFSchemaRef::new(DFSchema::empty()),
+                        },
+                    )))
+                }
+                _ => plan_err!("Unsupported drop: {:?}", object_type),
+            },
             Statement::CreateTable(CreateTableStatement {
                 query,
                 name,
