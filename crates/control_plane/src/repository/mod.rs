@@ -121,13 +121,14 @@ impl WarehouseRepository for WarehouseRepositoryDb {
 
     async fn get_by_name(&self, name: &str) -> ControlPlaneResult<Warehouse> {
         let warehouses = Repository::_list(self).await?;
-        if let Some(wh) = warehouses.iter().find(|&wh| wh.name == name) {
-            Ok(wh.clone())
-        } else {
-            Err(ControlPlaneError::WarehouseNameNotFound {
-                name: name.to_string(),
-            })
-        }
+        warehouses.iter().find(|&wh| wh.name == name).map_or_else(
+            || {
+                Err(ControlPlaneError::WarehouseNameNotFound {
+                    name: name.to_string(),
+                })
+            },
+            |wh| Ok(wh.clone()),
+        )
     }
 
     async fn get(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
@@ -197,13 +198,14 @@ impl WarehouseRepository for InMemoryWarehouseRepository {
 
     async fn get_by_name(&self, name: &str) -> ControlPlaneResult<Warehouse> {
         let warehouses = self.list().await?;
-        if let Some(wh) = warehouses.iter().find(|&wh| wh.name == name) {
-            Ok(wh.clone())
-        } else {
-            Err(ControlPlaneError::WarehouseNameNotFound {
-                name: name.to_string(),
-            })
-        }
+        warehouses.iter().find(|&wh| wh.name == name).map_or_else(
+            || {
+                Err(ControlPlaneError::WarehouseNameNotFound {
+                    name: name.to_string(),
+                })
+            },
+            |wh| Ok(wh.clone()),
+        )
     }
 
     async fn get(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {

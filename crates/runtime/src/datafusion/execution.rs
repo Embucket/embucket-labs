@@ -792,13 +792,13 @@ impl SqlExecutor {
                 Statement::Query(query) => {
                     match *query.body {
                         sqlparser::ast::SetExpr::Select(select) => {
-                            if !select.from.is_empty() {
+                            if select.from.is_empty() {
+                                table_path(&vec![])
+                            } else {
                                 match &select.from[0].relation {
                                     TableFactor::Table { name, .. } => table_path(&name.0),
                                     _ => table_path(&vec![]),
                                 }
-                            } else {
-                                table_path(&vec![])
                             }
                         }
                         // sqlparser::ast::SetExpr::Query(query) => {
