@@ -31,10 +31,12 @@ use datafusion::prelude::*;
 use datafusion::sql::planner::ContextProvider;
 use datafusion::sql::TableReference;
 use datafusion::variable::VarType;
+use datafusion_expr::planner::TypePlanner;
 
 pub struct CustomContextProvider<'a> {
-    pub(crate) state: &'a SessionState,
-    pub(crate) tables: HashMap<String, Arc<dyn TableSource>>,
+    pub state: &'a SessionState,
+    pub tables: HashMap<String, Arc<dyn TableSource>>,
+    pub type_planner: Option<Arc<dyn TypePlanner>>,
 }
 
 impl ContextProvider for CustomContextProvider<'_> {
@@ -86,6 +88,13 @@ impl ContextProvider for CustomContextProvider<'_> {
         Ok(provider_as_source(table))
     }
 
+    fn get_type_planner(&self) -> Option<Arc<dyn TypePlanner>> {
+        // TODO Get type_planner from state when type_planner() will be implemented
+        self.type_planner
+            .as_ref()
+            .map_or_else(|| None, |type_planner| Some(Arc::clone(type_planner)))
+    }
+
     fn get_function_meta(&self, name: &str) -> Option<Arc<ScalarUDF>> {
         self.state.scalar_functions().get(name).cloned()
     }
@@ -97,7 +106,6 @@ impl ContextProvider for CustomContextProvider<'_> {
     fn get_window_meta(&self, name: &str) -> Option<Arc<WindowUDF>> {
         self.state.window_functions().get(name).cloned()
     }
-
     fn get_variable_type(&self, variable_names: &[String]) -> Option<DataType> {
         if variable_names.is_empty() {
             return None;

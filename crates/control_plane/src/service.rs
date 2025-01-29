@@ -407,7 +407,12 @@ impl ControlService for ControlServiceImpl {
             object_store_builder,
         );
         let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
-        let ctx = SessionContext::new();
+        let state = SessionStateBuilder::new()
+            .with_default_features()
+            .with_query_planner(Arc::new(IcebergQueryPlanner {}))
+            .build();
+
+        let ctx = SessionContext::new_with_state(state);
         ctx.register_catalog(warehouse_name.clone(), Arc::new(catalog));
 
         // Register CSV file as a table

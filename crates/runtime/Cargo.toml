@@ -15,13 +15,13 @@ serde_json = { workspace = true }
 object_store = { workspace = true }
 tracing = { workspace = true}
 
-datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "d176c5872a93b0c5dfdd1d2bc717ad22739e9c18" }
-datafusion-common = { git="https://github.com/Embucket/datafusion.git", rev = "d176c5872a93b0c5dfdd1d2bc717ad22739e9c18" }
-datafusion-expr = { git="https://github.com/Embucket/datafusion.git", rev = "d176c5872a93b0c5dfdd1d2bc717ad22739e9c18" }
+datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "a2fd12b4075f5db419fec31874df1a81426fd902" }
+datafusion-common = { git="https://github.com/Embucket/datafusion.git", rev = "a2fd12b4075f5db419fec31874df1a81426fd902" }
+datafusion-expr = { git="https://github.com/Embucket/datafusion.git", rev = "a2fd12b4075f5db419fec31874df1a81426fd902" }
 
-iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "4114c25c46d0c7ad272031e61ece1e62a892ddfc" }
-iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "4114c25c46d0c7ad272031e61ece1e62a892ddfc" }
-datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "4114c25c46d0c7ad272031e61ece1e62a892ddfc" }
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a3e070c345259c2de15d72c09291a9f282b56ed2" }
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a3e070c345259c2de15d72c09291a9f282b56ed2" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a3e070c345259c2de15d72c09291a9f282b56ed2" }
 
 arrow = { version = "53" }
 arrow-json = { version = "53" }

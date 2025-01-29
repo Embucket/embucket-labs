@@ -5,6 +5,7 @@ use super::error::{self as ih_error, IcehutSQLError, IcehutSQLResult};
 use crate::datafusion::context::CustomContextProvider;
 use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
+use crate::datafusion::type_planner::CustomTypePlanner;
 use arrow::array::{RecordBatch, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
@@ -482,6 +483,7 @@ impl SqlExecutor {
             let mut ctx_provider = CustomContextProvider {
                 state: &state,
                 tables: HashMap::new(),
+                type_planner: Some(Arc::new(CustomTypePlanner {})),
             };
             let references = state
                 .resolve_table_references(&statement)
