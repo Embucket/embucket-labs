@@ -47,8 +47,9 @@ pub struct TablePath {
 }
 
 pub struct SqlExecutor {
-    ctx: SessionContext,
-    ident_normalizer: IdentNormalizer,
+    // ctx made public to register_catalog after creating SqlExecutor
+    pub ctx: SessionContext,
+    ident_normalizer: IdentNormalizer,	
 }
 
 impl SqlExecutor {
@@ -62,7 +63,7 @@ impl SqlExecutor {
         })
     }
 
-    fn parse_query(
+    pub fn parse_query(
         &self, 
         query: &str
     ) -> Result<DFStatement, DataFusionError> {
@@ -85,7 +86,6 @@ impl SqlExecutor {
             .context(super::error::DataFusionSnafu)?;
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
-        let table_path = self.get_table_path(&statement);
 
         if let DFStatement::Statement(s) = statement {
             match *s {
@@ -774,17 +774,17 @@ impl SqlExecutor {
 
         match statement.clone() {
             DFStatement::CreateExternalTable(create_external) => {
-                table_path(&create_external.name.0.clone())
+                table_path(&create_external.name.0)
             }
             DFStatement::Statement(s) => match *s {
                 Statement::AlterTable {name, ..} => {
-                    table_path(&name.0.clone())
+                    table_path(&name.0)
                 }
                 Statement::Insert (insert) => {
-                    table_path(&insert.table_name.0.clone())
+                    table_path(&insert.table_name.0)
                 }
                 Statement::Drop {names, ..} => {
-                    table_path(&names[0].0.clone())
+                    table_path(&names[0].0)
                 }
                 Statement::Query(query) => {
                     match *query.body {
@@ -792,7 +792,7 @@ impl SqlExecutor {
                             if select.from.len() > 0 {
                                 match &select.from[0].relation {
                                     TableFactor::Table { name, .. } => {
-                                        table_path(&name.0.clone())
+                                        table_path(&name.0)
                                     }
                                     _ => { table_path(&vec![]) }
                                 }
@@ -807,12 +807,12 @@ impl SqlExecutor {
                     }
                 }
                 Statement::CreateTable(create_table) => {
-                    table_path(&create_table.name.0.clone())
+                    table_path(&create_table.name.0)
                 }
                 Statement::Update {table, ..} => {
                     match table.relation {
                         TableFactor::Table { name, .. } => {
-                            table_path(&name.0.clone())        
+                            table_path(&name.0)        
                         }
                         _ => { table_path(&vec![]) },
                     }

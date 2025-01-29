@@ -53,6 +53,9 @@ pub enum ControlPlaneError {
     #[snafu(display("Warehouse not found: {id}"))]
     WarehouseNotFound { id: Uuid },
 
+    #[snafu(display("Warehouse name not found: '{name}'"))]
+    WarehouseNameNotFound { name: String },
+
     #[snafu(display("Unable to delete Warehouse, not empty: {id}"))]
     WarehouseNotEmpty { id: Uuid },
 
