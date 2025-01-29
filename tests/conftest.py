@@ -98,7 +98,7 @@ def server() -> Server:
 @pytest.fixture(scope="session")
 def storage_profile(server: Server) -> dict:
     data = server.create_storage_profile(
-        type="Aws",
+        type="aws",
         region=S3_REGION,
         bucket=S3_BUCKET,
         credentials={

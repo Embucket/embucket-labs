@@ -35,7 +35,7 @@ def test_query_endpoint(server, catalog, namespace):
     wh_id = response.json()['warehouses'][0]['id']
 
     query_table_url = urllib.parse.urljoin(
-        server.management_url, f"ui/warehouses/{wh_id}/databases/{namespace.name[0]}/tables/{table_name}/query"
+        server.management_url, f"ui/query"
     )
 
     response = requests.post(query_table_url, json={
@@ -112,7 +112,7 @@ def test_upload_endpoint(server, catalog, namespace):
     assert table.scan().to_arrow().to_pandas().equals(original_data)
 
     query_table_url = urllib.parse.urljoin(
-        server.management_url, f"ui/warehouses/{wh_id}/databases/{namespace.name[0]}/tables/{table_name}/query"
+        server.management_url, f"ui/query"
     )
     response = requests.post(query_table_url, json={
         "query": f"SELECT SUM(my_ints) FROM `{wh_name}`.`{namespace.name[0]}`.`{table_name}`;"
@@ -175,8 +175,7 @@ def test_simple_dbt_workload(server, catalog, namespace):
     assert response.status_code == 200
 
     query_table_url = urllib.parse.urljoin(
-        server.management_url, f"ui/warehouses/{wh_id}/databases/{namespace.name[0]}/tables/"
-                               f"{customers_raw_table_name}/query"
+        server.management_url, f"ui/query"
     )
 
     # Original:

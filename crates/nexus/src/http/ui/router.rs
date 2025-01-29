@@ -57,7 +57,7 @@ pub fn create_router() -> Router<AppState> {
             get(get_table).delete(delete_table),
         )
         .route(
-            "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName/query",
+            "/query",
             post(query_table),
         )
         .route(
