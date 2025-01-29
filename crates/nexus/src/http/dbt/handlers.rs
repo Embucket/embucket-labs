@@ -78,7 +78,7 @@ pub async fn query(
 
     let sessions = state.dbt_sessions.lock().await;
 
-    let Some(auth_data) = sessions.get(token.as_str()) else {
+    let Some(_auth_data) = sessions.get(token.as_str()) else {
         return Err(DbtError::MissingDbtSession);
     };
 

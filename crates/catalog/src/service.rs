@@ -370,6 +370,7 @@ impl Catalog for CatalogImpl {
         &self,
         namespace: &DatabaseIdent,
         storage_profile: &StorageProfile,
+        _warehouse: &Warehouse,
         table_name: String,
         metadata_location: String,
         properties: Option<HashMap<String, String>>,
