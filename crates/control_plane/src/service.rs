@@ -58,20 +58,11 @@ pub trait ControlService: Send + Sync {
     // async fn delete_table(&self, id: Uuid) -> ControlPlaneResult<()>;
     // async fn list_tables(&self) -> ControlPlaneResult<Vec<Table>>;
 
-    async fn query(
-        &self,
-        query: &str,
-    ) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
+    async fn query(&self, query: &str) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
 
-    async fn query_table(
-        &self,
-        query: &str,
-    ) -> ControlPlaneResult<String>;
+    async fn query_table(&self, query: &str) -> ControlPlaneResult<String>;
 
-    async fn query_dbt(
-        &self,
-        query: &str,
-    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)>;
+    async fn query_dbt(&self, query: &str) -> ControlPlaneResult<(String, Vec<ColumnInfo>)>;
 
     async fn upload_data_to_table(
         &self,
@@ -211,10 +202,7 @@ impl ControlService for ControlServiceImpl {
 
     #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
-    async fn query(
-        &self,
-        query: &str,
-    ) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
+    async fn query(&self, query: &str) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
         let state = SessionStateBuilder::new()
@@ -232,7 +220,9 @@ impl ControlService for ControlServiceImpl {
         // TODO: Should be shared context
         let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
 
-        let statement = executor.parse_query(query).context(super::error::DataFusionSnafu)?;
+        let statement = executor
+            .parse_query(query)
+            .context(super::error::DataFusionSnafu)?;
         let table_path = executor.get_table_path(&statement);
         let warehouse = self.get_warehouse_by_name(table_path.db).await?;
         let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
@@ -254,7 +244,9 @@ impl ControlService for ControlServiceImpl {
         let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
         let catalog_name = warehouse.name.clone();
 
-        executor.ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
+        executor
+            .ctx
+            .register_catalog(catalog_name.clone(), Arc::new(catalog));
 
         let records: Vec<RecordBatch> = executor
             .query(query, &catalog_name, &warehouse.location)
@@ -269,13 +261,8 @@ impl ControlService for ControlServiceImpl {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn query_table(
-        &self,
-        query: &str,
-    ) -> ControlPlaneResult<String> {
-        let (records, _) = self
-            .query(query)
-            .await?;
+    async fn query_table(&self, query: &str) -> ControlPlaneResult<String> {
+        let (records, _) = self.query(query).await?;
 
         let buf = Vec::new();
         let write_builder = WriterBuilder::new().with_explicit_nulls(true);
@@ -294,13 +281,8 @@ impl ControlService for ControlServiceImpl {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn query_dbt(
-        &self,
-        query: &str,
-    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)> {
-        let (records, columns) = self
-            .query(query)
-            .await?;
+    async fn query_dbt(&self, query: &str) -> ControlPlaneResult<(String, Vec<ColumnInfo>)> {
+        let (records, columns) = self.query(query).await?;
 
         // THIS CODE RELATED TO ARROW FORMAT
         //////////////////////////////////////

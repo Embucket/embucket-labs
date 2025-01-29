@@ -24,7 +24,7 @@ pub trait StorageProfileRepository: Send + Sync {
 #[async_trait]
 pub trait WarehouseRepository: Send + Sync {
     async fn create(&self, params: &Warehouse) -> ControlPlaneResult<()>;
-    async fn get_by_name(&self, name: &str)-> ControlPlaneResult<Warehouse>;
+    async fn get_by_name(&self, name: &str) -> ControlPlaneResult<Warehouse>;
     async fn get(&self, id: Uuid) -> ControlPlaneResult<Warehouse>;
     async fn delete(&self, id: Uuid) -> ControlPlaneResult<()>;
     async fn list(&self) -> ControlPlaneResult<Vec<Warehouse>>;
@@ -119,12 +119,14 @@ impl WarehouseRepository for WarehouseRepositoryDb {
         Repository::_create(self, entity).await.map_err(Into::into)
     }
 
-    async fn get_by_name(&self, name: &str)-> ControlPlaneResult<Warehouse> {
+    async fn get_by_name(&self, name: &str) -> ControlPlaneResult<Warehouse> {
         let warehouses = Repository::_list(self).await?;
         if let Some(wh) = warehouses.iter().find(|&wh| wh.name == name) {
             Ok(wh.clone())
         } else {
-            Err(ControlPlaneError::WarehouseNameNotFound { name: name.to_string() })
+            Err(ControlPlaneError::WarehouseNameNotFound {
+                name: name.to_string(),
+            })
         }
     }
 
@@ -193,12 +195,14 @@ impl WarehouseRepository for InMemoryWarehouseRepository {
         Ok(())
     }
 
-    async fn get_by_name(&self, name: &str)-> ControlPlaneResult<Warehouse> {
+    async fn get_by_name(&self, name: &str) -> ControlPlaneResult<Warehouse> {
         let warehouses = self.list().await?;
         if let Some(wh) = warehouses.iter().find(|&wh| wh.name == name) {
             Ok(wh.clone())
         } else {
-            Err(ControlPlaneError::WarehouseNameNotFound { name: name.to_string() })
+            Err(ControlPlaneError::WarehouseNameNotFound {
+                name: name.to_string(),
+            })
         }
     }
 

@@ -63,13 +63,10 @@ impl SqlExecutor {
         })
     }
 
-    pub fn parse_query(
-        &self, 
-        query: &str
-    ) -> Result<DFStatement, DataFusionError> {
+    pub fn parse_query(&self, query: &str) -> Result<DFStatement, DataFusionError> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
-        state.sql_to_statement(&query, dialect)
+        state.sql_to_statement(query, dialect)
     }
 
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
@@ -755,20 +752,32 @@ impl SqlExecutor {
         }
     }
 
-
     #[must_use]
     #[allow(clippy::too_many_lines)]
-    pub fn get_table_path(
-        &self,
-        statement: &DFStatement,
-    ) -> TablePath {
-        let table_path =  |arr: &Vec<Ident>| -> TablePath {
-            let empty = || String::from("");
+    pub fn get_table_path(&self, statement: &DFStatement) -> TablePath {
+        let table_path = |arr: &Vec<Ident>| -> TablePath {
+            let empty = || String::new();
             match arr.len() {
-                1 => TablePath{ db: empty(), schema: empty(), table: arr[0].value.clone()},
-                2 => TablePath{ db: empty(), schema: arr[0].value.clone(), table: arr[1].value.clone()},
-                3 => TablePath{ db: arr[0].value.clone(), schema: arr[1].value.clone(), table: arr[2].value.clone()},
-                _ => TablePath{ db: empty(), schema: empty(), table: empty()},
+                1 => TablePath {
+                    db: empty(),
+                    schema: empty(),
+                    table: arr[0].value.clone(),
+                },
+                2 => TablePath {
+                    db: empty(),
+                    schema: arr[0].value.clone(),
+                    table: arr[1].value.clone(),
+                },
+                3 => TablePath {
+                    db: arr[0].value.clone(),
+                    schema: arr[1].value.clone(),
+                    table: arr[2].value.clone(),
+                },
+                _ => TablePath {
+                    db: empty(),
+                    schema: empty(),
+                    table: empty(),
+                },
             }
         };
 
@@ -777,24 +786,16 @@ impl SqlExecutor {
                 table_path(&create_external.name.0)
             }
             DFStatement::Statement(s) => match *s {
-                Statement::AlterTable {name, ..} => {
-                    table_path(&name.0)
-                }
-                Statement::Insert (insert) => {
-                    table_path(&insert.table_name.0)
-                }
-                Statement::Drop {names, ..} => {
-                    table_path(&names[0].0)
-                }
+                Statement::AlterTable { name, .. } => table_path(&name.0),
+                Statement::Insert(insert) => table_path(&insert.table_name.0),
+                Statement::Drop { names, .. } => table_path(&names[0].0),
                 Statement::Query(query) => {
                     match *query.body {
                         sqlparser::ast::SetExpr::Select(select) => {
-                            if select.from.len() > 0 {
+                            if !select.from.is_empty() {
                                 match &select.from[0].relation {
-                                    TableFactor::Table { name, .. } => {
-                                        table_path(&name.0)
-                                    }
-                                    _ => { table_path(&vec![]) }
+                                    TableFactor::Table { name, .. } => table_path(&name.0),
+                                    _ => table_path(&vec![]),
                                 }
                             } else {
                                 table_path(&vec![])
@@ -803,21 +804,15 @@ impl SqlExecutor {
                         // sqlparser::ast::SetExpr::Query(query) => {
                         //     query.body
                         // }
-                        _ => {table_path(&vec![])}
+                        _ => table_path(&vec![]),
                     }
                 }
-                Statement::CreateTable(create_table) => {
-                    table_path(&create_table.name.0)
-                }
-                Statement::Update {table, ..} => {
-                    match table.relation {
-                        TableFactor::Table { name, .. } => {
-                            table_path(&name.0)        
-                        }
-                        _ => { table_path(&vec![]) },
-                    }
-                }
-                _ => { table_path(&vec![]) },
+                Statement::CreateTable(create_table) => table_path(&create_table.name.0),
+                Statement::Update { table, .. } => match table.relation {
+                    TableFactor::Table { name, .. } => table_path(&name.0),
+                    _ => table_path(&vec![]),
+                },
+                _ => table_path(&vec![]),
             },
             _ => table_path(&vec![]),
         }
