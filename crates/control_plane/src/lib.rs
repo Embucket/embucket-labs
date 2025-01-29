@@ -22,8 +22,7 @@ pub mod models; // This will expose everything inside models.rs
 pub mod repository; // This will expose everything inside repository.rs
 
 // Expose the service layer
-pub mod service; // This will expose everything inside service.rs
-
 pub mod error;
+pub mod service; // This will expose everything inside service.rs
 
 pub mod utils;

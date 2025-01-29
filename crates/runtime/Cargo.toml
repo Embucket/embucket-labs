@@ -29,11 +29,15 @@ iceberg-rest-catalog = { workspace = true }
 iceberg-rust = { workspace = true }
 object_store = { workspace = true }
 
+
 paste = "1"
 regex = { version = "1.11.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 snafu = { workspace = true }
+dirs = "6.0.0"
+parking_lot = "0.12.3"
+dashmap = "6.1.0"
 
 sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "53c291e3e95f176daea954f614409e5f674ec561", features = [
   "visitor",

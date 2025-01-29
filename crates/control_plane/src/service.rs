@@ -25,6 +25,8 @@ use arrow_json::writer::JsonArray;
 use arrow_json::WriterBuilder;
 use async_trait::async_trait;
 use bytes::Bytes;
+use datafusion::catalog_common::MemoryCatalogProvider;
+use datafusion::execution::context::SessionContext;
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{CsvReadOptions, SessionConfig, SessionContext};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -33,6 +35,7 @@ use iceberg_rest_catalog::apis::configuration::Configuration;
 use iceberg_rest_catalog::catalog::RestCatalog;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
+use runtime::datafusion::data_catalog::catalog::IcehutCatalogProvider;
 use runtime::datafusion::execution::SqlExecutor;
 use runtime::datafusion::session::SessionParams;
 use runtime::datafusion::type_planner::CustomTypePlanner;
@@ -320,7 +323,7 @@ impl ControlService for ControlServiceImpl {
                     object_store,
                 );
 
-                let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
+                let catalog = IcehutCatalogProvider::new(Arc::new(rest_client), None).await?;
                 if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
                     executor
                         .ctx
@@ -423,7 +426,7 @@ impl ControlService for ControlServiceImpl {
                 config,
                 object_store_builder,
             );
-            let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
+            let catalog = IcehutCatalogProvider::new(Arc::new(rest_client), None).await?;
             executor
                 .ctx
                 .register_catalog(warehouse.name.clone(), Arc::new(catalog));
