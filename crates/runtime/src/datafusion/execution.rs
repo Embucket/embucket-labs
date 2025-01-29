@@ -39,6 +39,13 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+#[derive(Debug)]
+pub struct TablePath {
+    pub db: String,
+    pub schema: String,
+    pub table: String,
+}
+
 pub struct SqlExecutor {
     ctx: SessionContext,
     ident_normalizer: IdentNormalizer,
@@ -55,6 +62,15 @@ impl SqlExecutor {
         })
     }
 
+    fn parse_query(
+        &self, 
+        query: &str
+    ) -> Result<DFStatement, DataFusionError> {
+        let state = self.ctx.state();
+        let dialect = state.config().options().sql_parser.dialect.as_str();
+        state.sql_to_statement(&query, dialect)
+    }
+
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn query(
         &self,
@@ -62,15 +78,14 @@ impl SqlExecutor {
         warehouse_name: &str,
         warehouse_location: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
-        let state = self.ctx.state();
-        let dialect = state.config().options().sql_parser.dialect.as_str();
         // Update query to use custom JSON functions
         let query = self.preprocess_query(query);
-        let statement = state
-            .sql_to_statement(&query, dialect)
+        let statement = self
+            .parse_query(query.as_str())
             .context(super::error::DataFusionSnafu)?;
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
+        let table_path = self.get_table_path(&statement);
 
         if let DFStatement::Statement(s) = statement {
             match *s {
@@ -737,6 +752,74 @@ impl SqlExecutor {
                 left_expr
             }
             _ => vec![],
+        }
+    }
+
+
+    #[must_use]
+    #[allow(clippy::too_many_lines)]
+    pub fn get_table_path(
+        &self,
+        statement: &DFStatement,
+    ) -> TablePath {
+        let table_path =  |arr: &Vec<Ident>| -> TablePath {
+            let empty = || String::from("");
+            match arr.len() {
+                1 => TablePath{ db: empty(), schema: empty(), table: arr[0].value.clone()},
+                2 => TablePath{ db: empty(), schema: arr[0].value.clone(), table: arr[1].value.clone()},
+                3 => TablePath{ db: arr[0].value.clone(), schema: arr[1].value.clone(), table: arr[2].value.clone()},
+                _ => TablePath{ db: empty(), schema: empty(), table: empty()},
+            }
+        };
+
+        match statement.clone() {
+            DFStatement::CreateExternalTable(create_external) => {
+                table_path(&create_external.name.0.clone())
+            }
+            DFStatement::Statement(s) => match *s {
+                Statement::AlterTable {name, ..} => {
+                    table_path(&name.0.clone())
+                }
+                Statement::Insert (insert) => {
+                    table_path(&insert.table_name.0.clone())
+                }
+                Statement::Drop {names, ..} => {
+                    table_path(&names[0].0.clone())
+                }
+                Statement::Query(query) => {
+                    match *query.body {
+                        sqlparser::ast::SetExpr::Select(select) => {
+                            if select.from.len() > 0 {
+                                match &select.from[0].relation {
+                                    TableFactor::Table { name, .. } => {
+                                        table_path(&name.0.clone())
+                                    }
+                                    _ => { table_path(&vec![]) }
+                                }
+                            } else {
+                                table_path(&vec![])
+                            }
+                        }
+                        // sqlparser::ast::SetExpr::Query(query) => {
+                        //     query.body
+                        // }
+                        _ => {table_path(&vec![])}
+                    }
+                }
+                Statement::CreateTable(create_table) => {
+                    table_path(&create_table.name.0.clone())
+                }
+                Statement::Update {table, ..} => {
+                    match table.relation {
+                        TableFactor::Table { name, .. } => {
+                            table_path(&name.0.clone())        
+                        }
+                        _ => { table_path(&vec![]) },
+                    }
+                }
+                _ => { table_path(&vec![]) },
+            },
+            _ => table_path(&vec![]),
         }
     }
 
