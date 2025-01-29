@@ -215,11 +215,18 @@ impl ControlService for ControlServiceImpl {
         &self,
         query: &str,
     ) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
+        let sql_parser_dialect =
+            env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
         let state = SessionStateBuilder::new()
-            .with_config(SessionConfig::new().with_information_schema(true))
-            .with_default_features()
+            .with_config(
+                SessionConfig::new()
+                    .with_information_schema(true)
+                    .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
+            )
+            .with_default_features(Arc::new(IcebergQueryPlanner {}))
             .with_query_planner(Arc::new(IcebergQueryPlanner {}))
-            .build();
+	    .with_type_planner(Arc::new(CustomTypePlanner {}))
+            .build();        
         let ctx = SessionContext::new_with_state(state);
 
         // TODO: Should be shared context
@@ -245,20 +252,6 @@ impl ControlService for ControlServiceImpl {
         );
 
         let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
-        let sql_parser_dialect =
-            env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
-        let state = SessionStateBuilder::new()
-            .with_config(
-                SessionConfig::new()
-                    .with_information_schema(true)
-                    .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
-            )
-            .with_default_features()
-            .with_query_planner(Arc::new(IcebergQueryPlanner {}))
-            .with_type_planner(Arc::new(CustomTypePlanner {}))
-            .build();
-        let ctx = SessionContext::new_with_state(state);
-
         let catalog_name = warehouse.name.clone();
 
         executor.ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
