@@ -26,7 +26,6 @@ utils = { path = "../utils" }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
-dotenv = { workspace = true }
 swagger = { version = "6.1", features = ["serdejson", "server", "client", "tls", "tcp"] }
 validator = { version = "0.18.1", features = ["derive"] }
 tracing = { version = "0.1" }

@@ -30,7 +30,6 @@ arrow = { version = "53" }
 arrow-json = { version = "53" }
 datafusion-functions-json = { version = "0.43.0" }
 object_store = { workspace = true }
-dotenv = { workspace = true }
 rusoto_core = { version = "0.48.0" }
 rusoto_s3 = { version = "0.48.0" }
 rusoto_credential = { version = "0.48.0" }
