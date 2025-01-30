@@ -60,14 +60,17 @@ impl ExtendedMirror {
     /// Lists all tables in the given namespace.
     pub fn table_names(&self, namespace: &Namespace) -> Result<Vec<Identifier>, DataFusionError> {
         let mut table_names = self.base.table_names(namespace)?;
-        let memory_tables: Vec<Identifier> = self
+        let memory_tables: Vec<Identifier> = match self
             .memory_catalog_provider
             .schema(namespace.to_string().as_str())
-            .unwrap()
-            .table_names()
-            .into_iter()
-            .map(|name| Identifier::try_new(&[name], None).unwrap())
-            .collect();
+        {
+            Some(schema) => schema
+                .table_names()
+                .into_iter()
+                .filter_map(|name| Identifier::try_new(&[name], None).ok())
+                .collect(),
+            None => vec![],
+        };
         table_names.extend(memory_tables);
         Ok(table_names)
     }
@@ -85,13 +88,14 @@ impl ExtendedMirror {
         if iceberg_table.is_some() {
             return Ok(iceberg_table);
         }
-        let schema = self
+        if let Some(schema) = self
             .memory_catalog_provider
-            .schema(identifier.namespace().to_string().as_str());
-        schema
-            .expect("Schema does not exist")
-            .table(identifier.name())
-            .await
+            .schema(identifier.namespace().to_string().as_str())
+        {
+            schema.table(identifier.name()).await
+        } else {
+            Err(DataFusionError::Plan("Schema does not exist".to_string()))
+        }
     }
 
     pub fn table_exists(&self, identifier: Identifier) -> bool {
