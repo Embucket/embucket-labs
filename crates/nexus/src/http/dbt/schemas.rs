@@ -16,7 +16,7 @@ pub struct LoginRequestQuery {
     #[serde(rename = "warehouse")]
     pub warehouse: String,
     #[serde(rename = "roleName")]
-    pub role_name: String,
+    pub role_name: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

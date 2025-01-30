@@ -2,23 +2,23 @@
 #![allow(clippy::missing_panics_doc)]
 
 use super::error::{self as ih_error, IcehutSQLError, IcehutSQLResult};
-use crate::datafusion::context::CustomContextProvider;
 use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
-use crate::datafusion::type_planner::CustomTypePlanner;
 use arrow::array::{RecordBatch, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::context::SessionContext;
+use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
+use datafusion::sql::planner::IdentNormalizer;
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableWithJoins,
 };
-use datafusion_common::DataFusionError;
+use datafusion_common::{DataFusionError, TableReference};
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::iceberg_transform;
@@ -41,13 +41,18 @@ use std::sync::Arc;
 
 pub struct SqlExecutor {
     ctx: SessionContext,
+    ident_normalizer: IdentNormalizer,
 }
 
 impl SqlExecutor {
     pub fn new(mut ctx: SessionContext) -> IcehutSQLResult<Self> {
         register_udfs(&mut ctx).context(ih_error::RegisterUDFSnafu)?;
         register_all(&mut ctx).context(ih_error::RegisterUDFSnafu)?;
-        Ok(Self { ctx })
+        let enable_ident_normalization = ctx.enable_ident_normalization();
+        Ok(Self {
+            ctx,
+            ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
+        })
     }
 
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
@@ -234,12 +239,13 @@ impl SqlExecutor {
                 },
             )?;
             let rest_catalog = iceberg_catalog.catalog();
+            let new_table_name = self.ident_normalizer.normalize(new_table_name.clone());
             let new_table_ident = Identifier::new(
                 &new_table_db
                     .iter()
-                    .map(|v| v.value.clone())
+                    .map(|v| self.ident_normalizer.normalize(v.clone()))
                     .collect::<Vec<String>>(),
-                &new_table_name.value,
+                &new_table_name.clone(),
             );
             if matches!(
                 rest_catalog.tabular_exists(&new_table_ident).await,
@@ -256,7 +262,7 @@ impl SqlExecutor {
                 .create_table(
                     new_table_ident.clone(),
                     CreateTableCatalog {
-                        name: new_table_name.value.clone(),
+                        name: new_table_name.clone(),
                         location,
                         schema,
                         partition_spec: None,
@@ -449,7 +455,11 @@ impl SqlExecutor {
             },
         )?;
         let rest_catalog = iceberg_catalog.catalog();
-        let namespace_vec: Vec<String> = name.0.iter().map(|ident| ident.value.clone()).collect();
+        let namespace_vec: Vec<String> = name
+            .0
+            .iter()
+            .map(|ident| self.ident_normalizer.normalize(ident.clone()))
+            .collect();
         let single_layer_namespace = vec![namespace_vec.join(".")];
 
         let namespace =
@@ -480,18 +490,18 @@ impl SqlExecutor {
         //println!("modified query: {:?}", statement.to_string());
 
         if let DFStatement::Statement(s) = statement.clone() {
-            let mut ctx_provider = CustomContextProvider {
+            let mut ctx_provider = SessionContextProvider {
                 state: &state,
                 tables: HashMap::new(),
-                type_planner: Some(Arc::new(CustomTypePlanner {})),
             };
+
             let references = state
                 .resolve_table_references(&statement)
                 .context(super::error::DataFusionSnafu)?;
             //println!("References: {:?}", references);
             for reference in references {
                 let resolved = state.resolve_table_ref(reference);
-                if let Entry::Vacant(v) = ctx_provider.tables.entry(resolved.to_string()) {
+                if let Entry::Vacant(v) = ctx_provider.tables.entry(resolved.clone()) {
                     if let Ok(schema) = state.schema_for_ref(resolved.clone()) {
                         if let Some(table) = schema
                             .table(&resolved.table)
@@ -518,15 +528,20 @@ impl SqlExecutor {
                             .ok_or(IcehutSQLError::TableProviderNotFound {
                                 table_name: table.clone(),
                             })?;
-                        ctx_provider.tables.insert(
-                            format!("{catalog}.{schema}.{table}"),
-                            provider_as_source(table_source),
-                        );
+                        let resolved = state.resolve_table_ref(TableReference::full(
+                            catalog.to_string(),
+                            schema.to_string(),
+                            table,
+                        ));
+                        ctx_provider
+                            .tables
+                            .insert(resolved, provider_as_source(table_source));
                     }
                 }
             }
 
-            let planner = ExtendedSqlToRel::new(&ctx_provider);
+            let planner =
+                ExtendedSqlToRel::new(&ctx_provider, self.ctx.state().get_parser_options());
             planner
                 .sql_statement_to_plan(*s)
                 .context(super::error::DataFusionSnafu)

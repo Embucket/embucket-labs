@@ -18,6 +18,7 @@ use iceberg_rest_catalog::catalog::RestCatalog;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
 use runtime::datafusion::execution::SqlExecutor;
+use runtime::datafusion::type_planner::CustomTypePlanner;
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
@@ -248,6 +249,7 @@ impl ControlService for ControlServiceImpl {
             )
             .with_default_features()
             .with_query_planner(Arc::new(IcebergQueryPlanner {}))
+            .with_type_planner(Arc::new(CustomTypePlanner {}))
             .build();
         let ctx = SessionContext::new_with_state(state);
 

@@ -22,7 +22,8 @@ use datafusion::logical_expr::sqlparser::ast::{Ident, ObjectName};
 use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{
-    object_name_to_table_reference, ContextProvider, IdentNormalizer, PlannerContext, SqlToRel,
+    object_name_to_table_reference, ContextProvider, IdentNormalizer, ParserOptions,
+    PlannerContext, SqlToRel,
 };
 use datafusion::sql::sqlparser::ast::{
     ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement,
@@ -41,6 +42,7 @@ where
 {
     inner: SqlToRel<'a, S>, // The wrapped type
     provider: &'a S,
+    options: ParserOptions,
     ident_normalizer: IdentNormalizer,
 }
 
@@ -49,11 +51,14 @@ where
     S: ContextProvider,
 {
     /// Create a new instance of `ExtendedSqlToRel`
-    pub fn new(provider: &'a S) -> Self {
+    pub fn new(provider: &'a S, options: ParserOptions) -> Self {
+        let ident_normalize = options.enable_ident_normalization;
+
         Self {
             inner: SqlToRel::new(provider),
             provider,
-            ident_normalizer: IdentNormalizer::default(),
+            options,
+            ident_normalizer: IdentNormalizer::new(ident_normalize),
         }
     }
 
@@ -99,7 +104,10 @@ where
             } => match object_type {
                 ObjectType::Database => {
                     #[allow(clippy::unwrap_used)]
-                    let name = object_name_to_table_reference(names.pop().unwrap(), true)?;
+                    let name = object_name_to_table_reference(
+                        names.pop().unwrap(),
+                        self.options.enable_ident_normalization,
+                    )?;
                     let schema_name = match name {
                         TableReference::Bare { table } => {
                             Ok(SchemaReference::Bare { schema: table })
