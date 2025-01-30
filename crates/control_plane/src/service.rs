@@ -211,9 +211,9 @@ impl ControlService for ControlServiceImpl {
                     .with_information_schema(true)
                     .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
             )
-            .with_default_features(Arc::new(IcebergQueryPlanner {}))
+            .with_default_features()
             .with_query_planner(Arc::new(IcebergQueryPlanner {}))
-	    .with_type_planner(Arc::new(CustomTypePlanner {}))
+	        .with_type_planner(Arc::new(CustomTypePlanner {}))
             .build();        
         let ctx = SessionContext::new_with_state(state);
 
@@ -223,33 +223,56 @@ impl ControlService for ControlServiceImpl {
         let statement = executor
             .parse_query(query)
             .context(super::error::DataFusionSnafu)?;
+
+        // Either remove it or fix bug in resolve_table_references
+        // let state = executor.ctx.state();
+        // let references = state
+        //     .resolve_table_references(&statement)
+        //     .context(super::error::DataFusionSnafu)?;
+        // println!("References: {:?}", references);
+
         let table_path = executor.get_table_path(&statement);
-        let warehouse = self.get_warehouse_by_name(table_path.db).await?;
-        let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
+        println!("warehouse: {}, query: {}", table_path.db, query);
 
-        let config = {
-            let mut config = Configuration::new();
-            config.base_path = "http://0.0.0.0:3000/catalog".to_string();
-            config
+        let warehouse_name = table_path.db;
+
+        println!("query => catalog_names: {:?}", executor.ctx.catalog_names());
+
+        let (catalog_name, warehouse_location): (String, String) = if table_path.table.is_empty() {
+            println!("query => use datafusion");
+            (String::from("datafusion"), String::new())
+        } else {
+            let warehouse = self.get_warehouse_by_name(warehouse_name.clone()).await?;
+            if let None = executor.ctx.catalog(warehouse.name.as_str()) {
+                println!("query => register_catalog {warehouse_name}");
+                let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
+        
+                let config = {
+                    let mut config = Configuration::new();
+                    config.base_path = "http://0.0.0.0:3000/catalog".to_string();
+                    config
+                };
+                let object_store = storage_profile
+                    .get_object_store_builder()
+                    .context(crate::error::InvalidStorageProfileSnafu)?;
+                let rest_client = RestCatalog::new(
+                    Some(warehouse.id.to_string().as_str()),
+                    config,
+                    object_store,
+                );
+        
+                let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
+                executor.ctx.register_catalog(warehouse.name.clone(), Arc::new(catalog));
+            } else {
+                println!("query => reuse catalog {warehouse_name}");
+            }
+            (warehouse.name, warehouse.location)
         };
-        let object_store = storage_profile
-            .get_object_store_builder()
-            .context(crate::error::InvalidStorageProfileSnafu)?;
-        let rest_client = RestCatalog::new(
-            Some(warehouse.id.to_string().as_str()),
-            config,
-            object_store,
-        );
 
-        let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
-        let catalog_name = warehouse.name.clone();
-
-        executor
-            .ctx
-            .register_catalog(catalog_name.clone(), Arc::new(catalog));
+        println!("query => 2 catalog_names: {:?}", executor.ctx.catalog_names());
 
         let records: Vec<RecordBatch> = executor
-            .query(query, &catalog_name, &warehouse.location)
+            .query(query, catalog_name.as_str(), warehouse_location.as_str())
             .await
             .context(crate::error::ExecutionSnafu)?
             .into_iter()

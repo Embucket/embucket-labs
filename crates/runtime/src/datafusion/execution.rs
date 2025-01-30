@@ -49,7 +49,7 @@ pub struct TablePath {
 pub struct SqlExecutor {
     // ctx made public to register_catalog after creating SqlExecutor
     pub ctx: SessionContext,
-    ident_normalizer: IdentNormalizer,	
+    ident_normalizer: IdentNormalizer,
 }
 
 impl SqlExecutor {
