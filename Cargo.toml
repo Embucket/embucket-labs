@@ -1,7 +1,7 @@
 [workspace]
-default-members = ["bin/icehut"]
+default-members = ["bin/icehutd"]
 members = [
-    "bin/icehut",
+    "bin/icehutd",
     "crates/utils",
     "crates/catalog",
     "crates/control_plane",
