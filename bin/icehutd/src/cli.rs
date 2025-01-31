@@ -1,7 +1,7 @@
 use clap::{Parser, ValueEnum};
 use object_store::{
-    ObjectStore, Result as ObjectStoreResult, aws::AmazonS3Builder, aws::S3ConditionalPut,
-    local::LocalFileSystem, memory::InMemory,
+    aws::AmazonS3Builder, aws::S3ConditionalPut, local::LocalFileSystem, memory::InMemory,
+    ObjectStore, Result as ObjectStoreResult,
 };
 use std::path::PathBuf;
 
