@@ -225,11 +225,11 @@ impl ControlService for ControlServiceImpl {
             .context(super::error::DataFusionSnafu)?;
 
         // Either remove it or fix bug in resolve_table_references
-        // let state = executor.ctx.state();
-        // let references = state
-        //     .resolve_table_references(&statement)
-        //     .context(super::error::DataFusionSnafu)?;
-        // println!("References: {:?}", references);
+        let state = executor.ctx.state();
+        let references = state
+            .resolve_table_references(&statement)
+            .context(super::error::DataFusionSnafu)?;
+        println!("References: {:?}", references);
 
         let table_path = executor.get_table_path(&statement);
         println!("warehouse: {}, query: {}", table_path.db, query);
@@ -555,6 +555,14 @@ mod tests {
     };
     use crate::repository::InMemoryStorageProfileRepository;
     use crate::repository::InMemoryWarehouseRepository;
+    use crate::repository::StorageProfileRepositoryDb;
+    use crate::repository::WarehouseRepositoryDb;
+    use utils::Db;
+    use object_store::{
+        memory::InMemory, path::Path,
+    };    
+    use slatedb::config::DbOptions;
+    use slatedb::db::Db as SlateDb;
 
     #[tokio::test]
     async fn test_create_warehouse_failed_no_storage_profile() {
@@ -610,4 +618,79 @@ mod tests {
             ControlPlaneError::StorageProfileInUse { id: _ }
         ));
     }
+
+
+    async fn slate_db () -> Arc<Db> {
+        Arc::new(Db::new(
+            SlateDb::open_with_opts(
+                Path::from("/tmp/test_kv_store"), 
+                DbOptions::default(), 
+                Arc::new(InMemory::new()),
+            ).await.unwrap(),
+        ))
+    }
+    fn storage_profile_req () -> StorageProfileCreateRequest {
+        StorageProfileCreateRequest {
+            r#type: CloudProvider::AWS,
+            region: "us-west-2".to_string(),
+            bucket: "my-bucket".to_string(),
+            credentials: Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "my-access-key".to_string(),
+                aws_secret_access_key: "my-secret-access-key".to_string(),
+            }),
+            sts_role_arn: None,
+            endpoint: None,
+            validate_credentials: None,
+        }
+    }
+    
+    fn warehouse_req(name: &str, sp_id: Uuid) -> WarehouseCreateRequest {
+        WarehouseCreateRequest {
+            name: name.to_string(),
+            storage_profile_id: sp_id,
+            prefix: "prefix".to_string(),
+        }
+    }
+
+    async fn _test_queries(
+        storage_repo: Arc<dyn StorageProfileRepository>,
+        warehouse_repo: Arc<dyn WarehouseRepository>,
+    ) {
+        let service = ControlServiceImpl::new(storage_repo, warehouse_repo);
+   
+        service.query("SELECT 1").await.expect("Scalar function should success!");
+
+        service.query(
+            "CREATE TABLE fail.fail.fail(a INT);"
+        ).await.expect_err("Create table should fail!");
+
+        let profile = service.create_profile(
+            &storage_profile_req()
+        ).await.unwrap();
+
+        service.create_warehouse(
+            &warehouse_req("test", profile.id),
+        ).await.expect("Should create warehouse");
+
+        service.query(
+            "CREATE TABLE fail.fail.fail(a INT);"
+        ).await.expect_err("Create table should fail!");
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_queries() {
+        _test_queries(
+            Arc::new(InMemoryStorageProfileRepository::default()), 
+            Arc::new(InMemoryWarehouseRepository::default())
+        ).await;
+    }
+
+    #[tokio::test]
+    async fn test_db_queries() {
+        _test_queries(
+            Arc::new(StorageProfileRepositoryDb::new (slate_db().await)),
+            Arc::new(WarehouseRepositoryDb::new(slate_db().await)),
+        ).await;
+    }
+    
 }
