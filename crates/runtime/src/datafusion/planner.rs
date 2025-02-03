@@ -258,7 +258,7 @@ where
                 "table_catalog as 'database_name'",
                 "table_schema as 'schema_name'",
                 "table_name as 'name'",
-                "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
+                "case when table_type='BASE TABLE' then 'external' else table_type end as 'kind'",
                 "null as 'comment'",
             ]
             .join(", ");

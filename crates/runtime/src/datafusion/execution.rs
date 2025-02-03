@@ -165,6 +165,7 @@ impl SqlExecutor {
                 "SHOW session",
             )
             .replace("skip_header=1", "skip_header=TRUE")
+            .replace("FROM @~/", "FROM ")
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
@@ -430,7 +431,8 @@ impl SqlExecutor {
         {
             // Insert data to table
             let from_query = from_stage.to_string().replace('@', "");
-            let insert_query = format!("INSERT INTO {into} SELECT * FROM {from_query}");
+            let insert_query =
+                format!("INSERT INTO {into} SELECT * FROM {warehouse_name}.stages.{from_query}");
             self.execute_with_custom_plan(&insert_query, warehouse_name)
                 .await
         } else {
@@ -828,7 +830,7 @@ impl SqlExecutor {
                             "table_name as 'name'",
                             "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
                             "null as 'comment'",
-                            "case when table_type='BASE TABLE' then True else False end as is_iceberg",
+                            "case when table_type='BASE TABLE' then 'Y' else 'N' end as is_iceberg",
                         ].join(", ");
                         let information_schema_query =
                             format!("SELECT {columns} FROM information_schema.tables");
