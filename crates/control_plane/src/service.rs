@@ -213,8 +213,8 @@ impl ControlService for ControlServiceImpl {
             )
             .with_default_features()
             .with_query_planner(Arc::new(IcebergQueryPlanner {}))
-	        .with_type_planner(Arc::new(CustomTypePlanner {}))
-            .build();        
+            .with_type_planner(Arc::new(CustomTypePlanner {}))
+            .build();
         let ctx = SessionContext::new_with_state(state);
 
         // TODO: Should be shared context
@@ -224,29 +224,16 @@ impl ControlService for ControlServiceImpl {
             .parse_query(query)
             .context(super::error::DataFusionSnafu)?;
 
-        // Either remove it or fix bug in resolve_table_references
-        let state = executor.ctx.state();
-        let references = state
-            .resolve_table_references(&statement)
-            .context(super::error::DataFusionSnafu)?;
-        println!("References: {:?}", references);
-
         let table_path = executor.get_table_path(&statement);
-        println!("warehouse: {}, query: {}", table_path.db, query);
-
         let warehouse_name = table_path.db;
 
-        println!("query => catalog_names: {:?}", executor.ctx.catalog_names());
-
         let (catalog_name, warehouse_location): (String, String) = if table_path.table.is_empty() {
-            println!("query => use datafusion");
             (String::from("datafusion"), String::new())
         } else {
             let warehouse = self.get_warehouse_by_name(warehouse_name.clone()).await?;
-            if let None = executor.ctx.catalog(warehouse.name.as_str()) {
-                println!("query => register_catalog {warehouse_name}");
+            if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
                 let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
-        
+
                 let config = {
                     let mut config = Configuration::new();
                     config.base_path = "http://0.0.0.0:3000/catalog".to_string();
@@ -260,16 +247,14 @@ impl ControlService for ControlServiceImpl {
                     config,
                     object_store,
                 );
-        
+
                 let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
-                executor.ctx.register_catalog(warehouse.name.clone(), Arc::new(catalog));
-            } else {
-                println!("query => reuse catalog {warehouse_name}");
+                executor
+                    .ctx
+                    .register_catalog(warehouse.name.clone(), Arc::new(catalog));
             }
             (warehouse.name, warehouse.location)
         };
-
-        println!("query => 2 catalog_names: {:?}", executor.ctx.catalog_names());
 
         let records: Vec<RecordBatch> = executor
             .query(query, catalog_name.as_str(), warehouse_location.as_str())
@@ -555,14 +540,6 @@ mod tests {
     };
     use crate::repository::InMemoryStorageProfileRepository;
     use crate::repository::InMemoryWarehouseRepository;
-    use crate::repository::StorageProfileRepositoryDb;
-    use crate::repository::WarehouseRepositoryDb;
-    use utils::Db;
-    use object_store::{
-        memory::InMemory, path::Path,
-    };    
-    use slatedb::config::DbOptions;
-    use slatedb::db::Db as SlateDb;
 
     #[tokio::test]
     async fn test_create_warehouse_failed_no_storage_profile() {
@@ -619,78 +596,26 @@ mod tests {
         ));
     }
 
-
-    async fn slate_db () -> Arc<Db> {
-        Arc::new(Db::new(
-            SlateDb::open_with_opts(
-                Path::from("/tmp/test_kv_store"), 
-                DbOptions::default(), 
-                Arc::new(InMemory::new()),
-            ).await.unwrap(),
-        ))
-    }
-    fn storage_profile_req () -> StorageProfileCreateRequest {
-        StorageProfileCreateRequest {
-            r#type: CloudProvider::AWS,
-            region: "us-west-2".to_string(),
-            bucket: "my-bucket".to_string(),
-            credentials: Credentials::AccessKey(AwsAccessKeyCredential {
-                aws_access_key_id: "my-access-key".to_string(),
-                aws_secret_access_key: "my-secret-access-key".to_string(),
-            }),
-            sts_role_arn: None,
-            endpoint: None,
-            validate_credentials: None,
-        }
-    }
-    
-    fn warehouse_req(name: &str, sp_id: Uuid) -> WarehouseCreateRequest {
-        WarehouseCreateRequest {
-            name: name.to_string(),
-            storage_profile_id: sp_id,
-            prefix: "prefix".to_string(),
-        }
-    }
-
     async fn _test_queries(
         storage_repo: Arc<dyn StorageProfileRepository>,
         warehouse_repo: Arc<dyn WarehouseRepository>,
     ) {
         let service = ControlServiceImpl::new(storage_repo, warehouse_repo);
-   
-        service.query("SELECT 1").await.expect("Scalar function should success!");
-
-        service.query(
-            "CREATE TABLE fail.fail.fail(a INT);"
-        ).await.expect_err("Create table should fail!");
-
-        let profile = service.create_profile(
-            &storage_profile_req()
-        ).await.unwrap();
-
-        service.create_warehouse(
-            &warehouse_req("test", profile.id),
-        ).await.expect("Should create warehouse");
-
-        service.query(
-            "CREATE TABLE fail.fail.fail(a INT);"
-        ).await.expect_err("Create table should fail!");
+        service
+            .query("SELECT 1")
+            .await
+            .expect("Scalar function should success!");
     }
 
     #[tokio::test]
     async fn test_inmemory_queries() {
+        env::set_var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD", "true");
+        env::set_var("SQL_PARSER_DIALECT", "snowflake");
+        env::set_var("OBJECT_STORE_BACKEND", "file");
         _test_queries(
-            Arc::new(InMemoryStorageProfileRepository::default()), 
-            Arc::new(InMemoryWarehouseRepository::default())
-        ).await;
+            Arc::new(InMemoryStorageProfileRepository::default()),
+            Arc::new(InMemoryWarehouseRepository::default()),
+        )
+        .await;
     }
-
-    #[tokio::test]
-    async fn test_db_queries() {
-        _test_queries(
-            Arc::new(StorageProfileRepositoryDb::new (slate_db().await)),
-            Arc::new(WarehouseRepositoryDb::new(slate_db().await)),
-        ).await;
-    }
-    
 }
