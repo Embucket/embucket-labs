@@ -687,6 +687,7 @@ impl SqlExecutor {
                             "table_name as 'name'",
                             "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
                             "null as 'comment'",
+                            "'N' as 'is_dynamic'",
                             "case when table_type='BASE TABLE' then True else False end as is_iceberg",
                         ].join(", ");
                         let information_schema_query =
