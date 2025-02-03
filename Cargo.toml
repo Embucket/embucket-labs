@@ -36,7 +36,7 @@ snafu = { version = "0.8.5", features = ["futures"] }
 tracing = { version = "0.1" }
 
 [patch.crates-io]
-datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "4930757e1108fbe33704b29d1aa222a3d6214584" }
+datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "818728a8aeea971546241aa19af35c74bc361d50" }
 
 [workspace.lints.clippy]
 all={ level="deny", priority=-1 }

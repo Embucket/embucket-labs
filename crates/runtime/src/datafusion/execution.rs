@@ -12,6 +12,7 @@ use datafusion::execution::context::SessionContext;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::LogicalPlan;
+use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion::sql::sqlparser::ast::{
@@ -28,6 +29,7 @@ use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
+use object_store::aws::AmazonS3Builder;
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
@@ -38,6 +40,7 @@ use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
+use url::Url;
 
 pub struct SqlExecutor {
     ctx: SessionContext,
@@ -75,12 +78,7 @@ impl SqlExecutor {
         if let DFStatement::Statement(s) = statement {
             match *s {
                 Statement::CreateTable { .. } => {
-                    return Box::pin(self.create_table_query(
-                        *s,
-                        warehouse_name,
-                        warehouse_location,
-                    ))
-                    .await;
+                    return Box::pin(self.create_table_query(*s, warehouse_name)).await;
                 }
                 Statement::CreateDatabase {
                     db_name,
@@ -98,6 +96,13 @@ impl SqlExecutor {
                     return self
                         .create_schema(warehouse_name, schema_name, if_not_exists)
                         .await;
+                }
+                Statement::CreateStage { .. } => {
+                    // We support only CSV uploads for now
+                    return Box::pin(self.create_stage_query(*s, warehouse_name)).await;
+                }
+                Statement::CopyIntoSnowflake { .. } => {
+                    return Box::pin(self.copy_into_snowflake_query(*s, warehouse_name)).await;
                 }
                 Statement::AlterTable { .. }
                 | Statement::StartTransaction { .. }
@@ -154,10 +159,12 @@ impl SqlExecutor {
             .to_string();
         let query = date_add.replace_all(&query, "$1$2('$3',").to_string();
         // TODO implement alter session logic
-        query.replace(
-            "alter session set query_tag = 'snowplow_dbt'",
-            "SHOW session",
-        )
+        query
+            .replace(
+                "alter session set query_tag = 'snowplow_dbt'",
+                "SHOW session",
+            )
+            .replace("skip_header=1", "skip_header=TRUE")
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
@@ -166,7 +173,6 @@ impl SqlExecutor {
         &self,
         statement: Statement,
         warehouse_name: &str,
-        warehouse_location: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
             let mut new_table_full_name = create_table_statement.name.to_string();
@@ -296,6 +302,141 @@ impl SqlExecutor {
             Err(super::error::IcehutSQLError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only CREATE TABLE statements are supported".to_string(),
+                ),
+            })
+        }
+    }
+
+    pub async fn create_stage_query(
+        &self,
+        statement: Statement,
+        warehouse_name: &str,
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+        if let Statement::CreateStage {
+            name,
+            stage_params,
+            file_format,
+            ..
+        } = statement
+        {
+            let table_name = name
+                .0
+                .last()
+                .ok_or_else(|| IcehutSQLError::InvalidIdentifier {
+                    ident: name.to_string(),
+                })?
+                .clone();
+
+            let skip_header = file_format.options.iter().any(|option| {
+                option.option_name.eq_ignore_ascii_case("skip_header")
+                    && option.value.eq_ignore_ascii_case("true")
+            });
+
+            let field_optionally_enclosed_by = file_format
+                .options
+                .iter()
+                .find_map(|option| {
+                    if option
+                        .option_name
+                        .eq_ignore_ascii_case("field_optionally_enclosed_by")
+                    {
+                        Some(option.value.as_bytes()[0])
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(b'"');
+
+            let file_path = stage_params.url.unwrap_or_default();
+            let stage_table_name = format!("stage_{table_name}");
+            let url =
+                Url::parse(file_path.as_str()).map_err(|_| IcehutSQLError::InvalidIdentifier {
+                    ident: file_path.clone(),
+                })?;
+            let bucket = url.host_str().unwrap_or_default();
+            // TODO Prepare object storage depending on the URL
+            let s3 = AmazonS3Builder::from_env()
+                // TODO Get region automatically
+                .with_region("eu-central-1")
+                .with_bucket_name(bucket)
+                .build()
+                .map_err(|_| IcehutSQLError::InvalidIdentifier {
+                    ident: bucket.to_string(),
+                })?;
+
+            self.ctx.register_object_store(&url, Arc::new(s3));
+
+            // Read CSV file to get default schema
+            let csv_data = self
+                .ctx
+                .read_csv(
+                    file_path.clone(),
+                    CsvReadOptions::new()
+                        .has_header(skip_header)
+                        .quote(field_optionally_enclosed_by),
+                )
+                .await
+                .context(ih_error::DataFusionSnafu)?;
+
+            let fields = csv_data
+                .schema()
+                .iter()
+                .map(|(_, field)| {
+                    let data_type = if matches!(field.data_type(), DataType::Null) {
+                        DataType::Utf8
+                    } else {
+                        field.data_type().clone()
+                    };
+                    Field::new(field.name(), data_type, field.is_nullable())
+                })
+                .collect::<Vec<_>>();
+
+            // Register CSV file with filled missing datatype with default Utf8
+            self.ctx
+                .register_csv(
+                    stage_table_name.clone(),
+                    file_path,
+                    CsvReadOptions::new()
+                        .has_header(skip_header)
+                        .quote(field_optionally_enclosed_by)
+                        .schema(&ArrowSchema::new(fields)),
+                )
+                .await
+                .context(ih_error::DataFusionSnafu)?;
+
+            // Create stages database and create table with prepared schema
+            // TODO Don't create table in case we have common ctx
+            self.create_database(warehouse_name, ObjectName(vec![Ident::new("stages")]), true)
+                .await?;
+            let create_query = format!("CREATE TABLE {warehouse_name}.stages.{table_name} AS (SELECT * FROM {stage_table_name})");
+            self.query(&create_query, warehouse_name, "").await
+        } else {
+            Err(IcehutSQLError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only CREATE STAGE statements are supported".to_string(),
+                ),
+            })
+        }
+    }
+
+    pub async fn copy_into_snowflake_query(
+        &self,
+        statement: Statement,
+        warehouse_name: &str,
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+        if let Statement::CopyIntoSnowflake {
+            into, from_stage, ..
+        } = statement
+        {
+            // Insert data to table
+            let from_query = from_stage.to_string().replace('@', "");
+            let insert_query = format!("INSERT INTO {into} SELECT * FROM {from_query}");
+            self.execute_with_custom_plan(&insert_query, warehouse_name)
+                .await
+        } else {
+            Err(IcehutSQLError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only COPY INTO statements are supported".to_string(),
                 ),
             })
         }

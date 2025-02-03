@@ -256,6 +256,15 @@ impl ControlService for ControlServiceImpl {
         let catalog_name = warehouse.name.clone();
         ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
 
+        // Register default object store for CSV uploads
+        let object_store = storage_profile
+            .get_object_store()
+            .context(crate::error::InvalidStorageProfileSnafu)?;
+        let endpoint_url = storage_profile
+            .get_object_store_endpoint_url()
+            .map_err(|_| ControlPlaneError::MissingStorageEndpointURL)?;
+        ctx.register_object_store(&endpoint_url, Arc::from(object_store));
+
         // TODO: Should be shared context
         let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
 

@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
 use std::sync::Arc;
+use url::Url;
 use uuid::Uuid;
 
 pub mod error;
@@ -209,6 +210,18 @@ impl StorageProfile {
                 }),
             }
         }
+    }
+
+    pub fn get_object_store_endpoint_url(&self) -> ControlPlaneModelResult<Url> {
+        let storage_endpoint_url =
+            self.endpoint
+                .as_ref()
+                .ok_or_else(|| ControlPlaneModelError::InvalidEndpointUrl {
+                    url: self.endpoint.clone().unwrap_or_default(),
+                })?;
+        Url::parse(storage_endpoint_url).map_err(|_| ControlPlaneModelError::InvalidEndpointUrl {
+            url: storage_endpoint_url.clone(),
+        })
     }
 
     // This is needed to initialize the catalog used in JanKaul code

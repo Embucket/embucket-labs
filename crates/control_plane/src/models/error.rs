@@ -10,6 +10,9 @@ pub enum ControlPlaneModelError {
     #[snafu(display("Invalid directory `{directory}`"))]
     InvalidDirectory { directory: String },
 
+    #[snafu(display("Invalid endpoint url `{url}`"))]
+    InvalidEndpointUrl { url: String },
+
     #[snafu(display("Cloud providerNot implemented"))]
     CloudProviderNotImplemented { provider: String },
 

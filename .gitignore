@@ -35,3 +35,4 @@ warehouse-prefix/
 **/*.parquet
 crates/catalog/prefix/**
 embucket-warehouse-test/
+dummyprefix/
