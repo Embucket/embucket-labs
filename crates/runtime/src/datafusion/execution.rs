@@ -906,8 +906,8 @@ impl SqlExecutor {
     #[must_use]
     #[allow(clippy::too_many_lines)]
     pub fn get_table_path(&self, statement: &DFStatement) -> TablePath {
+        let empty = String::new;
         let table_path = |arr: &Vec<Ident>| -> TablePath {
-            let empty = String::new;
             match arr.len() {
                 1 => TablePath {
                     db: empty(),
@@ -940,29 +940,42 @@ impl SqlExecutor {
                 Statement::AlterTable { name, .. } => table_path(&name.0),
                 Statement::Insert(insert) => table_path(&insert.table_name.0),
                 Statement::Drop { names, .. } => table_path(&names[0].0),
-                Statement::Query(query) => {
-                    match *query.body {
-                        sqlparser::ast::SetExpr::Select(select) => {
-                            if select.from.is_empty() {
-                                table_path(&vec![])
-                            } else {
-                                match &select.from[0].relation {
-                                    TableFactor::Table { name, .. } => table_path(&name.0),
-                                    _ => table_path(&vec![]),
-                                }
+                Statement::Query(query) => match *query.body {
+                    sqlparser::ast::SetExpr::Select(select) => {
+                        if select.from.is_empty() {
+                            table_path(&vec![])
+                        } else {
+                            match &select.from[0].relation {
+                                TableFactor::Table { name, .. } => table_path(&name.0),
+                                _ => table_path(&vec![]),
                             }
                         }
-                        // sqlparser::ast::SetExpr::Query(query) => {
-                        //     query.body
-                        // }
-                        _ => table_path(&vec![]),
                     }
-                }
+                    _ => table_path(&vec![]),
+                },
                 Statement::CreateTable(create_table) => table_path(&create_table.name.0),
                 Statement::Update { table, .. } => match table.relation {
                     TableFactor::Table { name, .. } => table_path(&name.0),
                     _ => table_path(&vec![]),
                 },
+                Statement::CreateSchema {
+                    schema_name: SchemaName::Simple(name),
+                    ..
+                } => {
+                    if name.0.len() == 2 {
+                        TablePath {
+                            db: name.0[0].value.clone(),
+                            schema: name.0[1].value.clone(),
+                            table: empty(),
+                        }
+                    } else {
+                        TablePath {
+                            db: empty(),
+                            schema: name.0[1].value.clone(),
+                            table: empty(),
+                        }
+                    }
+                }
                 _ => table_path(&vec![]),
             },
             _ => table_path(&vec![]),

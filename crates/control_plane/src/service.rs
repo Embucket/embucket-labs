@@ -226,8 +226,9 @@ impl ControlService for ControlServiceImpl {
 
         let table_path = executor.get_table_path(&statement);
         let warehouse_name = table_path.db;
+        // println!("warehouse_name: {warehouse_name}, query:");
 
-        let (catalog_name, warehouse_location): (String, String) = if table_path.table.is_empty() {
+        let (catalog_name, warehouse_location): (String, String) = if warehouse_name.is_empty() {
             (String::from("datafusion"), String::new())
         } else {
             let warehouse = self.get_warehouse_by_name(warehouse_name.clone()).await?;
@@ -606,6 +607,28 @@ mod tests {
         ));
     }
 
+    fn storage_profile_req() -> StorageProfileCreateRequest {
+        StorageProfileCreateRequest {
+            r#type: CloudProvider::AWS,
+            region: "us-west-2".to_string(),
+            bucket: "my-bucket".to_string(),
+            credentials: Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "my-access-key".to_string(),
+                aws_secret_access_key: "my-secret-access-key".to_string(),
+            }),
+            sts_role_arn: None,
+            endpoint: Some(String::from("https://s3.us-east-2.amazonaws.com/")),
+            validate_credentials: None,
+        }
+    }
+    fn warehouse_req(name: &str, sp_id: Uuid) -> WarehouseCreateRequest {
+        WarehouseCreateRequest {
+            name: name.to_string(),
+            storage_profile_id: sp_id,
+            prefix: "prefix".to_string(),
+        }
+    }
+
     async fn _test_queries(
         storage_repo: Arc<dyn StorageProfileRepository>,
         warehouse_repo: Arc<dyn WarehouseRepository>,
@@ -615,6 +638,26 @@ mod tests {
             .query("SELECT 1")
             .await
             .expect("Scalar function should success!");
+
+        let profile = service
+            .create_profile(&storage_profile_req())
+            .await
+            .unwrap();
+
+        service
+            .create_warehouse(&warehouse_req("TEST_WAREHOUSE", profile.id))
+            .await
+            .expect("Should create warehouse");
+
+        // Request error: error sending request for url
+        // (http://0.0.0.0:3000/catalog/v1/<UUID>/namespaces)
+        // error trying to connect: tcp connect error: Connection refused (os error 111)
+        // Following code snippet is commented as of above error:
+        //
+        // service
+        //     .query("CREATE SCHEMA IF NOT EXISTS TEST_WAREHOUSE.TEST_SCHEMA")
+        //     .await
+        //     .expect("Create schema should success!");
     }
 
     #[tokio::test]
