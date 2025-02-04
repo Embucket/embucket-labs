@@ -308,6 +308,13 @@ impl SqlExecutor {
         }
     }
 
+    /// This is experimental CREATE STAGE support
+    /// Current limitations    
+    /// TODO
+    /// - Prepare object storage depending on the URL. Currently we support only s3 public buckets    ///   with public access with default eu-central-1 region
+    /// - Parse credentials from specified config
+    /// - We don't need to create table in case we have common shared session context.
+    ///   CSV is registered as a table which can referenced from SQL statements executed against this context
     pub async fn create_stage_query(
         &self,
         statement: Statement,

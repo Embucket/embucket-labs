@@ -213,14 +213,9 @@ impl StorageProfile {
     }
 
     pub fn get_object_store_endpoint_url(&self) -> ControlPlaneModelResult<Url> {
-        let storage_endpoint_url =
-            self.endpoint
-                .as_ref()
-                .ok_or_else(|| ControlPlaneModelError::InvalidEndpointUrl {
-                    url: self.endpoint.clone().unwrap_or_default(),
-                })?;
-        Url::parse(storage_endpoint_url).map_err(|_| ControlPlaneModelError::InvalidEndpointUrl {
-            url: storage_endpoint_url.clone(),
+        let storage_endpoint_url = self.endpoint.clone().unwrap_or_default();
+        Url::parse(storage_endpoint_url.as_str()).context(error::InvalidEndpointUrlSnafu {
+            url: storage_endpoint_url,
         })
     }
 
