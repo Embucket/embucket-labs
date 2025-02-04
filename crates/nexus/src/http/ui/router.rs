@@ -5,7 +5,7 @@ use crate::http::ui::handlers::profiles::{
 };
 use crate::http::ui::handlers::tables::{
     create_table, delete_table, get_settings, get_snapshots, get_table, query_table,
-    register_table, update_table_properties, upload_data_to_table,
+    query_table_compatibility_path, register_table, update_table_properties, upload_data_to_table,
 };
 use crate::http::ui::handlers::warehouses::{
     create_warehouse, delete_warehouse, get_warehouse, list_warehouses, navigation,
@@ -21,7 +21,7 @@ use utoipa::OpenApi;
 #[openapi(info(
     title = "UI Router API",
     description = "API documentation for the UI endpoints.",
-    version = "1.0.0",
+    version = "1.0.1",
     license(
         name = "Apache 2.0",
         url = "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -58,7 +58,7 @@ pub fn create_router() -> Router<AppState> {
         )
         .route(
             "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName/query",
-            post(query_table),
+            post(query_table_compatibility_path),
         )
         .route("/query", post(query_table))
         .route(

@@ -25,6 +25,7 @@ use uuid::Uuid;
         delete_table,
         get_table,
         query_table,
+        query_table_compatibility_path,
         upload_data_to_table,
         get_settings,
         update_table_properties,
@@ -246,23 +247,19 @@ pub async fn delete_table(
 
 #[utoipa::path(
     post,
-    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/query",
+    path = "/ui/query",
     request_body = TableQueryRequest,
-    operation_id = "tableQuery",
+    // rename back to tableQuery when removing compatibility path
+    operation_id = "queryTable",
     tags = ["tables"],
-    params(
-        ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
-        ("databaseName" = Uuid, Path, description = "Database Name"),
-        ("tableName" = Uuid, Path, description = "Table name")
-    ),
     responses(
         (status = 200, description = "Returns result of the query", body = TableQueryResponse),
         (status = 422, description = "Unprocessable entity", body = NexusError),
         (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
-// Add time sql took
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+// Add time sql took
 pub async fn query_table(
     State(state): State<AppState>,
     Json(payload): Json<TableQueryRequest>,
@@ -280,6 +277,32 @@ pub async fn query_table(
         result,
         duration_seconds: duration.as_secs_f32(),
     }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/query",
+    request_body = TableQueryRequest,
+    operation_id = "tableQuery",
+    tags = ["tables"],
+    params(
+        ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
+        ("databaseName" = Uuid, Path, description = "Database Name"),
+        ("tableName" = Uuid, Path, description = "Table name")
+    ),
+    responses(
+        (status = 200, description = "Returns result of the query", body = TableQueryResponse),
+        (status = 422, description = "Unprocessable entity", body = NexusError),
+        (status = 500, description = "Internal server error", body = NexusError)
+    )
+)]
+// Add another query_table function since utoipa can't annotate the same function twice
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+pub async fn query_table_compatibility_path(
+    State(state): State<AppState>,
+    Json(payload): Json<TableQueryRequest>,
+) -> NexusResult<Json<TableQueryResponse>> {
+    query_table(State(state), Json(payload)).await
 }
 
 #[utoipa::path(
