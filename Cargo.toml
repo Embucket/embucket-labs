@@ -6,7 +6,7 @@ members = [
     "crates/catalog",
     "crates/control_plane",
     "crates/nexus", 
-    "crates/runtime", 
+    "crates/runtime",
 ]
 resolver = "2"
 
@@ -37,7 +37,8 @@ snafu = { version = "0.8.5", features = ["futures"] }
 tracing = { version = "0.1" }
 
 [patch.crates-io]
-datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "818728a8aeea971546241aa19af35c74bc361d50" }
+datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "98512852e66a88a747dd7a5870bd948891792ecc" }
+
 
 [workspace.lints.clippy]
 all={ level="deny", priority=-1 }

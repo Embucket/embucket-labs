@@ -15,9 +15,9 @@ serde_json = { workspace = true }
 object_store = { workspace = true }
 tracing = { workspace = true}
 
-datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "818728a8aeea971546241aa19af35c74bc361d50" }
-datafusion-common = { git="https://github.com/Embucket/datafusion.git", rev = "818728a8aeea971546241aa19af35c74bc361d50" }
-datafusion-expr = { git="https://github.com/Embucket/datafusion.git", rev = "818728a8aeea971546241aa19af35c74bc361d50" }
+datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "98512852e66a88a747dd7a5870bd948891792ecc" }
+datafusion-common = { git="https://github.com/Embucket/datafusion.git", rev = "98512852e66a88a747dd7a5870bd948891792ecc" }
+datafusion-expr = { git="https://github.com/Embucket/datafusion.git", rev = "98512852e66a88a747dd7a5870bd948891792ecc" }
 
 iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "294df8b4a21bbee99e7d335c9d8f5bbcb40f500f" }
 iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "294df8b4a21bbee99e7d335c9d8f5bbcb40f500f" }
@@ -28,7 +28,7 @@ arrow-json = { version = "53" }
 arrow-schema = { version = "53.3.0", default-features = false }
 
 datafusion-functions-json = { version = "0.44.0" }
-sqlparser = { version = "0.53.0", features = ["visitor"] }
+sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "f36d63003ca7c5ba238e9a5dd2d52663b8d05929", features = ["visitor"] }
 regex = { version = "1.11.0" }
 
 paste = "1"
