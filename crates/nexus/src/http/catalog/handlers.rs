@@ -4,6 +4,7 @@ use crate::error::AppError;
 use crate::http::catalog::schemas;
 use crate::http::utils::{get_default_properties, update_properties_timestamps};
 use crate::state::AppState;
+use axum::http::StatusCode;
 use axum::{extract::Path, extract::Query, extract::State, Json};
 use catalog::models::{DatabaseIdent, NamespaceIdent, TableCommit, TableIdent, WarehouseIdent};
 use std::result::Result;
@@ -57,7 +58,7 @@ pub async fn get_namespace(
 pub async fn delete_namespace(
     State(state): State<AppState>,
     Path((id, namespace_id)): Path<(Uuid, String)>,
-) -> Result<Json<()>, AppError> {
+) -> Result<StatusCode, AppError> {
     let wh = state.control_svc.get_warehouse(id).await?;
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
@@ -72,7 +73,7 @@ pub async fn delete_namespace(
     };
     catalog.drop_namespace(&ident).await?;
 
-    Ok(Json(()))
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[tracing::instrument(level = "debug", err, skip(state))]
@@ -221,7 +222,7 @@ pub async fn get_table(
 pub async fn delete_table(
     State(state): State<AppState>,
     Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
-) -> Result<Json<()>, AppError> {
+) -> Result<StatusCode, AppError> {
     let wh = state.control_svc.get_warehouse(id).await?;
     let catalog = state.catalog_svc;
     let ident = DatabaseIdent {
@@ -240,7 +241,7 @@ pub async fn delete_table(
     };
     catalog.drop_table(&ident).await?;
 
-    Ok(Json(()))
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[tracing::instrument(level = "debug", err, skip(state))]

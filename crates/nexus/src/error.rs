@@ -1,17 +1,31 @@
+use axum::http::StatusCode;
 use axum::{response::IntoResponse, response::Response};
+use catalog::error::CatalogError;
+use control_plane::error::ControlPlaneError;
 
-impl From<control_plane::error::ControlPlaneError> for AppError {
-    fn from(err: control_plane::error::ControlPlaneError) -> Self {
+impl From<ControlPlaneError> for AppError {
+    fn from(err: ControlPlaneError) -> Self {
         Self {
             message: err.to_string(),
+            status_code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
 
-impl From<catalog::error::CatalogError> for AppError {
-    fn from(err: catalog::error::CatalogError) -> Self {
+/// Map according to spec <https://github.com/apache/iceberg/blob/main/open-api/rest-catalog-open-api.yaml>
+impl From<CatalogError> for AppError {
+    fn from(err: CatalogError) -> Self {
+        let status = match err {
+            CatalogError::DatabaseNotFound { .. } | CatalogError::TableNotFound { .. } => {
+                StatusCode::NOT_FOUND
+            }
+            CatalogError::NamespaceAlreadyExists { .. }
+            | CatalogError::TableAlreadyExists { .. } => StatusCode::CONFLICT,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        };
         Self {
             message: err.to_string(),
+            status_code: status,
         }
     }
 }
@@ -19,19 +33,17 @@ impl From<catalog::error::CatalogError> for AppError {
 #[derive(Debug)]
 pub struct AppError {
     pub message: String,
+    pub status_code: StatusCode,
 }
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let (status, message) = (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            if self.message.is_empty() {
-                "Internal Server Error".to_string()
-            } else {
-                self.message
-            },
-        );
-        (status, message).into_response()
+        let message = (if self.message.is_empty() {
+            "Internal Server Error".to_string()
+        } else {
+            self.message
+        },);
+        (self.status_code, message).into_response()
     }
 }
 
