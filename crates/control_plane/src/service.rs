@@ -43,6 +43,7 @@ pub trait ControlService: Send + Sync {
         &self,
         params: &WarehouseCreateRequest,
     ) -> ControlPlaneResult<Warehouse>;
+    async fn get_warehouse_by_name(&self, name: String) -> ControlPlaneResult<Warehouse>;
     async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse>;
     async fn delete_warehouse(&self, id: Uuid) -> ControlPlaneResult<()>;
     async fn list_warehouses(&self) -> ControlPlaneResult<Vec<Warehouse>>;
@@ -57,29 +58,11 @@ pub trait ControlService: Send + Sync {
     // async fn delete_table(&self, id: Uuid) -> ControlPlaneResult<()>;
     // async fn list_tables(&self) -> ControlPlaneResult<Vec<Table>>;
 
-    async fn query(
-        &self,
-        warehouse_id: &Uuid,
-        database_name: &str,
-        table_name: &str,
-        query: &str,
-    ) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
+    async fn query(&self, query: &str) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
 
-    async fn query_table(
-        &self,
-        warehouse_id: &Uuid,
-        database_name: &str,
-        table_name: &str,
-        query: &str,
-    ) -> ControlPlaneResult<String>;
+    async fn query_table(&self, query: &str) -> ControlPlaneResult<String>;
 
-    async fn query_dbt(
-        &self,
-        warehouse_id: &Uuid,
-        database_name: &str,
-        table_name: &str,
-        query: &str,
-    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)>;
+    async fn query_dbt(&self, query: &str) -> ControlPlaneResult<(String, Vec<ColumnInfo>)>;
 
     async fn upload_data_to_table(
         &self,
@@ -197,6 +180,10 @@ impl ControlService for ControlServiceImpl {
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
+    async fn get_warehouse_by_name(&self, name: String) -> ControlPlaneResult<Warehouse> {
+        self.warehouse_repo.get_by_name(name.as_str()).await
+    }
+
     async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
         self.warehouse_repo.get(id).await
     }
@@ -215,30 +202,7 @@ impl ControlService for ControlServiceImpl {
 
     #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
-    async fn query(
-        &self,
-        warehouse_id: &Uuid,
-        _database_name: &str,
-        _table_name: &str,
-        query: &str,
-    ) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
-        let warehouse = self.get_warehouse(*warehouse_id).await?;
-        let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
-
-        let config = {
-            let mut config = Configuration::new();
-            config.base_path = "http://0.0.0.0:3000/catalog".to_string();
-            config
-        };
-        let object_store = storage_profile
-            .get_object_store_builder()
-            .context(crate::error::InvalidStorageProfileSnafu)?;
-        let rest_client = RestCatalog::new(
-            Some(warehouse_id.to_string().as_str()),
-            config,
-            object_store,
-        );
-        let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
+    async fn query(&self, query: &str) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
         let state = SessionStateBuilder::new()
@@ -253,23 +217,57 @@ impl ControlService for ControlServiceImpl {
             .build();
         let ctx = SessionContext::new_with_state(state);
 
-        let catalog_name = warehouse.name.clone();
-        ctx.register_catalog(catalog_name.clone(), Arc::new(catalog));
-
-        // Register default object store for CSV uploads
-        let object_store = storage_profile
-            .get_object_store()
-            .context(crate::error::InvalidStorageProfileSnafu)?;
-        let endpoint_url = storage_profile
-            .get_object_store_endpoint_url()
-            .map_err(|_| ControlPlaneError::MissingStorageEndpointURL)?;
-        ctx.register_object_store(&endpoint_url, Arc::from(object_store));
-
         // TODO: Should be shared context
         let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
 
+        let statement = executor
+            .parse_query(query)
+            .context(super::error::DataFusionSnafu)?;
+
+        let table_path = executor.get_table_path(&statement);
+        let warehouse_name = table_path.db;
+
+        let (catalog_name, warehouse_location): (String, String) = if table_path.table.is_empty() {
+            (String::from("datafusion"), String::new())
+        } else {
+            let warehouse = self.get_warehouse_by_name(warehouse_name.clone()).await?;
+            if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
+                let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
+
+                let config = {
+                    let mut config = Configuration::new();
+                    config.base_path = "http://0.0.0.0:3000/catalog".to_string();
+                    config
+                };
+                let object_store = storage_profile
+                    .get_object_store_builder()
+                    .context(crate::error::InvalidStorageProfileSnafu)?;
+                let rest_client = RestCatalog::new(
+                    Some(warehouse.id.to_string().as_str()),
+                    config,
+                    object_store,
+                );
+
+                let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
+                executor
+                    .ctx
+                    .register_catalog(warehouse.name.clone(), Arc::new(catalog));
+
+                let object_store = storage_profile
+                    .get_object_store()
+                    .context(crate::error::InvalidStorageProfileSnafu)?;
+                let endpoint_url = storage_profile
+                    .get_object_store_endpoint_url()
+                    .map_err(|_| ControlPlaneError::MissingStorageEndpointURL)?;
+                executor
+                    .ctx
+                    .register_object_store(&endpoint_url, Arc::from(object_store));
+            }
+            (warehouse.name, warehouse.location)
+        };
+
         let records: Vec<RecordBatch> = executor
-            .query(query, &catalog_name, &warehouse.location)
+            .query(query, catalog_name.as_str(), warehouse_location.as_str())
             .await
             .context(crate::error::ExecutionSnafu)?
             .into_iter()
@@ -281,16 +279,8 @@ impl ControlService for ControlServiceImpl {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn query_table(
-        &self,
-        warehouse_id: &Uuid,
-        database_name: &str,
-        _table_name: &str,
-        query: &str,
-    ) -> ControlPlaneResult<String> {
-        let (records, _) = self
-            .query(warehouse_id, database_name, _table_name, query)
-            .await?;
+    async fn query_table(&self, query: &str) -> ControlPlaneResult<String> {
+        let (records, _) = self.query(query).await?;
 
         let buf = Vec::new();
         let write_builder = WriterBuilder::new().with_explicit_nulls(true);
@@ -309,16 +299,8 @@ impl ControlService for ControlServiceImpl {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn query_dbt(
-        &self,
-        warehouse_id: &Uuid,
-        database_name: &str,
-        _table_name: &str,
-        query: &str,
-    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)> {
-        let (records, columns) = self
-            .query(warehouse_id, database_name, _table_name, query)
-            .await?;
+    async fn query_dbt(&self, query: &str) -> ControlPlaneResult<(String, Vec<ColumnInfo>)> {
+        let (records, columns) = self.query(query).await?;
 
         // THIS CODE RELATED TO ARROW FORMAT
         //////////////////////////////////////
@@ -622,5 +604,28 @@ mod tests {
             result,
             ControlPlaneError::StorageProfileInUse { id: _ }
         ));
+    }
+
+    async fn _test_queries(
+        storage_repo: Arc<dyn StorageProfileRepository>,
+        warehouse_repo: Arc<dyn WarehouseRepository>,
+    ) {
+        let service = ControlServiceImpl::new(storage_repo, warehouse_repo);
+        service
+            .query("SELECT 1")
+            .await
+            .expect("Scalar function should success!");
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_queries() {
+        env::set_var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD", "true");
+        env::set_var("SQL_PARSER_DIALECT", "snowflake");
+        env::set_var("OBJECT_STORE_BACKEND", "file");
+        _test_queries(
+            Arc::new(InMemoryStorageProfileRepository::default()),
+            Arc::new(InMemoryWarehouseRepository::default()),
+        )
+        .await;
     }
 }

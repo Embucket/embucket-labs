@@ -265,14 +265,13 @@ pub async fn delete_table(
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn query_table(
     State(state): State<AppState>,
-    Path((warehouse_id, database_name, table_name)): Path<(Uuid, String, String)>,
     Json(payload): Json<TableQueryRequest>,
 ) -> NexusResult<Json<TableQueryResponse>> {
     let request: TableQueryRequest = payload;
     let start = Instant::now();
     let result = state
         .control_svc
-        .query_table(&warehouse_id, &database_name, &table_name, &request.query)
+        .query_table(&request.query)
         .await
         .context(model_error::QuerySnafu)?;
     let duration = start.elapsed();

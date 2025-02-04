@@ -77,24 +77,14 @@ pub async fn query(
     };
 
     let sessions = state.dbt_sessions.lock().await;
-    let auth_data = sessions.get(token.as_str());
 
-    let Some(auth_data) = auth_data else {
+    let Some(_auth_data) = sessions.get(token.as_str()) else {
         return Err(DbtError::MissingDbtSession);
     };
 
-    let (warehouse_id, database_name) =
-        if let Some((warehouse_id, database_name)) = auth_data.split_once('.') {
-            let warehouse_id =
-                Uuid::parse_str(warehouse_id).context(dbt_error::InvalidWarehouseIdFormatSnafu)?;
-            (warehouse_id, database_name)
-        } else {
-            return Err(DbtError::InvalidAuthData);
-        };
-
     let (result, columns) = state
         .control_svc
-        .query_dbt(&warehouse_id, database_name, "", &body_json.sql_text)
+        .query_dbt(&body_json.sql_text)
         .await
         .context(dbt_error::ControlServiceSnafu)?;
 

@@ -63,7 +63,7 @@ pub trait Catalog: Debug + Sync + Send {
         &self,
         namespace: &DatabaseIdent,
         storage_profile: &StorageProfile,
-        warehouse: &Warehouse,
+        _warehouse: &Warehouse,
         table_name: String,
         metadata_location: String,
         properties: Option<HashMap<String, String>>,

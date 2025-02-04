@@ -42,8 +42,16 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
 
+#[derive(Debug)]
+pub struct TablePath {
+    pub db: String,
+    pub schema: String,
+    pub table: String,
+}
+
 pub struct SqlExecutor {
-    ctx: SessionContext,
+    // ctx made public to register_catalog after creating SqlExecutor
+    pub ctx: SessionContext,
     ident_normalizer: IdentNormalizer,
 }
 
@@ -58,6 +66,12 @@ impl SqlExecutor {
         })
     }
 
+    pub fn parse_query(&self, query: &str) -> Result<DFStatement, DataFusionError> {
+        let state = self.ctx.state();
+        let dialect = state.config().options().sql_parser.dialect.as_str();
+        state.sql_to_statement(query, dialect)
+    }
+
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn query(
         &self,
@@ -65,12 +79,10 @@ impl SqlExecutor {
         warehouse_name: &str,
         warehouse_location: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
-        let state = self.ctx.state();
-        let dialect = state.config().options().sql_parser.dialect.as_str();
         // Update query to use custom JSON functions
         let query = self.preprocess_query(query);
-        let statement = state
-            .sql_to_statement(&query, dialect)
+        let statement = self
+            .parse_query(query.as_str())
             .context(super::error::DataFusionSnafu)?;
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
@@ -838,6 +850,7 @@ impl SqlExecutor {
                             "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
                             "null as 'comment'",
                             "case when table_type='BASE TABLE' then 'Y' else 'N' end as is_iceberg",
+                            "'N' as 'is_dynamic'",
                         ].join(", ");
                         let information_schema_query =
                             format!("SELECT {columns} FROM information_schema.tables");
@@ -887,6 +900,72 @@ impl SqlExecutor {
                 left_expr
             }
             _ => vec![],
+        }
+    }
+
+    #[must_use]
+    #[allow(clippy::too_many_lines)]
+    pub fn get_table_path(&self, statement: &DFStatement) -> TablePath {
+        let table_path = |arr: &Vec<Ident>| -> TablePath {
+            let empty = String::new;
+            match arr.len() {
+                1 => TablePath {
+                    db: empty(),
+                    schema: empty(),
+                    table: arr[0].value.clone(),
+                },
+                2 => TablePath {
+                    db: empty(),
+                    schema: arr[0].value.clone(),
+                    table: arr[1].value.clone(),
+                },
+                3 => TablePath {
+                    db: arr[0].value.clone(),
+                    schema: arr[1].value.clone(),
+                    table: arr[2].value.clone(),
+                },
+                _ => TablePath {
+                    db: empty(),
+                    schema: empty(),
+                    table: empty(),
+                },
+            }
+        };
+
+        match statement.clone() {
+            DFStatement::CreateExternalTable(create_external) => {
+                table_path(&create_external.name.0)
+            }
+            DFStatement::Statement(s) => match *s {
+                Statement::AlterTable { name, .. } => table_path(&name.0),
+                Statement::Insert(insert) => table_path(&insert.table_name.0),
+                Statement::Drop { names, .. } => table_path(&names[0].0),
+                Statement::Query(query) => {
+                    match *query.body {
+                        sqlparser::ast::SetExpr::Select(select) => {
+                            if select.from.is_empty() {
+                                table_path(&vec![])
+                            } else {
+                                match &select.from[0].relation {
+                                    TableFactor::Table { name, .. } => table_path(&name.0),
+                                    _ => table_path(&vec![]),
+                                }
+                            }
+                        }
+                        // sqlparser::ast::SetExpr::Query(query) => {
+                        //     query.body
+                        // }
+                        _ => table_path(&vec![]),
+                    }
+                }
+                Statement::CreateTable(create_table) => table_path(&create_table.name.0),
+                Statement::Update { table, .. } => match table.relation {
+                    TableFactor::Table { name, .. } => table_path(&name.0),
+                    _ => table_path(&vec![]),
+                },
+                _ => table_path(&vec![]),
+            },
+            _ => table_path(&vec![]),
         }
     }
 

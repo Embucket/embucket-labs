@@ -60,6 +60,7 @@ pub fn create_router() -> Router<AppState> {
             "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName/query",
             post(query_table),
         )
+        .route("/query", post(query_table))
         .route(
             "/warehouses/:warehouseId/databases/:databaseName/tables/:tableName/settings",
             get(get_settings).post(update_table_properties),
