@@ -226,7 +226,6 @@ impl ControlService for ControlServiceImpl {
 
         let table_path = executor.get_table_path(&statement);
         let warehouse_name = table_path.db;
-        // println!("warehouse_name: {warehouse_name}, query:");
 
         let (catalog_name, warehouse_location): (String, String) = if warehouse_name.is_empty() {
             (String::from("datafusion"), String::new())
