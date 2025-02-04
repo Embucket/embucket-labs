@@ -7,7 +7,7 @@ edition = "2021"
 utoipa = { workspace = true }
 
 [dependencies]
-arrow = { version = "53" }
+arrow = { version = "54" }
 axum = { workspace = true }
 axum-macros = { workspace = true }
 tokio = { workspace = true }
