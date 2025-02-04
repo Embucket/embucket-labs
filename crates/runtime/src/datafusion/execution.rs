@@ -601,12 +601,27 @@ impl SqlExecutor {
 
     pub async fn create_database(
         &self,
-        warehouse_name: &str,
+        _warehouse_name: &str,
         name: ObjectName,
         _if_not_exists: bool,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
+        // Parse name into catalog (warehous) name and schema name
+        let (warehouse_name, schema_name) = match name.0.len() {
+            2 => (
+                self.ident_normalizer.normalize(name.0[0].clone()),
+                self.ident_normalizer.normalize(name.0[1].clone()),
+            ),
+            _ => {
+                return Err(super::error::IcehutSQLError::DataFusion {
+                    source: DataFusionError::NotImplemented(
+                        "Only two-part names are supported".to_string(),
+                    ),
+                });
+            }
+        };
+
         // TODO: Abstract the Iceberg catalog
-        let catalog = self.ctx.catalog(warehouse_name).ok_or(
+        let catalog = self.ctx.catalog(&warehouse_name).ok_or(
             ih_error::IcehutSQLError::WarehouseNotFound {
                 name: warehouse_name.to_string(),
             },
@@ -617,12 +632,7 @@ impl SqlExecutor {
             },
         )?;
         let rest_catalog = iceberg_catalog.catalog();
-        let namespace_vec: Vec<String> = name
-            .0
-            .iter()
-            .map(|ident| self.ident_normalizer.normalize(ident.clone()))
-            .collect();
-        let single_layer_namespace = vec![namespace_vec.join(".")];
+        let single_layer_namespace = vec![schema_name];
 
         let namespace =
             Namespace::try_new(&single_layer_namespace).context(ih_error::IcebergSpecSnafu)?;
