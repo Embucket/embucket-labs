@@ -220,8 +220,9 @@ impl ControlService for ControlServiceImpl {
         // TODO: Should be shared context
         let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
 
+        let query = executor.preprocess_query(query);
         let statement = executor
-            .parse_query(query)
+            .parse_query(&query)
             .context(super::error::DataFusionSnafu)?;
 
         let table_path = executor.get_table_path(&statement);
@@ -267,15 +268,13 @@ impl ControlService for ControlServiceImpl {
         };
 
         let records: Vec<RecordBatch> = executor
-            .query(query, catalog_name.as_str(), warehouse_location.as_str())
+            .query(&query, catalog_name.as_str(), warehouse_location.as_str())
             .await
             .context(crate::error::ExecutionSnafu)?
             .into_iter()
             .collect::<Vec<_>>();
         // Add columns dbt metadata to each field
-        convert_record_batches(records).context(crate::error::DataFusionQuerySnafu {
-            query: query.to_string(),
-        })
+        convert_record_batches(records).context(crate::error::DataFusionQuerySnafu { query })
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
