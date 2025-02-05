@@ -62,13 +62,6 @@ where
         }
     }
 
-    pub fn statement_to_plan(&self, statement: DFStatement) -> Result<LogicalPlan> {
-        match statement {
-            DFStatement::Statement(s) => self.sql_statement_to_plan(*s),
-            _ => self.inner.statement_to_plan(statement),
-        }
-    }
-
     /// Custom implementation of `sql_statement_to_plan`
     pub fn sql_statement_to_plan(&self, statement: Statement) -> Result<LogicalPlan> {
         // Check for a custom statement type
@@ -85,6 +78,7 @@ where
     }
 
     /// Handle custom statements not supported by the original `SqlToRel`
+    #[allow(clippy::too_many_lines)]
     fn handle_custom_statement(&self, statement: Statement) -> Result<LogicalPlan> {
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
         // Example: Custom handling for a specific statement
@@ -95,6 +89,18 @@ where
             | Statement::Update { .. } => Ok(LogicalPlan::default()),
             Statement::ShowSchemas { .. } => self.show_variable_to_plan(&["schemas".into()]),
             Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
+            Statement::ShowObjects {
+                terse: _,
+                show_options,
+            } => {
+                let Some(show_in) = show_options.show_in else {
+                    return plan_err!("Unsupported show statement: missing show_in");
+                };
+                let Some(parent_name) = show_in.parent_name else {
+                    return plan_err!("Unsupported show statement: missing parent_name");
+                };
+                self.show_objects_to_plan(&parent_name)
+            }
             Statement::Drop {
                 object_type,
                 if_exists,
@@ -229,6 +235,40 @@ where
                 }
             }
             _ => {}
+        }
+    }
+
+    fn show_objects_to_plan(&self, parent: &ObjectName) -> Result<LogicalPlan> {
+        // Only support listing objects in schema for now
+        match parent.0.len() {
+            2 => {
+                let (catalog, schema) = (parent.0[0].value.clone(), parent.0[1].value.clone());
+
+                // Create query to list objects in schema
+                let columns = [
+                    "table_catalog as 'database_name'",
+                    "table_schema as 'schema_name'",
+                    "table_name as 'name'",
+                    "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
+                    "null as 'comment'",
+                ]
+                .join(", ");
+                // TODO: views?
+                // TODO: Return programmatically constructed plan
+                let query = format!("SELECT {columns} FROM information_schema.tables where table_schema = '{schema}' and table_catalog = '{catalog}'");
+                let mut statements = DFParser::parse_sql(query.as_str())?;
+                statements.pop_front().map_or_else(
+                    || plan_err!("Failed to parse SQL statement"),
+                    |statement| {
+                        if let DFStatement::Statement(s) = statement {
+                            self.sql_statement_to_plan(*s)
+                        } else {
+                            plan_err!("Failed to parse SQL statement")
+                        }
+                    },
+                )
+            }
+            _ => plan_err!("Unsupported show objects: {:?}", parent),
         }
     }
 

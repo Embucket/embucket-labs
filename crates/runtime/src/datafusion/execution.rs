@@ -87,6 +87,12 @@ impl SqlExecutor {
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
 
+        // TODO: Code should be organized in a better way
+        // 1. Single place to parse SQL strings into AST
+        // 2. Single place to update AST
+        // 3. Single place to construct Logical plan from this AST
+        // 4. Single place to rewrite-optimize-adjust logical plan
+        // etc
         if let DFStatement::Statement(s) = statement {
             match *s {
                 Statement::CreateTable { .. } => {
@@ -122,6 +128,7 @@ impl SqlExecutor {
                 | Statement::Insert { .. }
                 | Statement::ShowSchemas { .. }
                 | Statement::ShowVariable { .. }
+                | Statement::ShowObjects { .. }
                 | Statement::Update { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
                 }
