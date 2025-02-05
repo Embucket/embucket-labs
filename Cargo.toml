@@ -23,7 +23,7 @@ slatedb = { version = "0.2.0" }
 bytes = { version = "1" }
 object_store = { version = "0.11.1", features = ["aws", "gcp", "azure"] }
 serde_json = "1.0"
-serde_yaml = "0.8"
+serde_yaml = "0.9"
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1.0"
 iceberg = { git = "https://github.com/hansetag/iceberg-rust.git", branch = "ct/builder-upstream-20241002" }
