@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-runtime = {path = "../runtime"}
+runtime = { path = "../runtime" }
 
 chrono = { workspace = true }
 uuid = { workspace = true }
@@ -18,23 +18,23 @@ flatbuffers = { version = "24.3.25" }
 #iceberg-rest-catalog = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "836f11f" }
 #datafusion_iceberg = { git = "https://github.com/JanKaul/iceberg-rust.git", rev = "836f11f" }
 
-datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
-datafusion-common = { git="https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
-datafusion-expr = { git="https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
+datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
+datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
+datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
 
 iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b2ffc851ae4a8a6490cf6a293366884a499178c4" }
 iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b2ffc851ae4a8a6490cf6a293366884a499178c4" }
 datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b2ffc851ae4a8a6490cf6a293366884a499178c4" }
 
-arrow = { version = "53" }
-arrow-json = { version = "53" }
-datafusion-functions-json = { version = "0.43.0" }
+arrow = { version = "54.1.0" }
+arrow-json = { version = "54.1.0" }
+
 object_store = { workspace = true }
 rusoto_core = { version = "0.48.0" }
 rusoto_s3 = { version = "0.48.0" }
 rusoto_credential = { version = "0.48.0" }
 quick-xml = { version = "0.36.2" }
-icelake = { git = "https://github.com/Embucket/icelake.git", rev="b4cbcaf" }
+icelake = { git = "https://github.com/Embucket/icelake.git", rev = "b4cbcaf" }
 bytes = { version = "1.8.0" }
 url = { version = "2.5.2" }
 serde_json = "1.0.128"
@@ -44,6 +44,7 @@ base64 = { version = "0.22.1" }
 snafu = { workspace = true }
 strum = { version = "0.26.3", features = ["derive"] }
 tracing = { version = "0.1" }
+datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "08087ada386113c297de7e785eb0d667dd387a9d" }
 
 [dev-dependencies]
 slatedb = { workspace = true }

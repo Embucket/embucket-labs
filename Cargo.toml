@@ -1,12 +1,12 @@
 [workspace]
 default-members = ["bin/icehutd"]
 members = [
-    "bin/icehutd",
-    "crates/utils",
-    "crates/catalog",
-    "crates/control_plane",
-    "crates/nexus", 
-    "crates/runtime",
+  "bin/icehutd",
+  "crates/utils",
+  "crates/catalog",
+  "crates/control_plane",
+  "crates/nexus",
+  "crates/runtime",
 ]
 resolver = "2"
 
@@ -14,7 +14,7 @@ resolver = "2"
 chrono = { version = "0.4", features = ["serde"] }
 futures = { version = "0.3" }
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
-axum = { version = "0.7", features = ["multipart", "macros"]}
+axum = { version = "0.7", features = ["multipart", "macros"] }
 axum-macros = "0.5"
 tokio = { version = "1", features = ["full"] }
 async-trait = { version = "0.1.84" }
@@ -37,21 +37,21 @@ snafu = { version = "0.8.5", features = ["futures"] }
 tracing = { version = "0.1" }
 
 [patch.crates-io]
-datafusion = { git="https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
+datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
 
 
 [workspace.lints.clippy]
-all={ level="deny", priority=-1 }
-pedantic={ level="warn", priority=1 }
-as_conversions="warn"
-nursery={ level="warn", priority=1 }
-unwrap_used="deny"
-expect_used="deny"
-print_stdout="deny"
-similar_names={ level="allow", priority=2 }
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = 1 }
+as_conversions = "warn"
+nursery = { level = "warn", priority = 1 }
+unwrap_used = "deny"
+expect_used = "deny"
+print_stdout = "deny"
+similar_names = { level = "allow", priority = 2 }
 
 # These should be removed eventually
-missing_errors_doc={ level="allow", priority=2 }
-missing_panics_doc={ level="allow", priority=2 }
-significant_drop_tightening={ level="allow", priority=2 }
-module_name_repetitions={ level="allow", priority=2 }
+missing_errors_doc = { level = "allow", priority = 2 }
+missing_panics_doc = { level = "allow", priority = 2 }
+significant_drop_tightening = { level = "allow", priority = 2 }
+module_name_repetitions = { level = "allow", priority = 2 }

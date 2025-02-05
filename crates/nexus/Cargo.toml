@@ -7,7 +7,7 @@ edition = "2021"
 utoipa = { workspace = true }
 
 [dependencies]
-arrow = { version = "53" }
+arrow = { version = "54.1.0" }
 axum = { workspace = true }
 axum-macros = { workspace = true }
 tokio = { workspace = true }
@@ -19,21 +19,33 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 serde = { workspace = true }
 iceberg = { workspace = true }
-indexmap = { version = "2.7.0" }
+indexmap = { version = "2.7.1" }
 slatedb = { workspace = true, version = "0.3.0" }
 object_store = { workspace = true }
 utils = { path = "../utils" }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
-swagger = { version = "6.1", features = ["serdejson", "server", "client", "tls", "tcp"] }
+swagger = { version = "6.1", features = [
+  "serdejson",
+  "server",
+  "client",
+  "tls",
+  "tcp",
+] }
 validator = { version = "0.18.1", features = ["derive"] }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 hyper = "1.5.0"
 http-body-util = "0.1.0"
 anyhow = "1.0.89"
-tower-http = { version = "0.6.1", features = ["catch-panic", "timeout", "sensitive-headers", "cors", "trace"] }
+tower-http = { version = "0.6.1", features = [
+  "catch-panic",
+  "timeout",
+  "sensitive-headers",
+  "cors",
+  "trace",
+] }
 lazy_static = { version = "1.4.0" }
 flate2 = { version = "1.0.34" }
 regex = { version = "1.11.0" }
