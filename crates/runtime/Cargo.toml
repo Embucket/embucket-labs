@@ -15,13 +15,13 @@ serde_json = { workspace = true }
 object_store = { workspace = true }
 tracing = { workspace = true }
 
-datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
-datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
-datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
+datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "a4c5f3f065b551afdf845000e3630012af27dc17" }
+datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "a4c5f3f065b551afdf845000e3630012af27dc17" }
+datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "a4c5f3f065b551afdf845000e3630012af27dc17" }
 
-iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b2ffc851ae4a8a6490cf6a293366884a499178c4" }
-iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b2ffc851ae4a8a6490cf6a293366884a499178c4" }
-datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b2ffc851ae4a8a6490cf6a293366884a499178c4" }
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "c5d3eb7a19c2777a8843a454a1a42cad3bec61d1" }
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "c5d3eb7a19c2777a8843a454a1a42cad3bec61d1" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "c5d3eb7a19c2777a8843a454a1a42cad3bec61d1" }
 
 arrow = { version = "54.1.0" }
 arrow-json = { version = "54.1.0" }
@@ -36,7 +36,7 @@ regex = { version = "1.11.0" }
 paste = "1"
 snafu = { workspace = true }
 url = { version = "2.5.4" }
-datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "08087ada386113c297de7e785eb0d667dd387a9d" }
+datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "9e9bd378b979a6b7081cf278c54a76eb94b00fc5" }
 
 [lints]
 workspace = true

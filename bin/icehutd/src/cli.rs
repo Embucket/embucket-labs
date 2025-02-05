@@ -91,7 +91,7 @@ pub struct IceHutOpts {
     )]
     pub port: Option<u16>,
 
-    #[arg(long, default_value = "false")]
+    #[arg(long, default_value = "true")]
     use_fs: Option<bool>,
 }
 
