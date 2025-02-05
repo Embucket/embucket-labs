@@ -4,6 +4,7 @@ use quick_xml::de::from_str;
 use rusoto_core::RusotoError;
 use serde::Deserialize;
 use snafu::prelude::*;
+use tokio::sync::TryLockError;
 use uuid::Uuid;
 
 pub type ControlPlaneResult<T> = std::result::Result<T, ControlPlaneError>;
@@ -96,6 +97,14 @@ pub enum ControlPlaneError {
     Execution {
         source: runtime::datafusion::error::IcehutSQLError,
     },
+
+    #[snafu(display("Unable to lock DataFusion context list"))]
+    ContextListLock {
+        source: TryLockError
+    },
+
+    #[snafu(display("Missing DataFusion session for id {id}"))]
+    MissingDataFusionSession { id: String },
 }
 
 impl From<utils::Error> for ControlPlaneError {

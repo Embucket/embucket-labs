@@ -1,4 +1,4 @@
-use crate::error::{ControlPlaneError, ControlPlaneResult};
+use crate::error::{self, ControlPlaneError, ControlPlaneResult};
 use crate::models::{ColumnInfo, Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
@@ -23,8 +23,10 @@ use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
 use snafu::ResultExt;
+use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use url::Url;
 use uuid::Uuid;
 
@@ -58,11 +60,11 @@ pub trait ControlService: Send + Sync {
     // async fn delete_table(&self, id: Uuid) -> ControlPlaneResult<()>;
     // async fn list_tables(&self) -> ControlPlaneResult<Vec<Table>>;
 
-    async fn query(&self, query: &str) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
+    async fn query(&self, session_id: &str, query: &str) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
 
-    async fn query_table(&self, query: &str) -> ControlPlaneResult<String>;
+    async fn query_table(&self, session_id: &str, query: &str) -> ControlPlaneResult<String>;
 
-    async fn query_dbt(&self, query: &str) -> ControlPlaneResult<(String, Vec<ColumnInfo>)>;
+    async fn query_dbt(&self, session_id: &str, query: &str) -> ControlPlaneResult<(String, Vec<ColumnInfo>)>;
 
     async fn upload_data_to_table(
         &self,
@@ -72,11 +74,16 @@ pub trait ControlService: Send + Sync {
         data: Bytes,
         file_name: String,
     ) -> ControlPlaneResult<()>;
+
+    async fn create_session(&self, session_id: String) -> ControlPlaneResult<()>;
+
+    async fn delete_session(&self, session_id: String) -> ControlPlaneResult<()>;
 }
 
 pub struct ControlServiceImpl {
     storage_profile_repo: Arc<dyn StorageProfileRepository>,
     warehouse_repo: Arc<dyn WarehouseRepository>,
+    df_sessions: Arc<RwLock<HashMap<String, SqlExecutor>>>,
 }
 
 impl ControlServiceImpl {
@@ -84,9 +91,11 @@ impl ControlServiceImpl {
         storage_profile_repo: Arc<dyn StorageProfileRepository>,
         warehouse_repo: Arc<dyn WarehouseRepository>,
     ) -> Self {
+        let df_sessions = Arc::new(RwLock::new(HashMap::new()));
         Self {
             storage_profile_repo,
             warehouse_repo,
+            df_sessions
         }
     }
 }
@@ -127,6 +136,47 @@ impl ControlService for ControlServiceImpl {
     #[tracing::instrument(level = "trace", skip(self))]
     async fn list_profiles(&self) -> ControlPlaneResult<Vec<StorageProfile>> {
         self.storage_profile_repo.list().await
+    }
+
+    #[tracing::instrument(level = "debug", skip(self))]
+    async fn create_session(&self, session_id: String) -> ControlPlaneResult<()> {
+        let session_exists = {
+            self.df_sessions
+                .read()
+                .await
+                .contains_key(&session_id)
+        };
+        if session_exists {
+            tracing::warn!("Session ID {} already exists", session_id);
+        } else {
+            tracing::debug!("Creating new session with ID {}", session_id);
+            let sql_parser_dialect =
+                env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
+            let state = SessionStateBuilder::new()
+                .with_config(
+                    SessionConfig::new()
+                        .with_information_schema(true)
+                        .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
+                )
+                .with_default_features()
+                .with_query_planner(Arc::new(IcebergQueryPlanner {}))
+                .with_type_planner(Arc::new(CustomTypePlanner {}))
+                .build();
+            let ctx = SessionContext::new_with_state(state);
+            let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
+
+            let mut session_list_mut = self.df_sessions.write().await;
+            session_list_mut.insert(session_id, executor);
+        }
+        Ok(())
+    }
+
+    #[tracing::instrument(level="debug", skip(self))]
+    async fn delete_session(&self, session_id: String) -> ControlPlaneResult<()> {
+        // TODO: Need to have a timeout for the lock
+        let mut session_list = self.df_sessions.write().await;
+        session_list.remove(&session_id);
+        Ok(())
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
@@ -202,23 +252,10 @@ impl ControlService for ControlServiceImpl {
 
     #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
-    async fn query(&self, query: &str) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
-        let sql_parser_dialect =
-            env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
-        let state = SessionStateBuilder::new()
-            .with_config(
-                SessionConfig::new()
-                    .with_information_schema(true)
-                    .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
-            )
-            .with_default_features()
-            .with_query_planner(Arc::new(IcebergQueryPlanner {}))
-            .with_type_planner(Arc::new(CustomTypePlanner {}))
-            .build();
-        let ctx = SessionContext::new_with_state(state);
-
-        // TODO: Should be shared context
-        let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
+    async fn query(&self, session_id: &str, query: &str) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
+        let sessions = self.df_sessions.read().await;
+        let executor = sessions.get(session_id)
+            .ok_or(error::ControlPlaneError::MissingDataFusionSession { id: session_id.to_string() })?;
 
         let query = executor.preprocess_query(query);
         let statement = executor
@@ -278,9 +315,8 @@ impl ControlService for ControlServiceImpl {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn query_table(&self, query: &str) -> ControlPlaneResult<String> {
-        let (records, _) = self.query(query).await?;
-
+    async fn query_table(&self, session_id: &str, query: &str) -> ControlPlaneResult<String> {
+        let (records, _) = self.query(session_id, query).await?;
         let buf = Vec::new();
         let write_builder = WriterBuilder::new().with_explicit_nulls(true);
         let mut writer = write_builder.build::<_, JsonArray>(buf);
@@ -298,8 +334,8 @@ impl ControlService for ControlServiceImpl {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn query_dbt(&self, query: &str) -> ControlPlaneResult<(String, Vec<ColumnInfo>)> {
-        let (records, columns) = self.query(query).await?;
+    async fn query_dbt(&self, session_id: &str, query: &str) -> ControlPlaneResult<(String, Vec<ColumnInfo>)> {
+        let (records, columns) = self.query(session_id, query).await?;
 
         // THIS CODE RELATED TO ARROW FORMAT
         //////////////////////////////////////

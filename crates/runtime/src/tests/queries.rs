@@ -3,6 +3,8 @@ use crate::tests::utils::macros::test_query;
 // SELECT
 test_query!(select_star, "SELECT * FROM employee_table");
 test_query!(select_ilike, "SELECT * ILIKE '%id%' FROM employee_table;");
+test_query!(select_func, "SELECT my_func(a, b, c) FROM employee_table;");
+test_query!(func_date_add, "SELECT date_add(day, 30, '2025-01-06')");
 test_query!(
     select_exclude,
     "SELECT * EXCLUDE department_id FROM employee_table;"
