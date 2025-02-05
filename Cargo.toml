@@ -30,7 +30,7 @@ iceberg = { git = "https://github.com/hansetag/iceberg-rust.git", branch = "ct/b
 tempfile = { version = "3" }
 utoipa = { version = "5.0.0-beta.0", features = ["uuid", "chrono"] }
 utoipa-axum = { version = "0.1.0-beta.2" }
-utoipa-swagger-ui = { version = "7.1.1-beta.0", features = ["axum"] }
+utoipa-swagger-ui = { version = "9.0.0", features = ["axum"] }
 lazy_static = { version = "1.5" }
 datafusion = { version = "43" }
 snafu = { version = "0.8.5", features = ["futures"] }
