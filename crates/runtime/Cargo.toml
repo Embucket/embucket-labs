@@ -38,8 +38,6 @@ snafu = { workspace = true }
 url = { version = "2.5.4" }
 datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "08087ada386113c297de7e785eb0d667dd387a9d" }
 
-[patch.crates-io]
-datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "155bc7347cf2866b67525c411d4a7089ddb8d67e" }
 [lints]
 workspace = true
 
