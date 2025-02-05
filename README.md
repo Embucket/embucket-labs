@@ -1,21 +1,21 @@
-# Embucket
+# About 
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 
-This is Embucket: an Apache-Licensed Snowflake compatible lakehouse platform built on premises of opennes and standardization. 
+This is Embucket: an Apache-Licensed Snowflake compatible lakehouse platform built on principles of opennes and standardization. 
 
 # Quickstart
 
-A docker image is available on [quay.io](https://quay.io/repository/embucket/embucket). This is a prepared docker to demonstrate how to use Embucket.
+A docker image is available on [quay.io](https://quay.io/repository/embucket/embucket). This preconfigured image demonstrates how to use Embucket.
 
 ```sh
 docker pull quay.io/embucket/embucket:latest
 docker run embucket/embucket:latest
 ```
 
-Once running, open the browser and head to [localhost:8888](localhost:8888) to check out the UI. 
-There is also Iceberg REST catalog API available on [localhost:3000/catalog](localhost:3000/catalog).
+After starting the container, open your browser and navigate to [localhost:8888](localhost:8888) to view the UI. 
+The Iceberg REST catalog API is accessible at [localhost:3000/catalog](localhost:3000/catalog).
 
 # Features
 
@@ -27,7 +27,7 @@ There is also Iceberg REST catalog API available on [localhost:3000/catalog](loc
 
 # Demo
 
-Here we demonstrate how to use embucket to execute snowplow_web dbt project. We use Snowflake as target database in the dbt project.
+In this demo, we show how to use Embucket to execute the `snowplow_web` dbt project, with Snowflake serving as the target database.
 
 ### Install Embucket
 
