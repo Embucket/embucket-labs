@@ -12,14 +12,14 @@ use crate::http::control::handlers::warehouses::{
 pub fn create_router() -> Router<AppState> {
     let sp_router = Router::new()
         .route("/", post(create_storage_profile))
-        .route("/:id", get(get_storage_profile))
-        .route("/:id", delete(delete_storage_profile))
+        .route("/{id}", get(get_storage_profile))
+        .route("/{id}", delete(delete_storage_profile))
         .route("/", get(list_storage_profiles));
 
     let wh_router = Router::new()
         .route("/", post(create_warehouse))
-        .route("/:id", get(get_warehouse))
-        .route("/:id", delete(delete_warehouse))
+        .route("/{id}", get(get_warehouse))
+        .route("/{id}", delete(delete_warehouse))
         .route("/", get(list_warehouses));
 
     Router::new()

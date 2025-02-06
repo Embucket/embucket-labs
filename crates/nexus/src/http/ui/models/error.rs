@@ -113,6 +113,12 @@ pub enum NexusError {
         source: Box<dyn std::error::Error + Send + Sync>,
         field: String,
     },
+
+    #[snafu(display("Missing Session ID"))]
+    MissingSessionId,
+
+    #[snafu(display("Unable to persist session"))]
+    SessionPersist { source: tower_sessions::session::Error}
 }
 
 pub type NexusResult<T> = std::result::Result<T, NexusError>;
@@ -152,7 +158,8 @@ impl IntoResponse for NexusError {
             | Self::DataUpload { .. }
             | Self::WarehouseCreate { .. }
             | Self::InvalidIcebergSnapshotTimestamp { .. }
-            | Self::ParseTableMetadata { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::ParseTableMetadata { .. }
+            | Self::SessionPersist { .. } => StatusCode::INTERNAL_SERVER_ERROR,
 
             Self::DatabaseAlreadyExists { .. } | Self::WarehouseAlreadyExists { .. } => {
                 StatusCode::CONFLICT
@@ -160,7 +167,8 @@ impl IntoResponse for NexusError {
 
             Self::MalformedNamespaceIdent { .. }
             | Self::MalformedMultipart { .. }
-            | Self::MalformedFileUploadRequest => StatusCode::BAD_REQUEST,
+            | Self::MalformedFileUploadRequest
+            | Self::MissingSessionId => StatusCode::BAD_REQUEST,
 
             Self::TableFetch { id: _, source }
             | Self::TableDelete { source }

@@ -16,8 +16,10 @@ use slatedb::db::Db as SlateDb;
 use std::sync::Arc;
 use tokio::signal;
 use tower_http::trace::TraceLayer;
+use tower_sessions::{Expiry, SessionManagerLayer};
 
 use utils::Db;
+use http::session::*;
 
 pub mod error;
 pub mod http;
@@ -44,6 +46,20 @@ pub async fn run_icehut(
         let warehouse_repo = WarehouseRepositoryDb::new(db.clone());
         ControlServiceImpl::new(Arc::new(storage_profile_repo), Arc::new(warehouse_repo))
     };
+    let control_svc = Arc::new(control_svc);
+
+    let session_memory = RequestSessionMemory::default();
+    let session_store = RequestSessionStore::new(session_memory.clone(), control_svc.clone());
+
+    tokio::task::spawn(
+        session_store
+            .clone()
+            .continuously_delete_expired(tokio::time::Duration::from_secs(60)),
+    );
+
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_secure(false)
+        .with_expiry(Expiry::OnInactivity(Duration::seconds(5* 60)));
 
     let catalog_svc = {
         let t_repo = TableRepositoryDb::new(db.clone());
@@ -53,9 +69,10 @@ pub async fn run_icehut(
     };
 
     // Create the application state
-    let app_state = state::AppState::new(Arc::new(control_svc), Arc::new(catalog_svc));
+    let app_state = state::AppState::new(control_svc.clone(), Arc::new(catalog_svc));
 
     let app = http::router::create_app(app_state)
+        .layer(session_layer)
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn(print_request_response));
 

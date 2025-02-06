@@ -46,11 +46,13 @@ tower-http = { version = "0.6.1", features = [
   "cors",
   "trace",
 ] }
-tower-sessions = "0.14.0"
+tower-sessions = { version="0.14.0" }
 lazy_static = { version = "1.4.0" }
 flate2 = { version = "1.0.34" }
 regex = { version = "1.11.0" }
 snafu = { workspace = true }
+async-trait.workspace = true
+time = "0.3.37"
 
 [dev-dependencies]
 tower = { workspace = true }

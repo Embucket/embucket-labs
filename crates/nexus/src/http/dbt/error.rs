@@ -37,6 +37,9 @@ pub enum DbtError {
 
     #[snafu(display("Failed to parse row JSON"))]
     RowParse { source: serde_json::Error },
+
+    #[snafu(display("Unable to persist session"))]
+    SessionPersist { source: tower_sessions::session::Error}
 }
 
 pub type DbtResult<T> = std::result::Result<T, DbtError>;
@@ -51,7 +54,7 @@ impl IntoResponse for DbtError {
             Self::ControlService { .. } | Self::RowParse { .. } => {
                 http::StatusCode::INTERNAL_SERVER_ERROR
             }
-            Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
+            Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData | Self::SessionPersist { source: _ } => {
                 http::StatusCode::UNAUTHORIZED
             }
             Self::NotImplemented => http::StatusCode::NOT_IMPLEMENTED,
@@ -66,7 +69,7 @@ impl IntoResponse for DbtError {
             Self::InvalidWarehouseIdFormat { source } => format!("invalid warehouse_id: {source}"),
             Self::ControlService { source } => source.to_string(),
             Self::RowParse { source } => format!("failed to parse row JSON: {source}"),
-            Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
+            Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData | Self::SessionPersist { source: _ } => {
                 "session error".to_string()
             }
             Self::NotImplemented => "feature not implemented".to_string(),

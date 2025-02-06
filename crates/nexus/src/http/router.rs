@@ -54,8 +54,8 @@ pub fn create_app(state: AppState) -> Router {
     let dbt_router = create_dbt_router();
 
     Router::new()
-        .nest("/", dbt_router)
-        .nest("/", control_router)
+        .merge(dbt_router)
+        .merge(control_router)
         .nest("/catalog", catalog_router)
         .nest("/ui", ui_router)
         .merge(

@@ -16,7 +16,7 @@ use snafu::ResultExt;
 use std::time::Instant;
 use utoipa::OpenApi;
 use uuid::Uuid;
-
+use tower_sessions::Session;
 #[derive(OpenApi)]
 #[openapi(
     paths(
@@ -261,14 +261,33 @@ pub async fn delete_table(
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 // Add time sql took
 pub async fn query_table(
+    session: Session,
     State(state): State<AppState>,
     Json(payload): Json<TableQueryRequest>,
 ) -> NexusResult<Json<TableQueryResponse>> {
+    let session_id = match session.get::<String>("DF_SESSION_ID").await {
+        Ok(Some(id)) => {
+            tracing::info!("Found session_id: {}", id);
+            id
+        },
+        _ => {
+            let id = Uuid::new_v4().to_string();
+            tracing::info!("Creating new session_id: {}", id);
+            session
+                .insert("DF_SESSION_ID", id.clone())
+                .await
+                .context(model_error::SessionPersistSnafu)?;
+            session.save().await.context(model_error::SessionPersistSnafu)?;
+            id
+        }
+    };
+    tracing::info!("Session ID: {}", session_id);
+    let session_id = session_id.to_string();
     let request: TableQueryRequest = payload;
     let start = Instant::now();
     let result = state
         .control_svc
-        .query_table(&request.query)
+        .query_table(&session_id, &request.query)
         .await
         .context(model_error::QuerySnafu)?;
     let duration = start.elapsed();
@@ -299,10 +318,11 @@ pub async fn query_table(
 // Add another query_table function since utoipa can't annotate the same function twice
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn query_table_compatibility_path(
+    session: Session,
     State(state): State<AppState>,
     Json(payload): Json<TableQueryRequest>,
 ) -> NexusResult<Json<TableQueryResponse>> {
-    query_table(State(state), Json(payload)).await
+    query_table(session, State(state), Json(payload)).await
 }
 
 #[utoipa::path(

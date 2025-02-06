@@ -149,7 +149,6 @@ impl ControlService for ControlServiceImpl {
         if session_exists {
             tracing::warn!("Session ID {} already exists", session_id);
         } else {
-            tracing::debug!("Creating new session with ID {}", session_id);
             let sql_parser_dialect =
                 env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
             let state = SessionStateBuilder::new()
@@ -303,7 +302,7 @@ impl ControlService for ControlServiceImpl {
             }
             (warehouse.name, warehouse.location)
         };
-
+        tracing::debug!("Catalog: {}, Warehouse Location: {}", catalog_name, warehouse_location);
         let records: Vec<RecordBatch> = executor
             .query(&query, catalog_name.as_str(), warehouse_location.as_str())
             .await
@@ -576,8 +575,9 @@ impl ControlService for ControlServiceImpl {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
+
     use super::*;
     use crate::error::ControlPlaneError;
     use crate::models::{
@@ -668,8 +668,9 @@ mod tests {
         warehouse_repo: Arc<dyn WarehouseRepository>,
     ) {
         let service = ControlServiceImpl::new(storage_repo, warehouse_repo);
+        service.create_session("TEST_SESSION".to_string()).await.unwrap();
         service
-            .query("SELECT 1")
+            .query("TEST_SESSION", "SELECT 1")
             .await
             .expect("Scalar function should success!");
 
