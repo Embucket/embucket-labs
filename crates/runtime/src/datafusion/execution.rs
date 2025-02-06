@@ -42,13 +42,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
 
-#[derive(Debug)]
-pub struct TablePath {
-    pub db: String,
-    pub schema: String,
-    pub table: String,
-}
-
 pub struct SqlExecutor {
     // ctx made public to register_catalog after creating SqlExecutor
     pub ctx: SessionContext,
@@ -477,16 +470,13 @@ impl SqlExecutor {
         warehouse_name: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         if let Statement::Merge {
-            mut table,
+            table,
             mut source,
             on,
             clauses,
             ..
         } = statement
         {
-            self.update_tables_in_table_factor(&mut table, warehouse_name);
-            self.update_tables_in_table_factor(&mut source, warehouse_name);
-
             let (target_table, target_alias) = Self::get_table_with_alias(table);
             let (_source_table, source_alias) = Self::get_table_with_alias(source.clone());
 
@@ -612,14 +602,14 @@ impl SqlExecutor {
         name: ObjectName,
         _if_not_exists: bool,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
-        // Parse name into catalog (warehous) name and schema name
+        // Parse name into catalog (warehouse) name and schema name
         let (warehouse_name, schema_name) = match name.0.len() {
             2 => (
                 self.ident_normalizer.normalize(name.0[0].clone()),
                 self.ident_normalizer.normalize(name.0[1].clone()),
             ),
             _ => {
-                return Err(super::error::IcehutSQLError::DataFusion {
+                return Err(IcehutSQLError::DataFusion {
                     source: DataFusionError::NotImplemented(
                         "Only two-part names are supported".to_string(),
                     ),
@@ -921,81 +911,36 @@ impl SqlExecutor {
     }
 
     #[must_use]
-    #[allow(clippy::too_many_lines)]
-    pub fn get_table_path(&self, statement: &DFStatement) -> TablePath {
+    pub fn get_table_path(&self, statement: &DFStatement) -> Option<TableReference> {
         let empty = String::new;
-        let table_path = |arr: &Vec<Ident>| -> TablePath {
-            match arr.len() {
-                1 => TablePath {
-                    db: empty(),
-                    schema: empty(),
-                    table: arr[0].value.clone(),
-                },
-                2 => TablePath {
-                    db: empty(),
-                    schema: arr[0].value.clone(),
-                    table: arr[1].value.clone(),
-                },
-                3 => TablePath {
-                    db: arr[0].value.clone(),
-                    schema: arr[1].value.clone(),
-                    table: arr[2].value.clone(),
-                },
-                _ => TablePath {
-                    db: empty(),
-                    schema: empty(),
-                    table: empty(),
-                },
-            }
-        };
+        let references = self.ctx.state().resolve_table_references(statement).ok()?;
 
         match statement.clone() {
-            DFStatement::CreateExternalTable(create_external) => {
-                table_path(&create_external.name.0)
-            }
             DFStatement::Statement(s) => match *s {
-                Statement::AlterTable { name, .. } => table_path(&name.0),
-                Statement::Insert(insert) => table_path(&insert.table_name.0),
-                Statement::Drop { names, .. } => table_path(&names[0].0),
-                Statement::Query(query) => match *query.body {
-                    sqlparser::ast::SetExpr::Select(select) => {
-                        if select.from.is_empty() {
-                            table_path(&vec![])
-                        } else {
-                            match &select.from[0].relation {
-                                TableFactor::Table { name, .. } => table_path(&name.0),
-                                _ => table_path(&vec![]),
-                            }
-                        }
-                    }
-                    _ => table_path(&vec![]),
-                },
-                Statement::CreateTable(create_table) => table_path(&create_table.name.0),
-                Statement::Update { table, .. } => match table.relation {
-                    TableFactor::Table { name, .. } => table_path(&name.0),
-                    _ => table_path(&vec![]),
-                },
+                Statement::Drop { names, .. } => {
+                    Some(TableReference::parse_str(&names[0].to_string()))
+                }
                 Statement::CreateSchema {
                     schema_name: SchemaName::Simple(name),
                     ..
                 } => {
                     if name.0.len() == 2 {
-                        TablePath {
-                            db: name.0[0].value.clone(),
-                            schema: name.0[1].value.clone(),
-                            table: empty(),
-                        }
+                        Some(TableReference::full(
+                            name.0[0].value.clone(),
+                            name.0[1].value.clone(),
+                            empty(),
+                        ))
                     } else {
-                        TablePath {
-                            db: empty(),
-                            schema: name.0[1].value.clone(),
-                            table: empty(),
-                        }
+                        Some(TableReference::full(
+                            empty(),
+                            name.0[0].value.clone(),
+                            empty(),
+                        ))
                     }
                 }
-                _ => table_path(&vec![]),
+                _ => references.first().cloned(),
             },
-            _ => table_path(&vec![]),
+            _ => references.first().cloned(),
         }
     }
 

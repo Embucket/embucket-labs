@@ -30,7 +30,6 @@ use datafusion::sql::sqlparser::ast::{
     DataType as SQLDataType, Statement,
 };
 use datafusion::sql::statement::{calc_inline_constraints_from_columns, object_name_to_string};
-use datafusion::sql::utils::normalize_ident;
 use datafusion_common::{DFSchema, DFSchemaRef, SchemaReference, TableReference};
 use datafusion_expr::DropCatalogSchema;
 use sqlparser::ast::ObjectType;
@@ -239,10 +238,13 @@ where
     }
 
     fn show_objects_to_plan(&self, parent: &ObjectName) -> Result<LogicalPlan> {
+        if !self.inner.has_table("information_schema", "df_settings") {
+            return plan_err!("SHOW OBJECTS is not supported unless information_schema is enabled");
+        }
         // Only support listing objects in schema for now
         match parent.0.len() {
             2 => {
-                let (catalog, schema) = (parent.0[0].value.clone(), parent.0[1].value.clone());
+                // let (catalog, schema) = (parent.0[0].value.clone(), parent.0[1].value.clone());
 
                 // Create query to list objects in schema
                 let columns = [
@@ -250,91 +252,58 @@ where
                     "table_schema as 'schema_name'",
                     "table_name as 'name'",
                     "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
+                    "case when table_type='BASE TABLE' then 'Y' else 'N' end as 'is_iceberg'",
                     "null as 'comment'",
                 ]
                 .join(", ");
                 // TODO: views?
                 // TODO: Return programmatically constructed plan
-                let query = format!("SELECT {columns} FROM information_schema.tables where table_schema = '{schema}' and table_catalog = '{catalog}'");
-                let mut statements = DFParser::parse_sql(query.as_str())?;
-                statements.pop_front().map_or_else(
-                    || plan_err!("Failed to parse SQL statement"),
-                    |statement| {
-                        if let DFStatement::Statement(s) = statement {
-                            self.sql_statement_to_plan(*s)
-                        } else {
-                            plan_err!("Failed to parse SQL statement")
-                        }
-                    },
-                )
+                let query = format!("SELECT {columns} FROM information_schema.tables");
+                self.parse_sql(query.as_str())
             }
             _ => plan_err!("Unsupported show objects: {:?}", parent),
         }
     }
 
     fn show_variable_to_plan(&self, variable: &[Ident]) -> Result<LogicalPlan> {
-        //println!("SHOW variable: {:?}", variable);
         if !self.inner.has_table("information_schema", "df_settings") {
             return plan_err!(
                 "SHOW [VARIABLE] is not supported unless information_schema is enabled"
             );
         }
 
-        let verbose = variable
-            .last()
-            .is_some_and(|s| normalize_ident(s.to_owned()) == "verbose");
-        let mut variable_vec = variable.to_vec();
-        let mut columns: String = "name, value".to_owned();
-
-        // TODO: Fix how columns are selected. Vec instead of string
-        #[allow(unused_assignments)]
-        if verbose {
-            columns = format!("{columns}, description");
-            variable_vec = variable_vec.split_at(variable_vec.len() - 1).0.to_vec();
-        }
-
-        let query = if variable_vec.iter().any(|ident| ident.value == "objects") {
-            columns = [
-                "table_catalog as 'database_name'",
-                "table_schema as 'schema_name'",
-                "table_name as 'name'",
-                "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
-                "null as 'comment'",
-            ]
-            .join(", ");
-            format!("SELECT {columns} FROM information_schema.tables")
+        let variable = object_name_to_string(&ObjectName(variable.to_vec()));
+        // let base_query = format!("SELECT {columns} FROM information_schema.df_settings");
+        let base_query = "select schema_name as 'name' from information_schema.schemata";
+        let query = if variable == "all" {
+            // Add an ORDER BY so the output comes out in a consistent order
+            format!("{base_query} ORDER BY name")
+        } else if variable == "timezone" || variable == "time.zone" {
+            // we could introduce alias in OptionDefinition if this string matching thing grows
+            format!("{base_query} WHERE name = 'datafusion.execution.time_zone'")
         } else {
-            let variable = object_name_to_string(&ObjectName(variable_vec));
-            // let base_query = format!("SELECT {columns} FROM information_schema.df_settings");
-            let base_query = "select schema_name as 'name' from information_schema.schemata";
-            let query_res = if variable == "all" {
-                // Add an ORDER BY so the output comes out in a consistent order
-                format!("{base_query} ORDER BY name")
-            } else if variable == "timezone" || variable == "time.zone" {
-                // we could introduce alias in OptionDefinition if this string matching thing grows
-                format!("{base_query} WHERE name = 'datafusion.execution.time_zone'")
+            // These values are what are used to make the information_schema table, so we just
+            // check here, before actually planning or executing the query, if it would produce no
+            // results, and error preemptively if it would (for a better UX)
+            let is_valid_variable = self
+                .provider
+                .options()
+                .entries()
+                .iter()
+                .any(|opt| opt.key == variable);
+
+            if is_valid_variable {
+                format!("{base_query} WHERE name = '{variable}'")
             } else {
-                // These values are what are used to make the information_schema table, so we just
-                // check here, before actually planning or executing the query, if it would produce no
-                // results, and error preemptively if it would (for a better UX)
-                let is_valid_variable = self
-                    .provider
-                    .options()
-                    .entries()
-                    .iter()
-                    .any(|opt| opt.key == variable);
-
-                if is_valid_variable {
-                    format!("{base_query} WHERE name = '{variable}'")
-                } else {
-                    // skip where clause to return empty result
-                    base_query.to_string()
-                }
-            };
-            query_res
+                // skip where clause to return empty result
+                base_query.to_string()
+            }
         };
+        self.parse_sql(query.as_str())
+    }
 
-        let mut statements = DFParser::parse_sql(query.as_str())?;
+    fn parse_sql(&self, sql: &str) -> Result<LogicalPlan> {
+        let mut statements = DFParser::parse_sql(sql)?;
         statements.pop_front().map_or_else(
             || plan_err!("Failed to parse SQL statement"),
             |statement| {

@@ -225,8 +225,12 @@ impl ControlService for ControlServiceImpl {
             .parse_query(&query)
             .context(super::error::DataFusionSnafu)?;
 
-        let table_path = executor.get_table_path(&statement);
-        let warehouse_name = table_path.db;
+        let table_ref = executor.get_table_path(&statement);
+        let warehouse_name = table_ref
+            .as_ref()
+            .and_then(|table_ref| table_ref.catalog())
+            .unwrap_or("")
+            .to_string();
 
         let (catalog_name, warehouse_location): (String, String) = if warehouse_name.is_empty() {
             (String::from("datafusion"), String::new())

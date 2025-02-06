@@ -2,14 +2,13 @@ use arrow::array::timezone::Tz;
 use arrow::datatypes::DataType;
 use arrow::datatypes::DataType::{Timestamp, Utf8};
 use arrow::datatypes::TimeUnit::{self, Microsecond, Millisecond, Nanosecond, Second};
-use datafusion::common::ExprSchema;
 use datafusion::common::{internal_err, plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Exact;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, Volatility, TIMEZONE_WILDCARD,
 };
-use datafusion::prelude::Expr;
 use datafusion::scalar::ScalarValue;
+use datafusion_expr::{ReturnInfo, ReturnTypeArgs};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -91,31 +90,26 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
         &self.signature
     }
     fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
-        internal_err!("return_types_from_exprs should be called")
+        internal_err!("return_type_from_args should be called")
     }
-    fn return_type_from_exprs(
-        &self,
-        args: &[Expr],
-        _schema: &dyn ExprSchema,
-        arg_types: &[DataType],
-    ) -> Result<DataType> {
-        match args.len() {
+    fn return_type_from_args(&self, args: ReturnTypeArgs) -> Result<ReturnInfo> {
+        match args.arg_types.len() {
             2 => {
-                let tz = match &args[0] {
-                    Expr::Literal(ScalarValue::Utf8(Some(part))) => part.clone(),
+                let tz = match &args.scalar_arguments[0] {
+                    Some(ScalarValue::Utf8(Some(part))) => part.clone(),
                     _ => return internal_err!("Invalid target_tz type"),
                 };
 
-                match &arg_types[1] {
-                    DataType::Timestamp(tu, _) => Ok(DataType::Timestamp(
+                match &args.arg_types[1] {
+                    Timestamp(tu, _) => Ok(ReturnInfo::new_non_nullable(Timestamp(
                         *tu,
                         Some(Arc::from(tz.into_boxed_str())),
-                    )),
+                    ))),
                     _ => internal_err!("Invalid source_timestamp_tz type"),
                 }
             }
-            3 => match &arg_types[2] {
-                DataType::Timestamp(tu, None) => Ok(DataType::Timestamp(*tu, None)),
+            3 => match &args.arg_types[2] {
+                Timestamp(tu, None) => Ok(ReturnInfo::new_non_nullable(Timestamp(*tu, None))),
                 _ => internal_err!("Invalid source_timestamp_ntz type"),
             },
             other => {
