@@ -12,6 +12,8 @@ use flate2::read::GzDecoder;
 use regex::Regex;
 use snafu::ResultExt;
 use std::io::Read;
+use tokio::fs::OpenOptions;
+use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
@@ -82,7 +84,7 @@ pub async fn query(
         return Err(DbtError::MissingDbtSession);
     };
 
-    // let _ = log_query(&body_json.sql_text).await;
+    let _ = log_query(&body_json.sql_text).await;
 
     let (result, columns) = state
         .control_svc
@@ -126,7 +128,7 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
     })
 }
 
-/*async fn log_query(query: &str) -> Result<(), std::io::Error> {
+async fn log_query(query: &str) -> Result<(), std::io::Error> {
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -136,4 +138,4 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
     file.write_all(query.as_bytes()).await?;
     file.write_all(b"\n").await?;
     Ok(())
-}*/
+}

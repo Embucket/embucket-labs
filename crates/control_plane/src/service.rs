@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use datafusion::execution::context::SessionContext;
 use datafusion::execution::SessionStateBuilder;
-use datafusion::prelude::{CsvReadOptions, SessionConfig};
+use datafusion::prelude::CsvReadOptions;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use iceberg_rest_catalog::apis::configuration::Configuration;
@@ -18,12 +18,11 @@ use iceberg_rest_catalog::catalog::RestCatalog;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
 use runtime::datafusion::execution::SqlExecutor;
-use runtime::datafusion::type_planner::CustomTypePlanner;
+use runtime::datafusion::session::Session;
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
 use snafu::ResultExt;
-use std::env;
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
@@ -77,6 +76,7 @@ pub trait ControlService: Send + Sync {
 pub struct ControlServiceImpl {
     storage_profile_repo: Arc<dyn StorageProfileRepository>,
     warehouse_repo: Arc<dyn WarehouseRepository>,
+    executor: SqlExecutor,
 }
 
 impl ControlServiceImpl {
@@ -84,9 +84,13 @@ impl ControlServiceImpl {
         storage_profile_repo: Arc<dyn StorageProfileRepository>,
         warehouse_repo: Arc<dyn WarehouseRepository>,
     ) -> Self {
+        let session = Session::default();
+        #[allow(clippy::unwrap_used)]
+        let executor = SqlExecutor::new(session.ctx).unwrap();
         Self {
             storage_profile_repo,
             warehouse_repo,
+            executor,
         }
     }
 }
@@ -203,29 +207,14 @@ impl ControlService for ControlServiceImpl {
     #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
     async fn query(&self, query: &str) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
-        let sql_parser_dialect =
-            env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
-        let state = SessionStateBuilder::new()
-            .with_config(
-                SessionConfig::new()
-                    .with_information_schema(true)
-                    .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
-            )
-            .with_default_features()
-            .with_query_planner(Arc::new(IcebergQueryPlanner {}))
-            .with_type_planner(Arc::new(CustomTypePlanner {}))
-            .build();
-        let ctx = SessionContext::new_with_state(state);
-
         // TODO: Should be shared context
-        let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
-
-        let query = executor.preprocess_query(query);
-        let statement = executor
+        let query = self.executor.preprocess_query(query);
+        let statement = self
+            .executor
             .parse_query(&query)
             .context(super::error::DataFusionSnafu)?;
 
-        let table_ref = executor.get_table_path(&statement);
+        let table_ref = self.executor.get_table_path(&statement);
         let warehouse_name = table_ref
             .as_ref()
             .and_then(|table_ref| table_ref.catalog())
@@ -236,7 +225,7 @@ impl ControlService for ControlServiceImpl {
             (String::from("datafusion"), String::new())
         } else {
             let warehouse = self.get_warehouse_by_name(warehouse_name.clone()).await?;
-            if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
+            if self.executor.ctx.catalog(warehouse.name.as_str()).is_none() {
                 let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
 
                 let config = {
@@ -254,7 +243,7 @@ impl ControlService for ControlServiceImpl {
                 );
 
                 let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
-                executor
+                self.executor
                     .ctx
                     .register_catalog(warehouse.name.clone(), Arc::new(catalog));
 
@@ -264,14 +253,15 @@ impl ControlService for ControlServiceImpl {
                 let endpoint_url = storage_profile
                     .get_object_store_endpoint_url()
                     .map_err(|_| ControlPlaneError::MissingStorageEndpointURL)?;
-                executor
+                self.executor
                     .ctx
                     .register_object_store(&endpoint_url, Arc::from(object_store));
             }
             (warehouse.name, warehouse.location)
         };
 
-        let records: Vec<RecordBatch> = executor
+        let records: Vec<RecordBatch> = self
+            .executor
             .query(&query, catalog_name.as_str(), warehouse_location.as_str())
             .await
             .context(crate::error::ExecutionSnafu)?

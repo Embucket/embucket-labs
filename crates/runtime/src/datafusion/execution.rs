@@ -4,6 +4,7 @@
 use super::error::{self as ih_error, IcehutSQLError, IcehutSQLResult};
 use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
+use crate::datafusion::session::SessionParams;
 use arrow::array::{RecordBatch, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
@@ -88,6 +89,9 @@ impl SqlExecutor {
         // etc
         if let DFStatement::Statement(s) = statement {
             match *s {
+                Statement::AlterSession { .. } => {
+                    return Box::pin(self.alter_session_query(*s, warehouse_name)).await;
+                }
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s, warehouse_name)).await;
                 }
@@ -110,7 +114,7 @@ impl SqlExecutor {
                 }
                 Statement::CreateStage { .. } => {
                     // We support only CSV uploads for now
-                    return Box::pin(self.create_stage_query(*s, warehouse_name)).await;
+                    return Box::pin(self.create_stage_query(*s)).await;
                 }
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s, warehouse_name)).await;
@@ -178,6 +182,50 @@ impl SqlExecutor {
             )
             .replace("skip_header=1", "skip_header=TRUE")
             .replace("FROM @~/", "FROM ")
+    }
+
+    pub async fn alter_session_query(
+        &self,
+        statement: Statement,
+        warehouse_name: &str,
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+        if let Statement::AlterSession {
+            set,
+            session_params,
+        } = statement
+        {
+            let mut state = self.ctx.state();
+            let config = state
+                .config_mut()
+                .options_mut()
+                .extensions
+                .get_mut::<SessionParams>();
+            if let Some(cfg) = config {
+                let params = session_params
+                    .options
+                    .iter()
+                    .map(|v| (v.option_name.clone(), v.value.clone()))
+                    .collect::<HashMap<_, _>>();
+                if set {
+                    cfg.set_properties(params)
+                        .context(ih_error::DataFusionSnafu)?;
+                } else {
+                    cfg.remove_properties(params)
+                        .context(ih_error::DataFusionSnafu)?;
+                }
+            }
+            self.execute_with_custom_plan(
+                "SELECT * FROM information_schema.df_settings",
+                warehouse_name,
+            )
+            .await
+        } else {
+            Err(IcehutSQLError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only ALTER SESSION statements are supported".to_string(),
+                ),
+            })
+        }
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
@@ -330,7 +378,6 @@ impl SqlExecutor {
     pub async fn create_stage_query(
         &self,
         statement: Statement,
-        warehouse_name: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         if let Statement::CreateStage {
             name,
@@ -423,13 +470,7 @@ impl SqlExecutor {
                 )
                 .await
                 .context(ih_error::DataFusionSnafu)?;
-
-            // Create stages database and create table with prepared schema
-            // TODO Don't create table in case we have common ctx
-            self.create_database(warehouse_name, ObjectName(vec![Ident::new("stages")]), true)
-                .await?;
-            let create_query = format!("CREATE TABLE {warehouse_name}.stages.{table_name} AS (SELECT * FROM {stage_table_name})");
-            self.query(&create_query, warehouse_name, "").await
+            Ok(vec![])
         } else {
             Err(IcehutSQLError::DataFusion {
                 source: DataFusionError::NotImplemented(
@@ -450,8 +491,7 @@ impl SqlExecutor {
         {
             // Insert data to table
             let from_query = from_stage.to_string().replace('@', "");
-            let insert_query =
-                format!("INSERT INTO {into} SELECT * FROM {warehouse_name}.stages.{from_query}");
+            let insert_query = format!("INSERT INTO {into} SELECT * FROM {from_query}");
             self.execute_with_custom_plan(&insert_query, warehouse_name)
                 .await
         } else {
