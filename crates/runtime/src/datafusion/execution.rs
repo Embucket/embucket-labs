@@ -171,6 +171,10 @@ impl SqlExecutor {
             .to_string();
         let query = date_add.replace_all(&query, "$1$2('$3',").to_string();
         // TODO implement alter session logic
+        let alter_iceberg_table = regex::Regex::new(r"alter\s+iceberg\s+table").unwrap();
+        let query = alter_iceberg_table
+            .replace_all(&query, "alter table")
+            .to_string();
         query
             .replace(
                 "alter session set query_tag = 'snowplow_dbt'",
