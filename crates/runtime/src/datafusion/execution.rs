@@ -170,11 +170,14 @@ impl SqlExecutor {
         let date_add =
             regex::Regex::new(r"(date|time|timestamp)(_?add|_?diff)\(\s*([a-zA-Z]+),").unwrap();
 
-        let query = re
+        let mut query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
             .to_string();
-        let query = date_add.replace_all(&query, "$1$2('$3',").to_string();
-        // TODO implement alter session logic
+        query = date_add.replace_all(&query, "$1$2('$3',").to_string();
+        // TODO remove this check after release of https://github.com/Embucket/datafusion-sqlparser-rs/pull/8
+        if query.to_lowercase().contains("alter session") {
+            query = query.replace(';', "");
+        }
         query
             .replace("skip_header=1", "skip_header=TRUE")
             .replace("FROM @~/", "FROM ")
