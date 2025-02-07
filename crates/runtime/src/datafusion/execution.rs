@@ -4,6 +4,7 @@
 use super::error::{self as ih_error, IcehutSQLError, IcehutSQLResult};
 use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
+use crate::datafusion::session::SessionParams;
 use arrow::array::{RecordBatch, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
@@ -88,6 +89,9 @@ impl SqlExecutor {
         // etc
         if let DFStatement::Statement(s) = statement {
             match *s {
+                Statement::AlterSession { .. } => {
+                    return Box::pin(self.alter_session_query(*s)).await;
+                }
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s, warehouse_name)).await;
                 }
@@ -172,12 +176,49 @@ impl SqlExecutor {
         let query = date_add.replace_all(&query, "$1$2('$3',").to_string();
         // TODO implement alter session logic
         query
-            .replace(
-                "alter session set query_tag = 'snowplow_dbt'",
-                "SHOW session",
-            )
             .replace("skip_header=1", "skip_header=TRUE")
             .replace("FROM @~/", "FROM ")
+    }
+
+    #[allow(clippy::unused_async)]
+    pub async fn alter_session_query(
+        &self,
+        statement: Statement,
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+        if let Statement::AlterSession {
+            set,
+            session_params,
+        } = statement
+        {
+            let state = self.ctx.state_ref();
+            let mut write = state.write();
+            let config = write
+                .config_mut()
+                .options_mut()
+                .extensions
+                .get_mut::<SessionParams>();
+            if let Some(cfg) = config {
+                let params = session_params
+                    .options
+                    .iter()
+                    .map(|v| (v.option_name.clone(), v.value.clone()))
+                    .collect::<HashMap<_, _>>();
+                if set {
+                    cfg.set_properties(params)
+                        .context(ih_error::DataFusionSnafu)?;
+                } else {
+                    cfg.remove_properties(params)
+                        .context(ih_error::DataFusionSnafu)?;
+                }
+            }
+            Ok(vec![])
+        } else {
+            Err(IcehutSQLError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only ALTER SESSION statements are supported".to_string(),
+                ),
+            })
+        }
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
