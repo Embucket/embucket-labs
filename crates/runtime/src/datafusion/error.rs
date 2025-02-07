@@ -11,9 +11,6 @@ pub enum IcehutSQLError {
     #[snafu(display("DataFusion error: {source}"))]
     DataFusion { source: DataFusionError },
 
-    #[snafu(display("SqlExecutor error: {reason}"))]
-    SqlExecutor { reason: String },
-
     #[snafu(display("No Table Provider found for table: {table_name}"))]
     TableProviderNotFound { table_name: String },
 
