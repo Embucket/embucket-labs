@@ -1,5 +1,4 @@
 use crate::datafusion::type_planner::CustomTypePlanner;
-<<<<<<< HEAD
 use datafusion::common::error::Result as DFResult;
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{SessionConfig, SessionContext};
@@ -19,24 +18,6 @@ impl Default for Session {
     }
 }
 
-=======
-use datafusion::execution::SessionStateBuilder;
-use datafusion::prelude::{SessionConfig, SessionContext};
-use datafusion_iceberg::planner::IcebergQueryPlanner;
-use std::env;
-use std::sync::Arc;
-
-pub struct Session {
-    pub ctx: SessionContext,
-}
-
-impl Default for Session {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
->>>>>>> d972fcb (Make common sql executor (#209))
 impl Session {
     #[must_use]
     pub fn new() -> Self {
@@ -45,10 +26,7 @@ impl Session {
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::new()
-<<<<<<< HEAD
                     .with_option_extension(SessionParams::default())
-=======
->>>>>>> d972fcb (Make common sql executor (#209))
                     .with_information_schema(true)
                     .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
             )
@@ -60,7 +38,6 @@ impl Session {
         Self { ctx }
     }
 }
-<<<<<<< HEAD
 
 #[derive(Default, Debug, Clone)]
 pub struct SessionParams {
@@ -115,5 +92,3 @@ impl ExtensionOptions for SessionParams {
             .collect()
     }
 }
-=======
->>>>>>> d972fcb (Make common sql executor (#209))
