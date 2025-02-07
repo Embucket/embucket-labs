@@ -4,6 +4,7 @@
 use super::error::{self as ih_error, IcehutSQLError, IcehutSQLResult};
 use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
+use crate::datafusion::session::SessionParams;
 use arrow::array::{RecordBatch, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
@@ -88,6 +89,9 @@ impl SqlExecutor {
         // etc
         if let DFStatement::Statement(s) = statement {
             match *s {
+                Statement::AlterSession { .. } => {
+                    return Box::pin(self.alter_session_query(*s)).await;
+                }
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s, warehouse_name)).await;
                 }
@@ -110,7 +114,7 @@ impl SqlExecutor {
                 }
                 Statement::CreateStage { .. } => {
                     // We support only CSV uploads for now
-                    return Box::pin(self.create_stage_query(*s, warehouse_name)).await;
+                    return Box::pin(self.create_stage_query(*s)).await;
                 }
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s, warehouse_name)).await;
@@ -166,22 +170,62 @@ impl SqlExecutor {
         let date_add =
             regex::Regex::new(r"(date|time|timestamp)(_?add|_?diff)\(\s*([a-zA-Z]+),").unwrap();
 
-        let query = re
+        let mut query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
             .to_string();
-        let query = date_add.replace_all(&query, "$1$2('$3',").to_string();
-        // TODO implement alter session logic
+        query = date_add.replace_all(&query, "$1$2('$3',").to_string();
         let alter_iceberg_table = regex::Regex::new(r"alter\s+iceberg\s+table").unwrap();
         let query = alter_iceberg_table
             .replace_all(&query, "alter table")
             .to_string();
+        // TODO remove this check after release of https://github.com/Embucket/datafusion-sqlparser-rs/pull/8
+        if query.to_lowercase().contains("alter session") {
+            query = query.replace(';', "");
+        }
         query
-            .replace(
-                "alter session set query_tag = 'snowplow_dbt'",
-                "SHOW session",
-            )
             .replace("skip_header=1", "skip_header=TRUE")
             .replace("FROM @~/", "FROM ")
+    }
+
+    #[allow(clippy::unused_async)]
+    pub async fn alter_session_query(
+        &self,
+        statement: Statement,
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+        if let Statement::AlterSession {
+            set,
+            session_params,
+        } = statement
+        {
+            let state = self.ctx.state_ref();
+            let mut write = state.write();
+            let config = write
+                .config_mut()
+                .options_mut()
+                .extensions
+                .get_mut::<SessionParams>();
+            if let Some(cfg) = config {
+                let params = session_params
+                    .options
+                    .iter()
+                    .map(|v| (v.option_name.clone(), v.value.clone()))
+                    .collect::<HashMap<_, _>>();
+                if set {
+                    cfg.set_properties(params)
+                        .context(ih_error::DataFusionSnafu)?;
+                } else {
+                    cfg.remove_properties(params)
+                        .context(ih_error::DataFusionSnafu)?;
+                }
+            }
+            Ok(vec![])
+        } else {
+            Err(IcehutSQLError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only ALTER SESSION statements are supported".to_string(),
+                ),
+            })
+        }
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
@@ -334,7 +378,6 @@ impl SqlExecutor {
     pub async fn create_stage_query(
         &self,
         statement: Statement,
-        warehouse_name: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         if let Statement::CreateStage {
             name,
@@ -372,7 +415,6 @@ impl SqlExecutor {
                 .unwrap_or(b'"');
 
             let file_path = stage_params.url.unwrap_or_default();
-            let stage_table_name = format!("stage_{table_name}");
             let url =
                 Url::parse(file_path.as_str()).map_err(|_| IcehutSQLError::InvalidIdentifier {
                     ident: file_path.clone(),
@@ -418,7 +460,7 @@ impl SqlExecutor {
             // Register CSV file with filled missing datatype with default Utf8
             self.ctx
                 .register_csv(
-                    stage_table_name.clone(),
+                    table_name.value.clone(),
                     file_path,
                     CsvReadOptions::new()
                         .has_header(skip_header)
@@ -427,13 +469,7 @@ impl SqlExecutor {
                 )
                 .await
                 .context(ih_error::DataFusionSnafu)?;
-
-            // Create stages database and create table with prepared schema
-            // TODO Don't create table in case we have common ctx
-            self.create_database(warehouse_name, ObjectName(vec![Ident::new("stages")]), true)
-                .await?;
-            let create_query = format!("CREATE TABLE {warehouse_name}.stages.{table_name} AS (SELECT * FROM {stage_table_name})");
-            self.query(&create_query, warehouse_name, "").await
+            Ok(vec![])
         } else {
             Err(IcehutSQLError::DataFusion {
                 source: DataFusionError::NotImplemented(
@@ -453,9 +489,8 @@ impl SqlExecutor {
         } = statement
         {
             // Insert data to table
-            let from_query = from_stage.to_string().replace('@', "");
-            let insert_query =
-                format!("INSERT INTO {into} SELECT * FROM {warehouse_name}.stages.{from_query}");
+            let stage_name = from_stage.to_string().replace('@', "");
+            let insert_query = format!("INSERT INTO {into} SELECT * FROM {stage_name}");
             self.execute_with_custom_plan(&insert_query, warehouse_name)
                 .await
         } else {
@@ -921,6 +956,9 @@ impl SqlExecutor {
 
         match statement.clone() {
             DFStatement::Statement(s) => match *s {
+                Statement::CopyIntoSnowflake { into, .. } => {
+                    Some(TableReference::parse_str(&into.to_string()))
+                }
                 Statement::Drop { names, .. } => {
                     Some(TableReference::parse_str(&names[0].to_string()))
                 }

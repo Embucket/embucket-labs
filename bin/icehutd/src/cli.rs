@@ -66,7 +66,7 @@ pub struct IceHutOpts {
 
     #[arg(long, env="FILE_STORAGE_PATH", 
             required_if_eq("backend", "file"),
-            conflicts_with_all(["access_key_id", "secret_access_key", "region", "bucket", "endpoint", "allow_http"]),
+            conflicts_with_all(["region", "bucket", "endpoint", "allow_http"]),
             help_heading="File Backend Options",
             help="Path to the directory where files will be stored"
         )]
