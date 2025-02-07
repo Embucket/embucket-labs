@@ -4,8 +4,7 @@ use crate::http::ui::models::properties::{
     TableUpdatePropertiesPayload,
 };
 use crate::http::ui::models::table::{
-    Table, TableCreatePayload, TableQueryRequest, TableQueryResponse, TableRegisterRequest,
-    TableUploadPayload,
+    Table, TableCreatePayload, TableRegisterRequest, TableUploadPayload,
 };
 use crate::http::utils::get_default_properties;
 use crate::state::AppState;
@@ -13,7 +12,6 @@ use axum::{extract::Multipart, extract::Path, extract::State, Json};
 use catalog::models::{DatabaseIdent, TableIdent, WarehouseIdent};
 use iceberg::NamespaceIdent;
 use snafu::ResultExt;
-use std::time::Instant;
 use utoipa::OpenApi;
 use uuid::Uuid;
 
@@ -24,8 +22,6 @@ use uuid::Uuid;
         register_table,
         delete_table,
         get_table,
-        query_table,
-        query_table_compatibility_path,
         upload_data_to_table,
         get_settings,
         update_table_properties,
@@ -33,8 +29,6 @@ use uuid::Uuid;
     ),
     components(
         schemas(
-            TableQueryResponse,
-            TableQueryRequest,
             TableCreatePayload,
             TableRegisterRequest,
             TableUploadPayload,
@@ -246,66 +240,6 @@ pub async fn delete_table(
 }
 
 #[utoipa::path(
-    post,
-    path = "/ui/query",
-    request_body = TableQueryRequest,
-    // rename back to tableQuery when removing compatibility path
-    operation_id = "queryTable",
-    tags = ["tables"],
-    responses(
-        (status = 200, description = "Returns result of the query", body = TableQueryResponse),
-        (status = 422, description = "Unprocessable entity", body = NexusError),
-        (status = 500, description = "Internal server error", body = NexusError)
-    )
-)]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-// Add time sql took
-pub async fn query_table(
-    State(state): State<AppState>,
-    Json(payload): Json<TableQueryRequest>,
-) -> NexusResult<Json<TableQueryResponse>> {
-    let request: TableQueryRequest = payload;
-    let start = Instant::now();
-    let result = state
-        .control_svc
-        .query_table(&request.query)
-        .await
-        .context(model_error::QuerySnafu)?;
-    let duration = start.elapsed();
-    Ok(Json(TableQueryResponse {
-        query: request.query.clone(),
-        result,
-        duration_seconds: duration.as_secs_f32(),
-    }))
-}
-
-#[utoipa::path(
-    post,
-    path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/query",
-    request_body = TableQueryRequest,
-    operation_id = "tableQuery",
-    tags = ["tables"],
-    params(
-        ("warehouseId" = Uuid, Path, description = "Warehouse ID"),
-        ("databaseName" = Uuid, Path, description = "Database Name"),
-        ("tableName" = Uuid, Path, description = "Table name")
-    ),
-    responses(
-        (status = 200, description = "Returns result of the query", body = TableQueryResponse),
-        (status = 422, description = "Unprocessable entity", body = NexusError),
-        (status = 500, description = "Internal server error", body = NexusError)
-    )
-)]
-// Add another query_table function since utoipa can't annotate the same function twice
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn query_table_compatibility_path(
-    State(state): State<AppState>,
-    Json(payload): Json<TableQueryRequest>,
-) -> NexusResult<Json<TableQueryResponse>> {
-    query_table(State(state), Json(payload)).await
-}
-
-#[utoipa::path(
     get,
     path = "/ui/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/settings",
     operation_id = "getTableSettings",
@@ -427,7 +361,7 @@ pub async fn update_table_properties(
         description = "Upload data to the table in multipart/form-data format"
     ),
     responses(
-        (status = 200, description = "Returns result of the query", body = TableQueryResponse),
+        (status = 200, description = "Successful Response"),
         (status = 422, description = "Unprocessable entity", body = NexusError),
         (status = 500, description = "Internal server error", body = NexusError)
     )
