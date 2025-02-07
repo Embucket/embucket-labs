@@ -25,7 +25,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/nexus ./
+COPY --from=builder /app/target/release/icehutd ./
 COPY --from=builder /app/rest-catalog-open-api.yaml rest-catalog-open-api.yaml
 
-CMD ["./nexus"]
+CMD ["./icehutd"]
