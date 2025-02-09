@@ -85,7 +85,7 @@ pub struct ResponseData {
     #[serde(rename = "rowsetBase64")]
     pub row_set_base_64: Option<String>,
     #[serde(rename = "rowset")]
-    pub row_set: Vec<Vec<serde_json::Value>>,
+    pub row_set: Option<Vec<Vec<serde_json::Value>>>,
     pub total: Option<u32>,
     #[serde(rename = "queryResultFormat")]
     pub query_result_format: Option<String>,

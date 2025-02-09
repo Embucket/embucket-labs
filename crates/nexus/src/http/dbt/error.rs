@@ -37,6 +37,12 @@ pub enum DbtError {
 
     #[snafu(display("Failed to parse row JSON"))]
     RowParse { source: serde_json::Error },
+
+    #[snafu(display("UTF8 error: {source}"))]
+    Utf8 { source: std::string::FromUtf8Error },
+
+    #[snafu(display("Arrow error: {source}"))]
+    Arrow { source: arrow::error::ArrowError },
 }
 
 pub type DbtResult<T> = std::result::Result<T, DbtError>;
@@ -48,9 +54,10 @@ impl IntoResponse for DbtError {
             | Self::LoginRequestParse { .. }
             | Self::QueryBodyParse { .. }
             | Self::InvalidWarehouseIdFormat { .. } => http::StatusCode::BAD_REQUEST,
-            Self::ControlService { .. } | Self::RowParse { .. } => {
-                http::StatusCode::INTERNAL_SERVER_ERROR
-            }
+            Self::ControlService { .. }
+            | Self::RowParse { .. }
+            | Self::Utf8 { .. }
+            | Self::Arrow { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
                 http::StatusCode::UNAUTHORIZED
             }
@@ -68,6 +75,12 @@ impl IntoResponse for DbtError {
             Self::RowParse { source } => format!("failed to parse row JSON: {source}"),
             Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
                 "session error".to_string()
+            }
+            Self::Utf8 { source } => {
+                format!("Error encoding UTF8 string: {source}")
+            }
+            Self::Arrow { source } => {
+                format!("Error encoding in Arrow format: {source}")
             }
             Self::NotImplemented => "feature not implemented".to_string(),
         };

@@ -54,6 +54,7 @@ utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 uuid = { workspace = true, features = ["v4", "v5"] }
 validator = { version = "0.18.1", features = ["derive"] }
+base64 = { version = "0.22.1" }
 
 [dev-dependencies]
 async-trait = { workspace = true }
