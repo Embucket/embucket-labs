@@ -17,6 +17,7 @@ use iceberg_rest_catalog::catalog::RestCatalog;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
 use runtime::datafusion::execution::SqlExecutor;
+use runtime::datafusion::session::SessionParams;
 use runtime::datafusion::type_planner::CustomTypePlanner;
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
@@ -156,6 +157,7 @@ impl ControlService for ControlServiceImpl {
                 .with_config(
                     SessionConfig::new()
                         .with_information_schema(true)
+                        .with_option_extension(SessionParams::default())
                         .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
                 )
                 .with_default_features()
