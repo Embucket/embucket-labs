@@ -3,6 +3,7 @@ use object_store::{
     aws::AmazonS3Builder, aws::S3ConditionalPut, local::LocalFileSystem, memory::InMemory,
     ObjectStore, Result as ObjectStoreResult,
 };
+use std::fs;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -136,6 +137,10 @@ impl IceHutOpts {
             }
             StoreBackend::File => {
                 let file_storage_path = self.file_storage_path.unwrap();
+                let path = file_storage_path.as_path();
+                if !path.exists() || !path.is_dir() {
+                    fs::create_dir(path).unwrap();
+                }
                 LocalFileSystem::new_with_prefix(file_storage_path)
                     .map(|fs| Box::new(fs) as Box<dyn ObjectStore>)
             }
