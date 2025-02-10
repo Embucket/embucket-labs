@@ -39,6 +39,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 url = { version = "2.5.4" }
 uuid = { workspace = true }
+datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "567a3f1c806eed61fe9fbcf12a71f3f8ab7faa95" }
 
 [lints]
 workspace = true
