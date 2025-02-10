@@ -5,7 +5,7 @@ use super::error::{self as ih_error, IcehutSQLError, IcehutSQLResult};
 use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
 use crate::datafusion::session::SessionParams;
-use arrow::array::{RecordBatch, Int64Array};
+use arrow::array::{Int64Array, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::datasource::default_table_source::provider_as_source;
@@ -769,7 +769,6 @@ impl SqlExecutor {
         warehouse_name: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
-        println!("plan: {:?}", plan);
         self.ctx
             .execute_logical_plan(plan)
             .await

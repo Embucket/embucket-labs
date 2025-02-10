@@ -130,11 +130,13 @@ pub async fn query(
     let (records, columns) = state
         .control_svc
         .query(&session_id, &body_json.sql_text)
-
         .await
         .context(dbt_error::ControlServiceSnafu)?;
 
-    debug!("serialized json: {}", records_to_json_string(&records)?.as_str());
+    debug!(
+        "serialized json: {}",
+        records_to_json_string(&records)?.as_str()
+    );
 
     let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {
