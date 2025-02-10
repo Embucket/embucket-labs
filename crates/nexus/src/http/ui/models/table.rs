@@ -345,11 +345,11 @@ impl Statistics {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct TableQueryRequest {
+pub struct QueryPayload {
     pub query: String,
 }
 
-impl TableQueryRequest {
+impl QueryPayload {
     #[allow(clippy::new_without_default)]
     #[must_use]
     pub const fn new(query: String) -> Self {
@@ -359,13 +359,13 @@ impl TableQueryRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct TableQueryResponse {
+pub struct QueryResponse {
     pub query: String,
     pub result: String,
     pub duration_seconds: f32,
 }
 
-impl TableQueryResponse {
+impl QueryResponse {
     #[allow(clippy::new_without_default)]
     #[must_use]
     pub const fn new(query: String, result: String, duration_seconds: f32) -> Self {

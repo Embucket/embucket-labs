@@ -14,6 +14,7 @@ use crate::http::control::router::create_router as create_control_router;
 use crate::http::dbt::router::create_router as create_dbt_router;
 use crate::http::ui::handlers::databases::ApiDoc as DatabaseApiDoc;
 use crate::http::ui::handlers::profiles::ApiDoc as ProfileApiDoc;
+use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
 use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
 use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
 use crate::http::ui::router::{create_router as create_ui_router, ApiDoc as UiApiDoc};
@@ -44,7 +45,8 @@ pub fn create_app(state: AppState) -> Router {
         .merge_from(ProfileApiDoc::openapi())
         .merge_from(WarehouseApiDoc::openapi())
         .merge_from(TableApiDoc::openapi())
-        .merge_from(DatabaseApiDoc::openapi());
+        .merge_from(DatabaseApiDoc::openapi())
+        .merge_from(QueryApiDoc::openapi());
     if let Some(extra_spec) = load_openapi_spec() {
         ui_spec = ui_spec.merge_from(extra_spec);
     }
