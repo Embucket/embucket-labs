@@ -4,6 +4,7 @@
 use super::error::{self as ih_error, IcehutSQLError, IcehutSQLResult};
 use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
+use crate::datafusion::session::SessionParams;
 use arrow::array::{RecordBatch, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
@@ -41,13 +42,6 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
-
-#[derive(Debug)]
-pub struct TablePath {
-    pub db: String,
-    pub schema: String,
-    pub table: String,
-}
 
 pub struct SqlExecutor {
     // ctx made public to register_catalog after creating SqlExecutor
@@ -87,8 +81,17 @@ impl SqlExecutor {
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
 
+        // TODO: Code should be organized in a better way
+        // 1. Single place to parse SQL strings into AST
+        // 2. Single place to update AST
+        // 3. Single place to construct Logical plan from this AST
+        // 4. Single place to rewrite-optimize-adjust logical plan
+        // etc
         if let DFStatement::Statement(s) = statement {
             match *s {
+                Statement::AlterSession { .. } => {
+                    return Box::pin(self.alter_session_query(*s)).await;
+                }
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s, warehouse_name)).await;
                 }
@@ -111,7 +114,7 @@ impl SqlExecutor {
                 }
                 Statement::CreateStage { .. } => {
                     // We support only CSV uploads for now
-                    return Box::pin(self.create_stage_query(*s, warehouse_name)).await;
+                    return Box::pin(self.create_stage_query(*s)).await;
                 }
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s, warehouse_name)).await;
@@ -122,6 +125,7 @@ impl SqlExecutor {
                 | Statement::Insert { .. }
                 | Statement::ShowSchemas { .. }
                 | Statement::ShowVariable { .. }
+                | Statement::ShowObjects { .. }
                 | Statement::Update { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
                 }
@@ -166,18 +170,62 @@ impl SqlExecutor {
         let date_add =
             regex::Regex::new(r"(date|time|timestamp)(_?add|_?diff)\(\s*([a-zA-Z]+),").unwrap();
 
-        let query = re
+        let mut query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
             .to_string();
-        let query = date_add.replace_all(&query, "$1$2('$3',").to_string();
-        // TODO implement alter session logic
+        query = date_add.replace_all(&query, "$1$2('$3',").to_string();
+        let alter_iceberg_table = regex::Regex::new(r"alter\s+iceberg\s+table").unwrap();
+        query = alter_iceberg_table
+            .replace_all(&query, "alter table")
+            .to_string();
+        // TODO remove this check after release of https://github.com/Embucket/datafusion-sqlparser-rs/pull/8
+        if query.to_lowercase().contains("alter session") {
+            query = query.replace(';', "");
+        }
         query
-            .replace(
-                "alter session set query_tag = 'snowplow_dbt'",
-                "SHOW session",
-            )
             .replace("skip_header=1", "skip_header=TRUE")
             .replace("FROM @~/", "FROM ")
+    }
+
+    #[allow(clippy::unused_async)]
+    pub async fn alter_session_query(
+        &self,
+        statement: Statement,
+    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+        if let Statement::AlterSession {
+            set,
+            session_params,
+        } = statement
+        {
+            let state = self.ctx.state_ref();
+            let mut write = state.write();
+            let config = write
+                .config_mut()
+                .options_mut()
+                .extensions
+                .get_mut::<SessionParams>();
+            if let Some(cfg) = config {
+                let params = session_params
+                    .options
+                    .iter()
+                    .map(|v| (v.option_name.clone(), v.value.clone()))
+                    .collect::<HashMap<_, _>>();
+                if set {
+                    cfg.set_properties(params)
+                        .context(ih_error::DataFusionSnafu)?;
+                } else {
+                    cfg.remove_properties(params)
+                        .context(ih_error::DataFusionSnafu)?;
+                }
+            }
+            Ok(vec![])
+        } else {
+            Err(IcehutSQLError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only ALTER SESSION statements are supported".to_string(),
+                ),
+            })
+        }
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
@@ -330,7 +378,6 @@ impl SqlExecutor {
     pub async fn create_stage_query(
         &self,
         statement: Statement,
-        warehouse_name: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         if let Statement::CreateStage {
             name,
@@ -368,7 +415,6 @@ impl SqlExecutor {
                 .unwrap_or(b'"');
 
             let file_path = stage_params.url.unwrap_or_default();
-            let stage_table_name = format!("stage_{table_name}");
             let url =
                 Url::parse(file_path.as_str()).map_err(|_| IcehutSQLError::InvalidIdentifier {
                     ident: file_path.clone(),
@@ -414,7 +460,7 @@ impl SqlExecutor {
             // Register CSV file with filled missing datatype with default Utf8
             self.ctx
                 .register_csv(
-                    stage_table_name.clone(),
+                    table_name.value.clone(),
                     file_path,
                     CsvReadOptions::new()
                         .has_header(skip_header)
@@ -423,13 +469,7 @@ impl SqlExecutor {
                 )
                 .await
                 .context(ih_error::DataFusionSnafu)?;
-
-            // Create stages database and create table with prepared schema
-            // TODO Don't create table in case we have common ctx
-            self.create_database(warehouse_name, ObjectName(vec![Ident::new("stages")]), true)
-                .await?;
-            let create_query = format!("CREATE TABLE {warehouse_name}.stages.{table_name} AS (SELECT * FROM {stage_table_name})");
-            self.query(&create_query, warehouse_name, "").await
+            Ok(vec![])
         } else {
             Err(IcehutSQLError::DataFusion {
                 source: DataFusionError::NotImplemented(
@@ -449,9 +489,8 @@ impl SqlExecutor {
         } = statement
         {
             // Insert data to table
-            let from_query = from_stage.to_string().replace('@', "");
-            let insert_query =
-                format!("INSERT INTO {into} SELECT * FROM {warehouse_name}.stages.{from_query}");
+            let stage_name = from_stage.to_string().replace('@', "");
+            let insert_query = format!("INSERT INTO {into} SELECT * FROM {stage_name}");
             self.execute_with_custom_plan(&insert_query, warehouse_name)
                 .await
         } else {
@@ -470,16 +509,13 @@ impl SqlExecutor {
         warehouse_name: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         if let Statement::Merge {
-            mut table,
+            table,
             mut source,
             on,
             clauses,
             ..
         } = statement
         {
-            self.update_tables_in_table_factor(&mut table, warehouse_name);
-            self.update_tables_in_table_factor(&mut source, warehouse_name);
-
             let (target_table, target_alias) = Self::get_table_with_alias(table);
             let (_source_table, source_alias) = Self::get_table_with_alias(source.clone());
 
@@ -605,14 +641,14 @@ impl SqlExecutor {
         name: ObjectName,
         _if_not_exists: bool,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
-        // Parse name into catalog (warehous) name and schema name
+        // Parse name into catalog (warehouse) name and schema name
         let (warehouse_name, schema_name) = match name.0.len() {
             2 => (
                 self.ident_normalizer.normalize(name.0[0].clone()),
                 self.ident_normalizer.normalize(name.0[1].clone()),
             ),
             _ => {
-                return Err(super::error::IcehutSQLError::DataFusion {
+                return Err(IcehutSQLError::DataFusion {
                     source: DataFusionError::NotImplemented(
                         "Only two-part names are supported".to_string(),
                     ),
@@ -914,81 +950,39 @@ impl SqlExecutor {
     }
 
     #[must_use]
-    #[allow(clippy::too_many_lines)]
-    pub fn get_table_path(&self, statement: &DFStatement) -> TablePath {
+    pub fn get_table_path(&self, statement: &DFStatement) -> Option<TableReference> {
         let empty = String::new;
-        let table_path = |arr: &Vec<Ident>| -> TablePath {
-            match arr.len() {
-                1 => TablePath {
-                    db: empty(),
-                    schema: empty(),
-                    table: arr[0].value.clone(),
-                },
-                2 => TablePath {
-                    db: empty(),
-                    schema: arr[0].value.clone(),
-                    table: arr[1].value.clone(),
-                },
-                3 => TablePath {
-                    db: arr[0].value.clone(),
-                    schema: arr[1].value.clone(),
-                    table: arr[2].value.clone(),
-                },
-                _ => TablePath {
-                    db: empty(),
-                    schema: empty(),
-                    table: empty(),
-                },
-            }
-        };
+        let references = self.ctx.state().resolve_table_references(statement).ok()?;
 
         match statement.clone() {
-            DFStatement::CreateExternalTable(create_external) => {
-                table_path(&create_external.name.0)
-            }
             DFStatement::Statement(s) => match *s {
-                Statement::AlterTable { name, .. } => table_path(&name.0),
-                Statement::Insert(insert) => table_path(&insert.table_name.0),
-                Statement::Drop { names, .. } => table_path(&names[0].0),
-                Statement::Query(query) => match *query.body {
-                    sqlparser::ast::SetExpr::Select(select) => {
-                        if select.from.is_empty() {
-                            table_path(&vec![])
-                        } else {
-                            match &select.from[0].relation {
-                                TableFactor::Table { name, .. } => table_path(&name.0),
-                                _ => table_path(&vec![]),
-                            }
-                        }
-                    }
-                    _ => table_path(&vec![]),
-                },
-                Statement::CreateTable(create_table) => table_path(&create_table.name.0),
-                Statement::Update { table, .. } => match table.relation {
-                    TableFactor::Table { name, .. } => table_path(&name.0),
-                    _ => table_path(&vec![]),
-                },
+                Statement::CopyIntoSnowflake { into, .. } => {
+                    Some(TableReference::parse_str(&into.to_string()))
+                }
+                Statement::Drop { names, .. } => {
+                    Some(TableReference::parse_str(&names[0].to_string()))
+                }
                 Statement::CreateSchema {
                     schema_name: SchemaName::Simple(name),
                     ..
                 } => {
                     if name.0.len() == 2 {
-                        TablePath {
-                            db: name.0[0].value.clone(),
-                            schema: name.0[1].value.clone(),
-                            table: empty(),
-                        }
+                        Some(TableReference::full(
+                            name.0[0].value.clone(),
+                            name.0[1].value.clone(),
+                            empty(),
+                        ))
                     } else {
-                        TablePath {
-                            db: empty(),
-                            schema: name.0[1].value.clone(),
-                            table: empty(),
-                        }
+                        Some(TableReference::full(
+                            empty(),
+                            name.0[0].value.clone(),
+                            empty(),
+                        ))
                     }
                 }
-                _ => table_path(&vec![]),
+                _ => references.first().cloned(),
             },
-            _ => table_path(&vec![]),
+            _ => references.first().cloned(),
         }
     }
 

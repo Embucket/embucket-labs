@@ -84,6 +84,8 @@ pub async fn query(
         return Err(DbtError::MissingDbtSession);
     };
 
+    // let _ = log_query(&body_json.sql_text).await;
+
     let (result, columns) = state
         .control_svc
         .query_dbt(&session_id, &body_json.sql_text)

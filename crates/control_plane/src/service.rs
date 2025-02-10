@@ -8,9 +8,8 @@ use arrow_json::writer::JsonArray;
 use arrow_json::WriterBuilder;
 use async_trait::async_trait;
 use bytes::Bytes;
-use datafusion::execution::context::SessionContext;
 use datafusion::execution::SessionStateBuilder;
-use datafusion::prelude::{CsvReadOptions, SessionConfig};
+use datafusion::prelude::{CsvReadOptions, SessionConfig, SessionContext};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use iceberg_rest_catalog::apis::configuration::Configuration;
@@ -18,6 +17,7 @@ use iceberg_rest_catalog::catalog::RestCatalog;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
 use runtime::datafusion::execution::SqlExecutor;
+use runtime::datafusion::session::Session;
 use runtime::datafusion::type_planner::CustomTypePlanner;
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
@@ -76,6 +76,7 @@ pub trait ControlService: Send + Sync {
 
     async fn upload_data_to_table(
         &self,
+        session_id: &str,
         warehouse_id: &Uuid,
         database_name: &str,
         table_name: &str,
@@ -164,8 +165,10 @@ impl ControlService for ControlServiceImpl {
                 .build();
             let ctx = SessionContext::new_with_state(state);
             let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
-
+            
+            tracing::trace!("Acuiring write lock for df_sessions");
             let mut session_list_mut = self.df_sessions.write().await;
+            tracing::trace!("Acquired write lock for df_sessions");
             session_list_mut.insert(session_id, executor);
         }
         Ok(())
@@ -270,8 +273,12 @@ impl ControlService for ControlServiceImpl {
             .parse_query(&query)
             .context(super::error::DataFusionSnafu)?;
 
-        let table_path = executor.get_table_path(&statement);
-        let warehouse_name = table_path.db;
+        let table_ref = executor.get_table_path(&statement);
+        let warehouse_name = table_ref
+            .as_ref()
+            .and_then(|table_ref| table_ref.catalog())
+            .unwrap_or("")
+            .to_string();
 
         let (catalog_name, warehouse_location): (String, String) = if warehouse_name.is_empty() {
             (String::from("datafusion"), String::new())
@@ -295,9 +302,11 @@ impl ControlService for ControlServiceImpl {
                 );
 
                 let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
-                executor
-                    .ctx
-                    .register_catalog(warehouse.name.clone(), Arc::new(catalog));
+                if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
+                    executor
+                        .ctx
+                        .register_catalog(warehouse.name.clone(), Arc::new(catalog));
+                }
 
                 let object_store = storage_profile
                     .get_object_store()
@@ -411,6 +420,7 @@ impl ControlService for ControlServiceImpl {
     #[tracing::instrument(level = "debug", skip(self))]
     async fn upload_data_to_table(
         &self,
+        session_id: &str,
         warehouse_id: &Uuid,
         database_name: &str,
         table_name: &str,
@@ -425,6 +435,14 @@ impl ControlService for ControlServiceImpl {
             .context(crate::error::InvalidStorageProfileSnafu)?;
         let unique_file_id = Uuid::new_v4().to_string();
 
+        let sessions = self.df_sessions.read().await;
+        let executor =
+            sessions
+                .get(session_id)
+                .ok_or(error::ControlPlaneError::MissingDataFusionSession {
+                    id: session_id.to_string(),
+                })?;        
+
         // this path also computes inside catalog service (create_table)
         // TODO need to refactor the code so this path calculation is in one place
         let table_part = format!("{}/{}", warehouse.location, table_name);
@@ -436,28 +454,26 @@ impl ControlService for ControlServiceImpl {
             .await
             .context(crate::error::ObjectStoreSnafu)?;
 
-        // Create table from CSV
-        let config = {
-            let mut config = Configuration::new();
-            config.base_path = "http://0.0.0.0:3000/catalog".to_string();
-            config
-        };
-        let object_store_builder = storage_profile
-            .get_object_store_builder()
-            .context(crate::error::InvalidStorageProfileSnafu)?;
-        let rest_client = RestCatalog::new(
-            Some(warehouse_id.to_string().as_str()),
-            config,
-            object_store_builder,
-        );
-        let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
-        let state = SessionStateBuilder::new()
-            .with_default_features()
-            .with_query_planner(Arc::new(IcebergQueryPlanner {}))
-            .build();
-
-        let ctx = SessionContext::new_with_state(state);
-        ctx.register_catalog(warehouse_name.clone(), Arc::new(catalog));
+        if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
+            // Create table from CSV
+            let config = {
+                let mut config = Configuration::new();
+                config.base_path = "http://0.0.0.0:3000/catalog".to_string();
+                config
+            };
+            let object_store_builder = storage_profile
+                .get_object_store_builder()
+                .context(crate::error::InvalidStorageProfileSnafu)?;
+            let rest_client = RestCatalog::new(
+                Some(warehouse_id.to_string().as_str()),
+                config,
+                object_store_builder,
+            );
+            let catalog = IcebergCatalog::new(Arc::new(rest_client), None).await?;
+            executor
+                .ctx
+                .register_catalog(warehouse.name.clone(), Arc::new(catalog));
+        }
 
         // Register CSV file as a table
         let storage_endpoint_url = storage_profile
@@ -477,14 +493,17 @@ impl ControlService for ControlServiceImpl {
                 url: storage_endpoint_url,
             },
         )?;
-        ctx.register_object_store(&endpoint_url, Arc::from(object_store));
-        ctx.register_csv(table_name, path_string, CsvReadOptions::new())
+        executor
+            .ctx
+            .register_object_store(&endpoint_url, Arc::from(object_store));
+        executor
+            .ctx
+            .register_csv(table_name, path_string, CsvReadOptions::new())
             .await?;
 
         let insert_query = format!(
             "INSERT INTO {warehouse_name}.{database_name}.{table_name} SELECT * FROM {table_name}"
         );
-        let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
         executor
             .execute_with_custom_plan(&insert_query, warehouse_name.as_str())
             .await
@@ -602,6 +621,7 @@ mod tests {
     };
     use crate::repository::InMemoryStorageProfileRepository;
     use crate::repository::InMemoryWarehouseRepository;
+    use std::env;
 
     #[tokio::test]
     async fn test_create_warehouse_failed_no_storage_profile() {
