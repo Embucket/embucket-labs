@@ -116,9 +116,6 @@ pub enum NexusError {
 
     #[snafu(display("Missing Session ID"))]
     MissingSessionId,
-
-    #[snafu(display("Unable to persist session"))]
-    SessionPersist { source: tower_sessions::session::Error}
 }
 
 pub type NexusResult<T> = std::result::Result<T, NexusError>;
@@ -158,8 +155,7 @@ impl IntoResponse for NexusError {
             | Self::DataUpload { .. }
             | Self::WarehouseCreate { .. }
             | Self::InvalidIcebergSnapshotTimestamp { .. }
-            | Self::ParseTableMetadata { .. }
-            | Self::SessionPersist { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::ParseTableMetadata { .. } => StatusCode::INTERNAL_SERVER_ERROR,
 
             Self::DatabaseAlreadyExists { .. } | Self::WarehouseAlreadyExists { .. } => {
                 StatusCode::CONFLICT

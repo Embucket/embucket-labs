@@ -2,11 +2,11 @@
 default-members = ["bin/icehutd"]
 members = [
   "bin/icehutd",
-  "crates/utils",
   "crates/catalog",
   "crates/control_plane",
   "crates/nexus",
   "crates/runtime",
+  "crates/utils",
 ]
 resolver = "2"
 
@@ -38,7 +38,6 @@ tracing = { version = "0.1" }
 
 [patch.crates-io]
 datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "a4c5f3f065b551afdf845000e3630012af27dc17" }
-
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }

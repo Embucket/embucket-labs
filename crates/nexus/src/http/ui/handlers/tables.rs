@@ -7,7 +7,7 @@ use crate::http::ui::models::table::{
     Table, TableCreatePayload, TableQueryRequest, TableQueryResponse, TableRegisterRequest,
     TableUploadPayload,
 };
-use crate::http::utils::get_default_properties;
+use crate::http::{session::DFSessionId, utils::get_default_properties};
 use crate::state::AppState;
 use axum::{extract::Multipart, extract::Path, extract::State, Json};
 use catalog::models::{DatabaseIdent, TableIdent, WarehouseIdent};
@@ -16,7 +16,7 @@ use snafu::ResultExt;
 use std::time::Instant;
 use utoipa::OpenApi;
 use uuid::Uuid;
-use tower_sessions::Session;
+
 #[derive(OpenApi)]
 #[openapi(
     paths(
@@ -261,28 +261,10 @@ pub async fn delete_table(
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 // Add time sql took
 pub async fn query_table(
-    session: Session,
+    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Json(payload): Json<TableQueryRequest>,
 ) -> NexusResult<Json<TableQueryResponse>> {
-    let session_id = match session.get::<String>("DF_SESSION_ID").await {
-        Ok(Some(id)) => {
-            tracing::info!("Found session_id: {}", id);
-            id
-        },
-        _ => {
-            let id = Uuid::new_v4().to_string();
-            tracing::info!("Creating new session_id: {}", id);
-            session
-                .insert("DF_SESSION_ID", id.clone())
-                .await
-                .context(model_error::SessionPersistSnafu)?;
-            session.save().await.context(model_error::SessionPersistSnafu)?;
-            id
-        }
-    };
-    tracing::info!("Session ID: {}", session_id);
-    let session_id = session_id.to_string();
     let request: TableQueryRequest = payload;
     let start = Instant::now();
     let result = state
@@ -318,7 +300,7 @@ pub async fn query_table(
 // Add another query_table function since utoipa can't annotate the same function twice
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn query_table_compatibility_path(
-    session: Session,
+    session: DFSessionId,
     State(state): State<AppState>,
     Json(payload): Json<TableQueryRequest>,
 ) -> NexusResult<Json<TableQueryResponse>> {

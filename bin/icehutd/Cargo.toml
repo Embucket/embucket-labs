@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { workspace = true }
-object_store = { workspace = true }
-dotenv = { version = "0.15.0" }
 clap = { version = "4.5.27", features = ["env", "derive"] }
+dotenv = { version = "0.15.0" }
 nexus = { path = "../../crates/nexus" }
+object_store = { workspace = true }
+tokio = { workspace = true }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 

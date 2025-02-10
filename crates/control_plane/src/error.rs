@@ -99,9 +99,7 @@ pub enum ControlPlaneError {
     },
 
     #[snafu(display("Unable to lock DataFusion context list"))]
-    ContextListLock {
-        source: TryLockError
-    },
+    ContextListLock { source: TryLockError },
 
     #[snafu(display("Missing DataFusion session for id {id}"))]
     MissingDataFusionSession { id: String },

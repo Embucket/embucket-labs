@@ -5,21 +5,21 @@ edition = "2021"
 
 [dependencies]
 async-trait = { workspace = true }
-iceberg = { workspace = true }
-control_plane = { path = "../control_plane" }
-utils = { path = "../utils" }
-futures = { workspace = true }
-slatedb = { workspace = true }
 bytes = { workspace = true }
-tokio = { workspace = true }
+chrono = "0.4.38"
+control_plane = { path = "../control_plane" }
+futures = { workspace = true }
+iceberg = { workspace = true }
+object_store = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-uuid = { workspace = true }
-object_store = { workspace = true }
-url = "2.5.2"
-chrono = "0.4.38"
+slatedb = { workspace = true }
 snafu = { workspace = true }
+tokio = { workspace = true }
 tracing = { workspace = true }
+url = "2.5.2"
+utils = { path = "../utils" }
+uuid = { workspace = true }
 
 [dev-dependencies]
 

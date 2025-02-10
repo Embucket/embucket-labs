@@ -14,12 +14,13 @@ use object_store::{path::Path, ObjectStore};
 use slatedb::config::DbOptions;
 use slatedb::db::Db as SlateDb;
 use std::sync::Arc;
+use time::Duration;
 use tokio::signal;
 use tower_http::trace::TraceLayer;
 use tower_sessions::{Expiry, SessionManagerLayer};
 
+use http::session::{RequestSessionMemory, RequestSessionStore};
 use utils::Db;
-use http::session::*;
 
 pub mod error;
 pub mod http;
@@ -59,7 +60,7 @@ pub async fn run_icehut(
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::seconds(5* 60)));
+        .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
     let catalog_svc = {
         let t_repo = TableRepositoryDb::new(db.clone());

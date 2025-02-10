@@ -7,25 +7,28 @@ edition = "2021"
 utoipa = { workspace = true }
 
 [dependencies]
+anyhow = "1.0.89"
 arrow = { version = "54.1.0" }
+async-trait = { workspace = true }
 axum = { workspace = true }
 axum-macros = { workspace = true }
-tokio = { workspace = true }
-control_plane = { path = "../control_plane" }
 catalog = { path = "../catalog" }
 chrono = { workspace = true }
-uuid = { workspace = true, features = ["v4", "v5"] }
-serde_json = { workspace = true }
-serde_yaml = { workspace = true }
-serde = { workspace = true }
+control_plane = { path = "../control_plane" }
+flate2 = { version = "1.0.34" }
+http = "1.2.0"
+http-body-util = "0.1.0"
+hyper = "1.5.0"
 iceberg = { workspace = true }
 indexmap = { version = "2.7.1" }
-slatedb = { workspace = true, version = "0.3.0" }
+lazy_static = { version = "1.4.0" }
 object_store = { workspace = true }
-utils = { path = "../utils" }
-utoipa = { workspace = true }
-utoipa-axum = { workspace = true }
-utoipa-swagger-ui = { workspace = true }
+regex = { version = "1.11.0" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+slatedb = { workspace = true, version = "0.3.0" }
+snafu = { workspace = true }
 swagger = { version = "6.1", features = [
   "serdejson",
   "server",
@@ -33,12 +36,8 @@ swagger = { version = "6.1", features = [
   "tls",
   "tcp",
 ] }
-validator = { version = "0.18.1", features = ["derive"] }
-tracing = { version = "0.1" }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-hyper = "1.5.0"
-http-body-util = "0.1.0"
-anyhow = "1.0.89"
+time = "0.3.37"
+tokio = { workspace = true }
 tower-http = { version = "0.6.1", features = [
   "catch-panic",
   "timeout",
@@ -46,20 +45,22 @@ tower-http = { version = "0.6.1", features = [
   "cors",
   "trace",
 ] }
-tower-sessions = { version="0.14.0" }
-lazy_static = { version = "1.4.0" }
-flate2 = { version = "1.0.34" }
-regex = { version = "1.11.0" }
-snafu = { workspace = true }
-async-trait.workspace = true
-time = "0.3.37"
+tower-sessions = { version = "0.14.0" }
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+utils = { path = "../utils" }
+utoipa = { workspace = true }
+utoipa-axum = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+uuid = { workspace = true, features = ["v4", "v5"] }
+validator = { version = "0.18.1", features = ["derive"] }
 
 [dev-dependencies]
-tower = { workspace = true }
 async-trait = { workspace = true }
 http-body-util = { workspace = true }
-tempfile = { workspace = true }
 lazy_static = { workspace = true }
+tempfile = { workspace = true }
+tower = { workspace = true }
 
 [lints]
 workspace = true

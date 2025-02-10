@@ -3,6 +3,7 @@ use crate::http::dbt::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
     QueryRequestBody, ResponseData,
 };
+use crate::http::session::DFSessionId;
 use crate::state::AppState;
 use axum::body::Bytes;
 use axum::extract::{Query, State};
@@ -12,7 +13,6 @@ use flate2::read::GzDecoder;
 use regex::Regex;
 use snafu::ResultExt;
 use std::io::Read;
-use tower_sessions::Session;
 use uuid::Uuid;
 
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
@@ -58,7 +58,7 @@ pub async fn login(
 
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
-    session: Session,
+    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Query(query): Query<QueryRequest>,
     headers: HeaderMap,
@@ -69,23 +69,6 @@ pub async fn query(
     let mut s = String::new();
     d.read_to_string(&mut s)
         .context(dbt_error::GZipDecompressSnafu)?;
-
-    let session_id = match session.get::<String>("session_id").await {
-        Ok(Some(id)) => {
-            tracing::info!("Found session_id: {}", id);
-            id
-        },
-        _ => {
-            let id = Uuid::new_v4().to_string();
-            tracing::info!("Creating new session_id: {}", id);
-            session
-                .insert("session_id", id.clone())
-                .await
-                .context(dbt_error::SessionPersistSnafu)?;
-            session.save().await.context(dbt_error::SessionPersistSnafu)?;
-            id
-        }
-    };
 
     // Deserialize the JSON body
     let body_json: QueryRequestBody =

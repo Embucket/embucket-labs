@@ -60,11 +60,19 @@ pub trait ControlService: Send + Sync {
     // async fn delete_table(&self, id: Uuid) -> ControlPlaneResult<()>;
     // async fn list_tables(&self) -> ControlPlaneResult<Vec<Table>>;
 
-    async fn query(&self, session_id: &str, query: &str) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
+    async fn query(
+        &self,
+        session_id: &str,
+        query: &str,
+    ) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
 
     async fn query_table(&self, session_id: &str, query: &str) -> ControlPlaneResult<String>;
 
-    async fn query_dbt(&self, session_id: &str, query: &str) -> ControlPlaneResult<(String, Vec<ColumnInfo>)>;
+    async fn query_dbt(
+        &self,
+        session_id: &str,
+        query: &str,
+    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)>;
 
     async fn upload_data_to_table(
         &self,
@@ -95,7 +103,7 @@ impl ControlServiceImpl {
         Self {
             storage_profile_repo,
             warehouse_repo,
-            df_sessions
+            df_sessions,
         }
     }
 }
@@ -140,15 +148,8 @@ impl ControlService for ControlServiceImpl {
 
     #[tracing::instrument(level = "debug", skip(self))]
     async fn create_session(&self, session_id: String) -> ControlPlaneResult<()> {
-        let session_exists = {
-            self.df_sessions
-                .read()
-                .await
-                .contains_key(&session_id)
-        };
-        if session_exists {
-            tracing::warn!("Session ID {} already exists", session_id);
-        } else {
+        let session_exists = { self.df_sessions.read().await.contains_key(&session_id) };
+        if !session_exists {
             let sql_parser_dialect =
                 env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
             let state = SessionStateBuilder::new()
@@ -170,7 +171,7 @@ impl ControlService for ControlServiceImpl {
         Ok(())
     }
 
-    #[tracing::instrument(level="debug", skip(self))]
+    #[tracing::instrument(level = "debug", skip(self))]
     async fn delete_session(&self, session_id: String) -> ControlPlaneResult<()> {
         // TODO: Need to have a timeout for the lock
         let mut session_list = self.df_sessions.write().await;
@@ -251,10 +252,18 @@ impl ControlService for ControlServiceImpl {
 
     #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
-    async fn query(&self, session_id: &str, query: &str) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
+    async fn query(
+        &self,
+        session_id: &str,
+        query: &str,
+    ) -> ControlPlaneResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
         let sessions = self.df_sessions.read().await;
-        let executor = sessions.get(session_id)
-            .ok_or(error::ControlPlaneError::MissingDataFusionSession { id: session_id.to_string() })?;
+        let executor =
+            sessions
+                .get(session_id)
+                .ok_or(error::ControlPlaneError::MissingDataFusionSession {
+                    id: session_id.to_string(),
+                })?;
 
         let query = executor.preprocess_query(query);
         let statement = executor
@@ -302,7 +311,11 @@ impl ControlService for ControlServiceImpl {
             }
             (warehouse.name, warehouse.location)
         };
-        tracing::debug!("Catalog: {}, Warehouse Location: {}", catalog_name, warehouse_location);
+        tracing::debug!(
+            "Catalog: {}, Warehouse Location: {}",
+            catalog_name,
+            warehouse_location
+        );
         let records: Vec<RecordBatch> = executor
             .query(&query, catalog_name.as_str(), warehouse_location.as_str())
             .await
@@ -333,7 +346,11 @@ impl ControlService for ControlServiceImpl {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn query_dbt(&self, session_id: &str, query: &str) -> ControlPlaneResult<(String, Vec<ColumnInfo>)> {
+    async fn query_dbt(
+        &self,
+        session_id: &str,
+        query: &str,
+    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)> {
         let (records, columns) = self.query(session_id, query).await?;
 
         // THIS CODE RELATED TO ARROW FORMAT
@@ -668,7 +685,10 @@ mod tests {
         warehouse_repo: Arc<dyn WarehouseRepository>,
     ) {
         let service = ControlServiceImpl::new(storage_repo, warehouse_repo);
-        service.create_session("TEST_SESSION".to_string()).await.unwrap();
+        service
+            .create_session("TEST_SESSION".to_string())
+            .await
+            .unwrap();
         service
             .query("TEST_SESSION", "SELECT 1")
             .await

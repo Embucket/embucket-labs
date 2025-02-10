@@ -5,14 +5,14 @@ edition = "2021"
 
 [dependencies]
 async-trait = { workspace = true }
-futures = { workspace = true }
-slatedb = { workspace = true }
 bytes = { workspace = true }
+futures = { workspace = true }
+iceberg = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-iceberg = { workspace = true }
-uuid = { workspace = true }
+slatedb = { workspace = true }
 snafu = { workspace = true }
+uuid = { workspace = true }
 
 [lints]
 workspace = true
