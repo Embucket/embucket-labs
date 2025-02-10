@@ -1,6 +1,6 @@
 use super::super::models::error::{self as model_error, NexusError, NexusResult};
-use crate::http::ui::models::table::{QueryPayload, QueryResponse};
 use crate::http::session::DFSessionId;
+use crate::http::ui::models::table::{QueryPayload, QueryResponse};
 use crate::state::AppState;
 use axum::{extract::State, Json};
 use snafu::ResultExt;
