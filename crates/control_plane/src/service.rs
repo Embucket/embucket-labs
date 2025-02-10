@@ -17,7 +17,6 @@ use iceberg_rest_catalog::catalog::RestCatalog;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
 use runtime::datafusion::execution::SqlExecutor;
-use runtime::datafusion::session::Session;
 use runtime::datafusion::type_planner::CustomTypePlanner;
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
@@ -165,7 +164,7 @@ impl ControlService for ControlServiceImpl {
                 .build();
             let ctx = SessionContext::new_with_state(state);
             let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
-            
+
             tracing::trace!("Acuiring write lock for df_sessions");
             let mut session_list_mut = self.df_sessions.write().await;
             tracing::trace!("Acquired write lock for df_sessions");
@@ -441,7 +440,7 @@ impl ControlService for ControlServiceImpl {
                 .get(session_id)
                 .ok_or(error::ControlPlaneError::MissingDataFusionSession {
                     id: session_id.to_string(),
-                })?;        
+                })?;
 
         // this path also computes inside catalog service (create_table)
         // TODO need to refactor the code so this path calculation is in one place
