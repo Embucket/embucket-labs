@@ -25,7 +25,7 @@ use tracing::debug;
 use uuid::Uuid;
 
 // TODO: move out as a configurable parameter
-const SERIALIZATION_FORMAT: &str = "arrow"; // or "json"
+const SERIALIZATION_FORMAT: &str = "json"; // or "arrow"
 
 // https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
 // Buffer Alignment and Padding: Implementations are recommended to allocate memory 
