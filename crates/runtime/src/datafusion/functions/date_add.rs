@@ -1,4 +1,4 @@
-use arrow::array::Array;
+use arrow::array::{Array, Int32Array};
 use arrow::datatypes::DataType;
 use datafusion::common::{plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Coercible;
@@ -60,52 +60,52 @@ impl DateAddFunc {
     }
 
     fn add_years(val: &Arc<dyn Array>, years: i64) -> Result<ColumnarValue> {
+        let years = ColumnarValue::Scalar(ScalarValue::new_interval_ym(
+            i32::try_from(years).unwrap_or(0),
+            0,
+                )).to_array(val.len())?;
         Ok(ColumnarValue::Array(
             add_wrapping(
             &val, 
-            &ScalarValue::new_interval_ym(
-            i32::try_from(years).unwrap_or(0),
-            0,
-                )
-                .to_array()?
+            &years
             )?
         ))
     }
     fn add_months(val: &Arc<dyn Array>, months: i64) -> Result<ColumnarValue> {
+        let months = ColumnarValue::Scalar(ScalarValue::new_interval_ym(
+            0,
+            i32::try_from(months).unwrap_or(0),
+            )).to_array(val.len())?;
         Ok(ColumnarValue::Array(
             add_wrapping(
                 &val, 
-                &ScalarValue::new_interval_ym(
-                0,
-                i32::try_from(months).unwrap_or(0),
-                )
-                .to_array()?
+                &months
             )?
         ))
     }
     fn add_days(val: &Arc<dyn Array>, days: i64) -> Result<ColumnarValue> {
+        let days = ColumnarValue::Scalar(ScalarValue::new_interval_dt(
+            i32::try_from(days).unwrap_or(0),
+            0,
+            )).to_array(val.len())?;
         Ok(ColumnarValue::Array(
             add_wrapping(
                 &val, 
-                &ScalarValue::new_interval_dt(
-                i32::try_from(days).unwrap_or(0),
-                0,
-                )
-                .to_array()?
+                &days
             )?
         ))
     }
 
     fn add_nanoseconds(val: &Arc<dyn Array>, nanoseconds: i64) -> Result<ColumnarValue> {
+        let nanoseconds = ColumnarValue::Scalar(ScalarValue::new_interval_mdn(
+            0,
+            0,
+            nanoseconds,
+            )).to_array(val.len())?;
         Ok(ColumnarValue::Array(
             add_wrapping(
                 &val, 
-                &ScalarValue::new_interval_mdn(
-                0,
-                0,
-                nanoseconds,
-                )
-                .to_array()?
+                &nanoseconds
             )?
         ))
     }
@@ -159,7 +159,6 @@ impl ScalarUDFImpl for DateAddFunc {
         if args.len() != 3 {
             return plan_err!("function requires three arguments");
         }
-
         let date_or_time_part = match &args[0] {
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
             _ => return plan_err!("Invalid unit type format"),
@@ -169,9 +168,9 @@ impl ScalarUDFImpl for DateAddFunc {
             ColumnarValue::Scalar(ScalarValue::Int64(Some(val))) => *val,
             _ => return plan_err!("Invalid value type"),
         };
-        let date_or_time_expr = match &args[2] {
-            ColumnarValue::Scalar(val) => val.to_array()?,
-            ColumnarValue::Array(array) => array.clone(),
+        let (is_scalar, date_or_time_expr) = match &args[2] {
+            ColumnarValue::Scalar(val) => (true, val.to_array()?),
+            ColumnarValue::Array(array) => (false, array.clone()),
         };
         //there shouldn't be overflows
         match date_or_time_part.as_str() {
