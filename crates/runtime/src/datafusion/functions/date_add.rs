@@ -75,12 +75,6 @@ impl DateAddFunc {
         }
     }
 
-    fn add_nanoseconds(val: &ScalarValue, nanoseconds: i64) -> Result<ColumnarValue> {
-        Ok(ColumnarValue::Scalar(
-            val.add(ScalarValue::DurationNanosecond(Some(nanoseconds)))
-                .unwrap_or(ScalarValue::DurationNanosecond(Some(0))),
-        ))
-    }
     fn add_years(val: &ScalarValue, years: i64) -> Result<ColumnarValue> {
         Ok(ColumnarValue::Scalar(
             val.add(ScalarValue::new_interval_ym(
@@ -106,6 +100,13 @@ impl DateAddFunc {
                 0,
             ))
             .unwrap_or_else(|_| ScalarValue::new_interval_dt(0, 0)),
+        ))
+    }
+
+    fn add_nanoseconds(val: &ScalarValue, nanoseconds: i64) -> Result<ColumnarValue> {
+        Ok(ColumnarValue::Scalar(
+            val.add(ScalarValue::new_interval_mdn(0, 0, nanoseconds))
+                .unwrap_or_else(|_| ScalarValue::new_interval_mdn(0, 0, 0)),
         ))
     }
 }
@@ -170,7 +171,12 @@ impl ScalarUDFImpl for DateAddFunc {
         };
         let date_or_time_expr = match &args[2] {
             ColumnarValue::Scalar(val) => val.clone(),
-            ColumnarValue::Array(array) => ScalarValue::try_from_array(&array, 0)?,
+            ColumnarValue::Array(array) => {
+                if array.len() == 0 {
+                    return Ok(ColumnarValue::Array(array.clone()));
+                }
+                ScalarValue::try_from_array(&array, 0)?
+            }
         };
         //there shouldn't be overflows
         match date_or_time_part.as_str() {
