@@ -1,16 +1,14 @@
-use arrow::array::{Array, Int32Array};
+use arrow::array::{Array, ArrayRef};
+use arrow::compute::kernels::numeric::add_wrapping;
 use arrow::datatypes::DataType;
 use datafusion::common::{plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
-use datafusion::logical_expr::{
-    ColumnarValue, ScalarUDFImpl, Signature, Volatility,
-};
+use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
+use datafusion_common::types::{logical_int64, logical_string};
 use std::any::Any;
 use std::sync::Arc;
-use datafusion_common::types::{logical_string, logical_int64};
-use arrow::compute::kernels::numeric::add_wrapping;
 
 #[derive(Debug)]
 pub struct DateAddFunc {
@@ -59,55 +57,35 @@ impl DateAddFunc {
         }
     }
 
-    fn add_years(val: &Arc<dyn Array>, years: i64) -> Result<ColumnarValue> {
+    fn add_years(val: &Arc<dyn Array>, years: i64) -> Result<ArrayRef> {
         let years = ColumnarValue::Scalar(ScalarValue::new_interval_ym(
             i32::try_from(years).unwrap_or(0),
             0,
-                )).to_array(val.len())?;
-        Ok(ColumnarValue::Array(
-            add_wrapping(
-            &val, 
-            &years
-            )?
         ))
+        .to_array(val.len())?;
+        Ok(add_wrapping(&val, &years)?)
     }
-    fn add_months(val: &Arc<dyn Array>, months: i64) -> Result<ColumnarValue> {
+    fn add_months(val: &Arc<dyn Array>, months: i64) -> Result<ArrayRef> {
         let months = ColumnarValue::Scalar(ScalarValue::new_interval_ym(
             0,
             i32::try_from(months).unwrap_or(0),
-            )).to_array(val.len())?;
-        Ok(ColumnarValue::Array(
-            add_wrapping(
-                &val, 
-                &months
-            )?
         ))
+        .to_array(val.len())?;
+        Ok(add_wrapping(&val, &months)?)
     }
-    fn add_days(val: &Arc<dyn Array>, days: i64) -> Result<ColumnarValue> {
+    fn add_days(val: &Arc<dyn Array>, days: i64) -> Result<ArrayRef> {
         let days = ColumnarValue::Scalar(ScalarValue::new_interval_dt(
             i32::try_from(days).unwrap_or(0),
             0,
-            )).to_array(val.len())?;
-        Ok(ColumnarValue::Array(
-            add_wrapping(
-                &val, 
-                &days
-            )?
         ))
+        .to_array(val.len())?;
+        Ok(add_wrapping(&val, &days)?)
     }
 
-    fn add_nanoseconds(val: &Arc<dyn Array>, nanoseconds: i64) -> Result<ColumnarValue> {
-        let nanoseconds = ColumnarValue::Scalar(ScalarValue::new_interval_mdn(
-            0,
-            0,
-            nanoseconds,
-            )).to_array(val.len())?;
-        Ok(ColumnarValue::Array(
-            add_wrapping(
-                &val, 
-                &nanoseconds
-            )?
-        ))
+    fn add_nanoseconds(val: &Arc<dyn Array>, nanoseconds: i64) -> Result<ArrayRef> {
+        let nanoseconds = ColumnarValue::Scalar(ScalarValue::new_interval_mdn(0, 0, nanoseconds))
+            .to_array(val.len())?;
+        Ok(add_wrapping(&val, &nanoseconds)?)
     }
 }
 
@@ -173,7 +151,7 @@ impl ScalarUDFImpl for DateAddFunc {
             ColumnarValue::Array(array) => (false, array.clone()),
         };
         //there shouldn't be overflows
-        match date_or_time_part.as_str() {
+        let result = match date_or_time_part.as_str() {
             //should consider leap year (365-366 days)
             "year" | "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" => {
                 Self::add_years(&date_or_time_expr, value)
@@ -208,7 +186,12 @@ impl ScalarUDFImpl for DateAddFunc {
             "nanosecond" | "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs"
             | "nseconds" => Self::add_nanoseconds(&date_or_time_expr, value),
             _ => plan_err!("Invalid date_or_time_part type"),
+        };
+        if is_scalar {
+            let result = result.and_then(|array| ScalarValue::try_from_array(&array, 0));
+            return result.map(ColumnarValue::Scalar);
         }
+        result.map(ColumnarValue::Array)
     }
     fn aliases(&self) -> &[String] {
         &self.aliases
@@ -230,30 +213,36 @@ mod tests {
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(String::from("days")))),
             ColumnarValue::Scalar(ScalarValue::Int64(Some(5i64))),
             ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
-                Some(1736168400000000i64), 
-                Some(Arc::from(String::from("+00").into_boxed_str()))
+                Some(1736168400000000i64),
+                Some(Arc::from(String::from("+00").into_boxed_str())),
             )),
         ];
         let fn_args = ScalarFunctionArgs {
             args: args,
             number_rows: 0,
             return_type: &arrow_schema::DataType::Timestamp(
-                arrow_schema::TimeUnit::Microsecond, 
-                Some(Arc::from(String::from("+00").into_boxed_str()))
+                arrow_schema::TimeUnit::Microsecond,
+                Some(Arc::from(String::from("+00").into_boxed_str())),
             ),
         };
         match DateAddFunc::new().invoke_with_args(fn_args) {
             Ok(ColumnarValue::Array(result)) => {
                 let expected = ScalarValue::TimestampMicrosecond(
-                    Some(1736600400000000i64), 
-                    Some(Arc::from(String::from("+00").into_boxed_str()))
-                ).to_array().unwrap();
-                assert_eq!(&result, &expected,
-                    "date_add created a wrong value"
+                    Some(1736600400000000i64),
+                    Some(Arc::from(String::from("+00").into_boxed_str())),
                 )
-            },
+                .to_array()
+                .unwrap();
+                assert_eq!(&result, &expected, "date_add created a wrong value")
+            }
+            Ok(ColumnarValue::Scalar(result)) => {
+                let expected = ScalarValue::TimestampMicrosecond(
+                    Some(1736600400000000i64),
+                    Some(Arc::from(String::from("+00").into_boxed_str())),
+                );
+                assert_eq!(&result, &expected, "date_add created a wrong value")
+            }
             _ => panic!("Conversion failed"),
         }
-        
     }
 }
