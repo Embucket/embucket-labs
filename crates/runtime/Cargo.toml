@@ -12,15 +12,15 @@ async-trait = { workspace = true }
 
 chrono = { workspace = true }
 
-datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "a4c5f3f065b551afdf845000e3630012af27dc17" }
-datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "a4c5f3f065b551afdf845000e3630012af27dc17" }
-datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "a4c5f3f065b551afdf845000e3630012af27dc17" }
-datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "9e9bd378b979a6b7081cf278c54a76eb94b00fc5" }
-datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "c5d3eb7a19c2777a8843a454a1a42cad3bec61d1" }
+datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "2950e0be59f81fbd6593f7457f1f03e63a292820" }
+datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "2950e0be59f81fbd6593f7457f1f03e63a292820" }
+datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "2950e0be59f81fbd6593f7457f1f03e63a292820" }
+datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "a5bbbd1266447c26f3bfdb5314b4a326796bc784" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "f2fef1d973f59309919d60aaaa32e83e04029d6d" }
 futures = { workspace = true }
-iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "c5d3eb7a19c2777a8843a454a1a42cad3bec61d1" }
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "f2fef1d973f59309919d60aaaa32e83e04029d6d" }
 
-iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "c5d3eb7a19c2777a8843a454a1a42cad3bec61d1" }
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "f2fef1d973f59309919d60aaaa32e83e04029d6d" }
 object_store = { workspace = true }
 
 paste = "1"

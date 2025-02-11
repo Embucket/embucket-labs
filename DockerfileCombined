@@ -1,0 +1,37 @@
+# Use a multi-stage build to build both frontend and backend
+
+# Stage 1: Build frontend
+FROM node:lts AS frontend-builder
+RUN npm install -g pnpm
+WORKDIR /app
+RUN git clone https://github.com/Embucket/embucket.git .
+# Copy .env.example to .env
+RUN cp .env.example .env
+RUN pnpm install
+
+# Stage 2: Build backend
+FROM rust:latest AS builder
+RUN update-ca-certificates
+WORKDIR /app
+COPY ./ .
+COPY rest-catalog-open-api.yaml rest-catalog-open-api.yaml
+RUN cargo build --release
+
+####################################################################################################
+## Final image
+####################################################################################################
+
+FROM debian:bookworm-slim
+#FROM --platform=linux/arm64 amazonlinux:2023
+
+# Copy the binary from the builder stage
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/icehutd ./
+COPY --from=builder /app/rest-catalog-open-api.yaml rest-catalog-open-api.yaml
+COPY --from=frontend-builder /app/build ./frontend
+
+
+CMD ["./icehutd"]

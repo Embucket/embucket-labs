@@ -168,10 +168,7 @@ impl ScalarUDFImpl for DateAddFunc {
             ColumnarValue::Scalar(ScalarValue::Int64(Some(val))) => *val,
             _ => return plan_err!("Invalid value type"),
         };
-        let date_or_time_expr = match &args[2] {
-            ColumnarValue::Scalar(val) => val.clone(),
-            ColumnarValue::Array(array) => ScalarValue::try_from_array(&array, 0)?,
-        };
+        let date_or_time_expr = args[2].to_array(1)?;
         //there shouldn't be overflows
         match date_or_time_part.as_str() {
             //should consider leap year (365-366 days)
