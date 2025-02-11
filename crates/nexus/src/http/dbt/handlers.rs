@@ -24,7 +24,15 @@ use std::io::Read;
 use tracing::debug;
 use uuid::Uuid;
 
+// TODO: move out as a configurable parameter
 const SERIALIZATION_FORMAT: &str = "arrow"; // or "json"
+
+// https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
+// Buffer Alignment and Padding: Implementations are recommended to allocate memory 
+// on aligned addresses (multiple of 8- or 64-bytes) and pad (overallocate) to a 
+// length that is a multiple of 8 or 64 bytes. When serializing Arrow data for interprocess 
+// communication, these alignment and padding requirements are enforced. 
+// For more info see issue #115
 const ARROW_IPC_ALIGNMENT: usize = 8;
 
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
@@ -184,132 +192,3 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
         })
     })
 }
-
-/*async fn log_query(query: &str) -> Result<(), std::io::Error> {
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("queries.log")
-        .await
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    file.write_all(query.as_bytes()).await?;
-    file.write_all(b"\n").await?;
-    Ok(())
-}*/
-
-// mod tests {
-//     use std::io::Cursor;
-//     use arrow::record_batch::RecordBatch;
-//     use arrow::ipc::writer::{ FileWriter, StreamWriter, IpcWriteOptions };
-//     use arrow::ipc::reader::{ FileReader, StreamReader };
-//     use arrow::array::{ArrayRef, StringArray, UInt32Array};
-//     use arrow::datatypes::{ Schema, Field, DataType };
-//     use tracing::span::Record;
-//     use std::sync::Arc;
-//     use std::any::Any;
-
-//     // fn roundtrip_ipc_stream(rb: &RecordBatch) -> RecordBatch {
-//     //     let mut buf = Vec::new();
-//     //     let mut writer = StreamWriter::try_new(&mut buf, rb.schema_ref()).unwrap();
-//     //     writer.write(rb).unwrap();
-//     //     writer.finish().unwrap();
-//     //     drop(writer);
-
-//     //     let mut reader = StreamReader::try_new(std::io::Cursor::new(buf), None).unwrap();
-//     //     reader.next().unwrap().unwrap()
-//     // }
-
-//     // if records.len() > 0 {
-//     //     println!("agahaha {:?}", roundtrip_ipc_stream(&records[0]));
-//     // }
-
-//     // Try to add flatbuffer verification
-//     ///////////////////
-//     // let base64 = general_purpose::STANDARD.encode(buffer);
-//     // Ok((base64, columns))
-//     // let encoded = general_purpose::STANDARD.decode(res.clone()).unwrap();
-
-//     // let mut verifier = Verifier::new(&VerifierOptions::default(), &encoded);
-//     // let mut builder = FlatBufferBuilder::new();
-//     // let result = general_purpose::STANDARD.encode(buf);
-//     ///////////////////
-
-//     #[test]
-//     fn test_slice_uint32() {
-//    /// Read/write a record batch to a File and Stream and ensure it is the same at the outout
-//         fn ensure_roundtrip(array: ArrayRef) {
-//             let num_rows = array.len();
-//             let orig_batch = RecordBatch::try_from_iter(vec![("a", array)]).unwrap();
-//             // take off the first element
-//             let sliced_batch = orig_batch.slice(1, num_rows - 1);
-
-//             let schema = orig_batch.schema();
-//             let stream_data = {
-//                 let mut writer = StreamWriter::try_new(vec![], &schema).unwrap();
-//                 writer.write(&sliced_batch).unwrap();
-//                 writer.into_inner().unwrap()
-//             };
-//             let read_batch = {
-//                 let projection = None;
-//                 let mut reader = StreamReader::try_new(Cursor::new(stream_data), projection).unwrap();
-//                 reader
-//                     .next()
-//                     .expect("expect no errors reading batch")
-//                     .expect("expect batch")
-//             };
-//             assert_eq!(sliced_batch, read_batch);
-
-//             let file_data = {
-//                 let mut writer = FileWriter::try_new_buffered(vec![], &schema).unwrap();
-//                 writer.write(&sliced_batch).unwrap();
-//                 writer.into_inner().unwrap().into_inner().unwrap()
-//             };
-//             let read_batch = {
-//                 let projection = None;
-//                 let mut reader = FileReader::try_new(Cursor::new(file_data), projection).unwrap();
-//                 reader
-//                     .next()
-//                     .expect("expect no errors reading batch")
-//                     .expect("expect batch")
-//             };
-//             assert_eq!(sliced_batch, read_batch);
-
-//             // TODO test file writer/reader
-//         }
-
-//         ensure_roundtrip(Arc::new(UInt32Array::from_iter((0..8).map(|i| {
-//             if i % 2 == 0 {
-//                 Some(i)
-//             } else {
-//                 None
-//             }
-//         }))));
-//     }
-
-//     #[test]
-//     fn test_flatbuffer_issue_8150() {
-//         fn roundtrip_ipc_stream(rb: &RecordBatch) -> RecordBatch {
-//             let mut buf = Vec::new();
-//             let mut writer = StreamWriter::try_new(&mut buf, rb.schema_ref()).unwrap();
-//             writer.write(rb).unwrap();
-//             writer.finish().unwrap();
-//             drop(writer);
-
-//             let mut reader = StreamReader::try_new(std::io::Cursor::new(buf), None).unwrap();
-//             reader.next().unwrap().unwrap()
-//         }
-
-//         let schema = Schema::new(vec![
-//             Field::new("hours", DataType::UInt32, true),
-//             Field::new("minutes", DataType::UInt32, true),
-//         ]);
-//         let batch = RecordBatch::try_new(
-//         Arc::new(schema),
-//         vec![
-//                 Arc::new(UInt32Array::from(vec![4, 7, 12, 16])),
-//                 Arc::new(UInt32Array::from(vec![20, 40, 00, 20])),
-//             ]
-//         ).unwrap();
-//         roundtrip_ipc_stream(&batch);
-//     }
-// }
