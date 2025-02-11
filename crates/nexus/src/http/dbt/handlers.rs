@@ -28,10 +28,10 @@ use uuid::Uuid;
 const SERIALIZATION_FORMAT: &str = "json"; // or "arrow"
 
 // https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
-// Buffer Alignment and Padding: Implementations are recommended to allocate memory 
-// on aligned addresses (multiple of 8- or 64-bytes) and pad (overallocate) to a 
-// length that is a multiple of 8 or 64 bytes. When serializing Arrow data for interprocess 
-// communication, these alignment and padding requirements are enforced. 
+// Buffer Alignment and Padding: Implementations are recommended to allocate memory
+// on aligned addresses (multiple of 8- or 64-bytes) and pad (overallocate) to a
+// length that is a multiple of 8 or 64 bytes. When serializing Arrow data for interprocess
+// communication, these alignment and padding requirements are enforced.
 // For more info see issue #115
 const ARROW_IPC_ALIGNMENT: usize = 8;
 
