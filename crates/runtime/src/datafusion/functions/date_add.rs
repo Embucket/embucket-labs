@@ -241,12 +241,14 @@ mod tests {
         let args = vec![
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(String::from("days")))),
             ColumnarValue::Scalar(ScalarValue::Int64(Some(5i64))),
-            ColumnarValue::Array(ScalarValue::TimestampMicrosecond(
-                Some(1736168400000000i64),
-                Some(Arc::from(String::from("+00").into_boxed_str())),
-            )
-            .to_array()
-            .unwrap()),
+            ColumnarValue::Array(
+                ScalarValue::TimestampMicrosecond(
+                    Some(1736168400000000i64),
+                    Some(Arc::from(String::from("+00").into_boxed_str())),
+                )
+                .to_array()
+                .unwrap(),
+            ),
         ];
         let fn_args = ScalarFunctionArgs {
             args: args,
@@ -274,12 +276,14 @@ mod tests {
         let args = vec![
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(String::from("days")))),
             ColumnarValue::Scalar(ScalarValue::Int64(Some(5i64))),
-            ColumnarValue::Array(ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
-                Some(1736168400000000i64),
-                Some(Arc::from(String::from("+00").into_boxed_str())),
-            ))
-            .to_array(2)
-            .unwrap()),
+            ColumnarValue::Array(
+                ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
+                    Some(1736168400000000i64),
+                    Some(Arc::from(String::from("+00").into_boxed_str())),
+                ))
+                .to_array(2)
+                .unwrap(),
+            ),
         ];
         let fn_args = ScalarFunctionArgs {
             args: args,
