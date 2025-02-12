@@ -24,7 +24,6 @@ use std::io::Read;
 use tracing::debug;
 use uuid::Uuid;
 
-
 // TODO: move out as a configurable parameter
 const SERIALIZATION_FORMAT: &str = "json"; // or "arrow"
 
