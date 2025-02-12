@@ -2,6 +2,9 @@ use axum::{http, response::IntoResponse, Json};
 use snafu::prelude::*;
 
 use super::schemas::JsonResponse;
+use arrow::error::ArrowError;
+use control_plane::error::ControlPlaneError;
+use runtime::datafusion::error::IcehutSQLError;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
@@ -42,7 +45,7 @@ pub enum DbtError {
     Utf8 { source: std::string::FromUtf8Error },
 
     #[snafu(display("Arrow error: {source}"))]
-    Arrow { source: arrow::error::ArrowError },
+    Arrow { source: ArrowError },
 }
 
 pub type DbtResult<T> = std::result::Result<T, DbtError>;
@@ -50,12 +53,21 @@ pub type DbtResult<T> = std::result::Result<T, DbtError>;
 impl IntoResponse for DbtError {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         let status_code = match &self {
+            Self::ControlService { source } => match source {
+                ControlPlaneError::Execution { source, .. } => match source {
+                    IcehutSQLError::DataFusion { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
+                    IcehutSQLError::Arrow { .. } => http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                    _ => http::StatusCode::INTERNAL_SERVER_ERROR,
+                },
+                ControlPlaneError::WarehouseNotFound { .. }
+                | ControlPlaneError::WarehouseNameNotFound { .. } => http::StatusCode::NOT_FOUND,
+                _ => http::StatusCode::INTERNAL_SERVER_ERROR,
+            }
             Self::GZipDecompress { .. }
             | Self::LoginRequestParse { .. }
             | Self::QueryBodyParse { .. }
-            | Self::InvalidWarehouseIdFormat { .. } => http::StatusCode::BAD_REQUEST,
-            Self::ControlService { .. }
-            | Self::RowParse { .. }
+            | Self::InvalidWarehouseIdFormat { .. }  => http::StatusCode::BAD_REQUEST,
+            Self::RowParse { .. }
             | Self::Utf8 { .. }
             | Self::Arrow { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
@@ -92,5 +104,70 @@ impl IntoResponse for DbtError {
             code: Some(status_code.as_u16().to_string()),
         });
         (status_code, body).into_response()
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_in_result)]
+mod tests {
+    use super::DbtError;
+    use arrow::error::ArrowError;
+    use axum::response::IntoResponse;
+    use control_plane::error::ControlPlaneError;
+    use runtime::datafusion::error::IcehutSQLError;
+    use datafusion::error::DataFusionError;
+    use uuid::Uuid;
+
+    #[test]
+    fn test_http_server_response() {
+        assert_ne!(
+            http::StatusCode::INTERNAL_SERVER_ERROR, 
+            DbtError::ControlService {
+                source: ControlPlaneError::Execution {
+                    source: IcehutSQLError::Arrow {
+                        source: ArrowError::ComputeError {0: String::new()}
+                    }
+                },
+            }.into_response().status(),
+        );
+        assert_eq!(
+            http::StatusCode::UNSUPPORTED_MEDIA_TYPE, 
+            DbtError::ControlService {
+                source: ControlPlaneError::Execution {
+                    source: IcehutSQLError::Arrow {
+                        source: ArrowError::ComputeError {0: String::new()}
+                    }
+                },
+            }.into_response().status(),
+        );
+        assert_eq!(
+            http::StatusCode::UNPROCESSABLE_ENTITY, 
+            DbtError::ControlService {
+                source: ControlPlaneError::Execution {
+                    source: IcehutSQLError::DataFusion {
+                        source: DataFusionError::ArrowError(
+                            ArrowError::InvalidArgumentError {0: String::new()},
+                            Some(String::new()),
+                        )
+                    },
+                },
+            }.into_response().status(),
+        );
+        assert_eq!(
+            http::StatusCode::NOT_FOUND, 
+            DbtError::ControlService {
+                source: ControlPlaneError::WarehouseNameNotFound {
+                    name: String::new()
+                },
+            }.into_response().status(),
+        );
+        assert_eq!(
+            http::StatusCode::NOT_FOUND, 
+            DbtError::ControlService {
+                source: ControlPlaneError::WarehouseNotFound {
+                    id: Uuid::new_v4(),
+                },
+            }.into_response().status(),
+        );
     }
 }

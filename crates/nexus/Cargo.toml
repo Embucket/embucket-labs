@@ -24,6 +24,7 @@ indexmap = { version = "2.7.1" }
 lazy_static = { version = "1.4.0" }
 object_store = { workspace = true }
 regex = { version = "1.11.0" }
+runtime = { path = "../runtime" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
@@ -55,6 +56,9 @@ utoipa-swagger-ui = { workspace = true }
 uuid = { workspace = true, features = ["v4", "v5"] }
 validator = { version = "0.18.1", features = ["derive"] }
 base64 = { version = "0.22.1" }
+
+datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
 
 [dev-dependencies]
 async-trait = { workspace = true }
