@@ -9,7 +9,7 @@ RUN --mount=type=ssh git clone git@github.com:Embucket/embucket.git .
 RUN npm install -g pnpm
 RUN pnpm install
 
-## Stage 2: Build backend
+# Stage 2: Build backend
 FROM rust:latest AS builder
 RUN update-ca-certificates
 WORKDIR /app
@@ -17,11 +17,9 @@ COPY ./ .
 COPY rest-catalog-open-api.yaml rest-catalog-open-api.yaml
 RUN cargo build --release
 
-#
 #####################################################################################################
 ### Final image
 #####################################################################################################
-#
 FROM debian:bookworm-slim
 
 # Copy the binary from the builder stage
