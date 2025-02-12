@@ -67,8 +67,7 @@ where
         match self.handle_custom_statement(statement.clone()) {
             Ok(plan) => return Ok(plan),
             Err(e) => {
-                // TODO: Tracing
-                eprintln!("Custom statement parsing skipped: {statement}: {e}");
+                tracing::debug!("Custom statement parsing skipped: {} {}", statement, e);
             }
         }
 

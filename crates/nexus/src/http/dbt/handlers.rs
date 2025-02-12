@@ -15,7 +15,7 @@ use snafu::ResultExt;
 use std::io::Read;
 use uuid::Uuid;
 
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
     State(state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
@@ -56,7 +56,7 @@ pub async fn login(
     }))
 }
 
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,

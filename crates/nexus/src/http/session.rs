@@ -163,21 +163,18 @@ where
                 msg: e.1.to_string(),
             }
         })?;
-        let session_id = match session.get::<String>("DF_SESSION_ID").await {
-            Ok(Some(id)) => {
-                tracing::info!("Found session_id: {}", id);
-                id
-            }
-            _ => {
-                let id = uuid::Uuid::new_v4().to_string();
-                tracing::info!("Creating new session_id: {}", id);
-                session
-                    .insert("DF_SESSION_ID", id.clone())
-                    .await
-                    .context(SessionPersistSnafu)?;
-                session.save().await.context(SessionPersistSnafu)?;
-                id
-            }
+        let session_id = if let Ok(Some(id)) = session.get::<String>("DF_SESSION_ID").await {
+            tracing::debug!("Found DF session_id: {}", id);
+            id
+        } else {
+            let id = uuid::Uuid::new_v4().to_string();
+            tracing::debug!("Creating new DF session_id: {}", id);
+            session
+                .insert("DF_SESSION_ID", id.clone())
+                .await
+                .context(SessionPersistSnafu)?;
+            session.save().await.context(SessionPersistSnafu)?;
+            id
         };
         Ok(Self(session_id))
     }

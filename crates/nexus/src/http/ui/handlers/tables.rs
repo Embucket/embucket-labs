@@ -366,7 +366,7 @@ pub async fn update_table_properties(
         (status = 500, description = "Internal server error", body = NexusError)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(level = "debug", skip(state, multipart), err, ret(level = tracing::Level::TRACE))]
 pub async fn upload_data_to_table(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
