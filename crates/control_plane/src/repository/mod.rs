@@ -253,12 +253,12 @@ mod tests {
     fn create_dummy_profile() -> StorageProfile {
         StorageProfile::new(
             CloudProvider::AWS,
-            "us-west-1".to_string(),
-            "bucket".to_string(),
-            Credentials::AccessKey(AwsAccessKeyCredential {
+            Some("us-west-1".to_string()),
+            Some("bucket".to_string()),
+            Some(Credentials::AccessKey(AwsAccessKeyCredential {
                 aws_access_key_id: "access_key".to_string(),
                 aws_secret_access_key: "secret_key".to_string(),
-            }),
+            })),
             None,
             None,
         )

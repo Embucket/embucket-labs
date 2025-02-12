@@ -73,6 +73,9 @@ pub enum ControlPlaneError {
     #[snafu(display("Unspported Authentication method: {method}"))]
     UnsupportedAuthenticationMethod { method: String },
 
+    #[snafu(display("Invalid or missing credentials"))]
+    CredentialsValidationFailed,
+
     #[snafu(display("Invalid TLS configuration: {source}"))]
     InvalidTLSConfiguration {
         source: rusoto_core::request::TlsError,
@@ -95,7 +98,7 @@ pub enum ControlPlaneError {
 
     #[snafu(display("Execution error: {source}"))]
     Execution {
-        source: runtime::datafusion::error::IcehutSQLError,
+        source: runtime::datafusion::error::IceBucketSQLError,
     },
 
     #[snafu(display("Unable to lock DataFusion context list"))]

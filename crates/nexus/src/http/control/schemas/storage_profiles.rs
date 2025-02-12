@@ -12,6 +12,7 @@ pub enum CloudProvider {
     Aws,
     Azure,
     Gcp,
+    Fs,
 }
 
 impl From<CloudProvider> for models::CloudProvider {
@@ -20,6 +21,7 @@ impl From<CloudProvider> for models::CloudProvider {
             CloudProvider::Aws => Self::AWS,
             CloudProvider::Azure => Self::AZURE,
             CloudProvider::Gcp => Self::GCS,
+            CloudProvider::Fs => Self::FS,
         }
     }
 }
@@ -29,6 +31,7 @@ impl From<models::CloudProvider> for CloudProvider {
             models::CloudProvider::AWS => Self::Aws,
             models::CloudProvider::AZURE => Self::Azure,
             models::CloudProvider::GCS => Self::Gcp,
+            models::CloudProvider::FS => Self::Fs,
         }
     }
 }
@@ -115,9 +118,9 @@ impl From<models::Credentials> for Credentials {
 pub struct CreateStorageProfilePayload {
     #[serde(rename = "type")]
     pub provider_type: CloudProvider,
-    pub region: String,
-    pub bucket: String,
-    pub credentials: Credentials,
+    pub region: Option<String>,
+    pub bucket: Option<String>,
+    pub credentials: Option<Credentials>,
     pub sts_role_arn: Option<String>,
     pub endpoint: Option<String>,
 }
@@ -128,7 +131,7 @@ impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
             r#type: payload.provider_type.into(),
             region: payload.region,
             bucket: payload.bucket,
-            credentials: payload.credentials.into(),
+            credentials: payload.credentials.map(std::convert::Into::into),
             sts_role_arn: payload.sts_role_arn,
             endpoint: payload.endpoint,
             validate_credentials: Option::from(false),
@@ -142,9 +145,9 @@ pub struct StorageProfile {
     pub id: Uuid,
     #[serde(rename = "type")]
     pub r#type: CloudProvider,
-    pub region: String,
-    pub bucket: String,
-    pub credentials: Credentials,
+    pub region: Option<String>,
+    pub bucket: Option<String>,
+    pub credentials: Option<Credentials>,
     pub sts_role_arn: Option<String>,
     pub endpoint: Option<String>,
 
@@ -159,7 +162,7 @@ impl From<models::StorageProfile> for StorageProfile {
             r#type: profile.r#type.into(),
             region: profile.region,
             bucket: profile.bucket,
-            credentials: profile.credentials.into(),
+            credentials: profile.credentials.map(std::convert::Into::into),
             sts_role_arn: profile.sts_role_arn,
             endpoint: profile.endpoint,
             created_at: profile.created_at,
@@ -189,11 +192,11 @@ mod tests {
         "#;
 
         let result: CreateStorageProfilePayload = serde_json::from_str(payload).unwrap();
-        assert_eq!(result.region, "us-west-2");
-        assert_eq!(result.bucket, "my-bucket");
+        assert_eq!(result.region.unwrap_or_default(), "us-west-2");
+        assert_eq!(result.bucket.unwrap_or_default(), "my-bucket");
         assert_eq!(result.provider_type, CloudProvider::Aws);
         assert_eq!(
-            result.credentials,
+            result.credentials.unwrap(),
             Credentials::AccessKey(AwsAccessKeyCredential {
                 aws_access_key_id: "my-access-key".to_string(),
                 aws_secret_access_key: "my-secret-access-key".to_string(),
@@ -205,12 +208,12 @@ mod tests {
     fn test_serialize_create_storage_profile_payload() {
         let payload = CreateStorageProfilePayload {
             provider_type: CloudProvider::Aws,
-            region: "us-west-2".to_string(),
-            bucket: "my-bucket".to_string(),
-            credentials: Credentials::AccessKey(AwsAccessKeyCredential {
+            region: Some("us-west-2".to_string()),
+            bucket: Some("my-bucket".to_string()),
+            credentials: Some(Credentials::AccessKey(AwsAccessKeyCredential {
                 aws_access_key_id: "my-access-key".to_string(),
                 aws_secret_access_key: "my-secret-access-key".to_string(),
-            }),
+            })),
             sts_role_arn: None,
             endpoint: None,
         };

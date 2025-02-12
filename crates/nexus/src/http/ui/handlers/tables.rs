@@ -380,7 +380,7 @@ pub async fn upload_data_to_table(
             .context(model_error::MalformedMultipartSnafu)?;
         match next_field {
             Some(field) => {
-                if field.name().ok_or(NexusError::MalformedFileUploadRequest)? != "upload_file" {
+                if field.name().ok_or(NexusError::MalformedFileUploadRequest)? != "uploadFile" {
                     continue;
                 }
                 let file_name = field

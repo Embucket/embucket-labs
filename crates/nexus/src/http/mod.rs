@@ -3,6 +3,7 @@ pub mod router;
 pub mod catalog;
 pub mod control;
 pub mod dbt;
+pub mod error;
 pub mod layers;
 pub mod session;
 pub mod ui;

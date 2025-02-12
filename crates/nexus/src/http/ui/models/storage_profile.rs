@@ -11,34 +11,14 @@ pub struct CreateStorageProfilePayload {
     #[serde(rename = "type")]
     pub r#type: CloudProvider,
     #[validate(length(min = 1))]
-    pub region: String,
+    pub region: Option<String>,
     #[validate(length(min = 6, max = 63))]
-    pub bucket: String,
-    pub credentials: Credentials,
+    pub bucket: Option<String>,
+    pub credentials: Option<Credentials>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sts_role_arn: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub endpoint: Option<String>,
-}
-
-impl CreateStorageProfilePayload {
-    #[allow(clippy::new_without_default)]
-    #[must_use]
-    pub const fn new(
-        r#type: CloudProvider,
-        region: String,
-        bucket: String,
-        credentials: Credentials,
-    ) -> Self {
-        Self {
-            r#type,
-            region,
-            bucket,
-            credentials,
-            sts_role_arn: None,
-            endpoint: None,
-        }
-    }
 }
 
 impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
@@ -47,7 +27,7 @@ impl From<CreateStorageProfilePayload> for models::StorageProfileCreateRequest {
             r#type: payload.r#type.into(),
             region: payload.region,
             bucket: payload.bucket,
-            credentials: payload.credentials.into(),
+            credentials: payload.credentials.map(std::convert::Into::into),
             sts_role_arn: payload.sts_role_arn,
             endpoint: payload.endpoint,
             validate_credentials: Option::from(false),
@@ -61,10 +41,10 @@ pub struct StorageProfile {
     #[serde(rename = "type")]
     pub r#type: CloudProvider,
     #[validate(length(min = 1))]
-    pub region: String,
+    pub region: Option<String>,
     #[validate(length(min = 6, max = 63))]
-    pub bucket: String,
-    pub credentials: Credentials,
+    pub bucket: Option<String>,
+    pub credentials: Option<Credentials>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sts_role_arn: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -74,39 +54,13 @@ pub struct StorageProfile {
     pub updated_at: DateTime<Utc>,
 }
 
-impl StorageProfile {
-    #[allow(clippy::new_without_default)]
-    #[must_use]
-    pub const fn new(
-        r#type: CloudProvider,
-        region: String,
-        bucket: String,
-        credentials: Credentials,
-        id: uuid::Uuid,
-        created_at: DateTime<Utc>,
-        updated_at: DateTime<Utc>,
-    ) -> Self {
-        Self {
-            r#type,
-            region,
-            bucket,
-            credentials,
-            sts_role_arn: None,
-            endpoint: None,
-            id,
-            created_at,
-            updated_at,
-        }
-    }
-}
-
 impl From<models::StorageProfile> for StorageProfile {
     fn from(profile: models::StorageProfile) -> Self {
         Self {
             r#type: profile.r#type.into(),
             region: profile.region,
             bucket: profile.bucket,
-            credentials: profile.credentials.into(),
+            credentials: profile.credentials.map(std::convert::Into::into),
             sts_role_arn: profile.sts_role_arn,
             endpoint: profile.endpoint,
             id: profile.id,

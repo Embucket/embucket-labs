@@ -23,6 +23,7 @@ pub enum CloudProvider {
     AWS,
     AZURE,
     GCS,
+    FS,
 }
 
 // AWS Access Key Credentials
@@ -58,9 +59,9 @@ pub enum Credentials {
 pub struct StorageProfile {
     pub id: Uuid,
     pub r#type: CloudProvider,
-    pub region: String,
-    pub bucket: String,
-    pub credentials: Credentials,
+    pub region: Option<String>,
+    pub bucket: Option<String>,
+    pub credentials: Option<Credentials>,
     pub sts_role_arn: Option<String>,
     pub endpoint: Option<String>,
     pub created_at: NaiveDateTime,
@@ -72,9 +73,9 @@ pub struct StorageProfile {
 pub struct StorageProfileCreateRequest {
     #[serde(rename = "type")]
     pub r#type: CloudProvider,
-    pub region: String,
-    pub bucket: String,
-    pub credentials: Credentials,
+    pub region: Option<String>,
+    pub bucket: Option<String>,
+    pub credentials: Option<Credentials>,
     pub sts_role_arn: Option<String>,
     pub endpoint: Option<String>,
     pub validate_credentials: Option<bool>,
@@ -106,39 +107,66 @@ impl StorageProfile {
     /// - Bucket name starts or ends with a hyphen or underscore
     pub fn new(
         cloud_provider: CloudProvider,
-        region: String,
-        bucket: String,
-        credentials: Credentials,
+        region: Option<String>,
+        bucket: Option<String>,
+        credentials: Option<Credentials>,
         sts_role_arn: Option<String>,
         endpoint: Option<String>,
     ) -> ControlPlaneModelResult<Self> {
-        // Example validation: Ensure bucket name length
-        if bucket.len() < 6 || bucket.len() > 63 {
-            return Err(ControlPlaneModelError::InvalidBucketName {
-                bucket_name: bucket,
-                reason: "Bucket name must be between 6 and 63 characters".to_owned(),
-            });
-        }
-        if !bucket
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        {
-            return Err(ControlPlaneModelError::InvalidBucketName {
-                bucket_name: bucket,
-                reason:
-                    "Bucket name must only contain alphanumeric characters, hyphens, or underscores"
-                        .to_owned(),
-            });
-        }
-        if bucket.starts_with('-')
-            || bucket.starts_with('_')
-            || bucket.ends_with('-')
-            || bucket.ends_with('_')
-        {
-            return Err(ControlPlaneModelError::InvalidBucketName {
-                bucket_name: bucket,
-                reason: "Bucket name must not start or end with a hyphen or underscore".to_owned(),
-            });
+        match cloud_provider {
+            CloudProvider::AWS | CloudProvider::AZURE | CloudProvider::GCS => {
+                if credentials.is_none() {
+                    return Err(ControlPlaneModelError::MissingCredentials {
+                        profile_type: cloud_provider.to_string(),
+                    });
+                }
+
+                if region.is_none() {
+                    return Err(ControlPlaneModelError::InvalidBucketName {
+                        bucket_name: String::new(),
+                        reason: "Bucket name is required".to_owned(),
+                    });
+                }
+
+                if bucket.is_none() {
+                    return Err(ControlPlaneModelError::InvalidBucketName {
+                        bucket_name: String::new(),
+                        reason: "Bucket name is required".to_owned(),
+                    });
+                }
+
+                if let Some(b) = &bucket {
+                    if b.len() < 6 || b.len() > 63 {
+                        return Err(ControlPlaneModelError::InvalidBucketName {
+                            bucket_name: b.clone(),
+                            reason: "Bucket name must be between 6 and 63 characters".to_owned(),
+                        });
+                    }
+                    if !b
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+                    {
+                        return Err(ControlPlaneModelError::InvalidBucketName {
+                            bucket_name: b.clone(),
+                            reason:
+                            "Bucket name must only contain alphanumeric characters, hyphens, or underscores"
+                                .to_owned(),
+                        });
+                    }
+                    if b.starts_with('-')
+                        || b.starts_with('_')
+                        || b.ends_with('-')
+                        || b.ends_with('_')
+                    {
+                        return Err(ControlPlaneModelError::InvalidBucketName {
+                            bucket_name: b.clone(),
+                            reason: "Bucket name must not start or end with a hyphen or underscore"
+                                .to_owned(),
+                        });
+                    }
+                }
+            }
+            CloudProvider::FS => {}
         }
 
         let now = Utc::now().naive_utc();
@@ -157,12 +185,10 @@ impl StorageProfile {
 
     // Method to update existing StorageProfile with new values
     pub fn update(&mut self, region: Option<String>, bucket: Option<String>) {
-        if let Some(new_region) = region {
-            self.region = new_region;
-        }
-        if let Some(new_bucket) = bucket {
+        self.region = region;
+        if let Some(ref new_bucket) = bucket {
             if new_bucket.len() >= 6 && new_bucket.len() <= 63 {
-                self.bucket = new_bucket;
+                self.bucket = bucket;
             }
         }
         self.updated_at = Utc::now().naive_utc();
@@ -174,152 +200,106 @@ impl StorageProfile {
     ///
     /// This function will return an error if the cloud platform isn't supported.
     pub fn get_base_url(&self) -> ControlPlaneModelResult<String> {
-        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .unwrap_or_else(|_| "true".to_string())
-            .parse::<bool>()
-            .map_err(
-                |e| error::ControlPlaneModelError::UnableToParseConfiguration {
-                    key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
-                    source: Box::new(e),
-                },
-            )?;
-        if use_file_system_instead_of_cloud {
-            let current_directory = env::current_dir()
-                .map_err(|_| ControlPlaneModelError::InvalidDirectory {
-                    directory: ".".to_string(),
-                })
-                .and_then(|cd| {
-                    cd.to_str()
-                        .map(String::from)
-                        .ok_or(ControlPlaneModelError::InvalidDirectory {
-                            directory: ".".to_string(),
-                        })
-                })?;
-            Ok(format!("file://{current_directory}"))
-        } else {
-            match self.r#type {
-                CloudProvider::AWS => Ok(format!("s3://{}", &self.bucket)),
-                CloudProvider::AZURE => Err(ControlPlaneModelError::CloudProviderNotImplemented {
-                    provider: "Azure".to_string(),
-                }),
-                CloudProvider::GCS => Err(ControlPlaneModelError::CloudProviderNotImplemented {
-                    provider: "GCS".to_string(),
-                }),
+        match self.r#type {
+            CloudProvider::AWS => Ok(format!("s3://{}", &self.bucket.clone().unwrap_or_default())),
+            CloudProvider::AZURE => Err(ControlPlaneModelError::CloudProviderNotImplemented {
+                provider: "Azure".to_string(),
+            }),
+            CloudProvider::GCS => Err(ControlPlaneModelError::CloudProviderNotImplemented {
+                provider: "GCS".to_string(),
+            }),
+            CloudProvider::FS => {
+                let current_directory = env::current_dir()
+                    .map_err(|_| ControlPlaneModelError::InvalidDirectory {
+                        directory: ".".to_string(),
+                    })
+                    .and_then(|cd| {
+                        cd.to_str().map(String::from).ok_or(
+                            ControlPlaneModelError::InvalidDirectory {
+                                directory: ".".to_string(),
+                            },
+                        )
+                    })?;
+                Ok(format!("file://{current_directory}"))
             }
         }
     }
 
     pub fn get_object_store_endpoint_url(&self) -> ControlPlaneModelResult<Url> {
-        let storage_endpoint_url = self.endpoint.clone().unwrap_or_default();
+        let storage_endpoint_url = match self.r#type {
+            CloudProvider::FS => "file://".to_string(),
+            _ => self.get_base_url()?,
+        };
         Url::parse(storage_endpoint_url.as_str()).context(error::InvalidEndpointUrlSnafu {
             url: storage_endpoint_url,
         })
     }
 
+    pub fn get_s3_builder(&self) -> ControlPlaneModelResult<AmazonS3Builder> {
+        let mut builder = AmazonS3Builder::new()
+            .with_region(self.region.clone().unwrap_or_default())
+            .with_bucket_name(self.bucket.clone().unwrap_or_default());
+
+        if let Some(endpoint) = &self.endpoint {
+            builder = builder.with_endpoint(endpoint.clone());
+        }
+
+        if let Some(credentials) = &self.credentials {
+            match credentials {
+                Credentials::AccessKey(creds) => {
+                    builder = builder
+                        .with_access_key_id(&creds.aws_access_key_id)
+                        .with_secret_access_key(&creds.aws_secret_access_key);
+                }
+                Credentials::Role(_) => {
+                    return Err(ControlPlaneModelError::RoleBasedCredentialsNotSupported);
+                }
+            }
+        } else {
+            return Err(ControlPlaneModelError::MissingCredentials {
+                profile_type: self.r#type.to_string(),
+            });
+        }
+        Ok(builder)
+    }
+
     // This is needed to initialize the catalog used in JanKaul code
     pub fn get_object_store_builder(&self) -> ControlPlaneModelResult<ObjectStoreBuilder> {
-        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .context(error::MissingEnvironmentVariableSnafu {
-                var: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
-            })?
-            .parse::<bool>()
-            .map_err(
-                |e| error::ControlPlaneModelError::UnableToParseConfiguration {
-                    key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
-                    source: Box::new(e),
-                },
-            )?;
-        if use_file_system_instead_of_cloud {
-            // Here we initialise filesystem object store without root directory, because this code is used
-            // by our catalog when we read metadata from the table - paths are absolute
-            // In get_object_store function we are using the root directory
-            Ok(ObjectStoreBuilder::Filesystem(Arc::new(
+        match self.r#type {
+            CloudProvider::FS => Ok(ObjectStoreBuilder::Filesystem(Arc::new(
                 LocalFileSystem::new(),
-            )))
-        } else {
-            match self.r#type {
-                CloudProvider::AWS => {
-                    let mut builder = AmazonS3Builder::new()
-                        .with_region(&self.region)
-                        .with_bucket_name(&self.bucket)
-                        .with_allow_http(true); // TODO should be only the case for local development
-                    builder = if let Some(endpoint) = &self.endpoint {
-                        builder.with_endpoint(endpoint.clone())
-                    } else {
-                        builder
-                    };
-                    match &self.credentials {
-                        Credentials::AccessKey(creds) => Ok(ObjectStoreBuilder::S3(
-                            builder
-                                .with_access_key_id(&creds.aws_access_key_id)
-                                .with_secret_access_key(&creds.aws_secret_access_key),
-                        )),
-                        Credentials::Role(_) => {
-                            Err(error::ControlPlaneModelError::RoleBasedCredentialsNotSupported)
-                        }
-                    }
-                }
-                CloudProvider::AZURE | CloudProvider::GCS => {
-                    Err(error::ControlPlaneModelError::CloudProviderNotImplemented {
-                        provider: self.r#type.to_string(),
-                    })
-                }
+            ))),
+            CloudProvider::AWS => Ok(ObjectStoreBuilder::S3(self.get_s3_builder()?)),
+            CloudProvider::AZURE | CloudProvider::GCS => {
+                Err(ControlPlaneModelError::CloudProviderNotImplemented {
+                    provider: self.r#type.to_string(),
+                })
             }
         }
     }
 
     pub fn get_object_store(&self) -> ControlPlaneModelResult<Box<dyn ObjectStore>> {
-        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .context(error::MissingEnvironmentVariableSnafu {
-                var: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
-            })?
-            .parse::<bool>()
-            .map_err(
-                |e| error::ControlPlaneModelError::UnableToParseConfiguration {
-                    key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
-                    source: Box::new(e),
-                },
-            )?;
-        if use_file_system_instead_of_cloud {
-            // Here we initialise filesystem object store without current directory as root, because this code is used
-            // by our catalog when we write metadata file - we use relative path
-            // In get_object_store_builder function we are using absolute paths
-            let lfs = LocalFileSystem::new_with_prefix(".").map_err(|_| {
-                error::ControlPlaneModelError::InvalidDirectory {
-                    directory: ".".to_string(),
-                }
-            })?;
-            Ok(Box::new(lfs))
-        } else {
-            match self.r#type {
-                CloudProvider::AWS => {
-                    let mut builder = AmazonS3Builder::new()
-                        .with_region(&self.region)
-                        .with_bucket_name(&self.bucket)
-                        .with_allow_http(true); // TODO should be only the case for local development
-                    builder = if let Some(endpoint) = &self.endpoint {
-                        builder.with_endpoint(endpoint.clone())
-                    } else {
-                        builder
-                    };
-                    match &self.credentials {
-                        Credentials::AccessKey(creds) => Ok(Box::new(
-                            builder
-                                .with_access_key_id(&creds.aws_access_key_id)
-                                .with_secret_access_key(&creds.aws_secret_access_key)
-                                .build()
-                                .context(error::ObjectStoreSnafu)?,
-                        )),
-                        Credentials::Role(_) => {
-                            Err(error::ControlPlaneModelError::RoleBasedCredentialsNotSupported)
-                        }
+        match self.r#type {
+            CloudProvider::FS => {
+                // Here we initialise filesystem object store without current directory as root, because this code is used
+                // by our catalog when we write metadata file - we use relative path
+                // In get_object_store_builder function we are using absolute paths
+                let lfs = LocalFileSystem::new_with_prefix(".").map_err(|_| {
+                    ControlPlaneModelError::InvalidDirectory {
+                        directory: ".".to_string(),
                     }
-                }
-                CloudProvider::AZURE | CloudProvider::GCS => {
-                    Err(error::ControlPlaneModelError::CloudProviderNotImplemented {
-                        provider: self.r#type.to_string(),
-                    })
-                }
+                })?;
+                Ok(Box::new(lfs))
+            }
+            CloudProvider::AWS => Ok(Box::new(
+                self.get_s3_builder()?
+                    .build()
+                    .context(error::ObjectStoreSnafu)?,
+            )),
+            CloudProvider::AZURE | CloudProvider::GCS => {
+                Err(ControlPlaneModelError::CloudProviderNotImplemented {
+                    provider: self.r#type.to_string(),
+                })
             }
         }
     }

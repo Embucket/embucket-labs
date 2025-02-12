@@ -1,8 +1,14 @@
 #![allow(dead_code)]
 use axum::http::HeaderMap;
 use axum::{middleware::Next, response::Response};
+use http::header::{AUTHORIZATION, CONTENT_TYPE};
+use http::{HeaderValue, Method};
+use snafu::ResultExt;
 use std::str::FromStr;
+use tower_http::cors::CorsLayer;
 use uuid::Uuid;
+
+use super::error;
 
 #[derive(Clone)]
 struct RequestMetadata {
@@ -40,4 +46,21 @@ pub async fn add_request_metadata(
         .headers_mut()
         .insert("x-request-id", request_id.to_string().parse().unwrap());
     response
+}
+
+#[allow(clippy::needless_pass_by_value)]
+pub fn make_cors_middleware(origin: String) -> Result<CorsLayer, error::NexusHttpError> {
+    let origin_value = origin
+        .parse::<HeaderValue>()
+        .context(error::AllowOriginHeaderParseSnafu)?;
+    Ok(CorsLayer::new()
+        .allow_origin(origin_value)
+        .allow_methods(vec![
+            Method::GET,
+            Method::POST,
+            Method::DELETE,
+            Method::HEAD,
+        ])
+        .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE])
+        .allow_credentials(true))
 }

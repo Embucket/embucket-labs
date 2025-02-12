@@ -27,7 +27,6 @@ use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use url::Url;
 use uuid::Uuid;
 
 #[async_trait]
@@ -179,34 +178,37 @@ impl ControlService for ControlServiceImpl {
 
     #[tracing::instrument(level = "trace", skip(self))]
     async fn validate_credentials(&self, profile: &StorageProfile) -> ControlPlaneResult<()> {
-        match profile.credentials.clone() {
-            Credentials::AccessKey(creds) => {
-                let profile_region = profile.region.clone();
-                let credentials = StaticProvider::new_minimal(
-                    creds.aws_access_key_id.clone(),
-                    creds.aws_secret_access_key.clone(),
-                );
-                let region = Region::Custom {
-                    name: profile_region.clone(),
-                    endpoint: profile
-                        .endpoint
-                        .clone()
-                        .unwrap_or_else(|| format!("https://s3.{profile_region}.amazonaws.com")),
-                };
+        if let Some(credentials) = profile.credentials.clone() {
+            match credentials {
+                Credentials::AccessKey(creds) => {
+                    let profile_region = profile.region.clone().unwrap_or_default();
+                    let credentials = StaticProvider::new_minimal(
+                        creds.aws_access_key_id.clone(),
+                        creds.aws_secret_access_key.clone(),
+                    );
+                    let region = Region::Custom {
+                        name: profile_region.clone(),
+                        endpoint: profile.endpoint.clone().unwrap_or_else(|| {
+                            format!("https://s3.{profile_region}.amazonaws.com")
+                        }),
+                    };
 
-                let dispatcher =
-                    HttpClient::new().context(crate::error::InvalidTLSConfigurationSnafu)?;
-                let client = S3Client::new_with(dispatcher, credentials, region);
-                let request = GetBucketAclRequest {
-                    bucket: profile.bucket.clone(),
-                    expected_bucket_owner: None,
-                };
-                client.get_bucket_acl(request).await?;
-                Ok(())
+                    let dispatcher =
+                        HttpClient::new().context(crate::error::InvalidTLSConfigurationSnafu)?;
+                    let client = S3Client::new_with(dispatcher, credentials, region);
+                    let request = GetBucketAclRequest {
+                        bucket: profile.bucket.clone().unwrap_or_default(),
+                        expected_bucket_owner: None,
+                    };
+                    client.get_bucket_acl(request).await?;
+                    Ok(())
+                }
+                Credentials::Role(_) => Err(ControlPlaneError::UnsupportedAuthenticationMethod {
+                    method: credentials.to_string(),
+                }),
             }
-            Credentials::Role(_) => Err(ControlPlaneError::UnsupportedAuthenticationMethod {
-                method: profile.credentials.to_string(),
-            }),
+        } else {
+            Err(ControlPlaneError::CredentialsValidationFailed)
         }
     }
 
@@ -275,8 +277,11 @@ impl ControlService for ControlServiceImpl {
             .unwrap_or("")
             .to_string();
 
-        let (catalog_name, warehouse_location): (String, String) = if warehouse_name.is_empty() {
-            (String::from("datafusion"), String::new())
+        let catalog_name: String = if warehouse_name.is_empty() {
+            // try to get catalog name from session
+            executor
+                .get_session_variable("database")
+                .unwrap_or_else(|| String::from("datafusion"))
         } else {
             let warehouse = self.get_warehouse_by_name(warehouse_name.clone()).await?;
             if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
@@ -313,15 +318,11 @@ impl ControlService for ControlServiceImpl {
                     .ctx
                     .register_object_store(&endpoint_url, Arc::from(object_store));
             }
-            (warehouse.name, warehouse.location)
+            warehouse.name
         };
-        tracing::debug!(
-            "Catalog: {}, Warehouse Location: {}",
-            catalog_name,
-            warehouse_location
-        );
+        tracing::debug!("Catalog: {}", catalog_name);
         let records: Vec<RecordBatch> = executor
-            .query(&query, catalog_name.as_str(), warehouse_location.as_str())
+            .query(&query, catalog_name.as_str())
             .await
             .context(crate::error::ExecutionSnafu)?
             .into_iter()
@@ -407,24 +408,21 @@ impl ControlService for ControlServiceImpl {
                 .register_catalog(warehouse.name.clone(), Arc::new(catalog));
         }
 
-        // Register CSV file as a table
-        let storage_endpoint_url = storage_profile
-            .endpoint
-            .as_ref()
-            .ok_or(ControlPlaneError::MissingStorageEndpointURL)?;
+        let endpoint_url = storage_profile
+            .get_object_store_endpoint_url()
+            .map_err(|_| ControlPlaneError::MissingStorageEndpointURL)?;
 
-        let path_string = match &storage_profile.credentials {
-            Credentials::AccessKey(_) => {
-                // If the storage profile is AWS S3, modify the path_string with the S3 prefix
-                format!("{storage_endpoint_url}/{path_string}")
+        let path_string = if let Some(creds) = &storage_profile.credentials {
+            match &creds {
+                Credentials::AccessKey(_) => {
+                    // If the storage profile is AWS S3, modify the path_string with the S3 prefix
+                    format!("{endpoint_url}/{path_string}")
+                }
+                Credentials::Role(_) => path_string,
             }
-            Credentials::Role(_) => path_string,
+        } else {
+            format!("{endpoint_url}/{path_string}")
         };
-        let endpoint_url = Url::parse(storage_endpoint_url).context(
-            crate::error::InvalidStorageEndpointURLSnafu {
-                url: storage_endpoint_url,
-            },
-        )?;
         executor
             .ctx
             .register_object_store(&endpoint_url, Arc::from(object_store));
@@ -582,12 +580,12 @@ mod tests {
 
         let request = StorageProfileCreateRequest {
             r#type: CloudProvider::AWS,
-            region: "us-west-2".to_string(),
-            bucket: "my-bucket".to_string(),
-            credentials: Credentials::AccessKey(AwsAccessKeyCredential {
+            region: Some("us-west-2".to_string()),
+            bucket: Some("my-bucket".to_string()),
+            credentials: Some(Credentials::AccessKey(AwsAccessKeyCredential {
                 aws_access_key_id: "my-access-key".to_string(),
                 aws_secret_access_key: "my-secret-access-key".to_string(),
-            }),
+            })),
             sts_role_arn: None,
             endpoint: None,
             validate_credentials: None,
@@ -613,12 +611,12 @@ mod tests {
     fn storage_profile_req() -> StorageProfileCreateRequest {
         StorageProfileCreateRequest {
             r#type: CloudProvider::AWS,
-            region: "us-west-2".to_string(),
-            bucket: "my-bucket".to_string(),
-            credentials: Credentials::AccessKey(AwsAccessKeyCredential {
+            region: Some("us-west-2".to_string()),
+            bucket: Some("my-bucket".to_string()),
+            credentials: Some(Credentials::AccessKey(AwsAccessKeyCredential {
                 aws_access_key_id: "my-access-key".to_string(),
                 aws_secret_access_key: "my-secret-access-key".to_string(),
-            }),
+            })),
             sts_role_arn: None,
             endpoint: Some(String::from("https://s3.us-east-2.amazonaws.com/")),
             validate_credentials: None,

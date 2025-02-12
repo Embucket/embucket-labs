@@ -113,6 +113,8 @@ pub enum CloudProvider {
     GCS,
     #[serde(rename = "azure")]
     AZURE,
+    #[serde(rename = "fs")]
+    FS,
 }
 
 impl From<models::CloudProvider> for CloudProvider {
@@ -121,6 +123,7 @@ impl From<models::CloudProvider> for CloudProvider {
             models::CloudProvider::AWS => Self::AWS,
             models::CloudProvider::GCS => Self::GCS,
             models::CloudProvider::AZURE => Self::AZURE,
+            models::CloudProvider::FS => Self::FS,
         }
     }
 }
@@ -131,6 +134,7 @@ impl From<CloudProvider> for models::CloudProvider {
             CloudProvider::AWS => Self::AWS,
             CloudProvider::GCS => Self::GCS,
             CloudProvider::AZURE => Self::AZURE,
+            CloudProvider::FS => Self::FS,
         }
     }
 }

@@ -28,6 +28,9 @@ pub enum ControlPlaneModelError {
     #[snafu(display("Role-based credentials aren't supported"))]
     RoleBasedCredentialsNotSupported,
 
+    #[snafu(display("Missing credentials for {profile_type} profile type"))]
+    MissingCredentials { profile_type: String },
+
     #[snafu(display("Missing environment variable `{var}`"))]
     MissingEnvironmentVariable {
         source: std::env::VarError,
