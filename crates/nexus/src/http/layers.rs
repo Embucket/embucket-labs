@@ -4,8 +4,8 @@ use axum::{middleware::Next, response::Response};
 use http::header::{AUTHORIZATION, CONTENT_TYPE};
 use http::{HeaderValue, Method};
 use snafu::ResultExt;
-use tower_http::cors::{Any, CorsLayer};
 use std::str::FromStr;
+use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 
 use super::error;
@@ -49,12 +49,17 @@ pub async fn add_request_metadata(
 }
 
 pub fn make_cors_middleware(origin: &str) -> Result<CorsLayer, error::NexusHttpError> {
-    let origin_value = origin.parse::<HeaderValue>()
+    let origin_value = origin
+        .parse::<HeaderValue>()
         .context(error::AllowOriginHeaderParseSnafu)?;
     Ok(CorsLayer::new()
         .allow_origin(origin_value)
-        .allow_methods(vec![Method::GET, Method::POST, Method::DELETE, Method::HEAD])
+        .allow_methods(vec![
+            Method::GET,
+            Method::POST,
+            Method::DELETE,
+            Method::HEAD,
+        ])
         .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE])
-        .allow_credentials(true)
-    )
+        .allow_credentials(true))
 }

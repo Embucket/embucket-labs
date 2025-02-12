@@ -19,8 +19,8 @@ use tokio::signal;
 use tower_http::trace::TraceLayer;
 use tower_sessions::{Expiry, SessionManagerLayer};
 
-use http::session::{RequestSessionMemory, RequestSessionStore};
 use http::layers::make_cors_middleware;
+use http::session::{RequestSessionMemory, RequestSessionStore};
 use utils::Db;
 
 pub mod error;
@@ -33,7 +33,7 @@ pub async fn run_icehut(
     slatedb_prefix: String,
     host: String,
     port: u16,
-    allow_origin: Option<String>
+    allow_origin: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = {
         let options = DbOptions::default();
@@ -73,11 +73,13 @@ pub async fn run_icehut(
 
     // Create the application state
     let app_state = state::AppState::new(control_svc.clone(), Arc::new(catalog_svc));
- 
+
     let app = http::router::create_app(app_state)
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
-        .layer(make_cors_middleware(allow_origin.as_ref().unwrap_or(&"*".to_string()))?)
+        .layer(make_cors_middleware(
+            allow_origin.as_ref().unwrap_or(&"*".to_string()),
+        )?)
         .layer(middleware::from_fn(print_request_response));
 
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;

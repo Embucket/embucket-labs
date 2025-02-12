@@ -32,7 +32,9 @@ async fn main() {
         Ok(object_store) => {
             tracing::info!("Starting ❄️🏠 IceHut...");
 
-            if let Err(e) = nexus::run_icehut(object_store, slatedb_prefix, host, port, allow_origin).await {
+            if let Err(e) =
+                nexus::run_icehut(object_store, slatedb_prefix, host, port, allow_origin).await
+            {
                 tracing::error!("Failed to start IceHut: {:?}", e);
             }
         }

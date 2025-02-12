@@ -153,7 +153,10 @@ where
                 .insert("DF_SESSION_ID", id.clone())
                 .await
                 .context(nexus_http_error::SessionPersistSnafu)?;
-            session.save().await.context(nexus_http_error::SessionPersistSnafu)?;
+            session
+                .save()
+                .await
+                .context(nexus_http_error::SessionPersistSnafu)?;
             id
         };
         Ok(Self(session_id))
