@@ -62,14 +62,14 @@ impl IntoResponse for DbtError {
                 ControlPlaneError::WarehouseNotFound { .. }
                 | ControlPlaneError::WarehouseNameNotFound { .. } => http::StatusCode::NOT_FOUND,
                 _ => http::StatusCode::INTERNAL_SERVER_ERROR,
-            }
+            },
             Self::GZipDecompress { .. }
             | Self::LoginRequestParse { .. }
             | Self::QueryBodyParse { .. }
-            | Self::InvalidWarehouseIdFormat { .. }  => http::StatusCode::BAD_REQUEST,
-            Self::RowParse { .. }
-            | Self::Utf8 { .. }
-            | Self::Arrow { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::InvalidWarehouseIdFormat { .. } => http::StatusCode::BAD_REQUEST,
+            Self::RowParse { .. } | Self::Utf8 { .. } | Self::Arrow { .. } => {
+                http::StatusCode::INTERNAL_SERVER_ERROR
+            }
             Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
                 http::StatusCode::UNAUTHORIZED
             }
@@ -114,60 +114,68 @@ mod tests {
     use arrow::error::ArrowError;
     use axum::response::IntoResponse;
     use control_plane::error::ControlPlaneError;
-    use runtime::datafusion::error::IcehutSQLError;
     use datafusion::error::DataFusionError;
+    use runtime::datafusion::error::IcehutSQLError;
     use uuid::Uuid;
 
     #[test]
     fn test_http_server_response() {
         assert_ne!(
-            http::StatusCode::INTERNAL_SERVER_ERROR, 
+            http::StatusCode::INTERNAL_SERVER_ERROR,
             DbtError::ControlService {
                 source: ControlPlaneError::Execution {
                     source: IcehutSQLError::Arrow {
-                        source: ArrowError::ComputeError {0: String::new()}
+                        source: ArrowError::ComputeError { 0: String::new() }
                     }
                 },
-            }.into_response().status(),
+            }
+            .into_response()
+            .status(),
         );
         assert_eq!(
-            http::StatusCode::UNSUPPORTED_MEDIA_TYPE, 
+            http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
             DbtError::ControlService {
                 source: ControlPlaneError::Execution {
                     source: IcehutSQLError::Arrow {
-                        source: ArrowError::ComputeError {0: String::new()}
+                        source: ArrowError::ComputeError { 0: String::new() }
                     }
                 },
-            }.into_response().status(),
+            }
+            .into_response()
+            .status(),
         );
         assert_eq!(
-            http::StatusCode::UNPROCESSABLE_ENTITY, 
+            http::StatusCode::UNPROCESSABLE_ENTITY,
             DbtError::ControlService {
                 source: ControlPlaneError::Execution {
                     source: IcehutSQLError::DataFusion {
                         source: DataFusionError::ArrowError(
-                            ArrowError::InvalidArgumentError {0: String::new()},
+                            ArrowError::InvalidArgumentError { 0: String::new() },
                             Some(String::new()),
                         )
                     },
                 },
-            }.into_response().status(),
+            }
+            .into_response()
+            .status(),
         );
         assert_eq!(
-            http::StatusCode::NOT_FOUND, 
+            http::StatusCode::NOT_FOUND,
             DbtError::ControlService {
                 source: ControlPlaneError::WarehouseNameNotFound {
                     name: String::new()
                 },
-            }.into_response().status(),
+            }
+            .into_response()
+            .status(),
         );
         assert_eq!(
-            http::StatusCode::NOT_FOUND, 
+            http::StatusCode::NOT_FOUND,
             DbtError::ControlService {
-                source: ControlPlaneError::WarehouseNotFound {
-                    id: Uuid::new_v4(),
-                },
-            }.into_response().status(),
+                source: ControlPlaneError::WarehouseNotFound { id: Uuid::new_v4() },
+            }
+            .into_response()
+            .status(),
         );
     }
 }
