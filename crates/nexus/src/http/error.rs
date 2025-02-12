@@ -19,17 +19,17 @@ pub enum NexusHttpError {
 impl IntoResponse for NexusHttpError {
     fn into_response(self) -> axum::response::Response {
         match self {
-            NexusHttpError::AllowOriginHeaderParse { .. } => (
+            Self::AllowOriginHeaderParse { .. } => (
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 "Allow-Origin header parse error",
             )
                 .into_response(),
-            NexusHttpError::SessionLoad { .. } => (
+            Self::SessionLoad { .. } => (
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 "Session load error",
             )
                 .into_response(),
-            NexusHttpError::SessionPersist { .. } => (
+            Self::SessionPersist { .. } => (
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 "Session persist error",
             )

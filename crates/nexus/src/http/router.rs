@@ -2,7 +2,6 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use std::fs;
 use tower_http::catch_panic::CatchPanicLayer;
-use tower_http::cors::{Any, CorsLayer};
 use utoipa::openapi::{self};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;

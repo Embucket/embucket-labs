@@ -78,7 +78,7 @@ pub async fn run_icehut(
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
         .layer(make_cors_middleware(
-            allow_origin.as_ref().unwrap_or(&"*".to_string()),
+            allow_origin.unwrap_or_else(|| "*".to_string()),
         )?)
         .layer(middleware::from_fn(print_request_response));
 

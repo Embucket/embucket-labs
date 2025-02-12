@@ -5,7 +5,7 @@ use http::header::{AUTHORIZATION, CONTENT_TYPE};
 use http::{HeaderValue, Method};
 use snafu::ResultExt;
 use std::str::FromStr;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
 use super::error;
@@ -48,7 +48,8 @@ pub async fn add_request_metadata(
     response
 }
 
-pub fn make_cors_middleware(origin: &str) -> Result<CorsLayer, error::NexusHttpError> {
+#[allow(clippy::needless_pass_by_value)]
+pub fn make_cors_middleware(origin: String) -> Result<CorsLayer, error::NexusHttpError> {
     let origin_value = origin
         .parse::<HeaderValue>()
         .context(error::AllowOriginHeaderParseSnafu)?;
