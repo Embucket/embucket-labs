@@ -29,6 +29,14 @@ Once the container is running, open:
 
 This demo showcases how to use Embucket with **dbt** and execute the `snowplow_web` dbt project, treating Embucket as a Snowflake-compatible database.
 
+Prerequisites:
+* Install Rust (https://www.rust-lang.org/tools/install)
+* Install Python (https://www.python.org/downloads/)
+* Install our test dataset (REDACTED, seriously though github probaly won't allow big files)
+* Install virtualenv (https://virtualenv.pypa.io/en/latest/)
+* (Optional) Install NodeJS LTS (https://nodejs.org/en/download)
+* (Optional) Install PNPM (https://pnpm.io/installation)
+
 ### 🛠 Install Embucket  
 
 ```sh
@@ -46,20 +54,23 @@ You can configure Embucket via **CLI arguments** or **environment variables**:
 # Create a .env configuration file
 cat << EOF > .env
 # SlateDB storage settings
-OBJECT_STORE_BACKEND=file
+OBJECT_STORE_BACKEND=memory
 FILE_STORAGE_PATH=data
 SLATEDB_PREFIX=sdb
 
 # Optional: AWS S3 storage (leave blank if using local storage)
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
+AWS_ACCESS_KEY_ID="1"
+AWS_SECRET_ACCESS_KEY="2"
 AWS_REGION=
 S3_BUCKET=
 S3_ALLOW_HTTP=
 
 # Iceberg Catalog settings
-USE_FILE_SYSTEM_INSTEAD_OF_CLOUD=false
-CONTROL_PLANE_URL=http://127.0.0.1
+USE_FILE_SYSTEM_INSTEAD_OF_CLOUD=true
+CONTROL_PLANE_URL=http://127.0.0.1:3000
+
+# Dialect
+SQL_PARSER_DIALECT=snowflake
 EOF
 
 # Load environment variables (optional)
@@ -75,9 +86,18 @@ To enable the web-based UI, run:
 
 ```sh
 # (UI setup instructions go here)
+cp .env.example .env
+
+pnpm i
+
+pnpm codegen
+
+pnpm dev
+
+open http://localhost:3000
 ```
 
-### 📦 Prepare Snowplow Source Data  
+### 🔄 Run dbt Workflow  
 
 ```sh
 # Clone the dbt project with Snowplow package installed
@@ -89,30 +109,6 @@ virtualenv .venv
 source .venv/bin/activate
 pip install dbt-core dbt-snowflake
 
-# Start MinIO for local object storage
-docker run -d --rm --name minio -p 9001:9001 -p 9000:9000 \
-  -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
-  minio/minio server --console-address :9001 /data
-
-# Create an S3-compatible bucket on MinIO
-aws --endpoint-url http://localhost:9000 s3api create-bucket --bucket bucket
-
-# Register Embucket storage profile & warehouse
-http POST http://localhost:3000/v1/storage-profile type=aws region=us-east-2 bucket=bucket \
-  credentials:='{"credential_type":"access_key","aws_access_key_id":"minioadmin","aws_secret_access_key":"minioadmin"}' \
-  endpoint='http://localhost:9000'
-
-http POST http://localhost:3000/v1/warehouse storage_profile_id=<storage-profile-id> prefix= name=snowplow
-
-# Create Iceberg namespace  
-http POST http://localhost:3000/catalog/v1/<warehouse-id>/namespaces namespace:='["public"]'
-```
-
-### 🔄 Run dbt Workflow  
-
-```sh
-cd compatibility-test-suite/dbt-snowplow/
-
 # Activate virtual environment
 source .venv/bin/activate
 
@@ -120,15 +116,17 @@ source .venv/bin/activate
 export SNOWFLAKE_USER=user
 export SNOWFLAKE_PASSWORD=xxx
 export SNOWFLAKE_DB=snowplow
+export SNOWFLAKE_SCHEMA=public
+export SNOWFLAKE_WAREHOUSE=snowplow
 
 # Install the dbt Snowplow package
 dbt deps
 
+# Upload source data
+python3 upload.py
+
 # Upload initial data
 dbt seed
-
-# Upload source data
-# (Insert commands for loading source data here)
 
 # Run dbt transformations
 dbt run
