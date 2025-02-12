@@ -68,12 +68,6 @@ pub trait ControlService: Send + Sync {
 
     async fn query_table(&self, session_id: &str, query: &str) -> ControlPlaneResult<String>;
 
-    async fn query_dbt(
-        &self,
-        session_id: &str,
-        query: &str,
-    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)>;
-
     async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -353,69 +347,6 @@ impl ControlService for ControlServiceImpl {
         let buf = writer.into_inner();
 
         Ok(String::from_utf8(buf).context(crate::error::Utf8Snafu)?)
-    }
-
-    #[tracing::instrument(level = "debug", skip(self))]
-    async fn query_dbt(
-        &self,
-        session_id: &str,
-        query: &str,
-    ) -> ControlPlaneResult<(String, Vec<ColumnInfo>)> {
-        let (records, columns) = self.query(session_id, query).await?;
-
-        // THIS CODE RELATED TO ARROW FORMAT
-        //////////////////////////////////////
-
-        // fn roundtrip_ipc_stream(rb: &RecordBatch) -> RecordBatch {
-        //     let mut buf = Vec::new();
-        //     let mut writer = StreamWriter::try_new(&mut buf, rb.schema_ref()).unwrap();
-        //     writer.write(rb).unwrap();
-        //     writer.finish().unwrap();
-        //     drop(writer);
-        //
-        //     let mut reader = StreamReader::try_new(std::io::Cursor::new(buf), None).unwrap();
-        //     reader.next().unwrap().unwrap()
-        // }
-        //
-        // println!("agahaha {:?}", roundtrip_ipc_stream(&records[0]));
-
-        // let mut buffer = Vec::new();
-        // let options = IpcWriteOptions::try_new(8, false, MetadataVersion::V5).unwrap();
-        // let mut stream_writer =
-        //     StreamWriter::try_new_with_options(&mut buffer, &records[0].schema_ref(), options)
-        //         .unwrap();
-        // stream_writer.write(&records[0]).unwrap();
-        // stream_writer.finish().unwrap();
-        // drop(stream_writer);
-
-        // // Try to add flatbuffer verification
-        // println!("{:?}", buffer.len());
-        // let base64 = general_purpose::STANDARD.encode(buffer);
-        // Ok((base64, columns))
-        // let encoded = general_purpose::STANDARD.decode(res.clone()).unwrap();
-        //
-        // let mut verifier = Verifier::new(&VerifierOptions::default(), &encoded);
-        // let mut builder = FlatBufferBuilder::new();
-        // let res = general_purpose::STANDARD.encode(buf);
-        //////////////////////////////////////
-
-        // We use json format since there is a bug between arrow and nanoarrow
-        let buf = Vec::new();
-        let write_builder = WriterBuilder::new().with_explicit_nulls(true);
-        let mut writer = write_builder.build::<_, JsonArray>(buf);
-
-        let record_refs: Vec<&RecordBatch> = records.iter().collect();
-        writer
-            .write_batches(&record_refs)
-            .context(crate::error::ArrowSnafu)?;
-        writer.finish().context(crate::error::ArrowSnafu)?;
-
-        // Get the underlying buffer back,
-        let buf = writer.into_inner();
-        Ok((
-            String::from_utf8(buf).context(crate::error::Utf8Snafu)?,
-            columns,
-        ))
     }
 
     #[tracing::instrument(level = "debug", skip(self))]

@@ -5,7 +5,7 @@ use super::error::{self as ih_error, IcehutSQLError, IcehutSQLResult};
 use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
 use crate::datafusion::session::SessionParams;
-use arrow::array::{RecordBatch, UInt64Array};
+use arrow::array::{Int64Array, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::datasource::default_table_source::provider_as_source;
@@ -1251,11 +1251,11 @@ impl SqlExecutor {
 pub fn created_entity_response() -> Result<Vec<RecordBatch>, arrow::error::ArrowError> {
     let schema = Arc::new(ArrowSchema::new(vec![Field::new(
         "count",
-        DataType::UInt64,
+        DataType::Int64,
         false,
     )]));
     Ok(vec![RecordBatch::try_new(
         schema,
-        vec![Arc::new(UInt64Array::from(vec![0]))],
+        vec![Arc::new(Int64Array::from(vec![0]))],
     )?])
 }

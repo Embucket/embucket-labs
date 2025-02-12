@@ -1,4 +1,4 @@
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use std::fs;
 use tower_http::catch_panic::CatchPanicLayer;
@@ -66,6 +66,7 @@ pub fn create_app(state: AppState) -> Router {
                 .url("/ui_openapi.json", ui_spec),
         )
         .route("/health", get(|| async { Json("OK") }))
+        .route("/telemetry/send", post(|| async { Json("OK") }))
         .layer(TimeoutLayer::new(std::time::Duration::from_secs(1200)))
         .layer(CatchPanicLayer::new())
         .layer(

@@ -5,15 +5,36 @@ use crate::http::dbt::schemas::{
 };
 use crate::http::session::DFSessionId;
 use crate::state::AppState;
+use arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
+use arrow::ipc::MetadataVersion;
+use arrow::json::writer::JsonArray;
+use arrow::json::WriterBuilder;
+use arrow::record_batch::RecordBatch;
 use axum::body::Bytes;
 use axum::extract::{Query, State};
 use axum::http::HeaderMap;
 use axum::Json;
+use base64;
+use base64::engine::general_purpose::STANDARD as engine_base64;
+use base64::prelude::*;
 use flate2::read::GzDecoder;
 use regex::Regex;
 use snafu::ResultExt;
 use std::io::Read;
+use tracing::debug;
 use uuid::Uuid;
+
+
+// TODO: move out as a configurable parameter
+const SERIALIZATION_FORMAT: &str = "json"; // or "arrow"
+
+// https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
+// Buffer Alignment and Padding: Implementations are recommended to allocate memory
+// on aligned addresses (multiple of 8- or 64-bytes) and pad (overallocate) to a
+// length that is a multiple of 8 or 64 bytes. When serializing Arrow data for interprocess
+// communication, these alignment and padding requirements are enforced.
+// For more info see issue #115
+const ARROW_IPC_ALIGNMENT: usize = 8;
 
 #[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
@@ -32,8 +53,6 @@ pub async fn login(
     let _body_json: LoginRequestBody =
         serde_json::from_str(&s).context(dbt_error::LoginRequestParseSnafu)?;
 
-    //println!("Received login request: {:?}", query);
-    //println!("Body data parameters: {:?}", body_json);
     let token = Uuid::new_v4().to_string();
 
     let warehouses = state
@@ -54,6 +73,37 @@ pub async fn login(
         success: true,
         message: Option::from("successfully executed".to_string()),
     }))
+}
+
+fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> Result<String, DbtError> {
+    let mut buf = Vec::new();
+    let options = IpcWriteOptions::try_new(ARROW_IPC_ALIGNMENT, false, MetadataVersion::V5)
+        .context(dbt_error::ArrowSnafu)?;
+    if !recs.is_empty() {
+        let mut writer =
+            StreamWriter::try_new_with_options(&mut buf, recs[0].schema_ref(), options)
+                .context(dbt_error::ArrowSnafu)?;
+        for rec in recs {
+            writer.write(rec).context(dbt_error::ArrowSnafu)?;
+        }
+        writer.finish().context(dbt_error::ArrowSnafu)?;
+        drop(writer);
+    };
+    Ok(engine_base64.encode(buf))
+}
+
+fn records_to_json_string(recs: &[RecordBatch]) -> Result<String, DbtError> {
+    let buf = Vec::new();
+    let write_builder = WriterBuilder::new().with_explicit_nulls(true);
+    let mut writer = write_builder.build::<_, JsonArray>(buf);
+    let record_refs: Vec<&RecordBatch> = recs.iter().collect();
+    writer
+        .write_batches(&record_refs)
+        .context(dbt_error::ArrowSnafu)?;
+    writer.finish().context(dbt_error::ArrowSnafu)?;
+
+    // Get the underlying buffer back,
+    String::from_utf8(writer.into_inner()).context(dbt_error::Utf8Snafu)
 }
 
 #[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
@@ -86,30 +136,46 @@ pub async fn query(
 
     // let _ = log_query(&body_json.sql_text).await;
 
-    let (result, columns) = state
+    let (records, columns) = state
         .control_svc
-        .query_dbt(&session_id, &body_json.sql_text)
+        .query(&session_id, &body_json.sql_text)
         .await
         .context(dbt_error::ControlServiceSnafu)?;
 
-    // query_result_format now is JSON since arrow IPC has flatbuffers bug
-    // https://github.com/apache/arrow-rs/pull/6426
-    Ok(Json(JsonResponse {
+    debug!(
+        "serialized json: {}",
+        records_to_json_string(&records)?.as_str()
+    );
+
+    let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {
             row_type: columns.into_iter().map(Into::into).collect(),
-            // row_set_base_64: Option::from(result.clone()),
-            row_set_base_64: None,
-            #[allow(clippy::unwrap_used)]
-            row_set: ResponseData::rows_to_vec(result.as_str())?,
+            query_result_format: Option::from(String::from(SERIALIZATION_FORMAT)),
+            row_set: if SERIALIZATION_FORMAT == "json" {
+                Option::from(ResponseData::rows_to_vec(
+                    records_to_json_string(&records)?.as_str(),
+                )?)
+            } else {
+                None
+            },
+            row_set_base_64: if SERIALIZATION_FORMAT == "arrow" {
+                Option::from(records_to_arrow_string(&records)?)
+            } else {
+                None
+            },
             total: Some(1),
-            query_result_format: Option::from("json".to_string()),
             error_code: None,
             sql_state: Option::from("ok".to_string()),
         }),
         success: true,
         message: Option::from("successfully executed".to_string()),
         code: Some(format!("{:06}", 200)),
-    }))
+    });
+    debug!(
+        "query {:?}, response: {:?}, records: {:?}",
+        body_json.sql_text, json_resp, records
+    );
+    Ok(json_resp)
 }
 
 pub async fn abort() -> DbtResult<Json<serde_json::value::Value>> {
@@ -127,15 +193,3 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
         })
     })
 }
-
-/*async fn log_query(query: &str) -> Result<(), std::io::Error> {
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("queries.log")
-        .await
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    file.write_all(query.as_bytes()).await?;
-    file.write_all(b"\n").await?;
-    Ok(())
-}*/
