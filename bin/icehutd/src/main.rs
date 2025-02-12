@@ -21,6 +21,7 @@ async fn main() {
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let host = opts.host.clone().unwrap();
     let port = opts.port.unwrap();
+    let allow_origin = opts.allow_origin.clone();
     let object_store = opts.object_store_backend();
 
     match object_store {
@@ -31,7 +32,7 @@ async fn main() {
         Ok(object_store) => {
             tracing::info!("Starting ❄️🏠 IceHut...");
 
-            if let Err(e) = nexus::run_icehut(object_store, slatedb_prefix, host, port).await {
+            if let Err(e) = nexus::run_icehut(object_store, slatedb_prefix, host, port, allow_origin).await {
                 tracing::error!("Failed to start IceHut: {:?}", e);
             }
         }

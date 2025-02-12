@@ -69,12 +69,7 @@ pub fn create_app(state: AppState) -> Router {
         .route("/telemetry/send", post(|| async { Json("OK") }))
         .layer(TimeoutLayer::new(std::time::Duration::from_secs(1200)))
         .layer(CatchPanicLayer::new())
-        .layer(
-            CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods(Any)
-                .allow_headers(Any),
-        )
+        //.layer(super::layers::make_cors_middleware(allow_origin.unwrap_or("*".to_string())))
         .with_state(state)
 }
 
