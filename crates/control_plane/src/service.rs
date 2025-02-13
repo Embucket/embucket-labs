@@ -275,8 +275,11 @@ impl ControlService for ControlServiceImpl {
             .unwrap_or("")
             .to_string();
 
-        let (catalog_name, warehouse_location): (String, String) = if warehouse_name.is_empty() {
-            (String::from("datafusion"), String::new())
+        let catalog_name: String = if warehouse_name.is_empty() {
+            // try to get catalog name from session
+            executor
+                .get_session_variable("database")
+                .unwrap_or_else(|| String::from("datafusion"))
         } else {
             let warehouse = self.get_warehouse_by_name(warehouse_name.clone()).await?;
             if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
@@ -313,15 +316,11 @@ impl ControlService for ControlServiceImpl {
                     .ctx
                     .register_object_store(&endpoint_url, Arc::from(object_store));
             }
-            (warehouse.name, warehouse.location)
+            warehouse.name
         };
-        tracing::debug!(
-            "Catalog: {}, Warehouse Location: {}",
-            catalog_name,
-            warehouse_location
-        );
+        tracing::debug!("Catalog: {}", catalog_name);
         let records: Vec<RecordBatch> = executor
-            .query(&query, catalog_name.as_str(), warehouse_location.as_str())
+            .query(&query, catalog_name.as_str())
             .await
             .context(crate::error::ExecutionSnafu)?
             .into_iter()

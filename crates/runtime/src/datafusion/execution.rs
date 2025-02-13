@@ -71,7 +71,6 @@ impl SqlExecutor {
         &self,
         query: &str,
         warehouse_name: &str,
-        warehouse_location: &str,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
         // Update query to use custom JSON functions
         let query = self.preprocess_query(query);
@@ -257,6 +256,16 @@ impl SqlExecutor {
             }
         }
         Ok(vec![])
+    }
+
+    #[must_use]
+    pub fn get_session_variable(&self, variable: &str) -> Option<String> {
+        let state = self.ctx.state();
+        let config = state.config().options().extensions.get::<SessionParams>();
+        if let Some(cfg) = config {
+            return cfg.properties.get(variable).cloned();
+        }
+        None
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
