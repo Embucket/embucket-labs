@@ -95,8 +95,8 @@ impl SqlExecutor {
                 } => {
                     let params = session_params
                         .options
-                        .iter()
-                        .map(|v| (v.option_name.clone(), v.value.clone()))
+                        .into_iter()
+                        .map(|v| (v.option_name.clone(), v.value))
                         .collect::<HashMap<_, _>>();
                     return self.set_session_variable(set, params);
                 }
