@@ -96,8 +96,8 @@ impl SqlExecutor {
                     let params = session_params
                         .options
                         .into_iter()
-                        .map(|v| (v.option_name.clone(), v.value))
-                        .collect::<HashMap<_, _>>();
+                        .map(|v| (v.option_name, v.value))
+                        .collect();
                     return self.set_session_variable(set, params);
                 }
                 Statement::Use(entity) => {
