@@ -32,12 +32,19 @@ utoipa = { version = "5.3.1", features = ["uuid", "chrono"] }
 utoipa-axum = { version = "0.2.0" }
 utoipa-swagger-ui = { version = "9.0.0", features = ["axum"] }
 lazy_static = { version = "1.5" }
-datafusion = { version = "43" }
 snafu = { version = "0.8.5", features = ["futures"] }
 tracing = { version = "0.1" }
 
-[patch.crates-io]
 datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+
+datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "86f5294d30b7bf53fbcb2e25dee409ad818b34cc" }
+
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "17d76a0ecc4ebaa2bfc5178e6589f76dc5d71c67" }
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "17d76a0ecc4ebaa2bfc5178e6589f76dc5d71c67" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "17d76a0ecc4ebaa2bfc5178e6589f76dc5d71c67" }
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
