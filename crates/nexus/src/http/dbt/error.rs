@@ -59,6 +59,8 @@ impl IntoResponse for DbtError {
                     IcehutSQLError::Arrow { .. } => http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
                     _ => http::StatusCode::INTERNAL_SERVER_ERROR,
                 },
+                // SQL errors,
+                ControlPlaneError::DataFusion { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
                 ControlPlaneError::WarehouseNotFound { .. }
                 | ControlPlaneError::WarehouseNameNotFound { .. } => http::StatusCode::NOT_FOUND,
                 _ => http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -173,6 +175,28 @@ mod tests {
             http::StatusCode::NOT_FOUND,
             DbtError::ControlService {
                 source: ControlPlaneError::WarehouseNotFound { id: Uuid::new_v4() },
+            }
+            .into_response()
+            .status(),
+        );
+        assert_eq!(
+            http::StatusCode::NOT_FOUND,
+            DbtError::ControlService {
+                source: ControlPlaneError::WarehouseNotFound { id: Uuid::new_v4() },
+            }
+            .into_response()
+            .status(),
+        );
+        assert_eq!(
+            http::StatusCode::UNPROCESSABLE_ENTITY,
+            DbtError::ControlService {
+                source: ControlPlaneError::DataFusion {
+                    // here just any error for test, since we are handling any DataFusion err
+                    source: DataFusionError::ArrowError(
+                        ArrowError::InvalidArgumentError { 0: String::new() },
+                        Some(String::new()),
+                    )
+                }
             }
             .into_response()
             .status(),
