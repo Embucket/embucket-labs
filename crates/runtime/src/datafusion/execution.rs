@@ -35,7 +35,7 @@ use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType,
-    Query as AstQuery, Select, SelectItem,
+    Query as AstQuery, Select, SelectItem, Use,
 };
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
@@ -89,8 +89,56 @@ impl SqlExecutor {
         // etc
         if let DFStatement::Statement(s) = statement {
             match *s {
-                Statement::AlterSession { .. } => {
-                    return Box::pin(self.alter_session_query(*s)).await;
+                Statement::AlterSession {
+                    set,
+                    session_params,
+                } => {
+                    let params = session_params
+                        .options
+                        .into_iter()
+                        .map(|v| (v.option_name.clone(), v.value))
+                        .collect::<HashMap<_, _>>();
+                    return self.set_session_variable(set, params);
+                }
+                Statement::Use(entity) => {
+                    let (variable, value) = match entity {
+                        Use::Catalog(n) => ("catalog", n.to_string()),
+                        Use::Schema(n) => ("schema", n.to_string()),
+                        Use::Database(n) => ("database", n.to_string()),
+                        Use::Warehouse(n) => ("warehouse", n.to_string()),
+                        Use::Role(n) => ("role", n.to_string()),
+                        Use::Object(n) => ("object", n.to_string()),
+                        Use::SecondaryRoles(sr) => ("secondary_roles", sr.to_string()),
+                        Use::Default => ("", String::new()),
+                    };
+                    if variable.is_empty() | value.is_empty() {
+                        return Err(IcehutSQLError::DataFusion {
+                            source: DataFusionError::NotImplemented(
+                                "Only USE with variables are supported".to_string(),
+                            ),
+                        });
+                    }
+                    let params = HashMap::from([(variable.to_string(), value)]);
+                    return self.set_session_variable(true, params);
+                }
+                Statement::SetVariable {
+                    variables, value, ..
+                } => {
+                    let keys = variables.iter().map(ToString::to_string);
+                    let values: Result<Vec<_>, IcehutSQLError> = value
+                        .iter()
+                        .map(|v| match v {
+                            Expr::Identifier(_) | Expr::Value(_) => Ok(v.to_string()),
+                            _ => Err(IcehutSQLError::DataFusion {
+                                source: DataFusionError::NotImplemented(
+                                    "Only primitive statements are supported".to_string(),
+                                ),
+                            }),
+                        })
+                        .collect();
+                    let values = values?;
+                    let params = keys.into_iter().zip(values.into_iter()).collect();
+                    return self.set_session_variable(true, params);
                 }
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s, warehouse_name)).await;
@@ -187,45 +235,28 @@ impl SqlExecutor {
             .replace("FROM @~/", "FROM ")
     }
 
-    #[allow(clippy::unused_async)]
-    pub async fn alter_session_query(
+    pub fn set_session_variable(
         &self,
-        statement: Statement,
+        set: bool,
+        params: HashMap<String, String>,
     ) -> IcehutSQLResult<Vec<RecordBatch>> {
-        if let Statement::AlterSession {
-            set,
-            session_params,
-        } = statement
-        {
-            let state = self.ctx.state_ref();
-            let mut write = state.write();
-            let config = write
-                .config_mut()
-                .options_mut()
-                .extensions
-                .get_mut::<SessionParams>();
-            if let Some(cfg) = config {
-                let params = session_params
-                    .options
-                    .iter()
-                    .map(|v| (v.option_name.clone(), v.value.clone()))
-                    .collect::<HashMap<_, _>>();
-                if set {
-                    cfg.set_properties(params)
-                        .context(ih_error::DataFusionSnafu)?;
-                } else {
-                    cfg.remove_properties(params)
-                        .context(ih_error::DataFusionSnafu)?;
-                }
+        let state = self.ctx.state_ref();
+        let mut write = state.write();
+        let config = write
+            .config_mut()
+            .options_mut()
+            .extensions
+            .get_mut::<SessionParams>();
+        if let Some(cfg) = config {
+            if set {
+                cfg.set_properties(params)
+                    .context(ih_error::DataFusionSnafu)?;
+            } else {
+                cfg.remove_properties(params)
+                    .context(ih_error::DataFusionSnafu)?;
             }
-            Ok(vec![])
-        } else {
-            Err(IcehutSQLError::DataFusion {
-                source: DataFusionError::NotImplemented(
-                    "Only ALTER SESSION statements are supported".to_string(),
-                ),
-            })
         }
+        Ok(vec![])
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
