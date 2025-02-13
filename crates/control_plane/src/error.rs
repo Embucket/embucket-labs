@@ -95,7 +95,7 @@ pub enum ControlPlaneError {
 
     #[snafu(display("Execution error: {source}"))]
     Execution {
-        source: runtime::datafusion::error::IcehutSQLError,
+        source: runtime::datafusion::error::IceBucketSQLError,
     },
 
     #[snafu(display("Unable to lock DataFusion context list"))]

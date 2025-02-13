@@ -15,13 +15,13 @@ chrono = { workspace = true }
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }
 datafusion-expr = { workspace = true }
-datafusion-physical-plan = { workspace = true }
-iceberg-rust = { workspace = true }
-iceberg-rest-catalog = { workspace = true }
-datafusion_iceberg = { workspace = true }
 datafusion-functions-json = { workspace = true }
+datafusion-physical-plan = { workspace = true }
+datafusion_iceberg = { workspace = true }
 
 futures = { workspace = true }
+iceberg-rest-catalog = { workspace = true }
+iceberg-rust = { workspace = true }
 object_store = { workspace = true }
 
 paste = "1"
