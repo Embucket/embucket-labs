@@ -1,4 +1,4 @@
-name: Main
+name: Release
 
 on:
   push:
@@ -6,17 +6,20 @@ on:
       - "releases/v*.*.*"
 
 jobs:
-  contrib-readme-job:
-    runs-on: ubuntu-latest
-    name: Update the list of contributors in README
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-        - name: Contribute List
-          uses: akhilmhdh/contributors-readme-action@v2.3.10
-          env:
-              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # contrib-readme-job:
+  #   runs-on: ubuntu-latest
+  #   name: Update the list of contributors in README
+  #   permissions:
+  #     contents: write
+  #     pull-requests: write
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: true
+  #     - name: Contribute List
+  #       uses: akhilmhdh/contributors-readme-action@v2.3.10
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   create-release:
     runs-on: ubuntu-latest
     name: Create a release artifact and publish it
