@@ -1,0 +1,40 @@
+name: Main
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  contrib-readme-job:
+    runs-on: ubuntu-latest
+    name: Update the list of contributors in README
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+        - name: Contribute List
+          uses: akhilmhdh/contributors-readme-action@v2.3.10
+          env:
+              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  create-release:
+    runs-on: ubuntu-latest
+    name: Create a release artifact and publish it
+    permissions:
+      contents: write
+      discussions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install ${{ matrix.toolchain }}
+        uses: dtolnay/rust-toolchain@master
+      - name: Build release
+        run: cargo build --release
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/release/bucketd
+          generate_release_notes: true
+          discussion_category_name: "Announcements"
+          make_latest: true
