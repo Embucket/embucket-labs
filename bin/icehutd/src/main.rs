@@ -21,7 +21,11 @@ async fn main() {
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let host = opts.host.clone().unwrap();
     let port = opts.port.unwrap();
-    let allow_origin = opts.allow_origin.clone();
+    let allow_origin = if opts.cors_enabled.unwrap_or(false) {
+        opts.allow_origin.clone()
+    } else {
+        None
+    };
     let object_store = opts.object_store_backend();
 
     match object_store {

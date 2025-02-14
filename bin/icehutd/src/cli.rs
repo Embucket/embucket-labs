@@ -94,9 +94,16 @@ pub struct IceHutOpts {
 
     #[arg(
         long,
-        env = "ALLOW_ORIGIN",
-        help = "CORS Allow Origin",
-        default_value = "*",
+        env = "CORS_ENABLED",
+        help = "Enable CORS",
+        default_value = "false"
+    )]
+    pub cors_enabled: Option<bool>,
+
+    #[arg(
+        long,
+        env = "CORS_ALLOW_ORIGIN",
+        required_if_eq("cors_enabled", "true"),
         help = "CORS Allow Origin"
     )]
     pub allow_origin: Option<String>,

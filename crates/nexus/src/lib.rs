@@ -74,13 +74,14 @@ pub async fn run_icehut(
     // Create the application state
     let app_state = state::AppState::new(control_svc.clone(), Arc::new(catalog_svc));
 
-    let app = http::router::create_app(app_state)
+    let mut app = http::router::create_app(app_state)
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
-        .layer(make_cors_middleware(
-            allow_origin.unwrap_or_else(|| "*".to_string()),
-        )?)
         .layer(middleware::from_fn(print_request_response));
+
+    if let Some(allow_origin) = allow_origin {
+        app = app.layer(make_cors_middleware(allow_origin)?);
+    }
 
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
     tracing::info!("Listening on {}", listener.local_addr().unwrap());
