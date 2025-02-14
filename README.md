@@ -146,6 +146,11 @@ We welcome contributions! To get involved:
 
 For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).  
 
+## Contributors
+
+<!-- readme: contributors -start -->
+<!-- readme: contributors -end -->
+
 ## 📜 License  
 
 This project is licensed under the **Apache 2.0 License**. See [LICENSE](LICENSE) for details.  
