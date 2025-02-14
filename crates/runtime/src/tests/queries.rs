@@ -58,7 +58,7 @@
 // // FROM
 // test_query!(
 //     from_inline_view,
-//     "SELECT v.profit 
+//     "SELECT v.profit
 //     FROM (SELECT retail_price - wholesale_cost AS profit FROM ftable1) AS v;"
 // );
 // test_query!(
@@ -182,10 +182,10 @@
 // );
 
 // // LATERAL
-// test_query!(lateral_subquery, "SELECT * 
+// test_query!(lateral_subquery, "SELECT *
 //     FROM departments AS d, LATERAL (SELECT * FROM employees AS e WHERE e.department_ID = d.department_ID) AS iv2
 //     ORDER BY employee_ID;");
-// test_query!(lateral_inner_join, "SELECT * 
+// test_query!(lateral_inner_join, "SELECT *
 //     FROM departments AS d INNER JOIN LATERAL (SELECT * FROM employees AS e WHERE e.department_ID = d.department_ID) AS iv2
 //     ORDER BY employee_ID;");
 
@@ -275,7 +275,7 @@
 // );
 // test_query!(
 //     group_by_cube,
-//     "SELECT state, city, SUM((s.retail_price - p.wholesale_price) * s.quantity) AS profit 
+//     "SELECT state, city, SUM((s.retail_price - p.wholesale_price) * s.quantity) AS profit
 //  FROM products AS p, sales AS s
 //  WHERE s.product_ID = p.product_ID
 //  GROUP BY CUBE (state, city)
@@ -290,7 +290,7 @@
 // );
 // test_query!(
 //     group_by_rollup,
-//     "SELECT state, city, SUM((s.retail_price - p.wholesale_price) * s.quantity) AS profit 
+//     "SELECT state, city, SUM((s.retail_price - p.wholesale_price) * s.quantity) AS profit
 //  FROM products AS p, sales AS s
 //  WHERE s.product_ID = p.product_ID
 //  GROUP BY ROLLUP (state, city)
@@ -394,9 +394,9 @@
 // // MERGE
 // test_query!(
 //     merge_into,
-//     "MERGE INTO target_table USING source_table 
+//     "MERGE INTO target_table USING source_table
 //     ON target_table.id = source_table.id
-//     WHEN MATCHED THEN 
+//     WHEN MATCHED THEN
 //         UPDATE SET target_table.description = source_table.description;"
 // );
 
