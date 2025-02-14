@@ -5,7 +5,8 @@ FROM node:lts AS frontend-builder
 RUN apt-get update && apt-get install -y openssh-client
 RUN mkdir -p -m 0600 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts
 WORKDIR /app
-RUN --mount=type=ssh git clone git@github.com:Embucket/embucket.git .
+ARG GITHUB_TOKEN
+RUN git clone https://${GITHUB_TOKEN}@github.com/Embucket/embucket.git .
 RUN npm install -g pnpm
 RUN pnpm install
 
@@ -17,21 +18,15 @@ COPY ./ .
 COPY rest-catalog-open-api.yaml rest-catalog-open-api.yaml
 RUN cargo build --release
 
-#####################################################################################################
-### Final image
-#####################################################################################################
+# Stage 3: Final image
 FROM debian:bookworm-slim
-
-# Copy the binary from the builder stage
 WORKDIR /app
-
 RUN apt-get update && apt-get install -y openssl nodejs npm && rm -rf /var/lib/apt/lists/*
+RUN npm install -g pnpm serve
 
-COPY --from=builder /app/target/release/icehutd ./
+COPY --from=builder /app/target/release/bucketd ./
 COPY --from=builder /app/rest-catalog-open-api.yaml rest-catalog-open-api.yaml
 COPY --from=frontend-builder /app ./frontend
 
-RUN npm install -g serve
-
 # Command to start both frontend and backend
-CMD ["sh", "-c", "./icehutd & serve -s ./frontend"]
+CMD ["sh", "-c", "./bucketd & cd ./frontend && pnpm codegen && pnpm dev"]
