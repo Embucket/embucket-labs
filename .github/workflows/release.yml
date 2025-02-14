@@ -36,6 +36,11 @@ jobs:
           components: rustfmt
       - name: Build release
         run: cargo build --release
+      - name: Split branch name
+        env:
+          BRANCH: ${{ github.ref_name }}
+        id: split
+        run: echo "fragment=${BRANCH##*/}" >> $GITHUB_OUTPUT
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
@@ -43,3 +48,4 @@ jobs:
           generate_release_notes: true
           discussion_category_name: "Announcements"
           make_latest: true
+          name: ${{ steps.split.outputs.fragment }}
