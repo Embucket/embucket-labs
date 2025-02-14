@@ -27,7 +27,6 @@ use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use url::Url;
 use uuid::Uuid;
 
 #[async_trait]
@@ -406,24 +405,17 @@ impl ControlService for ControlServiceImpl {
                 .register_catalog(warehouse.name.clone(), Arc::new(catalog));
         }
 
-        // Register CSV file as a table
-        let storage_endpoint_url = storage_profile
-            .endpoint
-            .as_ref()
-            .ok_or(ControlPlaneError::MissingStorageEndpointURL)?;
+        let endpoint_url = storage_profile
+            .get_object_store_endpoint_url()
+            .map_err(|_| ControlPlaneError::MissingStorageEndpointURL)?;
 
         let path_string = match &storage_profile.credentials {
             Credentials::AccessKey(_) => {
                 // If the storage profile is AWS S3, modify the path_string with the S3 prefix
-                format!("{storage_endpoint_url}/{path_string}")
+                format!("{endpoint_url}/{path_string}")
             }
             Credentials::Role(_) => path_string,
         };
-        let endpoint_url = Url::parse(storage_endpoint_url).context(
-            crate::error::InvalidStorageEndpointURLSnafu {
-                url: storage_endpoint_url,
-            },
-        )?;
         executor
             .ctx
             .register_object_store(&endpoint_url, Arc::from(object_store));
