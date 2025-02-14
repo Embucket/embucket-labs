@@ -27,7 +27,6 @@ use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use url::Url;
 use uuid::Uuid;
 
 #[async_trait]
@@ -275,8 +274,11 @@ impl ControlService for ControlServiceImpl {
             .unwrap_or("")
             .to_string();
 
-        let (catalog_name, warehouse_location): (String, String) = if warehouse_name.is_empty() {
-            (String::from("datafusion"), String::new())
+        let catalog_name: String = if warehouse_name.is_empty() {
+            // try to get catalog name from session
+            executor
+                .get_session_variable("database")
+                .unwrap_or_else(|| String::from("datafusion"))
         } else {
             let warehouse = self.get_warehouse_by_name(warehouse_name.clone()).await?;
             if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
@@ -313,15 +315,11 @@ impl ControlService for ControlServiceImpl {
                     .ctx
                     .register_object_store(&endpoint_url, Arc::from(object_store));
             }
-            (warehouse.name, warehouse.location)
+            warehouse.name
         };
-        tracing::debug!(
-            "Catalog: {}, Warehouse Location: {}",
-            catalog_name,
-            warehouse_location
-        );
+        tracing::debug!("Catalog: {}", catalog_name);
         let records: Vec<RecordBatch> = executor
-            .query(&query, catalog_name.as_str(), warehouse_location.as_str())
+            .query(&query, catalog_name.as_str())
             .await
             .context(crate::error::ExecutionSnafu)?
             .into_iter()
@@ -407,24 +405,17 @@ impl ControlService for ControlServiceImpl {
                 .register_catalog(warehouse.name.clone(), Arc::new(catalog));
         }
 
-        // Register CSV file as a table
-        let storage_endpoint_url = storage_profile
-            .endpoint
-            .as_ref()
-            .ok_or(ControlPlaneError::MissingStorageEndpointURL)?;
+        let endpoint_url = storage_profile
+            .get_object_store_endpoint_url()
+            .map_err(|_| ControlPlaneError::MissingStorageEndpointURL)?;
 
         let path_string = match &storage_profile.credentials {
             Credentials::AccessKey(_) => {
                 // If the storage profile is AWS S3, modify the path_string with the S3 prefix
-                format!("{storage_endpoint_url}/{path_string}")
+                format!("{endpoint_url}/{path_string}")
             }
             Credentials::Role(_) => path_string,
         };
-        let endpoint_url = Url::parse(storage_endpoint_url).context(
-            crate::error::InvalidStorageEndpointURLSnafu {
-                url: storage_endpoint_url,
-            },
-        )?;
         executor
             .ctx
             .register_object_store(&endpoint_url, Arc::from(object_store));

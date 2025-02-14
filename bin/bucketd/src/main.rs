@@ -12,15 +12,20 @@ async fn main() {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "icehut=debug,nexus=debug,tower_http=debug".into()),
+                .unwrap_or_else(|_| "bucketd=debug,nexus=debug,tower_http=debug".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let opts = cli::IceHutOpts::parse();
+    let opts = cli::IceBucketOpts::parse();
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let host = opts.host.clone().unwrap();
     let port = opts.port.unwrap();
+    let allow_origin = if opts.cors_enabled.unwrap_or(false) {
+        opts.cors_allow_origin.clone()
+    } else {
+        None
+    };
     let object_store = opts.object_store_backend();
 
     match object_store {
@@ -29,10 +34,12 @@ async fn main() {
             return;
         }
         Ok(object_store) => {
-            tracing::info!("Starting ❄️🏠 IceHut...");
+            tracing::info!("Starting 🧊🪣 IceBucket...");
 
-            if let Err(e) = nexus::run_icehut(object_store, slatedb_prefix, host, port).await {
-                tracing::error!("Failed to start IceHut: {:?}", e);
+            if let Err(e) =
+                nexus::run_icebucket(object_store, slatedb_prefix, host, port, allow_origin).await
+            {
+                tracing::error!("Failed to start IceBucket: {:?}", e);
             }
         }
     }

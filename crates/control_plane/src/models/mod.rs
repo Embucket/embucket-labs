@@ -168,13 +168,8 @@ impl StorageProfile {
         self.updated_at = Utc::now().naive_utc();
     }
 
-    /// Returns the get base url of this [`StorageProfile`].
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if the cloud platform isn't supported.
-    pub fn get_base_url(&self) -> ControlPlaneModelResult<String> {
-        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
+    pub fn use_file_system_instead_of_cloud() -> ControlPlaneModelResult<bool> {
+        env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
             .unwrap_or_else(|_| "true".to_string())
             .parse::<bool>()
             .map_err(
@@ -182,8 +177,16 @@ impl StorageProfile {
                     key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
                     source: Box::new(e),
                 },
-            )?;
-        if use_file_system_instead_of_cloud {
+            )
+    }
+
+    /// Returns the get base url of this [`StorageProfile`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the cloud platform isn't supported.
+    pub fn get_base_url(&self) -> ControlPlaneModelResult<String> {
+        if Self::use_file_system_instead_of_cloud()? {
             let current_directory = env::current_dir()
                 .map_err(|_| ControlPlaneModelError::InvalidDirectory {
                     directory: ".".to_string(),
@@ -210,7 +213,11 @@ impl StorageProfile {
     }
 
     pub fn get_object_store_endpoint_url(&self) -> ControlPlaneModelResult<Url> {
-        let storage_endpoint_url = self.endpoint.clone().unwrap_or_default();
+        let storage_endpoint_url = if Self::use_file_system_instead_of_cloud().unwrap_or(false) {
+            &"file://".to_string()
+        } else {
+            &self.get_base_url()?
+        };
         Url::parse(storage_endpoint_url.as_str()).context(error::InvalidEndpointUrlSnafu {
             url: storage_endpoint_url,
         })
@@ -218,18 +225,7 @@ impl StorageProfile {
 
     // This is needed to initialize the catalog used in JanKaul code
     pub fn get_object_store_builder(&self) -> ControlPlaneModelResult<ObjectStoreBuilder> {
-        let use_file_system_instead_of_cloud = env::var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD")
-            .context(error::MissingEnvironmentVariableSnafu {
-                var: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
-            })?
-            .parse::<bool>()
-            .map_err(
-                |e| error::ControlPlaneModelError::UnableToParseConfiguration {
-                    key: "USE_FILE_SYSTEM_INSTEAD_OF_CLOUD".to_string(),
-                    source: Box::new(e),
-                },
-            )?;
-        if use_file_system_instead_of_cloud {
+        if Self::use_file_system_instead_of_cloud()? {
             // Here we initialise filesystem object store without root directory, because this code is used
             // by our catalog when we read metadata from the table - paths are absolute
             // In get_object_store function we are using the root directory

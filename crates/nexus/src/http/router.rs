@@ -2,7 +2,6 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use std::fs;
 use tower_http::catch_panic::CatchPanicLayer;
-use tower_http::cors::{Any, CorsLayer};
 use utoipa::openapi::{self};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -69,12 +68,7 @@ pub fn create_app(state: AppState) -> Router {
         .route("/telemetry/send", post(|| async { Json("OK") }))
         .layer(TimeoutLayer::new(std::time::Duration::from_secs(1200)))
         .layer(CatchPanicLayer::new())
-        .layer(
-            CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods(Any)
-                .allow_headers(Any),
-        )
+        //.layer(super::layers::make_cors_middleware(allow_origin.unwrap_or("*".to_string())))
         .with_state(state)
 }
 

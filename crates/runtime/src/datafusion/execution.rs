@@ -1,7 +1,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
-use super::error::{self as ih_error, IcehutSQLError, IcehutSQLResult};
+use super::error::{self as ih_error, IceBucketSQLError, IceBucketSQLResult};
 use crate::datafusion::functions::register_udfs;
 use crate::datafusion::planner::ExtendedSqlToRel;
 use crate::datafusion::session::SessionParams;
@@ -35,7 +35,7 @@ use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType,
-    Query as AstQuery, Select, SelectItem,
+    Query as AstQuery, Select, SelectItem, Use,
 };
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
@@ -50,7 +50,7 @@ pub struct SqlExecutor {
 }
 
 impl SqlExecutor {
-    pub fn new(mut ctx: SessionContext) -> IcehutSQLResult<Self> {
+    pub fn new(mut ctx: SessionContext) -> IceBucketSQLResult<Self> {
         register_udfs(&mut ctx).context(ih_error::RegisterUDFSnafu)?;
         register_all(&mut ctx).context(ih_error::RegisterUDFSnafu)?;
         let enable_ident_normalization = ctx.enable_ident_normalization();
@@ -71,8 +71,7 @@ impl SqlExecutor {
         &self,
         query: &str,
         warehouse_name: &str,
-        warehouse_location: &str,
-    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+    ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         // Update query to use custom JSON functions
         let query = self.preprocess_query(query);
         let statement = self
@@ -89,8 +88,56 @@ impl SqlExecutor {
         // etc
         if let DFStatement::Statement(s) = statement {
             match *s {
-                Statement::AlterSession { .. } => {
-                    return Box::pin(self.alter_session_query(*s)).await;
+                Statement::AlterSession {
+                    set,
+                    session_params,
+                } => {
+                    let params = session_params
+                        .options
+                        .into_iter()
+                        .map(|v| (v.option_name, v.value))
+                        .collect();
+                    return self.set_session_variable(set, params);
+                }
+                Statement::Use(entity) => {
+                    let (variable, value) = match entity {
+                        Use::Catalog(n) => ("catalog", n.to_string()),
+                        Use::Schema(n) => ("schema", n.to_string()),
+                        Use::Database(n) => ("database", n.to_string()),
+                        Use::Warehouse(n) => ("warehouse", n.to_string()),
+                        Use::Role(n) => ("role", n.to_string()),
+                        Use::Object(n) => ("object", n.to_string()),
+                        Use::SecondaryRoles(sr) => ("secondary_roles", sr.to_string()),
+                        Use::Default => ("", String::new()),
+                    };
+                    if variable.is_empty() | value.is_empty() {
+                        return Err(IceBucketSQLError::DataFusion {
+                            source: DataFusionError::NotImplemented(
+                                "Only USE with variables are supported".to_string(),
+                            ),
+                        });
+                    }
+                    let params = HashMap::from([(variable.to_string(), value)]);
+                    return self.set_session_variable(true, params);
+                }
+                Statement::SetVariable {
+                    variables, value, ..
+                } => {
+                    let keys = variables.iter().map(ToString::to_string);
+                    let values: Result<Vec<_>, IceBucketSQLError> = value
+                        .iter()
+                        .map(|v| match v {
+                            Expr::Identifier(_) | Expr::Value(_) => Ok(v.to_string()),
+                            _ => Err(IceBucketSQLError::DataFusion {
+                                source: DataFusionError::NotImplemented(
+                                    "Only primitive statements are supported".to_string(),
+                                ),
+                            }),
+                        })
+                        .collect();
+                    let values = values?;
+                    let params = keys.into_iter().zip(values.into_iter()).collect();
+                    return self.set_session_variable(true, params);
                 }
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s, warehouse_name)).await;
@@ -187,45 +234,38 @@ impl SqlExecutor {
             .replace("FROM @~/", "FROM ")
     }
 
-    #[allow(clippy::unused_async)]
-    pub async fn alter_session_query(
+    pub fn set_session_variable(
         &self,
-        statement: Statement,
-    ) -> IcehutSQLResult<Vec<RecordBatch>> {
-        if let Statement::AlterSession {
-            set,
-            session_params,
-        } = statement
-        {
-            let state = self.ctx.state_ref();
-            let mut write = state.write();
-            let config = write
-                .config_mut()
-                .options_mut()
-                .extensions
-                .get_mut::<SessionParams>();
-            if let Some(cfg) = config {
-                let params = session_params
-                    .options
-                    .iter()
-                    .map(|v| (v.option_name.clone(), v.value.clone()))
-                    .collect::<HashMap<_, _>>();
-                if set {
-                    cfg.set_properties(params)
-                        .context(ih_error::DataFusionSnafu)?;
-                } else {
-                    cfg.remove_properties(params)
-                        .context(ih_error::DataFusionSnafu)?;
-                }
+        set: bool,
+        params: HashMap<String, String>,
+    ) -> IceBucketSQLResult<Vec<RecordBatch>> {
+        let state = self.ctx.state_ref();
+        let mut write = state.write();
+        let config = write
+            .config_mut()
+            .options_mut()
+            .extensions
+            .get_mut::<SessionParams>();
+        if let Some(cfg) = config {
+            if set {
+                cfg.set_properties(params)
+                    .context(ih_error::DataFusionSnafu)?;
+            } else {
+                cfg.remove_properties(params)
+                    .context(ih_error::DataFusionSnafu)?;
             }
-            Ok(vec![])
-        } else {
-            Err(IcehutSQLError::DataFusion {
-                source: DataFusionError::NotImplemented(
-                    "Only ALTER SESSION statements are supported".to_string(),
-                ),
-            })
         }
+        Ok(vec![])
+    }
+
+    #[must_use]
+    pub fn get_session_variable(&self, variable: &str) -> Option<String> {
+        let state = self.ctx.state();
+        let config = state.config().options().extensions.get::<SessionParams>();
+        if let Some(cfg) = config {
+            return cfg.properties.get(variable).cloned();
+        }
+        None
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
@@ -234,7 +274,7 @@ impl SqlExecutor {
         &self,
         statement: Statement,
         warehouse_name: &str,
-    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+    ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
             let mut new_table_full_name = create_table_statement.name.to_string();
             let mut ident = create_table_statement.name.0;
@@ -246,7 +286,7 @@ impl SqlExecutor {
             let new_table_db = &ident[1..ident.len() - 1];
             let new_table_name = ident
                 .last()
-                .ok_or(ih_error::IcehutSQLError::InvalidIdentifier {
+                .ok_or(ih_error::IceBucketSQLError::InvalidIdentifier {
                     ident: new_table_full_name.clone(),
                 })?
                 .clone();
@@ -296,12 +336,12 @@ impl SqlExecutor {
             // For now we behave as CREATE OR REPLACE
             // TODO support CREATE without REPLACE
             let catalog = self.ctx.catalog(warehouse_name).ok_or(
-                ih_error::IcehutSQLError::WarehouseNotFound {
+                ih_error::IceBucketSQLError::WarehouseNotFound {
                     name: warehouse_name.to_string(),
                 },
             )?;
             let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().ok_or(
-                ih_error::IcehutSQLError::IcebergCatalogNotFound {
+                ih_error::IceBucketSQLError::IcebergCatalogNotFound {
                     warehouse_name: warehouse_name.to_string(),
                 },
             )?;
@@ -360,7 +400,7 @@ impl SqlExecutor {
 
             created_entity_response().context(ih_error::ArrowSnafu)
         } else {
-            Err(super::error::IcehutSQLError::DataFusion {
+            Err(super::error::IceBucketSQLError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only CREATE TABLE statements are supported".to_string(),
                 ),
@@ -378,7 +418,7 @@ impl SqlExecutor {
     pub async fn create_stage_query(
         &self,
         statement: Statement,
-    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+    ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         if let Statement::CreateStage {
             name,
             stage_params,
@@ -389,7 +429,7 @@ impl SqlExecutor {
             let table_name = name
                 .0
                 .last()
-                .ok_or_else(|| IcehutSQLError::InvalidIdentifier {
+                .ok_or_else(|| IceBucketSQLError::InvalidIdentifier {
                     ident: name.to_string(),
                 })?
                 .clone();
@@ -415,10 +455,11 @@ impl SqlExecutor {
                 .unwrap_or(b'"');
 
             let file_path = stage_params.url.unwrap_or_default();
-            let url =
-                Url::parse(file_path.as_str()).map_err(|_| IcehutSQLError::InvalidIdentifier {
+            let url = Url::parse(file_path.as_str()).map_err(|_| {
+                IceBucketSQLError::InvalidIdentifier {
                     ident: file_path.clone(),
-                })?;
+                }
+            })?;
             let bucket = url.host_str().unwrap_or_default();
             // TODO Prepare object storage depending on the URL
             let s3 = AmazonS3Builder::from_env()
@@ -426,7 +467,7 @@ impl SqlExecutor {
                 .with_region("eu-central-1")
                 .with_bucket_name(bucket)
                 .build()
-                .map_err(|_| IcehutSQLError::InvalidIdentifier {
+                .map_err(|_| IceBucketSQLError::InvalidIdentifier {
                     ident: bucket.to_string(),
                 })?;
 
@@ -471,7 +512,7 @@ impl SqlExecutor {
                 .context(ih_error::DataFusionSnafu)?;
             Ok(vec![])
         } else {
-            Err(IcehutSQLError::DataFusion {
+            Err(IceBucketSQLError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only CREATE STAGE statements are supported".to_string(),
                 ),
@@ -483,7 +524,7 @@ impl SqlExecutor {
         &self,
         statement: Statement,
         warehouse_name: &str,
-    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+    ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         if let Statement::CopyIntoSnowflake {
             into, from_stage, ..
         } = statement
@@ -494,7 +535,7 @@ impl SqlExecutor {
             self.execute_with_custom_plan(&insert_query, warehouse_name)
                 .await
         } else {
-            Err(IcehutSQLError::DataFusion {
+            Err(IceBucketSQLError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only COPY INTO statements are supported".to_string(),
                 ),
@@ -507,7 +548,7 @@ impl SqlExecutor {
         &self,
         statement: Statement,
         warehouse_name: &str,
-    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+    ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         if let Statement::Merge {
             table,
             mut source,
@@ -582,7 +623,7 @@ impl SqlExecutor {
             self.execute_with_custom_plan(&insert_query, warehouse_name)
                 .await
         } else {
-            Err(super::error::IcehutSQLError::DataFusion {
+            Err(super::error::IceBucketSQLError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only MERGE statements are supported".to_string(),
                 ),
@@ -595,7 +636,7 @@ impl SqlExecutor {
         &self,
         query: &str,
         warehouse_name: &str,
-    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+    ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
         let transformed = plan
             .transform(iceberg_transform)
@@ -618,14 +659,14 @@ impl SqlExecutor {
         warehouse_name: &str,
         name: SchemaName,
         if_not_exists: bool,
-    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+    ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         match name {
             SchemaName::Simple(schema_name) => {
                 self.create_database(warehouse_name, schema_name.clone(), if_not_exists)
                     .await?;
             }
             _ => {
-                return Err(super::error::IcehutSQLError::DataFusion {
+                return Err(super::error::IceBucketSQLError::DataFusion {
                     source: DataFusionError::NotImplemented(
                         "Only simple schema names are supported".to_string(),
                     ),
@@ -640,7 +681,7 @@ impl SqlExecutor {
         _warehouse_name: &str,
         name: ObjectName,
         _if_not_exists: bool,
-    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+    ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         // Parse name into catalog (warehouse) name and schema name
         let (warehouse_name, schema_name) = match name.0.len() {
             2 => (
@@ -648,7 +689,7 @@ impl SqlExecutor {
                 self.ident_normalizer.normalize(name.0[1].clone()),
             ),
             _ => {
-                return Err(IcehutSQLError::DataFusion {
+                return Err(IceBucketSQLError::DataFusion {
                     source: DataFusionError::NotImplemented(
                         "Only two-part names are supported".to_string(),
                     ),
@@ -658,12 +699,12 @@ impl SqlExecutor {
 
         // TODO: Abstract the Iceberg catalog
         let catalog = self.ctx.catalog(&warehouse_name).ok_or(
-            ih_error::IcehutSQLError::WarehouseNotFound {
+            ih_error::IceBucketSQLError::WarehouseNotFound {
                 name: warehouse_name.to_string(),
             },
         )?;
         let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().ok_or(
-            ih_error::IcehutSQLError::IcebergCatalogNotFound {
+            ih_error::IceBucketSQLError::IcebergCatalogNotFound {
                 warehouse_name: warehouse_name.to_string(),
             },
         )?;
@@ -687,7 +728,7 @@ impl SqlExecutor {
         &self,
         query: &str,
         warehouse_name: &str,
-    ) -> IcehutSQLResult<LogicalPlan> {
+    ) -> IceBucketSQLResult<LogicalPlan> {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let mut statement = state
@@ -733,7 +774,7 @@ impl SqlExecutor {
                             .table(&table)
                             .await
                             .context(super::error::DataFusionSnafu)?
-                            .ok_or(IcehutSQLError::TableProviderNotFound {
+                            .ok_or(IceBucketSQLError::TableProviderNotFound {
                                 table_name: table.clone(),
                             })?;
                         let resolved = state.resolve_table_ref(TableReference::full(
@@ -754,7 +795,7 @@ impl SqlExecutor {
                 .sql_statement_to_plan(*s)
                 .context(super::error::DataFusionSnafu)
         } else {
-            Err(super::error::IcehutSQLError::DataFusion {
+            Err(super::error::IceBucketSQLError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only SQL statements are supported".to_string(),
                 ),
@@ -767,7 +808,7 @@ impl SqlExecutor {
         &self,
         query: &str,
         warehouse_name: &str,
-    ) -> IcehutSQLResult<Vec<RecordBatch>> {
+    ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
         self.ctx
             .execute_logical_plan(plan)
