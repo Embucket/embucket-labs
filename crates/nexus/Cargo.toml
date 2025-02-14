@@ -12,9 +12,13 @@ arrow = { version = "54.1.0" }
 async-trait = { workspace = true }
 axum = { workspace = true }
 axum-macros = { workspace = true }
+base64 = { version = "0.22.1" }
 catalog = { path = "../catalog" }
 chrono = { workspace = true }
 control_plane = { path = "../control_plane" }
+
+datafusion = { workspace = true }
+datafusion-common = { workspace = true }
 flate2 = { version = "1.0.34" }
 http = "1.2.0"
 http-body-util = "0.1.0"
@@ -55,10 +59,6 @@ utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 uuid = { workspace = true, features = ["v4", "v5"] }
 validator = { version = "0.18.1", features = ["derive"] }
-base64 = { version = "0.22.1" }
-
-datafusion = { workspace = true }
-datafusion-common = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }

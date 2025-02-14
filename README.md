@@ -1,123 +1,159 @@
-# About 
+# 🧊🪣 IceBucket: A Snowflake-Compatible Lakehouse Platform  
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+IceBucket is an **Apache-Licensed**, **Snowflake-compatible** lakehouse platform designed with **openness** and **standardization** in mind. It provides a **Snowflake-compatible API**, supports **Iceberg REST catalogs**, and runs with **zero-disk architecture**—all in a lightweight, easy-to-deploy package.  
 
-This is Embucket: an Apache-Licensed Snowflake compatible lakehouse platform built on principles of opennes and standardization. 
+## 🚀 Quickstart  
 
-# Quickstart
-
-A docker image is available on [quay.io](https://quay.io/repository/embucket/embucket). This preconfigured image demonstrates how to use Embucket.
+Get started with IceBucket in minutes using our pre-built **Docker image** available on [Quay.io](https://quay.io/repository/embucket/embucket).  
 
 ```sh
 docker pull quay.io/embucket/embucket:latest
-docker run embucket/embucket:latest
+docker run -p 8888:8888 -p 3000:3000 quay.io/embucket/embucket:latest
 ```
 
-After starting the container, open your browser and navigate to [localhost:8888](localhost:8888) to view the UI. 
-The Iceberg REST catalog API is accessible at [localhost:3000/catalog](localhost:3000/catalog).
+Once the container is running, open:  
 
-# Features
+- **[localhost:8888](http://localhost:8888)** → UI Dashboard  
+- **[localhost:3000/catalog](http://localhost:3000/catalog)** → Iceberg REST Catalog API  
 
- * Snowflake on-the-wire compatible API
- * Snowflake SQL syntax compatible query engine
- * Zero-disk architecture: bucket is all you need
- * Iceberg REST catalog API
- * (upcoming) Table maintenance
+## ✨ Features  
 
-# Demo
+- ✅ **Snowflake-compatible** API & SQL syntax  
+- ⚡ **Iceberg REST Catalog API**  
+- 🛠️ **Zero-disk** architecture—no separate storage layer required  
+- 🔄 **Upcoming**: Table maintenance  
 
-In this demo, we show how to use Embucket to execute the `snowplow_web` dbt project, with Snowflake serving as the target database.
+## 📽️ Demo: Running dbt with IceBucket  
 
-### Install Embucket
+This demo showcases how to use IceBucket with **dbt** and execute the `snowplow_web` dbt project, treating IceBucket as a Snowflake-compatible database.
+
+Prerequisites:
+* Install Rust (https://www.rust-lang.org/tools/install)
+* Install Python (https://www.python.org/downloads/)
+* Install our test dataset (REDACTED, seriously though github probaly won't allow big files)
+* Install virtualenv (https://virtualenv.pypa.io/en/latest/)
+* (Optional) Install NodeJS LTS (https://nodejs.org/en/download)
+* (Optional) Install PNPM (https://pnpm.io/installation)
+
+### 🛠 Install Embucket  
 
 ```sh
-# Download and build embucket binary
-git checkout git@github.com:Embucket/control-plane-v2.git
+# Clone and build the IceBucket binary
+git clone git@github.com:Embucket/control-plane-v2.git
 cd control-plane-v2/
 cargo build
 ```
 
-### Configure and run Embucket
+### ⚙️ Configure and Run Embucket  
 
-One can configure embucket binary specifing arguments on the cli or passing as environment variables:
+You can configure Embucket via **CLI arguments** or **environment variables**:
 
 ```sh
+# Create a .env configuration file
 cat << EOF > .env
-# Slatedb
-OBJECT_STORE_BACKEND=file
+# SlateDB storage settings
+OBJECT_STORE_BACKEND=memory
 FILE_STORAGE_PATH=data
 SLATEDB_PREFIX=sdb
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
+
+# Optional: AWS S3 storage (leave blank if using local storage)
+AWS_ACCESS_KEY_ID="1"
+AWS_SECRET_ACCESS_KEY="2"
 AWS_REGION=
 S3_BUCKET=
 S3_ALLOW_HTTP=
 
-# Iceberg Catalog
-USE_FILE_SYSTEM_INSTEAD_OF_CLOUD=false
-CONTROL_PLANE_URL=http://127.0.0.1
+# Iceberg Catalog settings
+USE_FILE_SYSTEM_INSTEAD_OF_CLOUD=true
+CONTROL_PLANE_URL=http://127.0.0.1:3000
+
+# Dialect
+SQL_PARSER_DIALECT=snowflake
 EOF
 
-# Optional - embucket binary reads `.env` automatically
+# Load environment variables (optional)
 export $(grep -v '^#' .env | xargs)
 
-# Run the embucket
-./target/debug/nexus
+# Start Embucket
+./target/debug/bucketd
 ```
 
-### (Optional) Configure and run UI
+### 🎨 (Optional) Configure and Run the UI  
+
+To enable the web-based UI, run:  
 
 ```sh
+# (UI setup instructions go here)
+cp .env.example .env
+
+pnpm i
+
+pnpm codegen
+
+pnpm dev
+
+open http://localhost:5173
 ```
 
-### Prepare source data for snowplow
+**Note**: `bucketd` must be run with `--cors-enabled` and `--cors-allow-origin=http://localhost:5173` in order for the UI to be able to authenticate properly.
+
+### 🔄 Run dbt Workflow  
 
 ```sh
-# Download dbt project with snowplow package installed
-git checkout git@github.com:Embucket/compatibility-test-suite.git
+# Clone the dbt project with Snowplow package installed
+git clone git@github.com:Embucket/compatibility-test-suite.git
 cd compatibility-test-suite/dbt-snowplow/
 
-# Install dbt and snowflake connector
+# Set up a virtual environment and install dependencies
 virtualenv .venv
-. .venv/bin/activate
+source .venv/bin/activate
 pip install dbt-core dbt-snowflake
 
+# Activate virtual environment
+source .venv/bin/activate
 
-# Use local minio as object storage
-docker run -d --rm --name minio -p 9001:9001 -p 9000:9000 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio server --console-address :9001 /data
-aws --endpoint-url http://localhost:9000 s3api create-bucket --bucket bucket
-
-# Create embucket warehouse and cloud storage profile
-http localhost:3000/v1/storage-profile type=aws region=us-east-2 bucket=bucket credentials:='{"credential_type":"access_key","aws_access_key_id":"minioadmin","aws_secret_access_key":"minioadmin"}' endpoint='http://localhost:9000'
-http localhost:3000/v1/warehouse storage_profile_id=<storage-profile-id> prefix= name=snowplow
-
-# Create Iceberg namespace 
-http localhost:3000/catalog/v1/<warehouse-id>/namespaces namespace:='["public"]'
-
-
-```
-
-### Run dbt workflow
-
-```sh
-cd compatibility-test-suite/dbt-snowplow/
-
-# Activate virtual env
-. .venv/bin/activate
-
-# Setup snowflake variables
+# Set Snowflake-like environment variables
 export SNOWFLAKE_USER=user
 export SNOWFLAKE_PASSWORD=xxx
 export SNOWFLAKE_DB=snowplow
+export SNOWFLAKE_SCHEMA=public
+export SNOWFLAKE_WAREHOUSE=snowplow
 
-# Install snowplow_web dbt package
+# Install the dbt Snowplow package
 dbt deps
+
+# Upload source data
+python3 upload.py
+
 # Upload initial data
 dbt seed
-# Upload source data
-...
 
-# Run dbt workflow
+# Run dbt transformations
 dbt run
 ```
+
+---
+
+## 🤝 Contributing  
+
+We welcome contributions! To get involved:  
+
+1. **Fork** the repository on GitHub  
+2. **Create** a new branch for your feature or bug fix  
+3. **Submit** a pull request with a detailed description  
+
+For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).  
+
+## 📜 License  
+
+This project is licensed under the **Apache 2.0 License**. See [LICENSE](LICENSE) for details.  
+
+---
+
+### 🔗 Useful Links  
+
+- 📖 [Official Documentation](https://github.com/Embucket/docs)  
+- 🐛 [Report Issues](https://github.com/Embucket/icebucket/issues)  
+- 💬 [Join the Community](https://github.com/Embucket/control-plane-v2/discussions)  

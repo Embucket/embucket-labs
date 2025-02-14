@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(version, about, long_about=None)]
-pub struct IceHutOpts {
+pub struct IceBucketOpts {
     #[arg(
         short,
         long,
@@ -65,12 +65,13 @@ pub struct IceHutOpts {
     )]
     allow_http: Option<bool>,
 
-    #[arg(long, env="FILE_STORAGE_PATH", 
-            required_if_eq("backend", "file"),
-            conflicts_with_all(["region", "bucket", "endpoint", "allow_http"]),
-            help_heading="File Backend Options",
-            help="Path to the directory where files will be stored"
-        )]
+    #[arg(
+        long,
+        env = "FILE_STORAGE_PATH",
+        required_if_eq("backend", "file"),
+        help_heading = "File Backend Options",
+        help = "Path to the directory where files will be stored"
+    )]
     file_storage_path: Option<PathBuf>,
 
     #[arg(short, long, env = "SLATEDB_PREFIX")]
@@ -78,7 +79,7 @@ pub struct IceHutOpts {
 
     #[arg(
         long,
-        env = "ICEHUT_HOST",
+        env = "BUCKET_HOST",
         default_value = "127.0.0.1",
         help = "Host to bind to"
     )]
@@ -86,7 +87,7 @@ pub struct IceHutOpts {
 
     #[arg(
         long,
-        env = "ICEHUT_PORT",
+        env = "BUCKET_PORT",
         default_value = "3000",
         help = "Port to bind to"
     )]
@@ -119,7 +120,7 @@ enum StoreBackend {
     Memory,
 }
 
-impl IceHutOpts {
+impl IceBucketOpts {
     #[allow(clippy::unwrap_used, clippy::as_conversions)]
     pub fn object_store_backend(self) -> ObjectStoreResult<Box<dyn ObjectStore>> {
         // TODO: Hacky workaround for now, need to figure out a better way to pass this

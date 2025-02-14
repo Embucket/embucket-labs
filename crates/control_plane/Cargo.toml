@@ -16,14 +16,14 @@ chrono = { workspace = true }
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }
 datafusion-expr = { workspace = true }
-datafusion-physical-plan = { workspace = true }
-iceberg-rust = { workspace = true }
-iceberg-rest-catalog = { workspace = true }
-datafusion_iceberg = { workspace = true }
 datafusion-functions-json = { workspace = true }
+datafusion-physical-plan = { workspace = true }
+datafusion_iceberg = { workspace = true }
 
 flatbuffers = { version = "24.3.25" }
 futures = { workspace = true }
+iceberg-rest-catalog = { workspace = true }
+iceberg-rust = { workspace = true }
 
 icelake = { git = "https://github.com/Embucket/icelake.git", rev = "b4cbcaf" }
 

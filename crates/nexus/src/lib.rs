@@ -28,7 +28,7 @@ pub mod http;
 pub mod state;
 
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
-pub async fn run_icehut(
+pub async fn run_icebucket(
     state_store: Box<dyn ObjectStore>,
     slatedb_prefix: String,
     host: String,

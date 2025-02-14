@@ -4,7 +4,7 @@ use snafu::prelude::*;
 use super::schemas::JsonResponse;
 use arrow::error::ArrowError;
 use control_plane::error::ControlPlaneError;
-use runtime::datafusion::error::IcehutSQLError;
+use runtime::datafusion::error::IceBucketSQLError;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
@@ -55,8 +55,8 @@ impl IntoResponse for DbtError {
         let status_code = match &self {
             Self::ControlService { source } => match source {
                 ControlPlaneError::Execution { source, .. } => match source {
-                    IcehutSQLError::DataFusion { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
-                    IcehutSQLError::Arrow { .. } => http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                    IceBucketSQLError::DataFusion { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
+                    IceBucketSQLError::Arrow { .. } => http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
                     _ => http::StatusCode::INTERNAL_SERVER_ERROR,
                 },
                 // SQL errors,
@@ -117,17 +117,18 @@ mod tests {
     use axum::response::IntoResponse;
     use control_plane::error::ControlPlaneError;
     use datafusion::error::DataFusionError;
-    use runtime::datafusion::error::IcehutSQLError;
+    use runtime::datafusion::error::IceBucketSQLError;
     use uuid::Uuid;
 
+    // TODO: Replace these with snapshot tests
     #[test]
     fn test_http_server_response() {
         assert_ne!(
             http::StatusCode::INTERNAL_SERVER_ERROR,
             DbtError::ControlService {
                 source: ControlPlaneError::Execution {
-                    source: IcehutSQLError::Arrow {
-                        source: ArrowError::ComputeError { 0: String::new() }
+                    source: IceBucketSQLError::Arrow {
+                        source: ArrowError::ComputeError(String::new())
                     }
                 },
             }
@@ -138,8 +139,8 @@ mod tests {
             http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
             DbtError::ControlService {
                 source: ControlPlaneError::Execution {
-                    source: IcehutSQLError::Arrow {
-                        source: ArrowError::ComputeError { 0: String::new() }
+                    source: IceBucketSQLError::Arrow {
+                        source: ArrowError::ComputeError(String::new())
                     }
                 },
             }
@@ -150,9 +151,9 @@ mod tests {
             http::StatusCode::UNPROCESSABLE_ENTITY,
             DbtError::ControlService {
                 source: ControlPlaneError::Execution {
-                    source: IcehutSQLError::DataFusion {
+                    source: IceBucketSQLError::DataFusion {
                         source: DataFusionError::ArrowError(
-                            ArrowError::InvalidArgumentError { 0: String::new() },
+                            ArrowError::InvalidArgumentError(String::new()),
                             Some(String::new()),
                         )
                     },
@@ -193,7 +194,7 @@ mod tests {
                 source: ControlPlaneError::DataFusion {
                     // here just any error for test, since we are handling any DataFusion err
                     source: DataFusionError::ArrowError(
-                        ArrowError::InvalidArgumentError { 0: String::new() },
+                        ArrowError::InvalidArgumentError(String::new()),
                         Some(String::new()),
                     )
                 }
