@@ -93,6 +93,22 @@ pub struct IceBucketOpts {
     )]
     pub port: Option<u16>,
 
+    #[arg(
+        long,
+        env = "CORS_ENABLED",
+        help = "Enable CORS",
+        default_value = "false"
+    )]
+    pub cors_enabled: Option<bool>,
+
+    #[arg(
+        long,
+        env = "CORS_ALLOW_ORIGIN",
+        required_if_eq("cors_enabled", "true"),
+        help = "CORS Allow Origin"
+    )]
+    pub cors_allow_origin: Option<String>,
+
     #[arg(long, default_value = "true")]
     use_fs: Option<bool>,
 }

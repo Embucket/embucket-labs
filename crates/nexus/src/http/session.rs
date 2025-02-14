@@ -1,7 +1,6 @@
-use axum::{extract::FromRequestParts, response::IntoResponse};
+use axum::extract::FromRequestParts;
 use control_plane::service::ControlService;
 use http::request::Parts;
-use snafu::prelude::*;
 use snafu::ResultExt;
 use std::{collections::HashMap, sync::Arc};
 use time::OffsetDateTime;
@@ -10,6 +9,8 @@ use tower_sessions::{
     session::{Id, Record},
     session_store, ExpiredDeletion, Session, SessionStore,
 };
+
+use super::error::{self as nexus_http_error, NexusHttpError};
 
 pub type RequestSessionMemory = Arc<Mutex<HashMap<Id, Record>>>;
 
@@ -126,27 +127,6 @@ impl std::fmt::Debug for RequestSessionStore {
     }
 }
 
-#[derive(Snafu, Debug)]
-pub enum SessionError {
-    #[snafu(display("Session load error: {msg}"))]
-    SessionLoad { msg: String },
-    #[snafu(display("Unable to persist session"))]
-    SessionPersist {
-        source: tower_sessions::session::Error,
-    },
-}
-
-impl IntoResponse for SessionError {
-    fn into_response(self) -> axum::response::Response {
-        tracing::error!("Session error: {}", self);
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            "Session error",
-        )
-            .into_response()
-    }
-}
-
 #[derive(Debug)]
 pub struct DFSessionId(pub String);
 
@@ -154,12 +134,12 @@ impl<S> FromRequestParts<S> for DFSessionId
 where
     S: Send + Sync,
 {
-    type Rejection = SessionError;
+    type Rejection = NexusHttpError;
 
     async fn from_request_parts(req: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let session = Session::from_request_parts(req, state).await.map_err(|e| {
             tracing::error!("Failed to get session: {}", e.1);
-            SessionError::SessionLoad {
+            NexusHttpError::SessionLoad {
                 msg: e.1.to_string(),
             }
         })?;
@@ -172,8 +152,11 @@ where
             session
                 .insert("DF_SESSION_ID", id.clone())
                 .await
-                .context(SessionPersistSnafu)?;
-            session.save().await.context(SessionPersistSnafu)?;
+                .context(nexus_http_error::SessionPersistSnafu)?;
+            session
+                .save()
+                .await
+                .context(nexus_http_error::SessionPersistSnafu)?;
             id
         };
         Ok(Self(session_id))

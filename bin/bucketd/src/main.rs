@@ -21,6 +21,11 @@ async fn main() {
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let host = opts.host.clone().unwrap();
     let port = opts.port.unwrap();
+    let allow_origin = if opts.cors_enabled.unwrap_or(false) {
+        opts.cors_allow_origin.clone()
+    } else {
+        None
+    };
     let object_store = opts.object_store_backend();
 
     match object_store {
@@ -31,7 +36,7 @@ async fn main() {
         Ok(object_store) => {
             tracing::info!("Starting 🧊🪣 IceBucket...");
 
-            if let Err(e) = nexus::run_icebucket(object_store, slatedb_prefix, host, port).await {
+            if let Err(e) = nexus::run_icebucket(object_store, slatedb_prefix, host, port, allow_origin).await {
                 tracing::error!("Failed to start IceBucket: {:?}", e);
             }
         }
