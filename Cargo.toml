@@ -41,10 +41,10 @@ datafusion-expr = { version = "45.0.0" }
 datafusion-physical-plan = { version = "45.0.0" }
 
 # do not change iceberg-rust, datafusion-functions-json hash commits unless datafusion version bumped
-datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "c4c043332d926e24103f7dcf121abd01975cd7c7" }
-iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "178678582d2717dfbe35ffe40391ab03e5d7a7ac" }
-iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "178678582d2717dfbe35ffe40391ab03e5d7a7ac" }
-datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "178678582d2717dfbe35ffe40391ab03e5d7a7ac" }
+datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "f2b9b88cd9b4282bc0286a970333e8c01cec177b" }
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a9da1c26cf5b0e91aba33e6088dd02ff67c32928" }
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a9da1c26cf5b0e91aba33e6088dd02ff67c32928" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a9da1c26cf5b0e91aba33e6088dd02ff67c32928" }
 
 [patch.crates-io]
 datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
