@@ -22,7 +22,7 @@ async fn main() {
     let host = opts.host.clone().unwrap();
     let port = opts.port.unwrap();
     let allow_origin = if opts.cors_enabled.unwrap_or(false) {
-        opts.allow_origin.clone()
+        opts.cors_allow_origin.clone()
     } else {
         None
     };

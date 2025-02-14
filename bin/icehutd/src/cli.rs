@@ -106,7 +106,7 @@ pub struct IceHutOpts {
         required_if_eq("cors_enabled", "true"),
         help = "CORS Allow Origin"
     )]
-    pub allow_origin: Option<String>,
+    pub cors_allow_origin: Option<String>,
 
     #[arg(long, default_value = "true")]
     use_fs: Option<bool>,
