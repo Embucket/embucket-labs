@@ -4,6 +4,12 @@ on:
     types: [ closed ]
     branches:
       - main
+    paths:
+      - crates/**
+      - bin/**
+      - Cargo.toml
+      - Cargo.lock
+      - Dockerfile
 env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: embucket/control-plane
