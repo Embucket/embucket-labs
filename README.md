@@ -1,12 +1,12 @@
-# Embucket: A Snowflake-Compatible Lakehouse Platform  
+# 🧊🪣 IceBucket: A Snowflake-Compatible Lakehouse Platform  
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Embucket is an **Apache-Licensed**, **Snowflake-compatible** lakehouse platform designed with **openness** and **standardization** in mind. It provides a **Snowflake-compatible API**, supports **Iceberg REST catalogs**, and runs with **zero-disk architecture**—all in a lightweight, easy-to-deploy package.  
+IceBucket is an **Apache-Licensed**, **Snowflake-compatible** lakehouse platform designed with **openness** and **standardization** in mind. It provides a **Snowflake-compatible API**, supports **Iceberg REST catalogs**, and runs with **zero-disk architecture**—all in a lightweight, easy-to-deploy package.  
 
 ## 🚀 Quickstart  
 
-Get started with Embucket in minutes using our pre-built **Docker image** available on [Quay.io](https://quay.io/repository/embucket/embucket).  
+Get started with IceBucket in minutes using our pre-built **Docker image** available on [Quay.io](https://quay.io/repository/embucket/embucket).  
 
 ```sh
 docker pull quay.io/embucket/embucket:latest
@@ -25,9 +25,9 @@ Once the container is running, open:
 - 🛠️ **Zero-disk** architecture—no separate storage layer required  
 - 🔄 **Upcoming**: Table maintenance  
 
-## 📽️ Demo: Running dbt with Embucket  
+## 📽️ Demo: Running dbt with IceBucket  
 
-This demo showcases how to use Embucket with **dbt** and execute the `snowplow_web` dbt project, treating Embucket as a Snowflake-compatible database.
+This demo showcases how to use IceBucket with **dbt** and execute the `snowplow_web` dbt project, treating IceBucket as a Snowflake-compatible database.
 
 Prerequisites:
 * Install Rust (https://www.rust-lang.org/tools/install)
@@ -40,7 +40,7 @@ Prerequisites:
 ### 🛠 Install Embucket  
 
 ```sh
-# Clone and build the Embucket binary
+# Clone and build the IceBucket binary
 git clone git@github.com:Embucket/control-plane-v2.git
 cd control-plane-v2/
 cargo build
@@ -77,7 +77,7 @@ EOF
 export $(grep -v '^#' .env | xargs)
 
 # Start Embucket
-./target/debug/nexus
+./target/debug/bucketd
 ```
 
 ### 🎨 (Optional) Configure and Run the UI  
@@ -94,8 +94,10 @@ pnpm codegen
 
 pnpm dev
 
-open http://localhost:3000
+open http://localhost:5173
 ```
+
+**Note**: `bucketd` must be run with `--cors-enabled` and `--cors-allow-origin=http://localhost:5173` in order for the UI to be able to authenticate properly.
 
 ### 🔄 Run dbt Workflow  
 
@@ -153,5 +155,5 @@ This project is licensed under the **Apache 2.0 License**. See [LICENSE](LICENSE
 ### 🔗 Useful Links  
 
 - 📖 [Official Documentation](https://github.com/Embucket/docs)  
-- 🐛 [Report Issues](https://github.com/Embucket/embucket/issues)  
-- 💬 [Join the Community](https://discord.gg/your-community-link)  
+- 🐛 [Report Issues](https://github.com/Embucket/icebucket/issues)  
+- 💬 [Join the Community](https://github.com/Embucket/control-plane-v2/discussions)  
