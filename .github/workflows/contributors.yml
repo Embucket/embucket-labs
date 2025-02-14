@@ -1,0 +1,29 @@
+name: Contributor report
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contributor_report:
+    name: contributor report
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Run contributor action
+        uses: github/contributors@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: Embucket/control-plane-v2
+          SPONSOR_INFO: "true"
+
+      - name: Create issue
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: Contributor report
+          token: ${{ secrets.GITHUB_TOKEN }}
+          content-filepath: ./contributors.md
+          assignees: slyons
