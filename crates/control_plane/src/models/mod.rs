@@ -124,7 +124,7 @@ impl StorageProfile {
                 if region.is_none() {
                     return Err(ControlPlaneModelError::InvalidBucketName {
                         bucket_name: String::new(),
-                        reason: "Bucket name is required".to_owned(),
+                        reason: "Region name is required".to_owned(),
                     });
                 }
 
@@ -494,5 +494,254 @@ impl ColumnInfo {
             _ => {}
         }
         column_info
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use arrow::datatypes::TimeUnit;
+
+    #[allow(clippy::unwrap_used)]
+    fn create_dummy_profile() -> StorageProfile {
+        StorageProfile::new(
+            CloudProvider::AWS,
+            Some("us-west-1".to_string()),
+            Some("bucket".to_string()),
+            Some(Credentials::AccessKey(AwsAccessKeyCredential {
+                aws_access_key_id: "access_key".to_string(),
+                aws_secret_access_key: "secret_key".to_string(),
+            })),
+            None,
+            None,
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn test_new_storage_profile_with_validation() {
+        let test_cases = vec![
+            (
+                CloudProvider::AWS,
+                None,
+                None,
+                None,
+                Err(ControlPlaneModelError::MissingCredentials {
+                    profile_type: "aws".to_string(),
+                }),
+            ),
+            (
+                CloudProvider::AWS,
+                None,
+                None,
+                Some(Credentials::AccessKey(AwsAccessKeyCredential {
+                    aws_access_key_id: "test_key".to_string(),
+                    aws_secret_access_key: "test_secret".to_string(),
+                })),
+                Err(ControlPlaneModelError::InvalidBucketName {
+                    bucket_name: String::new(),
+                    reason: "Region name is required".to_owned(),
+                }),
+            ),
+            (
+                CloudProvider::AWS,
+                Some("us-west-1".to_string()),
+                None,
+                Some(Credentials::AccessKey(AwsAccessKeyCredential {
+                    aws_access_key_id: "test_key".to_string(),
+                    aws_secret_access_key: "test_secret".to_string(),
+                })),
+                Err(ControlPlaneModelError::InvalidBucketName {
+                    bucket_name: String::new(),
+                    reason: "Bucket name is required".to_owned(),
+                }),
+            ),
+            (
+                CloudProvider::AWS,
+                Some("us-west-1".to_string()),
+                Some("short".to_string()),
+                None,
+                Err(ControlPlaneModelError::InvalidBucketName {
+                    bucket_name: "us".to_string(),
+                    reason: "Bucket name must be between 6 and 63 characters".to_owned(),
+                }),
+            ),
+            (
+                CloudProvider::AWS,
+                Some("us-west-1".to_string()),
+                Some("us!!_".to_string()),
+                None,
+                Err(ControlPlaneModelError::InvalidBucketName {
+                    bucket_name: "us!!_".to_string(),
+                    reason:
+                    "Bucket name must only contain alphanumeric characters, hyphens, or underscores"
+                        .to_owned(),
+                }),
+            ),
+            (
+                CloudProvider::AWS,
+                Some("us-west-1".to_string()),
+                Some("_invalid-bucket".to_string()),
+                Some(Credentials::AccessKey(AwsAccessKeyCredential {
+                    aws_access_key_id: "test_key".to_string(),
+                    aws_secret_access_key: "test_secret".to_string(),
+                })),
+                Err(ControlPlaneModelError::InvalidBucketName {
+                    bucket_name: "_invalid-bucket".to_string(),
+                    reason: "Bucket name must not start or end with a hyphen or underscore"
+                        .to_owned(),
+                }),
+            ),
+            (
+                CloudProvider::AWS,
+                Some("us-west-1".to_string()),
+                Some("valid-bucket".to_string()),
+                Some(Credentials::AccessKey(AwsAccessKeyCredential {
+                    aws_access_key_id: "test_key".to_string(),
+                    aws_secret_access_key: "test_secret".to_string(),
+                })),
+                Ok(()),
+            ),
+            (
+                CloudProvider::FS,
+                None,
+                None,
+                None,
+                Ok(()),
+            ),
+        ];
+        for (cloud_provider, region, bucket, credentials, expected) in test_cases {
+            let result = StorageProfile::new(
+                cloud_provider,
+                region.clone(),
+                bucket.clone(),
+                credentials.clone(),
+                None,
+                None,
+            );
+            assert_eq!(result.is_ok(), expected.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_update_storage_profile() {
+        let mut storage_profile = StorageProfile::default();
+        storage_profile.update(
+            Some("us-west-1".to_string()),
+            Some("new-bucket".to_string()),
+        );
+        assert_eq!(storage_profile.region, Some("us-west-1".to_string()));
+        assert_eq!(storage_profile.bucket, Some("new-bucket".to_string()));
+
+        storage_profile.update(Some("us-west-1".to_string()), Some("new".to_string()));
+        assert_eq!(storage_profile.bucket, Some("new-bucket".to_string()));
+    }
+
+    #[tokio::test]
+    #[allow(clippy::unwrap_used)]
+    async fn test_storage_profile_get_base_url() {
+        let mut sp = create_dummy_profile();
+        let base_url = sp.get_base_url().unwrap();
+        assert_eq!(base_url, "s3://bucket");
+
+        sp.r#type = CloudProvider::AZURE;
+        let base_url = sp.get_base_url();
+        assert!(base_url.is_err());
+
+        sp.r#type = CloudProvider::GCS;
+        let base_url = sp.get_base_url();
+        assert!(base_url.is_err());
+
+        sp.r#type = CloudProvider::FS;
+        let base_url = sp.get_base_url().unwrap();
+        assert!(base_url.starts_with("file://"));
+    }
+
+    #[tokio::test]
+    #[allow(clippy::unwrap_used)]
+    async fn test_storage_profile_get_object_store_endpoint_url() {
+        let sp = create_dummy_profile();
+        let endpoint_url = sp.get_object_store_endpoint_url().unwrap();
+        assert_eq!(endpoint_url.as_str(), "s3://bucket");
+
+        let sp = StorageProfile::default();
+        let endpoint_url = sp.get_object_store_endpoint_url().unwrap();
+        assert_eq!(endpoint_url.as_str(), "file:///");
+    }
+
+    #[tokio::test]
+    #[allow(clippy::unwrap_used)]
+    async fn test_column_info_from_field() {
+        let field = Field::new("test_field", DataType::Int8, false);
+        let column_info = ColumnInfo::from_field(&field);
+        assert_eq!(column_info.name, "test_field");
+        assert_eq!(column_info.r#type, "fixed");
+        assert!(!column_info.nullable);
+
+        let field = Field::new("test_field", DataType::Decimal128(1, 2), true);
+        let column_info = ColumnInfo::from_field(&field);
+        assert_eq!(column_info.name, "test_field");
+        assert_eq!(column_info.r#type, "fixed");
+        assert_eq!(column_info.precision.unwrap(), 1);
+        assert_eq!(column_info.scale.unwrap(), 2);
+        assert!(column_info.nullable);
+
+        let field = Field::new("test_field", DataType::Boolean, false);
+        let column_info = ColumnInfo::from_field(&field);
+        assert_eq!(column_info.name, "test_field");
+        assert_eq!(column_info.r#type, "boolean");
+
+        let field = Field::new("test_field", DataType::Time32(TimeUnit::Second), false);
+        let column_info = ColumnInfo::from_field(&field);
+        assert_eq!(column_info.name, "test_field");
+        assert_eq!(column_info.r#type, "time");
+        assert_eq!(column_info.precision.unwrap(), 0);
+        assert_eq!(column_info.scale.unwrap(), 9);
+
+        let field = Field::new("test_field", DataType::Date32, false);
+        let column_info = ColumnInfo::from_field(&field);
+        assert_eq!(column_info.name, "test_field");
+        assert_eq!(column_info.r#type, "date");
+
+        let field = Field::new(
+            "test_field",
+            DataType::Timestamp(TimeUnit::Second, None),
+            false,
+        );
+        let column_info = ColumnInfo::from_field(&field);
+        assert_eq!(column_info.name, "test_field");
+        assert_eq!(column_info.r#type, "timestamp_ntz");
+        assert_eq!(column_info.precision.unwrap(), 0);
+        assert_eq!(column_info.scale.unwrap(), 9);
+
+        let field = Field::new("test_field", DataType::Binary, false);
+        let column_info = ColumnInfo::from_field(&field);
+        assert_eq!(column_info.name, "test_field");
+        assert_eq!(column_info.r#type, "binary");
+        assert_eq!(column_info.byte_length.unwrap(), 8_388_608);
+        assert_eq!(column_info.length.unwrap(), 8_388_608);
+    }
+
+    #[tokio::test]
+    async fn test_to_metadata() {
+        let column_info = ColumnInfo {
+            name: "test_field".to_string(),
+            database: "test_db".to_string(),
+            schema: "test_schema".to_string(),
+            table: "test_table".to_string(),
+            nullable: false,
+            r#type: "fixed".to_string(),
+            byte_length: Some(8_388_608),
+            length: Some(8_388_608),
+            scale: Some(0),
+            precision: Some(38),
+            collation: None,
+        };
+        let metadata = column_info.to_metadata();
+        assert_eq!(metadata.get("logicalType"), Some(&"FIXED".to_string()));
+        assert_eq!(metadata.get("precision"), Some(&"38".to_string()));
+        assert_eq!(metadata.get("scale"), Some(&"0".to_string()));
+        assert_eq!(metadata.get("charLength"), Some(&"8388608".to_string()));
     }
 }
