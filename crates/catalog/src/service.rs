@@ -441,7 +441,6 @@ mod tests {
     use slatedb::config::DbOptions;
     use slatedb::db::Db as SlateDb;
     use std::env;
-    use std::fmt::format;
     use std::sync::Arc;
     use utils::Db;
     use uuid::Uuid;
