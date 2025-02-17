@@ -28,7 +28,7 @@ pub struct ApiDoc;
     post,
     path = "/ui/query",
     request_body = QueryPayload,
-    operation_id = "query",
+    operation_id = "runQuery",
     tags = ["query"],
     responses(
         (status = 200, description = "Returns result of the query", body = QueryResponse),

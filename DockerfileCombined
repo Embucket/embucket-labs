@@ -5,8 +5,9 @@ FROM node:lts AS frontend-builder
 RUN apt-get update && apt-get install -y openssh-client
 RUN mkdir -p -m 0600 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts
 WORKDIR /app
-ARG GITHUB_TOKEN
-RUN git clone https://${GITHUB_TOKEN}@github.com/Embucket/embucket.git .
+#ARG GITHUB_TOKEN
+RUN #git clone https://${GITHUB_TOKEN}@github.com/Embucket/embucket.git .
+RUN --mount=type=ssh git clone git@github.com:Embucket/embucket.git .
 RUN npm install -g pnpm
 RUN pnpm install
 
@@ -29,4 +30,4 @@ COPY --from=builder /app/rest-catalog-open-api.yaml rest-catalog-open-api.yaml
 COPY --from=frontend-builder /app ./frontend
 
 # Command to start both frontend and backend
-CMD ["sh", "-c", "./bucketd & cd ./frontend && pnpm codegen && pnpm dev"]
+CMD ["sh", "-c", "./bucketd & cd ./frontend && pnpm i && pnpm codegen && pnpm dev"]
