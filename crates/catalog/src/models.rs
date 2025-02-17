@@ -158,7 +158,7 @@ impl From<Table> for iceberg::TableIdent {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Copy)]
 pub struct WarehouseIdent(Uuid);
 
 impl From<Uuid> for WarehouseIdent {
@@ -212,5 +212,83 @@ impl Display for TableIdent {
 impl From<Database> for NamespaceIdent {
     fn from(db: Database) -> Self {
         db.ident.namespace
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    #[test]
+    fn test_warehouse_ident_display() {
+        let uuid = Uuid::new_v4();
+        let warehouse_ident = WarehouseIdent::new(uuid);
+        assert_eq!(format!("{warehouse_ident}"), uuid.to_string());
+    }
+
+    #[test]
+    fn test_database_ident_display() {
+        let namespaces = [
+            (
+                NamespaceIdent::new("test_namespace".to_string()),
+                "test_namespace",
+            ),
+            (
+                NamespaceIdent::from_vec(vec![
+                    "test_namespace_1".to_string(),
+                    "test_namespace_2".to_string(),
+                ])
+                .unwrap(),
+                "test_namespace_1.test_namespace_2",
+            ),
+        ];
+
+        for (namespace, expected) in namespaces.into_iter() {
+            let warehouse_ident = WarehouseIdent::new(Uuid::new_v4());
+            let database_ident = DatabaseIdent {
+                namespace: namespace.clone(),
+                warehouse: warehouse_ident,
+            };
+            assert_eq!(
+                format!("{database_ident}"),
+                format!("{warehouse_ident}.{expected}")
+            );
+        }
+    }
+
+    #[test]
+    fn test_table_ident_display() {
+        let namespaces = [
+            (
+                NamespaceIdent::new("test_namespace".to_string()),
+                "test_namespace",
+            ),
+            (
+                NamespaceIdent::from_vec(vec![
+                    "test_namespace_1".to_string(),
+                    "test_namespace_2".to_string(),
+                ])
+                .unwrap(),
+                "test_namespace_1.test_namespace_2",
+            ),
+        ];
+
+        for (namespace, expected) in namespaces.into_iter() {
+            let warehouse_ident = WarehouseIdent::new(Uuid::new_v4());
+            let database_ident = DatabaseIdent {
+                namespace: namespace.clone(),
+                warehouse: warehouse_ident,
+            };
+            let table_ident = TableIdent {
+                database: database_ident,
+                table: "test_table".to_string(),
+            };
+            assert_eq!(
+                format!("{table_ident}"),
+                format!("{warehouse_ident}.{expected}.test_table"),
+            );
+        }
     }
 }

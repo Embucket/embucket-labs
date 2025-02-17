@@ -305,6 +305,21 @@ impl StorageProfile {
     }
 }
 
+impl Default for StorageProfile {
+    fn default() -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            r#type: CloudProvider::FS,
+            region: None,
+            bucket: None,
+            credentials: None,
+            sts_role_arn: None,
+            endpoint: None,
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+        }
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct WarehouseCreateRequest {

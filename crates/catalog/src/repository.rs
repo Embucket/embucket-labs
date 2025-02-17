@@ -143,6 +143,41 @@ mod tests {
     use utils::Db;
     use uuid::Uuid;
 
+    async fn create_db() -> Db {
+        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+        let options = DbOptions::default();
+        Db::new(
+            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
+                .await
+                .unwrap(),
+        )
+    }
+
+    fn create_database() -> Database {
+        Database {
+            ident: DatabaseIdent {
+                warehouse: WarehouseIdent::new(Uuid::new_v4()),
+                namespace: NamespaceIdent::new("dbname".to_string()),
+            },
+            properties: HashMap::default(),
+        }
+    }
+
+    fn create_table() -> Table {
+        Table {
+            ident: TableIdent {
+                database: DatabaseIdent {
+                    warehouse: WarehouseIdent::new(Uuid::new_v4()),
+                    namespace: NamespaceIdent::new("dbname".to_string()),
+                },
+                table: "tblname".to_string(),
+            },
+            metadata_location: "s3://bucket/path".to_string(),
+            metadata: create_table_metadata(),
+            properties: HashMap::default(),
+        }
+    }
+
     fn create_table_metadata() -> TableMetadata {
         let data = r#"
             {
@@ -212,31 +247,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_table_repo() {
-        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
-        let options = DbOptions::default();
-        let db = Db::new(
-            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
-                .await
-                .unwrap(),
-        );
-
+    async fn test_put_table() {
+        let db = create_db().await;
         let repo = TableRepositoryDb::new(Arc::new(db));
-
-        let table = Table {
-            ident: TableIdent {
-                database: DatabaseIdent {
-                    warehouse: WarehouseIdent::new(Uuid::new_v4()),
-                    namespace: NamespaceIdent::new("dbname".to_string()),
-                },
-                table: "tblname".to_string(),
-            },
-            metadata_location: "s3://bucket/path".to_string(),
-            metadata: create_table_metadata(),
-            properties: HashMap::default(),
-        };
-
+        let table = create_table();
         repo.put(&table).await.expect("failed to create table");
+
         let list = repo
             .list(&table.ident.database)
             .await
@@ -253,10 +269,42 @@ mod tests {
             .await
             .expect("failed to list tables");
         assert_eq!(list.len(), 0);
+    }
 
-        let table_2 = repo.get(&table.ident).await.expect("failed to get table");
-        assert_eq!(table.ident, table_2.ident);
+    #[tokio::test]
+    async fn test_get_table() {
+        let db = create_db().await;
+        let repo = TableRepositoryDb::new(Arc::new(db));
+        let table = create_table();
 
+        repo.put(&table).await.expect("failed to create table");
+        let fetched_table = repo.get(&table.ident).await.expect("failed to get table");
+        assert_eq!(table.ident, fetched_table.ident);
+    }
+
+    #[tokio::test]
+    async fn test_get_non_existent_table() {
+        let db = create_db().await;
+        let repo = TableRepositoryDb::new(Arc::new(db));
+        let table_ident = TableIdent {
+            database: DatabaseIdent {
+                warehouse: WarehouseIdent::new(Uuid::new_v4()),
+                namespace: NamespaceIdent::new("non_existent_db".to_string()),
+            },
+            table: "non_existent_table".to_string(),
+        };
+
+        let result = repo.get(&table_ident).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_table() {
+        let db = create_db().await;
+        let repo = TableRepositoryDb::new(Arc::new(db));
+        let table = create_table();
+
+        repo.put(&table).await.expect("failed to create table");
         repo.delete(&table.ident)
             .await
             .expect("failed to delete table");
@@ -266,5 +314,168 @@ mod tests {
             .await
             .expect("failed to list tables");
         assert_eq!(list.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_delete_non_existent_table() {
+        let db = create_db().await;
+        let repo = TableRepositoryDb::new(Arc::new(db));
+        let table_ident = TableIdent {
+            database: DatabaseIdent {
+                warehouse: WarehouseIdent::new(Uuid::new_v4()),
+                namespace: NamespaceIdent::new("non_existent_db".to_string()),
+            },
+            table: "non_existent_table".to_string(),
+        };
+
+        let result = repo.delete(&table_ident).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_table() {
+        let db = create_db().await;
+        let repo = TableRepositoryDb::new(Arc::new(db));
+        let table = create_table();
+
+        repo.put(&table).await.expect("failed to create table");
+        let list = repo
+            .list(&table.ident.database)
+            .await
+            .expect("failed to list tables");
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].ident, table.ident);
+    }
+
+    #[tokio::test]
+    async fn test_list_table_empty() {
+        let db = create_db().await;
+        let repo = TableRepositoryDb::new(Arc::new(db));
+        let database_ident = DatabaseIdent {
+            warehouse: WarehouseIdent::new(Uuid::new_v4()),
+            namespace: NamespaceIdent::new("empty_db".to_string()),
+        };
+
+        let list = repo
+            .list(&database_ident)
+            .await
+            .expect("failed to list tables");
+        assert_eq!(list.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_put_database() {
+        let db = create_db().await;
+        let repo = DatabaseRepositoryDb::new(Arc::new(db));
+        let database = create_database();
+        repo.put(&database)
+            .await
+            .expect("failed to create database");
+
+        let list = repo
+            .list(&database.ident.warehouse)
+            .await
+            .expect("failed to list databases");
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].ident, database.ident);
+
+        // Check no extra databases
+        let list = repo
+            .list(&WarehouseIdent::new(Uuid::default()))
+            .await
+            .expect("failed to list databases");
+        assert_eq!(list.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_database() {
+        let db = create_db().await;
+        let repo = DatabaseRepositoryDb::new(Arc::new(db));
+        let database = create_database();
+
+        repo.put(&database)
+            .await
+            .expect("failed to create database");
+        let fetched_database = repo
+            .get(&database.ident)
+            .await
+            .expect("failed to get database");
+        assert_eq!(database.ident, fetched_database.ident);
+    }
+
+    #[tokio::test]
+    async fn test_delete_database() {
+        let db = create_db().await;
+        let repo = DatabaseRepositoryDb::new(Arc::new(db));
+        let database = create_database();
+
+        repo.put(&database)
+            .await
+            .expect("failed to create database");
+        repo.delete(&database.ident)
+            .await
+            .expect("failed to delete database");
+
+        let list = repo
+            .list(&database.ident.warehouse)
+            .await
+            .expect("failed to list databases");
+        assert_eq!(list.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_list_database() {
+        let db = create_db().await;
+        let repo = DatabaseRepositoryDb::new(Arc::new(db));
+        let database = create_database();
+
+        repo.put(&database)
+            .await
+            .expect("failed to create database");
+        let list = repo
+            .list(&database.ident.warehouse)
+            .await
+            .expect("failed to list databases");
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].ident, database.ident);
+    }
+
+    #[tokio::test]
+    async fn test_list_empty_warehouse() {
+        let db = create_db().await;
+        let repo = DatabaseRepositoryDb::new(Arc::new(db));
+        let warehouse_ident = WarehouseIdent::new(Uuid::new_v4());
+
+        let list = repo
+            .list(&warehouse_ident)
+            .await
+            .expect("failed to list databases");
+        assert_eq!(list.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_non_existent_database() {
+        let db = create_db().await;
+        let repo = DatabaseRepositoryDb::new(Arc::new(db));
+        let database_ident = DatabaseIdent {
+            warehouse: WarehouseIdent::new(Uuid::new_v4()),
+            namespace: NamespaceIdent::new("non_existent_db".to_string()),
+        };
+
+        let result = repo.get(&database_ident).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_non_existent_database() {
+        let db = create_db().await;
+        let repo = DatabaseRepositoryDb::new(Arc::new(db));
+        let database_ident = DatabaseIdent {
+            warehouse: WarehouseIdent::new(Uuid::new_v4()),
+            namespace: NamespaceIdent::new("non_existent_db".to_string()),
+        };
+
+        let result = repo.delete(&database_ident).await;
+        assert!(result.is_ok());
     }
 }

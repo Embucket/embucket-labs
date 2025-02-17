@@ -185,7 +185,6 @@ pub async fn register_table(
         .register_table(
             &db_ident,
             &profile,
-            &warehouse,
             payload.name,
             payload.metadata_location,
             Option::from(get_default_properties()),
