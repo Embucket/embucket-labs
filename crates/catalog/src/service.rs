@@ -119,7 +119,6 @@ impl Catalog for CatalogImpl {
         // uri and prefix
         let control_plane_url =
             env::var("CONTROL_PLANE_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
-        println!("control_plane_url: {}", control_plane_url);
         let mut config = Config {
             defaults: HashMap::new(),
             overrides: HashMap::from([
