@@ -1,5 +1,5 @@
 use snafu::prelude::*;
-pub type CatalogResult<T> = std::result::Result<T, CatalogError>;
+pub type CatalogResult<T> = Result<T, CatalogError>;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]

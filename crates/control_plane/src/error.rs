@@ -7,7 +7,7 @@ use snafu::prelude::*;
 use tokio::sync::TryLockError;
 use uuid::Uuid;
 
-pub type ControlPlaneResult<T> = std::result::Result<T, ControlPlaneError>;
+pub type ControlPlaneResult<T> = Result<T, ControlPlaneError>;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
@@ -146,8 +146,8 @@ impl<T: std::error::Error + Send + Sync + 'static> From<RusotoError<T>> for Cont
     }
 }
 
-impl From<datafusion::error::DataFusionError> for ControlPlaneError {
-    fn from(err: datafusion::error::DataFusionError) -> Self {
+impl From<DataFusionError> for ControlPlaneError {
+    fn from(err: DataFusionError) -> Self {
         Self::DataFusion { source: err }
     }
 }

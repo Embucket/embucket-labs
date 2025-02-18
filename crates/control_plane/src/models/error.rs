@@ -45,4 +45,4 @@ pub enum ControlPlaneModelError {
     ObjectStore { source: object_store::Error },
 }
 
-pub type ControlPlaneModelResult<T> = std::result::Result<T, ControlPlaneModelError>;
+pub type ControlPlaneModelResult<T> = Result<T, ControlPlaneModelError>;
