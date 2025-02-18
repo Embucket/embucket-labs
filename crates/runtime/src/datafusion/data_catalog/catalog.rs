@@ -3,7 +3,7 @@ use std::sync::{Arc, Weak};
 
 use datafusion::catalog::{CatalogProvider, CatalogProviderList, SchemaProvider};
 
-use datafusion::catalog_common::MemoryCatalogProvider;
+use datafusion_catalog::memory::MemoryCatalogProvider;
 use datafusion::common::plan_datafusion_err;
 use datafusion::datasource::listing::ListingTableUrl;
 use datafusion::error::Result;

@@ -1,6 +1,6 @@
 use dashmap::DashMap;
 use datafusion::catalog::CatalogProvider;
-use datafusion::catalog_common::MemoryCatalogProvider;
+use datafusion_catalog::memory::MemoryCatalogProvider;
 use datafusion::datasource::MemTable;
 use datafusion::{datasource::TableProvider, error::DataFusionError};
 use datafusion_iceberg::catalog::mirror::Mirror;

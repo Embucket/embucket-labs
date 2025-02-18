@@ -1,5 +1,5 @@
 use crate::datafusion::data_catalog::extended_mirror::ExtendedMirror;
-use datafusion::catalog_common::MemorySchemaProvider;
+use datafusion_catalog::memory::MemorySchemaProvider;
 use datafusion::datasource::MemTable;
 use datafusion::{
     catalog::SchemaProvider,

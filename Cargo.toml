@@ -38,12 +38,14 @@ snafu = { version = "0.8.5", features = ["futures"] }
 tracing = { version = "0.1" }
 
 datafusion = { version = "45.0.0" }
+datafusion-catalog = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
 datafusion-common = { version = "45.0.0" }
 datafusion-expr = { version = "45.0.0" }
 datafusion-physical-plan = { version = "45.0.0" }
 datafusion-doc = { version = "45.0.0" }
 datafusion-macros = { version = "45.0.0" }
 
+# do not change iceberg-rust, datafusion-functions-json hash commits unless datafusion version bumped
 datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "f2b9b88cd9b4282bc0286a970333e8c01cec177b" }
 
 iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1d486d6127ba18dc2dced7ed5f4c403dd8a6a8b9" }
@@ -51,12 +53,13 @@ iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", r
 datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1d486d6127ba18dc2dced7ed5f4c403dd8a6a8b9" }
 
 [patch.crates-io]
-datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
-datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
-datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
-datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
-datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
-datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
+datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-catalog = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
 
 chrono = { git = "https://github.com/chronotope/chrono.git", rev = "8b863490d88ba098038392c8aa930012ffd0c439" }
 

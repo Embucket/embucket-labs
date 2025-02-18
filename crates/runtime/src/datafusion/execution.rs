@@ -30,9 +30,8 @@ use datafusion::execution::context::SessionContext;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::LogicalPlan;
-use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
-use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
+use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
