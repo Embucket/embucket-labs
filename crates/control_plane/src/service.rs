@@ -747,6 +747,50 @@ mod tests {
         ));
     }
 
+    #[tokio::test]
+    async fn test_create_session() {
+        let service = service();
+        let session_id = "test_session".to_string();
+        let result = service.create_session(session_id.clone()).await;
+        assert!(result.is_ok());
+
+        let sessions = service.df_sessions.read().await;
+        assert!(sessions.contains_key(&session_id));
+    }
+
+    #[tokio::test]
+    async fn test_create_session_skip_duplicate() {
+        let service = service();
+        let session_id = "test_session".to_string();
+        let _ = service.create_session(session_id.clone()).await;
+        let result = service.create_session(session_id.clone()).await;
+        assert!(result.is_ok());
+        let sessions = service.df_sessions.read().await;
+        assert_eq!(sessions.len(), 1);
+        assert!(sessions.contains_key(&session_id));
+    }
+
+    #[tokio::test]
+    async fn test_delete_session() {
+        let service = service();
+        let session_id = "test_session".to_string();
+        let _ = service.create_session(session_id.clone()).await;
+        let result = service.delete_session(session_id.clone()).await;
+        assert!(result.is_ok());
+        let sessions = service.df_sessions.read().await;
+        assert!(!sessions.contains_key(&session_id));
+    }
+
+    #[tokio::test]
+    async fn test_delete_non_existent_session() {
+        let service = service();
+        let session_id = "non_existent_session".to_string();
+        let result = service.delete_session(session_id.clone()).await;
+        assert!(result.is_ok());
+        let sessions = service.df_sessions.read().await;
+        assert!(!sessions.contains_key(&session_id));
+    }
+
     async fn _test_queries(
         storage_repo: Arc<dyn StorageProfileRepository>,
         warehouse_repo: Arc<dyn WarehouseRepository>,
