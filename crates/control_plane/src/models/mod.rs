@@ -122,8 +122,8 @@ impl StorageProfile {
                 }
 
                 if region.is_none() {
-                    return Err(ControlPlaneModelError::InvalidBucketName {
-                        bucket_name: String::new(),
+                    return Err(ControlPlaneModelError::InvalidRegionName {
+                        region: String::new(),
                         reason: "Region name is required".to_owned(),
                     });
                 }
@@ -539,8 +539,8 @@ mod tests {
                     aws_access_key_id: "test_key".to_string(),
                     aws_secret_access_key: "test_secret".to_string(),
                 })),
-                Err(ControlPlaneModelError::InvalidBucketName {
-                    bucket_name: String::new(),
+                Err(ControlPlaneModelError::InvalidRegionName {
+                    region: String::new(),
                     reason: "Region name is required".to_owned(),
                 }),
             ),

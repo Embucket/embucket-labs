@@ -7,6 +7,9 @@ pub enum ControlPlaneModelError {
     #[snafu(display("Invalid bucket name `{bucket_name}`. Reason: {reason}"))]
     InvalidBucketName { bucket_name: String, reason: String },
 
+    #[snafu(display("Invalid region name `{region}`. Reason: {reason}"))]
+    InvalidRegionName { region: String, reason: String },
+
     #[snafu(display("Invalid directory `{directory}`"))]
     InvalidDirectory { directory: String },
 
