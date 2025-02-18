@@ -74,7 +74,7 @@ pub enum ControlPlaneError {
     UnsupportedAuthenticationMethod { method: String },
 
     #[snafu(display("Invalid or missing credentials"))]
-    CredentialsValidationFailed,
+    InvalidCredentials,
 
     #[snafu(display("Invalid TLS configuration: {source}"))]
     InvalidTLSConfiguration {

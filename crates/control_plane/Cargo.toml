@@ -47,6 +47,7 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 slatedb = { workspace = true }
+mockall = { version = "0.13.1" }
 
 [lints]
 workspace = true
