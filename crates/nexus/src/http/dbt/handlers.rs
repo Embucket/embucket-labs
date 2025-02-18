@@ -60,7 +60,11 @@ pub async fn login(
         .await
         .context(dbt_error::ControlServiceSnafu)?;
 
-    for warehouse in warehouses.into_iter().filter(|w| w.name == query.warehouse) {
+    debug!("login request query: {query:?}, databases: {warehouses:?}");
+    for warehouse in warehouses
+        .into_iter()
+        .filter(|w| w.name == query.database_name)
+    {
         // Save warehouse id and db name in state
         state.dbt_sessions.lock().await.insert(
             token.clone(),
@@ -128,7 +132,6 @@ pub async fn query(
     };
 
     let sessions = state.dbt_sessions.lock().await;
-
     let Some(_auth_data) = sessions.get(token.as_str()) else {
         return Err(DbtError::MissingDbtSession);
     };
