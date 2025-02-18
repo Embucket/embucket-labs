@@ -284,14 +284,8 @@ mod tests {
     async fn test_storage_profile_repository() {
         let db = Arc::new(create_slate_db().await);
         let repo = StorageProfileRepositoryDb::new(db.clone());
-
-        // Test db method
         assert_eq!(Arc::as_ptr(&repo.db), Arc::as_ptr(&db));
-
-        // Test prefix method
         assert_eq!(StorageProfileRepositoryDb::prefix(), PROFILEPREFIX);
-
-        // Test collection_key method
         assert_eq!(StorageProfileRepositoryDb::collection_key(), PROFILES);
     }
 
@@ -360,14 +354,8 @@ mod tests {
     async fn test_warehouse_repository() {
         let db = Arc::new(create_slate_db().await);
         let repo = WarehouseRepositoryDb::new(db.clone());
-
-        // Test db method
         assert_eq!(Arc::as_ptr(&repo.db), Arc::as_ptr(&db));
-
-        // Test prefix method
         assert_eq!(WarehouseRepositoryDb::prefix(), WAREHOUSEPREFIX);
-
-        // Test collection_key method
         assert_eq!(WarehouseRepositoryDb::collection_key(), WAREHOUSES);
     }
 
