@@ -31,18 +31,18 @@ use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclOutput, GetBucketAclRequest, S3Client as ExternalS3Client, S3};
 use snafu::ResultExt;
-use std::fmt::Display;
+use std::fmt;
 use std::sync::Arc;
-use std::{env, fmt};
 
 pub struct Config {
     pub dbt_serialization_format: SerializationFormat,
 }
 
-impl Default for Config {
-    fn default() -> Self {
+impl Config {
+    #[must_use]
+    pub fn new(serialization_format: &str) -> Self {
         Self {
-            dbt_serialization_format: SerializationFormat::new(),
+            dbt_serialization_format: SerializationFormat::from_str(serialization_format),
         }
     }
 }
@@ -52,21 +52,20 @@ pub enum SerializationFormat {
     Json,
 }
 
-impl Display for SerializationFormat {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Arrow => write!(f, "arrow"),
-            Self::Json => write!(f, "json"),
+impl SerializationFormat {
+    fn from_str(value: &str) -> Self {
+        match value {
+            "arrow" => Self::Arrow,
+            _ => Self::Json,
         }
     }
 }
 
-impl SerializationFormat {
-    fn new() -> Self {
-        let var = env::var("DBT_SERIALIZATION_FORMAT").unwrap_or_else(|_| "json".to_string());
-        match var.to_lowercase().as_str() {
-            "arrow" => Self::Arrow,
-            _ => Self::Json,
+impl fmt::Display for SerializationFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Arrow => write!(f, "arrow"),
+            Self::Json => write!(f, "json"),
         }
     }
 }

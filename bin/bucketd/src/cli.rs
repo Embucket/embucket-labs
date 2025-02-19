@@ -125,6 +125,15 @@ pub struct IceBucketOpts {
         help = "CORS Allow Origin"
     )]
     pub cors_allow_origin: Option<String>,
+
+    #[arg(
+        short,
+        long,
+        default_value = "json",
+        env = "DBT_SERIALIZATION_FORMAT",
+        help = "Serialization format for dbt endpoints"
+    )]
+    pub dbt_serialization_format: Option<String>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

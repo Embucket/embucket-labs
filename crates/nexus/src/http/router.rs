@@ -114,6 +114,7 @@ mod tests {
     use catalog::service::CatalogImpl;
     use control_plane::repository::{StorageProfileRepositoryDb, WarehouseRepositoryDb};
     use control_plane::service::ControlServiceImpl;
+    use control_plane::utils::Config;
     use http_body_util::BodyExt;
     // for `collect`
     use object_store::{memory::InMemory, path::Path, ObjectStore};
@@ -144,7 +145,12 @@ mod tests {
         let control_svc = {
             let storage_profile_repo = StorageProfileRepositoryDb::new(db.clone());
             let warehouse_repo = WarehouseRepositoryDb::new(db.clone());
-            ControlServiceImpl::new(Arc::new(storage_profile_repo), Arc::new(warehouse_repo))
+            let config = Config::new("json");
+            ControlServiceImpl::new(
+                Arc::new(storage_profile_repo),
+                Arc::new(warehouse_repo),
+                config,
+            )
         };
 
         let catalog_svc = {
