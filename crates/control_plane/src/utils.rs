@@ -11,8 +11,6 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
 use std::sync::Arc;
 
-const TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H:%M:%S%.6f";
-
 #[must_use]
 pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, ArrayRef)> {
     for i in 0..union_array.type_ids().len() {
@@ -97,7 +95,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .map(|x| {
                 x.map(|ts| {
                     let ts = DateTime::from_timestamp(ts, 0).unwrap();
-                    ts.format(TIMESTAMP_FORMAT).to_string()
+                    format!("{}", ts.timestamp())
                 })
             })
             .collect(),
@@ -109,7 +107,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .map(|x| {
                 x.map(|ts| {
                     let ts = DateTime::from_timestamp_millis(ts).unwrap();
-                    ts.format(TIMESTAMP_FORMAT).to_string()
+                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_millis())
                 })
             })
             .collect(),
@@ -121,7 +119,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .map(|x| {
                 x.map(|ts| {
                     let ts = DateTime::from_timestamp_micros(ts).unwrap();
-                    ts.format(TIMESTAMP_FORMAT).to_string()
+                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
                 })
             })
             .collect(),
@@ -133,7 +131,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .map(|x| {
                 x.map(|ts| {
                     let ts = DateTime::from_timestamp_nanos(ts);
-                    ts.format(TIMESTAMP_FORMAT).to_string()
+                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_nanos())
                 })
             })
             .collect(),
@@ -178,25 +176,21 @@ mod tests {
     #[test]
     fn test_convert_timestamp_to_struct() {
         let cases = [
-            (
-                TimeUnit::Second,
-                Some(1_627_846_261),
-                "2021-08-01-19:31:01.000000",
-            ),
+            (TimeUnit::Second, Some(1_627_846_261), "1627846261"),
             (
                 TimeUnit::Millisecond,
                 Some(1_627_846_261_233),
-                "2021-08-01-19:31:01.233000",
+                "1627846261.233",
             ),
             (
                 TimeUnit::Microsecond,
                 Some(1_627_846_261_233_222),
-                "2021-08-01-19:31:01.233222",
+                "1627846261.233222",
             ),
             (
                 TimeUnit::Nanosecond,
                 Some(1_627_846_261_233_222_111),
-                "2021-08-01-19:31:01.233222",
+                "1627846261.233222111",
             ),
         ];
         for (unit, timestamp, expected) in &cases {
@@ -251,15 +245,9 @@ mod tests {
             .as_any()
             .downcast_ref::<StringArray>()
             .unwrap();
-        assert_eq!(
-            converted_timestamp_array.value(0),
-            "2021-08-01-19:31:01.000000"
-        );
+        assert_eq!(converted_timestamp_array.value(0), "1627846261");
         assert!(converted_timestamp_array.is_null(1));
-        assert_eq!(
-            converted_timestamp_array.value(2),
-            "2021-08-01-19:31:02.000000"
-        );
+        assert_eq!(converted_timestamp_array.value(2), "1627846262");
 
         assert_eq!(column_infos[0].name, "int_col");
         assert_eq!(column_infos[0].r#type, "fixed");
