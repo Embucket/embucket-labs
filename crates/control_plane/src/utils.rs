@@ -73,8 +73,6 @@ pub fn convert_record_batches(
             columns.push(converted_column);
         }
         let new_schema = Arc::new(Schema::new(fields));
-        //println!("new schema: {:?}", new_schema);
-        //println!("columns: {:?}", columns);
         let converted_batch = RecordBatch::try_new(new_schema, columns)?;
         converted_batches.push(converted_batch);
     }

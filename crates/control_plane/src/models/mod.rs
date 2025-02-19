@@ -454,7 +454,8 @@ impl ColumnInfo {
             | DataType::UInt8
             | DataType::UInt16
             | DataType::UInt32
-            | DataType::UInt64 => {
+            | DataType::UInt64
+            | DataType::Float32 => {
                 column_info.r#type = "fixed".to_string();
                 column_info.precision = Some(38);
                 column_info.scale = Some(0);
