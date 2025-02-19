@@ -29,6 +29,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
 use sqlparser::ast::Ident;
 use std::collections::HashMap;
+use snafu::ResultExt;
 use std::sync::Arc;
 
 // This isn't the best way to do this, but it'll do for now
@@ -68,6 +69,64 @@ impl std::fmt::Display for DataFormat {
         }
     }
 }
+
+/*#[async_trait::async_trait]
+pub trait S3ClientValidation: Send + Sync {
+    async fn get_aws_bucket_acl(
+        &self,
+        request: GetBucketAclRequest,
+    ) -> ControlPlaneResult<GetBucketAclOutput>;
+}
+
+#[async_trait::async_trait]
+impl S3ClientValidation for S3Client {
+    async fn get_aws_bucket_acl(
+        &self,
+        request: GetBucketAclRequest,
+    ) -> ControlPlaneResult<GetBucketAclOutput> {
+        self.client
+            .get_bucket_acl(request)
+            .await
+            .map_err(ControlPlaneError::from)
+    }
+}
+
+pub struct S3Client {
+    client: ExternalS3Client,
+}
+
+impl S3Client {
+    pub fn new(profile: &StorageProfile) -> ControlPlaneResult<Self> {
+        if let Some(credentials) = profile.credentials.clone() {
+            match credentials {
+                Credentials::AccessKey(creds) => {
+                    let profile_region = profile.region.clone().unwrap_or_default();
+                    let credentials = StaticProvider::new_minimal(
+                        creds.aws_access_key_id.clone(),
+                        creds.aws_secret_access_key,
+                    );
+                    let region = Region::Custom {
+                        name: profile_region.clone(),
+                        endpoint: profile.endpoint.clone().unwrap_or_else(|| {
+                            format!("https://s3.{profile_region}.amazonaws.com")
+                        }),
+                    };
+
+                    let dispatcher =
+                        HttpClient::new().context(crate::error::InvalidTLSConfigurationSnafu)?;
+                    Ok(Self {
+                        client: ExternalS3Client::new_with(dispatcher, credentials, region),
+                    })
+                }
+                Credentials::Role(_) => Err(ControlPlaneError::UnsupportedAuthenticationMethod {
+                    method: credentials.to_string(),
+                }),
+            }
+        } else {
+            Err(ControlPlaneError::InvalidCredentials)
+        }
+    }
+}*/
 
 #[must_use]
 pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, ArrayRef)> {
