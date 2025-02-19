@@ -19,7 +19,7 @@ use crate::error::{self, ControlPlaneError, ControlPlaneResult};
 use crate::models::{ColumnInfo, Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
-use crate::utils::{convert_record_batches, Config};
+use crate::utils::{convert_record_batches, Config, S3Client, S3ClientValidation};
 use arrow::record_batch::RecordBatch;
 use arrow_json::writer::JsonArray;
 use arrow_json::WriterBuilder;
@@ -37,9 +37,7 @@ use object_store::{ObjectStore, PutPayload};
 use runtime::datafusion::execution::SqlExecutor;
 use runtime::datafusion::session::SessionParams;
 use runtime::datafusion::type_planner::CustomTypePlanner;
-use rusoto_core::{HttpClient, Region};
-use rusoto_credential::StaticProvider;
-use rusoto_s3::{GetBucketAclRequest, S3Client, S3};
+use rusoto_s3::GetBucketAclRequest;
 use snafu::ResultExt;
 use std::collections::HashMap;
 use std::env;
@@ -48,8 +46,39 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 #[async_trait]
-pub trait ControlService: Send + Sync  {
-    async fn validate_credentials(&self, profile: &StorageProfile) -> ControlPlaneResult<()>;
+pub trait ControlService: Send + Sync {
+    async fn create_profile(
+        &self,
+        params: &StorageProfileCreateRequest,
+    ) -> ControlPlaneResult<StorageProfile>;
+    async fn get_profile(&self, id: Uuid) -> ControlPlaneResult<StorageProfile>;
+    async fn delete_profile(&self, id: Uuid) -> ControlPlaneResult<()>;
+    async fn list_profiles(&self) -> ControlPlaneResult<Vec<StorageProfile>>;
+
+    async fn validate_credentials(
+        &self,
+        profile: &StorageProfile,
+        client: Box<dyn S3ClientValidation>,
+    ) -> ControlPlaneResult<()>;
+
+    async fn create_warehouse(
+        &self,
+        params: &WarehouseCreateRequest,
+    ) -> ControlPlaneResult<Warehouse>;
+    async fn get_warehouse_by_name(&self, name: String) -> ControlPlaneResult<Warehouse>;
+    async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse>;
+    async fn delete_warehouse(&self, id: Uuid) -> ControlPlaneResult<()>;
+    async fn list_warehouses(&self) -> ControlPlaneResult<Vec<Warehouse>>;
+
+    // async fn create_database(&self, params: &DatabaseCreateRequest) -> ControlPlaneResult<Database>;
+    // async fn get_database(&self, id: Uuid) -> ControlPlaneResult<Database>;
+    // async fn delete_database(&self, id: Uuid) -> ControlPlaneResult<()>;
+    // async fn list_databases(&self) -> ControlPlaneResult<Vec<Database>>;
+
+    // async fn create_table(&self, params: &TableCreateRequest) -> ControlPlaneResult<Table>;
+    // async fn get_table(&self, id: Uuid) -> ControlPlaneResult<Table>;
+    // async fn delete_table(&self, id: Uuid) -> ControlPlaneResult<()>;
+    // async fn list_tables(&self) -> ControlPlaneResult<Vec<Table>>;
 
     async fn query(
         &self,
@@ -96,6 +125,41 @@ impl ControlServiceImpl {
 
 #[async_trait]
 impl ControlService for ControlServiceImpl {
+    #[tracing::instrument(level = "trace", skip(self))]
+    async fn create_profile(
+        &self,
+        params: &StorageProfileCreateRequest,
+    ) -> ControlPlaneResult<StorageProfile> {
+        let profile = params
+            .try_into()
+            .context(crate::error::InvalidStorageProfileSnafu)?;
+
+        if params.validate_credentials.unwrap_or_default() {
+            self.validate_credentials(&profile).await?;
+        }
+
+        self.storage_profile_repo.create(&profile).await?;
+        Ok(profile)
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    async fn get_profile(&self, id: Uuid) -> ControlPlaneResult<StorageProfile> {
+        self.storage_profile_repo.get(id).await
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    async fn delete_profile(&self, id: Uuid) -> ControlPlaneResult<()> {
+        let wh = self.list_warehouses().await?;
+        if wh.iter().any(|wh| wh.storage_profile_id == id) {
+            return Err(ControlPlaneError::StorageProfileInUse { id });
+        }
+        self.storage_profile_repo.delete(id).await
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    async fn list_profiles(&self) -> ControlPlaneResult<Vec<StorageProfile>> {
+        self.storage_profile_repo.list().await
+    }
 
     #[tracing::instrument(level = "debug", skip(self))]
     async fn create_session(&self, session_id: String) -> ControlPlaneResult<()> {
@@ -115,7 +179,7 @@ impl ControlService for ControlServiceImpl {
                 .with_type_planner(Arc::new(CustomTypePlanner {}))
                 .build();
             let ctx = SessionContext::new_with_state(state);
-            let executor = SqlExecutor::new(ctx, self.metastore.clone()).context(crate::error::ExecutionSnafu)?;
+            let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
 
             tracing::trace!("Acuiring write lock for df_sessions");
             let mut session_list_mut = self.df_sessions.write().await;
@@ -133,31 +197,19 @@ impl ControlService for ControlServiceImpl {
         Ok(())
     }
 
-    #[tracing::instrument(level = "trace", skip(self))]
-    async fn validate_credentials(&self, profile: &StorageProfile) -> ControlPlaneResult<()> {
+    async fn validate_credentials(
+        &self,
+        profile: &StorageProfile,
+        client: Box<dyn S3ClientValidation>,
+    ) -> ControlPlaneResult<()> {
         if let Some(credentials) = profile.credentials.clone() {
             match credentials {
-                Credentials::AccessKey(creds) => {
-                    let profile_region = profile.region.clone().unwrap_or_default();
-                    let credentials = StaticProvider::new_minimal(
-                        creds.aws_access_key_id.clone(),
-                        creds.aws_secret_access_key.clone(),
-                    );
-                    let region = Region::Custom {
-                        name: profile_region.clone(),
-                        endpoint: profile.endpoint.clone().unwrap_or_else(|| {
-                            format!("https://s3.{profile_region}.amazonaws.com")
-                        }),
-                    };
-
-                    let dispatcher =
-                        HttpClient::new().context(crate::error::InvalidTLSConfigurationSnafu)?;
-                    let client = S3Client::new_with(dispatcher, credentials, region);
+                Credentials::AccessKey(_) => {
                     let request = GetBucketAclRequest {
                         bucket: profile.bucket.clone().unwrap_or_default(),
                         expected_bucket_owner: None,
                     };
-                    client.get_bucket_acl(request).await?;
+                    client.get_aws_bucket_acl(request).await?;
                     Ok(())
                 }
                 Credentials::Role(_) => Err(ControlPlaneError::UnsupportedAuthenticationMethod {
@@ -165,8 +217,46 @@ impl ControlService for ControlServiceImpl {
                 }),
             }
         } else {
-            Err(ControlPlaneError::CredentialsValidationFailed)
+            Err(ControlPlaneError::InvalidCredentials)
         }
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    async fn create_warehouse(
+        &self,
+        params: &WarehouseCreateRequest,
+    ) -> ControlPlaneResult<Warehouse> {
+        // TODO: Check if storage profile exists
+        // - Check if its valid
+        // - Generate id, update created_at and updated_at
+        // - Try create Warehouse from WarehouseCreateRequest
+        let wh: Warehouse = params
+            .try_into()
+            .context(crate::error::InvalidCreateWarehouseSnafu)?;
+        let _ = self.get_profile(wh.storage_profile_id).await?;
+        self.warehouse_repo.create(&wh).await?;
+        Ok(wh)
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    async fn get_warehouse_by_name(&self, name: String) -> ControlPlaneResult<Warehouse> {
+        self.warehouse_repo.get_by_name(name.as_str()).await
+    }
+
+    async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
+        self.warehouse_repo.get(id).await
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    async fn delete_warehouse(&self, id: Uuid) -> ControlPlaneResult<()> {
+        // let db = self.list_databases().await?;
+        // db.iter().filter(|db| db.warehouse_id == id).next().ok_or(Error::NotEmpty("Warehouse is in use".to_string()))?;
+        self.warehouse_repo.delete(id).await
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    async fn list_warehouses(&self) -> ControlPlaneResult<Vec<Warehouse>> {
+        self.warehouse_repo.list().await
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
@@ -180,14 +270,14 @@ impl ControlService for ControlServiceImpl {
         let executor =
             sessions
                 .get(session_id)
-                .ok_or(error::ControlPlaneError::MissingDataFusionSession {
+                .ok_or(ControlPlaneError::MissingDataFusionSession {
                     id: session_id.to_string(),
                 })?;
 
         /*let query = executor.preprocess_query(query);
         let statement = executor
             .parse_query(&query)
-            .context(super::error::DataFusionSnafu)?;
+            .context(error::DataFusionSnafu)?;
 
         let table_ref = executor.get_table_path(&statement);
         let warehouse_name = table_ref
@@ -213,7 +303,7 @@ impl ControlService for ControlServiceImpl {
                 };
                 let object_store = storage_profile
                     .get_object_store_builder()
-                    .context(crate::error::InvalidStorageProfileSnafu)?;
+                    .context(error::InvalidStorageProfileSnafu)?;
                 let rest_client = RestCatalog::new(
                     Some(warehouse.id.to_string().as_str()),
                     config,
@@ -229,7 +319,7 @@ impl ControlService for ControlServiceImpl {
 
                 let object_store = storage_profile
                     .get_object_store()
-                    .context(crate::error::InvalidStorageProfileSnafu)?;
+                    .context(error::InvalidStorageProfileSnafu)?;
                 let endpoint_url = storage_profile
                     .get_object_store_endpoint_url()
                     .map_err(|_| ControlPlaneError::MissingStorageEndpointURL)?;
@@ -244,7 +334,7 @@ impl ControlService for ControlServiceImpl {
             //.query(&query, catalog_name.as_str())
             .query(&query)
             .await
-            .context(crate::error::ExecutionSnafu)?
+            .context(error::ExecutionSnafu)?
             .into_iter()
             .collect::<Vec<_>>();
 
@@ -264,13 +354,13 @@ impl ControlService for ControlServiceImpl {
         let record_refs: Vec<&RecordBatch> = records.iter().collect();
         writer
             .write_batches(&record_refs)
-            .context(crate::error::ArrowSnafu)?;
-        writer.finish().context(crate::error::ArrowSnafu)?;
+            .context(error::ArrowSnafu)?;
+        writer.finish().context(error::ArrowSnafu)?;
 
         // Get the underlying buffer back,
         let buf = writer.into_inner();
 
-        Ok(String::from_utf8(buf).context(crate::error::Utf8Snafu)?)
+        Ok(String::from_utf8(buf).context(error::Utf8Snafu)?)
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
@@ -286,14 +376,14 @@ impl ControlService for ControlServiceImpl {
         let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
         let object_store = storage_profile
             .get_object_store()
-            .context(crate::error::InvalidStorageProfileSnafu)?;
+            .context(error::InvalidStorageProfileSnafu)?;
         let unique_file_id = Uuid::new_v4().to_string();
 
         let sessions = self.df_sessions.read().await;
         let executor =
             sessions
                 .get(session_id)
-                .ok_or(error::ControlPlaneError::MissingDataFusionSession {
+                .ok_or(ControlPlaneError::MissingDataFusionSession {
                     id: session_id.to_string(),
                 })?;
 
@@ -306,7 +396,7 @@ impl ControlService for ControlServiceImpl {
         object_store
             .put(&path, PutPayload::from(data))
             .await
-            .context(crate::error::ObjectStoreSnafu)?;
+            .context(error::ObjectStoreSnafu)?;
 
         if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
             // Create table from CSV
@@ -317,7 +407,7 @@ impl ControlService for ControlServiceImpl {
             };
             let object_store_builder = storage_profile
                 .get_object_store_builder()
-                .context(crate::error::InvalidStorageProfileSnafu)?;
+                .context(error::InvalidStorageProfileSnafu)?;
             let rest_client = RestCatalog::new(
                 Some(warehouse_id.to_string().as_str()),
                 config,
@@ -358,7 +448,7 @@ impl ControlService for ControlServiceImpl {
         executor
             .execute_with_custom_plan(&insert_query, warehouse_name.as_str())
             .await
-            .context(crate::error::ExecutionSnafu)?;
+            .context(error::ExecutionSnafu)?;
 
         // let config = {
         //     let mut config = Configuration::new();
@@ -475,61 +565,24 @@ mod tests {
     };
     use crate::repository::InMemoryStorageProfileRepository;
     use crate::repository::InMemoryWarehouseRepository;
+    use crate::utils::S3ClientValidation;
+    use mockall::mock;
+    use rusoto_s3::GetBucketAclOutput;
     use std::env;
 
-    #[tokio::test]
-    async fn test_create_warehouse_failed_no_storage_profile() {
-        let storage_repo = Arc::new(InMemoryStorageProfileRepository::default());
-        let warehouse_repo = Arc::new(InMemoryWarehouseRepository::default());
-        let service = ControlServiceImpl::new(storage_repo, warehouse_repo);
-        let new_uuid = Uuid::new_v4();
-        let request = WarehouseCreateRequest {
-            name: "test-warehouse".to_string(),
-            storage_profile_id: new_uuid,
-            prefix: "test-prefix".to_string(),
-        };
+    mock! {
+        pub S3Client {}
 
-        let err = service.create_warehouse(&request).await;
-        assert!(matches!(
-            err,
-            Err(ControlPlaneError::StorageProfileNotFound { id: _ })
-        ));
+        #[async_trait]
+        impl S3ClientValidation for S3Client {
+            async fn get_aws_bucket_acl(&self, request: GetBucketAclRequest) -> ControlPlaneResult<GetBucketAclOutput>;
+        }
     }
 
-    #[tokio::test]
-    async fn test_delete_nonempty_storage_profile() {
+    fn service() -> ControlServiceImpl {
         let storage_repo = Arc::new(InMemoryStorageProfileRepository::default());
         let warehouse_repo = Arc::new(InMemoryWarehouseRepository::default());
-        let service = ControlServiceImpl::new(storage_repo, warehouse_repo);
-
-        let request = StorageProfileCreateRequest {
-            r#type: CloudProvider::AWS,
-            region: Some("us-west-2".to_string()),
-            bucket: Some("my-bucket".to_string()),
-            credentials: Some(Credentials::AccessKey(AwsAccessKeyCredential {
-                aws_access_key_id: "my-access-key".to_string(),
-                aws_secret_access_key: "my-secret-access-key".to_string(),
-            })),
-            sts_role_arn: None,
-            endpoint: None,
-            validate_credentials: None,
-        };
-        let profile = service.create_profile(&request).await.unwrap();
-        let request = WarehouseCreateRequest {
-            name: "test-warehouse".to_string(),
-            storage_profile_id: profile.id,
-            prefix: "test-prefix".to_string(),
-        };
-
-        let wh = service.create_warehouse(&request).await.unwrap();
-        let result = service
-            .delete_profile(wh.storage_profile_id)
-            .await
-            .unwrap_err();
-        assert!(matches!(
-            result,
-            ControlPlaneError::StorageProfileInUse { id: _ }
-        ));
+        ControlServiceImpl::new(storage_repo, warehouse_repo)
     }
 
     fn storage_profile_req() -> StorageProfileCreateRequest {
@@ -546,12 +599,207 @@ mod tests {
             validate_credentials: None,
         }
     }
+
     fn warehouse_req(name: &str, sp_id: Uuid) -> WarehouseCreateRequest {
         WarehouseCreateRequest {
             name: name.to_string(),
             storage_profile_id: sp_id,
             prefix: "prefix".to_string(),
         }
+    }
+
+    #[tokio::test]
+    async fn test_create_profile() {
+        let service = service();
+        let mut request = storage_profile_req();
+
+        let profile = service.create_profile(&request).await.unwrap();
+        assert_eq!(request.r#type.to_string(), profile.r#type.to_string());
+
+        // Missing credentials for AWS profile type
+        request.credentials = None;
+        let result = service.create_profile(&request).await;
+        assert!(matches!(
+            result,
+            Err(ControlPlaneError::InvalidStorageProfile { .. })
+        ));
+
+        // Missing credentials with enabled validation
+        request.validate_credentials = Some(true);
+        request.r#type = CloudProvider::FS;
+        let result = service.create_profile(&request).await;
+        assert!(matches!(result, Err(ControlPlaneError::InvalidCredentials)));
+    }
+
+    #[tokio::test]
+    async fn test_validate_credentials() {
+        let service = service();
+        let mut request = storage_profile_req();
+        request.validate_credentials = Some(true);
+
+        let req = &request;
+        let profile = req.try_into().unwrap();
+        let mut mock_client = MockS3Client::new();
+        mock_client
+            .expect_get_aws_bucket_acl()
+            .times(1)
+            .times(1)
+            .returning(|_| Ok(GetBucketAclOutput::default()));
+        let result = service
+            .validate_credentials(&profile, Box::new(mock_client))
+            .await;
+        assert!(result.is_ok());
+
+        let mut mock_client = MockS3Client::new();
+        mock_client
+            .expect_get_aws_bucket_acl()
+            .times(1)
+            .times(1)
+            .returning(|_| {
+                Err(ControlPlaneError::S3Unknown {
+                    code: "Unknown".to_string(),
+                    message: "Unknown".to_string(),
+                })
+            });
+        let result = service
+            .validate_credentials(&profile, Box::new(mock_client))
+            .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_profile() {
+        let service = service();
+        let request = storage_profile_req();
+
+        let profile = service.create_profile(&request).await.unwrap();
+        let fetched_profile = service.get_profile(profile.id).await.unwrap();
+        assert_eq!(fetched_profile.id, profile.id);
+    }
+
+    #[tokio::test]
+    async fn test_delete_profile() {
+        let service = service();
+        let request = storage_profile_req();
+
+        let profile = service.create_profile(&request).await.unwrap();
+        let result = service.delete_profile(profile.id).await;
+        assert!(result.is_ok());
+        let result = service.get_profile(profile.id).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_profiles() {
+        let service = service();
+        let request = storage_profile_req();
+        let request_2 = storage_profile_req();
+
+        service.create_profile(&request).await.unwrap();
+        service.create_profile(&request_2).await.unwrap();
+        let profiles = service.list_profiles().await.unwrap();
+        assert_eq!(profiles.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_create_warehouse() {
+        let service = service();
+        let request = storage_profile_req();
+        let profile = service.create_profile(&request).await.unwrap();
+
+        let mut wh_request = warehouse_req("test_warehouse", profile.id);
+        let warehouse = service.create_warehouse(&wh_request).await.unwrap();
+        assert_eq!(warehouse.name, "test_warehouse");
+
+        // Missing storage profile
+        wh_request.storage_profile_id = Uuid::new_v4();
+        let err = service.create_warehouse(&wh_request).await;
+        assert!(matches!(
+            err,
+            Err(ControlPlaneError::StorageProfileNotFound { id: _ })
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_get_warehouse_by_name() {
+        let service = service();
+        let request = storage_profile_req();
+        let profile = service.create_profile(&request).await.unwrap();
+        let wh_request = warehouse_req("test_warehouse", profile.id);
+
+        let warehouse = service.create_warehouse(&wh_request).await.unwrap();
+        let fetched_warehouse = service
+            .get_warehouse_by_name("test_warehouse".to_string())
+            .await
+            .unwrap();
+        assert_eq!(fetched_warehouse.id, warehouse.id);
+    }
+
+    #[tokio::test]
+    async fn test_delete_warehouse() {
+        let service = service();
+        let request = storage_profile_req();
+        let profile = service.create_profile(&request).await.unwrap();
+        let wh_request = warehouse_req("test_warehouse", profile.id);
+
+        let warehouse = service.create_warehouse(&wh_request).await.unwrap();
+        let result = service.delete_warehouse(warehouse.id).await;
+        assert!(result.is_ok());
+        let result = service
+            .get_warehouse_by_name("test_warehouse".to_string())
+            .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_non_empty_storage_profile() {
+        let service = service();
+        let request = storage_profile_req();
+        let profile = service.create_profile(&request).await.unwrap();
+        let wh_request = warehouse_req("test_warehouse", profile.id);
+
+        let wh = service.create_warehouse(&wh_request).await.unwrap();
+        let result = service
+            .delete_profile(wh.storage_profile_id)
+            .await
+            .unwrap_err();
+        assert!(matches!(
+            result,
+            ControlPlaneError::StorageProfileInUse { id: _ }
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_create_session() {
+        let service = service();
+        let session_id = "test_session".to_string();
+        let result = service.create_session(session_id.clone()).await;
+        assert!(result.is_ok());
+        let sessions = service.df_sessions.read().await;
+        assert!(sessions.contains_key(&session_id));
+
+        let result = service.create_session(session_id.clone()).await;
+        assert!(result.is_ok());
+        let sessions = service.df_sessions.read().await;
+        assert_eq!(sessions.len(), 1);
+        assert!(sessions.contains_key(&session_id));
+    }
+
+    #[tokio::test]
+    async fn test_delete_session() {
+        let service = service();
+        let session_id = "test_session".to_string();
+        let _ = service.create_session(session_id.clone()).await;
+        let result = service.delete_session(session_id.clone()).await;
+        assert!(result.is_ok());
+        let sessions = service.df_sessions.read().await;
+        assert!(!sessions.contains_key(&session_id));
+
+        let session_id = "non_existent_session".to_string();
+        let result = service.delete_session(session_id.clone()).await;
+        assert!(result.is_ok());
+        let sessions = service.df_sessions.read().await;
+        assert!(!sessions.contains_key(&session_id));
     }
 
     async fn _test_queries(

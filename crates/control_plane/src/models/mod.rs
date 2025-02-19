@@ -98,6 +98,20 @@ pub struct StorageProfileCreateRequest {
     pub validate_credentials: Option<bool>,
 }
 
+impl Default for StorageProfileCreateRequest {
+    fn default() -> Self {
+        Self {
+            r#type: CloudProvider::FS,
+            region: None,
+            bucket: None,
+            credentials: None,
+            sts_role_arn: None,
+            endpoint: None,
+            validate_credentials: None,
+        }
+    }
+}
+
 impl TryFrom<&StorageProfileCreateRequest> for StorageProfile {
     type Error = ControlPlaneModelError;
 
