@@ -33,7 +33,7 @@ impl S3ClientValidation for S3Client {
         self.client
             .get_bucket_acl(request)
             .await
-            .map_err(|_| ControlPlaneError::InvalidCredentials)
+            .map_err(ControlPlaneError::from)
     }
 }
 
