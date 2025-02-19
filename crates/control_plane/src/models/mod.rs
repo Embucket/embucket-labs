@@ -734,7 +734,7 @@ mod tests {
         assert_eq!(column_info.byte_length.unwrap(), 8_388_608);
         assert_eq!(column_info.length.unwrap(), 8_388_608);
 
-        // Фтн щерук ензу
+        // Any other type
         let field = Field::new("test_field", DataType::Utf8View, false);
         let column_info = ColumnInfo::from_field(&field);
         assert_eq!(column_info.name, "test_field");
