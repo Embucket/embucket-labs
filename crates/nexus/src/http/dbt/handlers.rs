@@ -34,15 +34,13 @@ use axum::Json;
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
+use control_plane::utils::SerializationFormat;
 use flate2::read::GzDecoder;
 use regex::Regex;
 use snafu::ResultExt;
 use std::io::Read;
 use tracing::debug;
 use uuid::Uuid;
-
-// TODO: move out as a configurable parameter
-const SERIALIZATION_FORMAT: &str = "json"; // or "arrow"
 
 // https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
 // Buffer Alignment and Padding: Implementations are recommended to allocate memory
@@ -166,18 +164,19 @@ pub async fn query(
         records_to_json_string(&records)?.as_str()
     );
 
+    let serialization_format = state.control_svc.config().dbt_serialization_format;
     let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {
             row_type: columns.into_iter().map(Into::into).collect(),
-            query_result_format: Option::from(String::from(SERIALIZATION_FORMAT)),
-            row_set: if SERIALIZATION_FORMAT == "json" {
+            query_result_format: Some(serialization_format.to_string()),
+            row_set: if serialization_format == SerializationFormat::Json {
                 Option::from(ResponseData::rows_to_vec(
                     records_to_json_string(&records)?.as_str(),
                 )?)
             } else {
                 None
             },
-            row_set_base_64: if SERIALIZATION_FORMAT == "arrow" {
+            row_set_base_64: if serialization_format == SerializationFormat::Arrow {
                 Option::from(records_to_arrow_string(&records)?)
             } else {
                 None

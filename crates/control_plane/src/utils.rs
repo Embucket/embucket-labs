@@ -17,7 +17,7 @@
 
 use crate::models::ColumnInfo;
 use arrow::array::{
-    Array, StringArray, TimestampMicrosecondArray, TimestampMillisecondArray,
+    Array, Int64Array, StringArray, TimestampMicrosecondArray, TimestampMillisecondArray,
     TimestampNanosecondArray, TimestampSecondArray, UnionArray,
 };
 use arrow::datatypes::{Field, Schema, TimeUnit};
@@ -26,7 +26,45 @@ use chrono::DateTime;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
+use std::fmt::Display;
 use std::sync::Arc;
+use std::{env, fmt};
+
+pub struct Config {
+    pub dbt_serialization_format: SerializationFormat,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            dbt_serialization_format: SerializationFormat::new(),
+        }
+    }
+}
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum SerializationFormat {
+    Arrow,
+    Json,
+}
+
+impl Display for SerializationFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Arrow => write!(f, "arrow"),
+            Self::Json => write!(f, "json"),
+        }
+    }
+}
+
+impl SerializationFormat {
+    fn new() -> Self {
+        let var = env::var("DBT_SERIALIZATION_FORMAT").unwrap_or_else(|_| "json".to_string());
+        match var.to_lowercase().as_str() {
+            "arrow" => Self::Arrow,
+            _ => Self::Json,
+        }
+    }
+}
 
 #[must_use]
 pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, ArrayRef)> {
@@ -42,6 +80,7 @@ pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, Array
 
 pub fn convert_record_batches(
     records: Vec<RecordBatch>,
+    serialization_format: SerializationFormat,
 ) -> DataFusionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
     let mut converted_batches = Vec::new();
     let column_infos = ColumnInfo::from_batch(&records);
@@ -71,7 +110,8 @@ pub fn convert_record_batches(
                     }
                 }
                 DataType::Timestamp(unit, _) => {
-                    let converted_column = convert_timestamp_to_struct(column, *unit);
+                    let converted_column =
+                        convert_timestamp_to_struct(column, *unit, serialization_format);
                     fields.push(
                         Field::new(
                             field.name(),
@@ -97,63 +137,80 @@ pub fn convert_record_batches(
     Ok((converted_batches.clone(), column_infos))
 }
 
+macro_rules! downcast_and_iter {
+    ($column:expr, $array_type:ty) => {
+        $column
+            .as_any()
+            .downcast_ref::<$array_type>()
+            .unwrap()
+            .into_iter()
+    };
+}
+
 #[allow(
     clippy::unwrap_used,
     clippy::as_conversions,
     clippy::cast_possible_truncation
 )]
-fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
-    let timestamps: Vec<_> = match unit {
-        TimeUnit::Second => column
-            .as_any()
-            .downcast_ref::<TimestampSecondArray>()
-            .unwrap()
-            .iter()
-            .map(|x| {
-                x.map(|ts| {
-                    let ts = DateTime::from_timestamp(ts, 0).unwrap();
-                    format!("{}", ts.timestamp())
-                })
-            })
-            .collect(),
-        TimeUnit::Millisecond => column
-            .as_any()
-            .downcast_ref::<TimestampMillisecondArray>()
-            .unwrap()
-            .iter()
-            .map(|x| {
-                x.map(|ts| {
-                    let ts = DateTime::from_timestamp_millis(ts).unwrap();
-                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_millis())
-                })
-            })
-            .collect(),
-        TimeUnit::Microsecond => column
-            .as_any()
-            .downcast_ref::<TimestampMicrosecondArray>()
-            .unwrap()
-            .iter()
-            .map(|x| {
-                x.map(|ts| {
-                    let ts = DateTime::from_timestamp_micros(ts).unwrap();
-                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
-                })
-            })
-            .collect(),
-        TimeUnit::Nanosecond => column
-            .as_any()
-            .downcast_ref::<TimestampNanosecondArray>()
-            .unwrap()
-            .iter()
-            .map(|x| {
-                x.map(|ts| {
-                    let ts = DateTime::from_timestamp_nanos(ts);
-                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_nanos())
-                })
-            })
-            .collect(),
-    };
-    Arc::new(StringArray::from(timestamps)) as ArrayRef
+fn convert_timestamp_to_struct(
+    column: &ArrayRef,
+    unit: TimeUnit,
+    ser: SerializationFormat,
+) -> ArrayRef {
+    match ser {
+        SerializationFormat::Arrow => {
+            let timestamps: Vec<_> = match unit {
+                TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray).collect(),
+                TimeUnit::Millisecond => {
+                    downcast_and_iter!(column, TimestampMillisecondArray).collect()
+                }
+                TimeUnit::Microsecond => {
+                    downcast_and_iter!(column, TimestampMicrosecondArray).collect()
+                }
+                TimeUnit::Nanosecond => {
+                    downcast_and_iter!(column, TimestampNanosecondArray).collect()
+                }
+            };
+            Arc::new(Int64Array::from(timestamps)) as ArrayRef
+        }
+        SerializationFormat::Json => {
+            let timestamps: Vec<_> = match unit {
+                TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray)
+                    .map(|x| {
+                        x.map(|ts| {
+                            let ts = DateTime::from_timestamp(ts, 0).unwrap();
+                            format!("{}", ts.timestamp())
+                        })
+                    })
+                    .collect(),
+                TimeUnit::Millisecond => downcast_and_iter!(column, TimestampMillisecondArray)
+                    .map(|x| {
+                        x.map(|ts| {
+                            let ts = DateTime::from_timestamp_millis(ts).unwrap();
+                            format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_millis())
+                        })
+                    })
+                    .collect(),
+                TimeUnit::Microsecond => downcast_and_iter!(column, TimestampMicrosecondArray)
+                    .map(|x| {
+                        x.map(|ts| {
+                            let ts = DateTime::from_timestamp_micros(ts).unwrap();
+                            format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
+                        })
+                    })
+                    .collect(),
+                TimeUnit::Nanosecond => downcast_and_iter!(column, TimestampNanosecondArray)
+                    .map(|x| {
+                        x.map(|ts| {
+                            let ts = DateTime::from_timestamp_nanos(ts);
+                            format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_nanos())
+                        })
+                    })
+                    .collect(),
+            };
+            Arc::new(StringArray::from(timestamps)) as ArrayRef
+        }
+    }
 }
 
 #[cfg(test)]
@@ -224,7 +281,8 @@ mod tests {
                     Arc::new(TimestampNanosecondArray::from(values)) as ArrayRef
                 }
             };
-            let result = convert_timestamp_to_struct(&timestamp_array, *unit);
+            let result =
+                convert_timestamp_to_struct(&timestamp_array, *unit, SerializationFormat::Json);
             let string_array = result.as_any().downcast_ref::<StringArray>().unwrap();
             assert_eq!(string_array.len(), 2);
             assert_eq!(string_array.value(0), *expected);
@@ -250,7 +308,8 @@ mod tests {
         ])) as ArrayRef;
         let batch = RecordBatch::try_new(schema, vec![int_array, timestamp_array]).unwrap();
         let records = vec![batch];
-        let (converted_batches, column_infos) = convert_record_batches(records).unwrap();
+        let (converted_batches, column_infos) =
+            convert_record_batches(records.clone(), SerializationFormat::Json).unwrap();
 
         let converted_batch = &converted_batches[0];
         assert_eq!(converted_batches.len(), 1);
@@ -270,5 +329,17 @@ mod tests {
         assert_eq!(column_infos[0].r#type, "fixed");
         assert_eq!(column_infos[1].name, "timestamp_col");
         assert_eq!(column_infos[1].r#type, "timestamp_ntz");
+
+        let (converted_batches, _) =
+            convert_record_batches(records, SerializationFormat::Arrow).unwrap();
+        let converted_batch = &converted_batches[0];
+        let converted_timestamp_array = converted_batch
+            .column(1)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .unwrap();
+        assert_eq!(converted_timestamp_array.value(0), 1_627_846_261);
+        assert!(converted_timestamp_array.is_null(1));
+        assert_eq!(converted_timestamp_array.value(2), 1_627_846_262);
     }
 }
