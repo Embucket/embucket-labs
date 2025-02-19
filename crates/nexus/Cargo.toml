@@ -2,6 +2,8 @@
 name = "nexus"
 version = "0.1.0"
 edition = "2021"
+license = {workspace = true}
+license-file = {workspace = true}
 
 [build-dependencies]
 utoipa = { workspace = true }
