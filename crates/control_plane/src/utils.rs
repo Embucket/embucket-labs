@@ -11,6 +11,8 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
 use std::sync::Arc;
 
+const TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H:%M:%S%.6f";
+
 #[must_use]
 pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, ArrayRef)> {
     for i in 0..union_array.type_ids().len() {
@@ -73,8 +75,6 @@ pub fn convert_record_batches(
             columns.push(converted_column);
         }
         let new_schema = Arc::new(Schema::new(fields));
-        //println!("new schema: {:?}", new_schema);
-        //println!("columns: {:?}", columns);
         let converted_batch = RecordBatch::try_new(new_schema, columns)?;
         converted_batches.push(converted_batch);
     }
@@ -97,7 +97,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .map(|x| {
                 x.map(|ts| {
                     let ts = DateTime::from_timestamp(ts, 0).unwrap();
-                    format!("{}", ts.timestamp())
+                    ts.format(TIMESTAMP_FORMAT).to_string()
                 })
             })
             .collect(),
@@ -109,7 +109,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .map(|x| {
                 x.map(|ts| {
                     let ts = DateTime::from_timestamp_millis(ts).unwrap();
-                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_millis())
+                    ts.format(TIMESTAMP_FORMAT).to_string()
                 })
             })
             .collect(),
@@ -121,7 +121,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .map(|x| {
                 x.map(|ts| {
                     let ts = DateTime::from_timestamp_micros(ts).unwrap();
-                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
+                    ts.format(TIMESTAMP_FORMAT).to_string()
                 })
             })
             .collect(),
@@ -133,7 +133,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
             .map(|x| {
                 x.map(|ts| {
                     let ts = DateTime::from_timestamp_nanos(ts);
-                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_nanos())
+                    ts.format(TIMESTAMP_FORMAT).to_string()
                 })
             })
             .collect(),
@@ -178,21 +178,25 @@ mod tests {
     #[test]
     fn test_convert_timestamp_to_struct() {
         let cases = [
-            (TimeUnit::Second, Some(1_627_846_261), "1627846261"),
+            (
+                TimeUnit::Second,
+                Some(1_627_846_261),
+                "2021-08-01-19:31:01.000000",
+            ),
             (
                 TimeUnit::Millisecond,
                 Some(1_627_846_261_233),
-                "1627846261.233",
+                "2021-08-01-19:31:01.233000",
             ),
             (
                 TimeUnit::Microsecond,
                 Some(1_627_846_261_233_222),
-                "1627846261.233222",
+                "2021-08-01-19:31:01.233222",
             ),
             (
                 TimeUnit::Nanosecond,
                 Some(1_627_846_261_233_222_111),
-                "1627846261.233222111",
+                "2021-08-01-19:31:01.233222",
             ),
         ];
         for (unit, timestamp, expected) in &cases {
@@ -247,9 +251,15 @@ mod tests {
             .as_any()
             .downcast_ref::<StringArray>()
             .unwrap();
-        assert_eq!(converted_timestamp_array.value(0), "1627846261");
+        assert_eq!(
+            converted_timestamp_array.value(0),
+            "2021-08-01-19:31:01.000000"
+        );
         assert!(converted_timestamp_array.is_null(1));
-        assert_eq!(converted_timestamp_array.value(2), "1627846262");
+        assert_eq!(
+            converted_timestamp_array.value(2),
+            "2021-08-01-19:31:02.000000"
+        );
 
         assert_eq!(column_infos[0].name, "int_col");
         assert_eq!(column_infos[0].r#type, "fixed");
