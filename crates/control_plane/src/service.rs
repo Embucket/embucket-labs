@@ -2,7 +2,7 @@ use crate::error::{self, ControlPlaneError, ControlPlaneResult};
 use crate::models::{ColumnInfo, Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
-use crate::utils::convert_record_batches;
+use crate::utils::{convert_record_batches, Config};
 use arrow::record_batch::RecordBatch;
 use arrow_json::writer::JsonArray;
 use arrow_json::WriterBuilder;
@@ -80,12 +80,14 @@ pub trait ControlService: Send + Sync {
     async fn create_session(&self, session_id: String) -> ControlPlaneResult<()>;
 
     async fn delete_session(&self, session_id: String) -> ControlPlaneResult<()>;
+    fn config(&self) -> &Config;
 }
 
 pub struct ControlServiceImpl {
     storage_profile_repo: Arc<dyn StorageProfileRepository>,
     warehouse_repo: Arc<dyn WarehouseRepository>,
     df_sessions: Arc<RwLock<HashMap<String, SqlExecutor>>>,
+    config: Config,
 }
 
 impl ControlServiceImpl {
@@ -98,6 +100,7 @@ impl ControlServiceImpl {
             storage_profile_repo,
             warehouse_repo,
             df_sessions,
+            config: Config::default(),
         }
     }
 }
@@ -327,8 +330,11 @@ impl ControlService for ControlServiceImpl {
             .context(crate::error::ExecutionSnafu)?
             .into_iter()
             .collect::<Vec<_>>();
+
+        let serialization_format = self.config().dbt_serialization_format;
         // Add columns dbt metadata to each field
-        convert_record_batches(records).context(crate::error::DataFusionQuerySnafu { query })
+        convert_record_batches(records, serialization_format)
+            .context(error::DataFusionQuerySnafu { query })
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
@@ -538,12 +544,15 @@ impl ControlService for ControlServiceImpl {
 
         Ok(())
     }
+
+    fn config(&self) -> &Config {
+        &self.config
+    }
 }
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-
     use super::*;
     use crate::error::ControlPlaneError;
     use crate::models::{

@@ -1,5 +1,5 @@
 use arrow::array::RecordBatch;
-use arrow::datatypes::{DataType, Field};
+use arrow::datatypes::{DataType, Field, TimeUnit};
 use chrono::{NaiveDateTime, Utc};
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use object_store::aws::AmazonS3Builder;
@@ -481,17 +481,25 @@ impl ColumnInfo {
             DataType::Date32 | DataType::Date64 => {
                 column_info.r#type = "date".to_string();
             }
-            DataType::Timestamp(_, _) => {
+            DataType::Timestamp(unit, _) => {
                 column_info.r#type = "timestamp_ntz".to_string();
                 column_info.precision = Some(0);
-                column_info.scale = Some(9);
+                let scale = match unit {
+                    TimeUnit::Second => 0,
+                    TimeUnit::Millisecond => 3,
+                    TimeUnit::Microsecond => 6,
+                    TimeUnit::Nanosecond => 9,
+                };
+                column_info.scale = Some(scale);
             }
             DataType::Binary => {
                 column_info.r#type = "binary".to_string();
                 column_info.byte_length = Some(8_388_608);
                 column_info.length = Some(8_388_608);
             }
-            _ => {}
+            _ => {
+                column_info.r#type = "text".to_string();
+            }
         }
         column_info
     }
@@ -704,16 +712,20 @@ mod tests {
         assert_eq!(column_info.name, "test_field");
         assert_eq!(column_info.r#type, "date");
 
-        let field = Field::new(
-            "test_field",
-            DataType::Timestamp(TimeUnit::Second, None),
-            false,
-        );
-        let column_info = ColumnInfo::from_field(&field);
-        assert_eq!(column_info.name, "test_field");
-        assert_eq!(column_info.r#type, "timestamp_ntz");
-        assert_eq!(column_info.precision.unwrap(), 0);
-        assert_eq!(column_info.scale.unwrap(), 9);
+        let units = [
+            (TimeUnit::Second, 0),
+            (TimeUnit::Millisecond, 3),
+            (TimeUnit::Microsecond, 6),
+            (TimeUnit::Nanosecond, 9),
+        ];
+        for (unit, scale) in units {
+            let field = Field::new("test_field", DataType::Timestamp(unit, None), false);
+            let column_info = ColumnInfo::from_field(&field);
+            assert_eq!(column_info.name, "test_field");
+            assert_eq!(column_info.r#type, "timestamp_ntz");
+            assert_eq!(column_info.precision.unwrap(), 0);
+            assert_eq!(column_info.scale.unwrap(), scale);
+        }
 
         let field = Field::new("test_field", DataType::Binary, false);
         let column_info = ColumnInfo::from_field(&field);
@@ -721,6 +733,14 @@ mod tests {
         assert_eq!(column_info.r#type, "binary");
         assert_eq!(column_info.byte_length.unwrap(), 8_388_608);
         assert_eq!(column_info.length.unwrap(), 8_388_608);
+
+        // Фтн щерук ензу
+        let field = Field::new("test_field", DataType::Utf8View, false);
+        let column_info = ColumnInfo::from_field(&field);
+        assert_eq!(column_info.name, "test_field");
+        assert_eq!(column_info.r#type, "text");
+        assert_eq!(column_info.byte_length, None);
+        assert_eq!(column_info.length, None);
     }
 
     #[tokio::test]
