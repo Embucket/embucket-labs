@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 use super::error::{self as dbt_error, DbtError, DbtResult};
 use crate::http::dbt::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
@@ -17,15 +34,13 @@ use axum::Json;
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
+use control_plane::utils::SerializationFormat;
 use flate2::read::GzDecoder;
 use regex::Regex;
 use snafu::ResultExt;
 use std::io::Read;
 use tracing::debug;
 use uuid::Uuid;
-
-// TODO: move out as a configurable parameter
-const SERIALIZATION_FORMAT: &str = "json"; // or "arrow"
 
 // https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
 // Buffer Alignment and Padding: Implementations are recommended to allocate memory
@@ -60,7 +75,11 @@ pub async fn login(
         .await
         .context(dbt_error::ControlServiceSnafu)?;
 
-    for warehouse in warehouses.into_iter().filter(|w| w.name == query.warehouse) {
+    debug!("login request query: {query:?}, databases: {warehouses:?}");
+    for warehouse in warehouses
+        .into_iter()
+        .filter(|w| w.name == query.database_name)
+    {
         // Save warehouse id and db name in state
         state.dbt_sessions.lock().await.insert(
             token.clone(),
@@ -128,7 +147,6 @@ pub async fn query(
     };
 
     let sessions = state.dbt_sessions.lock().await;
-
     let Some(_auth_data) = sessions.get(token.as_str()) else {
         return Err(DbtError::MissingDbtSession);
     };
@@ -146,18 +164,19 @@ pub async fn query(
         records_to_json_string(&records)?.as_str()
     );
 
+    let serialization_format = state.control_svc.config().dbt_serialization_format;
     let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {
             row_type: columns.into_iter().map(Into::into).collect(),
-            query_result_format: Option::from(String::from(SERIALIZATION_FORMAT)),
-            row_set: if SERIALIZATION_FORMAT == "json" {
+            query_result_format: Some(serialization_format.to_string()),
+            row_set: if serialization_format == SerializationFormat::Json {
                 Option::from(ResponseData::rows_to_vec(
                     records_to_json_string(&records)?.as_str(),
                 )?)
             } else {
                 None
             },
-            row_set_base_64: if SERIALIZATION_FORMAT == "arrow" {
+            row_set_base_64: if serialization_format == SerializationFormat::Arrow {
                 Option::from(records_to_arrow_string(&records)?)
             } else {
                 None

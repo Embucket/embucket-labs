@@ -1,8 +1,25 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 use crate::error::{self, ControlPlaneError, ControlPlaneResult};
 use crate::models::{ColumnInfo, Credentials, StorageProfile, StorageProfileCreateRequest};
 use crate::models::{Warehouse, WarehouseCreateRequest};
 use crate::repository::{StorageProfileRepository, WarehouseRepository};
-use crate::utils::{convert_record_batches, S3Client, S3ClientValidation};
+use crate::utils::{convert_record_batches, Config, S3Client, S3ClientValidation};
 use arrow::record_batch::RecordBatch;
 use arrow_json::writer::JsonArray;
 use arrow_json::WriterBuilder;
@@ -83,12 +100,14 @@ pub trait ControlService: Send + Sync {
     async fn create_session(&self, session_id: String) -> ControlPlaneResult<()>;
 
     async fn delete_session(&self, session_id: String) -> ControlPlaneResult<()>;
+    fn config(&self) -> &Config;
 }
 
 pub struct ControlServiceImpl {
     storage_profile_repo: Arc<dyn StorageProfileRepository>,
     warehouse_repo: Arc<dyn WarehouseRepository>,
     df_sessions: Arc<RwLock<HashMap<String, SqlExecutor>>>,
+    config: Config,
 }
 
 impl ControlServiceImpl {
@@ -101,6 +120,7 @@ impl ControlServiceImpl {
             storage_profile_repo,
             warehouse_repo,
             df_sessions,
+            config: Config::default(),
         }
     }
 }
@@ -320,8 +340,11 @@ impl ControlService for ControlServiceImpl {
             .context(error::ExecutionSnafu)?
             .into_iter()
             .collect::<Vec<_>>();
+
+        let serialization_format = self.config().dbt_serialization_format;
         // Add columns dbt metadata to each field
-        convert_record_batches(records).context(error::DataFusionQuerySnafu { query })
+        convert_record_batches(records, serialization_format)
+            .context(error::DataFusionQuerySnafu { query })
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
@@ -530,6 +553,10 @@ impl ControlService for ControlServiceImpl {
         // txn.commit().await?;
 
         Ok(())
+    }
+
+    fn config(&self) -> &Config {
+        &self.config
     }
 }
 
