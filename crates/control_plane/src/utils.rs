@@ -31,42 +31,41 @@ use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclOutput, GetBucketAclRequest, S3Client as ExternalS3Client, S3};
 use snafu::ResultExt;
-use std::fmt::Display;
+use std::fmt;
 use std::sync::Arc;
-use std::{env, fmt};
 
 pub struct Config {
-    pub dbt_serialization_format: SerializationFormat,
+    pub data_format: DataFormat,
 }
 
-impl Default for Config {
-    fn default() -> Self {
+impl Config {
+    #[must_use]
+    pub fn new(data_format: &str) -> Self {
         Self {
-            dbt_serialization_format: SerializationFormat::new(),
+            data_format: DataFormat::from_str(data_format),
         }
     }
 }
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum SerializationFormat {
+pub enum DataFormat {
     Arrow,
     Json,
 }
 
-impl Display for SerializationFormat {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Arrow => write!(f, "arrow"),
-            Self::Json => write!(f, "json"),
+impl DataFormat {
+    fn from_str(value: &str) -> Self {
+        match value {
+            "arrow" => Self::Arrow,
+            _ => Self::Json,
         }
     }
 }
 
-impl SerializationFormat {
-    fn new() -> Self {
-        let var = env::var("DBT_SERIALIZATION_FORMAT").unwrap_or_else(|_| "json".to_string());
-        match var.to_lowercase().as_str() {
-            "arrow" => Self::Arrow,
-            _ => Self::Json,
+impl fmt::Display for DataFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Arrow => write!(f, "arrow"),
+            Self::Json => write!(f, "json"),
         }
     }
 }
@@ -143,7 +142,7 @@ pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, Array
 
 pub fn convert_record_batches(
     records: Vec<RecordBatch>,
-    serialization_format: SerializationFormat,
+    data_format: DataFormat,
 ) -> DataFusionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
     let mut converted_batches = Vec::new();
     let column_infos = ColumnInfo::from_batch(&records);
@@ -173,8 +172,7 @@ pub fn convert_record_batches(
                     }
                 }
                 DataType::Timestamp(unit, _) => {
-                    let converted_column =
-                        convert_timestamp_to_struct(column, *unit, serialization_format);
+                    let converted_column = convert_timestamp_to_struct(column, *unit, data_format);
                     fields.push(
                         Field::new(
                             field.name(),
@@ -218,10 +216,10 @@ macro_rules! downcast_and_iter {
 fn convert_timestamp_to_struct(
     column: &ArrayRef,
     unit: TimeUnit,
-    ser: SerializationFormat,
+    data_format: DataFormat,
 ) -> ArrayRef {
-    match ser {
-        SerializationFormat::Arrow => {
+    match data_format {
+        DataFormat::Arrow => {
             let timestamps: Vec<_> = match unit {
                 TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray).collect(),
                 TimeUnit::Millisecond => {
@@ -236,7 +234,7 @@ fn convert_timestamp_to_struct(
             };
             Arc::new(Int64Array::from(timestamps)) as ArrayRef
         }
-        SerializationFormat::Json => {
+        DataFormat::Json => {
             let timestamps: Vec<_> = match unit {
                 TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray)
                     .map(|x| {
@@ -344,8 +342,7 @@ mod tests {
                     Arc::new(TimestampNanosecondArray::from(values)) as ArrayRef
                 }
             };
-            let result =
-                convert_timestamp_to_struct(&timestamp_array, *unit, SerializationFormat::Json);
+            let result = convert_timestamp_to_struct(&timestamp_array, *unit, DataFormat::Json);
             let string_array = result.as_any().downcast_ref::<StringArray>().unwrap();
             assert_eq!(string_array.len(), 2);
             assert_eq!(string_array.value(0), *expected);
@@ -372,7 +369,7 @@ mod tests {
         let batch = RecordBatch::try_new(schema, vec![int_array, timestamp_array]).unwrap();
         let records = vec![batch];
         let (converted_batches, column_infos) =
-            convert_record_batches(records.clone(), SerializationFormat::Json).unwrap();
+            convert_record_batches(records.clone(), DataFormat::Json).unwrap();
 
         let converted_batch = &converted_batches[0];
         assert_eq!(converted_batches.len(), 1);
@@ -393,8 +390,7 @@ mod tests {
         assert_eq!(column_infos[1].name, "timestamp_col");
         assert_eq!(column_infos[1].r#type, "timestamp_ntz");
 
-        let (converted_batches, _) =
-            convert_record_batches(records, SerializationFormat::Arrow).unwrap();
+        let (converted_batches, _) = convert_record_batches(records, DataFormat::Arrow).unwrap();
         let converted_batch = &converted_batches[0];
         let converted_timestamp_array = converted_batch
             .column(1)

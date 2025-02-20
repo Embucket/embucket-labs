@@ -125,6 +125,15 @@ pub struct IceBucketOpts {
         help = "CORS Allow Origin"
     )]
     pub cors_allow_origin: Option<String>,
+
+    #[arg(
+        short,
+        long,
+        default_value = "json",
+        env = "DATA_FORMAT",
+        help = "Data serialization format in Snowflake v1 API"
+    )]
+    pub data_format: Option<String>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

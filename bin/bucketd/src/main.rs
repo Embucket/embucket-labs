@@ -43,6 +43,10 @@ async fn main() {
     } else {
         None
     };
+    let dbt_serialization_format = opts
+        .data_format
+        .clone()
+        .unwrap_or_else(|| "json".to_string());
     let object_store = opts.object_store_backend();
 
     match object_store {
@@ -53,8 +57,15 @@ async fn main() {
         Ok(object_store) => {
             tracing::info!("Starting 🧊🪣 IceBucket...");
 
-            if let Err(e) =
-                nexus::run_icebucket(object_store, slatedb_prefix, host, port, allow_origin).await
+            if let Err(e) = nexus::run_icebucket(
+                object_store,
+                slatedb_prefix,
+                host,
+                port,
+                allow_origin,
+                &dbt_serialization_format,
+            )
+            .await
             {
                 tracing::error!("Failed to start IceBucket: {:?}", e);
             }

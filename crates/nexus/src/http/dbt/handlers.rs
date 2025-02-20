@@ -34,7 +34,7 @@ use axum::Json;
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
-use control_plane::utils::SerializationFormat;
+use control_plane::utils::DataFormat;
 use flate2::read::GzDecoder;
 use regex::Regex;
 use snafu::ResultExt;
@@ -164,19 +164,19 @@ pub async fn query(
         records_to_json_string(&records)?.as_str()
     );
 
-    let serialization_format = state.control_svc.config().dbt_serialization_format;
+    let data_format = state.control_svc.config().data_format;
     let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {
             row_type: columns.into_iter().map(Into::into).collect(),
-            query_result_format: Some(serialization_format.to_string()),
-            row_set: if serialization_format == SerializationFormat::Json {
+            query_result_format: Some(data_format.to_string()),
+            row_set: if data_format == DataFormat::Json {
                 Option::from(ResponseData::rows_to_vec(
                     records_to_json_string(&records)?.as_str(),
                 )?)
             } else {
                 None
             },
-            row_set_base_64: if serialization_format == SerializationFormat::Arrow {
+            row_set_base_64: if data_format == DataFormat::Arrow {
                 Option::from(records_to_arrow_string(&records)?)
             } else {
                 None

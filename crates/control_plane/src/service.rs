@@ -112,13 +112,15 @@ pub struct ControlServiceImpl {
 
 impl ControlServiceImpl {
     pub fn new(
-        metastore: Arc<dyn Metastore>,
+        storage_profile_repo: Arc<dyn StorageProfileRepository>,
+        warehouse_repo: Arc<dyn WarehouseRepository>,
+        config: Config,
     ) -> Self {
         let df_sessions = Arc::new(RwLock::new(HashMap::new()));
         Self {
             metastore,
             df_sessions,
-            config: Config::default(),
+            config,
         }
     }
 }
@@ -338,10 +340,9 @@ impl ControlService for ControlServiceImpl {
             .into_iter()
             .collect::<Vec<_>>();
 
-        let serialization_format = self.config().dbt_serialization_format;
+        let data_format = self.config().data_format;
         // Add columns dbt metadata to each field
-        convert_record_batches(records, serialization_format)
-            .context(error::DataFusionQuerySnafu { query })
+        convert_record_batches(records, data_format).context(error::DataFusionQuerySnafu { query })
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
@@ -582,7 +583,7 @@ mod tests {
     fn service() -> ControlServiceImpl {
         let storage_repo = Arc::new(InMemoryStorageProfileRepository::default());
         let warehouse_repo = Arc::new(InMemoryWarehouseRepository::default());
-        ControlServiceImpl::new(storage_repo, warehouse_repo)
+        ControlServiceImpl::new(storage_repo, warehouse_repo, Config::new("json"))
     }
 
     fn storage_profile_req() -> StorageProfileCreateRequest {
@@ -806,7 +807,7 @@ mod tests {
         storage_repo: Arc<dyn StorageProfileRepository>,
         warehouse_repo: Arc<dyn WarehouseRepository>,
     ) {
-        let service = ControlServiceImpl::new(storage_repo, warehouse_repo);
+        let service = ControlServiceImpl::new(storage_repo, warehouse_repo, Config::new("json"));
         service
             .create_session("TEST_SESSION".to_string())
             .await

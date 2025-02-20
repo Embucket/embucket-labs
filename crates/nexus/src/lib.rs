@@ -26,6 +26,7 @@ use catalog::repository::{DatabaseRepositoryDb, TableRepositoryDb};
 use catalog::service::CatalogImpl;
 use control_plane::repository::{StorageProfileRepositoryDb, WarehouseRepositoryDb};
 use control_plane::service::ControlServiceImpl;
+use control_plane::utils::Config as ControlServiceConfig;
 use http_body_util::BodyExt;
 use metastore::metastore::SlateDBMetastore;
 use object_store::{path::Path, ObjectStore};
@@ -52,6 +53,7 @@ pub async fn run_icebucket(
     host: String,
     port: u16,
     allow_origin: Option<String>,
+    data_format: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = {
         let options = DbOptions::default();
@@ -76,7 +78,12 @@ pub async fn run_icebucket(
     let control_svc = {
         let storage_profile_repo = StorageProfileRepositoryDb::new(db.clone());
         let warehouse_repo = WarehouseRepositoryDb::new(db.clone());
-        ControlServiceImpl::new(Arc::new(storage_profile_repo), Arc::new(warehouse_repo))
+        let config = ControlServiceConfig::new(data_format);
+        ControlServiceImpl::new(
+            Arc::new(storage_profile_repo),
+            Arc::new(warehouse_repo),
+            config,
+        )
     };
     let control_svc = Arc::new(control_svc);
 
