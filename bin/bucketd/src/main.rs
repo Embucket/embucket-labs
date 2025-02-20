@@ -44,7 +44,7 @@ async fn main() {
         None
     };
     let dbt_serialization_format = opts
-        .dbt_serialization_format
+        .data_format
         .clone()
         .unwrap_or_else(|| "json".to_string());
     let object_store = opts.object_store_backend();

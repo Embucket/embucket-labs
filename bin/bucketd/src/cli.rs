@@ -130,10 +130,10 @@ pub struct IceBucketOpts {
         short,
         long,
         default_value = "json",
-        env = "DBT_SERIALIZATION_FORMAT",
-        help = "Serialization format for dbt endpoints"
+        env = "DATA_FORMAT",
+        help = "Data serialization format in Snowflake v1 API"
     )]
-    pub dbt_serialization_format: Option<String>,
+    pub data_format: Option<String>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

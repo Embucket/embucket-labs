@@ -342,10 +342,9 @@ impl ControlService for ControlServiceImpl {
             .into_iter()
             .collect::<Vec<_>>();
 
-        let serialization_format = self.config().dbt_serialization_format;
+        let data_format = self.config().data_format;
         // Add columns dbt metadata to each field
-        convert_record_batches(records, serialization_format)
-            .context(error::DataFusionQuerySnafu { query })
+        convert_record_batches(records, data_format).context(error::DataFusionQuerySnafu { query })
     }
 
     #[tracing::instrument(level = "debug", skip(self))]

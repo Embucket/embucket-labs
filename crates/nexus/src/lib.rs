@@ -52,7 +52,7 @@ pub async fn run_icebucket(
     host: String,
     port: u16,
     allow_origin: Option<String>,
-    dbt_serialization_format: &str,
+    data_format: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = {
         let options = DbOptions::default();
@@ -66,7 +66,7 @@ pub async fn run_icebucket(
     let control_svc = {
         let storage_profile_repo = StorageProfileRepositoryDb::new(db.clone());
         let warehouse_repo = WarehouseRepositoryDb::new(db.clone());
-        let config = ControlServiceConfig::new(dbt_serialization_format);
+        let config = ControlServiceConfig::new(data_format);
         ControlServiceImpl::new(
             Arc::new(storage_profile_repo),
             Arc::new(warehouse_repo),
