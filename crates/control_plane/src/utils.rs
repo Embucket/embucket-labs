@@ -18,8 +18,9 @@
 use crate::error::{ControlPlaneError, ControlPlaneResult};
 use crate::models::{ColumnInfo, Credentials, StorageProfile};
 use arrow::array::{
-    Array, Int64Array, StringArray, TimestampMicrosecondArray, TimestampMillisecondArray,
-    TimestampNanosecondArray, TimestampSecondArray, UnionArray,
+    Array, Decimal128Array, Int16Array, Int32Array, Int64Array, StringArray,
+    TimestampMicrosecondArray, TimestampMillisecondArray, TimestampNanosecondArray,
+    TimestampSecondArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array, UnionArray,
 };
 use arrow::datatypes::{Field, Schema, TimeUnit};
 use arrow::record_batch::RecordBatch;
@@ -32,6 +33,7 @@ use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclOutput, GetBucketAclRequest, S3Client as ExternalS3Client, S3};
 use snafu::ResultExt;
 use std::fmt;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct Config {
@@ -163,11 +165,11 @@ pub fn convert_record_batches(
                             );
                             array
                         } else {
-                            fields.push(field.clone().with_metadata(metadata));
+                            fields.push(field.with_metadata(metadata));
                             Arc::clone(column)
                         }
                     } else {
-                        fields.push(field.clone().with_metadata(metadata));
+                        fields.push(field.with_metadata(metadata));
                         Arc::clone(column)
                     }
                 }
@@ -182,6 +184,15 @@ pub fn convert_record_batches(
                         .with_metadata(metadata),
                     );
                     Arc::clone(&converted_column)
+                }
+                DataType::UInt64 | DataType::UInt32 | DataType::UInt16 | DataType::UInt8 => {
+                    convert_uint_to_int_datatypes(
+                        &mut fields,
+                        &field,
+                        column,
+                        metadata,
+                        serialization_format,
+                    )
                 }
                 _ => {
                     fields.push(field.clone().with_metadata(metadata));
@@ -274,15 +285,95 @@ fn convert_timestamp_to_struct(
     }
 }
 
+#[allow(
+    clippy::cast_lossless,
+    clippy::unwrap_used,
+    clippy::as_conversions,
+    clippy::cast_possible_truncation
+)]
+fn convert_uint_to_int_datatypes(
+    fields: &mut Vec<Field>,
+    field: &Field,
+    column: &ArrayRef,
+    metadata: HashMap<String, String>,
+    ser: SerializationFormat,
+) -> ArrayRef {
+    match ser {
+        SerializationFormat::Arrow => {
+            match field.data_type() {
+                DataType::UInt64 => {
+                    fields.push(
+                        Field::new(
+                            field.name(),
+                            DataType::Decimal128(38, 10),
+                            field.is_nullable(),
+                        )
+                        .with_metadata(metadata),
+                    );
+                    // converted_column
+                    Arc::new(Decimal128Array::from_unary(
+                        column.as_any().downcast_ref::<UInt64Array>().unwrap(),
+                        |x| x as i128,
+                    ))
+                }
+                DataType::UInt32 => {
+                    fields.push(
+                        Field::new(field.name(), DataType::Int64, field.is_nullable())
+                            .with_metadata(metadata),
+                    );
+                    // converted_column
+                    Arc::new(Int64Array::from_unary(
+                        column.as_any().downcast_ref::<UInt32Array>().unwrap(),
+                        |x| x as i64,
+                    ))
+                }
+                DataType::UInt16 => {
+                    fields.push(
+                        Field::new(field.name(), DataType::Int32, field.is_nullable())
+                            .with_metadata(metadata),
+                    );
+                    // converted_column
+                    Arc::new(Int32Array::from_unary(
+                        column.as_any().downcast_ref::<UInt16Array>().unwrap(),
+                        |x| x as i32,
+                    ))
+                }
+                DataType::UInt8 => {
+                    fields.push(
+                        Field::new(field.name(), DataType::Int16, field.is_nullable())
+                            .with_metadata(metadata),
+                    );
+                    // converted_column
+                    Arc::new(Int16Array::from_unary(
+                        column.as_any().downcast_ref::<UInt8Array>().unwrap(),
+                        |x| x as i16,
+                    ))
+                }
+                _ => {
+                    fields.push(field.clone().with_metadata(metadata));
+                    Arc::clone(column)
+                }
+            }
+        }
+        SerializationFormat::Json => {
+            fields.push(field.clone().with_metadata(metadata));
+            Arc::clone(column)
+        }
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::as_conversions, clippy::expect_used)]
 mod tests {
     use super::*;
-    use arrow::array::{ArrayRef, Float64Array, Int32Array, TimestampSecondArray, UnionArray};
+    use arrow::array::{
+        ArrayRef, Float64Array, Int32Array, TimestampSecondArray, UInt64Array, UnionArray,
+    };
     use arrow::buffer::ScalarBuffer;
     use arrow::datatypes::{DataType, Field};
     use arrow::record_batch::RecordBatch;
     use std::sync::Arc;
+    use std::u64;
 
     #[test]
     fn test_first_non_empty_type() {
@@ -400,5 +491,119 @@ mod tests {
         assert_eq!(converted_timestamp_array.value(0), 1_627_846_261);
         assert!(converted_timestamp_array.is_null(1));
         assert_eq!(converted_timestamp_array.value(2), 1_627_846_262);
+    }
+
+    fn _test_convert_record_batches_uint(
+        batches: Vec<RecordBatch>,
+        converted_batches: Vec<RecordBatch>,
+        column_infos: Vec<ColumnInfo>,
+    ) -> i32 {
+        assert_eq!(batches.len(), 1);
+        assert_eq!(converted_batches.len(), 1);
+
+        let batch = &batches[0];
+        let converted_batch = &converted_batches[0];
+
+        assert_eq!(converted_batch.num_columns(), batch.num_columns());
+        assert_eq!(converted_batch.num_rows(), batch.num_rows());
+
+        let mut fields_tested = 0;
+        for (i, field) in batch.schema().fields.into_iter().enumerate() {
+            let converted_field = converted_batch
+                .schema_ref()
+                .field_with_name(field.name())
+                .unwrap();
+            println!(
+                "{}, {}, {:?}",
+                i,
+                converted_field.name(),
+                converted_field.metadata()
+            );
+            let converted_column = &converted_batch.columns()[i];
+            assert_eq!(column_infos[i].name, *converted_field.name());
+            assert_eq!(
+                column_infos[i].r#type.to_ascii_uppercase(),
+                converted_field.metadata()["logicalType"]
+            );
+            match field.data_type() {
+                DataType::UInt64 => {
+                    assert_eq!(*converted_field.data_type(), DataType::Decimal128(38, 10));
+                    let values: Decimal128Array = converted_column
+                        .as_any()
+                        .downcast_ref::<Decimal128Array>()
+                        .unwrap()
+                        .into_iter()
+                        .map(|x| x)
+                        .collect();
+                    assert_eq!(values, Decimal128Array::from(vec![0, 1, u64::MAX as i128]));
+                    fields_tested += 1;
+                }
+                DataType::UInt32 => {
+                    assert_eq!(*converted_field.data_type(), DataType::Int64);
+                    let values: Int64Array = converted_column
+                        .as_any()
+                        .downcast_ref::<Int64Array>()
+                        .unwrap()
+                        .into_iter()
+                        .map(|x| x)
+                        .collect();
+                    assert_eq!(values, Int64Array::from(vec![0, 1, u32::MAX as i64]));
+                    fields_tested += 1;
+                }
+                DataType::UInt16 => {
+                    assert_eq!(*converted_field.data_type(), DataType::Int32);
+                    let values: Int32Array = converted_column
+                        .as_any()
+                        .downcast_ref::<Int32Array>()
+                        .unwrap()
+                        .into_iter()
+                        .map(|x| x)
+                        .collect();
+                    assert_eq!(values, Int32Array::from(vec![0, 1, u16::MAX as i32]));
+                    fields_tested += 1;
+                }
+                DataType::UInt8 => {
+                    assert_eq!(*converted_field.data_type(), DataType::Int16);
+                    let values: Int16Array = converted_column
+                        .as_any()
+                        .downcast_ref::<Int16Array>()
+                        .unwrap()
+                        .into_iter()
+                        .map(|x| x)
+                        .collect();
+                    assert_eq!(values, Int16Array::from(vec![0, 1, u8::MAX as i16]));
+                    fields_tested += 1;
+                }
+                _ => {
+                    panic!("Bad DataType: {}", field.data_type());
+                }
+            };
+        }
+        fields_tested
+    }
+
+    #[test]
+    fn test_convert_record_batches_uint() {
+        let record_batches = vec![RecordBatch::try_new(
+            Arc::new(Schema::new(vec![
+                Field::new("row_num_uint64", DataType::UInt64, false),
+                Field::new("row_num_uint32", DataType::UInt32, false),
+                Field::new("row_num_uint16", DataType::UInt16, false),
+                Field::new("row_num_uint8", DataType::UInt8, false),
+            ])),
+            vec![
+                Arc::new(UInt64Array::from(vec![0, 1, u64::MAX])),
+                Arc::new(UInt32Array::from(vec![0, 1, u32::MAX])),
+                Arc::new(UInt16Array::from(vec![0, 1, u16::MAX])),
+                Arc::new(UInt8Array::from(vec![0, 1, u8::MAX])),
+            ],
+        )
+        .unwrap()];
+        let (converted_batches, column_infos) =
+            convert_record_batches(record_batches.clone(), SerializationFormat::Arrow).unwrap();
+
+        let fields_tested =
+            _test_convert_record_batches_uint(record_batches, converted_batches, column_infos);
+        assert_eq!(fields_tested, 4);
     }
 }
