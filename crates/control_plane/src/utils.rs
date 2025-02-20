@@ -373,7 +373,6 @@ mod tests {
     use arrow::datatypes::{DataType, Field};
     use arrow::record_batch::RecordBatch;
     use std::sync::Arc;
-    use std::u64;
 
     #[test]
     fn test_first_non_empty_type() {
@@ -493,7 +492,8 @@ mod tests {
         assert_eq!(converted_timestamp_array.value(2), 1_627_846_262);
     }
 
-    fn _test_convert_record_batches_uint(
+    #[allow(clippy::needless_pass_by_value)]
+    fn check_record_batches_uint_to_int(
         batches: Vec<RecordBatch>,
         converted_batches: Vec<RecordBatch>,
         column_infos: Vec<ColumnInfo>,
@@ -513,12 +513,7 @@ mod tests {
                 .schema_ref()
                 .field_with_name(field.name())
                 .unwrap();
-            println!(
-                "{}, {}, {:?}",
-                i,
-                converted_field.name(),
-                converted_field.metadata()
-            );
+
             let converted_column = &converted_batch.columns()[i];
             assert_eq!(column_infos[i].name, *converted_field.name());
             assert_eq!(
@@ -533,9 +528,11 @@ mod tests {
                         .downcast_ref::<Decimal128Array>()
                         .unwrap()
                         .into_iter()
-                        .map(|x| x)
                         .collect();
-                    assert_eq!(values, Decimal128Array::from(vec![0, 1, u64::MAX as i128]));
+                    assert_eq!(
+                        values,
+                        Decimal128Array::from(vec![0, 1, i128::from(u64::MAX)])
+                    );
                     fields_tested += 1;
                 }
                 DataType::UInt32 => {
@@ -545,9 +542,8 @@ mod tests {
                         .downcast_ref::<Int64Array>()
                         .unwrap()
                         .into_iter()
-                        .map(|x| x)
                         .collect();
-                    assert_eq!(values, Int64Array::from(vec![0, 1, u32::MAX as i64]));
+                    assert_eq!(values, Int64Array::from(vec![0, 1, i64::from(u32::MAX)]));
                     fields_tested += 1;
                 }
                 DataType::UInt16 => {
@@ -557,9 +553,8 @@ mod tests {
                         .downcast_ref::<Int32Array>()
                         .unwrap()
                         .into_iter()
-                        .map(|x| x)
                         .collect();
-                    assert_eq!(values, Int32Array::from(vec![0, 1, u16::MAX as i32]));
+                    assert_eq!(values, Int32Array::from(vec![0, 1, i32::from(u16::MAX)]));
                     fields_tested += 1;
                 }
                 DataType::UInt8 => {
@@ -569,9 +564,8 @@ mod tests {
                         .downcast_ref::<Int16Array>()
                         .unwrap()
                         .into_iter()
-                        .map(|x| x)
                         .collect();
-                    assert_eq!(values, Int16Array::from(vec![0, 1, u8::MAX as i16]));
+                    assert_eq!(values, Int16Array::from(vec![0, 1, i16::from(u8::MAX)]));
                     fields_tested += 1;
                 }
                 _ => {
@@ -603,7 +597,7 @@ mod tests {
             convert_record_batches(record_batches.clone(), SerializationFormat::Arrow).unwrap();
 
         let fields_tested =
-            _test_convert_record_batches_uint(record_batches, converted_batches, column_infos);
+            check_record_batches_uint_to_int(record_batches, converted_batches, column_infos);
         assert_eq!(fields_tested, 4);
     }
 }
