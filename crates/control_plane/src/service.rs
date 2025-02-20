@@ -231,14 +231,19 @@ impl ControlService for ControlServiceImpl {
         &self,
         params: &WarehouseCreateRequest,
     ) -> ControlPlaneResult<Warehouse> {
-        // TODO: Check if storage profile exists
+        let profile = self.get_profile(params.storage_profile_id).await?;
+        let base_url = profile
+            .get_base_url()
+            .context(error::InvalidStorageProfileSnafu)?;
+
         // - Check if its valid
         // - Generate id, update created_at and updated_at
-        // - Try create Warehouse from WarehouseCreateRequest
-        let wh: Warehouse = params
+        // - Try to create Warehouse from WarehouseCreateRequest
+        let mut wh: Warehouse = params
             .try_into()
             .context(error::InvalidCreateWarehouseSnafu)?;
-        let _ = self.get_profile(wh.storage_profile_id).await?;
+        wh.with_location(base_url);
+
         self.warehouse_repo.create(&wh).await?;
         Ok(wh)
     }
@@ -394,7 +399,7 @@ impl ControlService for ControlServiceImpl {
 
         // this path also computes inside catalog service (create_table)
         // TODO need to refactor the code so this path calculation is in one place
-        let table_part = format!("{}/{}", warehouse.location, table_name);
+        let table_part = format!("{}/{}", warehouse.path(), table_name);
         let path_string = format!("{table_part}/tmp/{unique_file_id}/{file_name}");
 
         let path = Path::from(path_string.clone());

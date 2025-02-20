@@ -378,29 +378,29 @@ impl Warehouse {
         storage_profile_id: Uuid,
     ) -> ControlPlaneModelResult<Self> {
         let id = Uuid::new_v4();
-        let location = format!("{prefix}/{id}");
         let now = Utc::now().naive_utc();
         Ok(Self {
             id,
             prefix,
             name,
-            location,
+            location: String::new(),
             storage_profile_id,
             created_at: now,
             updated_at: now,
         })
     }
-}
 
-impl TryFrom<WarehouseCreateRequest> for Warehouse {
-    type Error = ControlPlaneModelError;
+    pub fn with_location(&mut self, location: String) {
+        self.location = location;
+    }
 
-    fn try_from(value: WarehouseCreateRequest) -> ControlPlaneModelResult<Self> {
-        Self::new(
-            value.prefix.clone(),
-            value.name.clone(),
-            value.storage_profile_id,
-        )
+    #[must_use]
+    pub fn path(&self) -> String {
+        if self.prefix.is_empty() {
+            format!("{}", self.id)
+        } else {
+            format!("{}/{}", self.prefix, self.id)
+        }
     }
 }
 
