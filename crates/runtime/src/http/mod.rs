@@ -23,7 +23,6 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
-
 use http_body_util::BodyExt;
 use icebucket_metastore::Metastore;
 use std::sync::Arc;

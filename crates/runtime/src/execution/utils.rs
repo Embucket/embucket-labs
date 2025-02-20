@@ -61,15 +61,6 @@ impl DataFormat {
     }
 }
 
-impl std::fmt::Display for DataFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Arrow => write!(f, "arrow"),
-            Self::Json => write!(f, "json"),
-        }
-    }
-}
-
 /*#[async_trait::async_trait]
 pub trait S3ClientValidation: Send + Sync {
     async fn get_aws_bucket_acl(

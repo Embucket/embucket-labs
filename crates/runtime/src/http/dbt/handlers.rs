@@ -173,15 +173,15 @@ pub async fn query(
     let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {
             row_type: columns.into_iter().map(Into::into).collect(),
-            query_result_format: Some(serialization_format.to_string()),
-            row_set: if serialization_format == SerializationFormat::Json {
+            query_result_format: Some(data_format.to_string()),
+            row_set: if data_format == DataFormat::Json {
                 Option::from(ResponseData::rows_to_vec(
                     records_to_json_string(&records)?.as_str(),
                 )?)
             } else {
                 None
             },
-            row_set_base_64: if serialization_format == SerializationFormat::Arrow {
+            row_set_base_64: if data_format == DataFormat::Arrow {
                 Option::from(records_to_arrow_string(&records)?)
             } else {
                 None
