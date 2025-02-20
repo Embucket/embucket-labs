@@ -32,8 +32,8 @@ use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetBucketAclOutput, GetBucketAclRequest, S3Client as ExternalS3Client, S3};
 use snafu::ResultExt;
-use std::fmt;
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::Arc;
 
 pub struct Config {
@@ -186,12 +186,17 @@ pub fn convert_record_batches(
                     Arc::clone(&converted_column)
                 }
                 DataType::UInt64 | DataType::UInt32 | DataType::UInt16 | DataType::UInt8 => {
+                    let column_info = &column_infos[i];
                     convert_uint_to_int_datatypes(
                         &mut fields,
                         &field,
                         column,
                         metadata,
-                        serialization_format,
+                        data_format,
+                        (
+                            column_info.precision.unwrap_or(38),
+                            column_info.scale.unwrap_or(0),
+                        ),
                     )
                 }
                 _ => {
@@ -289,32 +294,38 @@ fn convert_timestamp_to_struct(
     clippy::cast_lossless,
     clippy::unwrap_used,
     clippy::as_conversions,
-    clippy::cast_possible_truncation
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
 )]
 fn convert_uint_to_int_datatypes(
     fields: &mut Vec<Field>,
     field: &Field,
     column: &ArrayRef,
     metadata: HashMap<String, String>,
-    ser: SerializationFormat,
+    data_format: DataFormat,
+    precision_scale: (i32, i32),
 ) -> ArrayRef {
-    match ser {
-        SerializationFormat::Arrow => {
+    match data_format {
+        DataFormat::Arrow => {
             match field.data_type() {
                 DataType::UInt64 => {
                     fields.push(
                         Field::new(
                             field.name(),
-                            DataType::Decimal128(38, 10),
+                            DataType::Decimal128(precision_scale.0 as u8, precision_scale.1 as i8),
                             field.is_nullable(),
                         )
                         .with_metadata(metadata),
                     );
                     // converted_column
-                    Arc::new(Decimal128Array::from_unary(
-                        column.as_any().downcast_ref::<UInt64Array>().unwrap(),
-                        |x| x as i128,
-                    ))
+                    Arc::new(
+                        Decimal128Array::from_unary(
+                            column.as_any().downcast_ref::<UInt64Array>().unwrap(),
+                            |x| x as i128,
+                        )
+                        .with_precision_and_scale(38, 0)
+                        .unwrap(),
+                    )
                 }
                 DataType::UInt32 => {
                     fields.push(
@@ -355,7 +366,7 @@ fn convert_uint_to_int_datatypes(
                 }
             }
         }
-        SerializationFormat::Json => {
+        DataFormat::Json => {
             fields.push(field.clone().with_metadata(metadata));
             Arc::clone(column)
         }
@@ -514,15 +525,22 @@ mod tests {
                 .field_with_name(field.name())
                 .unwrap();
 
+            let column_info = &column_infos[i];
             let converted_column = &converted_batch.columns()[i];
             assert_eq!(column_infos[i].name, *converted_field.name());
             assert_eq!(
                 column_infos[i].r#type.to_ascii_uppercase(),
                 converted_field.metadata()["logicalType"]
             );
+            // natively precision is u8, scale i8 but column_info is using i32
+            let metadata_precision: i32 = converted_field.metadata()["precision"].parse().unwrap();
+            let metadata_scale: i32 = converted_field.metadata()["scale"].parse().unwrap();
+            assert_ne!(column_info.precision.unwrap(), 0);
+            assert_eq!(column_info.precision.unwrap(), metadata_precision);
+            assert_eq!(column_info.scale.unwrap(), metadata_scale);
             match field.data_type() {
                 DataType::UInt64 => {
-                    assert_eq!(*converted_field.data_type(), DataType::Decimal128(38, 10));
+                    assert_eq!(*converted_field.data_type(), DataType::Decimal128(38, 0));
                     let values: Decimal128Array = converted_column
                         .as_any()
                         .downcast_ref::<Decimal128Array>()
@@ -593,8 +611,9 @@ mod tests {
             ],
         )
         .unwrap()];
+
         let (converted_batches, column_infos) =
-            convert_record_batches(record_batches.clone(), SerializationFormat::Arrow).unwrap();
+            convert_record_batches(record_batches.clone(), DataFormat::Arrow).unwrap();
 
         let fields_tested =
             check_record_batches_uint_to_int(record_batches, converted_batches, column_infos);
