@@ -6,4 +6,3 @@ pub mod planner;
 pub mod execution;
 pub mod session;
 pub mod type_planner;
-pub mod statement_post_processor;

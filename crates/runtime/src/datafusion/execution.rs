@@ -36,12 +36,16 @@ use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType,
     Query as AstQuery, Select, SelectItem, Use,
+    Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, visit_expressions_mut
 };
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
+use std::ops::ControlFlow;
+
+
 
 pub struct SqlExecutor {
     // ctx made public to register_catalog after creating SqlExecutor
@@ -66,6 +70,24 @@ impl SqlExecutor {
         state.sql_to_statement(query, dialect)
     }
 
+    pub fn postprocess_query_statement(&self, statement: &mut DFStatement) {
+        if let DFStatement::Statement(value) = statement  {
+            visit_expressions_mut(&mut *value, |expr| {
+                if let Expr::Function(Function { name: ObjectName(idents), args: FunctionArguments::List(FunctionArgumentList { args, .. }), .. }) = expr  {
+                    match idents.first().unwrap().value.as_str() {
+                        "dateadd" | "date_add" | "datediff" | "date_diff" => {
+                            if let FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Identifier(Ident { value, .. }))) = args.iter_mut().next().unwrap() {
+                                *value = format!("'{value}'");
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                ControlFlow::<()>::Continue(())
+            });
+        }
+    }
+
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn query(
         &self,
@@ -74,9 +96,10 @@ impl SqlExecutor {
     ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         // Update query to use custom JSON functions
         let query = self.preprocess_query(query);
-        let statement = self
+        let mut statement = self
             .parse_query(query.as_str())
             .context(super::error::DataFusionSnafu)?;
+        // self.postprocess_query_statement(&mut statement);
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
 
