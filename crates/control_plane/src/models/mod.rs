@@ -777,6 +777,26 @@ mod tests {
         assert_eq!(column_info.r#type, "text");
         assert_eq!(column_info.byte_length, None);
         assert_eq!(column_info.length, None);
+
+        let floats = [
+            (DataType::Float16, 16, true),
+            (DataType::Float32, 16, true),
+            (DataType::Float64, 16, true),
+            (DataType::Float64, 17, false),
+        ];
+        for (float_datatype, scale, outcome) in floats {
+            let field = Field::new("test_field", float_datatype, false);
+            let column_info = ColumnInfo::from_field(&field);
+            assert_eq!(column_info.name, "test_field");
+            assert_eq!(column_info.r#type, "real");
+            assert_eq!(column_info.precision.unwrap(), 38);
+            if outcome == true {
+                assert_eq!(column_info.scale.unwrap(), scale);
+            } else {
+                assert_ne!(column_info.scale.unwrap(), scale);
+            }
+        }
+
     }
 
     #[tokio::test]
