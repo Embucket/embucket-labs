@@ -188,7 +188,7 @@ impl Catalog for CatalogImpl {
         let base_part = storage_profile
             .get_base_url()
             .context(error::ControlPlaneSnafu)?;
-        let table_part = format!("{}/{}", warehouse.location, commit.ident.table);
+        let table_part = format!("{}/{}", warehouse.path(), commit.ident.table);
         let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
 
         let mut properties = table.properties.clone();
@@ -339,7 +339,7 @@ impl Catalog for CatalogImpl {
         let base_part = storage_profile
             .get_base_url()
             .context(error::ControlPlaneSnafu)?;
-        let table_part = format!("{}/{}", warehouse.location, table_creation.name);
+        let table_part = format!("{}/{}", warehouse.path(), table_creation.name);
         let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
 
         let table_creation = {

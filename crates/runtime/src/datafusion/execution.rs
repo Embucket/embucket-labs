@@ -381,7 +381,6 @@ impl SqlExecutor {
                     .await
                     .context(ih_error::IcebergSnafu)?;
             };
-
             // Create new table
             rest_catalog
                 .create_table(
