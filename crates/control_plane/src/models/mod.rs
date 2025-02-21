@@ -485,11 +485,15 @@ impl ColumnInfo {
             | DataType::UInt8
             | DataType::UInt16
             | DataType::UInt32
-            | DataType::UInt64
-            | DataType::Float32 => {
+            | DataType::UInt64 => {
                 column_info.r#type = "fixed".to_string();
                 column_info.precision = Some(38);
                 column_info.scale = Some(0);
+            }
+            DataType::Float16 | DataType::Float32 | DataType::Float64 => {
+                column_info.r#type = "real".to_string();
+                column_info.precision = Some(38);
+                column_info.scale = Some(16);
             }
             DataType::Decimal128(precision, scale) | DataType::Decimal256(precision, scale) => {
                 column_info.r#type = "fixed".to_string();
