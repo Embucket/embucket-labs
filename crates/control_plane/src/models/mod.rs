@@ -790,7 +790,7 @@ mod tests {
             assert_eq!(column_info.name, "test_field");
             assert_eq!(column_info.r#type, "real");
             assert_eq!(column_info.precision.unwrap(), 38);
-            if outcome == true {
+            if outcome {
                 assert_eq!(column_info.scale.unwrap(), scale);
             } else {
                 assert_ne!(column_info.scale.unwrap(), scale);
