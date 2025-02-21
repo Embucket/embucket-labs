@@ -796,7 +796,6 @@ mod tests {
                 assert_ne!(column_info.scale.unwrap(), scale);
             }
         }
-
     }
 
     #[tokio::test]
