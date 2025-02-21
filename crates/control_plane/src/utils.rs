@@ -503,7 +503,11 @@ mod tests {
         assert_eq!(converted_timestamp_array.value(2), 1_627_846_262);
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[allow(
+        clippy::needless_pass_by_value,
+        clippy::cast_sign_loss,
+        clippy::cast_possible_truncation
+    )]
     fn check_record_batches_uint_to_int(
         batches: Vec<RecordBatch>,
         converted_batches: Vec<RecordBatch>,
@@ -540,7 +544,10 @@ mod tests {
             assert_eq!(column_info.scale.unwrap(), metadata_scale);
             match field.data_type() {
                 DataType::UInt64 => {
-                    assert_eq!(*converted_field.data_type(), DataType::Decimal128(38, 0));
+                    assert_eq!(
+                        *converted_field.data_type(),
+                        DataType::Decimal128(metadata_precision as u8, metadata_scale as i8)
+                    );
                     let values: Decimal128Array = converted_column
                         .as_any()
                         .downcast_ref::<Decimal128Array>()
