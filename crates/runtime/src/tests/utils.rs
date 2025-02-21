@@ -27,11 +27,14 @@ pub mod macros {
                 #[tokio::test]
                 async fn [< query_ $test_fn_name >]() {
                     let ctx = crate::tests::utils::create_df_session().await;
-                    let statement = ctx.state().sql_to_statement($query, "snowflake");
 
-                    let plan = ctx.state().create_logical_plan($query)
+                    let query = crate::datafusion::execution::SqlExecutor::preprocess_query($query);
+                    let mut statement = ctx.state().sql_to_statement(query.as_str(), "snowflake")
+                        .unwrap();
+                    crate::datafusion::execution::SqlExecutor::postprocess_query_statement(&mut statement);
+                    let plan = ctx.state().statement_to_plan(statement.clone())
                         .await;
-
+                    //TODO: add our plan processing also
                     let df = match &plan {
                         Ok(plan) => {
                             match ctx.execute_logical_plan(plan.clone()).await {

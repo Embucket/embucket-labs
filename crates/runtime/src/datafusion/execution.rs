@@ -70,14 +70,17 @@ impl SqlExecutor {
         state.sql_to_statement(query, dialect)
     }
 
-    pub fn postprocess_query_statement(&self, statement: &mut DFStatement) {
+    pub fn postprocess_query_statement(statement: &mut DFStatement) {
         if let DFStatement::Statement(value) = statement  {
             visit_expressions_mut(&mut *value, |expr| {
                 if let Expr::Function(Function { name: ObjectName(idents), args: FunctionArguments::List(FunctionArgumentList { args, .. }), .. }) = expr  {
                     match idents.first().unwrap().value.as_str() {
                         "dateadd" | "date_add" | "datediff" | "date_diff" => {
-                            if let FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Identifier(Ident { value, .. }))) = args.iter_mut().next().unwrap() {
-                                *value = format!("'{value}'");
+                            if let FunctionArg::Unnamed(FunctionArgExpr::Expr(ident)) = args.iter_mut().next().unwrap() {
+                                //TODO: check if the value is correct (date_time_part)
+                                if let Expr::Identifier(Ident { value, .. }) = ident {
+                                    *ident = Expr::Value(sqlparser::ast::Value::SingleQuotedString(String::from(value.clone())));
+                                }
                             }
                         }
                         _ => {}
@@ -95,7 +98,7 @@ impl SqlExecutor {
         warehouse_name: &str,
     ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         // Update query to use custom JSON functions
-        let query = self.preprocess_query(query);
+        let query = Self::preprocess_query(query);
         let mut statement = self
             .parse_query(query.as_str())
             .context(super::error::DataFusionSnafu)?;
@@ -232,18 +235,18 @@ impl SqlExecutor {
     /// Panics if .
     #[must_use]
     #[allow(clippy::unwrap_used)]
-    #[tracing::instrument(level = "trace", skip(self), ret)]
-    pub fn preprocess_query(&self, query: &str) -> String {
+    #[tracing::instrument(level = "trace", ret)]
+    pub fn preprocess_query(query: &str) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         // TODO: This regex should be a static allocation
         let re = regex::Regex::new(r"(\w+.\w+)\[(\d+)][:\.](\w+)").unwrap();
-        let date_add =
-            regex::Regex::new(r"(date|time|timestamp)(_?add|_?diff)\(\s*([a-zA-Z]+),").unwrap();
+        // let date_add =
+        //     regex::Regex::new(r"(date|time|timestamp)(_?add|_?diff)\(\s*([a-zA-Z]+),").unwrap();
 
         let mut query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
             .to_string();
-        query = date_add.replace_all(&query, "$1$2('$3',").to_string();
+        // query = date_add.replace_all(&query, "$1$2('$3',").to_string();
         let alter_iceberg_table = regex::Regex::new(r"alter\s+iceberg\s+table").unwrap();
         query = alter_iceberg_table
             .replace_all(&query, "alter table")
