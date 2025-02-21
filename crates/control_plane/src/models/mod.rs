@@ -273,6 +273,11 @@ impl StorageProfile {
 
         if let Some(endpoint) = &self.endpoint {
             builder = builder.with_endpoint(endpoint.clone());
+
+            let url = Url::parse(endpoint).context(error::InvalidEndpointUrlSnafu {
+                url: endpoint.clone(),
+            })?;
+            builder = builder.with_allow_http(url.scheme() == "http");
         }
 
         if let Some(credentials) = &self.credentials {
