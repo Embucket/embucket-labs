@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 use datafusion::error::DataFusionError;
 #[warn(dead_code)]
 use quick_xml::de::from_str;
@@ -7,7 +24,7 @@ use snafu::prelude::*;
 use tokio::sync::TryLockError;
 use uuid::Uuid;
 
-pub type ControlPlaneResult<T> = std::result::Result<T, ControlPlaneError>;
+pub type ControlPlaneResult<T> = Result<T, ControlPlaneError>;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
@@ -72,6 +89,9 @@ pub enum ControlPlaneError {
     // This should be refined later
     #[snafu(display("Unspported Authentication method: {method}"))]
     UnsupportedAuthenticationMethod { method: String },
+
+    #[snafu(display("Invalid or missing credentials"))]
+    InvalidCredentials,
 
     #[snafu(display("Invalid TLS configuration: {source}"))]
     InvalidTLSConfiguration {
@@ -143,8 +163,8 @@ impl<T: std::error::Error + Send + Sync + 'static> From<RusotoError<T>> for Cont
     }
 }
 
-impl From<datafusion::error::DataFusionError> for ControlPlaneError {
-    fn from(err: datafusion::error::DataFusionError) -> Self {
+impl From<DataFusionError> for ControlPlaneError {
+    fn from(err: DataFusionError) -> Self {
         Self::DataFusion { source: err }
     }
 }

@@ -2,6 +2,8 @@
 name = "control_plane"
 version = "0.1.0"
 edition = "2021"
+license = {workspace = true}
+license-file = {workspace = true}
 
 [dependencies]
 
@@ -20,7 +22,6 @@ datafusion-functions-json = { workspace = true }
 datafusion-physical-plan = { workspace = true }
 datafusion_iceberg = { workspace = true }
 
-flatbuffers = { version = "24.3.25" }
 futures = { workspace = true }
 iceberg-rest-catalog = { workspace = true }
 iceberg-rust = { workspace = true }
@@ -47,6 +48,7 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 slatedb = { workspace = true }
+mockall = { version = "0.13.1" }
 
 [lints]
 workspace = true

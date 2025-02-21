@@ -66,7 +66,6 @@ S3_BUCKET=
 S3_ALLOW_HTTP=
 
 # Iceberg Catalog settings
-USE_FILE_SYSTEM_INSTEAD_OF_CLOUD=true
 CONTROL_PLANE_URL=http://127.0.0.1:3000
 
 # Dialect

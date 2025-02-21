@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 use clap::{Parser, ValueEnum};
 use object_store::{
     aws::AmazonS3Builder, aws::S3ConditionalPut, local::LocalFileSystem, memory::InMemory,
@@ -109,8 +126,14 @@ pub struct IceBucketOpts {
     )]
     pub cors_allow_origin: Option<String>,
 
-    #[arg(long, default_value = "true")]
-    use_fs: Option<bool>,
+    #[arg(
+        short,
+        long,
+        default_value = "json",
+        env = "DATA_FORMAT",
+        help = "Data serialization format in Snowflake v1 API"
+    )]
+    pub data_format: Option<String>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -123,12 +146,6 @@ enum StoreBackend {
 impl IceBucketOpts {
     #[allow(clippy::unwrap_used, clippy::as_conversions)]
     pub fn object_store_backend(self) -> ObjectStoreResult<Box<dyn ObjectStore>> {
-        // TODO: Hacky workaround for now, need to figure out a better way to pass this
-        // TODO: Really, seriously remove this. This is a hack.
-        unsafe {
-            let use_fs = self.use_fs.unwrap_or(false);
-            std::env::set_var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD", use_fs.to_string());
-        }
         match self.backend {
             StoreBackend::S3 => {
                 let s3_allow_http = self.allow_http.unwrap_or(false);

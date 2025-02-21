@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 use axum::{
     body::{Body, Bytes},
     extract::Request,
@@ -9,6 +26,7 @@ use catalog::repository::{DatabaseRepositoryDb, TableRepositoryDb};
 use catalog::service::CatalogImpl;
 use control_plane::repository::{StorageProfileRepositoryDb, WarehouseRepositoryDb};
 use control_plane::service::ControlServiceImpl;
+use control_plane::utils::Config as ControlServiceConfig;
 use http_body_util::BodyExt;
 use object_store::{path::Path, ObjectStore};
 use slatedb::config::DbOptions;
@@ -34,6 +52,7 @@ pub async fn run_icebucket(
     host: String,
     port: u16,
     allow_origin: Option<String>,
+    data_format: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = {
         let options = DbOptions::default();
@@ -47,7 +66,12 @@ pub async fn run_icebucket(
     let control_svc = {
         let storage_profile_repo = StorageProfileRepositoryDb::new(db.clone());
         let warehouse_repo = WarehouseRepositoryDb::new(db.clone());
-        ControlServiceImpl::new(Arc::new(storage_profile_repo), Arc::new(warehouse_repo))
+        let config = ControlServiceConfig::new(data_format);
+        ControlServiceImpl::new(
+            Arc::new(storage_profile_repo),
+            Arc::new(warehouse_repo),
+            config,
+        )
     };
     let control_svc = Arc::new(control_svc);
 

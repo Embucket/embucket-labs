@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 use crate::error::{ControlPlaneError, ControlPlaneResult};
 use crate::models::{StorageProfile, Warehouse};
 use async_trait::async_trait;
@@ -242,94 +259,176 @@ pub struct InMemoryWarehouseRepository {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::models::{AwsAccessKeyCredential, CloudProvider, Credentials};
     use object_store::memory::InMemory;
     use object_store::path::Path;
     use object_store::ObjectStore;
     use slatedb::config::DbOptions;
     use slatedb::db::Db as SlateDb;
+    use std::collections::HashSet;
     use std::sync::Arc;
 
-    fn create_dummy_profile() -> StorageProfile {
-        StorageProfile::new(
-            CloudProvider::AWS,
-            "us-west-1".to_string(),
-            "bucket".to_string(),
-            Credentials::AccessKey(AwsAccessKeyCredential {
-                aws_access_key_id: "access_key".to_string(),
-                aws_secret_access_key: "secret_key".to_string(),
-            }),
-            None,
-            None,
+    async fn create_slate_db() -> Db {
+        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+        let options = DbOptions::default();
+        Db::new(
+            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
+                .await
+                .unwrap(),
         )
-        .expect("failed to create profile")
+    }
+
+    async fn profiles_test_repos() -> (Vec<Arc<dyn StorageProfileRepository>>, StorageProfile) {
+        let db = create_slate_db().await;
+        let repos: Vec<Arc<dyn StorageProfileRepository>> = vec![
+            Arc::new(StorageProfileRepositoryDb::new(Arc::new(db))),
+            Arc::new(InMemoryStorageProfileRepository::default()),
+        ];
+        (repos, StorageProfile::default())
+    }
+
+    async fn warehouses_test_repos() -> (Vec<Arc<dyn WarehouseRepository>>, Warehouse) {
+        let db = create_slate_db().await;
+        let repos: Vec<Arc<dyn WarehouseRepository>> = vec![
+            Arc::new(WarehouseRepositoryDb::new(Arc::new(db))),
+            Arc::new(InMemoryWarehouseRepository::default()),
+        ];
+        let wh = Warehouse::new("prefix".to_string(), "wh1".to_string(), Uuid::new_v4())
+            .expect("failed to create warehouse");
+        (repos, wh)
     }
 
     #[tokio::test]
-    async fn test_storage_profile_db() {
-        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
-        let options = DbOptions::default();
-        let db = Db::new(
-            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
-                .await
-                .unwrap(),
-        );
-
-        let repo = StorageProfileRepositoryDb::new(Arc::new(db));
-
-        let profile_1 = create_dummy_profile();
-        repo.create(&profile_1)
-            .await
-            .expect("failed to create profile");
-        let profile_2 = create_dummy_profile();
-        repo.create(&profile_2)
-            .await
-            .expect("failed to create profile");
-
-        let profiles = repo.list().await.expect("failed to list profiles");
-
-        assert_eq!(profiles.len(), 2);
-        assert_eq!(profiles[0].id, profile_1.id);
-        assert_eq!(profiles[1].id, profile_2.id);
-
-        repo.delete(profile_1.id)
-            .await
-            .expect("failed to delete profile");
-
-        let profiles = repo.list().await.expect("failed to list profiles");
-        assert_eq!(profiles.len(), 1);
+    async fn test_storage_profile_repository() {
+        let db = Arc::new(create_slate_db().await);
+        let repo = StorageProfileRepositoryDb::new(db.clone());
+        assert_eq!(Arc::as_ptr(&repo.db), Arc::as_ptr(&db));
+        assert_eq!(StorageProfileRepositoryDb::prefix(), PROFILEPREFIX);
+        assert_eq!(StorageProfileRepositoryDb::collection_key(), PROFILES);
     }
 
     #[tokio::test]
-    async fn test_warehouse_db() {
-        let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
-        let options = DbOptions::default();
-        let db = Db::new(
-            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
+    async fn test_create_storage_profile() {
+        let (repos, profile) = profiles_test_repos().await;
+        for repo in repos {
+            let result = repo.create(&profile).await;
+            assert!(result.is_ok());
+
+            let list = repo.list().await.expect("failed to list profiles");
+            assert_eq!(list.len(), 1);
+            assert_eq!(list[0].id, profile.id);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_storage_profile() {
+        let (repos, profile) = profiles_test_repos().await;
+        for repo in repos {
+            repo.create(&profile)
                 .await
-                .unwrap(),
-        );
+                .expect("failed to create profile");
 
-        let repo = WarehouseRepositoryDb::new(Arc::new(db));
+            let fetched_profile = repo.get(profile.id).await.expect("failed to get profile");
+            assert_eq!(fetched_profile.id, profile.id);
+        }
+    }
 
-        let wh1 = Warehouse::new("prefix".to_string(), "wh1".to_string(), Uuid::new_v4())
+    #[tokio::test]
+    async fn test_delete_storage_profile() {
+        let (repos, profile) = profiles_test_repos().await;
+        for repo in repos {
+            repo.create(&profile)
+                .await
+                .expect("failed to create profile");
+
+            let result = repo.delete(profile.id).await;
+            assert!(result.is_ok());
+            let result = repo.get(profile.id).await;
+            assert!(result.is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_list_storage_profiles() {
+        let (repos, profile) = profiles_test_repos().await;
+        let profile2 = StorageProfile::default();
+        for repo in repos {
+            repo.create(&profile)
+                .await
+                .expect("failed to create profile");
+            repo.create(&profile2)
+                .await
+                .expect("failed to create profile");
+
+            let profiles = repo.list().await.expect("failed to list profiles");
+            let profile_ids: HashSet<Uuid> = profiles.iter().map(|p| p.id).collect();
+            let expected_ids: HashSet<Uuid> = vec![profile.id, profile2.id].into_iter().collect();
+            assert_eq!(profile_ids.len(), 2);
+            assert_eq!(profile_ids, expected_ids);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_warehouse_repository() {
+        let db = Arc::new(create_slate_db().await);
+        let repo = WarehouseRepositoryDb::new(db.clone());
+        assert_eq!(Arc::as_ptr(&repo.db), Arc::as_ptr(&db));
+        assert_eq!(WarehouseRepositoryDb::prefix(), WAREHOUSEPREFIX);
+        assert_eq!(WarehouseRepositoryDb::collection_key(), WAREHOUSES);
+    }
+
+    #[tokio::test]
+    async fn test_create_warehouse() {
+        let (repos, wh) = warehouses_test_repos().await;
+        for repo in repos {
+            let result = repo.create(&wh).await;
+            assert!(result.is_ok());
+
+            let list = repo.list().await.expect("failed to list warehouses");
+            assert_eq!(list.len(), 1);
+            assert_eq!(list[0].id, wh.id);
+            assert_eq!(list[0].prefix, wh.prefix);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_warehouse() {
+        let (repos, wh) = warehouses_test_repos().await;
+        for repo in repos {
+            repo.create(&wh).await.expect("failed to create warehouse");
+
+            let fetched_profile = repo.get(wh.id).await.expect("failed to get warehouse");
+            assert_eq!(fetched_profile.id, wh.id);
+            assert_eq!(fetched_profile.prefix, wh.prefix);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_warehouse() {
+        let (repos, wh) = warehouses_test_repos().await;
+        for repo in repos {
+            repo.create(&wh).await.expect("failed to create warehouse");
+
+            let result = repo.delete(wh.id).await;
+            assert!(result.is_ok());
+            let result = repo.get(wh.id).await;
+            assert!(result.is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_list_warehouses() {
+        let (repos, wh) = warehouses_test_repos().await;
+        let wh2 = Warehouse::new("prefix2".to_string(), "wh2".to_string(), Uuid::new_v4())
             .expect("failed to create warehouse");
-        repo.create(&wh1).await.expect("failed to create warehouse");
-        let wh2 = Warehouse::new("prefix".to_string(), "wh2".to_string(), Uuid::new_v4())
-            .expect("failed to create warehouse");
-        repo.create(&wh2).await.expect("failed to create warehouse");
+        for repo in repos {
+            repo.create(&wh).await.expect("failed to create warehouse");
+            repo.create(&wh2).await.expect("failed to create warehouse");
 
-        let warehouses = repo.list().await.expect("failed to list warehouses");
-
-        assert_eq!(warehouses.len(), 2);
-        assert_eq!(warehouses[0].id, wh1.id);
-        assert_eq!(warehouses[1].id, wh2.id);
-
-        repo.delete(wh1.id)
-            .await
-            .expect("failed to delete warehouse");
-
-        let warehouses = repo.list().await.expect("failed to list warehouses");
-        assert_eq!(warehouses.len(), 1);
+            let warehouses = repo.list().await.expect("failed to list profiles");
+            let warehouse_ids: HashSet<Uuid> = warehouses.iter().map(|p| p.id).collect();
+            let expected_ids: HashSet<Uuid> = vec![wh.id, wh2.id].into_iter().collect();
+            assert_eq!(warehouse_ids.len(), 2);
+            assert_eq!(warehouse_ids, expected_ids);
+        }
     }
 }

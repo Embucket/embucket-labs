@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 use crate::error::{self, CatalogError, CatalogResult};
 // TODO: Replace this with this crate error and result
 use crate::models::{
@@ -63,7 +80,6 @@ pub trait Catalog: Debug + Sync + Send {
         &self,
         namespace: &DatabaseIdent,
         storage_profile: &StorageProfile,
-        _warehouse: &Warehouse,
         table_name: String,
         metadata_location: String,
         properties: Option<HashMap<String, String>>,
@@ -172,7 +188,7 @@ impl Catalog for CatalogImpl {
         let base_part = storage_profile
             .get_base_url()
             .context(error::ControlPlaneSnafu)?;
-        let table_part = format!("{}/{}", warehouse.location, commit.ident.table);
+        let table_part = format!("{}/{}", warehouse.path(), commit.ident.table);
         let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
 
         let mut properties = table.properties.clone();
@@ -253,7 +269,7 @@ impl Catalog for CatalogImpl {
         properties: HashMap<String, String>,
     ) -> CatalogResult<()> {
         // Check if the namespace exists
-        _ = self.get_namespace(namespace).await?;
+        self.get_namespace(namespace).await?;
         let params = Database {
             ident: namespace.clone(),
             properties,
@@ -266,7 +282,7 @@ impl Catalog for CatalogImpl {
     #[tracing::instrument(level = "trace", err, skip(self))]
     async fn drop_namespace(&self, namespace: &DatabaseIdent) -> CatalogResult<()> {
         // Check if the namespace exists
-        _ = self.get_namespace(namespace).await?;
+        self.get_namespace(namespace).await?;
         // Check if there are tables in the namespace
         let tables = self.list_tables(namespace).await?;
         if !tables.is_empty() {
@@ -284,7 +300,7 @@ impl Catalog for CatalogImpl {
     #[tracing::instrument(level = "trace", err, skip(self))]
     async fn list_tables(&self, namespace: &DatabaseIdent) -> CatalogResult<Vec<Table>> {
         // Check namespace exists
-        _ = self.get_namespace(namespace).await?;
+        self.get_namespace(namespace).await?;
 
         let tables = self.table_repo.list(namespace).await?;
 
@@ -302,7 +318,7 @@ impl Catalog for CatalogImpl {
         properties: Option<HashMap<String, String>>,
     ) -> CatalogResult<Table> {
         // Check if namespace exists
-        _ = self.get_namespace(namespace).await?;
+        self.get_namespace(namespace).await?;
         // Check if table exists
         let ident = TableIdent {
             database: namespace.clone(),
@@ -323,7 +339,7 @@ impl Catalog for CatalogImpl {
         let base_part = storage_profile
             .get_base_url()
             .context(error::ControlPlaneSnafu)?;
-        let table_part = format!("{}/{}", warehouse.location, table_creation.name);
+        let table_part = format!("{}/{}", warehouse.path(), table_creation.name);
         let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
 
         let table_creation = {
@@ -371,7 +387,6 @@ impl Catalog for CatalogImpl {
         &self,
         namespace: &DatabaseIdent,
         storage_profile: &StorageProfile,
-        _warehouse: &Warehouse,
         table_name: String,
         metadata_location: String,
         properties: Option<HashMap<String, String>>,
@@ -425,7 +440,7 @@ impl Catalog for CatalogImpl {
     #[tracing::instrument(level = "trace", err, skip(self))]
     async fn drop_table(&self, table: &TableIdent) -> CatalogResult<()> {
         // Check if table exists
-        _ = self.load_table(table).await?;
+        self.load_table(table).await?;
         self.table_repo.delete(table).await?;
 
         Ok(())
@@ -437,7 +452,6 @@ impl Catalog for CatalogImpl {
 mod tests {
     use super::*;
     use crate::repository::{DatabaseRepositoryDb, TableRepositoryDb};
-    use control_plane::models::{AwsAccessKeyCredential, CloudProvider, Credentials};
     use iceberg::NamespaceIdent;
     use object_store::{memory::InMemory, path::Path, ObjectStore};
     use slatedb::config::DbOptions;
@@ -448,7 +462,6 @@ mod tests {
     use uuid::Uuid;
 
     async fn create_service() -> impl Catalog {
-        env::set_var("USE_FILE_SYSTEM_INSTEAD_OF_CLOUD", "true");
         let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
         let options = DbOptions::default();
         let db = Arc::new(Db::new(
@@ -466,11 +479,94 @@ mod tests {
     fn test_database() -> Database {
         Database {
             ident: DatabaseIdent {
-                warehouse: WarehouseIdent::new(uuid::Uuid::new_v4()),
+                warehouse: WarehouseIdent::new(Uuid::new_v4()),
                 namespace: NamespaceIdent::new("ns_test".to_string()),
             },
             properties: HashMap::new(),
         }
+    }
+
+    fn table_creation() -> TableCreation {
+        let data = r#"{
+            "type":"struct",
+            "schema-id":1,
+            "fields":[
+                {
+                    "id":1,
+                    "name":"foo",
+                    "required":false,
+                    "type":"string"
+                },
+                {
+                    "id":2,
+                    "name":"bar",
+                    "required":true,
+                    "type":"int"
+                },
+                {
+                    "id":3,
+                    "name":"baz",
+                    "required":false,
+                    "type":"boolean"
+                }
+            ],
+            "identifier-field-ids":[2]
+        }"#;
+        let schema = serde_json::from_str(data).expect("Failed to parse schema");
+        TableCreation {
+            name: "test_table".to_string(),
+            schema,
+            location: Some("s3://bucket/path".to_string()),
+            partition_spec: None,
+            properties: HashMap::new(),
+            sort_order: None,
+        }
+    }
+
+    #[tokio::test]
+    #[allow(clippy::field_reassign_with_default)]
+    async fn test_get_config() {
+        let service = create_service().await;
+        let ident = WarehouseIdent::new(Uuid::new_v4());
+        let mut sp = StorageProfile::default();
+        sp.endpoint = Some("endpoint".to_string());
+
+        let res = service.get_config(Some(ident), Some(sp)).await;
+        assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
+        let config = res.unwrap();
+
+        assert_eq!(config.defaults, HashMap::default());
+        assert_eq!(
+            config.overrides,
+            vec![
+                (
+                    "uri".to_string(),
+                    "http://localhost:3000/catalog".to_string()
+                ),
+                ("prefix".to_string(), format!("{}", ident.id())),
+                ("s3.endpoint".to_string(), "endpoint".to_string()),
+            ]
+            .into_iter()
+            .collect::<HashMap<_, _>>()
+        );
+
+        env::set_var("CONTROL_PLANE_URL", "https://host:port");
+        let service = create_service().await;
+        let storage_profile = StorageProfile::default();
+        let res = service
+            .get_config(Some(ident), Some(storage_profile))
+            .await
+            .unwrap();
+        assert_eq!(config.defaults, HashMap::default());
+        assert_eq!(
+            res.overrides,
+            vec![
+                ("uri".to_string(), "https://host:port/catalog".to_string()),
+                ("prefix".to_string(), format!("{}", ident.id())),
+            ]
+            .into_iter()
+            .collect::<HashMap<_, _>>()
+        );
     }
 
     #[tokio::test]
@@ -575,7 +671,7 @@ mod tests {
         let wh_ident = WarehouseIdent::new(Uuid::new_v4());
         for t in 0..2 {
             let ident = DatabaseIdent {
-                warehouse: wh_ident.clone(),
+                warehouse: wh_ident,
                 namespace: NamespaceIdent::new(format!("ns_{t}")),
             };
             let properties = HashMap::new();
@@ -606,53 +702,8 @@ mod tests {
         let res = service.create_namespace(&ident, properties).await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
 
-        let data = r#"{
-            "type":"struct",
-            "schema-id":1,
-            "fields":[
-                {
-                    "id":1,
-                    "name":"foo",
-                    "required":false,
-                    "type":"string"
-                },
-                {
-                    "id":2,
-                    "name":"bar",
-                    "required":true,
-                    "type":"int"
-                },
-                {
-                    "id":3,
-                    "name":"baz",
-                    "required":false,
-                    "type":"boolean"
-                }
-            ],
-            "identifier-field-ids":[2]
-        }"#;
-        let schema = serde_json::from_str(data).expect("Failed to parse schema");
-        let creation = TableCreation {
-            name: "test_table".to_string(),
-            schema,
-            location: Some("s3://bucket/path".to_string()),
-            partition_spec: None,
-            properties: HashMap::new(),
-            sort_order: None,
-        };
-
-        let sp = StorageProfile::new(
-            CloudProvider::AWS,
-            "us-west-1".to_string(),
-            "bucket".to_string(),
-            Credentials::AccessKey(AwsAccessKeyCredential {
-                aws_access_key_id: "access_key".to_string(),
-                aws_secret_access_key: "secret_key".to_string(),
-            }),
-            None,
-            None,
-        )
-        .expect("failed to create profile");
+        let creation = table_creation();
+        let sp = StorageProfile::default();
         let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
             .expect("failed to create warehouse");
 
@@ -660,24 +711,15 @@ mod tests {
             .create_table(&ident, &sp, &warehouse, creation, None)
             .await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
-        let tident = res.unwrap().ident;
+        let table_ident = res.unwrap().ident;
 
-        let schema = serde_json::from_str(data).expect("Failed to parse schema");
-        let creation = TableCreation {
-            name: "test_table".to_string(),
-            schema,
-            location: Some("s3://bucket/path".to_string()),
-            partition_spec: None,
-            properties: HashMap::new(),
-            sort_order: None,
-        };
-
+        let creation = table_creation();
         let res = service
             .create_table(&ident, &sp, &warehouse, creation, None)
             .await;
         assert!(res.is_err());
 
-        let res = service.load_table(&tident).await;
+        let res = service.load_table(&table_ident).await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
 
         let res = service.list_tables(&ident).await;
@@ -690,53 +732,8 @@ mod tests {
     async fn test_create_table_namespace_not_found() {
         let service = create_service().await;
         let ident = test_database().ident;
-
-        let data = r#"{
-            "type":"struct",
-            "schema-id":1,
-            "fields":[
-                {
-                    "id":1,
-                    "name":"foo",
-                    "required":false,
-                    "type":"string"
-                },
-                {
-                    "id":2,
-                    "name":"bar",
-                    "required":true,
-                    "type":"int"
-                },
-                {
-                    "id":3,
-                    "name":"baz",
-                    "required":false,
-                    "type":"boolean"
-                }
-            ],
-            "identifier-field-ids":[2]
-        }"#;
-        let schema = serde_json::from_str(data).expect("Failed to parse schema");
-        let creation = TableCreation {
-            name: "test_table".to_string(),
-            schema,
-            location: Some("s3://bucket/path".to_string()),
-            partition_spec: None,
-            properties: HashMap::new(),
-            sort_order: None,
-        };
-        let sp = StorageProfile::new(
-            CloudProvider::AWS,
-            "us-west-1".to_string(),
-            "bucket".to_string(),
-            Credentials::AccessKey(AwsAccessKeyCredential {
-                aws_access_key_id: "access_key".to_string(),
-                aws_secret_access_key: "secret_key".to_string(),
-            }),
-            None,
-            None,
-        )
-        .expect("failed to create profile");
+        let creation = table_creation();
+        let sp = StorageProfile::default();
         let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
             .expect("failed to create warehouse");
 
@@ -794,18 +791,7 @@ mod tests {
             updates: vec![],
         };
 
-        let sp = StorageProfile::new(
-            CloudProvider::AWS,
-            "us-west-1".to_string(),
-            "bucket".to_string(),
-            Credentials::AccessKey(AwsAccessKeyCredential {
-                aws_access_key_id: "access_key".to_string(),
-                aws_secret_access_key: "secret_key".to_string(),
-            }),
-            None,
-            None,
-        )
-        .expect("failed to create profile");
+        let sp = StorageProfile::default();
         let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
             .expect("failed to create warehouse");
 
@@ -823,52 +809,8 @@ mod tests {
         let res = service.create_namespace(&ident, properties).await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
 
-        let data = r#"{
-            "type":"struct",
-            "schema-id":1,
-            "fields":[
-                {
-                    "id":1,
-                    "name":"foo",
-                    "required":false,
-                    "type":"string"
-                },
-                {
-                    "id":2,
-                    "name":"bar",
-                    "required":true,
-                    "type":"int"
-                },
-                {
-                    "id":3,
-                    "name":"baz",
-                    "required":false,
-                    "type":"boolean"
-                }
-            ],
-            "identifier-field-ids":[2]
-        }"#;
-        let schema = serde_json::from_str(data).expect("Failed to parse schema");
-        let creation = TableCreation {
-            name: "test_table".to_string(),
-            schema,
-            location: Some("s3://bucket/path".to_string()),
-            partition_spec: None,
-            properties: HashMap::new(),
-            sort_order: None,
-        };
-        let sp = StorageProfile::new(
-            CloudProvider::AWS,
-            "us-west-1".to_string(),
-            "bucket".to_string(),
-            Credentials::AccessKey(AwsAccessKeyCredential {
-                aws_access_key_id: "access_key".to_string(),
-                aws_secret_access_key: "secret_key".to_string(),
-            }),
-            None,
-            None,
-        )
-        .expect("failed to create profile");
+        let creation = table_creation();
+        let sp = StorageProfile::default();
         let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
             .expect("failed to create warehouse");
 
@@ -890,53 +832,8 @@ mod tests {
 
         let res = service.create_namespace(&ident, properties).await;
         assert!(res.is_ok(), "{}", res.unwrap_err().to_string());
-
-        let data = r#"{
-            "type":"struct",
-            "schema-id":1,
-            "fields":[
-                {
-                    "id":1,
-                    "name":"foo",
-                    "required":false,
-                    "type":"string"
-                },
-                {
-                    "id":2,
-                    "name":"bar",
-                    "required":true,
-                    "type":"int"
-                },
-                {
-                    "id":3,
-                    "name":"baz",
-                    "required":false,
-                    "type":"boolean"
-                }
-            ],
-            "identifier-field-ids":[2]
-        }"#;
-        let schema = serde_json::from_str(data).expect("Failed to parse schema");
-        let creation = TableCreation {
-            name: "test_table".to_string(),
-            schema,
-            location: Some("s3://bucket/path".to_string()),
-            partition_spec: None,
-            properties: HashMap::new(),
-            sort_order: None,
-        };
-        let sp = StorageProfile::new(
-            CloudProvider::AWS,
-            "us-west-1".to_string(),
-            "bucket".to_string(),
-            Credentials::AccessKey(AwsAccessKeyCredential {
-                aws_access_key_id: "access_key".to_string(),
-                aws_secret_access_key: "secret_key".to_string(),
-            }),
-            None,
-            None,
-        )
-        .expect("failed to create profile");
+        let creation = table_creation();
+        let sp = StorageProfile::default();
         let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
             .expect("failed to create warehouse");
         let res = service
@@ -968,18 +865,7 @@ mod tests {
             updates: vec![update],
         };
 
-        let sp = StorageProfile::new(
-            CloudProvider::AWS,
-            "us-west-1".to_string(),
-            "bucket".to_string(),
-            Credentials::AccessKey(AwsAccessKeyCredential {
-                aws_access_key_id: "access_key".to_string(),
-                aws_secret_access_key: "secret_key".to_string(),
-            }),
-            None,
-            None,
-        )
-        .expect("failed to create profile");
+        let sp = StorageProfile::default();
         let warehouse = Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
             .expect("failed to create warehouse");
 
@@ -997,6 +883,51 @@ mod tests {
                 .fields
                 .len(),
             1
+        );
+    }
+
+    #[tokio::test]
+    async fn test_register_table() {
+        let service = create_service().await;
+        let ident = test_database().ident;
+        let properties = HashMap::new();
+        let creation = table_creation();
+        let sp = StorageProfile::default();
+        service
+            .create_namespace(&ident, properties)
+            .await
+            .expect("Failed to create namespace");
+        let initial_table = service
+            .create_table(
+                &ident,
+                &sp,
+                &Warehouse::new("prefix".to_string(), "name".to_string(), Uuid::new_v4())
+                    .expect("failed to create warehouse"),
+                creation,
+                None,
+            )
+            .await
+            .expect("Failed to create table");
+
+        let path = format!("{}/", sp.get_base_url().unwrap());
+        let metadata_location = initial_table.metadata_location.replace(path.as_str(), "");
+        let table = service
+            .register_table(
+                &ident,
+                &sp,
+                "test_table_2".to_string(),
+                metadata_location,
+                None,
+            )
+            .await;
+
+        assert!(table.is_ok(), "{}", table.unwrap_err().to_string());
+        let res = table.expect("Failed to get table");
+
+        assert_eq!(res.ident.table, "test_table_2");
+        assert_eq!(
+            res.metadata.schemas.get(&0).unwrap(),
+            initial_table.metadata.schemas.get(&0).unwrap(),
         );
     }
 }

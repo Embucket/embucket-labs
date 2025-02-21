@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 use snafu::prelude::*;
 
 // Errors that are specific to the `models` crate
@@ -6,6 +23,9 @@ use snafu::prelude::*;
 pub enum ControlPlaneModelError {
     #[snafu(display("Invalid bucket name `{bucket_name}`. Reason: {reason}"))]
     InvalidBucketName { bucket_name: String, reason: String },
+
+    #[snafu(display("Invalid region name `{region}`. Reason: {reason}"))]
+    InvalidRegionName { region: String, reason: String },
 
     #[snafu(display("Invalid directory `{directory}`"))]
     InvalidDirectory { directory: String },
@@ -28,6 +48,9 @@ pub enum ControlPlaneModelError {
     #[snafu(display("Role-based credentials aren't supported"))]
     RoleBasedCredentialsNotSupported,
 
+    #[snafu(display("Missing credentials for {profile_type} profile type"))]
+    MissingCredentials { profile_type: String },
+
     #[snafu(display("Missing environment variable `{var}`"))]
     MissingEnvironmentVariable {
         source: std::env::VarError,
@@ -39,4 +62,4 @@ pub enum ControlPlaneModelError {
     ObjectStore { source: object_store::Error },
 }
 
-pub type ControlPlaneModelResult<T> = std::result::Result<T, ControlPlaneModelError>;
+pub type ControlPlaneModelResult<T> = Result<T, ControlPlaneModelError>;
