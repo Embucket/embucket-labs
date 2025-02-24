@@ -160,7 +160,7 @@ impl ScalarUDFImpl for TimestampFromPartsFunc {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "timestamp_from_parts"
     }
 
@@ -464,8 +464,7 @@ mod test {
         }
     }
 
-    #[allow(clippy::type_complexity)]
-    #[allow(clippy::unwrap_used)]
+    #[allow(clippy::type_complexity, clippy::unwrap_used, clippy::too_many_lines)]
     #[test]
     fn test_timestamp_from_parts_components() {
         let args: [(
