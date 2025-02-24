@@ -36,7 +36,7 @@ use datafusion_expr::{
 };
 use datafusion_macros::user_doc;
 
-const UNIX_EPOCH_DAYS: i32 = 719_163;
+pub const UNIX_DAYS_FROM_CE: i32 = 719_163;
 
 #[user_doc(
     doc_section(label = "Time and Date Functions"),
@@ -310,7 +310,7 @@ fn make_timestamp_from_date_time(
         _exec_datafusion_err!("time nanoseconds value '{time_nano:?}' is out of range")
     })?;
 
-    if let Some(naive_date) = NaiveDate::from_num_days_from_ce_opt(days + UNIX_EPOCH_DAYS) {
+    if let Some(naive_date) = NaiveDate::from_num_days_from_ce_opt(days + UNIX_DAYS_FROM_CE) {
         if let Some(naive_time) =
             NaiveTime::from_num_seconds_from_midnight_opt(seconds, nanoseconds)
         {

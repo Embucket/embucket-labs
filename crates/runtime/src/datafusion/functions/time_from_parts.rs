@@ -34,7 +34,7 @@ use datafusion_macros::user_doc;
 
 #[user_doc(
     doc_section(label = "Time and Date Functions"),
-    description = "Creates a timestamp from individual numeric components.",
+    description = "Creates a time from individual numeric components.",
     syntax_example = "time_from_parts(<hour>, <minute>, <second> [, <nanosecond> ])",
     sql_example = "```sql
             > select time_from_parts(12, 34, 56, 987654321);
@@ -169,7 +169,6 @@ fn time_from_components(
     Ok(builder.finish())
 }
 
-#[allow(clippy::too_many_arguments)]
 fn make_time(
     hour: i32,
     minute: i32,
