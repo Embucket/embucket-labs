@@ -23,6 +23,7 @@ mod convert_timezone;
 mod date_add;
 mod date_diff;
 mod parse_json;
+mod time_from_parts;
 mod timestamp_from_parts;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
@@ -32,6 +33,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         parse_json::get_udf(),
         date_diff::get_udf(),
         timestamp_from_parts::get_udf(),
+        time_from_parts::get_udf(),
     ];
 
     for func in functions {
