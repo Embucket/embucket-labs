@@ -34,7 +34,77 @@ use datafusion_common::{exec_err, internal_err, Result, ScalarValue, _exec_dataf
 use datafusion_expr::{
     ColumnarValue, ReturnInfo, ReturnTypeArgs, ScalarUDFImpl, Signature, Volatility,
 };
+use datafusion_macros::user_doc;
 
+const UNIX_EPOCH_DAYS: i32 = 719_163;
+
+#[user_doc(
+    doc_section(label = "Time and Date Functions"),
+    description = "Creates a timestamp from individual numeric components.",
+    syntax_example = "timestamp_from_parts(<year>, <month>, <day>, <hour>, <minute>, <second> [, <nanosecond> ] [, <time_zone> ] )",
+    sql_example = "```sql
+            > select timestamp_from_parts(2025, 2, 24, 12, 0, 50);
+            +-----------------------------------------------------------------------------------+
+            | timestamp_from_parts(Int64(2025),Int64(2),Int64(24),Int64(12),Int64(0),Int64(50)) |
+            +-----------------------------------------------------------------------------------+
+            | 1740398450.0                                                                      |
+            +-----------------------------------------------------------------------------------+
+            SELECT timestamp_from_parts(2025, 2, 24, 12, 0, 50, 65555555);
+            +---------------------------------------------------------------------------------------------------+
+            | timestamp_from_parts(Int64(2025),Int64(2),Int64(24),Int64(12),Int64(0),Int64(50),Int64(65555555)) |
+            +---------------------------------------------------------------------------------------------------+
+            | 1740398450.65555555                                                                               |
+            +---------------------------------------------------------------------------------------------------+
+```",
+    standard_argument(name = "str", prefix = "String"),
+    argument(
+        name = "year",
+        description = "An integer expression to use as a year for building a timestamp."
+    ),
+    argument(
+        name = "month",
+        description = "An integer expression to use as a month for building a timestamp, with January represented as 1, and December as 12."
+    ),
+    argument(
+        name = "day",
+        description = "An integer expression to use as a day for building a timestamp, usually in the 1-31 range."
+    ),
+    argument(
+        name = "hour",
+        description = "An integer expression to use as an hour for building a timestamp, usually in the 0-23 range."
+    ),
+    argument(
+        name = "minute",
+        description = "An integer expression to use as a minute for building a timestamp, usually in the 0-59 range."
+    ),
+    argument(
+        name = "second",
+        description = "An integer expression to use as a second for building a timestamp, usually in the 0-59 range."
+    ),
+    argument(
+        name = "second",
+        description = "An integer expression to use as a second for building a timestamp, usually in the 0-59 range."
+    ),
+    argument(
+        name = "date_expr",
+        description = "Specifies the date expression to use for building a timestamp
+         where date_expr provides the year, month, and day for the timestamp."
+    ),
+    argument(
+        name = "time_expr",
+        description = "Specifies the time expression to use for building a timestamp
+         where time_expr provides the hour, minute, second, and nanoseconds within the day."
+    ),
+    argument(
+        name = "nanoseconds",
+        description = "Optional integer expression to use as a nanosecond for building a timestamp,
+         usually in the 0-999999999 range."
+    ),
+    argument(
+        name = "time_zone",
+        description = "A string expression to use as a time zone for building a timestamp (e.g. America/Los_Angeles)."
+    )
+)]
 #[derive(Debug)]
 pub struct TimestampFromPartsFunc {
     signature: Signature,
@@ -234,15 +304,20 @@ fn timestamps_from_components(
 }
 
 fn make_timestamp_from_date_time(
-    date: i32,
-    time: i64,
+    days: i32,
+    time_nano: i64,
     builder: &mut PrimitiveBuilder<TimestampNanosecondType>,
 ) -> Result<()> {
-    let time = u32::try_from(time)
-        .map_err(|_| _exec_datafusion_err!("time value '{time:?}' is out of range"))?;
+    let seconds = u32::try_from(time_nano / 1_000_000_000)
+        .map_err(|_| _exec_datafusion_err!("time seconds value '{time_nano:?}' is out of range"))?;
+    let nanoseconds = u32::try_from(time_nano % 1_000_000_000).map_err(|_| {
+        _exec_datafusion_err!("time nanoseconds value '{time_nano:?}' is out of range")
+    })?;
 
-    if let Some(naive_date) = NaiveDate::from_num_days_from_ce_opt(date) {
-        if let Some(naive_time) = NaiveTime::from_hms_nano_opt(0, 0, 0, time) {
+    if let Some(naive_date) = NaiveDate::from_num_days_from_ce_opt(days + UNIX_EPOCH_DAYS) {
+        if let Some(naive_time) =
+            NaiveTime::from_num_seconds_from_midnight_opt(seconds, nanoseconds)
+        {
             if let Some(timestamp) = naive_date
                 .and_time(naive_time)
                 .and_utc()
@@ -252,15 +327,15 @@ fn make_timestamp_from_date_time(
             } else {
                 return exec_err!(
                     "Unable to parse timestamp from date '{:?}' and time '{:?}'",
-                    date,
-                    time
+                    days,
+                    time_nano
                 );
             }
         } else {
-            return exec_err!("Invalid time part '{:?}'", time);
+            return exec_err!("Invalid time part '{:?}'", time_nano);
         }
     } else {
-        return exec_err!("Invalid date part '{:?}'", date);
+        return exec_err!("Invalid date part '{:?}'", days);
     }
     Ok(())
 }
@@ -365,3 +440,164 @@ fn to_string_array(col: &ColumnarValue) -> Result<StringArray> {
 }
 
 super::macros::make_udf_function!(TimestampFromPartsFunc);
+
+#[cfg(test)]
+mod test {
+    use crate::datafusion::functions::timestamp_from_parts::{
+        to_primitive_array, TimestampFromPartsFunc,
+    };
+    use arrow::datatypes::TimestampNanosecondType;
+    use datafusion::logical_expr::ColumnarValue;
+    use datafusion_common::ScalarValue;
+    use datafusion_expr::ScalarUDFImpl;
+
+    #[allow(clippy::unwrap_used)]
+    fn columnar_value_fn<T>(is_scalar: bool, v: T) -> ColumnarValue
+    where
+        ScalarValue: From<T>,
+        T: Clone,
+    {
+        if is_scalar {
+            ColumnarValue::Scalar(ScalarValue::from(v))
+        } else {
+            ColumnarValue::Array(ScalarValue::from(v).to_array().unwrap())
+        }
+    }
+
+    #[allow(clippy::type_complexity)]
+    #[allow(clippy::unwrap_used)]
+    #[test]
+    fn test_timestamp_from_parts_components() {
+        let args: [(
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            Option<i64>,
+            Option<String>,
+            i64,
+        ); 7] = [
+            (2025, 1, 2, 0, 0, 0, None, None, 1_735_776_000_000_000_000),
+            (
+                2025,
+                1,
+                2,
+                12,
+                0,
+                0,
+                Some(0),
+                Some("UTC".to_string()),
+                1_735_819_200_000_000_000,
+            ),
+            (
+                2025,
+                1,
+                2,
+                12,
+                10,
+                0,
+                Some(0),
+                Some("America/New_York".to_string()),
+                1_735_819_800_000_000_000,
+            ),
+            (
+                2025,
+                1,
+                2,
+                12,
+                10,
+                12,
+                Some(0),
+                Some("Asia/Tokyo".to_string()),
+                1_735_819_812_000_000_000,
+            ),
+            (
+                2025,
+                1,
+                2,
+                12,
+                10,
+                12,
+                Some(0),
+                Some("Europe/London".to_string()),
+                1_735_819_812_000_000_000,
+            ),
+            (
+                2025,
+                1,
+                2,
+                12,
+                10,
+                12,
+                Some(0),
+                Some("Africa/Cairo".to_string()),
+                1_735_819_812_000_000_000,
+            ),
+            (
+                2025,
+                1,
+                2,
+                12,
+                10,
+                12,
+                Some(10),
+                Some("Australia/Sydney".to_string()),
+                1_735_819_812_000_000_010,
+            ),
+        ];
+
+        let is_scalar_type = [true, false];
+
+        for is_scalar in is_scalar_type {
+            for (i, (y, m, d, h, mi, s, n, tz, exp)) in args.iter().enumerate() {
+                let mut fn_args = vec![
+                    columnar_value_fn(is_scalar, *y),
+                    columnar_value_fn(is_scalar, *m),
+                    columnar_value_fn(is_scalar, *d),
+                    columnar_value_fn(is_scalar, *h),
+                    columnar_value_fn(is_scalar, *mi),
+                    columnar_value_fn(is_scalar, *s),
+                ];
+                if let Some(nano) = n {
+                    fn_args.push(columnar_value_fn(is_scalar, *nano));
+                };
+                if let Some(t) = tz {
+                    fn_args.push(columnar_value_fn(is_scalar, t.to_string()));
+                };
+                let result = TimestampFromPartsFunc::new()
+                    .invoke_batch(&fn_args, 1)
+                    .unwrap();
+                let result = to_primitive_array::<TimestampNanosecondType>(&result).unwrap();
+                assert_eq!(result.value(0), *exp, "failed at index {i}");
+            }
+        }
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[test]
+    fn test_timestamp_from_parts_exp() {
+        // TypeSignatureClass::Date, TypeSignatureClass::Time
+        let args: [(i32, i64, i64); 2] = [
+            (20143, 39_075_773_219_000, 1_740_394_275_773_219_000),
+            (20143, 0, 1_740_355_200_000_000_000),
+        ];
+
+        let is_scalar_type = [true, false];
+
+        for is_scalar in is_scalar_type {
+            for (i, (date, time, exp)) in args.iter().enumerate() {
+                let fn_args = vec![
+                    columnar_value_fn(is_scalar, ScalarValue::Date32(Some(*date))),
+                    columnar_value_fn(is_scalar, ScalarValue::Time64Nanosecond(Some(*time))),
+                ];
+                let result = TimestampFromPartsFunc::new()
+                    .invoke_batch(&fn_args, 1)
+                    .unwrap();
+                let result = to_primitive_array::<TimestampNanosecondType>(&result).unwrap();
+                assert_eq!(result.value(0), *exp, "failed at index {i}");
+            }
+        }
+    }
+}
