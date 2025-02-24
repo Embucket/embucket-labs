@@ -98,7 +98,7 @@ impl ScalarUDFImpl for DateFromPartsFunc {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "date_from_parts"
     }
 
