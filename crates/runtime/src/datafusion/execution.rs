@@ -264,35 +264,35 @@ impl SqlExecutor {
             .replace("FROM @~/", "FROM ")
     }
 
-    #[allow(clippy::unwrap_used)]
-    #[tracing::instrument(level = "trace", ret)]
-    pub fn postprocess_query_statement(statement: &mut DFStatement) {
-        if let DFStatement::Statement(value) = statement {
-            visit_expressions_mut(&mut *value, |expr| {
-                if let Expr::Function(Function {
-                    name: ObjectName(idents),
-                    args: FunctionArguments::List(FunctionArgumentList { args, .. }),
-                    ..
-                }) = expr
-                {
-                    match idents.first().unwrap().value.as_str() {
-                        "dateadd" | "date_add" | "datediff" | "date_diff" => {
-                            if let FunctionArg::Unnamed(FunctionArgExpr::Expr(ident)) =
-                                args.iter_mut().next().unwrap()
-                            {
-                                //TODO: check if the value is correct (date_time_part)
-                                if let Expr::Identifier(Ident { value, .. }) = ident {
-                                    *ident = Expr::Value(Value::SingleQuotedString(value.clone()));
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                ControlFlow::<()>::Continue(())
-            });
-        }
-    }
+    // #[allow(clippy::unwrap_used)]
+    // #[tracing::instrument(level = "trace", ret)]
+    // pub fn postprocess_query_statement(statement: &mut DFStatement) {
+    //     if let DFStatement::Statement(value) = statement {
+    //         visit_expressions_mut(&mut *value, |expr| {
+    //             if let Expr::Function(Function {
+    //                 name: ObjectName(idents),
+    //                 args: FunctionArguments::List(FunctionArgumentList { args, .. }),
+    //                 ..
+    //             }) = expr
+    //             {
+    //                 match idents.first().unwrap().value.as_str() {
+    //                     "dateadd" | "date_add" | "datediff" | "date_diff" => {
+    //                         if let FunctionArg::Unnamed(FunctionArgExpr::Expr(ident)) =
+    //                             args.iter_mut().next().unwrap()
+    //                         {
+    //                             //TODO: check if the value is correct (date_time_part)
+    //                             if let Expr::Identifier(Ident { value, .. }) = ident {
+    //                                 *ident = Expr::Value(Value::SingleQuotedString(value.clone()));
+    //                             }
+    //                         }
+    //                     }
+    //                     _ => {}
+    //                 }
+    //             }
+    //             ControlFlow::<()>::Continue(())
+    //         });
+    //     }
+    // }
 
     pub fn set_session_variable(
         &self,
@@ -1432,7 +1432,7 @@ mod tests {
             Test::new(
                 "SELECT dateadd(\"'year'\", 5, '2025-06-01')",
                 Value::SingleQuotedString("year".to_owned()),
-                true,
+                false,
             ),
             Test::new(
                 "SELECT dateadd(\'year\', 5, '2025-06-01')",
@@ -1498,7 +1498,7 @@ mod tests {
             }
         }
     }
-  use crate::datafusion::execution::SqlExecutor;
+    
     use datafusion::sql::parser::DFParser;
 
     #[allow(clippy::unwrap_used)]
