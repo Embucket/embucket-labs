@@ -41,6 +41,8 @@ datafusion = { version = "45.0.0" }
 datafusion-common = { version = "45.0.0" }
 datafusion-expr = { version = "45.0.0" }
 datafusion-physical-plan = { version = "45.0.0" }
+datafusion-doc = { version = "45.0.0" }
+datafusion-macros = { version = "45.0.0" }
 
 # do not change iceberg-rust, datafusion-functions-json hash commits unless datafusion version bumped
 datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "f2b9b88cd9b4282bc0286a970333e8c01cec177b" }
@@ -53,6 +55,8 @@ datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72
 datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
 datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
 datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }

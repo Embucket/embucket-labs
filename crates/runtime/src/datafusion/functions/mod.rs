@@ -18,11 +18,16 @@
 use std::sync::Arc;
 
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
+use sqlparser::ast::Value::SingleQuotedString;
+use sqlparser::ast::{Expr, Function, FunctionArg, FunctionArgExpr, FunctionArguments};
 
 mod convert_timezone;
 mod date_add;
 mod date_diff;
+mod date_from_parts;
 mod parse_json;
+mod time_from_parts;
+mod timestamp_from_parts;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
@@ -30,6 +35,9 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         date_add::get_udf(),
         parse_json::get_udf(),
         date_diff::get_udf(),
+        timestamp_from_parts::get_udf(),
+        time_from_parts::get_udf(),
+        date_from_parts::get_udf(),
     ];
 
     for func in functions {
@@ -60,4 +68,35 @@ mod macros {
 }
 
     pub(crate) use make_udf_function;
+}
+
+pub fn visit_functions_expressions(func: &mut Function) {
+    let func_name_string = func.name.clone().to_string().to_lowercase();
+    let func_name = func_name_string.as_str();
+    let args = &mut func.args;
+    let name = match func_name {
+        "year" | "day" | "dayofmonth" | "dayofweek" | "dayofweekiso" | "dayofyear" | "week"
+        | "weekofyear" | "weekiso" | "month" | "quarter" | "hour" | "minute" | "second" => {
+            if let FunctionArguments::List(arg_list) = args {
+                let arg = match func_name {
+                    "year" | "quarter" | "month" | "week" | "day" | "hour" | "minute"
+                    | "second" => func_name,
+                    "dayofyear" => "doy",
+                    "dayofweek" => "dow",
+                    "dayofmonth" => "day",
+                    "weekofyear" => "week",
+                    _ => "unknown",
+                };
+                arg_list.args.insert(
+                    0,
+                    FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(SingleQuotedString(
+                        arg.to_string(),
+                    )))),
+                );
+            };
+            "date_part"
+        }
+        _ => func_name,
+    };
+    func.name = sqlparser::ast::ObjectName(vec![sqlparser::ast::Ident::new(name)]);
 }

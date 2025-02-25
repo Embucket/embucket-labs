@@ -19,7 +19,7 @@
 #![allow(clippy::missing_panics_doc)]
 
 use super::error::{self as ih_error, IceBucketSQLError, IceBucketSQLResult};
-use crate::datafusion::functions::register_udfs;
+use crate::datafusion::functions::{register_udfs, visit_functions_expressions};
 use crate::datafusion::planner::ExtendedSqlToRel;
 use crate::datafusion::session::SessionParams;
 use arrow::array::{Int64Array, RecordBatch};
@@ -83,6 +83,19 @@ impl SqlExecutor {
         let state = self.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         state.sql_to_statement(query, dialect)
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[tracing::instrument(level = "trace", ret)]
+    pub fn postprocess_query_statement(statement: &mut DFStatement) {
+        if let DFStatement::Statement(value) = statement {
+            visit_expressions_mut(&mut *value, |expr| {
+                if let Expr::Function(ref mut func) = expr {
+                    visit_functions_expressions(func);
+                }
+                ControlFlow::<()>::Continue(())
+            });
+        }
     }
 
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
@@ -1482,6 +1495,38 @@ mod tests {
                     }
                     ControlFlow::<()>::Continue(())
                 });
+            }
+        }
+    }
+  use crate::datafusion::execution::SqlExecutor;
+    use datafusion::sql::parser::DFParser;
+
+    #[allow(clippy::unwrap_used)]
+    #[test]
+    fn test_postprocess_query_statement_functions_expressions() {
+        let args: [(&str, &str); 14] = [
+            ("select year(ts)", "SELECT date_part('year', ts)"),
+            ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
+            ("select day(ts)", "SELECT date_part('day', ts)"),
+            ("select dayofmonth(ts)", "SELECT date_part('day', ts)"),
+            ("select dayofweek(ts)", "SELECT date_part('dow', ts)"),
+            ("select month(ts)", "SELECT date_part('month', ts)"),
+            ("select weekofyear(ts)", "SELECT date_part('week', ts)"),
+            ("select week(ts)", "SELECT date_part('week', ts)"),
+            ("select hour(ts)", "SELECT date_part('hour', ts)"),
+            ("select minute(ts)", "SELECT date_part('minute', ts)"),
+            ("select second(ts)", "SELECT date_part('second', ts)"),
+            ("select minute(ts)", "SELECT date_part('minute', ts)"),
+            // Do nothing
+            ("select yearofweek(ts)", "SELECT yearofweek(ts)"),
+            ("select yearofweekiso(ts)", "SELECT yearofweekiso(ts)"),
+        ];
+
+        for (init, exp) in args {
+            let statement = DFParser::parse_sql(init).unwrap().pop_front();
+            if let Some(mut s) = statement {
+                SqlExecutor::postprocess_query_statement(&mut s);
+                assert_eq!(s.to_string(), exp);
             }
         }
     }
