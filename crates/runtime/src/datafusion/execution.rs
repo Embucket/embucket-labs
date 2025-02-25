@@ -35,7 +35,7 @@ use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStat
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
-    TableFactor, TableWithJoins,
+    TableFactor, TableWithJoins, Value,
 };
 use datafusion_common::{DataFusionError, TableReference};
 use datafusion_functions_json::register_all;
