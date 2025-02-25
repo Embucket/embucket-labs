@@ -82,10 +82,6 @@ const UNIX_EPOCH_DAYS: i32 = 719_163;
         description = "An integer expression to use as a second for building a timestamp, usually in the 0-59 range."
     ),
     argument(
-        name = "second",
-        description = "An integer expression to use as a second for building a timestamp, usually in the 0-59 range."
-    ),
-    argument(
         name = "date_expr",
         description = "Specifies the date expression to use for building a timestamp
          where date_expr provides the year, month, and day for the timestamp."
