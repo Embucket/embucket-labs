@@ -18,17 +18,18 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use crate::datafusion::functions::timestamp_from_parts::{take_function_args, to_primitive_array};
+use crate::datafusion::functions::timestamp_from_parts::{
+    make_time, take_function_args, to_primitive_array,
+};
 use arrow::array::builder::PrimitiveBuilder;
 use arrow::array::{Array, PrimitiveArray};
-use arrow::datatypes::{DataType, Int32Type, Int64Type, Time64NanosecondType};
-use arrow_schema::DataType::{Int32, Int64, Time64};
+use arrow::datatypes::{DataType, Int64Type, Time64NanosecondType};
+use arrow_schema::DataType::{Int64, Time64};
 use arrow_schema::TimeUnit;
-use chrono::prelude::*;
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion_common::types::logical_int64;
-use datafusion_common::{exec_err, internal_err, Result, ScalarValue, _exec_datafusion_err};
+use datafusion_common::{internal_err, Result, ScalarValue};
 use datafusion_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion_macros::user_doc;
 
@@ -149,53 +150,22 @@ fn time_from_components(
         _ => return internal_err!("Unsupported number of arguments"),
     };
 
-    let hours = to_primitive_array::<Int32Type>(&hours.cast_to(&Int32, None)?)?;
-    let minutes = to_primitive_array::<Int32Type>(&minutes.cast_to(&Int32, None)?)?;
-    let seconds = to_primitive_array::<Int32Type>(&seconds.cast_to(&Int32, None)?)?;
+    let hours = to_primitive_array::<Int64Type>(&hours.cast_to(&Int64, None)?)?;
+    let minutes = to_primitive_array::<Int64Type>(&minutes.cast_to(&Int64, None)?)?;
+    let seconds = to_primitive_array::<Int64Type>(&seconds.cast_to(&Int64, None)?)?;
     let nanoseconds = nanos
         .map(|nanoseconds| to_primitive_array::<Int64Type>(&nanoseconds.cast_to(&Int64, None)?))
         .transpose()?;
     let mut builder: PrimitiveBuilder<Time64NanosecondType> = PrimitiveArray::builder(array_size);
     for i in 0..array_size {
-        let nanoseconds = nanoseconds.as_ref().map(|ns| ns.value(i));
-        make_time(
+        builder.append_value(make_time(
             hours.value(i),
             minutes.value(i),
             seconds.value(i),
-            nanoseconds,
-            &mut builder,
-        )?;
+            nanoseconds.as_ref().map(|ns| ns.value(i)),
+        ));
     }
     Ok(builder.finish())
-}
-
-#[allow(clippy::too_many_arguments)]
-fn make_time(
-    hour: i32,
-    minute: i32,
-    seconds: i32,
-    nanosecond: Option<i64>,
-    builder: &mut PrimitiveBuilder<Time64NanosecondType>,
-) -> Result<()> {
-    let hour = u32::try_from(hour)
-        .map_err(|_| _exec_datafusion_err!("hour value '{hour:?}' is out of range"))?;
-    let minute = u32::try_from(minute)
-        .map_err(|_| _exec_datafusion_err!("minute value '{minute:?}' is out of range"))?;
-    let seconds = u32::try_from(seconds)
-        .map_err(|_| _exec_datafusion_err!("seconds value '{seconds:?}' is out of range"))?;
-    let nano = u32::try_from(nanosecond.unwrap_or(0))
-        .map_err(|_| _exec_datafusion_err!("nanosecond value '{nanosecond:?}' is out of range"))?;
-
-    if let Some(time) = NaiveTime::from_hms_nano_opt(hour, minute, seconds, nano) {
-        let time_nanos = i64::from(time.hour()) * 3_600_000_000_000
-            + i64::from(time.minute()) * 60_000_000_000
-            + i64::from(time.second()) * 1_000_000_000
-            + i64::from(time.nanosecond());
-        builder.append_value(time_nanos);
-    } else {
-        return exec_err!("Invalid time part '{hour:?}':'{minute:?}':'{seconds:?}'");
-    }
-    Ok(())
 }
 
 super::macros::make_udf_function!(TimeFromPartsFunc);
@@ -205,6 +175,7 @@ mod test {
     use crate::datafusion::functions::time_from_parts::TimeFromPartsFunc;
     use crate::datafusion::functions::timestamp_from_parts::to_primitive_array;
     use arrow::datatypes::Time64NanosecondType;
+    use chrono::NaiveTime;
     use datafusion::logical_expr::ColumnarValue;
     use datafusion_common::ScalarValue;
     use datafusion_expr::ScalarUDFImpl;
@@ -226,11 +197,13 @@ mod test {
     #[allow(clippy::unwrap_used)]
     #[test]
     fn test_time_from_parts() {
-        let args: [(i64, i64, i64, Option<i64>, i64); 4] = [
-            (12, 0, 0, None, 43_200_000_000_000),
-            (12, 10, 0, None, 43_800_000_000_000),
-            (12, 10, 12, None, 43_812_000_000_000),
-            (12, 10, 12, Some(255), 43_812_000_000_255),
+        let args: [(i64, i64, i64, Option<i64>, String); 6] = [
+            (12, 0, 0, None, "12::00::00".to_string()),
+            (12, 10, 0, None, "12::10::00".to_string()),
+            (12, 10, 12, None, "12::10::12".to_string()),
+            (12, 10, 12, Some(255), "12::10::12.000000255".to_string()),
+            (12, 10, -12, Some(255), "12::09::48.000000255".to_string()),
+            (12, -10, -12, Some(255), "12::49::48.000000255".to_string()),
         ];
 
         let is_scalar_type = [true, false];
@@ -247,7 +220,19 @@ mod test {
                 };
                 let result = TimeFromPartsFunc::new().invoke_batch(&fn_args, 1).unwrap();
                 let result = to_primitive_array::<Time64NanosecondType>(&result).unwrap();
-                assert_eq!(result.value(0), *exp, "failed at index {i}");
+                let seconds = result.value(0) / 1_000_000_000;
+                let nanoseconds = result.value(0) % 1_000_000_000;
+
+                let time = NaiveTime::from_num_seconds_from_midnight_opt(
+                    u32::try_from(seconds).unwrap(),
+                    u32::try_from(nanoseconds).unwrap(),
+                )
+                .unwrap();
+                assert_eq!(
+                    time.format("%H:%M:%S.%9f").to_string(),
+                    *exp,
+                    "failed at index {i}"
+                );
             }
         }
     }
