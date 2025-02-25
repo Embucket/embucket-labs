@@ -275,9 +275,9 @@ fn timestamps_from_components(
     let years = to_primitive_array::<Int32Type>(&years.cast_to(&Int32, None)?)?;
     let months = to_primitive_array::<Int32Type>(&months.cast_to(&Int32, None)?)?;
     let days = to_primitive_array::<Int32Type>(&days.cast_to(&Int32, None)?)?;
-    let hours = to_primitive_array::<Int32Type>(&hours.cast_to(&Int32, None)?)?;
-    let minutes = to_primitive_array::<Int32Type>(&minutes.cast_to(&Int32, None)?)?;
-    let seconds = to_primitive_array::<Int32Type>(&seconds.cast_to(&Int32, None)?)?;
+    let hours = to_primitive_array::<Int64Type>(&hours.cast_to(&Int64, None)?)?;
+    let minutes = to_primitive_array::<Int64Type>(&minutes.cast_to(&Int64, None)?)?;
+    let seconds = to_primitive_array::<Int64Type>(&seconds.cast_to(&Int64, None)?)?;
     let nanoseconds = nanoseconds
         .map(|nanoseconds| to_primitive_array::<Int64Type>(&nanoseconds.cast_to(&Int64, None)?))
         .transpose()?;
@@ -339,25 +339,29 @@ fn make_date(year: i32, month: i32, days: i32) -> Result<i32> {
     )
 }
 
+pub fn make_time(hour: i64, minute: i64, seconds: i64, nanosecond: Option<i64>) -> i64 {
+    let n_hour = hour * 3_600_000_000_000;
+    let n_minute = minute * 60_000_000_000;
+    let n_seconds = seconds * 1_000_000_000;
+    let n_nano = nanosecond.unwrap_or(0);
+    n_hour + n_minute + n_seconds + n_nano
+}
+
 #[allow(clippy::too_many_arguments)]
 fn make_timestamp(
     year: i32,
     month: i32,
     day: i32,
-    hour: i32,
-    minute: i32,
-    seconds: i32,
+    hour: i64,
+    minute: i64,
+    seconds: i64,
     nano: Option<i64>,
     timezone: Option<&str>,
 ) -> Result<i64> {
     let days = make_date(year, month, day)?;
-    let n_days = i64::from(days) * 86_400_000_000_000;
-    let n_hour = i64::from(hour) * 3_600_000_000_000;
-    let n_minute = i64::from(minute) * 60_000_000_000;
-    let n_seconds = i64::from(seconds) * 1_000_000_000;
-    let n_nano = nano.unwrap_or(0);
-    let total_nanos = n_days + n_hour + n_minute + n_seconds + n_nano;
-
+    let n_date = i64::from(days) * 86_400_000_000_000;
+    let n_time = make_time(hour, minute, seconds, nano);
+    let total_nanos = n_date + n_time;
     make_timestamp_from_nanoseconds(total_nanos, timezone)
 }
 
@@ -392,7 +396,7 @@ pub fn take_function_args<const N: usize, T>(
     })
 }
 
-fn to_primitive_array<T>(col: &ColumnarValue) -> Result<PrimitiveArray<T>>
+pub fn to_primitive_array<T>(col: &ColumnarValue) -> Result<PrimitiveArray<T>>
 where
     T: arrow::datatypes::ArrowPrimitiveType,
 {
@@ -449,7 +453,7 @@ mod test {
         }
     }
 
-    #[allow(clippy::type_complexity, clippy::unwrap_used, clippy::too_many_lines)]
+    #[allow(clippy::type_complexity, clippy::too_many_lines, clippy::unwrap_used)]
     #[test]
     fn test_timestamp_from_parts_components() {
         let args: [(
