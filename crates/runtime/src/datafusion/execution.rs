@@ -1403,6 +1403,8 @@ mod tests {
     }
     #[test]
     #[allow(clippy::unwrap_used)]
+    #[allow(clippy::explicit_iter_loop)]
+    #[allow(clippy::collapsible_match)]
     fn test_timestamp_keywords_postprocess() {
         let sql_parser_dialect = "SNOWFLAKE".to_string();
         let state = SessionStateBuilder::new()
