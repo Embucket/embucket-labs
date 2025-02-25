@@ -75,9 +75,8 @@ pub fn visit_functions_expressions(func: &mut Function) {
     let func_name = func_name_string.as_str();
     let args = &mut func.args;
     let name = match func_name {
-        "year" | "yearofweek" | "yearofweekiso" | "day" | "dayofmonth" | "dayofweek"
-        | "dayofweekiso" | "dayofyear" | "week" | "weekofyear" | "weekiso" | "month"
-        | "quarter" => {
+        "year" | "day" | "dayofmonth" | "dayofweek" | "dayofweekiso" | "dayofyear" | "week"
+        | "weekofyear" | "weekiso" | "month" | "quarter" | "hour" | "minute" | "second" => {
             if let FunctionArguments::List(arg_list) = args {
                 let arg = match func_name {
                     "year" | "quarter" | "month" | "week" | "day" | "hour" | "minute"
