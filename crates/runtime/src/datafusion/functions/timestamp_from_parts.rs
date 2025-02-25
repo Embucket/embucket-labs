@@ -530,7 +530,7 @@ mod test {
                 10,
                 12,
                 Some(0),
-                Some("America/sfsdfdsfds".to_string()),
+                Some("America/Los_Angeles".to_string()),
                 "2025-01-02 12:10:12.000000000".to_string(),
             ),
             (

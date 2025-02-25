@@ -485,11 +485,15 @@ impl ColumnInfo {
             | DataType::UInt8
             | DataType::UInt16
             | DataType::UInt32
-            | DataType::UInt64
-            | DataType::Float32 => {
+            | DataType::UInt64 => {
                 column_info.r#type = "fixed".to_string();
                 column_info.precision = Some(38);
                 column_info.scale = Some(0);
+            }
+            DataType::Float16 | DataType::Float32 | DataType::Float64 => {
+                column_info.r#type = "real".to_string();
+                column_info.precision = Some(38);
+                column_info.scale = Some(16);
             }
             DataType::Decimal128(precision, scale) | DataType::Decimal256(precision, scale) => {
                 column_info.r#type = "fixed".to_string();
@@ -773,6 +777,25 @@ mod tests {
         assert_eq!(column_info.r#type, "text");
         assert_eq!(column_info.byte_length, None);
         assert_eq!(column_info.length, None);
+
+        let floats = [
+            (DataType::Float16, 16, true),
+            (DataType::Float32, 16, true),
+            (DataType::Float64, 16, true),
+            (DataType::Float64, 17, false),
+        ];
+        for (float_datatype, scale, outcome) in floats {
+            let field = Field::new("test_field", float_datatype, false);
+            let column_info = ColumnInfo::from_field(&field);
+            assert_eq!(column_info.name, "test_field");
+            assert_eq!(column_info.r#type, "real");
+            assert_eq!(column_info.precision.unwrap(), 38);
+            if outcome {
+                assert_eq!(column_info.scale.unwrap(), scale);
+            } else {
+                assert_ne!(column_info.scale.unwrap(), scale);
+            }
+        }
     }
 
     #[tokio::test]
