@@ -19,7 +19,7 @@
 #![allow(clippy::missing_panics_doc)]
 
 use super::error::{self as ih_error, IceBucketSQLError, IceBucketSQLResult};
-use crate::datafusion::functions::register_udfs;
+use crate::datafusion::functions::{register_udfs, visit_functions_expressions};
 use crate::datafusion::planner::ExtendedSqlToRel;
 use crate::datafusion::session::SessionParams;
 use arrow::array::{Int64Array, RecordBatch};
@@ -51,12 +51,13 @@ use object_store::aws::AmazonS3Builder;
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType,
-    Query as AstQuery, Select, SelectItem, Use,
+    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind,
+    MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use,
 };
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
 
@@ -83,6 +84,19 @@ impl SqlExecutor {
         state.sql_to_statement(query, dialect)
     }
 
+    #[allow(clippy::unwrap_used)]
+    #[tracing::instrument(level = "trace", ret)]
+    pub fn postprocess_query_statement(statement: &mut DFStatement) {
+        if let DFStatement::Statement(value) = statement {
+            visit_expressions_mut(&mut *value, |expr| {
+                if let Expr::Function(ref mut func) = expr {
+                    visit_functions_expressions(func);
+                }
+                ControlFlow::<()>::Continue(())
+            });
+        }
+    }
+
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn query(
         &self,
@@ -91,9 +105,11 @@ impl SqlExecutor {
     ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         // Update query to use custom JSON functions
         let query = self.preprocess_query(query);
-        let statement = self
+        let mut statement = self
             .parse_query(query.as_str())
             .context(super::error::DataFusionSnafu)?;
+        Self::postprocess_query_statement(&mut statement);
+
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
 
