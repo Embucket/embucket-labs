@@ -19,15 +19,13 @@ use std::any::Any;
 use std::sync::Arc;
 
 use crate::datafusion::functions::timestamp_from_parts::{
-    take_function_args, to_primitive_array, UNIX_DAYS_FROM_CE,
+    make_date, take_function_args, to_primitive_array,
 };
 use arrow::array::builder::PrimitiveBuilder;
 use arrow::array::{Array, PrimitiveArray};
 use arrow::datatypes::{DataType, Date32Type, Int32Type};
 use arrow_schema::DataType::{Date32, Int32, Int64, UInt32, UInt64, Utf8, Utf8View};
-use chrono::prelude::*;
-use chrono::{Duration, Months};
-use datafusion_common::{exec_err, Result, ScalarValue, _exec_datafusion_err};
+use datafusion_common::{Result, ScalarValue};
 use datafusion_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion_macros::user_doc;
 
@@ -55,7 +53,6 @@ This allows, for example, choosing the N-th day in a year, which can be used to 
 Year, month, and day values can be negative (e.g. to calculate a date N months prior to a specific date).
 Additional examples can be found [here](https://docs.snowflake.com/en/sql-reference/functions/date_from_parts)
 ",
-    standard_argument(name = "str", prefix = "String"),
     argument(
         name = "year",
         description = "An integer expression to use as a year for building a timestamp."
@@ -147,45 +144,9 @@ fn date_from_components(
 
     let mut builder: PrimitiveBuilder<Date32Type> = PrimitiveArray::builder(array_size);
     for i in 0..array_size {
-        make_date(years.value(i), months.value(i), days.value(i), &mut builder)?;
+        builder.append_value(make_date(years.value(i), months.value(i), days.value(i))?);
     }
     Ok(builder.finish())
-}
-
-fn make_date(
-    year: i32,
-    month: i32,
-    days: i32,
-    builder: &mut PrimitiveBuilder<Date32Type>,
-) -> Result<()> {
-    let u_month = match month {
-        0 => 1,
-        _ if month < 0 => 1 - month,
-        _ => month - 1,
-    };
-    let u_month = u32::try_from(u_month)
-        .map_err(|_| _exec_datafusion_err!("month value '{month:?}' is out of range"))?;
-
-    if let Some(date) = NaiveDate::from_ymd_opt(year, 1, 1) {
-        let months = Months::new(u_month);
-        let days = Duration::days(i64::from(days - 1));
-        let result = if month <= 0 {
-            date.checked_sub_months(months)
-        } else {
-            date.checked_add_months(months)
-        };
-        if let Some(months_result) = result {
-            if let Some(days_result) = months_result.checked_add_signed(days) {
-                builder.append_value(days_result.num_days_from_ce() - UNIX_DAYS_FROM_CE);
-            }
-        } else {
-            return exec_err!("Invalid date part '{year:?}' '{month:?}' '{days:?}'");
-        }
-        // builder.append_value(date.num_days_from_ce() - UNIX_DAYS_FROM_CE);
-    } else {
-        return exec_err!("Invalid date part '{year:?}' '{month:?}' '{days:?}'");
-    }
-    Ok(())
 }
 
 super::macros::make_udf_function!(DateFromPartsFunc);

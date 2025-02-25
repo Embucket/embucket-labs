@@ -27,6 +27,7 @@ use arrow::datatypes::{
 use arrow_schema::DataType::{Date32, Int32, Int64, Time64};
 use arrow_schema::TimeUnit;
 use chrono::prelude::*;
+use chrono::{Duration, Months};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion_common::types::{logical_int64, logical_string};
@@ -56,7 +57,6 @@ pub const UNIX_DAYS_FROM_CE: i32 = 719_163;
             | 1740398450.65555555                                                                               |
             +---------------------------------------------------------------------------------------------------+
 ```",
-    standard_argument(name = "str", prefix = "String"),
     argument(
         name = "year",
         description = "An integer expression to use as a year for building a timestamp."
@@ -147,6 +147,9 @@ impl TimestampFromPartsFunc {
                 String::from("timestamp_ntz_from_parts"),
                 String::from("timestamp_tz_from_parts"),
                 String::from("timestamp_ltz_from_parts"),
+                String::from("timestampntzfromparts"),
+                String::from("timestamptzfromparts"),
+                String::from("timestampltzfromparts"),
             ],
         }
     }
@@ -156,7 +159,7 @@ impl ScalarUDFImpl for TimestampFromPartsFunc {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "timestamp_from_parts"
     }
 
@@ -204,7 +207,8 @@ impl ScalarUDFImpl for TimestampFromPartsFunc {
             )?;
             let mut builder = PrimitiveArray::builder(array_size);
             for i in 0..array_size {
-                make_timestamp_from_date_time(date.value(i), time.value(i), &mut builder)?;
+                let ts = make_timestamp_from_date_time(date.value(i), time.value(i))?;
+                builder.append_value(ts);
             }
             Ok(builder.finish())
         } else if args.len() > 5 && args.len() < 9 {
@@ -271,9 +275,9 @@ fn timestamps_from_components(
     let years = to_primitive_array::<Int32Type>(&years.cast_to(&Int32, None)?)?;
     let months = to_primitive_array::<Int32Type>(&months.cast_to(&Int32, None)?)?;
     let days = to_primitive_array::<Int32Type>(&days.cast_to(&Int32, None)?)?;
-    let hours = to_primitive_array::<Int32Type>(&hours.cast_to(&Int32, None)?)?;
-    let minutes = to_primitive_array::<Int32Type>(&minutes.cast_to(&Int32, None)?)?;
-    let seconds = to_primitive_array::<Int32Type>(&seconds.cast_to(&Int32, None)?)?;
+    let hours = to_primitive_array::<Int64Type>(&hours.cast_to(&Int64, None)?)?;
+    let minutes = to_primitive_array::<Int64Type>(&minutes.cast_to(&Int64, None)?)?;
+    let seconds = to_primitive_array::<Int64Type>(&seconds.cast_to(&Int64, None)?)?;
     let nanoseconds = nanoseconds
         .map(|nanoseconds| to_primitive_array::<Int64Type>(&nanoseconds.cast_to(&Int64, None)?))
         .transpose()?;
@@ -284,7 +288,7 @@ fn timestamps_from_components(
     for i in 0..array_size {
         let nanoseconds = nanoseconds.as_ref().map(|ns| ns.value(i));
         let time_zone = time_zone.as_ref().map(|tz| tz.value(i));
-        make_timestamp(
+        let ts = make_timestamp(
             years.value(i),
             months.value(i),
             days.value(i),
@@ -293,47 +297,54 @@ fn timestamps_from_components(
             seconds.value(i),
             nanoseconds,
             time_zone,
-            &mut builder,
         )?;
+        builder.append_value(ts);
     }
     Ok(builder.finish())
 }
 
-fn make_timestamp_from_date_time(
-    days: i32,
-    time_nano: i64,
-    builder: &mut PrimitiveBuilder<TimestampNanosecondType>,
-) -> Result<()> {
-    let seconds = u32::try_from(time_nano / 1_000_000_000)
-        .map_err(|_| _exec_datafusion_err!("time seconds value '{time_nano:?}' is out of range"))?;
-    let nanoseconds = u32::try_from(time_nano % 1_000_000_000).map_err(|_| {
-        _exec_datafusion_err!("time nanoseconds value '{time_nano:?}' is out of range")
-    })?;
+fn make_timestamp_from_date_time(date: i32, time: i64) -> Result<i64> {
+    make_timestamp_from_nanoseconds(i64::from(date) * 86_400_000_000_000 + time, None)
+}
 
-    if let Some(naive_date) = NaiveDate::from_num_days_from_ce_opt(days + UNIX_DAYS_FROM_CE) {
-        if let Some(naive_time) =
-            NaiveTime::from_num_seconds_from_midnight_opt(seconds, nanoseconds)
-        {
-            if let Some(timestamp) = naive_date
-                .and_time(naive_time)
-                .and_utc()
-                .timestamp_nanos_opt()
-            {
-                builder.append_value(timestamp);
+pub fn make_date(year: i32, month: i32, days: i32) -> Result<i32> {
+    let u_month = match month {
+        0 => 1,
+        _ if month < 0 => 1 - month,
+        _ => month - 1,
+    };
+    let u_month = u32::try_from(u_month)
+        .map_err(|_| _exec_datafusion_err!("month value '{month:?}' is out of range"))?;
+
+    NaiveDate::from_ymd_opt(year, 1, 1).map_or_else(
+        || exec_err!("Invalid date part '{year:?}' '{month:?}' '{days:?}'"),
+        |date| {
+            let months = Months::new(u_month);
+            let days = Duration::days(i64::from(days - 1));
+            let result = if month <= 0 {
+                date.checked_sub_months(months)
             } else {
-                return exec_err!(
-                    "Unable to parse timestamp from date '{:?}' and time '{:?}'",
-                    days,
-                    time_nano
-                );
-            }
-        } else {
-            return exec_err!("Invalid time part '{:?}'", time_nano);
-        }
-    } else {
-        return exec_err!("Invalid date part '{:?}'", days);
-    }
-    Ok(())
+                date.checked_add_months(months)
+            };
+            result.map_or_else(
+                || exec_err!("invalid date part '{year:?}' '{month:?}' '{days:?}'"),
+                |months_result| {
+                    months_result.checked_add_signed(days).map_or_else(
+                        || exec_err!("invalid date part '{year:?}' '{month:?}' '{days:?}'"),
+                        |days_result| Ok(days_result.num_days_from_ce() - UNIX_DAYS_FROM_CE),
+                    )
+                },
+            )
+        },
+    )
+}
+
+pub fn make_time(hour: i64, minute: i64, seconds: i64, nanosecond: Option<i64>) -> i64 {
+    let n_hour = hour * 3_600_000_000_000;
+    let n_minute = minute * 60_000_000_000;
+    let n_seconds = seconds * 1_000_000_000;
+    let n_nano = nanosecond.unwrap_or(0);
+    n_hour + n_minute + n_seconds + n_nano
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -341,51 +352,32 @@ fn make_timestamp(
     year: i32,
     month: i32,
     day: i32,
-    hour: i32,
-    minute: i32,
-    seconds: i32,
-    nanosecond: Option<i64>,
-    time_zone: Option<&str>,
-    builder: &mut PrimitiveBuilder<TimestampNanosecondType>,
-) -> Result<()> {
-    let day = u32::try_from(day)
-        .map_err(|_| _exec_datafusion_err!("day value '{day:?}' is out of range"))?;
-    let month = u32::try_from(month)
-        .map_err(|_| _exec_datafusion_err!("month value '{month:?}' is out of range"))?;
-    let hour = u32::try_from(hour)
-        .map_err(|_| _exec_datafusion_err!("hour value '{hour:?}' is out of range"))?;
-    let minute = u32::try_from(minute)
-        .map_err(|_| _exec_datafusion_err!("minute value '{minute:?}' is out of range"))?;
-    let seconds = u32::try_from(seconds)
-        .map_err(|_| _exec_datafusion_err!("seconds value '{seconds:?}' is out of range"))?;
-    let nano = u32::try_from(nanosecond.unwrap_or(0))
-        .map_err(|_| _exec_datafusion_err!("nanosecond value '{nanosecond:?}' is out of range"))?;
+    hour: i64,
+    minute: i64,
+    seconds: i64,
+    nano: Option<i64>,
+    timezone: Option<&str>,
+) -> Result<i64> {
+    let days = make_date(year, month, day)?;
+    let n_date = i64::from(days) * 86_400_000_000_000;
+    let n_time = make_time(hour, minute, seconds, nano);
+    let total_nanos = n_date + n_time;
+    make_timestamp_from_nanoseconds(total_nanos, timezone)
+}
 
-    if let Some(date) = NaiveDate::from_ymd_opt(year, month, day) {
-        if let Some(time) = NaiveTime::from_hms_nano_opt(hour, minute, seconds, nano) {
-            let date_time = date.and_time(time);
-            let timestamp = if let Some(time_zone) = time_zone {
-                Utc.from_utc_datetime(&date_time)
-                    .with_timezone(&time_zone.parse::<Tz>()?)
-                    .timestamp_nanos_opt()
-            } else {
-                date_time.and_utc().timestamp_nanos_opt()
-            };
-
-            if let Some(ts) = timestamp {
-                builder.append_value(ts);
-            } else {
-                return exec_err!(
-                    "Unable to parse timestamp from date '{date:?}' and time '{time:?}'"
-                );
-            }
-        } else {
-            return exec_err!("Invalid time part '{hour:?}':'{minute:?}':'{seconds:?}'");
-        }
+fn make_timestamp_from_nanoseconds(nanoseconds: i64, tz: Option<&str>) -> Result<i64> {
+    let date_time = DateTime::from_timestamp_nanos(nanoseconds);
+    let timestamp = if let Some(timezone) = tz {
+        date_time
+            .with_timezone(&timezone.parse::<Tz>()?)
+            .timestamp_nanos_opt()
     } else {
-        return exec_err!("Invalid date part '{year:?}'-'{month:?}'-'{day:?}'");
-    }
-    Ok(())
+        date_time.timestamp_nanos_opt()
+    };
+    timestamp.map_or_else(
+        || exec_err!("Unable to parse timestamp from '{:?}'", nanoseconds),
+        Ok,
+    )
 }
 
 pub fn take_function_args<const N: usize, T>(
@@ -443,6 +435,7 @@ mod test {
         to_primitive_array, TimestampFromPartsFunc,
     };
     use arrow::datatypes::TimestampNanosecondType;
+    use chrono::DateTime;
     use datafusion::logical_expr::ColumnarValue;
     use datafusion_common::ScalarValue;
     use datafusion_expr::ScalarUDFImpl;
@@ -472,9 +465,19 @@ mod test {
             i64,
             Option<i64>,
             Option<String>,
-            i64,
+            String,
         ); 7] = [
-            (2025, 1, 2, 0, 0, 0, None, None, 1_735_776_000_000_000_000),
+            (
+                2025,
+                1,
+                2,
+                0,
+                0,
+                0,
+                None,
+                None,
+                "2025-01-02 00:00:00.000000000".to_string(),
+            ),
             (
                 2025,
                 1,
@@ -483,8 +486,8 @@ mod test {
                 0,
                 0,
                 Some(0),
-                Some("UTC".to_string()),
-                1_735_819_200_000_000_000,
+                None,
+                "2025-01-02 12:00:00.000000000".to_string(),
             ),
             (
                 2025,
@@ -494,8 +497,8 @@ mod test {
                 10,
                 0,
                 Some(0),
-                Some("America/New_York".to_string()),
-                1_735_819_800_000_000_000,
+                None,
+                "2025-01-02 12:10:00.000000000".to_string(),
             ),
             (
                 2025,
@@ -505,8 +508,19 @@ mod test {
                 10,
                 12,
                 Some(0),
-                Some("Asia/Tokyo".to_string()),
-                1_735_819_812_000_000_000,
+                None,
+                "2025-01-02 12:10:12.000000000".to_string(),
+            ),
+            (
+                2025,
+                1,
+                2,
+                12,
+                10,
+                12,
+                Some(500),
+                None,
+                "2025-01-02 12:10:12.000000500".to_string(),
             ),
             (
                 2025,
@@ -516,30 +530,19 @@ mod test {
                 10,
                 12,
                 Some(0),
-                Some("Europe/London".to_string()),
-                1_735_819_812_000_000_000,
+                Some("America/Los_Angeles".to_string()),
+                "2025-01-02 12:10:12.000000000".to_string(),
             ),
             (
                 2025,
-                1,
-                2,
-                12,
-                10,
-                12,
-                Some(0),
-                Some("Africa/Cairo".to_string()),
-                1_735_819_812_000_000_000,
-            ),
-            (
-                2025,
-                1,
-                2,
-                12,
-                10,
-                12,
-                Some(10),
-                Some("Australia/Sydney".to_string()),
-                1_735_819_812_000_000_010,
+                -5,
+                -15,
+                -12,
+                0,
+                -3600,
+                None,
+                None,
+                "2024-06-14 11:00:00.000000000".to_string(),
             ),
         ];
 
@@ -565,7 +568,10 @@ mod test {
                     .invoke_batch(&fn_args, 1)
                     .unwrap();
                 let result = to_primitive_array::<TimestampNanosecondType>(&result).unwrap();
-                assert_eq!(result.value(0), *exp, "failed at index {i}");
+                let ts = DateTime::from_timestamp_nanos(result.value(0))
+                    .format("%Y-%m-%d %H:%M:%S.%f")
+                    .to_string();
+                assert_eq!(ts, *exp, "failed at index {i}");
             }
         }
     }
@@ -573,7 +579,6 @@ mod test {
     #[allow(clippy::unwrap_used)]
     #[test]
     fn test_timestamp_from_parts_exp() {
-        // TypeSignatureClass::Date, TypeSignatureClass::Time
         let args: [(i32, i64, i64); 2] = [
             (20143, 39_075_773_219_000, 1_740_394_275_773_219_000),
             (20143, 0, 1_740_355_200_000_000_000),
