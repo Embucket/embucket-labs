@@ -45,7 +45,6 @@ use datafusion_macros::user_doc;
             | 1740398450.0                                                    |
             +-----------------------------------------------------------------+
 ```",
-    standard_argument(name = "str", prefix = "String"),
     argument(
         name = "hour",
         description = "An integer expression to use as an hour for building a timestamp, usually in the 0-23 range."
