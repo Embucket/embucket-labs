@@ -1,0 +1,29 @@
+---
+source: crates/utils/src/lib.rs
+expression: "(get_empty, get_after_put, get_after_delete, list_after_append,\nlist_after_remove)"
+snapshot_kind: text
+---
+(
+    Ok(
+        None,
+    ),
+    Ok(
+        Some(
+            TestEntity {
+                id: 1,
+                name: "test",
+            },
+        ),
+    ),
+    Ok(
+        None,
+    ),
+    Ok(
+        [
+            "test",
+        ],
+    ),
+    Ok(
+        [],
+    ),
+)

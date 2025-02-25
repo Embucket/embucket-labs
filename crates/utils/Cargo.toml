@@ -8,6 +8,7 @@ async-trait = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
 iceberg = { workspace = true }
+object_store = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 slatedb = { workspace = true }
@@ -16,3 +17,7 @@ uuid = { workspace = true }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+insta = "1.42.1"
+tokio = { workspace = true }
