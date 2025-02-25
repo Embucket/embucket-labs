@@ -19,7 +19,9 @@ use std::sync::Arc;
 
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
 use sqlparser::ast::Value::{self, SingleQuotedString};
-use sqlparser::ast::{Expr, Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident};
+use sqlparser::ast::{
+    Expr, Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
+};
 
 mod convert_timezone;
 mod date_add;

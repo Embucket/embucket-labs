@@ -35,7 +35,7 @@ use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStat
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
-    TableFactor, TableWithJoins, Value,
+    TableFactor, TableWithJoins,
 };
 use datafusion_common::{DataFusionError, TableReference};
 use datafusion_functions_json::register_all;
@@ -51,8 +51,7 @@ use object_store::aws::AmazonS3Builder;
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    visit_expressions_mut, BinaryOperator, Function, FunctionArg, FunctionArgExpr,
-    FunctionArgumentList, FunctionArguments, GroupByExpr, MergeAction, MergeClauseKind,
+    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind,
     MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use,
 };
 use sqlparser::tokenizer::Span;
@@ -1498,7 +1497,7 @@ mod tests {
             }
         }
     }
-    
+
     use datafusion::sql::parser::DFParser;
 
     #[allow(clippy::unwrap_used)]
