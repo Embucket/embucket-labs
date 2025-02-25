@@ -84,37 +84,6 @@ impl SqlExecutor {
         let dialect = state.config().options().sql_parser.dialect.as_str();
         state.sql_to_statement(query, dialect)
     }
-    #[allow(clippy::unwrap_used)]
-    #[tracing::instrument(level = "trace", ret)]
-    pub fn postprocess_query_statement(statement: &mut DFStatement) {
-        if let DFStatement::Statement(value) = statement {
-            visit_expressions_mut(&mut *value, |expr| {
-                if let Expr::Function(Function {
-                    name: ObjectName(idents),
-                    args: FunctionArguments::List(FunctionArgumentList { args, .. }),
-                    ..
-                }) = expr
-                {
-                    match idents.first().unwrap().value.as_str() {
-                        "dateadd" | "date_add" | "datediff" | "date_diff" => {
-                            if let FunctionArg::Unnamed(FunctionArgExpr::Expr(ident)) =
-                                args.iter_mut().next().unwrap()
-                            {
-                                //TODO: check if the value is correct (date_time_part)
-                                if let Expr::Identifier(Ident { value, .. }) = ident {
-                                    *ident = Expr::Value(
-                                        sqlparser::ast::Value::SingleQuotedString(value.clone()),
-                                    );
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                ControlFlow::<()>::Continue(())
-            });
-        }
-    }
 
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn query(
@@ -265,13 +234,10 @@ impl SqlExecutor {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         // TODO: This regex should be a static allocation
         let re = regex::Regex::new(r"(\w+.\w+)\[(\d+)][:\.](\w+)").unwrap();
-        // let date_add =
-        //     regex::Regex::new(r"(date|time|timestamp)(_?add|_?diff)\(\s*([a-zA-Z]+),").unwrap();
-
+        //date_add processing moved to `postprocess_query_statement`
         let mut query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
             .to_string();
-        // query = date_add.replace_all(&query, "$1$2('$3',").to_string();
         let alter_iceberg_table = regex::Regex::new(r"alter\s+iceberg\s+table").unwrap();
         query = alter_iceberg_table
             .replace_all(&query, "alter table")
@@ -283,6 +249,54 @@ impl SqlExecutor {
         query
             .replace("skip_header=1", "skip_header=TRUE")
             .replace("FROM @~/", "FROM ")
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[tracing::instrument(level = "trace", ret)]
+    pub fn postprocess_query_statement(statement: &mut DFStatement) {
+        if let DFStatement::Statement(value) = statement {
+            visit_expressions_mut(&mut *value, |expr| {
+                if let Expr::Function(Function {
+                    name: ObjectName(idents),
+                    args: FunctionArguments::List(FunctionArgumentList { args, .. }),
+                    ..
+                }) = expr
+                {
+                    match idents.first().unwrap().value.as_str() {
+                        "dateadd" | "date_add" | "datediff" | "date_diff" => {
+                            if let FunctionArg::Unnamed(FunctionArgExpr::Expr(ident)) =
+                                args.iter_mut().next().unwrap()
+                            {
+                                //TODO: check if the value is correct (date_time_part)
+                                if let Expr::Identifier(Ident { value, .. }) = ident {
+                                    match value.as_str() {
+                                        "year" | "y" | "yy" | "yyy" | "yyyy" | "yr" | "years"
+                                        | "month" | "mm" | "mon" | "mons" | "months" 
+                                        | "day" | "d" | "dd" | "days" | "dayofmonth" 
+                                        | "week" | "w" | "wk" | "weekofyear" | "woy" | "wy"
+                                        | "quarter" | "q" | "qtr" | "qtrs" | "quarters" 
+                                        | "hour" | "h" | "hh" | "hr" | "hours" | "hrs" 
+                                        | "minute" | "m" | "mi" | "min" | "minutes" | "mins"
+                                        | "second" | "s" | "sec" | "seconds" | "secs" 
+                                        | "millisecond" | "ms" | "msec" | "milliseconds" 
+                                        | "microsecond" | "us" | "usec" | "microseconds"
+                                        | "nanosecond" | "ns" | "nsec" | "nanosec" 
+                                        | "nsecond" | "nanoseconds" | "nanosecs" | "nseconds"=> {
+                                            *ident = Expr::Value(
+                                                sqlparser::ast::Value::SingleQuotedString(value.clone()),
+                                            );
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                ControlFlow::<()>::Continue(())
+            });
+        }
     }
 
     pub fn set_session_variable(
@@ -1350,4 +1364,103 @@ pub fn created_entity_response() -> Result<Vec<RecordBatch>, arrow::error::Arrow
         schema,
         vec![Arc::new(Int64Array::from(vec![0]))],
     )?])
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+    use datafusion::{execution::SessionStateBuilder, prelude::{SessionConfig, SessionContext}};
+    use datafusion_iceberg::planner::IcebergQueryPlanner;
+    use sqlparser::ast::Value;
+    use crate::datafusion::{session::SessionParams, type_planner::CustomTypePlanner};
+    use super::SqlExecutor;
+    use datafusion::sql::sqlparser::ast::visit_expressions;
+    use datafusion::sql::parser::Statement as DFStatement;
+    use std::ops::ControlFlow;
+    use datafusion::sql::sqlparser::ast::{
+        Expr, ObjectName,
+    };
+    use sqlparser::ast::{
+        Function, FunctionArg, FunctionArgExpr,
+        FunctionArgumentList, FunctionArguments,
+    };
+
+    struct Test<'a, T> {
+        input: &'a str,
+        expected: T,
+        should_work: bool
+    }
+    impl<'a, T> Test<'a, T> {
+        pub fn new(input: &'a str, expected: T, should_work: bool) -> Self {
+            Self {
+                input,
+                expected,
+                should_work
+            }
+        }
+    }
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_timestamp_keywords_postprocess() {
+        let sql_parser_dialect = "SNOWFLAKE".to_string();
+            let state = SessionStateBuilder::new()
+                .with_config(
+                    SessionConfig::new()
+                        .with_information_schema(true)
+                        .with_option_extension(SessionParams::default())
+                        .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
+                )
+                .with_default_features()
+                .with_query_planner(Arc::new(IcebergQueryPlanner {}))
+                .with_type_planner(Arc::new(CustomTypePlanner {}))
+                .build();
+            let ctx = SessionContext::new_with_state(state);
+            let executor = SqlExecutor::new(ctx).unwrap();
+        let test = vec![
+            Test::new("SELECT dateadd(year, 5, '2025-06-01')", Value::SingleQuotedString("year".to_owned()), true),
+            Test::new("SELECT dateadd(\"year\", 5, '2025-06-01')", Value::SingleQuotedString("year".to_owned()), true),
+            Test::new("SELECT dateadd('year', 5, '2025-06-01')", Value::SingleQuotedString("year".to_owned()), true),
+            Test::new("SELECT dateadd(\"'year'\", 5, '2025-06-01')", Value::SingleQuotedString("year".to_owned()), true),
+            Test::new("SELECT dateadd(\'year\', 5, '2025-06-01')", Value::SingleQuotedString("year".to_owned()), true),
+            Test::new("SELECT datediff(day, 5, '2025-06-01')", Value::SingleQuotedString("day".to_owned()), true),
+            Test::new("SELECT datediff('week', 5, '2025-06-01')", Value::SingleQuotedString("week".to_owned()), true),
+            Test::new("SELECT datediff(nsecond, 10000000, '2025-06-01')", Value::SingleQuotedString("nsecond".to_owned()), true),
+            Test::new("SELECT date_diff(hour, 5, '2025-06-01')", Value::SingleQuotedString("hour".to_owned()), true),
+            Test::new("SELECT date_add(us, 100000, '2025-06-01')", Value::SingleQuotedString("us".to_owned()), true),
+        ];
+        test.iter().for_each(|test| {
+            let mut statement = executor
+                .parse_query(test.input)
+                .unwrap();
+            SqlExecutor::postprocess_query_statement(&mut statement);
+            if let DFStatement::Statement(statement) = statement {
+                visit_expressions(&statement, |expr| {
+                    if let Expr::Function(Function {
+                        name: ObjectName(idents),
+                        args: FunctionArguments::List(FunctionArgumentList { args, .. }),
+                        ..
+                    }) = expr
+                    {
+                        match idents.first().unwrap().value.as_str() {
+                            "dateadd" | "date_add" | "datediff" | "date_diff" => {
+                                if let FunctionArg::Unnamed(FunctionArgExpr::Expr(ident)) =
+                                    args.iter().next().unwrap()
+                                {
+                                    if let Expr::Value(found) = ident {
+                                        if test.should_work {
+                                            assert_eq!(*found, test.expected);
+                                        } else {
+                                            assert_ne!(*found, test.expected)
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    ControlFlow::<()>::Continue(())
+                });
+            }
+        });
+    }
 }
