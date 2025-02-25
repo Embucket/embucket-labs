@@ -22,6 +22,7 @@ use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::Scal
 mod convert_timezone;
 mod date_add;
 mod date_diff;
+mod date_from_parts;
 mod parse_json;
 mod time_from_parts;
 mod timestamp_from_parts;
@@ -34,6 +35,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         date_diff::get_udf(),
         timestamp_from_parts::get_udf(),
         time_from_parts::get_udf(),
+        date_from_parts::get_udf(),
     ];
 
     for func in functions {

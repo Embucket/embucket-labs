@@ -37,7 +37,7 @@ use datafusion_expr::{
 };
 use datafusion_macros::user_doc;
 
-const UNIX_DAYS_FROM_CE: i32 = 719_163;
+pub const UNIX_DAYS_FROM_CE: i32 = 719_163;
 
 #[user_doc(
     doc_section(label = "Time and Date Functions"),
@@ -307,7 +307,7 @@ fn make_timestamp_from_date_time(date: i32, time: i64) -> Result<i64> {
     make_timestamp_from_nanoseconds(i64::from(date) * 86_400_000_000_000 + time, None)
 }
 
-fn make_date(year: i32, month: i32, days: i32) -> Result<i32> {
+pub fn make_date(year: i32, month: i32, days: i32) -> Result<i32> {
     let u_month = match month {
         0 => 1,
         _ if month < 0 => 1 - month,
