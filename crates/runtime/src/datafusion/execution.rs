@@ -269,27 +269,7 @@ impl SqlExecutor {
                             {
                                 //TODO: check if the value is correct (date_time_part)
                                 if let Expr::Identifier(Ident { value, .. }) = ident {
-                                    match value.as_str() {
-                                        "year" | "y" | "yy" | "yyy" | "yyyy" | "yr" | "years"
-                                        | "month" | "mm" | "mon" | "mons" | "months" | "day"
-                                        | "d" | "dd" | "days" | "dayofmonth" | "week" | "w"
-                                        | "wk" | "weekofyear" | "woy" | "wy" | "quarter" | "q"
-                                        | "qtr" | "qtrs" | "quarters" | "hour" | "h" | "hh"
-                                        | "hr" | "hours" | "hrs" | "minute" | "m" | "mi"
-                                        | "min" | "minutes" | "mins" | "second" | "s" | "sec"
-                                        | "seconds" | "secs" | "millisecond" | "ms" | "msec"
-                                        | "milliseconds" | "microsecond" | "us" | "usec"
-                                        | "microseconds" | "nanosecond" | "ns" | "nsec"
-                                        | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs"
-                                        | "nseconds" => {
-                                            *ident = Expr::Value(
-                                                sqlparser::ast::Value::SingleQuotedString(
-                                                    value.clone(),
-                                                ),
-                                            );
-                                        }
-                                        _ => {}
-                                    }
+                                    *ident = Expr::Value(Value::SingleQuotedString(value.clone()));
                                 }
                             }
                         }
