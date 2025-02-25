@@ -19,7 +19,7 @@
 #![allow(clippy::missing_panics_doc)]
 
 use super::error::{self as ih_error, IceBucketSQLError, IceBucketSQLResult};
-use crate::datafusion::functions::register_udfs;
+use crate::datafusion::functions::{register_udfs, visit_functions_expressions};
 use crate::datafusion::planner::ExtendedSqlToRel;
 use crate::datafusion::session::SessionParams;
 use arrow::array::{Int64Array, RecordBatch};
@@ -51,12 +51,13 @@ use object_store::aws::AmazonS3Builder;
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType,
-    Query as AstQuery, Select, SelectItem, Use,
+    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind,
+    MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use,
 };
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
 
@@ -84,6 +85,19 @@ impl SqlExecutor {
         state.sql_to_statement(query, dialect)
     }
 
+    #[allow(clippy::unwrap_used)]
+    #[tracing::instrument(level = "trace", ret)]
+    pub fn postprocess_query_statement(statement: &mut DFStatement) {
+        if let DFStatement::Statement(value) = statement {
+            visit_expressions_mut(&mut *value, |expr| {
+                if let Expr::Function(ref mut func) = expr {
+                    visit_functions_expressions(func);
+                }
+                ControlFlow::<()>::Continue(())
+            });
+        }
+    }
+
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn query(
         &self,
@@ -92,9 +106,11 @@ impl SqlExecutor {
     ) -> IceBucketSQLResult<Vec<RecordBatch>> {
         // Update query to use custom JSON functions
         let query = self.preprocess_query(query);
-        let statement = self
+        let mut statement = self
             .parse_query(query.as_str())
             .context(super::error::DataFusionSnafu)?;
+        Self::postprocess_query_statement(&mut statement);
+
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
 
@@ -1316,4 +1332,40 @@ pub fn created_entity_response() -> Result<Vec<RecordBatch>, arrow::error::Arrow
         schema,
         vec![Arc::new(Int64Array::from(vec![0]))],
     )?])
+}
+
+#[cfg(test)]
+mod test {
+    use crate::datafusion::execution::SqlExecutor;
+    use datafusion::sql::parser::DFParser;
+
+    #[allow(clippy::unwrap_used)]
+    #[test]
+    fn test_postprocess_query_statement_functions_expressions() {
+        let args: [(&str, &str); 14] = [
+            ("select year(ts)", "SELECT date_part('year', ts)"),
+            ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
+            ("select day(ts)", "SELECT date_part('day', ts)"),
+            ("select dayofmonth(ts)", "SELECT date_part('day', ts)"),
+            ("select dayofweek(ts)", "SELECT date_part('dow', ts)"),
+            ("select month(ts)", "SELECT date_part('month', ts)"),
+            ("select weekofyear(ts)", "SELECT date_part('week', ts)"),
+            ("select week(ts)", "SELECT date_part('week', ts)"),
+            ("select hour(ts)", "SELECT date_part('hour', ts)"),
+            ("select minute(ts)", "SELECT date_part('minute', ts)"),
+            ("select second(ts)", "SELECT date_part('second', ts)"),
+            ("select minute(ts)", "SELECT date_part('minute', ts)"),
+            // Do nothing
+            ("select yearofweek(ts)", "SELECT yearofweek(ts)"),
+            ("select yearofweekiso(ts)", "SELECT yearofweekiso(ts)"),
+        ];
+
+        for (init, exp) in args {
+            let statement = DFParser::parse_sql(init).unwrap().pop_front();
+            if let Some(mut s) = statement {
+                SqlExecutor::postprocess_query_statement(&mut s);
+                assert_eq!(s.to_string(), exp);
+            }
+        }
+    }
 }
