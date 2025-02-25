@@ -1393,7 +1393,7 @@ mod tests {
         should_work: bool,
     }
     impl<'a, T> Test<'a, T> {
-        pub fn new(input: &'a str, expected: T, should_work: bool) -> Self {
+        pub const fn new(input: &'a str, expected: T, should_work: bool) -> Self {
             Self {
                 input,
                 expected,
@@ -1470,7 +1470,7 @@ mod tests {
                 true,
             ),
         ];
-        test.iter().for_each(|test| {
+        for test in test.iter() {
             let mut statement = executor.parse_query(test.input).unwrap();
             SqlExecutor::postprocess_query_statement(&mut statement);
             if let DFStatement::Statement(statement) = statement {
@@ -1490,7 +1490,7 @@ mod tests {
                                         if test.should_work {
                                             assert_eq!(*found, test.expected);
                                         } else {
-                                            assert_ne!(*found, test.expected)
+                                            assert_ne!(*found, test.expected);
                                         }
                                     }
                                 }
@@ -1501,6 +1501,6 @@ mod tests {
                     ControlFlow::<()>::Continue(())
                 });
             }
-        });
+        }
     }
 }
