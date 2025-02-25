@@ -1,0 +1,36 @@
+---
+source: crates/metastore/src/metastore.rs
+expression: "(no_volume_result, all_databases, fetched_db, all_dbs_after)"
+snapshot_kind: text
+---
+(
+    Err(
+        ObjectNotFound {
+            type_name: "volume",
+            name: "testv1",
+        },
+    ),
+    [
+        RwObject {
+            data: IceBucketDatabase {
+                name: "testdb",
+                properties: None,
+                volume: "testv1",
+            },
+            created_at: "TIMESTAMP",
+            updated_at: "TIMESTAMP",
+        },
+    ],
+    Some(
+        RwObject {
+            data: IceBucketDatabase {
+                name: "testdb",
+                properties: None,
+                volume: "testv2",
+            },
+            created_at: "TIMESTAMP",
+            updated_at: "TIMESTAMP",
+        },
+    ),
+    [],
+)

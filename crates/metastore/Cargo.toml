@@ -4,6 +4,26 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-trait = { workspace = true }
+bytes = { workspace = true }
+chrono = "0.4.38"
+futures = { workspace = true }
+iceberg = { workspace = true }
+object_store = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+slatedb = { workspace = true }
+snafu = { workspace = true }
+strum = { version = "0.26.3", features = ["derive"] }
+tokio = { workspace = true }
+tracing = { workspace = true }
+url = "2.5.2"
+utils = { path = "../utils" }
+uuid = { workspace = true }
+validator = { version = "0.20.0", features = ["derive"] }
+
+[dev-dependencies]
+insta = { version = "1.42.0", features = ["yaml", "filters"] }
 
 [lints]
 workspace = true
