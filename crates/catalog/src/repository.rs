@@ -44,7 +44,7 @@ impl TableRepository for TableRepositoryDb {
         let key = format!("{TBLPREFIX}.{}", params.ident);
         self.db.put(&key, &params).await?;
         self.db
-            .append(&format!("{TBLPREFIX}.{}", params.ident.database), key)
+            .list_append(&format!("{TBLPREFIX}.{}", params.ident.database), key)
             .await?;
         Ok(())
     }
@@ -62,7 +62,7 @@ impl TableRepository for TableRepositoryDb {
         let key = format!("{TBLPREFIX}.{id}");
         self.db.delete(&key).await?;
         self.db
-            .remove(&format!("{TBLPREFIX}.{}", id.database), &key)
+            .list_remove(&format!("{TBLPREFIX}.{}", id.database), &key)
             .await?;
         Ok(())
     }
@@ -70,7 +70,7 @@ impl TableRepository for TableRepositoryDb {
     #[tracing::instrument(level = "trace", err, skip(self))]
     async fn list(&self, db: &DatabaseIdent) -> CatalogResult<Vec<Table>> {
         let key = &format!("{TBLPREFIX}.{db}");
-        let keys = self.db.keys(key).await?;
+        let keys = self.db.list_keys(key).await?;
         let futures = keys.iter().map(|key| self.db.get(key)).collect::<Vec<_>>();
         let results = futures::future::try_join_all(futures).await?;
         let entities = results.into_iter().flatten().collect::<Vec<_>>();
@@ -85,7 +85,7 @@ impl DatabaseRepository for DatabaseRepositoryDb {
         let key = format!("{DBPREFIX}.{}", params.ident);
         self.db.put(&key, &params).await?;
         self.db
-            .append(&format!("{DBPREFIX}.{}", params.ident.warehouse), key)
+            .list_append(&format!("{DBPREFIX}.{}", params.ident.warehouse), key)
             .await?;
         Ok(())
     }
@@ -103,7 +103,7 @@ impl DatabaseRepository for DatabaseRepositoryDb {
         let key = format!("{DBPREFIX}.{id}");
         self.db.delete(&key).await?;
         self.db
-            .remove(&format!("{DBPREFIX}.{}", id.warehouse), &key)
+            .list_remove(&format!("{DBPREFIX}.{}", id.warehouse), &key)
             .await?;
         Ok(())
     }
@@ -111,7 +111,7 @@ impl DatabaseRepository for DatabaseRepositoryDb {
     #[tracing::instrument(level = "trace", err, skip(self))]
     async fn list(&self, wh: &WarehouseIdent) -> CatalogResult<Vec<Database>> {
         let key = &format!("{DBPREFIX}.{wh}");
-        let keys = self.db.keys(key).await?;
+        let keys = self.db.list_keys(key).await?;
         let futures = keys.iter().map(|key| self.db.get(key)).collect::<Vec<_>>();
         let results = futures::future::try_join_all(futures).await?;
         let entities = results.into_iter().flatten().collect::<Vec<_>>();
@@ -147,9 +147,9 @@ mod tests {
         let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
         let options = DbOptions::default();
         Db::new(
-            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
+            Arc::new(SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
                 .await
-                .unwrap(),
+                .unwrap()),
         )
     }
 

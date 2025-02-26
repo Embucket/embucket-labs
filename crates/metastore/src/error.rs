@@ -1,7 +1,7 @@
 use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
-#[snafu(visibility(pub(crate)))]
+#[snafu(visibility(pub))]
 pub enum MetastoreError {
     #[snafu(display("Table data already exists at that location: {location}"))]
     TableDataExists { location: String },
@@ -44,6 +44,15 @@ pub enum MetastoreError {
 
     #[snafu(display("Seriliazation error: {source}"))]
     Serde { source: serde_json::Error },
+
+    #[snafu(display("Validation Error: {source}"))]
+    Validation { source: validator::ValidationErrors },
 }
 
 pub type MetastoreResult<T> = std::result::Result<T, MetastoreError>;
+
+impl From<validator::ValidationErrors> for MetastoreError {
+    fn from(source: validator::ValidationErrors) -> Self {
+        Self::Validation { source }
+    }
+}

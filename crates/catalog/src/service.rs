@@ -448,9 +448,9 @@ mod tests {
         let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
         let options = DbOptions::default();
         let db = Arc::new(Db::new(
-            SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
+            Arc::new(SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
                 .await
-                .unwrap(),
+                .unwrap()),
         ));
 
         let t_repo = TableRepositoryDb::new(db.clone());

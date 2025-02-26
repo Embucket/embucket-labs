@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use snafu::ResultExt;
-use validator::{Validate, ValidationError, ValidationErrors};
-use crate::error::{self as metastore_error, MetastoreResult};
+use validator::Validate;
 
 use super::IceBucketDatabaseIdent;
 
-#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
 /// A schema identifier
 pub struct IceBucketSchemaIdent {
     #[validate(length(min = 1))]
@@ -18,7 +16,17 @@ pub struct IceBucketSchemaIdent {
     pub database: IceBucketDatabaseIdent,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+impl IceBucketSchemaIdent {
+    #[must_use]
+    pub fn new(schema: String, database: IceBucketDatabaseIdent) -> Self {
+        Self {
+            schema,
+            database,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema)]
 pub struct IceBucketSchema {
     pub ident: IceBucketSchemaIdent,
     pub properties: Option<HashMap<String, String>>,

@@ -5,6 +5,7 @@ pub mod control;
 pub mod dbt;
 pub mod error;
 pub mod layers;
+pub mod metastore;
 pub mod session;
 pub mod ui;
 pub mod utils;

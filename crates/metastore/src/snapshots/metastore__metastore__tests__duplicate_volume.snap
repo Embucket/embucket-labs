@@ -5,7 +5,7 @@ snapshot_kind: text
 ---
 Err(
     ObjectAlreadyExists {
-        type_name: "test",
+        type_name: "volume",
         name: "vol/test",
     },
 )

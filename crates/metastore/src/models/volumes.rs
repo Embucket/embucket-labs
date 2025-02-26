@@ -2,6 +2,7 @@ use object_store::{aws::AmazonS3Builder, ObjectStore};
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use validator::{Validate, ValidationError, ValidationErrors};
+use std::sync::Arc;
 use crate::error::{self as metastore_error, MetastoreResult};
 
 // Enum for supported cloud providers
@@ -15,7 +16,7 @@ pub enum CloudProvider {
 }
 
 // AWS Access Key Credentials
-#[derive(Validate, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[derive(Validate, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct AwsAccessKeyCredentials {
     #[validate(length(min = 1))]
@@ -24,7 +25,7 @@ pub struct AwsAccessKeyCredentials {
     pub aws_secret_access_key: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, utoipa::ToSchema)]
 #[serde(tag = "credential_type", rename_all = "kebab-case")] 
 pub enum AwsCredentials {
     #[serde(rename = "access_key")]
@@ -49,7 +50,7 @@ impl Validate for AwsCredentials {
     }
 }
 
-#[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct IceBucketS3Volume {
     #[validate(length(min = 1))]
@@ -77,22 +78,22 @@ fn validate_bucket_name(bucket_name: &str) -> Result<(), ValidationError> {
     Ok(())
 }
 
-#[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct IceBucketFileVolume {
     #[validate(length(min = 1))]
     pub path: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(tag="type", rename_all="kebab-case")]
-pub enum IceBucketVolume {
+pub enum IceBucketVolumeType {
     S3(IceBucketS3Volume),
     File(IceBucketFileVolume),
     Memory
 }
 
-impl Validate for IceBucketVolume {
+impl Validate for IceBucketVolumeType {
     fn validate(&self) -> Result<(), ValidationErrors> {
         match self {
             Self::S3(volume) => volume.validate(),
@@ -102,13 +103,31 @@ impl Validate for IceBucketVolume {
     }
 }
 
+#[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub struct IceBucketVolume {
+    pub ident: IceBucketVolumeIdent,
+    #[serde(flatten)]
+    #[validate(nested)]
+    pub volume: IceBucketVolumeType,
+}
+
 pub type IceBucketVolumeIdent = String;
 
 #[allow(clippy::as_conversions)]
 impl IceBucketVolume {
-    pub fn get_object_store(&self) -> MetastoreResult<Box<dyn ObjectStore>> {
-        match &self {
-            Self::S3(volume) => {
+
+    #[must_use]
+    pub const fn new(ident: IceBucketVolumeIdent, volume: IceBucketVolumeType) -> Self {
+        Self {
+            ident,
+            volume,
+        }
+    }
+
+    pub fn get_object_store(&self) -> MetastoreResult<Arc<dyn ObjectStore>> {
+        match &self.volume {
+            IceBucketVolumeType::S3(volume) => {
                 let mut s3_builder = AmazonS3Builder::new()
                     .with_conditional_put(object_store::aws::S3ConditionalPut::ETagMatch);
 
@@ -139,10 +158,10 @@ impl IceBucketVolume {
                         }
                     }
                 }
-                s3_builder.build().map(|s3| Box::new(s3) as Box<dyn ObjectStore>)
+                s3_builder.build().map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
                     .context(metastore_error::ObjectStoreSnafu)
             },
-            Self::File(volume) => {
+            IceBucketVolumeType::File(volume) => {
                 let path = std::path::Path::new(&volume.path);
                 if !path.exists() || !path.is_dir() {
                     std::fs::create_dir(path)
@@ -150,23 +169,20 @@ impl IceBucketVolume {
                 }
                 object_store::local::LocalFileSystem::new_with_prefix(volume.path.clone())
                     .context(metastore_error::ObjectStoreSnafu)
-                    .map(|fs| Box::new(fs) as Box<dyn ObjectStore>)
+                    .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
             },
-            Self::Memory => Ok(Box::new(object_store::memory::InMemory::new()) as Box<dyn ObjectStore>),
+            IceBucketVolumeType::Memory => Ok(Arc::new(object_store::memory::InMemory::new()) as Arc<dyn ObjectStore>),
         }
     }
 
     #[must_use] 
     pub fn prefix(&self) -> String {
-        match &self {
-            Self::S3(volume) => {
+        match &self.volume {
+            IceBucketVolumeType::S3(volume) => {
                 volume.bucket.as_ref().map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}"))
             },
-            Self::File(volume) => {
-                format!("file://{}", volume.path)
-            },
-            Self::Memory => {
-                "memory://".to_string()
+            IceBucketVolumeType::File( .. ) | IceBucketVolumeType:: Memory => {
+                "/".to_string()
             }
         }
     }

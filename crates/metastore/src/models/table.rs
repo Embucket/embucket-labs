@@ -1,10 +1,12 @@
 use std::{collections::HashMap, fmt::Display};
 
 use chrono::Utc;
-use iceberg::{spec::TableMetadata, TableRequirement, TableUpdate};
+use either::Either;
+use iceberg::{spec::{NestedFieldRef, TableMetadata}, TableRequirement, TableUpdate};
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
-use validator::{Validate, ValidationError, ValidationErrors};
+use utoipa::{PartialSchema, ToSchema, openapi, schema as utoipa_schema};
+use validator::Validate;
 
 pub use iceberg::spec::{
     NullOrder, PartitionSpec, Schema, Snapshot, SortDirection, SortField, SortOrder,
@@ -15,7 +17,7 @@ use crate::error::{self as metastore_error, MetastoreResult, MetastoreError};
 
 use super::IceBucketSchemaIdent;
 
-#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
 /// A table identifier
 pub struct IceBucketTableIdent {
     #[validate(length(min = 1))]
@@ -29,9 +31,20 @@ pub struct IceBucketTableIdent {
     pub database: String,
 }
 
+impl IceBucketTableIdent {
+    #[must_use]
+    pub fn new(database: &str, schema: &str, table: &str) -> Self {
+        Self {
+            table: table.to_string(),
+            schema: schema.to_string(),
+            database: database.to_string(),
+        }
+    }
+}
+
 impl From<IceBucketTableIdent> for IceBucketSchemaIdent {
     fn from(ident: IceBucketTableIdent) -> Self {
-        IceBucketSchemaIdent {
+        Self {
             database: ident.database,
             schema: ident.schema,
         }
@@ -44,7 +57,7 @@ impl Display for IceBucketTableIdent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum IceBucketTableFormat {
     /*Parquet,
@@ -56,6 +69,27 @@ pub enum IceBucketTableFormat {
     Iceberg,
 }
 
+#[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct IceBucketSimpleSchema {
+    pub fields: Vec<NestedFieldRef>,
+    pub schema_id: Option<i32>,
+}
+
+impl TryFrom<IceBucketSimpleSchema> for Schema {
+    type Error = MetastoreError;
+    fn try_from(schema: IceBucketSimpleSchema) -> MetastoreResult<Self> {
+        let mut builder = Self::builder();
+        builder = builder.with_fields(schema.fields);
+        if let Some(schema_id) = schema.schema_id {
+            builder = builder.with_schema_id(schema_id);
+        }
+        builder.build()
+            .context(metastore_error::IcebergSnafu)
+    }
+}
+
+type SimpleOrIcebergSchema = Either<IceBucketSimpleSchema, Schema>;
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct IceBucketTable {
     pub ident: IceBucketTableIdent,
@@ -63,6 +97,41 @@ pub struct IceBucketTable {
     pub metadata_location: String,
     pub properties: HashMap<String, String>,
 }
+
+/*impl PartialSchema for IceBucketTable {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        
+        let table_metadata_schema = openapi::ObjectBuilder::new()
+            .property("format_version", openapi::ObjectBuilder::new()
+                .schema_type(openapi::Type::Integer)
+                .format(Some(openapi::SchemaFormat::KnownFormat(openapi::KnownFormat::Int32)))
+                .build()
+            )
+            .property(
+                "table_uuid", 
+                openapi::Object::with_type(openapi::Type::String))
+            .property("name", openapi::schema::String::default())
+            .property("schema_id", openapi::schema::Integer::default())
+            .property("current_schema_id", openapi::schema::Integer::default())
+            .property("default_partition_spec_id", openapi::schema::Integer::default())
+            .property("default_sort_order_id", openapi::schema::Integer::default())
+            .property("last_partition_id", openapi::schema::Integer::default())
+            .property("last_column_id", openapi::schema::Integer::default())
+            .property("refs", openapi::schema::Object::default())
+            .property("properties", utoipa_schema::Map::default())
+            .property("schema", openapi::schema::Object::default())
+            .property("partition_spec", openapi::schema::Object::default())
+            .property("sort_order", openapi::schema::Object::default())
+            .build();
+        openapi::ObjectBuilder::default()
+            .property("ident", IceBucketTableIdent::schema())
+            .property("metadata", table_metadata_schema)
+            .property("metadata_location", openapi::schema::String::default())
+            .property("properties", utoipa_schema::Map::default())
+            .build()
+    }
+}
+impl ToSchema for IceBucketTable {}*/
 
 #[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct IceBucketTableCreateRequest {
@@ -72,28 +141,37 @@ pub struct IceBucketTableCreateRequest {
     pub format: Option<IceBucketTableFormat>,
 
     pub location: Option<String>,
-    pub schema: Schema,
+    pub schema: SimpleOrIcebergSchema,
     pub partition_spec: Option<UnboundPartitionSpec>,
     pub write_order: Option<SortOrder>,
     pub stage_create: Option<bool>,
 }
 
-impl From<IceBucketTableCreateRequest> for iceberg::TableCreation {
-    fn from(schema: IceBucketTableCreateRequest) -> Self {
+impl TryFrom<IceBucketTableCreateRequest> for iceberg::TableCreation {
+    type Error = MetastoreError;
+
+    fn try_from(schema: IceBucketTableCreateRequest) -> MetastoreResult<Self> {
         let mut properties = schema.properties.unwrap_or_default();
         let utc_now = Utc::now();
         let utc_now_str = utc_now.to_rfc3339();
         properties.insert("created_at".to_string(), utc_now_str.clone());
         properties.insert("updated_at".to_string(), utc_now_str);
 
-        Self {
+        let table_schema = match schema.schema {
+            Either::Left(simple_schema) => {
+                Schema::try_from(simple_schema)?
+            }
+            Either::Right(schema) => schema,
+        };
+
+        Ok(Self {
             name: schema.ident.table,
             location: schema.location,
-            schema: schema.schema,
+            schema: table_schema,
             partition_spec: schema.partition_spec.map(std::convert::Into::into),
             sort_order: schema.write_order,
             properties,
-        }
+        })
     }
 }
 
@@ -215,7 +293,3 @@ impl TableRequirementExt {
         Ok(())
     }
 }
-
-// TODO: Eventually move table schema information into the catalog
-// Ostensibly the catalog *should* be aware of the schema of the tables it contains
-// However, the current implementation of the catalog does not store schema information

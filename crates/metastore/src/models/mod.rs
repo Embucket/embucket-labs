@@ -13,7 +13,7 @@ pub use database::*;
 pub use schema::*;
 pub use table::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
 pub struct RwObject<T> where T: Eq + PartialEq {
     #[serde(flatten)]
     pub data: T,

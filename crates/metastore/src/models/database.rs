@@ -1,19 +1,17 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use snafu::ResultExt;
-use validator::{Validate, ValidationError, ValidationErrors};
-use crate::error::{self as metastore_error, MetastoreResult};
+use validator::Validate;
 
-use super::{IceBucketVolume, IceBucketVolumeIdent};
+use super::IceBucketVolumeIdent;
 
 /// A database identifier
 pub type IceBucketDatabaseIdent = String;
 
-#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
 pub struct IceBucketDatabase {
     #[validate(length(min = 1))]
-    pub name: IceBucketDatabaseIdent,
+    pub ident: IceBucketDatabaseIdent,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<HashMap<String, String>>,
     /// Volume identifier
@@ -23,7 +21,7 @@ pub struct IceBucketDatabase {
 impl IceBucketDatabase {
     #[must_use] 
     pub fn prefix(&self, parent: &str) -> String {
-        format!("{}/{}", parent, self.name)
+        format!("{}{}", parent, self.ident)
     }
 }
 
@@ -34,7 +32,7 @@ mod tests {
     #[test]
     fn test_prefix() {
         let db = IceBucketDatabase {
-            name: "db".to_string(),
+            ident: "db".to_string(),
             properties: None,
             volume: "vol".to_string(),
         };

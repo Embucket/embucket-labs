@@ -20,6 +20,8 @@ use crate::http::ui::router::{create_router as create_ui_router, ApiDoc as UiApi
 use crate::state::AppState;
 use tower_http::timeout::TimeoutLayer;
 
+use super::metastore::router::create_router as create_metastore_router;
+
 #[derive(OpenApi)]
 #[openapi(
     nest(
@@ -51,12 +53,14 @@ pub fn create_app(state: AppState) -> Router {
     }
     let catalog_router = create_catalog_router();
     let control_router = create_control_router();
+    let metastore_router = create_metastore_router();
     let ui_router = create_ui_router();
     let dbt_router = create_dbt_router();
 
     Router::new()
         .merge(dbt_router)
         .merge(control_router)
+        .merge(metastore_router)
         .nest("/catalog", catalog_router)
         .nest("/ui", ui_router)
         .merge(
@@ -117,10 +121,10 @@ mod tests {
             let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
             let options = DbOptions::default();
             Arc::new(Db::new(
-                SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
+                Arc::new(SlateDb::open_with_opts(Path::from("/tmp/test_kv_store"), options, object_store)
                     .await
                     .unwrap(),
-            ))
+            )))
         };
 
         // Initialize the repository and concrete service implementation

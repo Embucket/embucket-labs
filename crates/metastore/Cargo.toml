@@ -1,5 +1,5 @@
 [package]
-name = "metastore"
+name = "icebucket_metastore"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,6 +7,7 @@ edition = "2021"
 async-trait = { workspace = true }
 bytes = { workspace = true }
 chrono = "0.4.38"
+either = { version = "1.14.0", features = ["serde"] }
 futures = { workspace = true }
 iceberg = { workspace = true }
 object_store = { workspace = true }
@@ -19,6 +20,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 url = "2.5.2"
 utils = { path = "../utils" }
+utoipa = { workspace = true }
 uuid = { workspace = true }
 validator = { version = "0.20.0", features = ["derive"] }
 

@@ -26,13 +26,14 @@ hyper = "1.5.0"
 iceberg = { workspace = true }
 indexmap = { version = "2.7.1" }
 lazy_static = { version = "1.4.0" }
+icebucket_metastore = { path = "../metastore" }
 object_store = { workspace = true }
 regex = { version = "1.11.0" }
 runtime = { path = "../runtime" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-slatedb = { workspace = true, version = "0.3.0" }
+slatedb = { workspace = true }
 snafu = { workspace = true }
 swagger = { version = "6.1", features = [
   "serdejson",
@@ -58,7 +59,7 @@ utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 uuid = { workspace = true, features = ["v4", "v5"] }
-validator = { version = "0.18.1", features = ["derive"] }
+validator = { version = "0.20.0", features = ["derive"] }
 
 [dev-dependencies]
 async-trait = { workspace = true }

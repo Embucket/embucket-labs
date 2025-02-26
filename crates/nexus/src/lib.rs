@@ -10,6 +10,7 @@ use catalog::service::CatalogImpl;
 use control_plane::repository::{StorageProfileRepositoryDb, WarehouseRepositoryDb};
 use control_plane::service::ControlServiceImpl;
 use http_body_util::BodyExt;
+use metastore::metastore::SlateDBMetastore;
 use object_store::{path::Path, ObjectStore};
 use slatedb::config::DbOptions;
 use slatedb::db::Db as SlateDb;
@@ -38,10 +39,21 @@ pub async fn run_icebucket(
     let db = {
         let options = DbOptions::default();
         Arc::new(Db::new(
-            SlateDb::open_with_opts(Path::from(slatedb_prefix), options, state_store.into())
+            SlateDb::open_with_opts(Path::from(slatedb_prefix.clone()), options, state_store.into())
                 .await?,
         ))
     };
+
+    let db2 = {
+        let options = DbOptions::default();
+        // Temporary while catalog is refactored to be the metastore
+        let metastore_prefix = format!("{slatedb_prefix}/metastore");
+        Db::new(
+            SlateDb::open_with_opts(Path::from(metastore_prefix), options, state_store.into())
+                .await?,
+        )
+    };
+    let metastore = SlateDBMetastore::new(db2);
 
     // Initialize the repository and concrete service implementation
     let control_svc = {
@@ -72,7 +84,7 @@ pub async fn run_icebucket(
     };
 
     // Create the application state
-    let app_state = state::AppState::new(control_svc.clone(), Arc::new(catalog_svc));
+    let app_state = state::AppState::new(control_svc.clone(), Arc::new(catalog_svc), Arc::new(metastore));
 
     let mut app = http::router::create_app(app_state)
         .layer(session_layer)
