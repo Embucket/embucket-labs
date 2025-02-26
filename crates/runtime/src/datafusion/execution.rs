@@ -1364,7 +1364,11 @@ mod tests {
         }
     }
     #[test]
-    #[allow(clippy::unwrap_used, clippy::explicit_iter_loop, clippy::collapsible_match)]
+    #[allow(
+        clippy::unwrap_used,
+        clippy::explicit_iter_loop,
+        clippy::collapsible_match
+    )]
     fn test_timestamp_keywords_postprocess() {
         let state = SessionStateBuilder::new()
             .with_config(

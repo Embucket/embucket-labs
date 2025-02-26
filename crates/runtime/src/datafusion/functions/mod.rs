@@ -17,15 +17,11 @@
 
 use std::sync::Arc;
 
-use arrow::error;
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
-use snafu::OptionExt;
 use sqlparser::ast::Value::{self, SingleQuotedString};
 use sqlparser::ast::{
     Expr, Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
 };
-
-use super::error;
 
 mod convert_timezone;
 mod date_add;
