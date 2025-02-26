@@ -38,8 +38,6 @@ use datafusion::sql::sqlparser::ast::{
     TableFactor, TableWithJoins,
 };
 use datafusion_common::{DataFusionError, TableReference};
-use datafusion_expr::DdlStatement::CreateMemoryTable;
-use datafusion_expr::LogicalPlan::Ddl;
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::planner::iceberg_transform;
 use geodatafusion::udf::native::register_native;
@@ -62,8 +60,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ops::ControlFlow;
 use std::sync::Arc;
-//use iceberg_rust::catalog::IcehutCatalogProvider;
-use crate::datafusion::data_catalog::catalog::IcehutCatalogProvider;
+use crate::datafusion::data_catalog::catalog::IcebucketCatalogProvider;
 use url::Url;
 
 pub struct SqlExecutor {
@@ -303,14 +300,6 @@ impl SqlExecutor {
         None
     }
 
-    /*pub async fn register_temporary_table(
-        &self,
-        query: &str,
-        warehouse_name: &str,
-    ) -> IcehutSQLResult<Vec<RecordBatch>> {
-
-    }*/
-
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_table_query(
@@ -349,17 +338,6 @@ impl SqlExecutor {
             }
             // Create InMemory table since external tables with "AS SELECT" are not supported
             let updated_query = modified_statement.to_string();
-            /*if create_table_statement.temporary {
-                let mut create_memory_table = CreateMemoryTable(
-                    datafusion_expr::CreateMemoryTable {
-                        name: modified_statement.name,
-                        constraints: modified_statement.constraints,
-                        temporary: true,
-                        ..modified_statement
-                    }
-            };*/
-
-            //self.re(&updated_query, warehouse_name).await;
 
             let plan = self
                 .get_custom_logical_plan(&updated_query, warehouse_name)
@@ -397,7 +375,7 @@ impl SqlExecutor {
 
             let iceberg_catalog = catalog
                 .as_any()
-                .downcast_ref::<IcehutCatalogProvider>()
+                .downcast_ref::<IcebucketCatalogProvider>()
                 .ok_or(ih_error::IceBucketSQLError::IcebergCatalogNotFound {
                     warehouse_name: warehouse_name.to_string(),
                 })?;
@@ -762,7 +740,7 @@ impl SqlExecutor {
         )?;
         let iceberg_catalog = catalog
             .as_any()
-            .downcast_ref::<IcehutCatalogProvider>()
+            .downcast_ref::<IcebucketCatalogProvider>()
             .ok_or(ih_error::IceBucketSQLError::IcebergCatalogNotFound {
                 warehouse_name: warehouse_name.to_string(),
             })?;

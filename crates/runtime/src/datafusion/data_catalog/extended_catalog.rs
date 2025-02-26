@@ -1,29 +1,15 @@
-use dashmap::DashMap;
 use datafusion::catalog::{CatalogProvider, MemoryCatalogProvider, MemorySchemaProvider};
-use datafusion::datasource::MemTable;
 use datafusion::{datasource::TableProvider, error::DataFusionError};
 use datafusion_expr::TableType;
 use datafusion_iceberg::catalog::mirror::Mirror;
-use futures::{executor::LocalPool, task::LocalSpawnExt};
-use iceberg_rest_catalog::apis::configuration::Configuration;
-use iceberg_rest_catalog::catalog::RestCatalog;
-use iceberg_rust::object_store::store::IcebergStore;
-use iceberg_rust::object_store::ObjectStoreBuilder;
-use iceberg_rust::spec::{tabular::TabularMetadata, view_metadata::REF_PREFIX};
 use iceberg_rust::{
     catalog::{
-        create::{CreateMaterializedView, CreateView},
         identifier::Identifier,
         namespace::Namespace,
-        tabular::Tabular,
         Catalog,
     },
-    error::Error as IcebergError,
-    object_store::Bucket,
-    spec::table_metadata::new_metadata_location,
 };
-use object_store::local::LocalFileSystem;
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ExtendedIcebergCatalog {

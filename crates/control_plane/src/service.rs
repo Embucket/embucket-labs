@@ -32,8 +32,8 @@ use iceberg_rest_catalog::apis::configuration::Configuration;
 use iceberg_rest_catalog::catalog::RestCatalog;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
-use runtime::datafusion::data_catalog::catalog::IcehutCatalogProvider;
-use runtime::datafusion::data_catalog::catalog_list::IcehutCatalogProviderList;
+use runtime::datafusion::data_catalog::catalog::IcebucketCatalogProvider;
+use runtime::datafusion::data_catalog::catalog_list::IcebucketCatalogProviderList;
 use runtime::datafusion::execution::SqlExecutor;
 use runtime::datafusion::session::SessionParams;
 use runtime::datafusion::type_planner::CustomTypePlanner;
@@ -183,7 +183,7 @@ impl ControlService for ControlServiceImpl {
                 .with_default_features()
                 .with_query_planner(Arc::new(IcebergQueryPlanner {}))
                 .with_type_planner(Arc::new(CustomTypePlanner {}))
-                .with_catalog_list(Arc::new(IcehutCatalogProviderList::new()))
+                .with_catalog_list(Arc::new(IcebucketCatalogProviderList::new()))
                 .build();
 
             let ctx = SessionContext::new_with_state(state);
@@ -324,7 +324,7 @@ impl ControlService for ControlServiceImpl {
                 );
                 let session_catalog = executor.ctx.catalog(warehouse.name.as_str());
                 if !session_catalog.is_some() {
-                    let catalog = IcehutCatalogProvider::new(Arc::new(rest_client), None).await?;
+                    let catalog = IcebucketCatalogProvider::new(Arc::new(rest_client), None).await?;
                     if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
                         executor
                             .ctx
@@ -428,7 +428,7 @@ impl ControlService for ControlServiceImpl {
                 config,
                 object_store_builder,
             );
-            let catalog = IcehutCatalogProvider::new(Arc::new(rest_client), None).await?;
+            let catalog = IcebucketCatalogProvider::new(Arc::new(rest_client), None).await?;
             executor
                 .ctx
                 .register_catalog(warehouse.name.clone(), Arc::new(catalog));

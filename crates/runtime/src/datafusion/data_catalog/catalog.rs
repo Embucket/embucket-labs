@@ -1,50 +1,32 @@
 use std::any::Any;
 use std::sync::{Arc};
 
-use datafusion::catalog::{CatalogProvider, CatalogProviderList, SchemaProvider};
+use datafusion::catalog::{CatalogProvider, SchemaProvider};
 
 use datafusion::error::Result;
-use datafusion_catalog::memory::MemoryCatalogProvider;
 
 use crate::datafusion::data_catalog::extended_catalog::ExtendedIcebergCatalog;
 use crate::datafusion::data_catalog::schema::MultiSchemaProvider;
-use async_trait::async_trait;
-use datafusion::{datasource::TableProvider};
-use dirs::home_dir;
-use futures::{task::LocalSpawnExt};
-use iceberg_rust::catalog::commit::{CommitTable, CommitView};
-use iceberg_rust::catalog::create::{CreateTable};
-use iceberg_rust::error::Error;
-use iceberg_rust::materialized_view::MaterializedView;
-use iceberg_rust::object_store::store::IcebergStore;
-use iceberg_rust::spec::identifier::FullIdentifier;
-use iceberg_rust::spec::table_metadata::{
-    TableMetadata,
-};
-use iceberg_rust::table::Table;
-use iceberg_rust::view::View;
+
+
+
+
 use iceberg_rust::{
     catalog::{
-        create::{CreateMaterializedView, CreateView},
-        identifier::Identifier,
         namespace::Namespace,
-        tabular::Tabular,
         Catalog,
     },
-    object_store::Bucket,
 };
-use object_store::memory::InMemory;
-use object_store::ObjectStore;
 use std::fmt::Debug;
 
 #[derive(Debug)]
-pub struct IcehutCatalogProvider {
+pub struct IcebucketCatalogProvider {
     catalog: Arc<ExtendedIcebergCatalog>,
 }
 
-impl IcehutCatalogProvider {
+impl IcebucketCatalogProvider {
     pub async fn new(catalog: Arc<dyn Catalog>, branch: Option<&str>) -> Result<Self> {
-        Ok(IcehutCatalogProvider {
+        Ok(IcebucketCatalogProvider {
             catalog: Arc::new(
                 ExtendedIcebergCatalog::new(catalog, branch.map(ToOwned::to_owned)).await?,
             ),
@@ -52,7 +34,7 @@ impl IcehutCatalogProvider {
     }
 
     pub fn new_sync(catalog: Arc<dyn Catalog>, branch: Option<&str>) -> Self {
-        IcehutCatalogProvider {
+        IcebucketCatalogProvider {
             catalog: Arc::new(ExtendedIcebergCatalog::new_sync(
                 catalog,
                 branch.map(ToOwned::to_owned),
@@ -65,7 +47,7 @@ impl IcehutCatalogProvider {
     }
 }
 
-impl CatalogProvider for IcehutCatalogProvider {
+impl CatalogProvider for IcebucketCatalogProvider {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -359,23 +341,23 @@ pub(crate) mod tests {
     pub(crate) const TEST_WAREHOUSE_ID: &str = "test_warehouse_id";
 
     #[tokio::test]
-    async fn test_icehut_catalog_provider_new() {
+    async fn test_icebucket_catalog_provider_new() {
         let catalog = prepare_mock_rest_catalog(TEST_WAREHOUSE_ID).await;
-        let provider = IcehutCatalogProvider::new(catalog, None).await;
+        let provider = IcebucketCatalogProvider::new(catalog, None).await;
         assert!(provider.is_ok());
     }
 
     #[tokio::test]
-    async fn test_icehut_catalog_provider_new_sync() {
+    async fn test_icebucket_catalog_provider_new_sync() {
         let catalog = prepare_mock_rest_catalog(TEST_WAREHOUSE_ID).await;
-        let provider = IcehutCatalogProvider::new_sync(catalog, None);
+        let provider = IcebucketCatalogProvider::new_sync(catalog, None);
         assert!(Arc::strong_count(&provider.catalog) > 0);
     }
 
     #[tokio::test]
     async fn test_schema() {
         let catalog = prepare_mock_rest_catalog(TEST_WAREHOUSE_ID).await;
-        let provider = IcehutCatalogProvider::new_sync(catalog, None);
+        let provider = IcebucketCatalogProvider::new_sync(catalog, None);
         let schema = provider.schema("db.schema");
         assert!(schema.is_some());
     }
@@ -383,7 +365,7 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn test_register_schema_unimplemented() {
         let catalog = prepare_mock_rest_catalog(TEST_WAREHOUSE_ID).await;
-        let provider = IcehutCatalogProvider::new_sync(catalog, None);
+        let provider = IcebucketCatalogProvider::new_sync(catalog, None);
         let namespace = Namespace::try_new(&["default".to_string()]).unwrap();
         let schema = Arc::new(MultiSchemaProvider::new(
             namespace,
