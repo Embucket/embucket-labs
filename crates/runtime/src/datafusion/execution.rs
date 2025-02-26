@@ -30,8 +30,8 @@ use datafusion::execution::context::SessionContext;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::LogicalPlan;
-use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::prelude::CsvReadOptions;
+use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
@@ -402,7 +402,6 @@ impl SqlExecutor {
                     warehouse_name: warehouse_name.to_string(),
                 })?;
 
-
             let rest_catalog = iceberg_catalog.catalog();
             let new_table_name = self.ident_normalizer.normalize(new_table_name.clone());
             let new_table_ident = Identifier::new(
@@ -761,11 +760,12 @@ impl SqlExecutor {
                 name: warehouse_name.to_string(),
             },
         )?;
-        let iceberg_catalog = catalog.as_any().downcast_ref::<IcehutCatalogProvider>().ok_or(
-            ih_error::IceBucketSQLError::IcebergCatalogNotFound {
+        let iceberg_catalog = catalog
+            .as_any()
+            .downcast_ref::<IcehutCatalogProvider>()
+            .ok_or(ih_error::IceBucketSQLError::IcebergCatalogNotFound {
                 warehouse_name: warehouse_name.to_string(),
-            },
-        )?;
+            })?;
         let rest_catalog = iceberg_catalog.catalog();
         let single_layer_namespace = vec![schema_name];
 

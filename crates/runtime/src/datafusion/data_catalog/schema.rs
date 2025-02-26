@@ -1,18 +1,16 @@
-use crate::datafusion::data_catalog::extended_mirror::ExtendedMirror;
-use datafusion_catalog::memory::MemorySchemaProvider;
-use datafusion::datasource::MemTable;
+use crate::datafusion::data_catalog::extended_catalog::ExtendedIcebergCatalog;
+use datafusion::catalog::MemorySchemaProvider;
 use datafusion::{
     catalog::SchemaProvider,
     datasource::TableProvider,
     error::{DataFusionError, Result},
 };
+use datafusion_expr::TableType;
 use datafusion_iceberg::catalog::schema::IcebergSchema;
 use iceberg_rust::catalog::namespace::Namespace;
 use std::any::Any;
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
-// SchemaProvider supporting dynamic type-based table categorization
 #[derive(Debug)]
 pub struct MultiSchemaProvider {
     memory_schema: Arc<MemorySchemaProvider>,
@@ -20,7 +18,8 @@ pub struct MultiSchemaProvider {
 }
 
 impl MultiSchemaProvider {
-    pub fn new(schema: Namespace, catalog: Arc<ExtendedMirror>) -> Self {
+    #[must_use]
+    pub fn new(schema: Namespace, catalog: Arc<ExtendedIcebergCatalog>) -> Self {
         Self {
             memory_schema: Arc::new(MemorySchemaProvider::new()),
             iceberg_schema: Arc::new(IcebergSchema::new(schema, catalog.base.clone())),
@@ -38,7 +37,7 @@ impl SchemaProvider for MultiSchemaProvider {
         let memory_tables = self.memory_schema.table_names();
         iceberg_tables
             .into_iter()
-            .chain(memory_tables.into_iter())
+            .chain(memory_tables)
             .collect()
     }
 
@@ -56,15 +55,13 @@ impl SchemaProvider for MultiSchemaProvider {
         name: String,
         table: Arc<dyn TableProvider>,
     ) -> Result<Option<Arc<dyn TableProvider>>> {
-        match table.as_any().is::<MemTable>() {
-            true => self.memory_schema.register_table(name, table),
-            false => self.iceberg_schema.register_table(name, table),
+        match table.table_type() {
+            TableType::Temporary => self.memory_schema.register_table(name, table),
+            TableType::Base => self.iceberg_schema.register_table(name, table),
+            _ => Err(DataFusionError::Execution(
+                "Unsupported table type for registration".to_string(),
+            )),
         }
-        /*let mut full_name = self.schema.to_vec();
-        full_name.push(name.to_owned());
-        let identifier = Identifier::try_new(&full_name, None)
-            .map_err(|err| DataFusionError::External(Box::new(err)))?;
-        self.catalog.register_table(identifier, table)*/
     }
 
     fn deregister_table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>> {

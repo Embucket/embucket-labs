@@ -25,16 +25,15 @@ use arrow_json::writer::JsonArray;
 use arrow_json::WriterBuilder;
 use async_trait::async_trait;
 use bytes::Bytes;
-use datafusion_catalog::memory::MemoryCatalogProvider;
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{CsvReadOptions, SessionConfig, SessionContext};
-use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use iceberg_rest_catalog::apis::configuration::Configuration;
 use iceberg_rest_catalog::catalog::RestCatalog;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
 use runtime::datafusion::data_catalog::catalog::IcehutCatalogProvider;
+use runtime::datafusion::data_catalog::catalog_list::IcehutCatalogProviderList;
 use runtime::datafusion::execution::SqlExecutor;
 use runtime::datafusion::session::SessionParams;
 use runtime::datafusion::type_planner::CustomTypePlanner;
@@ -184,7 +183,9 @@ impl ControlService for ControlServiceImpl {
                 .with_default_features()
                 .with_query_planner(Arc::new(IcebergQueryPlanner {}))
                 .with_type_planner(Arc::new(CustomTypePlanner {}))
+                .with_catalog_list(Arc::new(IcehutCatalogProviderList::new()))
                 .build();
+
             let ctx = SessionContext::new_with_state(state);
             let executor = SqlExecutor::new(ctx).context(error::ExecutionSnafu)?;
 
@@ -321,23 +322,25 @@ impl ControlService for ControlServiceImpl {
                     config,
                     object_store,
                 );
+                let session_catalog = executor.ctx.catalog(warehouse.name.as_str());
+                if !session_catalog.is_some() {
+                    let catalog = IcehutCatalogProvider::new(Arc::new(rest_client), None).await?;
+                    if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
+                        executor
+                            .ctx
+                            .register_catalog(warehouse.name.clone(), Arc::new(catalog));
+                    }
 
-                let catalog = IcehutCatalogProvider::new(Arc::new(rest_client), None).await?;
-                if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
+                    let object_store = storage_profile
+                        .get_object_store()
+                        .context(crate::error::InvalidStorageProfileSnafu)?;
+                    let endpoint_url = storage_profile
+                        .get_object_store_endpoint_url()
+                        .map_err(|_| ControlPlaneError::MissingStorageEndpointURL)?;
                     executor
                         .ctx
-                        .register_catalog(warehouse.name.clone(), Arc::new(catalog));
+                        .register_object_store(&endpoint_url, Arc::from(object_store));
                 }
-
-                let object_store = storage_profile
-                    .get_object_store()
-                    .context(error::InvalidStorageProfileSnafu)?;
-                let endpoint_url = storage_profile
-                    .get_object_store_endpoint_url()
-                    .map_err(|_| ControlPlaneError::MissingStorageEndpointURL)?;
-                executor
-                    .ctx
-                    .register_object_store(&endpoint_url, Arc::from(object_store));
             }
             warehouse.name
         };

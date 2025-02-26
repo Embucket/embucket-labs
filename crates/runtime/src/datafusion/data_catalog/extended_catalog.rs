@@ -1,11 +1,14 @@
 use dashmap::DashMap;
-use datafusion::catalog::CatalogProvider;
-use datafusion_catalog::memory::MemoryCatalogProvider;
+use datafusion::catalog::{CatalogProvider, MemoryCatalogProvider, MemorySchemaProvider};
 use datafusion::datasource::MemTable;
 use datafusion::{datasource::TableProvider, error::DataFusionError};
+use datafusion_expr::TableType;
 use datafusion_iceberg::catalog::mirror::Mirror;
 use futures::{executor::LocalPool, task::LocalSpawnExt};
+use iceberg_rest_catalog::apis::configuration::Configuration;
+use iceberg_rest_catalog::catalog::RestCatalog;
 use iceberg_rust::object_store::store::IcebergStore;
+use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_rust::spec::{tabular::TabularMetadata, view_metadata::REF_PREFIX};
 use iceberg_rust::{
     catalog::{
@@ -19,24 +22,17 @@ use iceberg_rust::{
     object_store::Bucket,
     spec::table_metadata::new_metadata_location,
 };
+use object_store::local::LocalFileSystem;
 use std::{collections::HashSet, sync::Arc};
 
-type NamespaceNode = HashSet<String>;
-
 #[derive(Debug)]
-enum Node {
-    Namespace(NamespaceNode),
-    Relation(Identifier),
-}
-
-#[derive(Debug)]
-pub struct ExtendedMirror {
+pub struct ExtendedIcebergCatalog {
     pub base: Arc<Mirror>,
     pub memory_catalog_provider: MemoryCatalogProvider,
 }
 
-impl ExtendedMirror {
-    /// Creates a new `ExtendedMirror` with support for both Iceberg and memory tables
+impl ExtendedIcebergCatalog {
+    /// Creates a new `ExtendedIcebergCatalog` with support for both Iceberg and memory tables
     pub async fn new(
         catalog: Arc<dyn Catalog>,
         branch: Option<String>,
@@ -57,9 +53,8 @@ impl ExtendedMirror {
         }
     }
 
-    /// Lists all tables in the given namespace.
     pub fn table_names(&self, namespace: &Namespace) -> Result<Vec<Identifier>, DataFusionError> {
-        let mut table_names = self.base.table_names(namespace)?;
+        let mut table_names = self.base.table_names(namespace).unwrap_or_else(|_| vec![]);
         let memory_tables: Vec<Identifier> = match self
             .memory_catalog_provider
             .schema(namespace.to_string().as_str())
@@ -75,7 +70,6 @@ impl ExtendedMirror {
         Ok(table_names)
     }
 
-    /// Lists all namespaces in the catalog.
     pub fn schema_names(&self, _parent: Option<&str>) -> Result<Vec<Namespace>, DataFusionError> {
         self.base.schema_names(_parent)
     }
@@ -112,15 +106,28 @@ impl ExtendedMirror {
         identifier: Identifier,
         table: Arc<dyn TableProvider>,
     ) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
-        match table.as_any().is::<MemTable>() {
-            true => self
+        match table.table_type() {
+            // TODO: We should register schema in base catalog in case it's temporary table
+            TableType::Temporary => self
                 .memory_catalog_provider
                 .schema(identifier.namespace().to_string().as_str())
-                .unwrap()
+                .unwrap_or_else(|| {
+                    let _ = self.memory_catalog_provider.register_schema(
+                        identifier.namespace().to_string().as_str(),
+                        Arc::new(MemorySchemaProvider::new()),
+                    );
+                    self.memory_catalog_provider
+                        .schema(identifier.namespace().to_string().as_str())
+                        .unwrap()
+                })
                 .register_table(identifier.name().to_string(), table),
-            false => self.base.register_table(identifier.clone(), table.clone()),
+            TableType::Base => self.base.register_table(identifier.clone(), table.clone()),
+            _ => Err(DataFusionError::Execution(
+                "Unsupported table type for registration".to_string(),
+            )),
         }
     }
+
     pub fn deregister_table(
         &self,
         identifier: Identifier,
@@ -137,5 +144,28 @@ impl ExtendedMirror {
 
     pub fn catalog(&self) -> Arc<dyn Catalog> {
         self.base.catalog()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::datafusion::data_catalog::catalog::tests::{
+        prepare_mock_rest_catalog, TEST_WAREHOUSE_ID,
+    };
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_extended_iceberg_catalog_new() {
+        let catalog = prepare_mock_rest_catalog(TEST_WAREHOUSE_ID).await;
+        let extended_catalog = ExtendedIcebergCatalog::new(catalog, None).await;
+        assert!(extended_catalog.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_extended_iceberg_catalog_new_sync() {
+        let catalog = prepare_mock_rest_catalog(TEST_WAREHOUSE_ID).await;
+        let extended_catalog = ExtendedIcebergCatalog::new_sync(catalog, None);
+        assert!(Arc::strong_count(&extended_catalog.base) > 0);
     }
 }
