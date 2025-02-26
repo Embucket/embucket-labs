@@ -263,36 +263,6 @@ impl SqlExecutor {
             .replace("FROM @~/", "FROM ")
     }
 
-    // #[allow(clippy::unwrap_used)]
-    // #[tracing::instrument(level = "trace", ret)]
-    // pub fn postprocess_query_statement(statement: &mut DFStatement) {
-    //     if let DFStatement::Statement(value) = statement {
-    //         visit_expressions_mut(&mut *value, |expr| {
-    //             if let Expr::Function(Function {
-    //                 name: ObjectName(idents),
-    //                 args: FunctionArguments::List(FunctionArgumentList { args, .. }),
-    //                 ..
-    //             }) = expr
-    //             {
-    //                 match idents.first().unwrap().value.as_str() {
-    //                     "dateadd" | "date_add" | "datediff" | "date_diff" => {
-    //                         if let FunctionArg::Unnamed(FunctionArgExpr::Expr(ident)) =
-    //                             args.iter_mut().next().unwrap()
-    //                         {
-    //                             //TODO: check if the value is correct (date_time_part)
-    //                             if let Expr::Identifier(Ident { value, .. }) = ident {
-    //                                 *ident = Expr::Value(Value::SingleQuotedString(value.clone()));
-    //                             }
-    //                         }
-    //                     }
-    //                     _ => {}
-    //                 }
-    //             }
-    //             ControlFlow::<()>::Continue(())
-    //         });
-    //     }
-    // }
-
     pub fn set_session_variable(
         &self,
         set: bool,
@@ -1394,17 +1364,14 @@ mod tests {
         }
     }
     #[test]
-    #[allow(clippy::unwrap_used)]
-    #[allow(clippy::explicit_iter_loop)]
-    #[allow(clippy::collapsible_match)]
+    #[allow(clippy::unwrap_used, clippy::explicit_iter_loop, clippy::collapsible_match)]
     fn test_timestamp_keywords_postprocess() {
-        let sql_parser_dialect = "SNOWFLAKE".to_string();
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::new()
                     .with_information_schema(true)
                     .with_option_extension(SessionParams::default())
-                    .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
+                    .set_str("datafusion.sql_parser.dialect", "SNOWFLAKE"),
             )
             .with_default_features()
             .with_query_planner(Arc::new(IcebergQueryPlanner {}))
