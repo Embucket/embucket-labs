@@ -82,7 +82,7 @@ impl From<TableCreateRequest> for catalog::models::TableCreation {
             name: schema.name,
             location: schema.location,
             schema: schema.schema,
-            partition_spec: schema.partition_spec.map(std::convert::Into::into),
+            partition_spec: schema.partition_spec,
             sort_order: schema.write_order,
             properties,
         }

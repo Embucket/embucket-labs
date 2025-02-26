@@ -11,6 +11,7 @@ arrow = { version = "54.1.0" }
 arrow-json = { version = "54.1.0" }
 arrow-schema = { version = "54.1.0", default-features = false }
 async-trait = { workspace = true }
+geodatafusion = { git = "https://github.com/geoarrow/geoarrow-rs.git", package = "geodatafusion" }
 
 chrono = { workspace = true }
 

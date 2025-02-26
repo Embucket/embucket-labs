@@ -41,6 +41,7 @@ use datafusion_common::{DataFusionError, TableReference};
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::iceberg_transform;
+use geodatafusion::udf::native::register_native;
 use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::identifier::Identifier;
@@ -69,6 +70,7 @@ pub struct SqlExecutor {
 
 impl SqlExecutor {
     pub fn new(mut ctx: SessionContext) -> IceBucketSQLResult<Self> {
+        register_native(&ctx);
         register_udfs(&mut ctx).context(ih_error::RegisterUDFSnafu)?;
         register_all(&mut ctx).context(ih_error::RegisterUDFSnafu)?;
         let enable_ident_normalization = ctx.enable_ident_normalization();
