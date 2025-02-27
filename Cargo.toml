@@ -13,7 +13,7 @@ package.license = "Apache-2.0"
 package.license-file = "LICENSE"
 
 [workspace.dependencies]
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4.39", features = ["serde"] }
 futures = { version = "0.3" }
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
 axum = { version = "0.8.1", features = ["multipart", "macros"] }
@@ -57,6 +57,8 @@ datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "3
 datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
 datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
 datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+
+chrono = { git = "https://github.com/chronotope/chrono.git", rev = "8b863490d88ba098038392c8aa930012ffd0c439" }
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
