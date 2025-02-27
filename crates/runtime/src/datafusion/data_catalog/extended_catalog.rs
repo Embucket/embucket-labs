@@ -41,7 +41,7 @@ impl ExtendedIcebergCatalog {
         })
     }
 
-    pub fn new_sync(catalog: Arc<dyn Catalog>, branch: Option<String>) -> Self {
+    pub fn new_sync(catalog: &Arc<dyn Catalog>, branch: Option<String>) -> Self {
         let base_mirror = Mirror::new_sync(catalog.clone(), branch);
 
         Self {
@@ -50,25 +50,28 @@ impl ExtendedIcebergCatalog {
         }
     }
 
-    pub fn table_names(&self, namespace: &Namespace) -> Result<Vec<Identifier>, DataFusionError> {
+    pub fn table_names(&self, namespace: &Namespace) -> Vec<Identifier> {
         let mut table_names = self.base.table_names(namespace).unwrap_or_else(|_| vec![]);
-        let memory_tables: Vec<Identifier> = match self
+        let memory_tables: Vec<Identifier> = self
             .memory_catalog_provider
             .schema(namespace.to_string().as_str())
-        {
-            Some(schema) => schema
-                .table_names()
-                .into_iter()
-                .filter_map(|name| Identifier::try_new(&[name], None).ok())
-                .collect(),
-            None => vec![],
-        };
+            .map_or_else(
+                Vec::new,
+                |schema| {
+                    schema
+                        .table_names()
+                        .into_iter()
+                        .filter_map(|name| Identifier::try_new(&[name], None).ok())
+                        .collect()
+                },
+            );
+
         table_names.extend(memory_tables);
-        Ok(table_names)
+        table_names
     }
 
-    pub fn schema_names(&self, _parent: Option<&str>) -> Result<Vec<Namespace>, DataFusionError> {
-        self.base.schema_names(_parent)
+    pub fn schema_names(&self, parent: Option<&str>) -> Result<Vec<Namespace>, DataFusionError> {
+        self.base.schema_names(parent)
     }
 
     pub async fn table(
@@ -89,18 +92,20 @@ impl ExtendedIcebergCatalog {
         }
     }
 
-    pub fn table_exists(&self, identifier: Identifier) -> bool {
+    #[allow(clippy::expect_used)]
+    pub fn table_exists(&self, identifier: &Identifier) -> bool {
         self.base.table_exists(identifier.clone())
             || self
                 .memory_catalog_provider
                 .schema(identifier.namespace().to_string().as_str())
-                .unwrap()
+                .expect("Schema does not exist")
                 .table_exist(identifier.name())
     }
 
+    #[allow(clippy::expect_used)]
     pub fn register_table(
         &self,
-        identifier: Identifier,
+        identifier: &Identifier,
         table: Arc<dyn TableProvider>,
     ) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
         match table.table_type() {
@@ -115,28 +120,30 @@ impl ExtendedIcebergCatalog {
                     );
                     self.memory_catalog_provider
                         .schema(identifier.namespace().to_string().as_str())
-                        .unwrap()
+                        .expect("Schema does not exist")
                 })
                 .register_table(identifier.name().to_string(), table),
             TableType::Base => self.base.register_table(identifier.clone(), table.clone()),
-            _ => Err(DataFusionError::Execution(
+            TableType::View => Err(DataFusionError::Execution(
                 "Unsupported table type for registration".to_string(),
             )),
         }
     }
 
+    #[allow(clippy::expect_used)]
     pub fn deregister_table(
         &self,
-        identifier: Identifier,
+        identifier: &Identifier,
     ) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
-        match self.base.deregister_table(identifier.clone()) {
-            Ok(table) => Ok(table),
-            Err(_) => self
-                .memory_catalog_provider
-                .schema(identifier.namespace().to_string().as_str())
-                .unwrap()
-                .deregister_table(identifier.name()),
-        }
+        self.base.deregister_table(identifier.clone()).map_or_else(
+            |_| {
+                self.memory_catalog_provider
+                    .schema(identifier.namespace().to_string().as_str())
+                    .expect("Schema does not exist")
+                    .deregister_table(identifier.name())
+            },
+            Ok,
+        )
     }
 
     pub fn catalog(&self) -> Arc<dyn Catalog> {

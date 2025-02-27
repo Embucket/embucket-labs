@@ -36,7 +36,7 @@ pub struct MultiSchemaProvider {
 
 impl MultiSchemaProvider {
     #[must_use]
-    pub fn new(schema: Namespace, catalog: Arc<ExtendedIcebergCatalog>) -> Self {
+    pub fn new(schema: Namespace, catalog: &Arc<ExtendedIcebergCatalog>) -> Self {
         Self {
             memory_schema: Arc::new(MemorySchemaProvider::new()),
             iceberg_schema: Arc::new(IcebergSchema::new(schema, catalog.base.clone())),
@@ -72,17 +72,14 @@ impl SchemaProvider for MultiSchemaProvider {
         match table.table_type() {
             TableType::Temporary => self.memory_schema.register_table(name, table),
             TableType::Base => self.iceberg_schema.register_table(name, table),
-            _ => Err(DataFusionError::Execution(
+            TableType::View => Err(DataFusionError::Execution(
                 "Unsupported table type for registration".to_string(),
             )),
         }
     }
 
     fn deregister_table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>> {
-        match self.iceberg_schema.deregister_table(name) {
-            Ok(table) => Ok(table),
-            Err(_) => self.memory_schema.deregister_table(name),
-        }
+        self.iceberg_schema.deregister_table(name).map_or_else(|_| self.memory_schema.deregister_table(name), Ok)
     }
 
     fn table_exist(&self, name: &str) -> bool {

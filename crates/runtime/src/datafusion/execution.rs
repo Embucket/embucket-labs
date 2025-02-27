@@ -42,7 +42,6 @@ use datafusion_common::{DataFusionError, TableReference};
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::planner::iceberg_transform;
 use geodatafusion::udf::native::register_native;
-use iceberg_rest_catalog::apis::catalog_api_api::create_table;
 use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::identifier::Identifier;

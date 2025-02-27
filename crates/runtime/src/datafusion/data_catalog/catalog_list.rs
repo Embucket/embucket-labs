@@ -27,14 +27,21 @@ pub struct IcebucketCatalogProviderList {
     catalogs: RwLock<HashMap<String, Arc<dyn CatalogProvider>>>,
 }
 
-impl IcebucketCatalogProviderList {
-    pub fn new() -> Self {
+impl Default for IcebucketCatalogProviderList {
+    fn default() -> Self {
         Self {
             catalogs: RwLock::new(HashMap::new()),
         }
     }
+}
 
-    pub fn from_existing(catalog_list: Arc<dyn CatalogProviderList>) -> Result<Self> {
+impl IcebucketCatalogProviderList {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn from_existing(catalog_list: &Arc<dyn CatalogProviderList>) -> Result<Self> {
         let catalogs = catalog_list.catalog_names();
         let mut map = HashMap::new();
 
@@ -55,23 +62,35 @@ impl CatalogProviderList for IcebucketCatalogProviderList {
         self
     }
 
+    #[allow(clippy::expect_used)]
     fn register_catalog(
         &self,
         name: String,
         catalog: Arc<dyn CatalogProvider>,
     ) -> Option<Arc<dyn CatalogProvider>> {
-        let mut catalogs = self.catalogs.write().unwrap();
+        let mut catalogs = self
+            .catalogs
+            .write()
+            .expect("catalogs lock poisoned on write");
         catalogs.insert(name, catalog.clone());
         Some(catalog)
     }
 
+    #[allow(clippy::expect_used)]
     fn catalog_names(&self) -> Vec<String> {
-        let catalogs = self.catalogs.read().unwrap();
+        let catalogs = self
+            .catalogs
+            .read()
+            .expect("catalogs lock poisoned on read");
         catalogs.keys().cloned().collect()
     }
 
+    #[allow(clippy::expect_used)]
     fn catalog(&self, name: &str) -> Option<Arc<dyn CatalogProvider>> {
-        let catalogs = self.catalogs.read().unwrap();
+        let catalogs = self
+            .catalogs
+            .read()
+            .expect("catalogs lock poisoned on read");
         catalogs.get(name).cloned()
     }
 }
