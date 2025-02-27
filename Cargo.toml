@@ -42,7 +42,6 @@ datafusion-physical-plan = { version = "45.0.0" }
 datafusion-doc = { version = "45.0.0" }
 datafusion-macros = { version = "45.0.0" }
 
-# do not change iceberg-rust, datafusion-functions-json hash commits unless datafusion version bumped
 datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "f2b9b88cd9b4282bc0286a970333e8c01cec177b" }
 iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1bfc71ee1353f91773ab7354d64a8ca2c3c3bb3d" }
 iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1bfc71ee1353f91773ab7354d64a8ca2c3c3bb3d" }
