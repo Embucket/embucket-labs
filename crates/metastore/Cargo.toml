@@ -8,7 +8,7 @@ license-file = { workspace = true }
 [dependencies]
 async-trait = { workspace = true }
 bytes = { workspace = true }
-chrono = "0.4.38"
+chrono = { workspace = true }
 futures = { workspace = true }
 iceberg-rust = { workspace = true }
 iceberg-rust-spec = { workspace = true }
