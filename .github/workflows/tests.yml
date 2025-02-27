@@ -30,7 +30,8 @@ concurrency:
 name: test
 jobs:
   required:
-    runs-on: ubuntu-latest
+    runs-on:
+      group: large-runners
     name: ubuntu / ${{ matrix.toolchain }}
     strategy:
       matrix:
