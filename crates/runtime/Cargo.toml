@@ -1,5 +1,5 @@
 [package]
-name = "runtime"
+name = "icebucket_runtime"
 version = "0.1.0"
 edition = "2021"
 license = {workspace = true}
@@ -43,6 +43,8 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 url = { version = "2.5.4" }
 uuid = { workspace = true }
+icebucket_utils = { version = "0.1.0", path = "../utils" }
+bytes.workspace = true
 
 [lints]
 workspace = true

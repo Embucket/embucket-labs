@@ -8,7 +8,7 @@ use object_store::{path::Path, ObjectStore, PutPayload};
 use serde::de::DeserializeOwned;
 use snafu::ResultExt;
 use tokio::sync::Mutex;
-use utils::Db;
+use icebucket_utils::Db;
 use uuid::Uuid;
 use crate::error::{self as metastore_error, MetastoreResult};
 

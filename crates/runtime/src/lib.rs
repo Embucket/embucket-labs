@@ -15,7 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod datafusion;
+pub mod execution;
+pub mod web;
 
 #[cfg(test)]
 pub(crate) mod tests;

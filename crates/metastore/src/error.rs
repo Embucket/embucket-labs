@@ -28,7 +28,7 @@ pub enum MetastoreError {
     SlateDB { source: slatedb::error::SlateDBError },
 
     #[snafu(display("SlateDB error: {source}"))]
-    UtilSlateDB { source: utils::Error },
+    UtilSlateDB { source: icebucket_utils::Error },
 
     #[snafu(display("Metastore object of type {type_name} with name {name} already exists"))]
     ObjectAlreadyExists { type_name: String, name: String },

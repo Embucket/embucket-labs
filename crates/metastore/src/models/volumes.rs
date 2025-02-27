@@ -1,4 +1,4 @@
-use object_store::{aws::AmazonS3Builder, ObjectStore};
+use object_store::{aws::AmazonS3Builder, path::Path, ObjectStore};
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use validator::{Validate, ValidationError, ValidationErrors};
@@ -185,5 +185,13 @@ impl IceBucketVolume {
                 "/".to_string()
             }
         }
+    }
+
+    pub async fn validate_credentials(&self) -> MetastoreResult<()> {
+        let object_store = self.get_object_store()?;
+        object_store.get(&Path::from(self.prefix()))
+            .await
+            .context(metastore_error::ObjectStoreSnafu)?;
+        Ok(())
     }
 }
