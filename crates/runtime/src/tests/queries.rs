@@ -15,8 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// use crate::tests::utils::macros::test_query;
+use crate::tests::utils::macros::test_query;
 
+test_query!(select_date_add_diff, "SELECT dateadd(day, 5, '2025-06-01')");
 // // SELECT
 // test_query!(select_star, "SELECT * FROM employee_table");
 // test_query!(select_ilike, "SELECT * ILIKE '%id%' FROM employee_table;");

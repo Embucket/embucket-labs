@@ -248,7 +248,7 @@ mod tests {
                     Some(1736600400000000i64),
                     Some(Arc::from(String::from("+00").into_boxed_str())),
                 );
-                assert_eq!(&result, &expected, "date_add created a wrong value")
+                assert_eq!(&result, &expected, "date_add created a wrong value");
             }
             _ => panic!("Conversion failed"),
         }
@@ -283,7 +283,7 @@ mod tests {
                 )
                 .to_array()
                 .unwrap();
-                assert_eq!(&result, &expected, "date_add created a wrong value")
+                assert_eq!(&result, &expected, "date_add created a wrong value");
             }
             _ => panic!("Conversion failed"),
         }
@@ -318,7 +318,7 @@ mod tests {
                 ))
                 .to_array(2)
                 .unwrap();
-                assert_eq!(&result, &expected, "date_add created a wrong value")
+                assert_eq!(&result, &expected, "date_add created a wrong value");
             }
             _ => panic!("Conversion failed"),
         }

@@ -18,8 +18,10 @@
 use std::sync::Arc;
 
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
-use sqlparser::ast::Value::SingleQuotedString;
-use sqlparser::ast::{Expr, Function, FunctionArg, FunctionArgExpr, FunctionArguments};
+use sqlparser::ast::Value::{self, SingleQuotedString};
+use sqlparser::ast::{
+    Expr, Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
+};
 
 mod convert_timezone;
 mod date_add;
@@ -99,4 +101,18 @@ pub fn visit_functions_expressions(func: &mut Function) {
         _ => func_name,
     };
     func.name = sqlparser::ast::ObjectName(vec![sqlparser::ast::Ident::new(name)]);
+    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = &mut func.args {
+        match func_name {
+            "dateadd" | "date_add" | "datediff" | "date_diff" => {
+                if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(ident))) =
+                    args.iter_mut().next()
+                {
+                    if let Expr::Identifier(Ident { value, .. }) = ident {
+                        *ident = Expr::Value(Value::SingleQuotedString(value.clone()));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
 }
