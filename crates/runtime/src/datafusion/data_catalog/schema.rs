@@ -52,10 +52,7 @@ impl SchemaProvider for MultiSchemaProvider {
     fn table_names(&self) -> Vec<String> {
         let iceberg_tables = self.iceberg_schema.table_names();
         let memory_tables = self.memory_schema.table_names();
-        iceberg_tables
-            .into_iter()
-            .chain(memory_tables)
-            .collect()
+        iceberg_tables.into_iter().chain(memory_tables).collect()
     }
 
     async fn table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>> {

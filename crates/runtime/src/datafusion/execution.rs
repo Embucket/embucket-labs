@@ -19,6 +19,7 @@
 #![allow(clippy::missing_panics_doc)]
 
 use super::error::{self as ih_error, IceBucketSQLError, IceBucketSQLResult};
+use crate::datafusion::data_catalog::catalog::IcebucketCatalogProvider;
 use crate::datafusion::functions::{register_udfs, visit_functions_expressions};
 use crate::datafusion::planner::ExtendedSqlToRel;
 use crate::datafusion::session::SessionParams;
@@ -60,7 +61,6 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ops::ControlFlow;
 use std::sync::Arc;
-use crate::datafusion::data_catalog::catalog::IcebucketCatalogProvider;
 use url::Url;
 
 pub struct SqlExecutor {

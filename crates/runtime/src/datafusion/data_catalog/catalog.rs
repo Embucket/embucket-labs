@@ -16,7 +16,7 @@
 // under the License.
 
 use std::any::Any;
-use std::sync::{Arc};
+use std::sync::Arc;
 
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 
@@ -25,15 +25,7 @@ use datafusion::error::Result;
 use crate::datafusion::data_catalog::extended_catalog::ExtendedIcebergCatalog;
 use crate::datafusion::data_catalog::schema::MultiSchemaProvider;
 
-
-
-
-use iceberg_rust::{
-    catalog::{
-        namespace::Namespace,
-        Catalog,
-    },
-};
+use iceberg_rust::catalog::{namespace::Namespace, Catalog};
 use std::fmt::Debug;
 
 #[derive(Debug)]

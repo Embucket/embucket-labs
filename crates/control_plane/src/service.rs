@@ -324,7 +324,8 @@ impl ControlService for ControlServiceImpl {
                 );
                 let session_catalog = executor.ctx.catalog(warehouse.name.as_str());
                 if !session_catalog.is_some() {
-                    let catalog = IcebucketCatalogProvider::new(Arc::new(rest_client), None).await?;
+                    let catalog =
+                        IcebucketCatalogProvider::new(Arc::new(rest_client), None).await?;
                     if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
                         executor
                             .ctx

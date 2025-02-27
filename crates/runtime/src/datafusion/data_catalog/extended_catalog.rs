@@ -19,13 +19,7 @@ use datafusion::catalog::{CatalogProvider, MemoryCatalogProvider, MemorySchemaPr
 use datafusion::{datasource::TableProvider, error::DataFusionError};
 use datafusion_expr::TableType;
 use datafusion_iceberg::catalog::mirror::Mirror;
-use iceberg_rust::{
-    catalog::{
-        identifier::Identifier,
-        namespace::Namespace,
-        Catalog,
-    },
-};
+use iceberg_rust::catalog::{identifier::Identifier, namespace::Namespace, Catalog};
 use std::sync::Arc;
 
 #[derive(Debug)]

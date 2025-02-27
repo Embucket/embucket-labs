@@ -20,7 +20,7 @@ pub mod error;
 pub mod functions;
 pub mod planner;
 //pub mod session;
+pub mod data_catalog;
 pub mod execution;
 pub mod session;
 pub mod type_planner;
-pub mod data_catalog;
