@@ -14,6 +14,7 @@ use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use iceberg_rest_catalog::apis::configuration::Configuration;
 use iceberg_rest_catalog::catalog::RestCatalog;
+use icebucket_metastore::Metastore;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
 use runtime::datafusion::execution::SqlExecutor;
@@ -30,34 +31,8 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 #[async_trait]
-pub trait ControlService: Send + Sync {
-    async fn create_profile(
-        &self,
-        params: &StorageProfileCreateRequest,
-    ) -> ControlPlaneResult<StorageProfile>;
-    async fn get_profile(&self, id: Uuid) -> ControlPlaneResult<StorageProfile>;
-    async fn delete_profile(&self, id: Uuid) -> ControlPlaneResult<()>;
-    async fn list_profiles(&self) -> ControlPlaneResult<Vec<StorageProfile>>;
+pub trait ControlService: Send + Sync  {
     async fn validate_credentials(&self, profile: &StorageProfile) -> ControlPlaneResult<()>;
-
-    async fn create_warehouse(
-        &self,
-        params: &WarehouseCreateRequest,
-    ) -> ControlPlaneResult<Warehouse>;
-    async fn get_warehouse_by_name(&self, name: String) -> ControlPlaneResult<Warehouse>;
-    async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse>;
-    async fn delete_warehouse(&self, id: Uuid) -> ControlPlaneResult<()>;
-    async fn list_warehouses(&self) -> ControlPlaneResult<Vec<Warehouse>>;
-
-    // async fn create_database(&self, params: &DatabaseCreateRequest) -> ControlPlaneResult<Database>;
-    // async fn get_database(&self, id: Uuid) -> ControlPlaneResult<Database>;
-    // async fn delete_database(&self, id: Uuid) -> ControlPlaneResult<()>;
-    // async fn list_databases(&self) -> ControlPlaneResult<Vec<Database>>;
-
-    // async fn create_table(&self, params: &TableCreateRequest) -> ControlPlaneResult<Table>;
-    // async fn get_table(&self, id: Uuid) -> ControlPlaneResult<Table>;
-    // async fn delete_table(&self, id: Uuid) -> ControlPlaneResult<()>;
-    // async fn list_tables(&self) -> ControlPlaneResult<Vec<Table>>;
 
     async fn query(
         &self,
@@ -83,20 +58,17 @@ pub trait ControlService: Send + Sync {
 }
 
 pub struct ControlServiceImpl {
-    storage_profile_repo: Arc<dyn StorageProfileRepository>,
-    warehouse_repo: Arc<dyn WarehouseRepository>,
+    metastore: Arc<dyn Metastore>,
     df_sessions: Arc<RwLock<HashMap<String, SqlExecutor>>>,
 }
 
 impl ControlServiceImpl {
     pub fn new(
-        storage_profile_repo: Arc<dyn StorageProfileRepository>,
-        warehouse_repo: Arc<dyn WarehouseRepository>,
+        metastore: Arc<dyn Metastore>,
     ) -> Self {
         let df_sessions = Arc::new(RwLock::new(HashMap::new()));
         Self {
-            storage_profile_repo,
-            warehouse_repo,
+            metastore,
             df_sessions,
         }
     }
@@ -104,41 +76,6 @@ impl ControlServiceImpl {
 
 #[async_trait]
 impl ControlService for ControlServiceImpl {
-    #[tracing::instrument(level = "trace", skip(self))]
-    async fn create_profile(
-        &self,
-        params: &StorageProfileCreateRequest,
-    ) -> ControlPlaneResult<StorageProfile> {
-        let profile = params
-            .try_into()
-            .context(crate::error::InvalidStorageProfileSnafu)?;
-
-        if params.validate_credentials.unwrap_or_default() {
-            self.validate_credentials(&profile).await?;
-        }
-
-        self.storage_profile_repo.create(&profile).await?;
-        Ok(profile)
-    }
-
-    #[tracing::instrument(level = "trace", skip(self))]
-    async fn get_profile(&self, id: Uuid) -> ControlPlaneResult<StorageProfile> {
-        self.storage_profile_repo.get(id).await
-    }
-
-    #[tracing::instrument(level = "trace", skip(self))]
-    async fn delete_profile(&self, id: Uuid) -> ControlPlaneResult<()> {
-        let wh = self.list_warehouses().await?;
-        if wh.iter().any(|wh| wh.storage_profile_id == id) {
-            return Err(ControlPlaneError::StorageProfileInUse { id });
-        }
-        self.storage_profile_repo.delete(id).await
-    }
-
-    #[tracing::instrument(level = "trace", skip(self))]
-    async fn list_profiles(&self) -> ControlPlaneResult<Vec<StorageProfile>> {
-        self.storage_profile_repo.list().await
-    }
 
     #[tracing::instrument(level = "debug", skip(self))]
     async fn create_session(&self, session_id: String) -> ControlPlaneResult<()> {
@@ -158,7 +95,7 @@ impl ControlService for ControlServiceImpl {
                 .with_type_planner(Arc::new(CustomTypePlanner {}))
                 .build();
             let ctx = SessionContext::new_with_state(state);
-            let executor = SqlExecutor::new(ctx).context(crate::error::ExecutionSnafu)?;
+            let executor = SqlExecutor::new(ctx, self.metastore.clone()).context(crate::error::ExecutionSnafu)?;
 
             tracing::trace!("Acuiring write lock for df_sessions");
             let mut session_list_mut = self.df_sessions.write().await;
@@ -212,44 +149,6 @@ impl ControlService for ControlServiceImpl {
         }
     }
 
-    #[tracing::instrument(level = "trace", skip(self))]
-    async fn create_warehouse(
-        &self,
-        params: &WarehouseCreateRequest,
-    ) -> ControlPlaneResult<Warehouse> {
-        // TODO: Check if storage profile exists
-        // - Check if its valid
-        // - Generate id, update created_at and updated_at
-        // - Try create Warehouse from WarehouseCreateRequest
-        let wh: Warehouse = params
-            .try_into()
-            .context(crate::error::InvalidCreateWarehouseSnafu)?;
-        let _ = self.get_profile(wh.storage_profile_id).await?;
-        self.warehouse_repo.create(&wh).await?;
-        Ok(wh)
-    }
-
-    #[tracing::instrument(level = "trace", skip(self))]
-    async fn get_warehouse_by_name(&self, name: String) -> ControlPlaneResult<Warehouse> {
-        self.warehouse_repo.get_by_name(name.as_str()).await
-    }
-
-    async fn get_warehouse(&self, id: Uuid) -> ControlPlaneResult<Warehouse> {
-        self.warehouse_repo.get(id).await
-    }
-
-    #[tracing::instrument(level = "trace", skip(self))]
-    async fn delete_warehouse(&self, id: Uuid) -> ControlPlaneResult<()> {
-        // let db = self.list_databases().await?;
-        // db.iter().filter(|db| db.warehouse_id == id).next().ok_or(Error::NotEmpty("Warehouse is in use".to_string()))?;
-        self.warehouse_repo.delete(id).await
-    }
-
-    #[tracing::instrument(level = "trace", skip(self))]
-    async fn list_warehouses(&self) -> ControlPlaneResult<Vec<Warehouse>> {
-        self.warehouse_repo.list().await
-    }
-
     #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
     async fn query(
@@ -265,7 +164,7 @@ impl ControlService for ControlServiceImpl {
                     id: session_id.to_string(),
                 })?;
 
-        let query = executor.preprocess_query(query);
+        /*let query = executor.preprocess_query(query);
         let statement = executor
             .parse_query(&query)
             .context(super::error::DataFusionSnafu)?;
@@ -283,7 +182,7 @@ impl ControlService for ControlServiceImpl {
                 .get_session_variable("database")
                 .unwrap_or_else(|| String::from("datafusion"))
         } else {
-            let warehouse = self.get_warehouse_by_name(warehouse_name.clone()).await?;
+            let warehouse = self.metastore.get_database();
             if executor.ctx.catalog(warehouse.name.as_str()).is_none() {
                 let storage_profile = self.get_profile(warehouse.storage_profile_id).await?;
 
@@ -320,9 +219,10 @@ impl ControlService for ControlServiceImpl {
             }
             warehouse.name
         };
-        tracing::debug!("Catalog: {}", catalog_name);
+        tracing::debug!("Catalog: {}", catalog_name);*/
         let records: Vec<RecordBatch> = executor
-            .query(&query, catalog_name.as_str())
+            //.query(&query, catalog_name.as_str())
+            .query(&query)
             .await
             .context(crate::error::ExecutionSnafu)?
             .into_iter()
@@ -354,9 +254,7 @@ impl ControlService for ControlServiceImpl {
     async fn upload_data_to_table(
         &self,
         session_id: &str,
-        warehouse_id: &Uuid,
-        database_name: &str,
-        table_name: &str,
+        table_ident: &IceBucketTableIdent,
         data: Bytes,
         file_name: String,
     ) -> ControlPlaneResult<()> {

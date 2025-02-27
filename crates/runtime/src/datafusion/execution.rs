@@ -46,6 +46,7 @@ use url::Url;
 pub struct SqlExecutor {
     // ctx made public to register_catalog after creating SqlExecutor
     pub ctx: SessionContext,
+    
     ident_normalizer: IdentNormalizer,
 }
 

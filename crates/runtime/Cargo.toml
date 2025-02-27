@@ -22,6 +22,7 @@ datafusion_iceberg = { workspace = true }
 futures = { workspace = true }
 iceberg-rest-catalog = { workspace = true }
 iceberg-rust = { workspace = true }
+icebucket_metastore = { version = "0.1.0", path = "../metastore" }
 object_store = { workspace = true }
 
 paste = "1"

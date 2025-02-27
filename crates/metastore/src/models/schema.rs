@@ -18,7 +18,7 @@ pub struct IceBucketSchemaIdent {
 
 impl IceBucketSchemaIdent {
     #[must_use]
-    pub fn new(schema: String, database: IceBucketDatabaseIdent) -> Self {
+    pub const fn new(schema: String, database: IceBucketDatabaseIdent) -> Self {
         Self {
             schema,
             database,

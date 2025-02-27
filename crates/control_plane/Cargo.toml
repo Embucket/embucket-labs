@@ -24,6 +24,7 @@ flatbuffers = { version = "24.3.25" }
 futures = { workspace = true }
 iceberg-rest-catalog = { workspace = true }
 iceberg-rust = { workspace = true }
+icebucket_metastore = { version = "0.1.0", path = "../metastore" }
 
 icelake = { git = "https://github.com/Embucket/icelake.git", rev = "b4cbcaf" }
 
