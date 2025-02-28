@@ -11,6 +11,7 @@ dotenv = { version = "0.15.0" }
 nexus = { path = "../../crates/nexus" }
 object_store = { workspace = true }
 tokio = { workspace = true }
+snmalloc-rs = { workspace = true }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 

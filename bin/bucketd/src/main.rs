@@ -21,6 +21,9 @@ use clap::Parser;
 use dotenv::dotenv;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+#[global_allocator]
+static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
+
 #[tokio::main]
 #[allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stdout)]
 async fn main() {
