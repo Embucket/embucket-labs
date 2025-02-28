@@ -16,7 +16,7 @@
 // under the License.
 
 use super::datafusion::functions::register_udfs;
-use super::datafusion::type_planner::{CustomTypePlanner, IceBucketTypePlanner};
+use super::datafusion::type_planner::IceBucketTypePlanner;
 use datafusion::common::error::Result as DFResult;
 use datafusion::execution::SessionStateBuilder;
 use datafusion::functions::register_all;
@@ -36,12 +36,6 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 pub struct IceBucketUserSession {
     pub ctx: SessionContext,
     pub ident_normalizer: IdentNormalizer,
-}
-
-impl Default for IceBucketUserSession {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl IceBucketUserSession {
