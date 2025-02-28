@@ -341,11 +341,10 @@ mod tests {
                 );
                 assert_eq!(
                     result, expected,
-                    "convert_timezone created wrong value for {}",
-                    source_timestamp_tz_value
-                )
+                    "convert_timezone created wrong value for {source_timestamp_tz_value}"
+                );
             }
-            _ => panic!("Conversion of {} failed", source_timestamp_tz),
+            _ => panic!("Conversion of {source_timestamp_tz} failed"),
         }
     }
     #[test]
@@ -371,11 +370,10 @@ mod tests {
                 );
                 assert_eq!(
                     result, expected,
-                    "convert_timezone created wrong value for {}",
-                    source_timestamp_tz_value
-                )
+                    "convert_timezone created wrong value for {source_timestamp_tz_value}"
+                );
             }
-            _ => panic!("Conversion of {} failed", source_timestamp_tz_value),
+            _ => panic!("Conversion of {source_timestamp_tz_value} failed"),
         }
     }
     #[test]
@@ -403,11 +401,10 @@ mod tests {
                 );
                 assert_ne!(
                     result, expected,
-                    "convert_timezone created wrong value for {}",
-                    source_timestamp_tz_value
-                )
+                    "convert_timezone created wrong value for {source_timestamp_tz_value}"
+                );
             }
-            _ => panic!("Conversion of {} failed", source_timestamp_tz_value),
+            _ => panic!("Conversion of {source_timestamp_tz_value} failed"),
         }
     }
 }

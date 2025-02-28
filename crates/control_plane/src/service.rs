@@ -284,7 +284,7 @@ impl ControlService for ControlServiceImpl {
                     id: session_id.to_string(),
                 })?;
 
-        let query = executor.preprocess_query(query);
+        let query = SqlExecutor::preprocess_query(query);
         let statement = executor
             .parse_query(&query)
             .context(error::DataFusionSnafu)?;
