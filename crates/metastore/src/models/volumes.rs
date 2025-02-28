@@ -125,7 +125,7 @@ impl IceBucketVolume {
         }
     }
 
-    pub fn get_object_store(&self) -> MetastoreResult<Arc<dyn ObjectStore>> {
+    pub(crate) fn get_object_store(&self) -> MetastoreResult<Arc<dyn ObjectStore>> {
         match &self.volume {
             IceBucketVolumeType::S3(volume) => {
                 let mut s3_builder = AmazonS3Builder::new()

@@ -48,6 +48,24 @@ pub enum ExecutionError {
 
     #[snafu(display("Error encoding UTF8 string: {source}"))]
     Utf8 { source: std::string::FromUtf8Error },
+
+    #[snafu(display("Metastore error: {source}"))]
+    Metastore { source: icebucket_metastore::error::MetastoreError },
+
+    #[snafu(display("Database {db} not found"))]
+    DatabaseNotFound { db: String },
+
+    #[snafu(display("Table {table} not found"))]
+    TableNotFound { table: String },
+
+    #[snafu(display("Schema {schema} not found"))]
+    SchemaNotFound { schema: String },
+
+    #[snafu(display("Volume {volume} not found"))]
+    VolumeNotFound { volume: String },
+
+    #[snafu(display("Object store error: {source}"))]
+    ObjectStore { source: object_store::Error },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
