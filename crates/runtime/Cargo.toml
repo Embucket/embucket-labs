@@ -10,8 +10,15 @@ license-file = {workspace = true}
 arrow = { version = "54.1.0" }
 arrow-json = { version = "54.1.0" }
 arrow-schema = { version = "54.1.0", default-features = false }
+arrow-array = { version = "54.1.0" }
 async-trait = { workspace = true }
+
+geoarrow = { version = "0.4.0-beta.4" }
 geodatafusion = { git = "https://github.com/geoarrow/geoarrow-rs.git", package = "geodatafusion" }
+geohash = { version = "0.13.1" }
+geo-traits = {version = "0.2.0"}
+geo-types = {version = "0.7.15" }
+geozero = { version = "0.14.0" }
 
 chrono = { workspace = true }
 
@@ -34,6 +41,7 @@ regex = { version = "1.11.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 snafu = { workspace = true }
+itertools = { version = "0.14.0" }
 
 sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "53c291e3e95f176daea954f614409e5f674ec561", features = [
   "visitor",
