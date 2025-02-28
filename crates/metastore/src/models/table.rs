@@ -15,7 +15,7 @@ pub use iceberg::spec::{
 
 use crate::error::{self as metastore_error, MetastoreResult, MetastoreError};
 
-use super::IceBucketSchemaIdent;
+use super::{IceBucketSchemaIdent, IceBucketVolumeIdent};
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
 /// A table identifier
@@ -96,6 +96,9 @@ pub struct IceBucketTable {
     pub metadata: TableMetadata,
     pub metadata_location: String,
     pub properties: HashMap<String, String>,
+    pub volume_ident: Option<IceBucketVolumeIdent>,
+    pub volume_location: Option<String>,
+    pub is_temporary: bool,
 }
 
 /*impl PartialSchema for IceBucketTable {
@@ -145,6 +148,9 @@ pub struct IceBucketTableCreateRequest {
     pub partition_spec: Option<UnboundPartitionSpec>,
     pub write_order: Option<SortOrder>,
     pub stage_create: Option<bool>,
+    pub volume_ident: Option<IceBucketVolumeIdent>,
+    pub volume_location: Option<String>,
+    pub is_temporary: Option<bool>,
 }
 
 impl TryFrom<IceBucketTableCreateRequest> for iceberg::TableCreation {
