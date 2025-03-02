@@ -252,6 +252,7 @@ where
                     "table_name as 'name'",
                     "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
                     "case when table_type='BASE TABLE' then 'Y' else 'N' end as 'is_iceberg'",
+                    "'N' as 'is_dynamic'",
                     "null as 'comment'",
                 ]
                 .join(", ");

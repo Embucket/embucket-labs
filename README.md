@@ -9,8 +9,8 @@ IceBucket is an **Apache-Licensed**, **Snowflake-compatible** lakehouse platform
 Get started with IceBucket in minutes using our pre-built **Docker image** available on [Quay.io](https://quay.io/repository/embucket/embucket).  
 
 ```sh
-docker pull quay.io/embucket/embucket:latest
-docker run -p 8888:8888 -p 3000:3000 quay.io/embucket/embucket:latest
+docker pull 767397688925.dkr.ecr.us-east-2.amazonaws.com/embucket/control-plane
+docker run -p 3000:3000 embucket/control-plane
 ```
 
 Once the container is running, open:  
