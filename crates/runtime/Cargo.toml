@@ -46,6 +46,8 @@ uuid = { workspace = true }
 icebucket_utils = { version = "0.1.0", path = "../utils" }
 bytes.workspace = true
 strum = { version = "0.27.1", features = ["derive"] }
+itertools = "0.14.0"
+iceberg-rust-spec = { workspace = true }
 
 [lints]
 workspace = true

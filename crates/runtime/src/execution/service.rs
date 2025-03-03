@@ -137,10 +137,10 @@ impl ExecutionService {
             .await
             .context(ex_error::ObjectStoreSnafu)?;
 
-        executor
+        user_session
             .ctx
-            .register_object_store(&endpoint_url, Arc::from(object_store));
-        executor
+            .register_object_store(&upload_path, Arc::from(object_store));
+        user_session
             .ctx
             .register_csv(table_name, path_string, CsvReadOptions::new())
             .await?;

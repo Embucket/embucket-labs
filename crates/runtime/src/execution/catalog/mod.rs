@@ -1,14 +1,21 @@
+pub mod table;
+
 use std::{any::Any, collections::{HashMap, HashSet}, sync::Arc};
 
 use arrow_schema::SchemaRef;
 use async_trait::async_trait;
-use datafusion::{catalog::{CatalogProvider, CatalogProviderList, SchemaProvider, Session, TableProvider}, datasource::listing::PartitionedFile, execution::object_store::ObjectStoreUrl};
-use datafusion_common::{exec_err, DataFusionError, Result as DFResult, ScalarValue};
-use datafusion_expr::Expr;
-use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
-use datafusion_physical_plan::ExecutionPlan;
-use iceberg_rust::{spec::identifier::Identifier, table::{self, Table as IcebergTable}, error::Error as IcebergError};
+use chrono::DateTime;
+use datafusion::{arrow::datatypes::Field, logical_expr::TableType, catalog::{CatalogProvider, CatalogProviderList, SchemaProvider, Session, TableProvider}, datasource::{file_format::parquet::ParquetFormat, listing::PartitionedFile, physical_plan::FileScanConfig}, execution::object_store::ObjectStoreUrl, physical_expr::create_physical_expr, physical_optimizer::pruning::PruningPredicate};
+use datafusion_common::{exec_err, not_impl_err, plan_err, DataFusionError, Result as DFResult, ScalarValue};
+use datafusion_expr::{Expr, TableProviderFilterPushDown};
+use datafusion_expr::{dml::InsertOp, utils::conjunction, JoinType};
+use datafusion_iceberg::{DataFusionTable as IcebergDataFusionTable, pruning_statistics::{PruneDataFiles, PruneManifests}, statistics::manifest_statistics};
+use datafusion_physical_plan::{insert::DataSinkExec, ExecutionPlan};
+use iceberg_rust::{catalog::Catalog as IcebergCatalog, error::Error as IcebergError, spec::{identifier::Identifier, manifest::ManifestEntry, manifest_list::ManifestListEntry}};
+use iceberg_rust_spec::{manifest::{Content, Status}, schema::Schema, types::{StructField, StructType}, util};
 use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTable, IceBucketTableIdent, Metastore};
+use object_store::ObjectMeta;
+use table::IceBucketIcebergTable;
 
 
 pub struct IceBucketDFMetastore {
@@ -177,7 +184,7 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
         
         Ok(table.map(|table| {
-            Arc::new(IceBucketDFTable::new(ident_clone, table.data, self.metastore.clone(), false)) as Arc<dyn TableProvider>
+            Arc::new(IceBucketDFTable::new(table.data, self.metastore.clone())) as Arc<dyn TableProvider>
         }))
     }
 
@@ -224,20 +231,17 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
 
 #[derive(Debug)]
 pub struct IceBucketDFTable {
-    pub table_ident: IceBucketTableIdent,
     pub table: IceBucketTable,
     pub metastore: Arc<dyn Metastore>,
 }
 
 impl IceBucketDFTable {
     pub async fn new(
-        table_ident: IceBucketTableIdent,
-        ib_table: IceBucketTable,
+        table: IceBucketTable,
         metastore: Arc<dyn Metastore>,
     ) -> Self {
         IceBucketDFTable {
-            table_ident,
-            table: ib_table,
+            table,
             metastore,
         }
     }
@@ -250,7 +254,7 @@ impl TableProvider for IceBucketDFTable {
     }
 
     fn schema(&self) -> SchemaRef {
-        todo!()
+        self.table.metadata.current_schema().clone()
     }
 
     async fn scan(
@@ -269,6 +273,11 @@ impl TableProvider for IceBucketDFTable {
         projection: Option<&Vec<usize>>,
         filters: &[Expr],
         limit: Option<usize>,*/
+
+        let statistics = self
+                    .statistics()
+                    .await
+                    .map_err(|e| DataFusionError::External(Box::new(e)))?;
         
         // TODO: Support snapshot ranges
         let snapshot_range = (None, None);
@@ -304,14 +313,15 @@ impl TableProvider for IceBucketDFTable {
             .iter()
             .filter_map(|field| schema.field_by_id(field.source_id).map(|f| f.name.clone()))         
             .collect::<HashSet<_>>();
-        
+
+        let iceberg_table = IceBucketIcebergTable::new(self.table.clone(), self.metastore.clone()).await;
 
         // If there is a filter expression the manifests to read are pruned based on the pruning statistics available in the manifest_list file.
         let physical_predicate = if let Some(predicate) = conjunction(filters.iter().cloned()) {
             Some(create_physical_expr(
                 &predicate,
-                &arrow_schema.as_ref().clone().try_into()?,
-                session.execution_props(),
+                &schema.as_ref().clone().try_into()?,
+                state.execution_props(),
             )?)
         } else {
             None
@@ -331,46 +341,54 @@ impl TableProvider for IceBucketDFTable {
                     .cloned(),
             );
 
-            let manifests = table
+            /*let manifests = self.table
+                .metadata
                 .manifests(snapshot_range.0, snapshot_range.1)
                 .await
                 .map_err(Into::<Error>::into)
-                .map_err(DataFusionIcebergError::from)?;
+                .map_err(DataFusionIcebergError::from)?;*/
+
+
+
+            let manifests:Vec<ManifestListEntry> = iceberg_table.manifests(snapshot_range.0, snapshot_range.1)
+                .await
+                .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
             // If there is a filter expression on the partition column, the manifest files to read are pruned.
             let data_files: Vec<ManifestEntry> = if let Some(predicate) = partition_predicates {
                 let physical_partition_predicate = create_physical_expr(
                     &predicate,
-                    &arrow_schema.as_ref().clone().try_into()?,
-                    session.execution_props(),
+                    &schema.as_ref().clone().try_into()?,
+                    state.execution_props(),
                 )?;
                 let pruning_predicate =
-                    PruningPredicate::try_new(physical_partition_predicate, arrow_schema.clone())?;
+                    PruningPredicate::try_new(physical_partition_predicate, schema.clone())?;
                 let manifests_to_prune =
                     pruning_predicate.prune(&PruneManifests::new(partition_fields, &manifests))?;
 
-                table
-                    .datafiles(&manifests, Some(manifests_to_prune))
+                // TODO: Implement when we support snapshot ranges
+                iceberg_table
+                    .datafiles(&manifests, Some(manifests_to_prune), (None, None))
                     .await
-                    .map_err(DataFusionIcebergError::from)?
+                    .map_err(|e| DataFusionError::External(Box::new(e)))?
                     .try_collect()
                     .await
-                    .map_err(DataFusionIcebergError::from)?
+                    .map_err(|e| DataFusionError::External(Box::new(e)))?
             } else {
-                table
-                    .datafiles(&manifests, None)
+                iceberg_table
+                    .datafiles(&manifests, None, (None, None))
                     .await
-                    .map_err(DataFusionIcebergError::from)?
+                    .map_err(|e| DataFusionError::External(Box::new(e)))?
                     .try_collect()
                     .await
-                    .map_err(DataFusionIcebergError::from)?
+                    .map_err(|e| DataFusionError::External(Box::new(e)))?
             };
 
             let pruning_predicate =
-                PruningPredicate::try_new(physical_predicate, arrow_schema.clone())?;
+                PruningPredicate::try_new(physical_predicate, schema.clone())?;
             // After the first pruning stage the data_files are pruned again based on the pruning statistics in the manifest files.
             let files_to_prune =
-                pruning_predicate.prune(&PruneDataFiles::new(&schema, &arrow_schema, &data_files))?;
+                pruning_predicate.prune(&PruneDataFiles::new(&schema, &schema, &data_files))?;
 
             data_files
                 .into_iter()
@@ -390,7 +408,7 @@ impl TableProvider for IceBucketDFTable {
                             location: util::strip_prefix(manifest.data_file().file_path()).into(),
                             size: *manifest.data_file().file_size_in_bytes() as usize,
                             last_modified: {
-                                let last_updated_ms = table.metadata().last_updated_ms;
+                                let last_updated_ms = self.table.metadata.last_updated_ms;
                                 let secs = last_updated_ms / 1000;
                                 let nsecs = (last_updated_ms % 1000) as u32 * 1000000;
                                 DateTime::from_timestamp(secs, nsecs).unwrap()
@@ -427,17 +445,18 @@ impl TableProvider for IceBucketDFTable {
                     };
                 });
         } else {
-            let manifests = table
+            let manifests = iceberg_table
                 .manifests(snapshot_range.0, snapshot_range.1)
                 .await
-                .map_err(DataFusionIcebergError::from)?;
-            let data_files: Vec<ManifestEntry> = table
-                .datafiles(&manifests, None)
+                .map_err(|e| DataFusionError::External(Box::new(e)))?;
+            // TODO Implement when we support snapshot ranges
+            let data_files: Vec<ManifestEntry> = iceberg_table
+                .datafiles(&manifests, None, (None, None))
                 .await
-                .map_err(DataFusionIcebergError::from)?
+                .map_err(|e| DataFusionError::External(Box::new(e)))?
                 .try_collect()
                 .await
-                .map_err(DataFusionIcebergError::from)?;
+                .map_err(|e| DataFusionError::External(Box::new(e)))?;
             data_files.into_iter().for_each(|manifest| {
                 if *manifest.status() != Status::Deleted {
                     let partition_values = manifest
@@ -453,7 +472,7 @@ impl TableProvider for IceBucketDFTable {
                         location: util::strip_prefix(manifest.data_file().file_path()).into(),
                         size: *manifest.data_file().file_size_in_bytes() as usize,
                         last_modified: {
-                            let last_updated_ms = table.metadata().last_updated_ms;
+                            let last_updated_ms = self.table.metadata.last_updated_ms;
                             let secs = last_updated_ms / 1000;
                             let nsecs = (last_updated_ms % 1000) as u32 * 1000000;
                             DateTime::from_timestamp(secs, nsecs).unwrap()
@@ -500,14 +519,14 @@ impl TableProvider for IceBucketDFTable {
                     (&partition_field
                         .field_type()
                         .tranform(partition_field.transform())
-                        .map_err(DataFusionIcebergError::from)?)
+                        .map_err(|e| DataFusionError::External(Box::new(e)))?)
                         .try_into()
-                        .map_err(DataFusionIcebergError::from)?,
+                        .map_err(|e| DataFusionError::External(Box::new(e)))?,
                     !partition_field.required(),
                 ))
             })
             .collect::<Result<Vec<_>, DataFusionError>>()
-            .map_err(DataFusionIcebergError::from)?;
+            .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
         // Add the partition columns to the table schema
         let mut schema_builder = StructType::builder();
@@ -532,11 +551,11 @@ impl TableProvider for IceBucketDFTable {
                 schema_builder
                     .build()
                     .map_err(iceberg_rust::spec::error::Error::from)
-                    .map_err(DataFusionIcebergError::from)?,
+                    .map_err(|e| DataFusionError::External(Box::new(e)))?,
             )
             .build()
             .map_err(iceberg_rust::spec::error::Error::from)
-            .map_err(DataFusionIcebergError::from)?;
+            .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
         let file_schema: SchemaRef = Arc::new((file_schema.fields()).try_into().unwrap());
 
@@ -553,35 +572,46 @@ impl TableProvider for IceBucketDFTable {
         };
 
         ParquetFormat::default()
-            .create_physical_plan(session, file_scan_config, physical_predicate.as_ref())
+            .create_physical_plan(state, file_scan_config, physical_predicate.as_ref())
             .await
     }
 
+    async fn insert_into(
+        &self,
+        _state: &dyn Session,
+        input: Arc<dyn ExecutionPlan>,
+        insert_op: InsertOp,
+    ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
+        // Create a physical plan from the logical plan.
+        // Check that the schema of the plan matches the schema of this table.
+        if !self.schema().equivalent_names_and_types(&input.schema()) {
+            return plan_err!("Inserting query must have the same schema with the table.");
+        }
+        let InsertOp::Append = insert_op else {
+            return not_impl_err!("Overwrite not implemented for MemoryTable yet");
+        };
+        Ok(Arc::new(DataSinkExec::new(
+            input,
+            Arc::new(self.clone().into_data_sink()),
+            None,
+        )))
+    }
+
     fn statistics(&self) -> Option<datafusion::physical_plan::Statistics> {
-        todo!()
+        None
     }
 
-    fn has_partiotion_keys(&self) -> bool {
-        todo!()
+    fn supports_filters_pushdown(
+        &self,
+        filters: &[&Expr],
+    ) -> Result<Vec<TableProviderFilterPushDown>, DataFusionError> {
+        Ok(filters
+            .iter()
+            .map(|_| TableProviderFilterPushDown::Inexact)
+            .collect())
     }
 
-    fn partition_keys(&self) -> Vec<String> {
-        todo!()
-    }
-
-    fn projection(&self) -> Option<Vec<usize>> {
-        todo!()
-    }
-
-    fn schema_name(&self) -> &str {
-        todo!()
-    }
-
-    fn table_name(&self) -> &str {
-        todo!()
-    }
-
-    fn table_type(&self) -> datafusion::catalog::TableType {
-        todo!()
+    fn table_type(&self) -> TableType {
+        TableType::Base
     }
 }
