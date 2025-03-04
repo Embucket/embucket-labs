@@ -22,7 +22,9 @@ use crate::datafusion::functions::geospatial::error::{
 };
 use arrow_array::ArrayRef;
 use datafusion::error::DataFusionError;
-use geoarrow::array::{CoordType, GeometryArray, LineStringArray, PointArray, RectArray};
+use geoarrow::array::{
+    CoordType, GeometryArray, LineStringArray, PointArray, PolygonArray, RectArray,
+};
 use geoarrow::datatypes::{Dimension, NativeType};
 use geoarrow::NativeArray;
 use snafu::ResultExt;
@@ -34,6 +36,7 @@ pub const BOX3D_TYPE: NativeType = NativeType::Rect(Dimension::XYZ);
 pub const GEOMETRY_TYPE: NativeType = NativeType::Geometry(CoordType::Separated);
 pub const LINE_STRING_TYPE: NativeType =
     NativeType::LineString(CoordType::Separated, Dimension::XY);
+pub const POLYGON_2D_TYPE: NativeType = NativeType::Polygon(CoordType::Separated, Dimension::XY);
 
 /// This will not cast a `PointArray` to a `GeometryArray`
 pub fn parse_to_native_array(array: &ArrayRef) -> GeoDataFusionResult<Arc<dyn NativeArray>> {
@@ -56,6 +59,10 @@ pub fn parse_to_native_array(array: &ArrayRef) -> GeoDataFusionResult<Arc<dyn Na
         Ok(Arc::new(rect_array))
     } else if data_type.equals_datatype(&BOX3D_TYPE.into()) {
         let rect_array = RectArray::try_from((array.as_ref(), Dimension::XYZ))
+            .context(geo_error::GeoArrowSnafu)?;
+        Ok(Arc::new(rect_array))
+    } else if data_type.equals_datatype(&POLYGON_2D_TYPE.into()) {
+        let rect_array = PolygonArray::try_from((array.as_ref(), Dimension::XY))
             .context(geo_error::GeoArrowSnafu)?;
         Ok(Arc::new(rect_array))
     } else if data_type.equals_datatype(&GEOMETRY_TYPE.into()) {

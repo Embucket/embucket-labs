@@ -27,7 +27,7 @@ mod convert_timezone;
 mod date_add;
 mod date_diff;
 mod date_from_parts;
-mod geospatial;
+pub mod geospatial;
 mod parse_json;
 mod time_from_parts;
 mod timestamp_from_parts;
@@ -41,7 +41,6 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         timestamp_from_parts::get_udf(),
         time_from_parts::get_udf(),
         date_from_parts::get_udf(),
-        geospatial::constructors::line_string::get_udf(),
     ];
 
     for func in functions {

@@ -19,6 +19,7 @@
 #![allow(clippy::missing_panics_doc)]
 
 use super::error::{self as ih_error, IceBucketSQLError, IceBucketSQLResult};
+use crate::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
 use crate::datafusion::functions::{register_udfs, visit_functions_expressions};
 use crate::datafusion::planner::ExtendedSqlToRel;
 use crate::datafusion::session::SessionParams;
@@ -41,7 +42,7 @@ use datafusion_common::{DataFusionError, TableReference};
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::iceberg_transform;
-use geodatafusion::udf::native::register_native;
+use geodatafusion::udf::native::register_native as register_geo_native;
 use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::identifier::Identifier;
@@ -61,7 +62,6 @@ use std::collections::HashMap;
 use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
-
 pub struct SqlExecutor {
     // ctx made public to register_catalog after creating SqlExecutor
     pub ctx: SessionContext,
@@ -70,7 +70,8 @@ pub struct SqlExecutor {
 
 impl SqlExecutor {
     pub fn new(mut ctx: SessionContext) -> IceBucketSQLResult<Self> {
-        register_native(&ctx);
+        register_geo_native(&ctx);
+        register_geo_udfs(&ctx);
         register_udfs(&mut ctx).context(ih_error::RegisterUDFSnafu)?;
         register_all(&mut ctx).context(ih_error::RegisterUDFSnafu)?;
         let enable_ident_normalization = ctx.enable_ident_normalization();
