@@ -23,6 +23,8 @@ use crate::datafusion::functions::macros::make_udf_function;
 use arrow_schema::DataType;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion_common::{DataFusionError, Result};
+use datafusion_doc::Documentation;
+use datafusion_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use geo_traits::LineStringTrait;
 use geoarrow::array::{AsNativeArray, CoordType, PolygonBuilder};
 use geoarrow::datatypes::Dimension;
@@ -31,7 +33,7 @@ use geoarrow::trait_::ArrayAccessor;
 use geoarrow::ArrayBase;
 use snafu::ResultExt;
 use std::any::Any;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 #[derive(Debug)]
 pub struct MakePolygon {
@@ -58,6 +60,8 @@ impl MakePolygon {
     }
 }
 
+static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
+
 impl ScalarUDFImpl for MakePolygon {
     fn as_any(&self) -> &dyn Any {
         self
@@ -81,6 +85,18 @@ impl ScalarUDFImpl for MakePolygon {
 
     fn aliases(&self) -> &[String] {
         &self.aliases
+    }
+
+    fn documentation(&self) -> Option<&Documentation> {
+        Some(DOCUMENTATION.get_or_init(|| {
+            Documentation::builder(
+                DOC_SECTION_OTHER,
+                "Returns a geometry that represents a Polygon without holes.",
+                "ST_MakePolygon(ST_POINT(-71.104, 42.315), ST_POINT(-71.103, 42.312))",
+            )
+            .with_related_udf("st_polygon")
+            .build()
+        }))
     }
 }
 

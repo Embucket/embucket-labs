@@ -25,6 +25,8 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use datafusion_common::{DataFusionError, Result};
+use datafusion_doc::Documentation;
+use datafusion_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use geo_traits::{LineStringTrait, MultiPointTrait, PointTrait};
 use geoarrow::array::{
     AsNativeArray, CoordType, LineStringArray, LineStringBuilder, MultiPointArray, PointArray,
@@ -36,7 +38,7 @@ use geoarrow::ArrayBase;
 use geozero::GeomProcessor;
 use snafu::ResultExt;
 use std::any::Any;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 #[derive(Debug)]
 pub struct MakeLine {
@@ -66,6 +68,8 @@ impl MakeLine {
     }
 }
 
+static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
+
 impl ScalarUDFImpl for MakeLine {
     fn as_any(&self) -> &dyn Any {
         self
@@ -85,6 +89,18 @@ impl ScalarUDFImpl for MakeLine {
 
     fn invoke_batch(&self, args: &[ColumnarValue], _number_rows: usize) -> Result<ColumnarValue> {
         unsafe { make_line(args) }
+    }
+
+    fn documentation(&self) -> Option<&Documentation> {
+        Some(DOCUMENTATION.get_or_init(|| {
+            Documentation::builder(
+                DOC_SECTION_OTHER,
+                "Returns a geometry t that represents a line connecting the points in the input objects.",
+                "ST_MakeLine(ST_POINT(-71.104, 42.315), ST_POINT(-71.103, 42.312))",
+            )
+                .with_related_udf("st_makeline")
+                .build()
+        }))
     }
 }
 
