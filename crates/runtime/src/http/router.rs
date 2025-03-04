@@ -23,10 +23,6 @@ use utoipa::openapi::{self};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::http::catalog::router::create_router as create_catalog_router;
-use crate::http::control::handlers::storage_profiles::StorageProfileApi;
-use crate::http::control::handlers::warehouses::WarehouseApi;
-use crate::http::control::router::create_router as create_control_router;
 use crate::http::dbt::router::create_router as create_dbt_router;
 use crate::http::ui::handlers::databases::ApiDoc as DatabaseApiDoc;
 use crate::http::ui::handlers::profiles::ApiDoc as ProfileApiDoc;
@@ -34,17 +30,18 @@ use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
 use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
 use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
 use crate::http::ui::router::{create_router as create_ui_router, ApiDoc as UiApiDoc};
-use crate::state::AppState;
+use crate::http::state::AppState;
 use tower_http::timeout::TimeoutLayer;
 
 use super::metastore::router::create_router as create_metastore_router;
 
+// TODO: Fix OpenAPI spec generation
 #[derive(OpenApi)]
 #[openapi(
-    nest(
+    /*nest(
         (path = "/v1/storage-profile", api = StorageProfileApi, tags = ["storage-profiles"]),
         (path = "/v1/warehouse", api = WarehouseApi, tags = ["warehouses"]),
-    ),
+    ),*/
     tags(
         (name = "storage-profile", description = "Storage profile API"),
         (name = "warehouse", description = "Warehouse API"),
@@ -68,17 +65,13 @@ pub fn create_app(state: AppState) -> Router {
     if let Some(extra_spec) = load_openapi_spec() {
         ui_spec = ui_spec.merge_from(extra_spec);
     }
-    let catalog_router = create_catalog_router();
-    let control_router = create_control_router();
     let metastore_router = create_metastore_router();
     let ui_router = create_ui_router();
     let dbt_router = create_dbt_router();
 
     Router::new()
         .merge(dbt_router)
-        .merge(control_router)
         .merge(metastore_router)
-        .nest("/catalog", catalog_router)
         .nest("/ui", ui_router)
         .merge(
             SwaggerUi::new("/")

@@ -16,7 +16,7 @@
 // under the License.
 
 pub mod execution;
-pub mod web;
+pub mod http;
 
 #[cfg(test)]
 pub(crate) mod tests;

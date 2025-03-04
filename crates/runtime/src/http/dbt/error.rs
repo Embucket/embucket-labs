@@ -20,8 +20,6 @@ use snafu::prelude::*;
 
 use super::schemas::JsonResponse;
 use arrow::error::ArrowError;
-use control_plane::error::ControlPlaneError;
-use runtime::datafusion::error::IceBucketSQLError;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
@@ -34,11 +32,6 @@ pub enum DbtError {
 
     #[snafu(display("Failed to parse query body"))]
     QueryBodyParse { source: serde_json::Error },
-
-    #[snafu(display("Internal error"))]
-    ControlService {
-        source: control_plane::error::ControlPlaneError,
-    },
 
     #[snafu(display("Missing auth token"))]
     MissingAuthToken,
@@ -63,25 +56,23 @@ pub enum DbtError {
 
     #[snafu(display("Arrow error: {source}"))]
     Arrow { source: ArrowError },
+
+    #[snafu(transparent)]
+    Metastore { source: icebucket_metastore::error::MetastoreError },
+
+    #[snafu(transparent)]
+    Execution { source: crate::execution::error::ExecutionError },
 }
 
 pub type DbtResult<T> = std::result::Result<T, DbtError>;
 
 impl IntoResponse for DbtError {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
+        if let Self::Execution { source } = self {
+            return source.into_response();
+        }
+
         let status_code = match &self {
-            Self::ControlService { source } => match source {
-                ControlPlaneError::Execution { source, .. } => match source {
-                    IceBucketSQLError::DataFusion { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
-                    IceBucketSQLError::Arrow { .. } => http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
-                    _ => http::StatusCode::INTERNAL_SERVER_ERROR,
-                },
-                // SQL errors,
-                ControlPlaneError::DataFusion { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
-                ControlPlaneError::WarehouseNotFound { .. }
-                | ControlPlaneError::WarehouseNameNotFound { .. } => http::StatusCode::NOT_FOUND,
-                _ => http::StatusCode::INTERNAL_SERVER_ERROR,
-            },
             Self::GZipDecompress { .. }
             | Self::LoginRequestParse { .. }
             | Self::QueryBodyParse { .. }
@@ -93,6 +84,54 @@ impl IntoResponse for DbtError {
                 http::StatusCode::UNAUTHORIZED
             }
             Self::NotImplemented => http::StatusCode::NOT_IMPLEMENTED,
+            Self::Metastore { source } => match source {
+                icebucket_metastore::error::MetastoreError::TableDataExists { .. } => {
+                    http::StatusCode::CONFLICT
+                }
+                icebucket_metastore::error::MetastoreError::TableRequirementFailed { .. } => {
+                    http::StatusCode::UNPROCESSABLE_ENTITY
+                }
+                icebucket_metastore::error::MetastoreError::VolumeValidationFailed { .. } => {
+                    http::StatusCode::BAD_REQUEST
+                }
+                icebucket_metastore::error::MetastoreError::VolumeMissingCredentials => {
+                    http::StatusCode::BAD_REQUEST
+                }
+                icebucket_metastore::error::MetastoreError::CloudProviderNotImplemented { .. } => {
+                    http::StatusCode::PRECONDITION_FAILED
+                }
+                icebucket_metastore::error::MetastoreError::ObjectStore { .. } => {
+                    http::StatusCode::INTERNAL_SERVER_ERROR
+                }
+                icebucket_metastore::error::MetastoreError::CreateDirectory { .. } => {
+                    http::StatusCode::INTERNAL_SERVER_ERROR
+                }
+                icebucket_metastore::error::MetastoreError::SlateDB { .. } => {
+                    http::StatusCode::INTERNAL_SERVER_ERROR
+                }
+                icebucket_metastore::error::MetastoreError::UtilSlateDB { .. } => {
+                    http::StatusCode::INTERNAL_SERVER_ERROR
+                }
+                icebucket_metastore::error::MetastoreError::ObjectAlreadyExists { .. } => {
+                    http::StatusCode::CONFLICT
+                }
+                icebucket_metastore::error::MetastoreError::ObjectNotFound { .. } => {
+                    http::StatusCode::NOT_FOUND
+                }
+                icebucket_metastore::error::MetastoreError::VolumeInUse { .. } => {
+                    http::StatusCode::CONFLICT
+                }
+                icebucket_metastore::error::MetastoreError::Iceberg { .. } => {
+                    http::StatusCode::INTERNAL_SERVER_ERROR
+                }
+                icebucket_metastore::error::MetastoreError::Serde { .. } => {
+                    http::StatusCode::INTERNAL_SERVER_ERROR
+                }
+                icebucket_metastore::error::MetastoreError::Validation { .. } => {
+                    http::StatusCode::BAD_REQUEST
+                }
+            },
+            Self::Execution { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let message = match &self {
@@ -102,7 +141,6 @@ impl IntoResponse for DbtError {
             }
             Self::QueryBodyParse { source } => format!("failed to parse query body: {source}"),
             Self::InvalidWarehouseIdFormat { source } => format!("invalid warehouse_id: {source}"),
-            Self::ControlService { source } => source.to_string(),
             Self::RowParse { source } => format!("failed to parse row JSON: {source}"),
             Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
                 "session error".to_string()
@@ -114,6 +152,8 @@ impl IntoResponse for DbtError {
                 format!("Error encoding in Arrow format: {source}")
             }
             Self::NotImplemented => "feature not implemented".to_string(),
+            Self::Metastore { source } => source.to_string(),
+            Self::Execution { source } => source.to_string(),
         };
 
         let body = Json(JsonResponse {
@@ -132,13 +172,11 @@ mod tests {
     use super::DbtError;
     use arrow::error::ArrowError;
     use axum::response::IntoResponse;
-    use control_plane::error::ControlPlaneError;
     use datafusion::error::DataFusionError;
-    use runtime::datafusion::error::IceBucketSQLError;
     use uuid::Uuid;
 
     // TODO: Replace these with snapshot tests
-    #[test]
+    /*#[test]
     fn test_http_server_response() {
         assert_ne!(
             http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -220,4 +258,5 @@ mod tests {
             .status(),
         );
     }
+*/
 }

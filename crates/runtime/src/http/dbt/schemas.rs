@@ -16,7 +16,7 @@
 // under the License.
 
 use super::error::{self as dbt_error, DbtResult};
-use control_plane::models::ColumnInfo as ColumnInfoModel;
+use crate::execution::models::ColumnInfo as ColumnInfoModel;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;

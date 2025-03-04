@@ -15,14 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod router;
+use crate::http::state::AppState;
+use axum::routing::post;
+use axum::Router;
 
-pub mod catalog;
-pub mod control;
-pub mod dbt;
-pub mod error;
-pub mod layers;
-pub mod metastore;
-pub mod session;
-pub mod ui;
-pub mod utils;
+use crate::http::dbt::handlers::{abort, login, query};
+
+pub fn create_router() -> Router<AppState> {
+    Router::new()
+        .route("/session/v1/login-request", post(login))
+        .route("/queries/v1/query-request", post(query))
+        .route("/queries/v1/abort-request", post(abort))
+}

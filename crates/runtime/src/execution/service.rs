@@ -19,13 +19,13 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 pub struct ExecutionService {
     metastore: Arc<dyn Metastore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<IceBucketUserSession>>>>,
-    config: Arc<Config>,
+    config: Config,
 }
 
 impl ExecutionService {
     pub fn new(
         metastore: Arc<dyn Metastore>,
-        config: Arc<Config>,
+        config: Config,
 
     ) -> Self {
         Self {
@@ -36,7 +36,7 @@ impl ExecutionService {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
+    pub async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
         let session_exists = { self.df_sessions.read().await.contains_key(&session_id) };
         if !session_exists {
             let user_session = IceBucketUserSession::new()?;
@@ -49,7 +49,7 @@ impl ExecutionService {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn delete_session(&self, session_id: String) -> ExecutionResult<()> {
+    pub async fn delete_session(&self, session_id: String) -> ExecutionResult<()> {
         // TODO: Need to have a timeout for the lock
         let mut session_list = self.df_sessions.write().await;
         session_list.remove(&session_id);
@@ -58,7 +58,7 @@ impl ExecutionService {
 
     #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
-    async fn query(
+    pub async fn query(
         &self,
         session_id: &str,
         query: &str,
@@ -157,7 +157,7 @@ impl ExecutionService {
         Ok(())
     }
 
-    fn config(&self) -> &Config {
+    pub fn config(&self) -> &Config {
         &self.config
     }
 }

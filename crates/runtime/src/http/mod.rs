@@ -22,73 +22,53 @@ use axum::{
     middleware::{self, Next},
     response::{IntoResponse, Response},
 };
-use catalog::repository::{DatabaseRepositoryDb, TableRepositoryDb};
-use catalog::service::CatalogImpl;
-use control_plane::repository::{StorageProfileRepositoryDb, WarehouseRepositoryDb};
-use control_plane::service::ControlServiceImpl;
-use control_plane::utils::Config as ControlServiceConfig;
+
 use http_body_util::BodyExt;
-use metastore::metastore::SlateDBMetastore;
-use object_store::{path::Path, ObjectStore};
-use slatedb::config::DbOptions;
-use slatedb::db::Db as SlateDb;
+use icebucket_metastore::Metastore;
 use std::sync::Arc;
 use time::Duration;
 use tokio::signal;
 use tower_http::trace::TraceLayer;
 use tower_sessions::{Expiry, SessionManagerLayer};
 
-use http::layers::make_cors_middleware;
-use http::session::{RequestSessionMemory, RequestSessionStore};
-use utils::Db;
+use layers::make_cors_middleware;
+use session::{RequestSessionMemory, RequestSessionStore};
+
+use crate::execution::{self, service::ExecutionService};
 
 pub mod error;
-pub mod http;
+
+pub mod dbt;
+pub mod metastore;
+pub mod ui;
+
+pub mod layers;
+pub mod router;
+pub mod session;
 pub mod state;
+pub mod utils;
 
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
 pub async fn run_icebucket(
-    state_store: Box<dyn ObjectStore>,
-    slatedb_prefix: String,
+    metastore: Arc<dyn Metastore>,
     host: String,
     port: u16,
     allow_origin: Option<String>,
     data_format: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let db = {
+    /*let db = {
         let options = DbOptions::default();
         Arc::new(Db::new(
             SlateDb::open_with_opts(Path::from(slatedb_prefix.clone()), options, state_store.into())
                 .await?,
         ))
-    };
+    };*/
 
-    let db2 = {
-        let options = DbOptions::default();
-        // Temporary while catalog is refactored to be the metastore
-        let metastore_prefix = format!("{slatedb_prefix}/metastore");
-        Db::new(
-            SlateDb::open_with_opts(Path::from(metastore_prefix), options, state_store.into())
-                .await?,
-        )
-    };
-    let metastore = SlateDBMetastore::new(db2);
-
-    // Initialize the repository and concrete service implementation
-    let control_svc = {
-        let storage_profile_repo = StorageProfileRepositoryDb::new(db.clone());
-        let warehouse_repo = WarehouseRepositoryDb::new(db.clone());
-        let config = ControlServiceConfig::new(data_format);
-        ControlServiceImpl::new(
-            Arc::new(storage_profile_repo),
-            Arc::new(warehouse_repo),
-            config,
-        )
-    };
-    let control_svc = Arc::new(control_svc);
+    let execution_cfg = execution::utils::Config::new(data_format);
+    let execution_svc = Arc::new(ExecutionService::new(metastore.clone(), execution_cfg));
 
     let session_memory = RequestSessionMemory::default();
-    let session_store = RequestSessionStore::new(session_memory.clone(), control_svc.clone());
+    let session_store = RequestSessionStore::new(session_memory.clone(), execution_svc.clone());
 
     tokio::task::spawn(
         session_store
@@ -100,17 +80,10 @@ pub async fn run_icebucket(
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
-    let catalog_svc = {
-        let t_repo = TableRepositoryDb::new(db.clone());
-        let db_repo = DatabaseRepositoryDb::new(db.clone());
-
-        CatalogImpl::new(Arc::new(t_repo), Arc::new(db_repo))
-    };
-
     // Create the application state
-    let app_state = state::AppState::new(control_svc.clone(), Arc::new(catalog_svc), Arc::new(metastore));
+    let app_state = state::AppState::new(metastore.clone(), execution_svc.clone());
 
-    let mut app = http::router::create_app(app_state)
+    let mut app = router::create_app(app_state)
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn(print_request_response));
@@ -122,7 +95,7 @@ pub async fn run_icebucket(
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
     tracing::info!("Listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal(db))
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
 }
@@ -133,7 +106,7 @@ pub async fn run_icebucket(
 /// # Panics
 /// If the function fails to install the signal handler, it will panic.
 #[allow(clippy::expect_used, clippy::redundant_pub_crate)]
-async fn shutdown_signal(_db: Arc<Db>) {
+async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
             .await

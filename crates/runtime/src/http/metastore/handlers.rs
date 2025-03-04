@@ -1,12 +1,11 @@
 use axum::{extract::{Path, Query, State}, Json};
 use super::error::{MetastoreAPIResult, MetastoreAPIError};
 use snafu::ResultExt;
-use utoipa::OpenApi;
-use icebucket_metastore::{*, error::{self as metastore_error, MetastoreError, MetastoreResult}};
+//use utoipa::OpenApi;
+use icebucket_metastore::{*, error::{self as metastore_error, MetastoreError}};
 use validator::Validate;
 
-use crate::error::AppError;
-use crate::state::AppState;
+use crate::http::state::AppState;
 
 /*#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct IceBucketVolumeSchema(IceBucketVolume);

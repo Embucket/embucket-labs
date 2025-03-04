@@ -19,9 +19,9 @@
 #![allow(clippy::missing_panics_doc)]
 
 use super::error::{self as ih_error, IceBucketSQLError, IceBucketSQLResult};
-use crate::datafusion::functions::{register_udfs, visit_functions_expressions};
-use crate::datafusion::planner::ExtendedSqlToRel;
-use crate::datafusion::session::SessionParams;
+use super::functions::{register_udfs, visit_functions_expressions};
+use super::planner::ExtendedSqlToRel;
+use crate::execution::session::IceBucketSessionParams;
 use arrow::array::{Int64Array, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
@@ -281,7 +281,7 @@ impl SqlExecutor {
             .config_mut()
             .options_mut()
             .extensions
-            .get_mut::<SessionParams>();
+            .get_mut::<IceBucketSessionParams>();
         if let Some(cfg) = config {
             if set {
                 cfg.set_properties(params)
@@ -297,7 +297,7 @@ impl SqlExecutor {
     #[must_use]
     pub fn get_session_variable(&self, variable: &str) -> Option<String> {
         let state = self.ctx.state();
-        let config = state.config().options().extensions.get::<SessionParams>();
+        let config = state.config().options().extensions.get::<IceBucketSessionParams>();
         if let Some(cfg) = config {
             return cfg.properties.get(variable).cloned();
         }
@@ -1334,40 +1334,4 @@ pub fn created_entity_response() -> Result<Vec<RecordBatch>, arrow::error::Arrow
         schema,
         vec![Arc::new(Int64Array::from(vec![0]))],
     )?])
-}
-
-#[cfg(test)]
-mod test {
-    use crate::datafusion::execution::SqlExecutor;
-    use datafusion::sql::parser::DFParser;
-
-    #[allow(clippy::unwrap_used)]
-    #[test]
-    fn test_postprocess_query_statement_functions_expressions() {
-        let args: [(&str, &str); 14] = [
-            ("select year(ts)", "SELECT date_part('year', ts)"),
-            ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
-            ("select day(ts)", "SELECT date_part('day', ts)"),
-            ("select dayofmonth(ts)", "SELECT date_part('day', ts)"),
-            ("select dayofweek(ts)", "SELECT date_part('dow', ts)"),
-            ("select month(ts)", "SELECT date_part('month', ts)"),
-            ("select weekofyear(ts)", "SELECT date_part('week', ts)"),
-            ("select week(ts)", "SELECT date_part('week', ts)"),
-            ("select hour(ts)", "SELECT date_part('hour', ts)"),
-            ("select minute(ts)", "SELECT date_part('minute', ts)"),
-            ("select second(ts)", "SELECT date_part('second', ts)"),
-            ("select minute(ts)", "SELECT date_part('minute', ts)"),
-            // Do nothing
-            ("select yearofweek(ts)", "SELECT yearofweek(ts)"),
-            ("select yearofweekiso(ts)", "SELECT yearofweekiso(ts)"),
-        ];
-
-        for (init, exp) in args {
-            let statement = DFParser::parse_sql(init).unwrap().pop_front();
-            if let Some(mut s) = statement {
-                SqlExecutor::postprocess_query_statement(&mut s);
-                assert_eq!(s.to_string(), exp);
-            }
-        }
-    }
 }

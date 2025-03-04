@@ -15,15 +15,31 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::state::AppState;
-use axum::routing::post;
-use axum::Router;
+use icebucket_metastore::metastore::Metastore;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
-use crate::http::dbt::handlers::{abort, login, query};
+use crate::execution::service::ExecutionService;
 
-pub fn create_router() -> Router<AppState> {
-    Router::new()
-        .route("/session/v1/login-request", post(login))
-        .route("/queries/v1/query-request", post(query))
-        .route("/queries/v1/abort-request", post(abort))
+// Define a State struct that contains shared services or repositories
+#[derive(Clone)]
+pub struct AppState {
+    pub metastore: Arc<dyn Metastore + Send + Sync>,
+    pub execution_svc: Arc<ExecutionService>,
+    pub dbt_sessions: Arc<Mutex<HashMap<String, String>>>,
+}
+
+impl AppState {
+    // You can add helper methods for state initialization if needed
+    pub fn new(
+        metastore: Arc<dyn Metastore + Send + Sync>,
+        execution_svc: Arc<ExecutionService>,
+    ) -> Self {
+        Self {
+            metastore,
+            execution_svc,
+            dbt_sessions: Arc::new(Mutex::default()),
+        }
+    }
 }

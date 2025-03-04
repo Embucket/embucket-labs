@@ -1,6 +1,7 @@
-use axum::response::IntoResponse;
+use axum::{response::IntoResponse, Json};
 use icebucket_metastore::error::MetastoreError;
 use snafu::prelude::*;
+use crate::http::error::ErrorResponse;
 
 #[derive(Snafu, Debug)]
 pub struct MetastoreAPIError(pub MetastoreError);
@@ -26,6 +27,11 @@ impl IntoResponse for MetastoreAPIError {
             MetastoreError::Serde { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             MetastoreError::Validation { .. } => http::StatusCode::BAD_REQUEST,
         };
-        (code, message).into_response()
+
+        let error = ErrorResponse {
+            message: message.0,
+            status_code: code.as_u16(),
+        };
+        (code, Json(error)).into_response()
     }
 }

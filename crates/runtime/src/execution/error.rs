@@ -1,7 +1,10 @@
+use axum::{response::IntoResponse, Json};
 use datafusion_common::DataFusionError;
+use serde_yaml::Error;
 use snafu::prelude::*;
+use crate::http::error::ErrorResponse;
 
-#[derive(Debug, Snafu)]
+#[derive(Debug, Snafu, Clone)]
 #[snafu(visibility(pub(crate)))]
 pub enum ExecutionError {
     #[snafu(display("Cannot register UDF functions"))]
@@ -69,3 +72,15 @@ pub enum ExecutionError {
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
+
+impl IntoResponse for ExecutionError {
+    fn into_response(self) -> axum::response::Response {
+        let er = ErrorResponse {
+            message: self.to_string(),
+            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+        };
+        (http::StatusCode::INTERNAL_SERVER_ERROR, Json(er)).into_response()
+    }
+}
+
+impl From<

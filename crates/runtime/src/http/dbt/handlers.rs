@@ -16,12 +16,13 @@
 // under the License.
 
 use super::error::{self as dbt_error, DbtError, DbtResult};
+use crate::execution::utils::DataFormat;
 use crate::http::dbt::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
     QueryRequestBody, ResponseData,
 };
 use crate::http::session::DFSessionId;
-use crate::state::AppState;
+use crate::http::state::AppState;
 use arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
 use arrow::ipc::MetadataVersion;
 use arrow::json::writer::JsonArray;
@@ -34,7 +35,6 @@ use axum::Json;
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
-use control_plane::utils::DataFormat;
 use flate2::read::GzDecoder;
 use regex::Regex;
 use snafu::ResultExt;
@@ -70,20 +70,19 @@ pub async fn login(
     let token = Uuid::new_v4().to_string();
 
     let warehouses = state
-        .control_svc
-        .list_warehouses()
-        .await
-        .context(dbt_error::ControlServiceSnafu)?;
+        .metastore
+        .list_databases()
+        .await?;
 
     debug!("login request query: {query:?}, databases: {warehouses:?}");
     for warehouse in warehouses
         .into_iter()
-        .filter(|w| w.name == query.database_name)
+        .filter(|w| w.ident == query.database_name)
     {
         // Save warehouse id and db name in state
         state.dbt_sessions.lock().await.insert(
             token.clone(),
-            format!("{}.{}", warehouse.id, query.database_name),
+            format!("{}.{}", warehouse.ident, query.database_name),
         );
     }
     Ok(Json(LoginResponse {
@@ -154,17 +153,17 @@ pub async fn query(
     // let _ = log_query(&body_json.sql_text).await;
 
     let (records, columns) = state
-        .control_svc
+        .execution_svc
         .query(&session_id, &body_json.sql_text)
         .await
-        .context(dbt_error::ControlServiceSnafu)?;
+        .map_err(|e| DbtError::Execution { source: e })?;
 
     debug!(
         "serialized json: {}",
         records_to_json_string(&records)?.as_str()
     );
 
-    let data_format = state.control_svc.config().data_format;
+    let data_format = state.execution_svc.config().data_format;
     let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {
             row_type: columns.into_iter().map(Into::into).collect(),

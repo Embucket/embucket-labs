@@ -5,13 +5,14 @@ use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::LogicalPlan;
+use datafusion::parquet::schema;
 use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableWithJoins,
 };
-use datafusion_common::{DataFusionError, TableReference};
+use datafusion_common::{plan_err, DataFusionError, Result as DFResult, TableReference};
 use datafusion_functions_json::register_all;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::planner::iceberg_transform;
@@ -37,6 +38,9 @@ use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
 
+use crate::http::http::ui::models::database;
+
+use super::catalog::table;
 use super::datafusion::functions::visit_functions_expressions;
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
@@ -46,15 +50,25 @@ use super::session::IceBucketUserSession;
 pub struct IceBucketQuery {
     pub metastore: Arc<dyn Metastore>,
     pub query: String,
-    pub session: Arc<IceBucketUserSession>
+    pub session: Arc<IceBucketUserSession>,
+    pub database: Option<String>,
+    pub schema: Option<String>,
 }
 
 impl IceBucketQuery {
-    pub fn new(metastore: Arc<dyn Metastore>, query: String, session: Arc<IceBucketUserSession>) -> Self {
+    pub fn new(
+            session: Arc<IceBucketUserSession>,
+            metastore: Arc<dyn Metastore>, 
+            query: String, 
+            database: Option<String>,
+            schema: Option<String>
+            ) -> Self {
         Self {
             metastore,
             query,
-            session
+            session,
+            database,
+            schema,
         }
     }
 
@@ -80,7 +94,6 @@ impl IceBucketQuery {
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn execute(
         &self,
-        //warehouse_name: &str,
     ) -> ExecutionResult<Vec<RecordBatch>> {
         // Update query to use custom JSON functions
         let query = self.preprocess_query(&self.query);
@@ -156,7 +169,7 @@ impl IceBucketQuery {
                     return Ok(vec![]);
                 }
                 Statement::CreateTable { .. } => {
-                    return Box::pin(self.create_table_query(*s, warehouse_name)).await;
+                    return Box::pin(self.create_table_query(*s)).await;
                 }
                 Statement::CreateDatabase {
                     db_name,
@@ -164,7 +177,7 @@ impl IceBucketQuery {
                     ..
                 } => {
                     return self
-                        .create_database(warehouse_name, db_name, if_not_exists)
+                        .create_database(db_name, if_not_exists)
                         .await;
                 }
                 Statement::CreateSchema {
@@ -172,7 +185,7 @@ impl IceBucketQuery {
                     if_not_exists,
                 } => {
                     return self
-                        .create_schema(warehouse_name, schema_name, if_not_exists)
+                        .create_schema(schema_name, if_not_exists)
                         .await;
                 }
                 Statement::CreateStage { .. } => {
@@ -180,7 +193,7 @@ impl IceBucketQuery {
                     return Box::pin(self.create_stage_query(*s)).await;
                 }
                 Statement::CopyIntoSnowflake { .. } => {
-                    return Box::pin(self.copy_into_snowflake_query(*s, warehouse_name)).await;
+                    return Box::pin(self.copy_into_snowflake_query(*s)).await;
                 }
                 Statement::AlterTable { .. }
                 | Statement::StartTransaction { .. }
@@ -190,21 +203,21 @@ impl IceBucketQuery {
                 | Statement::ShowVariable { .. }
                 | Statement::ShowObjects { .. }
                 | Statement::Update { .. } => {
-                    return Box::pin(self.execute_with_custom_plan(&query, warehouse_name)).await;
+                    return Box::pin(self.execute_with_custom_plan(&query)).await;
                 }
                 Statement::Query(mut subquery) => {
                     self.update_qualify_in_query(subquery.as_mut());
                     Self::update_table_result_scan_in_query(subquery.as_mut());
                     return Box::pin(
-                        self.execute_with_custom_plan(&subquery.to_string(), warehouse_name),
+                        self.execute_with_custom_plan(&subquery.to_string()),
                     )
                     .await;
                 }
                 Statement::Drop { .. } => {
-                    return Box::pin(self.drop_query(&query, warehouse_name)).await;
+                    return Box::pin(self.drop_query(&query)).await;
                 }
                 Statement::Merge { .. } => {
-                    return Box::pin(self.merge_query(*s, warehouse_name)).await;
+                    return Box::pin(self.merge_query(*s)).await;
                 }
                 _ => {}
             }
@@ -255,29 +268,24 @@ impl IceBucketQuery {
     pub async fn create_table_query(
         &self,
         statement: Statement,
-        warehouse_name: &str,
     ) -> ExecutionResult<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
-            let mut new_table_full_name = create_table_statement.name.to_string();
-            let mut ident = create_table_statement.name.0;
-            if !new_table_full_name.starts_with(warehouse_name) {
-                new_table_full_name = format!("{warehouse_name}.{new_table_full_name}");
-                ident.insert(0, Ident::new(warehouse_name));
-            }
-            let _new_table_wh_id = ident[0].clone();
-            let new_table_db = &ident[1..ident.len() - 1];
-            let new_table_name = ident
-                .last()
-                .ok_or(ExecutionError::InvalidIdentifier {
-                    ident: new_table_full_name.clone(),
-                })?
-                .clone();
+            let session_database = self.session.get_session_variable("database");
+            let session_schema = self.session.get_session_variable("schema");
+
+            let mut new_table_ident = self.compress_database_name(create_table_statement.name, 
+                &session_database, &session_schema)?;
+
+            let database = new_table_ident.0[0].clone();
+            let schema = new_table_ident.0[1].clone();
             let location = create_table_statement.location.clone();
 
+
+            let table_name = new_table_ident.0.last().unwrap().clone();
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
             let mut modified_statement = CreateTableStatement {
-                name: ObjectName(vec![new_table_name.clone()]),
+                name: ObjectName(vec![table_name.clone()]),
                 transient: false,
                 ..create_table_statement
             };
@@ -290,7 +298,10 @@ impl IceBucketQuery {
             let updated_query = modified_statement.to_string();
 
             let plan = self
-                .get_custom_logical_plan(&updated_query, warehouse_name)
+                .get_custom_logical_plan(&updated_query, 
+                    &session_database,
+                    &session_schema
+                )
                 .await?;
             self.session.ctx
                 .execute_logical_plan(plan.clone())
@@ -317,9 +328,9 @@ impl IceBucketQuery {
             // Check if it already exists, if it is - drop it
             // For now we behave as CREATE OR REPLACE
             // TODO support CREATE without REPLACE
-            let catalog = self.session.ctx.catalog(warehouse_name).ok_or(
+            let catalog = self.session.ctx.catalog(database).ok_or(
                 ExecutionError::WarehouseNotFound {
-                    name: warehouse_name.to_string(),
+                    name: database.to_string(),
                 },
             )?;
             let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().ok_or(
@@ -618,9 +629,12 @@ impl IceBucketQuery {
     pub async fn drop_query(
         &self,
         query: &str,
-        warehouse_name: &str,
     ) -> ExecutionResult<Vec<RecordBatch>> {
-        let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
+        let plan = self.get_custom_logical_plan(
+            query, 
+            self.session.get_session_variable("database"),
+            self.session.get_session_variable("schema")
+        ).await?;
         let transformed = plan
             .transform(iceberg_transform)
             .data()
@@ -711,16 +725,18 @@ impl IceBucketQuery {
     pub async fn get_custom_logical_plan(
         &self,
         query: &str,
-        warehouse_name: &str,
+        database: Option<String>,
+        schema: Option<String>,
     ) -> ExecutionResult<LogicalPlan> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
+
+        // We turn a query to SQL only to turn it back into a statement
+        // TODO: revisit this pattern
         let mut statement = state
             .sql_to_statement(query, dialect)
             .context(super::error::DataFusionSnafu)?;
-        //println!("raw query: {:?}", statement.to_string());
-        statement = self.update_statement_references(statement, warehouse_name);
-        //println!("modified query: {:?}", statement.to_string());
+        statement = self.update_statement_references(statement, &database, &schema);
 
         if let DFStatement::Statement(s) = statement.clone() {
             let mut ctx_provider = SessionContextProvider {
@@ -787,7 +803,7 @@ impl IceBucketQuery {
         }
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    /*#[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn execute_with_custom_plan(
         &self,
         query: &str,
@@ -802,7 +818,7 @@ impl IceBucketQuery {
             .collect()
             .await
             .context(super::error::DataFusionSnafu)
-    }
+    }*/
 
     #[allow(clippy::only_used_in_recursion)]
     fn update_qualify_in_query(&self, query: &mut Query) {
@@ -978,7 +994,7 @@ impl IceBucketQuery {
     #[must_use]
     pub fn get_table_path(&self, statement: &DFStatement) -> Option<TableReference> {
         let empty = String::new;
-        let references = self.ctx.state().resolve_table_references(statement).ok()?;
+        let references = self.session.ctx.state().resolve_table_references(statement).ok()?;
 
         match statement.clone() {
             DFStatement::Statement(s) => match *s {
@@ -1012,17 +1028,20 @@ impl IceBucketQuery {
         }
     }
 
+    // TODO: Modify this function to modify the statement in-place to
+    // avoid extra allocations
     #[must_use]
     #[allow(clippy::too_many_lines)]
     pub fn update_statement_references(
         &self,
         statement: DFStatement,
-        warehouse_name: &str,
+        database: &Option<String>,
+        schema: &Option<String>,
     ) -> DFStatement {
         match statement.clone() {
             DFStatement::CreateExternalTable(create_external) => {
                 let table_name =
-                    self.compress_database_name(create_external.name.0, warehouse_name);
+                    self.compress_database_name(create_external.name.0, database, schema);
                 let modified_statement = CreateExternalTable {
                     name: ObjectName(table_name),
                     ..create_external
@@ -1038,7 +1057,7 @@ impl IceBucketQuery {
                     location,
                     on_cluster,
                 } => {
-                    let name = self.compress_database_name(name.0, warehouse_name);
+                    let name = self.compress_database_name(name.0, database, schema)?;
                     let modified_statement = Statement::AlterTable {
                         name: ObjectName(name),
                         if_exists,
@@ -1051,12 +1070,12 @@ impl IceBucketQuery {
                 }
                 Statement::Insert(insert_statement) => {
                     let table_name =
-                        self.compress_database_name(insert_statement.table_name.0, warehouse_name);
+                        self.compress_database_name(insert_statement.table_name.0, database, schema)?;
 
                     let source = insert_statement.source.map_or_else(
                         || None,
                         |mut query| {
-                            self.update_tables_in_query(query.as_mut(), warehouse_name);
+                            self.update_tables_in_query(query.as_mut(), database, schema)?;
                             Some(Box::new(AstQuery { ..*query }))
                         },
                     );
@@ -1077,24 +1096,14 @@ impl IceBucketQuery {
                     purge,
                     temporary,
                 } => {
-                    match object_type {
-                        ObjectType::Database | ObjectType::Schema => {
-                            let mut table_name = names[0].0.clone();
-                            if !warehouse_name.is_empty()
-                                && !table_name.starts_with(&[Ident::new(warehouse_name)])
-                            {
-                                table_name.insert(0, Ident::new(warehouse_name));
-                            }
-                            names = vec![ObjectName(table_name)];
-                        }
-                        _ => {}
+                    for name in names.iter_mut() {
+                        name = self.compress_database_name(name.0.clone(), database, schema)?;
                     }
 
-                    let names = self.compress_database_name(names[0].clone().0, warehouse_name);
                     let modified_statement = Statement::Drop {
                         object_type,
                         if_exists,
-                        names: vec![ObjectName(names)],
+                        names,
                         cascade,
                         restrict,
                         purge,
@@ -1103,14 +1112,14 @@ impl IceBucketQuery {
                     DFStatement::Statement(Box::new(modified_statement))
                 }
                 Statement::Query(mut query) => {
-                    self.update_tables_in_query(query.as_mut(), warehouse_name);
+                    self.update_tables_in_query(query.as_mut(), database, schema);
                     DFStatement::Statement(Box::new(Statement::Query(query)))
                 }
                 Statement::CreateTable(create_table_statement) => {
                     if create_table_statement.query.is_some() {
                         #[allow(clippy::unwrap_used)]
                         let mut query = create_table_statement.query.unwrap();
-                        self.update_tables_in_query(&mut query, warehouse_name);
+                        self.update_tables_in_query(&mut query, database, schema)?;
                         // TODO: Removing all iceberg properties is temporary solution. It should be
                         // implemented properly in future.
                         // https://github.com/Embucket/control-plane-v2/issues/199
@@ -1137,9 +1146,9 @@ impl IceBucketQuery {
                     returning,
                     or,
                 } => {
-                    self.update_tables_in_table_with_joins(&mut table, warehouse_name);
+                    self.update_tables_in_table_with_joins(&mut table, database, schema)?;
                     if let Some(from) = from.as_mut() {
-                        self.update_tables_in_table_with_joins(from, warehouse_name);
+                        self.update_tables_in_table_with_joins(from, database, schema)?;
                     }
                     let modified_statement = Statement::Update {
                         table,
@@ -1162,29 +1171,33 @@ impl IceBucketQuery {
     pub fn compress_database_name(
         &self,
         mut table_name: Vec<Ident>,
-        warehouse_name: &str,
-    ) -> Vec<Ident> {
-        if !warehouse_name.is_empty()
-            && !table_name.starts_with(&[Ident::new(warehouse_name)])
-            && table_name.len() > 1
-        {
-            table_name.insert(0, Ident::new(warehouse_name));
+        database: &Option<String>,
+        schema: &Option<String>,
+    ) -> ExecutionResult<Vec<Ident>> {
+        if table_name.len() == 1 {
+            match (database, schema) {
+                (Some(database), Some(schema)) => {
+                    table_name.insert(0, Ident::new(database));
+                    table_name.insert(1, Ident::new(schema));
+                }
+                (Some(_), None) => {
+                    return Err(ExecutionError::InvalidIdentifier {
+                        ident: table_name.to_string(),
+                    });
+                }
+                (None, Some(_)) => {
+                    return Err(ExecutionError::InvalidIdentifier {
+                        ident: table_name.to_string(),
+                    });
+                }
+                _ => {}
+            }
+            Ok(table_name)
+        } else if table_name.len() == 3 {
+            Ok(table_name)
+        } else {
+            plan_err!("Invalid table name: {:?}", table_name)
         }
-        #[allow(clippy::unwrap_used)]
-        if table_name.len() > 3 {
-            let new_table_db = &table_name[1..table_name.len() - 1]
-                .iter()
-                .map(|v| v.value.clone())
-                .collect::<Vec<String>>()
-                .join(".");
-
-            table_name = vec![
-                table_name[0].clone(),
-                Ident::new(new_table_db),
-                table_name.last().unwrap().clone(),
-            ];
-        }
-        table_name
     }
 
     #[allow(clippy::only_used_in_recursion)]
@@ -1203,74 +1216,79 @@ impl IceBucketQuery {
         }
     }
 
-    fn update_tables_in_query(&self, query: &mut Query, warehouse_name: &str) {
+    fn update_tables_in_query(&self, query: &mut Query, database: &Option<String>, schema: &Option<String>) -> ExecutionResult<()> {
         if let Some(with) = query.with.as_mut() {
             for cte in &mut with.cte_tables {
-                self.update_tables_in_query(&mut cte.query, warehouse_name);
+                self.update_tables_in_query(&mut cte.query, database, schema)?;
             }
         }
 
         match query.body.as_mut() {
             sqlparser::ast::SetExpr::Select(select) => {
                 for table_with_joins in &mut select.from {
-                    self.update_tables_in_table_with_joins(table_with_joins, warehouse_name);
+                    self.update_tables_in_table_with_joins(table_with_joins, database, schema);
                 }
 
                 if let Some(expr) = &mut select.selection {
-                    self.update_tables_in_expr(expr, warehouse_name);
+                    self.update_tables_in_expr(expr, database, schema)?;
                 }
             }
             sqlparser::ast::SetExpr::Query(q) => {
-                self.update_tables_in_query(q, warehouse_name);
+                self.update_tables_in_query(q, database, schema)?;
             }
             _ => {}
         }
+
+        Ok(())
     }
 
-    fn update_tables_in_expr(&self, expr: &mut Expr, warehouse_name: &str) {
+    fn update_tables_in_expr(&self, expr: &mut Expr, database: &Option<String>, schema: &Option<String>) -> ExecutionResult<()> {
         match expr {
             Expr::BinaryOp { left, right, .. } => {
-                self.update_tables_in_expr(left, warehouse_name);
-                self.update_tables_in_expr(right, warehouse_name);
+                self.update_tables_in_expr(left, database, schema)?;
+                self.update_tables_in_expr(right, database, schema)?;
             }
             Expr::Subquery(q) => {
-                self.update_tables_in_query(q, warehouse_name);
+                self.update_tables_in_query(q, database, schema)?;
             }
             Expr::Exists { subquery, .. } => {
-                self.update_tables_in_query(subquery, warehouse_name);
+                self.update_tables_in_query(subquery, database, schema)?;
             }
             _ => {}
         }
+        Ok(())
     }
 
     fn update_tables_in_table_with_joins(
         &self,
         table_with_joins: &mut TableWithJoins,
-        warehouse_name: &str,
+        database: &Option<String>,
+        schema: &Option<String>,
     ) {
-        self.update_tables_in_table_factor(&mut table_with_joins.relation, warehouse_name);
+        self.update_tables_in_table_factor(&mut table_with_joins.relation, database, schema);
 
         for join in &mut table_with_joins.joins {
-            self.update_tables_in_table_factor(&mut join.relation, warehouse_name);
+            self.update_tables_in_table_factor(&mut join.relation, database, schema);
         }
     }
 
-    fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor, warehouse_name: &str) {
+    fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor, database: &Option<String>, schema: &Option<String>) -> ExecutionResult<()> {
         match table_factor {
             TableFactor::Table { name, .. } => {
-                let compressed_name = self.compress_database_name(name.0.clone(), warehouse_name);
+                let compressed_name = self.compress_database_name(name.0.clone(), database, schema)?;
                 *name = ObjectName(compressed_name);
             }
             TableFactor::Derived { subquery, .. } => {
-                self.update_tables_in_query(subquery, warehouse_name);
+                self.update_tables_in_query(subquery, database, schema)?;
             }
             TableFactor::NestedJoin {
                 table_with_joins, ..
             } => {
-                self.update_tables_in_table_with_joins(table_with_joins, warehouse_name);
+                self.update_tables_in_table_with_joins(table_with_joins, database, schema)?;
             }
             _ => {}
         }
+        Ok(())
     }
 }
 
@@ -1285,4 +1303,40 @@ pub fn created_entity_response() -> ExecutionResult<Vec<RecordBatch>> {
         vec![Arc::new(Int64Array::from(vec![0]))],
     ).context(ex_error::ArrowSnafu)?]
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Query;
+    use datafusion::sql::parser::DFParser;
+
+    #[allow(clippy::unwrap_used)]
+    #[test]
+    fn test_postprocess_query_statement_functions_expressions() {
+        let args: [(&str, &str); 14] = [
+            ("select year(ts)", "SELECT date_part('year', ts)"),
+            ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
+            ("select day(ts)", "SELECT date_part('day', ts)"),
+            ("select dayofmonth(ts)", "SELECT date_part('day', ts)"),
+            ("select dayofweek(ts)", "SELECT date_part('dow', ts)"),
+            ("select month(ts)", "SELECT date_part('month', ts)"),
+            ("select weekofyear(ts)", "SELECT date_part('week', ts)"),
+            ("select week(ts)", "SELECT date_part('week', ts)"),
+            ("select hour(ts)", "SELECT date_part('hour', ts)"),
+            ("select minute(ts)", "SELECT date_part('minute', ts)"),
+            ("select second(ts)", "SELECT date_part('second', ts)"),
+            ("select minute(ts)", "SELECT date_part('minute', ts)"),
+            // Do nothing
+            ("select yearofweek(ts)", "SELECT yearofweek(ts)"),
+            ("select yearofweekiso(ts)", "SELECT yearofweekiso(ts)"),
+        ];
+
+        for (init, exp) in args {
+            let statement = DFParser::parse_sql(init).unwrap().pop_front();
+            if let Some(mut s) = statement {
+                Query::postprocess_query_statement(&mut s);
+                assert_eq!(s.to_string(), exp);
+            }
+        }
+    }
 }
