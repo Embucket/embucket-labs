@@ -1,4 +1,4 @@
-pub mod table;
+
 
 use std::{any::Any, collections::{HashMap, HashSet}, sync::Arc};
 
@@ -15,13 +15,20 @@ use iceberg_rust::{catalog::{commit::{CommitTable as IcebergCommitTable, CommitV
 use iceberg_rust_spec::{identifier::FullIdentifier as IcebergFullIdentifier, manifest::{Content, Status}, namespace::Namespace as IcebergNamespace, schema::Schema, types::{StructField, StructType}, util};
 use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketTable, IceBucketTableIdent, Metastore};
 use object_store::{ObjectMeta, ObjectStore};
-use table::IceBucketIcebergTable;
 
 use iceberg_rust_spec::arrow::schema::*;
 
 #[derive(Clone)]
 pub struct IceBucketDFMetastore {
     pub metastore: Arc<dyn Metastore>,
+}
+
+impl IceBucketDFMetastore {
+    pub fn new(metastore: Arc<dyn Metastore>) -> Self {
+        IceBucketDFMetastore {
+            metastore,
+        }
+    }
 }
 
  // TODO: Fix iceberg_rust so that the Table struct is a trait
@@ -183,15 +190,31 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
             table: name.to_string(),
         };
         let ident_clone = table_ident.clone();
-        let table = tokio::runtime::Handle::current()
+        let table_object_store = tokio::runtime::Handle::current()
             .block_on(async move {
-                self.metastore.get_table(&table_ident).await
+                self.metastore.table_object_store(&table_ident).await
             })
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
         
-        Ok(table.map(|table| {
-            Arc::new(IceBucketDFTable::new(table.data, self.metastore.clone())) as Arc<dyn TableProvider>
-        }))
+        if let Some(object_store) = table_object_store {
+
+            let bridge = Arc::new(IceBucketIcebergBridge {
+                metastore: self.metastore.clone(),
+                ident: ident_clone,
+                object_store: object_store.clone(),
+            });
+
+            let ib_identifier = IcebergIdentifier::new(&[self.database.clone(), self.schema.clone()], name);
+            let tabular = bridge.load_tabular(&ib_identifier).await
+                .map_err(|e| DataFusionError::External(Box::new(e)))?;
+
+            let dftable = IcebergDataFusionTable::new(tabular, None, None, None);
+            Ok(
+                Some(Arc::new(dftable) as Arc<dyn TableProvider>)
+            )
+        } else {
+            Ok(None)
+        }
     }
 
     /// If supported by the implementation, adds a new table named `name` to
@@ -235,16 +258,18 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
     
 }
 
-/*pub struct IceBucketIcebergBridge {
+#[derive(Debug)]
+pub struct IceBucketIcebergBridge {
     pub metastore: Arc<dyn Metastore>,
     pub ident: IceBucketTableIdent,
+    pub object_store: Arc<dyn ObjectStore>,
 }
 
 #[async_trait]
 impl IcebergCatalog for IceBucketIcebergBridge {
     /// Name of the catalog
     fn name(&self) -> &str {
-        &self.ident
+        &self.ident.database
     }
 
     /// Create a namespace in the catalog
@@ -257,7 +282,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             return Err(IcebergError::NotSupported("Nested namespaces are not supported".to_string()));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.database,
+            database: self.ident.database.clone(),
             schema: namespace.join("")
         };
         let schema = IceBucketSchema {
@@ -267,7 +292,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         let schema = self.metastore.create_schema(schema_ident, schema)
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?;
-        Ok(schema.properties.unwrap_or_default())
+        Ok(schema.data.properties.unwrap_or_default())
     }
 
     /// Drop a namespace in the catalog
@@ -276,7 +301,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             return Err(IcebergError::NotSupported("Nested namespaces are not supported".to_string()));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.clone(),
+            database: self.ident.database.clone(),
             schema: namespace.join("")
         };
         self.metastore.delete_schema(&schema_ident, true)
@@ -292,14 +317,14 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             return Err(IcebergError::NotSupported("Nested namespaces are not supported".to_string()));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.clone(),
+            database: self.ident.database.clone(),
             schema: namespace.join("")
         };
         let schema = self.metastore.get_schema(&schema_ident)
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         match schema {
-            Some(schema) => Ok(schema.properties.unwrap_or_default()),
+            Some(schema) => Ok(schema.data.properties.unwrap_or_default()),
             None => Err(IcebergError::NotFound(format!("Namespace {}", namespace.join("")))),
         }
     }
@@ -315,14 +340,15 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             return Err(IcebergError::NotSupported("Nested namespaces are not supported".to_string()));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.clone(),
+            database: self.ident.database.clone(),
             schema: namespace.join("")
         };
         let schema = self.metastore.get_schema(&schema_ident)
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         match schema {
-            Some(mut schema) => {
+            Some(schema) => {
+                let mut schema = schema.data;
                 let mut properties = schema.properties.unwrap_or_default();
                 if let Some(updates) = updates {
                     properties.extend(updates);
@@ -349,7 +375,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             return Err(IcebergError::NotSupported("Nested namespaces are not supported".to_string()));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.clone(),
+            database: self.ident.database.clone(),
             schema: namespace.join("")
         };
         Ok(self.metastore.get_schema(&schema_ident)
@@ -365,23 +391,35 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             return Err(IcebergError::NotSupported("Nested namespaces are not supported".to_string()));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.clone(),
+            database: self.ident.database.clone(),
             schema: namespace.join("")
         };
         Ok(self.metastore.list_tables(&schema_ident)
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?
             .iter()
-            .map(|table| [table.ident.schema.clone(), table.ident.table.clone()].iter().collect())
+            .map(|table| {
+                IcebergIdentifier::new(
+                    &[table.ident.database.clone(), table.ident.schema.clone()], 
+                    &table.ident.table
+                )
+            })
             .collect())
     }
 
     /// Lists all namespaces in the catalog.
     async fn list_namespaces(&self, _parent: Option<&str>) -> Result<Vec<IcebergNamespace>, IcebergError> {
-        self.metastore.list_databases()
-            .await
-            .map_err(|e| IcebergError::External(Box::new(e)))
-            .map(|databases| databases.iter().map(|database| vec![database.ident.clone()]).collect())
+        let mut namespaces = Vec::new();
+        let databases = self.metastore.list_databases().await
+            .map_err(|e| IcebergError::External(Box::new(e)))?;
+        for database in databases {
+            let schemas = self.metastore.list_schemas(&database.ident).await
+                .map_err(|e| IcebergError::External(Box::new(e)))?;
+            for schema in schemas {
+                namespaces.push(IcebergNamespace::try_new(&[schema.ident.database.clone(), schema.ident.schema.clone()])?);
+            }
+        }
+        Ok(namespaces)
     }
 
     /// Check if a table exists
@@ -411,12 +449,12 @@ impl IcebergCatalog for IceBucketIcebergBridge {
     }
 
     /// Drop a table and delete all data and metadata files.
-    async fn drop_view(&self, identifier: &IcebergIdentifier) -> Result<(), IcebergError> {
+    async fn drop_view(&self, _identifier: &IcebergIdentifier) -> Result<(), IcebergError> {
         Err(IcebergError::NotSupported("Views are not supported".to_string()))
     }
 
     /// Drop a table and delete all data and metadata files.
-    async fn drop_materialized_view(&self, identifier: &IcebergIdentifier) -> Result<(), IcebergError> {
+    async fn drop_materialized_view(&self, _identifier: &IcebergIdentifier) -> Result<(), IcebergError> {
         Err(IcebergError::NotSupported("Materialized views are not supported".to_string()))
     }
 
@@ -432,52 +470,14 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         match table {
             Some(table) => {
-                let table_partition_spec = *table.metadata.default_partition_spec().clone();
-                let partition_fields = table_partition_spec.fields()
-                    .iter()
-                    .map(|field| {
-                        let field_transform = match field.transform {
-                            icebucket_metastore::Transform::Identity => iceberg_rust_spec::spec::partition::Transform::Identity,
-                            icebucket_metastore::Transform::Bucket(b) => iceberg_rust_spec::spec::partition::Transform::Bucket(b),
-                            icebucket_metastore::Transform::Truncate(t) => iceberg_rust_spec::spec::partition::Transform::Truncate(t),
-                            icebucket_metastore::Transform::Year => iceberg_rust_spec::spec::partition::Transform::Year,
-                            icebucket_metastore::Transform::Month => iceberg_rust_spec::spec::partition::Transform::Month,
-                            icebucket_metastore::Transform::Day => iceberg_rust_spec::spec::partition::Transform::Day,
-                            icebucket_metastore::Transform::Hour => iceberg_rust_spec::spec::partition::Transform::Hour,
-                            icebucket_metastore::Transform::Void => iceberg_rust_spec::spec::partition::Transform::Void,
-                            icebucket_metastore::Transform::Unknown => iceberg_rust_spec::spec::partition::Transform::Void,
-                        };
-                        iceberg_rust_spec::spec::partition::PartitionField::new(
-                            field.source_id,
-                            field.field_id, 
-                            &field.name, 
-                            field_transform
-                        )
-                    })
-                    .collect();
-                let partition_spec = iceberg_rust_spec::spec::partition::PartitionSpecBuilder::default()
-                    .with_fields(partition_fields)
-                    .with_spec_id(table_partition_spec.spec_id())
-                    .build()
-                    .map_err(|e| IcebergError::External(Box::new(e)))?;
 
-                let current_schema = table.metadata.current_schema();
-                let schema = iceberg_rust_spec::schema::SchemaBuilder::default()
-                    .with_fields(current_schema.as_struct().clone())
-                    .with_schema_id(current_schema.schema_id())
-                    .with_identifier_field_ids(current_schema.identifier_field_ids())
-                    .build()
-                    .map_err(|e| IcebergError::External(Box::new(e)))?;
+                let iceberg_table = IcebergTable::new(
+                    identifier.clone(),
+                    self.clone(),
+                    table.metadata.clone(),
+                ).await?;
 
-                Ok(IcebergTabular::Table(IcebergTable::builder()
-                    .with_location(table.metadata.location.clone())
-                    .with_name(table.ident.table.clone())
-                    .with_partition_spec(partition_spec)
-                    .with_schema(table.metadata.current_schema().clone())
-                    .with_sort_order(table.metadata.default_sort_order())
-                    .with_properties(table.metadata.properties.clone())
-                    .build(identifier.namespace(), self.clone())
-                    .await?))
+                Ok(IcebergTabular::Table(iceberg_table))
             },
             None => Err(IcebergError::NotFound(format!("Table {} not found", identifier.name()))),
         }
@@ -495,19 +495,19 @@ impl IcebergCatalog for IceBucketIcebergBridge {
     /// Create a view with the catalog if it doesn't exist.
     async fn create_view(
         self: Arc<Self>,
-        identifier: IcebergIdentifier,
-        create_view: IcebergCreateView<Option<()>>,
+        _identifier: IcebergIdentifier,
+        _create_view: IcebergCreateView<Option<()>>,
     ) -> Result<IcebergView, IcebergError> {
-        todo!()
+        Err(IcebergError::NotSupported("Views are not supported".to_string()))
     }
 
     /// Register a materialized view with the catalog if it doesn't exist.
     async fn create_materialized_view(
         self: Arc<Self>,
-        identifier: IcebergIdentifier,
-        create_view: IcebergCreateMaterializedView,
+        _identifier: IcebergIdentifier,
+        _create_view: IcebergCreateMaterializedView,
     ) -> Result<IcebergMaterializedView, IcebergError> {
-        todo!()
+        Err(IcebergError::NotSupported("Materialized views are not supported".to_string()))
     }
 
     /// perform commit table operation
@@ -517,33 +517,33 @@ impl IcebergCatalog for IceBucketIcebergBridge {
 
     /// perform commit view operation
     async fn update_view(self: Arc<Self>, commit: IcebergCommitView<Option<()>>) -> Result<IcebergView, IcebergError> {
-        todo!()
+        Err(IcebergError::NotSupported("Views are not supported".to_string()))
     }
 
     /// perform commit view operation
     async fn update_materialized_view(
         self: Arc<Self>,
-        commit: IcebergCommitView<IcebergFullIdentifier>,
+        _commit: IcebergCommitView<IcebergFullIdentifier>,
     ) -> Result<IcebergMaterializedView, IcebergError> {
-        todo!()
+        Err(IcebergError::NotSupported("Materialized views are not supported".to_string()))
     }
 
     /// Register a table with the catalog if it doesn't exist.
     async fn register_table(
         self: Arc<Self>,
-        identifier: IcebergIdentifier,
-        metadata_location: &str,
+        _identifier: IcebergIdentifier,
+        _metadata_location: &str,
     ) -> Result<IcebergTable, IcebergError> {
         todo!()
     }
 
     /// Return the associated object store for a bucket
-    fn object_store(&self, bucket: IcebergBucket) -> Arc<dyn ObjectStore> {
-        todo!()
+    fn object_store(&self, _bucket: IcebergBucket) -> Arc<dyn ObjectStore> {
+        self.object_store.clone()
     }
-}*/
+}
 
-#[derive(Debug)]
+/*#[derive(Debug)]
 pub struct IceBucketDFTable {
     pub table: IceBucketTable,
     pub metastore: Arc<dyn Metastore>,
@@ -917,4 +917,4 @@ impl TableProvider for IceBucketDFTable {
     fn table_type(&self) -> TableType {
         TableType::Base
     }
-}
+}*/

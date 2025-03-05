@@ -27,6 +27,7 @@ use chrono::DateTime;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
+use sqlparser::ast::Ident;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -310,6 +311,20 @@ fn convert_uint_to_int_datatypes(
             fields.push(field.clone().with_metadata(metadata));
             Arc::clone(column)
         }
+    }
+}
+
+pub struct NormalizedIdent(pub Vec<Ident>);
+
+impl From<&NormalizedIdent> for String {
+    fn from(ident: &NormalizedIdent) -> Self {
+        ident.0.iter().map(|i| i.value.clone()).collect::<Vec<_>>().join(".")
+    }
+}
+
+impl std::fmt::Display for NormalizedIdent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", String::from(self))
     }
 }
 

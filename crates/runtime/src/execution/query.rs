@@ -1320,7 +1320,7 @@ impl IceBucketQuery {
     fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor) -> ExecutionResult<()> {
         match table_factor {
             TableFactor::Table { name, .. } => {
-                let compressed_name = self.resolve_table_ident(name.0)?;
+                let compressed_name = self.resolve_table_ident(name.clone().0)?;
                 *name = ObjectName(compressed_name.0);
             }
             TableFactor::Derived { subquery, .. } => {

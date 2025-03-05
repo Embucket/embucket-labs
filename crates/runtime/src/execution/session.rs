@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use super::catalog::IceBucketDFMetastore;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::IceBucketTypePlanner;
 use datafusion::common::error::Result as DFResult;
@@ -25,6 +26,7 @@ use datafusion::sql::planner::IdentNormalizer;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use geodatafusion::udf::native::register_native;
+use icebucket_metastore::Metastore;
 use snafu::ResultExt;
 use std::any::Any;
 use std::collections::HashMap;
@@ -40,9 +42,11 @@ pub struct IceBucketUserSession {
 
 impl IceBucketUserSession {
     #[must_use]
-    pub fn new() -> ExecutionResult<Self> {
+    pub fn new(metastore: Arc<dyn Metastore>) -> ExecutionResult<Self> {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
+
+        let catalog_list_impl = Arc::new(IceBucketDFMetastore::new(metastore));
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::new()
@@ -51,6 +55,7 @@ impl IceBucketUserSession {
                     .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
             )
             .with_default_features()
+            .with_catalog_list(catalog_list_impl)
             .with_query_planner(Arc::new(IcebergQueryPlanner {}))
             .with_type_planner(Arc::new(IceBucketTypePlanner {}))
             .build();
