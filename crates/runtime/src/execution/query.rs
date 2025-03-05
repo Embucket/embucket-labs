@@ -23,13 +23,14 @@ use iceberg_rust::spec::identifier::Identifier;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
-use icebucket_metastore::Metastore;
+use iceberg_rust_spec::types::StructField;
+use icebucket_metastore::{IceBucketTableCreateRequest, IceBucketTableIdent, Metastore};
 use object_store::aws::AmazonS3Builder;
+use serde::Deserialize;
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind,
-    MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use,
+    visit_expressions_mut, BinaryOperator, ColumnDef, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use
 };
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
@@ -38,21 +39,23 @@ use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
 
-use crate::http::http::ui::models::database;
-
-use super::catalog::table;
 use super::datafusion::functions::visit_functions_expressions;
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 use super::session::IceBucketUserSession;
 
+#[derive(Default, Debug, Deserialize)]
+pub struct IceBucketQueryContext {
+    pub database: Option<String>,
+    pub schema: Option<String>,
+}
+
 pub struct IceBucketQuery {
     pub metastore: Arc<dyn Metastore>,
     pub query: String,
     pub session: Arc<IceBucketUserSession>,
-    pub database: Option<String>,
-    pub schema: Option<String>,
+    pub query_context: IceBucketQueryContext
 }
 
 impl IceBucketQuery {
@@ -60,15 +63,13 @@ impl IceBucketQuery {
             session: Arc<IceBucketUserSession>,
             metastore: Arc<dyn Metastore>, 
             query: String, 
-            database: Option<String>,
-            schema: Option<String>
+            query_context: IceBucketQueryContext
             ) -> Self {
         Self {
             metastore,
             query,
             session,
-            database,
-            schema,
+            query_context
         }
     }
 
@@ -89,6 +90,14 @@ impl IceBucketQuery {
                 ControlFlow::<()>::Continue(())
             });
         }
+    }
+
+    fn current_database(&self) -> Option<String> {
+        self.query_context.database.clone().or_else(|| self.session.get_session_variable("database"))
+    }
+
+    fn current_schema(&self) -> Option<String> {
+        self.query_context.schema.clone().or_else(|| self.session.get_session_variable("schema"))
     }
 
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
@@ -270,18 +279,12 @@ impl IceBucketQuery {
         statement: Statement,
     ) -> ExecutionResult<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
-            let session_database = self.session.get_session_variable("database");
-            let session_schema = self.session.get_session_variable("schema");
+            let mut new_table_ident = self.resolve_table_ident(create_table_statement.name.0)?;
 
-            let mut new_table_ident = self.compress_database_name(create_table_statement.name, 
-                &session_database, &session_schema)?;
+            let table_location = create_table_statement.location.clone()
+                .or_else(|| create_table_statement.base_location.clone());
 
-            let database = new_table_ident.0[0].clone();
-            let schema = new_table_ident.0[1].clone();
-            let location = create_table_statement.location.clone();
-
-
-            let table_name = new_table_ident.0.last().unwrap().clone();
+            let table_name = new_table_ident.last().unwrap().clone();
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
             let mut modified_statement = CreateTableStatement {
@@ -298,10 +301,7 @@ impl IceBucketQuery {
             let updated_query = modified_statement.to_string();
 
             let plan = self
-                .get_custom_logical_plan(&updated_query, 
-                    &session_database,
-                    &session_schema
-                )
+                .get_custom_logical_plan(&updated_query)
                 .await?;
             self.session.ctx
                 .execute_logical_plan(plan.clone())
@@ -315,8 +315,8 @@ impl IceBucketQuery {
                 plan.schema().as_arrow().fields(),
                 &mut 0,
             ))
-            .map_err(|err| DataFusionError::External(Box::new(err)))
-            .context(super::error::DataFusionSnafu)?;
+                .map_err(|err| DataFusionError::External(Box::new(err)))
+                .context(super::error::DataFusionSnafu)?;
             let schema = Schema::builder()
                 .with_schema_id(0)
                 .with_identifier_field_ids(vec![])
@@ -328,60 +328,50 @@ impl IceBucketQuery {
             // Check if it already exists, if it is - drop it
             // For now we behave as CREATE OR REPLACE
             // TODO support CREATE without REPLACE
-            let catalog = self.session.ctx.catalog(database).ok_or(
-                ExecutionError::WarehouseNotFound {
-                    name: database.to_string(),
-                },
-            )?;
-            let iceberg_catalog = catalog.as_any().downcast_ref::<IcebergCatalog>().ok_or(
-                ExecutionError::IcebergCatalogNotFound {
-                    warehouse_name: warehouse_name.to_string(),
-                },
-            )?;
-            let rest_catalog = iceberg_catalog.catalog();
-            let new_table_name = self.session.ident_normalizer.normalize(new_table_name.clone());
-            let new_table_ident = Identifier::new(
-                &new_table_db
-                    .iter()
-                    .map(|v| self.session.ident_normalizer.normalize(v.clone()))
-                    .collect::<Vec<String>>(),
-                &new_table_name.clone(),
-            );
-            if matches!(
-                rest_catalog.tabular_exists(&new_table_ident).await,
-                Ok(true)
-            ) {
-                rest_catalog
-                    .drop_table(&new_table_ident)
-                    .await
-                    .context(ex_error::IcebergSnafu)?;
+            let ib_table_ident = IceBucketTableIdent {
+                database: new_table_ident[0].to_string(),
+                schema: new_table_ident[1].to_string(),
+                table: new_table_ident[2].to_string()
             };
-            // Create new table
-            rest_catalog
-                .create_table(
-                    new_table_ident.clone(),
-                    CreateTableCatalog {
-                        name: new_table_name.clone(),
-                        location,
-                        schema,
-                        partition_spec: None,
-                        write_order: None,
-                        stage_create: None,
-                        properties: None,
-                    },
-                )
-                .await
-                .map_err(|err| DataFusionError::External(Box::new(err)))
-                .context(super::error::DataFusionSnafu)?;
+
+            let table_exists = self.metastore.table_exists(&ib_table_ident).await
+                .context(ex_error::MetastoreSnafu)?;
+
+            if table_exists && create_table_statement.or_replace {
+                self.metastore
+                        .delete_table(&ib_table_ident, true)
+                        .await
+                        .context(ex_error::MetastoreSnafu)?;
+            } else if table_exists && create_table_statement.if_not_exists {
+                return Err(ExecutionError::ObjectAlreadyExists { type_name: "table".to_string(), name: ib_table_ident.to_string() });
+            }
+
+            // TODO: Gather volume properties from the .options field
+            let table_create_request = IceBucketTableCreateRequest {
+                ident: ib_table_ident.clone(),
+                schema,
+                location: table_location,
+                partition_spec: None,
+                sort_order: None,
+                stage_create: None,
+                volume_ident: None,
+                is_temporary: Some(create_table_statement.temporary),
+                format: None,
+                properties: None,
+            };
+
+            self.metastore.create_table(ib_table_ident.clone(), table_create_request).await
+                .context(ex_error::MetastoreSnafu)?;
 
             // Insert data to new table
+            // TODO: What is the point of this?
             let insert_query =
-                format!("INSERT INTO {new_table_full_name} SELECT * FROM {new_table_name}");
-            self.execute_with_custom_plan(&insert_query, warehouse_name)
+                format!("INSERT INTO {} SELECT * FROM {}", ib_table_ident.to_string(), table_name);
+            self.execute_with_custom_plan(&insert_query)
                 .await?;
 
             // Drop InMemory table
-            let drop_query = format!("DROP TABLE {new_table_name}");
+            let drop_query = format!("DROP TABLE {}", table_name);
             self.session.ctx
                 .sql(&drop_query)
                 .await
@@ -517,7 +507,6 @@ impl IceBucketQuery {
     pub async fn copy_into_snowflake_query(
         &self,
         statement: Statement,
-        warehouse_name: &str,
     ) -> ExecutionResult<Vec<RecordBatch>> {
         if let Statement::CopyIntoSnowflake {
             into, from_stage, ..
@@ -541,7 +530,6 @@ impl IceBucketQuery {
     pub async fn merge_query(
         &self,
         statement: Statement,
-        warehouse_name: &str,
     ) -> ExecutionResult<Vec<RecordBatch>> {
         if let Statement::Merge {
             table,
@@ -632,8 +620,8 @@ impl IceBucketQuery {
     ) -> ExecutionResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(
             query, 
-            self.session.get_session_variable("database"),
-            self.session.get_session_variable("schema")
+            &self.current_database(),
+            &self.current_schema()
         ).await?;
         let transformed = plan
             .transform(iceberg_transform)
@@ -654,7 +642,6 @@ impl IceBucketQuery {
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_schema(
         &self,
-        warehouse_name: &str,
         name: SchemaName,
         if_not_exists: bool,
     ) -> ExecutionResult<Vec<RecordBatch>> {
@@ -676,11 +663,14 @@ impl IceBucketQuery {
 
     pub async fn create_database(
         &self,
-        _warehouse_name: &str,
         name: ObjectName,
         _if_not_exists: bool,
     ) -> ExecutionResult<Vec<RecordBatch>> {
         // Parse name into catalog (warehouse) name and schema name
+        let current_database = self.current_database();
+        let current_schema = self.current_schema();
+        let object_name = self.compress_database_name(table_name, &current_database, &current_schema)?;
+
         let (warehouse_name, schema_name) = match name.0.len() {
             2 => (
                 self.session.ident_normalizer.normalize(name.0[0].clone()),
@@ -725,8 +715,6 @@ impl IceBucketQuery {
     pub async fn get_custom_logical_plan(
         &self,
         query: &str,
-        database: Option<String>,
-        schema: Option<String>,
     ) -> ExecutionResult<LogicalPlan> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
@@ -736,7 +724,7 @@ impl IceBucketQuery {
         let mut statement = state
             .sql_to_statement(query, dialect)
             .context(super::error::DataFusionSnafu)?;
-        statement = self.update_statement_references(statement, &database, &schema);
+        statement = self.update_statement_references(statement);
 
         if let DFStatement::Statement(s) = statement.clone() {
             let mut ctx_provider = SessionContextProvider {
@@ -803,13 +791,12 @@ impl IceBucketQuery {
         }
     }
 
-    /*#[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn execute_with_custom_plan(
         &self,
         query: &str,
-        warehouse_name: &str,
     ) -> ExecutionResult<Vec<RecordBatch>> {
-        let plan = self.get_custom_logical_plan(query, warehouse_name).await?;
+        let plan = self.get_custom_logical_plan(query).await?;
         self.session
             .ctx
             .execute_logical_plan(plan)
@@ -818,7 +805,117 @@ impl IceBucketQuery {
             .collect()
             .await
             .context(super::error::DataFusionSnafu)
-    }*/
+    }
+
+    fn sql_schema_to_iceberg_schema(&self, start_index: u32, col_def: Vec<ColumnDef>) -> (u32, Vec<StructField>) {
+        let mut index = start_index;
+        let mut fields = vec![];
+        for column in col_def {
+            let field_type = match column.data_type {
+                sqlparser::ast::DataType::Character(character_length) => todo!(),
+                sqlparser::ast::DataType::Char(character_length) => todo!(),
+                sqlparser::ast::DataType::CharacterVarying(character_length) => todo!(),
+                sqlparser::ast::DataType::CharVarying(character_length) => todo!(),
+                sqlparser::ast::DataType::Varchar(character_length) => todo!(),
+                sqlparser::ast::DataType::Nvarchar(character_length) => todo!(),
+                sqlparser::ast::DataType::Uuid => todo!(),
+                sqlparser::ast::DataType::CharacterLargeObject(_) => todo!(),
+                sqlparser::ast::DataType::CharLargeObject(_) => todo!(),
+                sqlparser::ast::DataType::Clob(_) => todo!(),
+                sqlparser::ast::DataType::Binary(_) => todo!(),
+                sqlparser::ast::DataType::Varbinary(_) => todo!(),
+                sqlparser::ast::DataType::Blob(_) => todo!(),
+                sqlparser::ast::DataType::TinyBlob => todo!(),
+                sqlparser::ast::DataType::MediumBlob => todo!(),
+                sqlparser::ast::DataType::LongBlob => todo!(),
+                sqlparser::ast::DataType::Bytes(_) => todo!(),
+                sqlparser::ast::DataType::Numeric(exact_number_info) => todo!(),
+                sqlparser::ast::DataType::Decimal(exact_number_info) => todo!(),
+                sqlparser::ast::DataType::BigNumeric(exact_number_info) => todo!(),
+                sqlparser::ast::DataType::BigDecimal(exact_number_info) => todo!(),
+                sqlparser::ast::DataType::Dec(exact_number_info) => todo!(),
+                sqlparser::ast::DataType::Float(_) => todo!(),
+                sqlparser::ast::DataType::TinyInt(_) => todo!(),
+                sqlparser::ast::DataType::UnsignedTinyInt(_) => todo!(),
+                sqlparser::ast::DataType::Int2(_) => todo!(),
+                sqlparser::ast::DataType::UnsignedInt2(_) => todo!(),
+                sqlparser::ast::DataType::SmallInt(_) => todo!(),
+                sqlparser::ast::DataType::UnsignedSmallInt(_) => todo!(),
+                sqlparser::ast::DataType::MediumInt(_) => todo!(),
+                sqlparser::ast::DataType::UnsignedMediumInt(_) => todo!(),
+                sqlparser::ast::DataType::Int(_) => todo!(),
+                sqlparser::ast::DataType::Int4(_) => todo!(),
+                sqlparser::ast::DataType::Int8(_) => todo!(),
+                sqlparser::ast::DataType::Int16 => todo!(),
+                sqlparser::ast::DataType::Int32 => todo!(),
+                sqlparser::ast::DataType::Int64 => todo!(),
+                sqlparser::ast::DataType::Int128 => todo!(),
+                sqlparser::ast::DataType::Int256 => todo!(),
+                sqlparser::ast::DataType::Integer(_) => todo!(),
+                sqlparser::ast::DataType::UnsignedInt(_) => todo!(),
+                sqlparser::ast::DataType::UnsignedInt4(_) => todo!(),
+                sqlparser::ast::DataType::UnsignedInteger(_) => todo!(),
+                sqlparser::ast::DataType::UInt8 => todo!(),
+                sqlparser::ast::DataType::UInt16 => todo!(),
+                sqlparser::ast::DataType::UInt32 => todo!(),
+                sqlparser::ast::DataType::UInt64 => todo!(),
+                sqlparser::ast::DataType::UInt128 => todo!(),
+                sqlparser::ast::DataType::UInt256 => todo!(),
+                sqlparser::ast::DataType::BigInt(_) => todo!(),
+                sqlparser::ast::DataType::UnsignedBigInt(_) => todo!(),
+                sqlparser::ast::DataType::UnsignedInt8(_) => todo!(),
+                sqlparser::ast::DataType::Float4 => todo!(),
+                sqlparser::ast::DataType::Float32 => todo!(),
+                sqlparser::ast::DataType::Float64 => todo!(),
+                sqlparser::ast::DataType::Real => todo!(),
+                sqlparser::ast::DataType::Float8 => todo!(),
+                sqlparser::ast::DataType::Double => todo!(),
+                sqlparser::ast::DataType::DoublePrecision => todo!(),
+                sqlparser::ast::DataType::Bool => todo!(),
+                sqlparser::ast::DataType::Boolean => todo!(),
+                sqlparser::ast::DataType::Date => todo!(),
+                sqlparser::ast::DataType::Date32 => todo!(),
+                sqlparser::ast::DataType::Time(_, timezone_info) => todo!(),
+                sqlparser::ast::DataType::Datetime(_) => todo!(),
+                sqlparser::ast::DataType::Datetime64(_, _) => todo!(),
+                sqlparser::ast::DataType::Timestamp(_, timezone_info) => todo!(),
+                sqlparser::ast::DataType::Interval => todo!(),
+                sqlparser::ast::DataType::JSON => todo!(),
+                sqlparser::ast::DataType::JSONB => todo!(),
+                sqlparser::ast::DataType::Regclass => todo!(),
+                sqlparser::ast::DataType::Text => todo!(),
+                sqlparser::ast::DataType::TinyText => todo!(),
+                sqlparser::ast::DataType::MediumText => todo!(),
+                sqlparser::ast::DataType::LongText => todo!(),
+                sqlparser::ast::DataType::String(_) => todo!(),
+                sqlparser::ast::DataType::FixedString(_) => todo!(),
+                sqlparser::ast::DataType::Bytea => todo!(),
+                sqlparser::ast::DataType::Bit(_) => todo!(),
+                sqlparser::ast::DataType::BitVarying(_) => todo!(),
+                sqlparser::ast::DataType::Custom(object_name, items) => todo!(),
+                sqlparser::ast::DataType::Array(array_elem_type_def) => todo!(),
+                sqlparser::ast::DataType::Map(data_type, data_type1) => todo!(),
+                sqlparser::ast::DataType::Tuple(struct_fields) => todo!(),
+                sqlparser::ast::DataType::Nested(column_defs) => todo!(),
+                sqlparser::ast::DataType::Enum(enum_members, _) => todo!(),
+                sqlparser::ast::DataType::Set(items) => todo!(),
+                sqlparser::ast::DataType::Struct(struct_fields, struct_bracket_kind) => todo!(),
+                sqlparser::ast::DataType::Union(union_fields) => todo!(),
+                sqlparser::ast::DataType::Nullable(data_type) => todo!(),
+                sqlparser::ast::DataType::LowCardinality(data_type) => todo!(),
+                sqlparser::ast::DataType::Unspecified => todo!(),
+                sqlparser::ast::DataType::Trigger => todo!(),
+            }
+            let field = StructField::new(
+                index,
+                column.name.value.as_str(),
+                column.data_type.to_arrow(),
+                column.is_nullable.unwrap_or(true),
+            );
+            index += 1;
+            fields.push(field);
+        }
+    }
 
     #[allow(clippy::only_used_in_recursion)]
     fn update_qualify_in_query(&self, query: &mut Query) {
@@ -1035,18 +1132,15 @@ impl IceBucketQuery {
     pub fn update_statement_references(
         &self,
         statement: DFStatement,
-        database: &Option<String>,
-        schema: &Option<String>,
-    ) -> DFStatement {
+    ) -> ExecutionResult<DFStatement> {
         match statement.clone() {
             DFStatement::CreateExternalTable(create_external) => {
-                let table_name =
-                    self.compress_database_name(create_external.name.0, database, schema);
+                let table_name = self.resolve_table_ident(create_external.name.0)?;
                 let modified_statement = CreateExternalTable {
                     name: ObjectName(table_name),
                     ..create_external
                 };
-                DFStatement::CreateExternalTable(modified_statement)
+                Ok(DFStatement::CreateExternalTable(modified_statement))
             }
             DFStatement::Statement(s) => match *s {
                 Statement::AlterTable {
@@ -1057,7 +1151,7 @@ impl IceBucketQuery {
                     location,
                     on_cluster,
                 } => {
-                    let name = self.compress_database_name(name.0, database, schema)?;
+                    let name = self.resolve_table_ident(table_ident)?;
                     let modified_statement = Statement::AlterTable {
                         name: ObjectName(name),
                         if_exists,
@@ -1066,11 +1160,10 @@ impl IceBucketQuery {
                         location,
                         on_cluster,
                     };
-                    DFStatement::Statement(Box::new(modified_statement))
+                    Ok(DFStatement::Statement(Box::new(modified_statement)))
                 }
                 Statement::Insert(insert_statement) => {
-                    let table_name =
-                        self.compress_database_name(insert_statement.table_name.0, database, schema)?;
+                    let table_name = self.resolve_table_ident(table_ident)?;
 
                     let source = insert_statement.source.map_or_else(
                         || None,
@@ -1166,38 +1259,38 @@ impl IceBucketQuery {
         }
     }
 
-    // Combine database name identifiers into single Ident
+    // Fill in the database and schema if they are missing
+    // and normalize the identifiers
     #[must_use]
-    pub fn compress_database_name(
-        &self,
-        mut table_name: Vec<Ident>,
-        database: &Option<String>,
-        schema: &Option<String>,
-    ) -> ExecutionResult<Vec<Ident>> {
-        if table_name.len() == 1 {
+    pub fn resolve_table_ident(&self, mut table_ident: Vec<Ident>) -> ExecutionResult<Vec<Ident>> {
+        let database = self.current_database();
+        let schema = self.current_schema();
+        if table_ident.len() == 1 {
             match (database, schema) {
                 (Some(database), Some(schema)) => {
-                    table_name.insert(0, Ident::new(database));
-                    table_name.insert(1, Ident::new(schema));
+                    table_ident.insert(0, Ident::new(database));
+                    table_ident.insert(1, Ident::new(schema));
                 }
                 (Some(_), None) => {
                     return Err(ExecutionError::InvalidIdentifier {
-                        ident: table_name.to_string(),
+                        ident: table_ident.iter().map(ToString::to_string).collect().join("."),
                     });
                 }
                 (None, Some(_)) => {
                     return Err(ExecutionError::InvalidIdentifier {
-                        ident: table_name.to_string(),
+                        ident: table_ident.iter().map(ToString::to_string).collect().join("."),
                     });
                 }
                 _ => {}
             }
-            Ok(table_name)
-        } else if table_name.len() == 3 {
-            Ok(table_name)
-        } else {
-            plan_err!("Invalid table name: {:?}", table_name)
+        } else if table_ident.len() != 3 {
+            return plan_err!("Invalid table name: {:?}", table_ident)
         }
+
+        table_ident
+            .iter()
+            .map(|ident| Ident::new(self.session.ident_normalizer.normalize(ident.clone())))
+            .collect()
     }
 
     #[allow(clippy::only_used_in_recursion)]
@@ -1216,25 +1309,25 @@ impl IceBucketQuery {
         }
     }
 
-    fn update_tables_in_query(&self, query: &mut Query, database: &Option<String>, schema: &Option<String>) -> ExecutionResult<()> {
+    fn update_tables_in_query(&self, query: &mut Query) -> ExecutionResult<()> {
         if let Some(with) = query.with.as_mut() {
             for cte in &mut with.cte_tables {
-                self.update_tables_in_query(&mut cte.query, database, schema)?;
+                self.update_tables_in_query(&mut cte.query)?;
             }
         }
 
         match query.body.as_mut() {
             sqlparser::ast::SetExpr::Select(select) => {
                 for table_with_joins in &mut select.from {
-                    self.update_tables_in_table_with_joins(table_with_joins, database, schema);
+                    self.update_tables_in_table_with_joins(table_with_joins);
                 }
 
                 if let Some(expr) = &mut select.selection {
-                    self.update_tables_in_expr(expr, database, schema)?;
+                    self.update_tables_in_expr(expr)?;
                 }
             }
             sqlparser::ast::SetExpr::Query(q) => {
-                self.update_tables_in_query(q, database, schema)?;
+                self.update_tables_in_query(q)?;
             }
             _ => {}
         }
@@ -1242,17 +1335,17 @@ impl IceBucketQuery {
         Ok(())
     }
 
-    fn update_tables_in_expr(&self, expr: &mut Expr, database: &Option<String>, schema: &Option<String>) -> ExecutionResult<()> {
+    fn update_tables_in_expr(&self, expr: &mut Expr) -> ExecutionResult<()> {
         match expr {
             Expr::BinaryOp { left, right, .. } => {
-                self.update_tables_in_expr(left, database, schema)?;
-                self.update_tables_in_expr(right, database, schema)?;
+                self.update_tables_in_expr(left)?;
+                self.update_tables_in_expr(right)?;
             }
             Expr::Subquery(q) => {
-                self.update_tables_in_query(q, database, schema)?;
+                self.update_tables_in_query(q)?;
             }
             Expr::Exists { subquery, .. } => {
-                self.update_tables_in_query(subquery, database, schema)?;
+                self.update_tables_in_query(subquery)?;
             }
             _ => {}
         }
@@ -1262,29 +1355,27 @@ impl IceBucketQuery {
     fn update_tables_in_table_with_joins(
         &self,
         table_with_joins: &mut TableWithJoins,
-        database: &Option<String>,
-        schema: &Option<String>,
     ) {
-        self.update_tables_in_table_factor(&mut table_with_joins.relation, database, schema);
+        self.update_tables_in_table_factor(&mut table_with_joins.relation);
 
         for join in &mut table_with_joins.joins {
-            self.update_tables_in_table_factor(&mut join.relation, database, schema);
+            self.update_tables_in_table_factor(&mut join.relation);
         }
     }
 
-    fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor, database: &Option<String>, schema: &Option<String>) -> ExecutionResult<()> {
+    fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor) -> ExecutionResult<()> {
         match table_factor {
             TableFactor::Table { name, .. } => {
-                let compressed_name = self.compress_database_name(name.0.clone(), database, schema)?;
+                let compressed_name = self.resolve_table_ident(name.0)?;
                 *name = ObjectName(compressed_name);
             }
             TableFactor::Derived { subquery, .. } => {
-                self.update_tables_in_query(subquery, database, schema)?;
+                self.update_tables_in_query(subquery)?;
             }
             TableFactor::NestedJoin {
                 table_with_joins, ..
             } => {
-                self.update_tables_in_table_with_joins(table_with_joins, database, schema)?;
+                self.update_tables_in_table_with_joins(table_with_joins)?;
             }
             _ => {}
         }
