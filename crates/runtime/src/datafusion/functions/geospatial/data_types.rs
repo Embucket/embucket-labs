@@ -22,6 +22,7 @@ use crate::datafusion::functions::geospatial::error::{
 };
 use arrow_array::ArrayRef;
 use datafusion::error::DataFusionError;
+use datafusion::logical_expr::{Signature, Volatility};
 use geoarrow::array::{
     CoordType, GeometryArray, LineStringArray, PointArray, PolygonArray, RectArray,
 };
@@ -37,6 +38,23 @@ pub const GEOMETRY_TYPE: NativeType = NativeType::Geometry(CoordType::Separated)
 pub const LINE_STRING_TYPE: NativeType =
     NativeType::LineString(CoordType::Separated, Dimension::XY);
 pub const POLYGON_2D_TYPE: NativeType = NativeType::Polygon(CoordType::Separated, Dimension::XY);
+
+#[must_use]
+pub fn any_single_geometry_type_input() -> Signature {
+    Signature::uniform(
+        1,
+        vec![
+            POINT2D_TYPE.into(),
+            POINT3D_TYPE.into(),
+            BOX2D_TYPE.into(),
+            BOX3D_TYPE.into(),
+            LINE_STRING_TYPE.into(),
+            POLYGON_2D_TYPE.into(),
+            GEOMETRY_TYPE.into(),
+        ],
+        Volatility::Immutable,
+    )
+}
 
 /// This will not cast a `PointArray` to a `GeometryArray`
 pub fn parse_to_native_array(array: &ArrayRef) -> GeoDataFusionResult<Arc<dyn NativeArray>> {
