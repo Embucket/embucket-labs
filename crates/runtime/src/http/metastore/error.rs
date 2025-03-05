@@ -26,6 +26,7 @@ impl IntoResponse for MetastoreAPIError {
             MetastoreError::Iceberg { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             MetastoreError::Serde { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             MetastoreError::Validation { .. } => http::StatusCode::BAD_REQUEST,
+            MetastoreError::TableMetadataBuilder { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let error = ErrorResponse {

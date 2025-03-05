@@ -58,7 +58,7 @@ pub enum DbtError {
     Arrow { source: ArrowError },
 
     #[snafu(transparent)]
-    Metastore { source: icebucket_metastore::error::MetastoreError },
+    Metastore { source: crate::http::metastore::error::MetastoreAPIError },
 
     #[snafu(transparent)]
     Execution { source: crate::execution::error::ExecutionError },
@@ -69,6 +69,9 @@ pub type DbtResult<T> = std::result::Result<T, DbtError>;
 impl IntoResponse for DbtError {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         if let Self::Execution { source } = self {
+            return source.into_response();
+        }
+        if let Self::Metastore { source } = self {
             return source.into_response();
         }
 
@@ -84,53 +87,7 @@ impl IntoResponse for DbtError {
                 http::StatusCode::UNAUTHORIZED
             }
             Self::NotImplemented => http::StatusCode::NOT_IMPLEMENTED,
-            Self::Metastore { source } => match source {
-                icebucket_metastore::error::MetastoreError::TableDataExists { .. } => {
-                    http::StatusCode::CONFLICT
-                }
-                icebucket_metastore::error::MetastoreError::TableRequirementFailed { .. } => {
-                    http::StatusCode::UNPROCESSABLE_ENTITY
-                }
-                icebucket_metastore::error::MetastoreError::VolumeValidationFailed { .. } => {
-                    http::StatusCode::BAD_REQUEST
-                }
-                icebucket_metastore::error::MetastoreError::VolumeMissingCredentials => {
-                    http::StatusCode::BAD_REQUEST
-                }
-                icebucket_metastore::error::MetastoreError::CloudProviderNotImplemented { .. } => {
-                    http::StatusCode::PRECONDITION_FAILED
-                }
-                icebucket_metastore::error::MetastoreError::ObjectStore { .. } => {
-                    http::StatusCode::INTERNAL_SERVER_ERROR
-                }
-                icebucket_metastore::error::MetastoreError::CreateDirectory { .. } => {
-                    http::StatusCode::INTERNAL_SERVER_ERROR
-                }
-                icebucket_metastore::error::MetastoreError::SlateDB { .. } => {
-                    http::StatusCode::INTERNAL_SERVER_ERROR
-                }
-                icebucket_metastore::error::MetastoreError::UtilSlateDB { .. } => {
-                    http::StatusCode::INTERNAL_SERVER_ERROR
-                }
-                icebucket_metastore::error::MetastoreError::ObjectAlreadyExists { .. } => {
-                    http::StatusCode::CONFLICT
-                }
-                icebucket_metastore::error::MetastoreError::ObjectNotFound { .. } => {
-                    http::StatusCode::NOT_FOUND
-                }
-                icebucket_metastore::error::MetastoreError::VolumeInUse { .. } => {
-                    http::StatusCode::CONFLICT
-                }
-                icebucket_metastore::error::MetastoreError::Iceberg { .. } => {
-                    http::StatusCode::INTERNAL_SERVER_ERROR
-                }
-                icebucket_metastore::error::MetastoreError::Serde { .. } => {
-                    http::StatusCode::INTERNAL_SERVER_ERROR
-                }
-                icebucket_metastore::error::MetastoreError::Validation { .. } => {
-                    http::StatusCode::BAD_REQUEST
-                }
-            },
+            Self::Metastore { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             Self::Execution { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
         };
 

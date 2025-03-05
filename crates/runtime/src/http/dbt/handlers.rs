@@ -16,6 +16,7 @@
 // under the License.
 
 use super::error::{self as dbt_error, DbtError, DbtResult};
+use crate::execution::query::IceBucketQueryContext;
 use crate::execution::utils::DataFormat;
 use crate::http::dbt::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
@@ -72,7 +73,8 @@ pub async fn login(
     let warehouses = state
         .metastore
         .list_databases()
-        .await?;
+        .await
+        .map_err(|e| DbtError::Metastore { source: e.into() })?;
 
     debug!("login request query: {query:?}, databases: {warehouses:?}");
     for warehouse in warehouses
@@ -154,7 +156,7 @@ pub async fn query(
 
     let (records, columns) = state
         .execution_svc
-        .query(&session_id, &body_json.sql_text)
+        .query(&session_id, &body_json.sql_text, IceBucketQueryContext::default())
         .await
         .map_err(|e| DbtError::Execution { source: e })?;
 
