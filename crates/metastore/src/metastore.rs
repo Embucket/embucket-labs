@@ -3,8 +3,8 @@ use std::{collections::HashMap, sync::Arc};
 use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::Utc;
-use iceberg::{spec::{FormatVersion, TableMetadataBuilder}, TableCreation};
-use iceberg_rust::catalog::Catalog as IcebergRustCatalog;
+use iceberg_rust::{arrow::partition, catalog::{commit::apply_table_updates, Catalog as IcebergRustCatalog}};
+use iceberg_rust_spec::table_metadata::{self, FormatVersion, TableMetadataBuilder};
 use object_store::{path::Path, ObjectStore, PutPayload};
 use serde::de::DeserializeOwned;
 use snafu::ResultExt;
@@ -23,7 +23,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn get_volume(&self, name: &IceBucketVolumeIdent) -> MetastoreResult<Option<RwObject<IceBucketVolume>>>;
     async fn update_volume(&self, name: &IceBucketVolumeIdent, volume: IceBucketVolume) -> MetastoreResult<RwObject<IceBucketVolume>>;
     async fn delete_volume(&self, name: &IceBucketVolumeIdent, cascade: bool) -> MetastoreResult<()>;
-    async fn volume_object_store(&self, name: &IceBucketVolumeIdent) -> MetastoreResult<Arc<dyn ObjectStore>>;
+    async fn volume_object_store(&self, name: &IceBucketVolumeIdent) -> MetastoreResult<Option<Arc<dyn ObjectStore>>>;
 
     async fn list_databases(&self) -> MetastoreResult<Vec<RwObject<IceBucketDatabase>>>;
     async fn create_database(&self, name: IceBucketDatabaseIdent, database: IceBucketDatabase) -> MetastoreResult<RwObject<IceBucketDatabase>>;
@@ -42,10 +42,11 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn get_table(&self, ident: &IceBucketTableIdent) -> MetastoreResult<Option<RwObject<IceBucketTable>>>;
     async fn update_table(&self, ident: &IceBucketTableIdent, update: IceBucketTableUpdate) -> MetastoreResult<RwObject<IceBucketTable>>;
     async fn delete_table(&self, ident: &IceBucketTableIdent, cascade: bool) -> MetastoreResult<()>;
-    async fn table_object_store(&self, ident: &IceBucketTableIdent) -> MetastoreResult<Arc<dyn ObjectStore>>;
-
+    async fn table_object_store(&self, ident: &IceBucketTableIdent) -> MetastoreResult<Option<Arc<dyn ObjectStore>>>;
+    
+    async fn table_exists(&self, ident: &IceBucketTableIdent) -> MetastoreResult<bool>;
     async fn url_for_table(&self, ident: &IceBucketTableIdent) -> MetastoreResult<String>;
-    async fn volume_for_table(&self, ident: &IceBucketTableIdent) -> MetastoreResult<RwObject<IceBucketVolume>>;
+    async fn volume_for_table(&self, ident: &IceBucketTableIdent) -> MetastoreResult<Option<RwObject<IceBucketVolume>>>;
 }
 
 ///
@@ -219,18 +220,16 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    async fn volume_object_store(&self, name: &IceBucketVolumeIdent) -> MetastoreResult<Arc<dyn ObjectStore>> {
+    async fn volume_object_store(&self, name: &IceBucketVolumeIdent) -> MetastoreResult<Option<Arc<dyn ObjectStore>>> {
         let mut cache = self.object_store_cache.lock().await;
         if let Some(store) = cache.get(name) {
-            dbg!("Cache hit", &name);
-            Ok(store.clone())
+            Ok(Some(store.clone()))
         } else {
-            dbg!("Cache miss", &name);
             let volume = self.get_volume(name).await?
                 .ok_or(metastore_error::MetastoreError::ObjectNotFound { type_name: "volume".to_string(), name: name.clone() } )?;
             let object_store = volume.get_object_store()?;
             cache.insert(name.clone(), object_store.clone());
-            Ok(object_store)
+            Ok(Some(object_store))
         }
     }
 
@@ -332,7 +331,7 @@ impl Metastore for SlateDBMetastore {
                     table.volume_ident = Some(volume_ident);
                 }
 
-                table.volume_location.as_ref().map_or_else(|| volume.prefix(), |volume_location| format!("{}/{volume_location}", volume.prefix()))         
+                table.location.as_ref().map_or_else(|| volume.prefix(), |volume_location| format!("{}/{volume_location}", volume.prefix()))         
             } else {
                 let database = self.get_database(&ident.database).await?
                     .ok_or(metastore_error::MetastoreError::ObjectNotFound { type_name: "database".to_string(), name: ident.database.clone() } )?;
@@ -345,17 +344,44 @@ impl Metastore for SlateDBMetastore {
 
             let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
             dbg!(&table_location);
-            let table_creation = {
+            /*let table_creation = {
                 let mut creation:TableCreation = table.clone().try_into()?;
                 creation.location = Some(table_location.clone());
                 creation
-            };
+            };*/
 
-            let table_metadata = TableMetadataBuilder::from_table_creation(table_creation)
-                .and_then(|builder| builder.upgrade_format_version(FormatVersion::V2))
-                .and_then(iceberg::spec::TableMetadataBuilder::build)
-                .context(metastore_error::IcebergSnafu)?
-                .metadata.clone();
+            let mut table_metadata = TableMetadataBuilder::default();
+
+            table_metadata
+                .with_schema((0, table.schema))
+                .format_version(FormatVersion::V2);
+
+            if let Some(properties) = table.properties.as_ref() { 
+                table_metadata.properties(properties.clone());
+            }
+            
+            if let Some(partitioning) = table.partition_spec {
+                table_metadata.with_partition_spec((0, partitioning));
+            }
+            
+            if let Some(sort_order) = table.sort_order {
+                table_metadata.with_sort_order((0, sort_order));
+            }
+
+            if let Some(location) = &table.location {
+                table_metadata.location(location.clone());
+            } else {
+                table_metadata.location(table_location.clone());
+            }   
+
+            let table_metadata = table_metadata
+                .build()
+                .context(metastore_error::TableMetadataBuilderSnafu)?;
+
+                //.and_then(|builder| builder.upgrade_format_version(FormatVersion::V2))
+                //.and_then(iceberg::spec::TableMetadataBuilder::build)
+                //.context(metastore_error::IcebergSnafu)?
+                //.metadata.clone();
 
             let mut table_properties = table.properties.unwrap_or_default().clone();
             Self::update_properties_timestamps(&mut table_properties);
@@ -366,12 +392,13 @@ impl Metastore for SlateDBMetastore {
                 metadata_location: format!("{table_location}/{metadata_part}"),
                 properties: table_properties,
                 volume_ident: table.volume_ident,
-                volume_location: table.volume_location,
+                volume_location: table.location,
                 is_temporary: table.is_temporary.unwrap_or_default()
             };
             let rwo_table = self.create_object(&key, &format!("{KEY_TABLES}/{}/{}", ident.database, ident.schema), "table", table.clone()).await?;
 
-            let object_store = self.table_object_store(&ident).await?;
+            let object_store = self.table_object_store(&ident).await?
+                .ok_or(metastore_error::MetastoreError::ObjectNotFound { type_name: "table_volume".to_string(), name: ident.to_string() } )?;
             let data = Bytes::from(serde_json::to_vec(&table_metadata).context(metastore_error::SerdeSnafu)?);
             let path = Path::from(table.metadata_location.clone());
             object_store.put(&path, PutPayload::from(data))
@@ -385,24 +412,17 @@ impl Metastore for SlateDBMetastore {
     }
 
     async fn update_table(&self, ident: &IceBucketTableIdent, update: IceBucketTableUpdate ) -> MetastoreResult<RwObject<IceBucketTable>> {
-        let table = self.get_table(ident).await?
-            .ok_or(metastore_error::MetastoreError::ObjectNotFound { type_name: "table".to_string(), name: ident.to_string() } )?;
+        let mut table = self.get_table(ident).await?
+            .ok_or(metastore_error::MetastoreError::ObjectNotFound { type_name: "table".to_string(), name: ident.to_string() } )?
+            .data;
 
         update.requirements
             .into_iter()
             .map(TableRequirementExt::new)
             .try_for_each(|req| req.assert(&table.metadata, true))?;
 
-        let mut builder = TableMetadataBuilder::new_from_metadata(
-            table.metadata.clone(), 
-            Some(table.metadata_location.clone())
-        );
-
-        for update in update.updates {
-            builder = update.apply(builder).context(metastore_error::IcebergSnafu)?;
-        }
-        let result = builder.build().context(metastore_error::IcebergSnafu)?;
-        let table_metadata = result.metadata.clone();
+        apply_table_updates(&mut table.metadata, update.updates)
+            .context(metastore_error::IcebergSnafu)?;
 
         let mut properties = table.properties.clone();
         Self::update_properties_timestamps(&mut properties);
@@ -410,15 +430,8 @@ impl Metastore for SlateDBMetastore {
         let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
         let table_location = self.url_for_table(ident).await?;
         let metadata_location = format!("{table_location}/{metadata_part}");
-        let table = IceBucketTable {
-            ident: ident.clone(),
-            metadata: table_metadata,
-            metadata_location: metadata_location.clone(),
-            properties,
-            volume_ident: table.volume_ident.clone(),
-            volume_location: table.volume_location.clone(),
-            is_temporary: table.is_temporary
-        };
+        
+        table.metadata_location = metadata_location.clone();
 
         let key = format!("{KEY_TABLE}/{}/{}/{}", ident.database, ident.schema, ident.table);
         let rw_table = self.update_object(&key, table.clone()).await?;
@@ -441,7 +454,8 @@ impl Metastore for SlateDBMetastore {
     async fn delete_table(&self, ident: &IceBucketTableIdent, cascade: bool) -> MetastoreResult<()> {
         if let Some(table) = self.get_table(ident).await? {
             if cascade {
-                let object_store = self.table_object_store(ident).await?;
+                let object_store = self.table_object_store(ident).await?
+                    .ok_or(metastore_error::MetastoreError::ObjectNotFound { type_name: "table_volume".to_string(), name: ident.to_string() } )?;
                 let metadata_path = Path::from(self.url_for_table(ident).await?);
                 object_store.delete(&metadata_path).await
                     .context(metastore_error::ObjectStoreSnafu)?;
@@ -464,9 +478,18 @@ impl Metastore for SlateDBMetastore {
             .context(metastore_error::UtilSlateDBSnafu)
     }
 
-    async fn table_object_store(&self, ident: &IceBucketTableIdent) -> MetastoreResult<Arc<dyn ObjectStore>> {
-        let volume = self.volume_for_table(ident).await?;
-        self.volume_object_store(&volume.ident).await
+    async fn table_object_store(&self, ident: &IceBucketTableIdent) -> MetastoreResult<Option<Arc<dyn ObjectStore>>> {
+        if let Some(volume) = self.volume_for_table(ident)
+            .await? {
+            self.volume_object_store(&volume.ident).await
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn table_exists(&self, ident:&IceBucketTableIdent) -> MetastoreResult<bool> {
+        self.get_table(ident).await
+            .map(|table| table.is_some())
     }
 
     async fn url_for_table(&self, ident: &IceBucketTableIdent, ) -> MetastoreResult<String> {
@@ -501,7 +524,7 @@ impl Metastore for SlateDBMetastore {
         return Err(metastore_error::MetastoreError::ObjectNotFound { type_name: "table".to_string(), name: ident.to_string() })
     }
 
-    async fn volume_for_table(&self, ident: &IceBucketTableIdent) -> MetastoreResult<RwObject<IceBucketVolume>> {
+    async fn volume_for_table(&self, ident: &IceBucketTableIdent) -> MetastoreResult<Option<RwObject<IceBucketVolume>>> {
         let volume_ident = if let Some(Some(volume_ident)) = 
             self.get_table(ident).await?
                 .map(|table| table.volume_ident.clone()) {
@@ -511,9 +534,7 @@ impl Metastore for SlateDBMetastore {
                 .ok_or(metastore_error::MetastoreError::ObjectNotFound { type_name: "database".to_string(), name: ident.database.clone() } )?
                 .volume.clone()
         };
-        dbg!(&volume_ident);
-        self.get_volume(&volume_ident).await?
-            .ok_or(metastore_error::MetastoreError::ObjectNotFound { type_name: "volume".to_string(), name: volume_ident.clone() } )
+        self.get_volume(&volume_ident).await
     }
 }
 
@@ -523,7 +544,7 @@ mod tests {
     use super::*;
     use either::Either;
     use futures::StreamExt;
-    use iceberg::spec::{NestedFieldRef, NestedField, Type, PrimitiveType};
+    use iceberg_rust_spec::{schema::Schema, types::{PrimitiveType, StructField, StructType, Type}};
     use slatedb::db::Db as SlateDb;
     use std::sync::Arc;
 
@@ -680,20 +701,18 @@ mod tests {
         let db = Db::new(Arc::new(sdb));
         let ms = SlateDBMetastore::new(db);
 
-        let schema_fields = vec![
-            NestedFieldRef::new(NestedField::new(
-                    0,
-                    "id".to_owned(),
-                    Type::Primitive(PrimitiveType::Int),
-                    false
-            )),
-            NestedFieldRef::new(NestedField::new(
-                1,
-                "name".to_owned(),
-                Type::Primitive(PrimitiveType::String),
-                false
-        )),
-        ];
+        let schema = Schema::builder()
+            .with_schema_id(0)
+            .with_fields(StructType::builder()
+                .fields(vec![
+                    StructField::new(0, "id", true, Type::Primitive(PrimitiveType::Int), None),
+                    StructField::new(1, "name", true, Type::Primitive(PrimitiveType::String), None),
+                ])
+                .build()
+                .expect("struct type build failed")
+            )
+            .build()
+            .expect("schema build failed");
 
         let table = IceBucketTableCreateRequest {
             ident: IceBucketTableIdent {
@@ -704,12 +723,9 @@ mod tests {
             format: None,
             properties: None,
             location: None,
-            schema: Either::Left(IceBucketSimpleSchema {
-                fields: schema_fields,
-                schema_id: None,
-            }),
+            schema,
             partition_spec: None,
-            write_order: None,
+            sort_order: None,
             stage_create: None,
             volume_ident: None,
             volume_location: None,
@@ -723,7 +739,7 @@ mod tests {
         ms.create_database("testdb".to_owned(), IceBucketDatabase { ident: "testdb".to_owned(), volume: "testv1".to_owned(), properties: None }).await.expect("create database failed");
         ms.create_schema(IceBucketSchemaIdent { database: "testdb".to_owned(), schema: "testschema".to_owned() }, IceBucketSchema { ident: IceBucketSchemaIdent { database: "testdb".to_owned(), schema: "testschema".to_owned() }, properties: None }).await.expect("create schema failed");
         let table_create = ms.create_table(table.ident.clone(), table.clone()).await.expect("create table failed");
-        let vol_object_store = ms.volume_object_store(&"testv1".to_owned()).await.expect("get volume object store failed");
+        let vol_object_store = ms.volume_object_store(&"testv1".to_owned()).await.expect("get volume object store failed").expect("Object store not found");
         let paths: Result<Vec<_>, ()> = vol_object_store.list(None)
             .then(|c| async move { Ok::<_, ()>(c) })
             .collect::<Vec<Result<_, _>>>()
@@ -750,20 +766,18 @@ mod tests {
         let db = Db::new(Arc::new(sdb));
         let ms = SlateDBMetastore::new(db);
 
-        let schema_fields = vec![
-            NestedFieldRef::new(NestedField::new(
-                    0,
-                    "id".to_owned(),
-                    Type::Primitive(PrimitiveType::Int),
-                    false
-            )),
-            NestedFieldRef::new(NestedField::new(
-                1,
-                "name".to_owned(),
-                Type::Primitive(PrimitiveType::String),
-                false
-        )),
-        ];
+        let schema = Schema::builder()
+            .with_schema_id(0)
+            .with_fields(StructType::builder()
+                .fields(vec![
+                    StructField::new(0, "id", true, Type::Primitive(PrimitiveType::Int), None),
+                    StructField::new(1, "name", true, Type::Primitive(PrimitiveType::String), None),
+                ])
+                .build()
+                .expect("struct type build failed")
+            )
+            .build()
+            .expect("schema build failed");
 
         let table = IceBucketTableCreateRequest {
             ident: IceBucketTableIdent {
@@ -774,12 +788,9 @@ mod tests {
             format: None,
             properties: None,
             location: None,
-            schema: Either::Left(IceBucketSimpleSchema {
-                fields: schema_fields,
-                schema_id: None,
-            }),
+            schema,
             partition_spec: None,
-            write_order: None,
+            sort_order: None,
             stage_create: None,
             volume_ident: None,
             volume_location: None,
@@ -791,7 +802,7 @@ mod tests {
         ms.create_database("testdb".to_owned(), IceBucketDatabase { ident: "testdb".to_owned(), volume: "testv1".to_owned(), properties: None }).await.expect("create database failed");
         ms.create_schema(IceBucketSchemaIdent { database: "testdb".to_owned(), schema: "testschema".to_owned() }, IceBucketSchema { ident: IceBucketSchemaIdent { database: "testdb".to_owned(), schema: "testschema".to_owned() }, properties: None }).await.expect("create schema failed");
         let create_table = ms.create_table(table.ident.clone(), table.clone()).await.expect("create table failed");
-        let vol_object_store = ms.table_object_store(&create_table.ident).await.expect("get table object store failed");
+        let vol_object_store = ms.table_object_store(&create_table.ident).await.expect("get table object store failed").expect("Object store not found");
 
         let paths: Result<Vec<_>, ()> = vol_object_store.list(None)
             .then(|c| async move { Ok::<_, ()>(c) })

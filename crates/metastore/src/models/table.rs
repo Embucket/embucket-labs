@@ -2,16 +2,18 @@ use std::{collections::HashMap, fmt::Display};
 
 use chrono::Utc;
 use either::Either;
-use iceberg::{spec::{NestedFieldRef, TableMetadata}, TableRequirement, TableUpdate};
+//use iceberg_rust_spec::{spec::NestedFieldRef, TableRequirement, TableUpdate};
+use iceberg_rust::{catalog::commit::{TableRequirement, TableUpdate}, spec::table_metadata::TableMetadata};
+use iceberg_rust_spec::{partition::PartitionSpec, schema::Schema, sort::SortOrder};
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use utoipa::{PartialSchema, ToSchema, openapi, schema as utoipa_schema};
 use validator::Validate;
 
-pub use iceberg::spec::{
+/*pub use iceberg::spec::{
     NullOrder, PartitionSpec, Schema, Snapshot, SortDirection, SortField, SortOrder,
     Transform, UnboundPartitionField, UnboundPartitionSpec, ViewMetadata, ViewVersion,
-};
+};*/
 
 use crate::error::{self as metastore_error, MetastoreResult, MetastoreError};
 
@@ -69,7 +71,7 @@ pub enum IceBucketTableFormat {
     Iceberg,
 }
 
-#[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+/*#[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct IceBucketSimpleSchema {
     pub fields: Vec<NestedFieldRef>,
     pub schema_id: Option<i32>,
@@ -88,7 +90,7 @@ impl TryFrom<IceBucketSimpleSchema> for Schema {
     }
 }
 
-type SimpleOrIcebergSchema = Either<IceBucketSimpleSchema, Schema>;
+type SimpleOrIcebergSchema = Either<IceBucketSimpleSchema, Schema>;*/
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct IceBucketTable {
@@ -144,16 +146,16 @@ pub struct IceBucketTableCreateRequest {
     pub format: Option<IceBucketTableFormat>,
 
     pub location: Option<String>,
-    pub schema: SimpleOrIcebergSchema,
-    pub partition_spec: Option<UnboundPartitionSpec>,
-    pub write_order: Option<SortOrder>,
+    //pub schema: SimpleOrIcebergSchema,
+    pub schema: Schema,
+    pub partition_spec: Option<PartitionSpec>,
+    pub sort_order: Option<SortOrder>,
     pub stage_create: Option<bool>,
     pub volume_ident: Option<IceBucketVolumeIdent>,
-    pub volume_location: Option<String>,
     pub is_temporary: Option<bool>,
 }
 
-impl TryFrom<IceBucketTableCreateRequest> for iceberg::TableCreation {
+/*impl TryFrom<IceBucketTableCreateRequest> for iceberg::TableCreation {
     type Error = MetastoreError;
 
     fn try_from(schema: IceBucketTableCreateRequest) -> MetastoreResult<Self> {
@@ -179,7 +181,7 @@ impl TryFrom<IceBucketTableCreateRequest> for iceberg::TableCreation {
             properties,
         })
     }
-}
+}*/
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -216,29 +218,28 @@ impl TableRequirementExt {
 
     pub fn assert(&self, metadata: &TableMetadata, exists: bool) -> MetastoreResult<()> {
         match self.inner() {
-            TableRequirement::NotExist => {
+            TableRequirement::AssertCreate => {
                 if exists {
                     return Err(MetastoreError::TableDataExists {
-                        location: metadata.location().to_string(),
+                        location: metadata.location.to_string(),
                     });
                 }
             }
-            TableRequirement::UuidMatch { uuid } => {
-                if &metadata.uuid() != uuid {
+            TableRequirement::AssertTableUuid { uuid } => {
+                if &metadata.table_uuid != uuid {
                     return Err(MetastoreError::TableRequirementFailed {
                         message: "Table uuid does not match".to_string(),
                     });
                 }
             }
-            TableRequirement::CurrentSchemaIdMatch { current_schema_id } => {
-                // ToDo: Harmonize the types of current_schema_id
-                if i64::from(metadata.current_schema_id) != *current_schema_id {
+            TableRequirement::AssertCurrentSchemaId { current_schema_id } => {
+                if metadata.current_schema_id != *current_schema_id {
                     return Err(MetastoreError::TableRequirementFailed {
                         message: "Table current schema id does not match".to_string(),
                     });
                 }
             }
-            TableRequirement::DefaultSortOrderIdMatch {
+            TableRequirement::AssertDefaultSortOrderId {
                 default_sort_order_id,
             } => {
                 if metadata.default_sort_order_id != *default_sort_order_id {
@@ -247,49 +248,41 @@ impl TableRequirementExt {
                     });
                 }
             }
-            TableRequirement::RefSnapshotIdMatch { r#ref, snapshot_id } => {
-                if let Some(snapshot_id) = snapshot_id {
-                    let snapshot_ref =
-                        metadata
-                            .refs
-                            .get(r#ref)
-                            .ok_or_else(|| MetastoreError::TableRequirementFailed {
-                                message: "Table ref not found".to_string(),
-                            })?;
-                    if snapshot_ref.snapshot_id != *snapshot_id {
-                        return Err(MetastoreError::TableRequirementFailed {
-                            message: "Table ref snapshot id does not match".to_string(),
-                        });
-                    }
-                } else if metadata.refs.contains_key(r#ref) {
+            TableRequirement::AssertRefSnapshotId { r#ref, snapshot_id } => {
+                let snapshot_ref =
+                    metadata
+                        .refs
+                        .get(r#ref)
+                        .ok_or_else(|| MetastoreError::TableRequirementFailed {
+                            message: "Table ref not found".to_string(),
+                        })?;
+                if snapshot_ref.snapshot_id != *snapshot_id {
                     return Err(MetastoreError::TableRequirementFailed {
                         message: "Table ref snapshot id does not match".to_string(),
                     });
                 }
             }
-            TableRequirement::DefaultSpecIdMatch { default_spec_id } => {
+            TableRequirement::AssertDefaultSpecId { default_spec_id } => {
                 // ToDo: Harmonize the types of default_spec_id
-                if i64::from(metadata.default_partition_spec_id()) != *default_spec_id {
+                if metadata.default_spec_id != *default_spec_id {
                     return Err(MetastoreError::TableRequirementFailed {
                         message: "Table default spec id does not match".to_string(),
                     });
                 }
             }
-            TableRequirement::LastAssignedPartitionIdMatch {
+            TableRequirement::AssertLastAssignedPartitionId {
                 last_assigned_partition_id,
             } => {
-                if i64::from(metadata.last_partition_id) != *last_assigned_partition_id {
+                if metadata.last_partition_id != *last_assigned_partition_id {
                     return Err(MetastoreError::TableRequirementFailed {
                         message: "Table last assigned partition id does not match".to_string(),
                     });
                 }
             }
-            TableRequirement::LastAssignedFieldIdMatch {
+            TableRequirement::AssertLastAssignedFieldId {
                 last_assigned_field_id,
             } => {
-                // ToDo: Harmonize types
-                let last_column_id: i64 = metadata.last_column_id.into();
-                if &last_column_id != last_assigned_field_id {
+                if &metadata.last_column_id != last_assigned_field_id {
                     return Err(MetastoreError::TableRequirementFailed {
                         message: "Table last assigned field id does not match".to_string(),
                     });

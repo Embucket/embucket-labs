@@ -1,3 +1,4 @@
+use iceberg_rust_spec::table_metadata::TableMetadataBuilderError;
 use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
@@ -40,7 +41,10 @@ pub enum MetastoreError {
     VolumeInUse { database: String },
 
     #[snafu(display("Iceberg error: {source}"))]
-    Iceberg { source: iceberg::Error },
+    Iceberg { source: iceberg_rust::error::Error },
+
+    #[snafu(display("TableMetadataBuilder error: {source}"))]
+    TableMetadataBuilder { source: TableMetadataBuilderError },
 
     #[snafu(display("Seriliazation error: {source}"))]
     Serde { source: serde_json::Error },
