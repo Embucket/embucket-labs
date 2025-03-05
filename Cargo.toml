@@ -44,18 +44,18 @@ datafusion-macros = { version = "45.0.0" }
 
 # do not change iceberg-rust, datafusion-functions-json hash commits unless datafusion version bumped
 datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "f2b9b88cd9b4282bc0286a970333e8c01cec177b" }
-iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "3a9766f14341870a3f9cacbbcaf59b62f878ef68" }
-iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "3a9766f14341870a3f9cacbbcaf59b62f878ef68" }
-iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "3a9766f14341870a3f9cacbbcaf59b62f878ef68" }
-datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "3a9766f14341870a3f9cacbbcaf59b62f878ef68" }
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1bfc71ee1353f91773ab7354d64a8ca2c3c3bb3d" }
+iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1bfc71ee1353f91773ab7354d64a8ca2c3c3bb3d" }
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1bfc71ee1353f91773ab7354d64a8ca2c3c3bb3d" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1bfc71ee1353f91773ab7354d64a8ca2c3c3bb3d" }
 
 [patch.crates-io]
-datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
-datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
-datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
-datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
-datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
-datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "314a72634dc4f15242345fd17dc32df6c3ae04e8" }
+datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
+datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
+datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
+datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
+datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
+datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
