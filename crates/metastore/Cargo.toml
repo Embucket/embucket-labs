@@ -7,7 +7,6 @@ edition = "2021"
 async-trait = { workspace = true }
 bytes = { workspace = true }
 chrono = "0.4.38"
-either = { version = "1.14.0", features = ["serde"] }
 futures = { workspace = true }
 iceberg-rust = { workspace = true }
 iceberg-rust-spec = { workspace = true }

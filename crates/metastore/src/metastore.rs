@@ -3,8 +3,8 @@ use std::{collections::HashMap, sync::Arc};
 use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::Utc;
-use iceberg_rust::{arrow::partition, catalog::{commit::apply_table_updates, Catalog as IcebergRustCatalog}};
-use iceberg_rust_spec::table_metadata::{self, FormatVersion, TableMetadataBuilder};
+use iceberg_rust::catalog::commit::apply_table_updates;
+use iceberg_rust_spec::table_metadata::{FormatVersion, TableMetadataBuilder};
 use object_store::{path::Path, ObjectStore, PutPayload};
 use serde::de::DeserializeOwned;
 use snafu::ResultExt;
@@ -378,11 +378,6 @@ impl Metastore for SlateDBMetastore {
                 .build()
                 .context(metastore_error::TableMetadataBuilderSnafu)?;
 
-                //.and_then(|builder| builder.upgrade_format_version(FormatVersion::V2))
-                //.and_then(iceberg::spec::TableMetadataBuilder::build)
-                //.context(metastore_error::IcebergSnafu)?
-                //.metadata.clone();
-
             let mut table_properties = table.properties.unwrap_or_default().clone();
             Self::update_properties_timestamps(&mut table_properties);
 
@@ -431,7 +426,7 @@ impl Metastore for SlateDBMetastore {
         let table_location = self.url_for_table(ident).await?;
         let metadata_location = format!("{table_location}/{metadata_part}");
         
-        table.metadata_location = metadata_location.clone();
+        table.metadata_location = String::from(&metadata_location);
 
         let key = format!("{KEY_TABLE}/{}/{}/{}", ident.database, ident.schema, ident.table);
         let rw_table = self.update_object(&key, table.clone()).await?;
@@ -542,7 +537,6 @@ impl Metastore for SlateDBMetastore {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use either::Either;
     use futures::StreamExt;
     use iceberg_rust_spec::{schema::Schema, types::{PrimitiveType, StructField, StructType, Type}};
     use slatedb::db::Db as SlateDb;
@@ -728,7 +722,6 @@ mod tests {
             sort_order: None,
             stage_create: None,
             volume_ident: None,
-            volume_location: None,
             is_temporary: None,
         };
 
@@ -793,7 +786,6 @@ mod tests {
             sort_order: None,
             stage_create: None,
             volume_ident: None,
-            volume_location: None,
             is_temporary: Some(true),
         };
 

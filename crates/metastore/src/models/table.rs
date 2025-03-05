@@ -1,21 +1,10 @@
 use std::{collections::HashMap, fmt::Display};
-
-use chrono::Utc;
-use either::Either;
-//use iceberg_rust_spec::{spec::NestedFieldRef, TableRequirement, TableUpdate};
 use iceberg_rust::{catalog::commit::{TableRequirement, TableUpdate}, spec::table_metadata::TableMetadata};
 use iceberg_rust_spec::{partition::PartitionSpec, schema::Schema, sort::SortOrder};
 use serde::{Deserialize, Serialize};
-use snafu::ResultExt;
-use utoipa::{PartialSchema, ToSchema, openapi, schema as utoipa_schema};
 use validator::Validate;
 
-/*pub use iceberg::spec::{
-    NullOrder, PartitionSpec, Schema, Snapshot, SortDirection, SortField, SortOrder,
-    Transform, UnboundPartitionField, UnboundPartitionSpec, ViewMetadata, ViewVersion,
-};*/
-
-use crate::error::{self as metastore_error, MetastoreResult, MetastoreError};
+use crate::error::{MetastoreResult, MetastoreError};
 
 use super::{IceBucketSchemaIdent, IceBucketVolumeIdent};
 
