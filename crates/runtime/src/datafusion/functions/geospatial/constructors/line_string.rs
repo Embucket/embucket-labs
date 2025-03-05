@@ -25,7 +25,9 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use datafusion_common::{DataFusionError, Result};
-use geo_traits::{LineStringTrait, PointTrait};
+use datafusion_doc::Documentation;
+use datafusion_expr::scalar_doc_sections::DOC_SECTION_OTHER;
+use geo_traits::{LineStringTrait, MultiPointTrait, PointTrait};
 use geoarrow::array::{
     AsNativeArray, CoordType, LineStringArray, LineStringBuilder, MultiPointArray, PointArray,
 };
@@ -36,7 +38,7 @@ use geoarrow::ArrayBase;
 use geozero::GeomProcessor;
 use snafu::ResultExt;
 use std::any::Any;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 #[derive(Debug)]
 pub struct MakeLine {
@@ -50,6 +52,7 @@ impl Default for MakeLine {
 }
 
 impl MakeLine {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(
@@ -64,6 +67,8 @@ impl MakeLine {
         }
     }
 }
+
+static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
 
 impl ScalarUDFImpl for MakeLine {
     fn as_any(&self) -> &dyn Any {
@@ -84,6 +89,18 @@ impl ScalarUDFImpl for MakeLine {
 
     fn invoke_batch(&self, args: &[ColumnarValue], _number_rows: usize) -> Result<ColumnarValue> {
         unsafe { make_line(args) }
+    }
+
+    fn documentation(&self) -> Option<&Documentation> {
+        Some(DOCUMENTATION.get_or_init(|| {
+            Documentation::builder(
+                DOC_SECTION_OTHER,
+                "Returns a geometry t that represents a line connecting the points in the input objects.",
+                "ST_MakeLine(ST_POINT(-71.104, 42.315), ST_POINT(-71.103, 42.312))",
+            )
+                .with_related_udf("st_makeline")
+                .build()
+        }))
     }
 }
 
@@ -133,54 +150,58 @@ unsafe fn make_line(args: &[ColumnarValue]) -> Result<ColumnarValue> {
             Ok(point_array)
         })
         .collect::<Result<Vec<LineStringArray>>>()?;
-    let merged_point_array = point_arrays_to_linestring(&parsed_arrays, array_size)?;
-    Ok(ColumnarValue::from(merged_point_array.to_array_ref()))
+    let merged_lines_array = merge_lines(&parsed_arrays, array_size)?;
+    Ok(ColumnarValue::from(merged_lines_array.to_array_ref()))
 }
 
 fn multi_points_to_line(multi_point_array: &MultiPointArray) -> Result<LineStringArray> {
     let mut builder =
         LineStringBuilder::new_with_options(Dimension::XY, CoordType::Separated, Arc::default());
-    builder
-        .linestring_begin(true, multi_point_array.len(), 0)
-        .map_err(|e| DataFusionError::Execution(format!("Failed to start linestring: {e}")))?;
-    for p in multi_point_array.iter_geo_values().flatten() {
-        unsafe {
-            if let Some(coord) = p.coord() {
-                builder
-                    .push_coord(coord)
-                    .context(geo_error::GeoArrowSnafu)?;
+
+    for (idx, mp) in multi_point_array.iter_geo_values().enumerate() {
+        builder
+            .linestring_begin(true, mp.len(), idx)
+            .map_err(|e| DataFusionError::Execution(format!("Failed to start linestring: {e}")))?;
+        for point in mp.points() {
+            unsafe {
+                if let Some(coord) = point.coord() {
+                    builder
+                        .push_coord(coord)
+                        .context(geo_error::GeoArrowSnafu)?;
+                }
             }
         }
+        builder
+            .linestring_end(true, idx)
+            .map_err(|e| DataFusionError::Execution(format!("Failed to end linestring: {e}")))?;
     }
-    builder
-        .linestring_end(true, 0)
-        .map_err(|e| DataFusionError::Execution(format!("Failed to end linestring: {e}")))?;
+
     Ok(builder.finish())
 }
 
 fn points_to_line(points: &PointArray) -> Result<LineStringArray> {
     let mut builder =
         LineStringBuilder::new_with_options(Dimension::XY, CoordType::Separated, Arc::default());
-    builder
-        .linestring_begin(true, points.len(), 0)
-        .map_err(|e| DataFusionError::Execution(format!("Failed to start linestring: {e}")))?;
 
-    for p in points.iter_geo_values() {
+    for (idx, point) in points.iter_geo_values().enumerate() {
+        builder
+            .linestring_begin(true, 1, idx)
+            .map_err(|e| DataFusionError::Execution(format!("Failed to start linestring: {e}")))?;
         unsafe {
-            if let Some(coord) = p.coord() {
+            if let Some(coord) = point.coord() {
                 builder
                     .push_coord(coord)
                     .context(geo_error::GeoArrowSnafu)?;
             }
         }
+        builder
+            .linestring_end(true, idx)
+            .map_err(|e| DataFusionError::Execution(format!("Failed to end linestring: {e}")))?;
     }
-    builder
-        .linestring_end(true, 0)
-        .map_err(|e| DataFusionError::Execution(format!("Failed to end linestring: {e}")))?;
     Ok(builder.finish())
 }
 
-unsafe fn point_arrays_to_linestring(
+unsafe fn merge_lines(
     line_arrays: &[LineStringArray],
     array_size: usize,
 ) -> Result<LineStringArray> {
@@ -215,3 +236,85 @@ unsafe fn point_arrays_to_linestring(
 }
 
 make_udf_function!(MakeLine);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::datafusion::functions::geospatial::data_types::LINE_STRING_TYPE;
+    use arrow_array::Array;
+    use datafusion::logical_expr::ColumnarValue;
+    use geo_types::{line_string, point};
+    use geoarrow::array::{LineStringArray, LineStringBuilder, PointBuilder};
+    use geoarrow::datatypes::Dimension;
+    use geoarrow::trait_::ArrayAccessor;
+    use geozero::ToWkt;
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_make_line() {
+        let pa = PointBuilder::from_points(
+            [
+                point! {x: 0., y: 0.},
+                point! {x: 1., y: 1.},
+                point! {x: 2., y: 2.},
+            ]
+            .iter(),
+            Dimension::XY,
+            CoordType::Separated,
+            Arc::default(),
+        )
+        .finish()
+        .to_array_ref();
+
+        let pa2 = PointBuilder::from_points(
+            [
+                point! {x: 3., y: 3.},
+                point! {x: 4., y: 4.},
+                point! {x: 5., y: 5.},
+            ]
+            .iter(),
+            Dimension::XY,
+            CoordType::Separated,
+            Arc::default(),
+        )
+        .finish()
+        .to_array_ref();
+
+        let lines_array = LineStringBuilder::from_line_strings(
+            &[
+                line_string![(x: 0., y: 1.), (x: 2., y: 1.)],
+                line_string![],
+                line_string![(x: 2., y: 3.), (x: 3., y: 4.)],
+            ],
+            Dimension::XY,
+            CoordType::Separated,
+            Arc::default(),
+        )
+        .finish()
+        .to_array_ref();
+
+        let args = vec![
+            ColumnarValue::Array(pa),
+            ColumnarValue::Array(pa2),
+            ColumnarValue::Array(lines_array),
+        ];
+        let make_line = MakeLine::new();
+        let result = make_line.invoke_batch(&args, 4).unwrap();
+        let result = result.to_array(3).unwrap();
+
+        assert_eq!(result.data_type(), &LINE_STRING_TYPE.into());
+        let result = LineStringArray::try_from((result.as_ref(), Dimension::XY)).unwrap();
+        assert_eq!(
+            result.get(0).unwrap().to_wkt().unwrap(),
+            "LINESTRING(0 0,3 3,0 1,2 1)"
+        );
+        assert_eq!(
+            result.get(1).unwrap().to_wkt().unwrap(),
+            "LINESTRING(1 1,4 4)"
+        );
+        assert_eq!(
+            result.get(2).unwrap().to_wkt().unwrap(),
+            "LINESTRING(2 2,5 5,2 3,3 4)"
+        );
+    }
+}
