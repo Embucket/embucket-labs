@@ -28,6 +28,7 @@ use datafusion::logical_expr::{
     ColumnarValue, Documentation, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use datafusion_common::{DataFusionError, Result};
+use datafusion_expr::ScalarFunctionArgs;
 use geo_traits::LineStringTrait;
 use geoarrow::array::{AsNativeArray, CoordType, PointBuilder};
 use geoarrow::datatypes::Dimension;
@@ -70,8 +71,8 @@ impl ScalarUDFImpl for EndPoint {
         Ok(POINT2D_TYPE.into())
     }
 
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
-        get_n_point(args, None)
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
+        get_n_point(&args.args, None)
     }
 
     fn documentation(&self) -> Option<&Documentation> {
@@ -175,14 +176,15 @@ impl ScalarUDFImpl for PointN {
         Ok(POINT2D_TYPE.into())
     }
 
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = args.args;
         if args.len() < 2 {
             return Err(DataFusionError::Execution(
                 "Expected two arguments in ST_PointN".to_string(),
             ));
         }
         let index = to_primitive_array::<Int64Type>(&args[1])?.value(0);
-        get_n_point(args, Some(index))
+        get_n_point(&args, Some(index))
     }
 
     fn documentation(&self) -> Option<&Documentation> {
@@ -270,9 +272,13 @@ mod tests {
         .finish();
 
         let data = array.to_array_ref();
-        let args = vec![ColumnarValue::Array(data)];
+        let args = ScalarFunctionArgs {
+            args: vec![ColumnarValue::Array(data)],
+            number_rows: 3,
+            return_type: &DataType::Null,
+        };
         let start_point = StartPoint::new();
-        let result = start_point.invoke_batch(&args, 3).unwrap();
+        let result = start_point.invoke_with_args(args).unwrap();
         let result = result.to_array(3).unwrap();
         assert_eq!(result.data_type(), &POINT2D_TYPE.into());
         let result = PointArray::try_from((result.as_ref(), Dimension::XY)).unwrap();
@@ -298,9 +304,13 @@ mod tests {
         .finish();
 
         let data = array.to_array_ref();
-        let args = vec![ColumnarValue::Array(data)];
+        let args = ScalarFunctionArgs {
+            args: vec![ColumnarValue::Array(data)],
+            number_rows: 3,
+            return_type: &DataType::Null,
+        };
         let end_point = EndPoint::new();
-        let result = end_point.invoke_batch(&args, 3).unwrap();
+        let result = end_point.invoke_with_args(args).unwrap();
         let result = result.to_array(3).unwrap();
         assert_eq!(result.data_type(), &POINT2D_TYPE.into());
         let result = PointArray::try_from((result.as_ref(), Dimension::XY)).unwrap();
@@ -335,12 +345,17 @@ mod tests {
 
         for (index, ok, exp) in cases {
             let data = array.to_array_ref();
-            let args = vec![
-                ColumnarValue::Array(data),
-                ColumnarValue::Scalar(index.into()),
-            ];
+            let args = ScalarFunctionArgs {
+                args: vec![
+                    ColumnarValue::Array(data),
+                    ColumnarValue::Scalar(index.into()),
+                ],
+                number_rows: 3,
+                return_type: &DataType::Null,
+            };
+
             let point_n = PointN::new();
-            let result = point_n.invoke_batch(&args, 3);
+            let result = point_n.invoke_with_args(args);
 
             if ok {
                 let result = result.unwrap().to_array(3).unwrap();

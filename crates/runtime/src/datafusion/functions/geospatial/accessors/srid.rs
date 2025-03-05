@@ -26,6 +26,7 @@ use arrow_schema::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{ColumnarValue, Documentation, ScalarUDFImpl, Signature};
 use datafusion_common::{DataFusionError, Result};
+use datafusion_expr::ScalarFunctionArgs;
 use geoarrow::array::AsNativeArray;
 use geoarrow::datatypes::NativeType;
 use geoarrow::trait_::ArrayAccessor;
@@ -65,8 +66,8 @@ impl ScalarUDFImpl for Srid {
         Ok(DataType::Int32)
     }
 
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
-        dim_impl(args)
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
+        dim_impl(&args.args)
     }
 
     fn documentation(&self) -> Option<&Documentation> {
@@ -84,7 +85,6 @@ impl ScalarUDFImpl for Srid {
 
 macro_rules! build_output_array {
     ($arr:expr) => {{
-        print!("arr: {:?}", $arr);
         let mut output_array = Int32Builder::with_capacity($arr.len());
         for geom in $arr.iter() {
             if let Some(p) = geom {
@@ -136,6 +136,7 @@ mod tests {
     use arrow_array::types::Int32Type;
     use arrow_array::ArrayRef;
     use datafusion::logical_expr::ColumnarValue;
+    use datafusion_expr::ScalarFunctionArgs;
     use geo_types::{line_string, point, polygon};
     use geoarrow::array::LineStringBuilder;
     use geoarrow::array::{CoordType, PointBuilder, PolygonBuilder};
@@ -186,9 +187,13 @@ mod tests {
         ];
 
         for (array, exp) in args {
-            let args = vec![ColumnarValue::Array(array.clone())];
+            let args = ScalarFunctionArgs {
+                args: vec![ColumnarValue::Array(array)],
+                number_rows: 2,
+                return_type: &DataType::Null,
+            };
             let srid_fn = Srid::new();
-            let result = srid_fn.invoke_batch(&args, 2).unwrap().to_array(2).unwrap();
+            let result = srid_fn.invoke_with_args(args).unwrap().to_array(2).unwrap();
             let result = result.as_primitive::<Int32Type>();
             assert_eq!(result.value(0), exp);
         }
