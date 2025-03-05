@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod common;
-pub mod databases;
-pub mod profiles;
+//pub mod common;
+//pub mod databases;
+//pub mod profiles;
 pub mod query;
-pub mod tables;
-pub mod warehouses;
+//pub mod tables;
+//pub mod warehouses;

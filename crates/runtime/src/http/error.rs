@@ -10,6 +10,8 @@ pub enum RuntimeHttpError {
     Metastore { source: crate::http::metastore::error::MetastoreAPIError},
     #[snafu(transparent)]
     Dbt { source: crate::http::dbt::error::DbtError },
+    #[snafu(transparent)]
+    UI { source: crate::http::ui::error::UIError },
 }
 
 impl IntoResponse for RuntimeHttpError {
@@ -17,11 +19,12 @@ impl IntoResponse for RuntimeHttpError {
         match self {
             RuntimeHttpError::Metastore { source } => source.into_response(),
             RuntimeHttpError::Dbt { source } => source.into_response(),
+            RuntimeHttpError::UI { source } => source.into_response(),
         }
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ErrorResponse {
     pub message: String,
     pub status_code: u16,

@@ -15,12 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::execution::query::IceBucketQueryContext;
 use crate::http::ui::models::database::CompactionSummary;
 use crate::http::ui::models::storage_profile::StorageProfile;
 use catalog::models as CatalogModels;
 use chrono::{DateTime, Utc};
-use iceberg::spec::TableMetadata;
-use iceberg::spec::{Schema, SortOrder, UnboundPartitionSpec};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use utoipa::openapi::SchemaFormat::KnownFormat;
@@ -257,6 +256,7 @@ impl Statistics {
         let mut op_overwrite_count = 0;
         let mut op_delete_count = 0;
         let mut op_replace_count = 0;
+        
 
         if let Some(latest_snapshot) = metadata.current_snapshot() {
             total_bytes = latest_snapshot
@@ -307,6 +307,7 @@ impl Statistics {
                 .get("total-data-files")
                 .and_then(|value| value.parse::<i32>().ok())
                 .unwrap_or(0);
+            
             match summary.operation {
                 iceberg::spec::Operation::Append => op_append_count += 1,
                 iceberg::spec::Operation::Overwrite => op_overwrite_count += 1,
@@ -364,13 +365,14 @@ impl Statistics {
 #[serde(rename_all = "camelCase")]
 pub struct QueryPayload {
     pub query: String,
+    pub context: Option<HashMap<String, String>>,
 }
 
 impl QueryPayload {
     #[allow(clippy::new_without_default)]
     #[must_use]
     pub const fn new(query: String) -> Self {
-        Self { query }
+        Self { query, context: None }
     }
 }
 
