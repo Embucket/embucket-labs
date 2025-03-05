@@ -42,8 +42,11 @@ use url::Url;
 use super::datafusion::functions::visit_functions_expressions;
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
+use super::utils::NormalizedIdent;
 
 use super::session::IceBucketUserSession;
+
+
 
 #[derive(Default, Debug, Deserialize)]
 pub struct IceBucketQueryContext {
@@ -279,7 +282,7 @@ impl IceBucketQuery {
         statement: Statement,
     ) -> ExecutionResult<Vec<RecordBatch>> {
         if let Statement::CreateTable(create_table_statement) = statement {
-            let mut new_table_ident = self.resolve_table_ident(create_table_statement.name.0)?;
+            let new_table_ident = self.resolve_table_ident(create_table_statement.name.0)?;
 
             let table_location = create_table_statement.location.clone()
                 .or_else(|| create_table_statement.base_location.clone());
@@ -397,6 +400,7 @@ impl IceBucketQuery {
     /// - Parse credentials from specified config
     /// - We don't need to create table in case we have common shared session context.
     ///   CSV is registered as a table which can referenced from SQL statements executed against this context
+    /// - Revisit this with the new metastore approach
     pub async fn create_stage_query(
         &self,
         statement: Statement,
@@ -512,10 +516,14 @@ impl IceBucketQuery {
             into, from_stage, ..
         } = statement
         {
+            let from_stage:Vec<Ident> = from_stage.0.iter().map(|fs| {
+                Ident::new(fs.to_string().replace('@', ""))
+            }).collect();
+            let insert_into = self.resolve_table_ident(into.0)?;
+            let insert_from = self.resolve_table_ident(from_stage)?;
             // Insert data to table
-            let stage_name = from_stage.to_string().replace('@', "");
-            let insert_query = format!("INSERT INTO {into} SELECT * FROM {stage_name}");
-            self.execute_with_custom_plan(&insert_query, warehouse_name)
+            let insert_query = format!("INSERT INTO {insert_into} SELECT * FROM {insert_from}");
+            self.execute_with_custom_plan(&insert_query)
                 .await
         } else {
             Err(ExecutionError::DataFusion {
@@ -805,116 +813,6 @@ impl IceBucketQuery {
             .collect()
             .await
             .context(super::error::DataFusionSnafu)
-    }
-
-    fn sql_schema_to_iceberg_schema(&self, start_index: u32, col_def: Vec<ColumnDef>) -> (u32, Vec<StructField>) {
-        let mut index = start_index;
-        let mut fields = vec![];
-        for column in col_def {
-            let field_type = match column.data_type {
-                sqlparser::ast::DataType::Character(character_length) => todo!(),
-                sqlparser::ast::DataType::Char(character_length) => todo!(),
-                sqlparser::ast::DataType::CharacterVarying(character_length) => todo!(),
-                sqlparser::ast::DataType::CharVarying(character_length) => todo!(),
-                sqlparser::ast::DataType::Varchar(character_length) => todo!(),
-                sqlparser::ast::DataType::Nvarchar(character_length) => todo!(),
-                sqlparser::ast::DataType::Uuid => todo!(),
-                sqlparser::ast::DataType::CharacterLargeObject(_) => todo!(),
-                sqlparser::ast::DataType::CharLargeObject(_) => todo!(),
-                sqlparser::ast::DataType::Clob(_) => todo!(),
-                sqlparser::ast::DataType::Binary(_) => todo!(),
-                sqlparser::ast::DataType::Varbinary(_) => todo!(),
-                sqlparser::ast::DataType::Blob(_) => todo!(),
-                sqlparser::ast::DataType::TinyBlob => todo!(),
-                sqlparser::ast::DataType::MediumBlob => todo!(),
-                sqlparser::ast::DataType::LongBlob => todo!(),
-                sqlparser::ast::DataType::Bytes(_) => todo!(),
-                sqlparser::ast::DataType::Numeric(exact_number_info) => todo!(),
-                sqlparser::ast::DataType::Decimal(exact_number_info) => todo!(),
-                sqlparser::ast::DataType::BigNumeric(exact_number_info) => todo!(),
-                sqlparser::ast::DataType::BigDecimal(exact_number_info) => todo!(),
-                sqlparser::ast::DataType::Dec(exact_number_info) => todo!(),
-                sqlparser::ast::DataType::Float(_) => todo!(),
-                sqlparser::ast::DataType::TinyInt(_) => todo!(),
-                sqlparser::ast::DataType::UnsignedTinyInt(_) => todo!(),
-                sqlparser::ast::DataType::Int2(_) => todo!(),
-                sqlparser::ast::DataType::UnsignedInt2(_) => todo!(),
-                sqlparser::ast::DataType::SmallInt(_) => todo!(),
-                sqlparser::ast::DataType::UnsignedSmallInt(_) => todo!(),
-                sqlparser::ast::DataType::MediumInt(_) => todo!(),
-                sqlparser::ast::DataType::UnsignedMediumInt(_) => todo!(),
-                sqlparser::ast::DataType::Int(_) => todo!(),
-                sqlparser::ast::DataType::Int4(_) => todo!(),
-                sqlparser::ast::DataType::Int8(_) => todo!(),
-                sqlparser::ast::DataType::Int16 => todo!(),
-                sqlparser::ast::DataType::Int32 => todo!(),
-                sqlparser::ast::DataType::Int64 => todo!(),
-                sqlparser::ast::DataType::Int128 => todo!(),
-                sqlparser::ast::DataType::Int256 => todo!(),
-                sqlparser::ast::DataType::Integer(_) => todo!(),
-                sqlparser::ast::DataType::UnsignedInt(_) => todo!(),
-                sqlparser::ast::DataType::UnsignedInt4(_) => todo!(),
-                sqlparser::ast::DataType::UnsignedInteger(_) => todo!(),
-                sqlparser::ast::DataType::UInt8 => todo!(),
-                sqlparser::ast::DataType::UInt16 => todo!(),
-                sqlparser::ast::DataType::UInt32 => todo!(),
-                sqlparser::ast::DataType::UInt64 => todo!(),
-                sqlparser::ast::DataType::UInt128 => todo!(),
-                sqlparser::ast::DataType::UInt256 => todo!(),
-                sqlparser::ast::DataType::BigInt(_) => todo!(),
-                sqlparser::ast::DataType::UnsignedBigInt(_) => todo!(),
-                sqlparser::ast::DataType::UnsignedInt8(_) => todo!(),
-                sqlparser::ast::DataType::Float4 => todo!(),
-                sqlparser::ast::DataType::Float32 => todo!(),
-                sqlparser::ast::DataType::Float64 => todo!(),
-                sqlparser::ast::DataType::Real => todo!(),
-                sqlparser::ast::DataType::Float8 => todo!(),
-                sqlparser::ast::DataType::Double => todo!(),
-                sqlparser::ast::DataType::DoublePrecision => todo!(),
-                sqlparser::ast::DataType::Bool => todo!(),
-                sqlparser::ast::DataType::Boolean => todo!(),
-                sqlparser::ast::DataType::Date => todo!(),
-                sqlparser::ast::DataType::Date32 => todo!(),
-                sqlparser::ast::DataType::Time(_, timezone_info) => todo!(),
-                sqlparser::ast::DataType::Datetime(_) => todo!(),
-                sqlparser::ast::DataType::Datetime64(_, _) => todo!(),
-                sqlparser::ast::DataType::Timestamp(_, timezone_info) => todo!(),
-                sqlparser::ast::DataType::Interval => todo!(),
-                sqlparser::ast::DataType::JSON => todo!(),
-                sqlparser::ast::DataType::JSONB => todo!(),
-                sqlparser::ast::DataType::Regclass => todo!(),
-                sqlparser::ast::DataType::Text => todo!(),
-                sqlparser::ast::DataType::TinyText => todo!(),
-                sqlparser::ast::DataType::MediumText => todo!(),
-                sqlparser::ast::DataType::LongText => todo!(),
-                sqlparser::ast::DataType::String(_) => todo!(),
-                sqlparser::ast::DataType::FixedString(_) => todo!(),
-                sqlparser::ast::DataType::Bytea => todo!(),
-                sqlparser::ast::DataType::Bit(_) => todo!(),
-                sqlparser::ast::DataType::BitVarying(_) => todo!(),
-                sqlparser::ast::DataType::Custom(object_name, items) => todo!(),
-                sqlparser::ast::DataType::Array(array_elem_type_def) => todo!(),
-                sqlparser::ast::DataType::Map(data_type, data_type1) => todo!(),
-                sqlparser::ast::DataType::Tuple(struct_fields) => todo!(),
-                sqlparser::ast::DataType::Nested(column_defs) => todo!(),
-                sqlparser::ast::DataType::Enum(enum_members, _) => todo!(),
-                sqlparser::ast::DataType::Set(items) => todo!(),
-                sqlparser::ast::DataType::Struct(struct_fields, struct_bracket_kind) => todo!(),
-                sqlparser::ast::DataType::Union(union_fields) => todo!(),
-                sqlparser::ast::DataType::Nullable(data_type) => todo!(),
-                sqlparser::ast::DataType::LowCardinality(data_type) => todo!(),
-                sqlparser::ast::DataType::Unspecified => todo!(),
-                sqlparser::ast::DataType::Trigger => todo!(),
-            }
-            let field = StructField::new(
-                index,
-                column.name.value.as_str(),
-                column.data_type.to_arrow(),
-                column.is_nullable.unwrap_or(true),
-            );
-            index += 1;
-            fields.push(field);
-        }
     }
 
     #[allow(clippy::only_used_in_recursion)]
@@ -1262,7 +1160,7 @@ impl IceBucketQuery {
     // Fill in the database and schema if they are missing
     // and normalize the identifiers
     #[must_use]
-    pub fn resolve_table_ident(&self, mut table_ident: Vec<Ident>) -> ExecutionResult<Vec<Ident>> {
+    pub fn resolve_table_ident(&self, mut table_ident: Vec<Ident>) -> ExecutionResult<NormalizedIdent> {
         let database = self.current_database();
         let schema = self.current_schema();
         if table_ident.len() == 1 {
@@ -1273,24 +1171,26 @@ impl IceBucketQuery {
                 }
                 (Some(_), None) => {
                     return Err(ExecutionError::InvalidIdentifier {
-                        ident: table_ident.iter().map(ToString::to_string).collect().join("."),
+                        ident: NormalizedIdent(table_ident).to_string(),
                     });
                 }
                 (None, Some(_)) => {
                     return Err(ExecutionError::InvalidIdentifier {
-                        ident: table_ident.iter().map(ToString::to_string).collect().join("."),
+                        ident: NormalizedIdent(table_ident).to_string(),
                     });
                 }
                 _ => {}
             }
         } else if table_ident.len() != 3 {
-            return plan_err!("Invalid table name: {:?}", table_ident)
+            return Err(ExecutionError::InvalidIdentifier {
+                ident: NormalizedIdent(table_ident).to_string(),
+            });
         }
 
-        table_ident
+        Ok(NormalizedIdent(table_ident
             .iter()
             .map(|ident| Ident::new(self.session.ident_normalizer.normalize(ident.clone())))
-            .collect()
+            .collect()))
     }
 
     #[allow(clippy::only_used_in_recursion)]
