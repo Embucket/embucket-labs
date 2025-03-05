@@ -1,5 +1,5 @@
 [package]
-name = "icebucket_utils"
+name = "catalog"
 version = "0.1.0"
 edition = "2021"
 license = {workspace = true}
@@ -9,6 +9,7 @@ license-file = {workspace = true}
 async-trait = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
+control_plane = { path = "../control_plane" }
 futures = { workspace = true }
 iceberg = { workspace = true }
 object_store = { workspace = true }
@@ -16,11 +17,13 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 slatedb = { workspace = true }
 snafu = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+url = "2.5.2"
+utils = { path = "../utils" }
 uuid = { workspace = true }
+
+[dev-dependencies]
 
 [lints]
 workspace = true
-
-[dev-dependencies]
-insta = "1.42.1"
-tokio = { workspace = true }
