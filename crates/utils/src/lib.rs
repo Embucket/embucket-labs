@@ -16,6 +16,7 @@
 // under the License.
 
 use async_trait::async_trait;
+use bytes::{Bytes, BytesMut};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::de;
 use serde_json::ser;
@@ -23,11 +24,10 @@ use slatedb::db::Db as SlateDb;
 use slatedb::db_iter::DbIterator;
 use slatedb::error::SlateDBError;
 use snafu::prelude::*;
-use std::sync::Arc;
-use std::string::ToString;
-use uuid::Uuid;
-use bytes::{Bytes, BytesMut};
 use std::ops::RangeBounds;
+use std::string::ToString;
+use std::sync::Arc;
+use uuid::Uuid;
 
 #[derive(Snafu, Debug)]
 //#[snafu(visibility(pub(crate)))]
@@ -57,7 +57,7 @@ pub enum Error {
 pub trait IterableEntity {
     const SUFFIX_MAX_LEN: usize;
     const PREFIX: &[u8];
-    
+
     fn key(&self) -> Bytes;
     fn min_key() -> Bytes;
     fn max_key() -> Bytes;
@@ -70,7 +70,7 @@ pub trait IterableEntity {
     }
 }
 
-// Kind of cast for range, for cases when for range 
+// Kind of cast for range, for cases when for range
 // trait `RangeBounds<bytes::Bytes>` is not implemented.
 macro_rules! RangeAsRef {
     { $range: ident } => {
@@ -240,13 +240,18 @@ impl Db {
     ///
     /// Returns a `SerializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.
-    pub async fn put_iterable_entity<T: serde::Serialize + Sync + IterableEntity>(&self, entity: &T) -> Result<()>
-    {
+    pub async fn put_iterable_entity<T: serde::Serialize + Sync + IterableEntity>(
+        &self,
+        entity: &T,
+    ) -> Result<()> {
         let serialized = ser::to_vec(entity).context(SerializeValueSnafu)?;
-        self.0.put(entity.key().iter().as_slice(), serialized.as_ref()).await.context(DatabaseSnafu)
+        self.0
+            .put(entity.key().iter().as_slice(), serialized.as_ref())
+            .await
+            .context(DatabaseSnafu)
     }
 
-   /// Iterator for iterating in range
+    /// Iterator for iterating in range
     ///
     /// # Errors
     ///
@@ -265,7 +270,15 @@ impl Db {
     ///
     /// Returns a `DeserializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.    
-    pub async fn items_from_range<K, R, T: for<'de> serde::de::Deserialize<'de> + Sync + IterableEntity>(&self, range: R, limit: Option<u16>) -> Result<Vec<T>> 
+    pub async fn items_from_range<
+        K,
+        R,
+        T: for<'de> serde::de::Deserialize<'de> + IterableEntity + Sync + Send,
+    >(
+        &self,
+        range: R,
+        limit: Option<u16>,
+    ) -> Result<Vec<T>>
     where
         K: AsRef<[u8]>,
         R: RangeBounds<K>,
@@ -336,18 +349,17 @@ pub trait Repository {
     fn collection_key() -> &'static str;
 }
 
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::expect_used)]
 mod test {
     use super::*;
+    use bytes::Bytes;
     use chrono::{DateTime, TimeZone, Utc};
-    use tokio;
-    use bytes::{Bytes};
-    use std::time::SystemTime;
     use futures::future::join_all;
     use serde::{Deserialize, Serialize};
+    use std::time::SystemTime;
+    use tokio;
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
     struct TestEntity {
@@ -410,7 +422,6 @@ mod test {
         }
     }
 
-
     #[derive(Serialize, Deserialize, Debug, Clone)]
     #[serde(rename_all = "camelCase")]
     pub struct PseudoItem2 {
@@ -421,7 +432,7 @@ mod test {
     impl IterableEntity for PseudoItem2 {
         const SUFFIX_MAX_LEN: usize = 19; //for int64::MAX
         const PREFIX: &[u8] = b"si.";
-        
+
         fn key(&self) -> Bytes {
             Self::concat_with_prefix(self.start_time.timestamp_nanos_opt().unwrap_or(0))
         }
@@ -438,11 +449,12 @@ mod test {
     fn new_pseudo_item(prev: Option<PseudoItem>) -> PseudoItem {
         let ts = match prev {
             Some(item) => item.start_time.timestamp(),
-            _ => {
-                Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap().timestamp()
-            }
+            _ => Utc
+                .with_ymd_and_hms(2020, 1, 1, 0, 0, 0)
+                .unwrap()
+                .timestamp(),
         };
-        let start_time = DateTime::from_timestamp(ts+60*60*24, 0).unwrap();
+        let start_time = DateTime::from_timestamp(ts + 60 * 60 * 24, 0).unwrap();
         PseudoItem {
             query: String::from(format!("SELECT {start_time}")),
             start_time: start_time,
@@ -451,9 +463,12 @@ mod test {
 
     async fn populate_with_items(db: &Db) -> Vec<PseudoItem> {
         let mut item: Option<PseudoItem> = None;
-        
+
         let started = SystemTime::now();
-        println!("Create items {:?}", SystemTime::now().duration_since(started));
+        println!(
+            "Create items {:?}",
+            SystemTime::now().duration_since(started)
+        );
 
         const COUNT: usize = 100;
         let mut items: Vec<PseudoItem> = vec![];
@@ -461,7 +476,11 @@ mod test {
             item = Some(new_pseudo_item(item));
             items.push(item.clone().unwrap());
         }
-        println!("{} items created {:?}", COUNT, SystemTime::now().duration_since(started));
+        println!(
+            "{} items created {:?}",
+            COUNT,
+            SystemTime::now().duration_since(started)
+        );
 
         let mut fut = Vec::new();
         for item in items.iter() {
@@ -469,20 +488,22 @@ mod test {
         }
         join_all(fut).await;
         println!(
-            "Added items count={} in {:?}", 
-            COUNT, SystemTime::now().duration_since(started)
+            "Added items count={} in {:?}",
+            COUNT,
+            SystemTime::now().duration_since(started)
         );
 
-        let mut iter =  db.0.scan(..).await.unwrap();
+        let mut iter = db.0.scan(..).await.unwrap();
         let mut i = 0;
         while let Ok(Some(item)) = iter.next().await {
-            assert_eq!(
-                item.key,
-                Bytes::from(items[i].key())
-            );
+            assert_eq!(item.key, Bytes::from(items[i].key()));
             assert_eq!(
                 item.value,
-                Bytes::from(ser::to_string(&items[i]).context(SerializeValueSnafu).unwrap())
+                Bytes::from(
+                    ser::to_string(&items[i])
+                        .context(SerializeValueSnafu)
+                        .unwrap()
+                )
             );
             i += 1;
         }
@@ -490,17 +511,17 @@ mod test {
         items
     }
 
-    async fn populate_with_more_items(db: &Db) -> Vec<PseudoItem2>{
+    async fn populate_with_more_items(db: &Db) -> Vec<PseudoItem2> {
         let ts = Utc::now().timestamp();
         let items = vec![
-            PseudoItem2{
+            PseudoItem2 {
                 query: "SELECT 1".to_string(),
                 start_time: DateTime::from_timestamp(ts, 0).unwrap(),
             },
-            PseudoItem2{
+            PseudoItem2 {
                 query: "SELECT 2".to_string(),
                 start_time: DateTime::from_timestamp(ts, 1).unwrap(),
-            }
+            },
         ];
         for item in items.iter() {
             let _res = db.put_iterable_entity(item).await;
@@ -508,7 +529,10 @@ mod test {
         items
     }
 
-    fn assert_check_items<T: serde::Serialize + Sync + IterableEntity>(created_items: Vec<&T>, retrieved_items: Vec<&T>) {
+    fn assert_check_items<T: serde::Serialize + Sync + IterableEntity>(
+        created_items: Vec<&T>,
+        retrieved_items: Vec<&T>,
+    ) {
         assert_eq!(created_items.len(), retrieved_items.len());
         assert_eq!(
             created_items.last().unwrap().key(),
@@ -517,8 +541,12 @@ mod test {
         for (i, item) in created_items.iter().enumerate() {
             assert_eq!(
                 Bytes::from(ser::to_string(&item).context(SerializeValueSnafu).unwrap()),
-                Bytes::from(ser::to_string(&retrieved_items[i]).context(SerializeValueSnafu).unwrap()),
-            );    
+                Bytes::from(
+                    ser::to_string(&retrieved_items[i])
+                        .context(SerializeValueSnafu)
+                        .unwrap()
+                ),
+            );
         }
     }
 
@@ -553,11 +581,14 @@ mod test {
         println!("PseudoItem range {range:?}");
         let retrieved: Vec<PseudoItem> = db.items_from_range(range, None).await.unwrap();
         assert_check_items(created_items.iter().collect(), retrieved.iter().collect());
-        
+
         let range = PseudoItem2::min_key()..PseudoItem2::max_key();
         println!("PseudoItem2 range {range:?}");
         let retrieved: Vec<PseudoItem2> = db.items_from_range(range, None).await.unwrap();
-        assert_check_items(created_more_items.iter().collect(), retrieved.iter().collect());
+        assert_check_items(
+            created_more_items.iter().collect(),
+            retrieved.iter().collect(),
+        );
     }
 
     #[tokio::test]
@@ -569,8 +600,14 @@ mod test {
         let range = created.first().unwrap().key()..=created.last().unwrap().key();
         let limit: usize = 10;
         println!("PseudoItem range {range:?}, limit {limit}");
-        let retrieved: Vec<PseudoItem> = db.items_from_range(range, Some(limit as u16)).await.unwrap();
-        assert_check_items(created[0..limit].iter().collect(), retrieved.iter().collect());
+        let retrieved: Vec<PseudoItem> = db
+            .items_from_range(range, Some(limit as u16))
+            .await
+            .unwrap();
+        assert_check_items(
+            created[0..limit].iter().collect(),
+            retrieved.iter().collect(),
+        );
     }
 
     #[tokio::test]
@@ -591,8 +628,15 @@ mod test {
         let created_more_items = populate_with_more_items(&db).await;
 
         let range = ..;
-        let retrieved: Vec<PseudoItem> = db.items_from_range(RangeFull!(range), None).await.unwrap();
-        assert_eq!(created_items.len() + created_more_items.len(), retrieved.len());
-        assert_ne!(retrieved.first().unwrap().key(), retrieved.last().unwrap().key());
+        let retrieved: Vec<PseudoItem> =
+            db.items_from_range(RangeFull!(range), None).await.unwrap();
+        assert_eq!(
+            created_items.len() + created_more_items.len(),
+            retrieved.len()
+        );
+        assert_ne!(
+            retrieved.first().unwrap().key(),
+            retrieved.last().unwrap().key()
+        );
     }
 }
