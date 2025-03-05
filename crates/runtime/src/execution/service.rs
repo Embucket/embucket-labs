@@ -3,14 +3,14 @@ use std::{collections::HashMap, env, sync::Arc};
 use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
-use datafusion::{execution::SessionStateBuilder, prelude::{SessionConfig, SessionContext}, sql::planner::IdentNormalizer};
+use datafusion::{execution::{object_store::ObjectStoreUrl, SessionStateBuilder}, prelude::{CsvReadOptions, SessionConfig, SessionContext}, sql::planner::IdentNormalizer};
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use object_store::{path::Path, PutPayload};
 use snafu::{OptionExt, ResultExt};
 use uuid::Uuid;
 use crate::execution::{datafusion::type_planner::IceBucketTypePlanner, session::IceBucketSessionParams};
 
-use super::{models::ColumnInfo, query::IceBucketQuery, session::IceBucketUserSession, utils::{convert_record_batches, Config}};
+use super::{models::ColumnInfo, query::{IceBucketQuery, IceBucketQueryContext}, session::IceBucketUserSession, utils::{convert_record_batches, Config}};
 use icebucket_metastore::{IceBucketTableIdent, Metastore};
 use tokio::sync::RwLock;
 
@@ -39,7 +39,7 @@ impl ExecutionService {
     pub async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
         let session_exists = { self.df_sessions.read().await.contains_key(&session_id) };
         if !session_exists {
-            let user_session = IceBucketUserSession::new()?;
+            let user_session = IceBucketUserSession::new(self.metastore.clone())?;
             tracing::trace!("Acuiring write lock for df_sessions");
             let mut session_list_mut = self.df_sessions.write().await;
             tracing::trace!("Acquired write lock for df_sessions");
@@ -62,6 +62,7 @@ impl ExecutionService {
         &self,
         session_id: &str,
         query: &str,
+        query_context: IceBucketQueryContext
     ) -> ExecutionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
         let sessions = self.df_sessions.read().await;
         let user_session =
@@ -71,9 +72,10 @@ impl ExecutionService {
                     id: session_id.to_string(),
                 })?;
         let query_obj = IceBucketQuery::new(
+            user_session.clone(),
             self.metastore.clone(), 
             query.to_string(), 
-            user_session.clone()
+            query_context
         );
         
         let records: Vec<RecordBatch> = query_obj.execute().await?;
@@ -84,8 +86,8 @@ impl ExecutionService {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn query_table(&self, session_id: &str, query: &str) -> ExecutionResult<String> {
-        let (records, _) = self.query(session_id, query).await?;
+    async fn query_table(&self, session_id: &str, query: &str, query_context: IceBucketQueryContext) -> ExecutionResult<String> {
+        let (records, _) = self.query(session_id, query, query_context).await?;
         let buf = Vec::new();
         let write_builder = WriterBuilder::new().with_explicit_nulls(true);
         let mut writer = write_builder.build::<_, JsonArray>(buf);
@@ -123,13 +125,14 @@ impl ExecutionService {
                 .ok_or(ExecutionError::DatabaseNotFound { db: table_ident.database.clone() })?;
 
         let object_store = self.metastore.volume_object_store(&metastore_db.volume).await
-            .context(ex_error::MetastoreSnafu)?;
+            .context(ex_error::MetastoreSnafu)?
+            .ok_or(ExecutionError::VolumeNotFound { volume: metastore_db.volume.clone() })?;
 
         // this path also computes inside catalog service (create_table)
         // TODO need to refactor the code so this path calculation is in one place
         let table_path = self.metastore.url_for_table(&table_ident).await
             .context(ex_error::MetastoreSnafu)?;
-        let upload_path = format!("{table_path}/tmp/{unique_file_id}/{file_name}");
+        let upload_path = format!("{table_path}/tmp/{}/{file_name}", unique_file_id.clone());
 
         let path = Path::from(upload_path.clone());
         object_store
@@ -137,23 +140,42 @@ impl ExecutionService {
             .await
             .context(ex_error::ObjectStoreSnafu)?;
 
+        let temp_table_ident = IceBucketTableIdent {
+            database: "datafusion".to_string(),
+            schema: "tmp".to_string(),
+            table: unique_file_id.clone()
+        };
+
         user_session
             .ctx
-            .register_object_store(&upload_path, Arc::from(object_store));
+            .register_object_store(ObjectStoreUrl::parse(upload_path).unwrap().as_ref(), Arc::from(object_store));
         user_session
             .ctx
-            .register_csv(table_name, path_string, CsvReadOptions::new())
-            .await?;
+            .register_csv(temp_table_ident.to_string(), upload_path, CsvReadOptions::new())
+            .await
+            .context(ex_error::DataFusionSnafu)?;
 
         let insert_query = format!(
-            "INSERT INTO {warehouse_name}.{database_name}.{table_name} SELECT * FROM {table_name}"
+            "INSERT INTO {} SELECT * FROM {}",
+            table_ident.to_string(),
+            temp_table_ident
         );
-        executor
-            .execute_with_custom_plan(&insert_query, warehouse_name.as_str())
-            .await
-            .context(error::ExecutionSnafu)?;
 
-        
+        let query = IceBucketQuery::new(
+            user_session.clone(),
+            self.metastore.clone(),
+            insert_query,
+            IceBucketQueryContext::default()
+        );
+
+        query.execute().await?;
+
+        user_session
+            .ctx
+            .deregister_table(temp_table_ident.to_string())
+            .context(ex_error::DataFusionSnafu)?;
+
+        object_store.delete(&path).await.context(ex_error::ObjectStoreSnafu)?;
         Ok(())
     }
 
