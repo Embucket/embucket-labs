@@ -79,7 +79,7 @@ impl ScalarUDFImpl for EndPoint {
         Some(DOCUMENTATION.get_or_init(|| {
             Documentation::builder(
                 DOC_SECTION_OTHER,
-                "Returns the last point of a LINESTRING geometry as a POINT. Returns NULL if the input is not a LINESTRING", 
+                "Returns the last point of a LINESTRING geometry as a POINT. Returns NULL if the input is not a LINESTRING",
                 "ST_EndPoint(line_string)")
                 .with_argument("g1", "geometry")
                 .build()
