@@ -87,6 +87,53 @@ impl ScalarUDFImpl for EndPoint {
 }
 
 #[derive(Debug)]
+pub struct StartPoint {
+    signature: Signature,
+}
+
+impl StartPoint {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::exact(vec![LINE_STRING_TYPE.into()], Volatility::Immutable),
+        }
+    }
+}
+
+impl ScalarUDFImpl for StartPoint {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn name(&self) -> &'static str {
+        "st_startpoint"
+    }
+
+    fn signature(&self) -> &Signature {
+        &self.signature
+    }
+
+    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
+        Ok(POINT2D_TYPE.into())
+    }
+
+    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
+        get_n_point(args, Some(1))
+    }
+
+    fn documentation(&self) -> Option<&Documentation> {
+        Some(DOCUMENTATION.get_or_init(|| {
+            Documentation::builder(
+                DOC_SECTION_OTHER,
+                "Returns the first point of a LINESTRING geometry as a POINT.",
+                "ST_StartPoint(line_string)",
+            )
+            .with_argument("g1", "geometry")
+            .build()
+        }))
+    }
+}
+
+#[derive(Debug)]
 pub struct PointN {
     signature: Signature,
 }
@@ -205,6 +252,34 @@ mod tests {
     use geoarrow::datatypes::Dimension;
     use geoarrow::trait_::ArrayAccessor;
     use geozero::ToWkt;
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_start_point() {
+        let data = vec![
+            line_string![(x: 1., y: 1.), (x: 1., y: 0.), (x: 1., y: 1.)],
+            line_string![(x: 2., y: 2.), (x: 3., y: 2.), (x: 3., y: 3.)],
+            line_string![(x: 2., y: 2.), (x: 3., y: 2.)],
+        ];
+        let array = LineStringBuilder::from_line_strings(
+            &data,
+            Dimension::XY,
+            CoordType::Separated,
+            Arc::default(),
+        )
+        .finish();
+
+        let data = array.to_array_ref();
+        let args = vec![ColumnarValue::Array(data)];
+        let start_point = StartPoint::new();
+        let result = start_point.invoke_batch(&args, 3).unwrap();
+        let result = result.to_array(3).unwrap();
+        assert_eq!(result.data_type(), &POINT2D_TYPE.into());
+        let result = PointArray::try_from((result.as_ref(), Dimension::XY)).unwrap();
+        assert_eq!(result.get(0).unwrap().to_wkt().unwrap(), "POINT(1 1)");
+        assert_eq!(result.get(1).unwrap().to_wkt().unwrap(), "POINT(2 2)");
+        assert_eq!(result.get(2).unwrap().to_wkt().unwrap(), "POINT(2 2)");
+    }
 
     #[test]
     #[allow(clippy::unwrap_used)]
