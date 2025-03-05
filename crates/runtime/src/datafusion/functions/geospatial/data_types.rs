@@ -68,9 +68,9 @@ pub fn parse_to_native_array(array: &ArrayRef) -> GeoDataFusionResult<Arc<dyn Na
             .context(geo_error::GeoArrowSnafu)?;
         Ok(Arc::new(point_array))
     } else if data_type.equals_datatype(&LINE_STRING_TYPE.into()) {
-        let point_array = LineStringArray::try_from((array.as_ref(), Dimension::XY))
+        let line_array = LineStringArray::try_from((array.as_ref(), Dimension::XY))
             .context(geo_error::GeoArrowSnafu)?;
-        Ok(Arc::new(point_array))
+        Ok(Arc::new(line_array))
     } else if data_type.equals_datatype(&BOX2D_TYPE.into()) {
         let rect_array = RectArray::try_from((array.as_ref(), Dimension::XY))
             .context(geo_error::GeoArrowSnafu)?;
