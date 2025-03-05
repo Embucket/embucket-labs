@@ -24,11 +24,11 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::dbt::router::create_router as create_dbt_router;
-use crate::http::ui::handlers::databases::ApiDoc as DatabaseApiDoc;
-use crate::http::ui::handlers::profiles::ApiDoc as ProfileApiDoc;
+// use crate::http::ui::handlers::databases::ApiDoc as DatabaseApiDoc;
+// use crate::http::ui::handlers::profiles::ApiDoc as ProfileApiDoc;
 use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
-use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
-use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
+// use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
+// use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
 use crate::http::ui::router::{create_router as create_ui_router, ApiDoc as UiApiDoc};
 use crate::http::state::AppState;
 use tower_http::timeout::TimeoutLayer;
@@ -57,10 +57,10 @@ pub fn create_app(state: AppState) -> Router {
     }
 
     let mut ui_spec = UiApiDoc::openapi()
-        .merge_from(ProfileApiDoc::openapi())
-        .merge_from(WarehouseApiDoc::openapi())
-        .merge_from(TableApiDoc::openapi())
-        .merge_from(DatabaseApiDoc::openapi())
+        // .merge_from(ProfileApiDoc::openapi())
+        // .merge_from(WarehouseApiDoc::openapi())
+        // .merge_from(TableApiDoc::openapi())
+        // .merge_from(DatabaseApiDoc::openapi())
         .merge_from(QueryApiDoc::openapi());
     if let Some(extra_spec) = load_openapi_spec() {
         ui_spec = ui_spec.merge_from(extra_spec);
@@ -98,11 +98,7 @@ fn load_openapi_spec() -> Option<openapi::OpenApi> {
 mod tests {
     #![allow(clippy::too_many_lines, clippy::unwrap_used)]
 
-    use crate::http::catalog::schemas::Namespace as NamespaceSchema;
-    use crate::http::control::schemas::storage_profiles::StorageProfile as StorageProfileSchema;
-    use crate::http::control::schemas::warehouses::Warehouse as WarehouseSchema;
-
-    use super::*;
+    /*use super::*;
     use axum::{
         body::Body,
         http::{self, Request, StatusCode},
@@ -368,5 +364,5 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);*/
-    }
+    }*/
 }

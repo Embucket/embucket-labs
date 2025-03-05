@@ -86,7 +86,7 @@ impl ExecutionService {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn query_table(&self, session_id: &str, query: &str, query_context: IceBucketQueryContext) -> ExecutionResult<String> {
+    pub async fn query_table(&self, session_id: &str, query: &str, query_context: IceBucketQueryContext) -> ExecutionResult<String> {
         let (records, _) = self.query(session_id, query, query_context).await?;
         let buf = Vec::new();
         let write_builder = WriterBuilder::new().with_explicit_nulls(true);
@@ -105,7 +105,7 @@ impl ExecutionService {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn upload_data_to_table(
+    pub async fn upload_data_to_table(
         &self,
         session_id: &str,
         table_ident: &IceBucketTableIdent,
@@ -148,7 +148,7 @@ impl ExecutionService {
 
         user_session
             .ctx
-            .register_object_store(ObjectStoreUrl::parse(upload_path).unwrap().as_ref(), Arc::from(object_store));
+            .register_object_store(ObjectStoreUrl::parse(&upload_path).unwrap().as_ref(), object_store.clone());
         user_session
             .ctx
             .register_csv(temp_table_ident.to_string(), upload_path, CsvReadOptions::new())

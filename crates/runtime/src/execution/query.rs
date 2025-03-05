@@ -26,7 +26,7 @@ use iceberg_rust::spec::types::StructType;
 use iceberg_rust_spec::types::StructField;
 use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableIdent, Metastore};
 use object_store::aws::AmazonS3Builder;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
@@ -48,7 +48,7 @@ use super::session::IceBucketUserSession;
 
 
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct IceBucketQueryContext {
     pub database: Option<String>,
     pub schema: Option<String>,
