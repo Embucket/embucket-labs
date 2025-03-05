@@ -235,7 +235,7 @@ mod tests {
             )),
         ];
         let fn_args = ScalarFunctionArgs {
-            args: args,
+            args,
             number_rows: 0,
             return_type: &arrow_schema::DataType::Timestamp(
                 arrow_schema::TimeUnit::Microsecond,
@@ -268,7 +268,7 @@ mod tests {
             ),
         ];
         let fn_args = ScalarFunctionArgs {
-            args: args,
+            args,
             number_rows: 0,
             return_type: &arrow_schema::DataType::Timestamp(
                 arrow_schema::TimeUnit::Microsecond,
@@ -303,7 +303,7 @@ mod tests {
             ),
         ];
         let fn_args = ScalarFunctionArgs {
-            args: args,
+            args,
             number_rows: 0,
             return_type: &arrow_schema::DataType::Timestamp(
                 arrow_schema::TimeUnit::Microsecond,

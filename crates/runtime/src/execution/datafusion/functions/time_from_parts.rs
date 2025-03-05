@@ -18,7 +18,7 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use crate::datafusion::functions::timestamp_from_parts::{
+use crate::execution::datafusion::functions::timestamp_from_parts::{
     make_time, take_function_args, to_primitive_array,
 };
 use arrow::array::builder::PrimitiveBuilder;
@@ -171,8 +171,8 @@ super::macros::make_udf_function!(TimeFromPartsFunc);
 
 #[cfg(test)]
 mod test {
-    use crate::datafusion::functions::time_from_parts::TimeFromPartsFunc;
-    use crate::datafusion::functions::timestamp_from_parts::to_primitive_array;
+    use crate::execution::datafusion::functions::time_from_parts::TimeFromPartsFunc;
+    use crate::execution::datafusion::functions::timestamp_from_parts::to_primitive_array;
     use arrow::datatypes::Time64NanosecondType;
     use chrono::NaiveTime;
     use datafusion::logical_expr::ColumnarValue;
