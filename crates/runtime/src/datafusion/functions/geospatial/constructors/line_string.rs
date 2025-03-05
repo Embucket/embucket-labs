@@ -95,7 +95,7 @@ impl ScalarUDFImpl for MakeLine {
         Some(DOCUMENTATION.get_or_init(|| {
             Documentation::builder(
                 DOC_SECTION_OTHER,
-                "Returns a geometry t that represents a line connecting the points in the input objects.",
+                "Returns a geometry that represents a line connecting the points in the input objects.",
                 "ST_MakeLine(ST_POINT(-71.104, 42.315), ST_POINT(-71.103, 42.312))",
             )
                 .with_related_udf("st_makeline")
