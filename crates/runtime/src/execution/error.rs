@@ -1,10 +1,9 @@
 use axum::{response::IntoResponse, Json};
 use datafusion_common::DataFusionError;
-use serde_yaml::Error;
 use snafu::prelude::*;
 use crate::http::error::ErrorResponse;
 
-#[derive(Debug, Snafu, Clone)]
+#[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
 pub enum ExecutionError {
     #[snafu(display("Cannot register UDF functions"))]
@@ -14,28 +13,19 @@ pub enum ExecutionError {
     DataFusion { source: DataFusionError },
 
     #[snafu(display("Invalid table identifier: {ident}"))]
-    InvalidIdentifier { ident: String },
+    InvalidTableIdentifier { ident: String },
 
-    //TODO: Rename this to match snowflake nomenclature
-    #[snafu(display("Warehouse not found for name {name}"))]
-    WarehouseNotFound { name: String },
+    #[snafu(display("Invalid schema identifier: {ident}"))]
+    InvalidSchemaIdentifier { ident: String },
 
-    //TODO: Remove this error or rename it
-    #[snafu(display("Warehouse {warehouse_name} is not an Iceberg catalog"))]
-    IcebergCatalogNotFound { warehouse_name: String },
+    #[snafu(display("Invalid file path: {path}"))]
+    InvalidFilePath { path: String },
 
-    //TODO: Remove this error
-    #[snafu(display("Iceberg error: {source}"))]
-    Iceberg { source: iceberg_rust::error::Error },
+    #[snafu(display("Invalid bucket identifier: {ident}"))]
+    InvalidBucketIdentifier { ident: String },
 
     #[snafu(display("Arrow error: {source}"))]
     Arrow { source: arrow::error::ArrowError },
-
-    //TODO: Remove this error
-    #[snafu(display("Iceberg spec error: {source}"))]
-    IcebergSpec {
-        source: iceberg_rust::spec::error::Error,
-    },
 
     #[snafu(display("No Table Provider found for table: {table_name}"))]
     TableProviderNotFound { table_name: String },
@@ -69,6 +59,9 @@ pub enum ExecutionError {
 
     #[snafu(display("Object store error: {source}"))]
     ObjectStore { source: object_store::Error },
+
+    #[snafu(display("Object of type {type_name} with name {name} already exists"))]
+    ObjectAlreadyExists { type_name: String, name: String },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
@@ -82,5 +75,3 @@ impl IntoResponse for ExecutionError {
         (http::StatusCode::INTERNAL_SERVER_ERROR, Json(er)).into_response()
     }
 }
-
-impl From<
