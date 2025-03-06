@@ -62,7 +62,12 @@ impl Db {
     #[allow(clippy::expect_used)]
     pub async fn memory() -> Self {
         let object_store = object_store::memory::InMemory::new();
-        let db = SlateDb::open(object_store::path::Path::from("/"), std::sync::Arc::new(object_store)).await.expect("Failed to open database");
+        let db = SlateDb::open(
+            object_store::path::Path::from("/"),
+            std::sync::Arc::new(object_store),
+        )
+        .await
+        .expect("Failed to open database");
         Self(Arc::new(db))
     }
 
@@ -82,9 +87,9 @@ impl Db {
     ///
     /// This function will return a `DbError` if the underlying database operation fails.
     pub async fn delete(&self, key: &str) -> Result<()> {
-        self.0.delete(key.as_bytes())
-            .await
-            .context(KeyDeleteSnafu { key: key.to_string() })
+        self.0.delete(key.as_bytes()).await.context(KeyDeleteSnafu {
+            key: key.to_string(),
+        })
     }
 
     /// Stores a key-value pair in the database.
@@ -95,9 +100,12 @@ impl Db {
     /// Returns a `DbError` if the underlying database operation fails.
     pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
         let serialized = ser::to_vec(value).context(SerializeValueSnafu)?;
-        self.0.put(key.as_bytes(), serialized.as_ref())
+        self.0
+            .put(key.as_bytes(), serialized.as_ref())
             .await
-            .context(KeyPutSnafu { key: key.to_string() })
+            .context(KeyPutSnafu {
+                key: key.to_string(),
+            })
     }
 
     /// Retrieves a value from the database by its key.
@@ -235,7 +243,7 @@ pub trait Repository {
 mod test {
     use super::*;
     use serde::{Deserialize, Serialize};
-    
+
     #[derive(Serialize, Deserialize, Debug, Clone)]
     struct TestEntity {
         id: i32,
@@ -255,11 +263,21 @@ mod test {
         db.delete("test").await.expect("Failed to delete entity");
         let get_after_delete = db.get::<TestEntity>("test").await;
 
-        db.list_append("test_list", "test".to_string()).await.expect("Failed to append to list");
+        db.list_append("test_list", "test".to_string())
+            .await
+            .expect("Failed to append to list");
         let list_after_append = db.list_keys("test_list").await;
-        db.list_remove("test_list", "test").await.expect("Failed to remove from list");
+        db.list_remove("test_list", "test")
+            .await
+            .expect("Failed to remove from list");
         let list_after_remove = db.list_keys("test_list").await;
 
-        insta::assert_debug_snapshot!((get_empty, get_after_put, get_after_delete, list_after_append, list_after_remove));
+        insta::assert_debug_snapshot!((
+            get_empty,
+            get_after_put,
+            get_after_delete,
+            list_after_append,
+            list_after_remove
+        ));
     }
 }

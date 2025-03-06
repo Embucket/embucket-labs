@@ -24,9 +24,9 @@ use icebucket_utils::Db;
 use object_store::{path::Path, ObjectStore};
 use slatedb::{config::DbOptions, db::Db as SlateDb};
 
+pub mod config;
 pub mod execution;
 pub mod http;
-pub mod config;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -34,20 +34,19 @@ pub(crate) mod tests;
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
 pub async fn run_icebucket(
     state_store: Arc<dyn ObjectStore>,
-    config: IceBucketRuntimeConfig
+    config: IceBucketRuntimeConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = {
         let options = DbOptions::default();
-        Db::new(
-            Arc::new(SlateDb::open_with_opts(
-                    Path::from(config.db.slatedb_prefix.clone()), 
-                    options, 
-                    state_store
-                    )
-                        .await
-                        .map_err(Box::new)?)
-                
-        )
+        Db::new(Arc::new(
+            SlateDb::open_with_opts(
+                Path::from(config.db.slatedb_prefix.clone()),
+                options,
+                state_store,
+            )
+            .await
+            .map_err(Box::new)?,
+        ))
     };
 
     let metastore = Arc::new(SlateDBMetastore::new(db));

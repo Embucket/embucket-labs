@@ -3,25 +3,31 @@ use std::ops::Deref;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
-pub mod volumes;
 pub mod database;
 pub mod schema;
 pub mod table;
+pub mod volumes;
 
-pub use volumes::*;
 pub use database::*;
 pub use schema::*;
 pub use table::*;
+pub use volumes::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
-pub struct RwObject<T> where T: Eq + PartialEq {
+pub struct RwObject<T>
+where
+    T: Eq + PartialEq,
+{
     #[serde(flatten)]
     pub data: T,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
 
-impl<T> RwObject<T> where T: Eq + PartialEq {
+impl<T> RwObject<T>
+where
+    T: Eq + PartialEq,
+{
     pub fn new(data: T) -> Self {
         let now = chrono::Utc::now().naive_utc();
         Self {
@@ -43,7 +49,10 @@ impl<T> RwObject<T> where T: Eq + PartialEq {
     }
 }
 
-impl<T> Deref for RwObject<T> where T: Eq + PartialEq {
+impl<T> Deref for RwObject<T>
+where
+    T: Eq + PartialEq,
+{
     type Target = T;
 
     fn deref(&self) -> &Self::Target {

@@ -22,11 +22,18 @@ pub enum MetastoreError {
     #[snafu(display("ObjectStore: {source}"))]
     ObjectStore { source: object_store::Error },
 
-    #[snafu(display("Unable to create directory for File ObjectStore path {path}, error: {source}"))]
-    CreateDirectory { path: String, source: std::io::Error },
+    #[snafu(display(
+        "Unable to create directory for File ObjectStore path {path}, error: {source}"
+    ))]
+    CreateDirectory {
+        path: String,
+        source: std::io::Error,
+    },
 
     #[snafu(display("SlateDB error: {source}"))]
-    SlateDB { source: slatedb::error::SlateDBError },
+    SlateDB {
+        source: slatedb::error::SlateDBError,
+    },
 
     #[snafu(display("SlateDB error: {source}"))]
     UtilSlateDB { source: icebucket_utils::Error },

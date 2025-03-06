@@ -156,7 +156,11 @@ pub async fn query(
 
     let (records, columns) = state
         .execution_svc
-        .query(&session_id, &body_json.sql_text, IceBucketQueryContext::default())
+        .query(
+            &session_id,
+            &body_json.sql_text,
+            IceBucketQueryContext::default(),
+        )
         .await
         .map_err(|e| DbtError::Execution { source: e })?;
 

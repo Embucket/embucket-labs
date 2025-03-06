@@ -8,7 +8,12 @@ use object_store::{path::Path, PutPayload};
 use snafu::{OptionExt, ResultExt};
 use uuid::Uuid;
 
-use super::{models::ColumnInfo, query::{IceBucketQuery, IceBucketQueryContext}, session::IceBucketUserSession, utils::{convert_record_batches, Config}};
+use super::{
+    models::ColumnInfo,
+    query::{IceBucketQuery, IceBucketQueryContext},
+    session::IceBucketUserSession,
+    utils::{convert_record_batches, Config},
+};
 use icebucket_metastore::{IceBucketTableIdent, Metastore};
 use tokio::sync::RwLock;
 
@@ -21,11 +26,7 @@ pub struct ExecutionService {
 }
 
 impl ExecutionService {
-    pub fn new(
-        metastore: Arc<dyn Metastore>,
-        config: Config,
-
-    ) -> Self {
+    pub fn new(metastore: Arc<dyn Metastore>, config: Config) -> Self {
         Self {
             metastore,
             df_sessions: Arc::new(RwLock::new(HashMap::new())),
@@ -60,7 +61,7 @@ impl ExecutionService {
         &self,
         session_id: &str,
         query: &str,
-        query_context: IceBucketQueryContext
+        query_context: IceBucketQueryContext,
     ) -> ExecutionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
         let sessions = self.df_sessions.read().await;
         let user_session =
@@ -71,20 +72,26 @@ impl ExecutionService {
                 })?;
         let query_obj = IceBucketQuery::new(
             user_session.clone(),
-            self.metastore.clone(), 
-            query.to_string(), 
-            query_context
+            self.metastore.clone(),
+            query.to_string(),
+            query_context,
         );
-        
+
         let records: Vec<RecordBatch> = query_obj.execute().await?;
 
         let data_format = self.config().data_format;
         // Add columns dbt metadata to each field
-        convert_record_batches(records, data_format).context(ex_error::DataFusionQuerySnafu { query })
+        convert_record_batches(records, data_format)
+            .context(ex_error::DataFusionQuerySnafu { query })
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    pub async fn query_table(&self, session_id: &str, query: &str, query_context: IceBucketQueryContext) -> ExecutionResult<String> {
+    pub async fn query_table(
+        &self,
+        session_id: &str,
+        query: &str,
+        query_context: IceBucketQueryContext,
+    ) -> ExecutionResult<String> {
         let (records, _) = self.query(session_id, query, query_context).await?;
         let buf = Vec::new();
         let write_builder = WriterBuilder::new().with_explicit_nulls(true);
@@ -118,17 +125,30 @@ impl ExecutionService {
                     id: session_id.to_string(),
                 })?;
         let unique_file_id = Uuid::new_v4().to_string();
-        let metastore_db = self.metastore.get_database(&table_ident.database).await
-                .context(ex_error::MetastoreSnafu)?
-                .ok_or(ExecutionError::DatabaseNotFound { db: table_ident.database.clone() })?;
-
-        let object_store = self.metastore.volume_object_store(&metastore_db.volume).await
+        let metastore_db = self
+            .metastore
+            .get_database(&table_ident.database)
+            .await
             .context(ex_error::MetastoreSnafu)?
-            .ok_or(ExecutionError::VolumeNotFound { volume: metastore_db.volume.clone() })?;
+            .ok_or(ExecutionError::DatabaseNotFound {
+                db: table_ident.database.clone(),
+            })?;
+
+        let object_store = self
+            .metastore
+            .volume_object_store(&metastore_db.volume)
+            .await
+            .context(ex_error::MetastoreSnafu)?
+            .ok_or(ExecutionError::VolumeNotFound {
+                volume: metastore_db.volume.clone(),
+            })?;
 
         // this path also computes inside catalog service (create_table)
         // TODO need to refactor the code so this path calculation is in one place
-        let table_path = self.metastore.url_for_table(table_ident).await
+        let table_path = self
+            .metastore
+            .url_for_table(table_ident)
+            .await
             .context(ex_error::MetastoreSnafu)?;
         let upload_path = format!("{table_path}/tmp/{}/{file_name}", unique_file_id.clone());
 
@@ -141,29 +161,32 @@ impl ExecutionService {
         let temp_table_ident = IceBucketTableIdent {
             database: "datafusion".to_string(),
             schema: "tmp".to_string(),
-            table: unique_file_id.clone()
+            table: unique_file_id.clone(),
         };
 
         // We construct this URL so we can unwrap it
         #[allow(clippy::unwrap_used)]
+        user_session.ctx.register_object_store(
+            ObjectStoreUrl::parse(&upload_path).unwrap().as_ref(),
+            object_store.clone(),
+        );
         user_session
             .ctx
-            .register_object_store(ObjectStoreUrl::parse(&upload_path).unwrap().as_ref(), object_store.clone());
-        user_session
-            .ctx
-            .register_csv(temp_table_ident.to_string(), upload_path, CsvReadOptions::new())
+            .register_csv(
+                temp_table_ident.to_string(),
+                upload_path,
+                CsvReadOptions::new(),
+            )
             .await
             .context(ex_error::DataFusionSnafu)?;
 
-        let insert_query = format!(
-            "INSERT INTO {table_ident} SELECT * FROM {temp_table_ident}",
-        );
+        let insert_query = format!("INSERT INTO {table_ident} SELECT * FROM {temp_table_ident}",);
 
         let query = IceBucketQuery::new(
             user_session.clone(),
             self.metastore.clone(),
             insert_query,
-            IceBucketQueryContext::default()
+            IceBucketQueryContext::default(),
         );
 
         query.execute().await?;
@@ -173,7 +196,10 @@ impl ExecutionService {
             .deregister_table(temp_table_ident.to_string())
             .context(ex_error::DataFusionSnafu)?;
 
-        object_store.delete(&path).await.context(ex_error::ObjectStoreSnafu)?;
+        object_store
+            .delete(&path)
+            .await
+            .context(ex_error::ObjectStoreSnafu)?;
         Ok(())
     }
 
@@ -181,4 +207,3 @@ impl ExecutionService {
         &self.config
     }
 }
-

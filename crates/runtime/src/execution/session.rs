@@ -64,12 +64,10 @@ impl IceBucketUserSession {
         register_all(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
 
         let enable_ident_normalization = ctx.enable_ident_normalization();
-        Ok(
-            Self { 
-                ctx,
-                ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
-            }
-        )
+        Ok(Self {
+            ctx,
+            ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
+        })
     }
 
     pub fn set_session_variable(
@@ -99,7 +97,11 @@ impl IceBucketUserSession {
     #[must_use]
     pub fn get_session_variable(&self, variable: &str) -> Option<String> {
         let state = self.ctx.state();
-        let config = state.config().options().extensions.get::<IceBucketSessionParams>();
+        let config = state
+            .config()
+            .options()
+            .extensions
+            .get::<IceBucketSessionParams>();
         if let Some(cfg) = config {
             return cfg.properties.get(variable).cloned();
         }

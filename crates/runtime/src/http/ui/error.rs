@@ -5,7 +5,9 @@ use snafu::prelude::*;
 #[snafu(visibility(pub))]
 pub enum UIError {
     #[snafu(transparent)]
-    Execution { source: crate::execution::error::ExecutionError },
+    Execution {
+        source: crate::execution::error::ExecutionError,
+    },
 }
 pub type UIResult<T> = Result<T, UIError>;
 

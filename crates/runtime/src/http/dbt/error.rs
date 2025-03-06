@@ -58,10 +58,14 @@ pub enum DbtError {
     Arrow { source: ArrowError },
 
     #[snafu(transparent)]
-    Metastore { source: crate::http::metastore::error::MetastoreAPIError },
+    Metastore {
+        source: crate::http::metastore::error::MetastoreAPIError,
+    },
 
     #[snafu(transparent)]
-    Execution { source: crate::execution::error::ExecutionError },
+    Execution {
+        source: crate::execution::error::ExecutionError,
+    },
 }
 
 pub type DbtResult<T> = std::result::Result<T, DbtError>;
@@ -126,94 +130,89 @@ impl IntoResponse for DbtError {
 #[cfg(test)]
 #[allow(clippy::unwrap_in_result)]
 mod tests {
-    
-    
-    
-    
-    
 
     // TODO: Replace these with snapshot tests
     /*#[test]
-    fn test_http_server_response() {
-        assert_ne!(
-            http::StatusCode::INTERNAL_SERVER_ERROR,
-            DbtError::ControlService {
-                source: ControlPlaneError::Execution {
-                    source: IceBucketSQLError::Arrow {
-                        source: ArrowError::ComputeError(String::new())
-                    }
-                },
-            }
-            .into_response()
-            .status(),
-        );
-        assert_eq!(
-            http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
-            DbtError::ControlService {
-                source: ControlPlaneError::Execution {
-                    source: IceBucketSQLError::Arrow {
-                        source: ArrowError::ComputeError(String::new())
-                    }
-                },
-            }
-            .into_response()
-            .status(),
-        );
-        assert_eq!(
-            http::StatusCode::UNPROCESSABLE_ENTITY,
-            DbtError::ControlService {
-                source: ControlPlaneError::Execution {
-                    source: IceBucketSQLError::DataFusion {
+        fn test_http_server_response() {
+            assert_ne!(
+                http::StatusCode::INTERNAL_SERVER_ERROR,
+                DbtError::ControlService {
+                    source: ControlPlaneError::Execution {
+                        source: IceBucketSQLError::Arrow {
+                            source: ArrowError::ComputeError(String::new())
+                        }
+                    },
+                }
+                .into_response()
+                .status(),
+            );
+            assert_eq!(
+                http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                DbtError::ControlService {
+                    source: ControlPlaneError::Execution {
+                        source: IceBucketSQLError::Arrow {
+                            source: ArrowError::ComputeError(String::new())
+                        }
+                    },
+                }
+                .into_response()
+                .status(),
+            );
+            assert_eq!(
+                http::StatusCode::UNPROCESSABLE_ENTITY,
+                DbtError::ControlService {
+                    source: ControlPlaneError::Execution {
+                        source: IceBucketSQLError::DataFusion {
+                            source: DataFusionError::ArrowError(
+                                ArrowError::InvalidArgumentError(String::new()),
+                                Some(String::new()),
+                            )
+                        },
+                    },
+                }
+                .into_response()
+                .status(),
+            );
+            assert_eq!(
+                http::StatusCode::NOT_FOUND,
+                DbtError::ControlService {
+                    source: ControlPlaneError::WarehouseNameNotFound {
+                        name: String::new()
+                    },
+                }
+                .into_response()
+                .status(),
+            );
+            assert_eq!(
+                http::StatusCode::NOT_FOUND,
+                DbtError::ControlService {
+                    source: ControlPlaneError::WarehouseNotFound { id: Uuid::new_v4() },
+                }
+                .into_response()
+                .status(),
+            );
+            assert_eq!(
+                http::StatusCode::NOT_FOUND,
+                DbtError::ControlService {
+                    source: ControlPlaneError::WarehouseNotFound { id: Uuid::new_v4() },
+                }
+                .into_response()
+                .status(),
+            );
+            assert_eq!(
+                http::StatusCode::UNPROCESSABLE_ENTITY,
+                DbtError::ControlService {
+                    source: ControlPlaneError::DataFusion {
+                        // here just any error for test, since we are handling any DataFusion err
                         source: DataFusionError::ArrowError(
                             ArrowError::InvalidArgumentError(String::new()),
                             Some(String::new()),
                         )
-                    },
-                },
-            }
-            .into_response()
-            .status(),
-        );
-        assert_eq!(
-            http::StatusCode::NOT_FOUND,
-            DbtError::ControlService {
-                source: ControlPlaneError::WarehouseNameNotFound {
-                    name: String::new()
-                },
-            }
-            .into_response()
-            .status(),
-        );
-        assert_eq!(
-            http::StatusCode::NOT_FOUND,
-            DbtError::ControlService {
-                source: ControlPlaneError::WarehouseNotFound { id: Uuid::new_v4() },
-            }
-            .into_response()
-            .status(),
-        );
-        assert_eq!(
-            http::StatusCode::NOT_FOUND,
-            DbtError::ControlService {
-                source: ControlPlaneError::WarehouseNotFound { id: Uuid::new_v4() },
-            }
-            .into_response()
-            .status(),
-        );
-        assert_eq!(
-            http::StatusCode::UNPROCESSABLE_ENTITY,
-            DbtError::ControlService {
-                source: ControlPlaneError::DataFusion {
-                    // here just any error for test, since we are handling any DataFusion err
-                    source: DataFusionError::ArrowError(
-                        ArrowError::InvalidArgumentError(String::new()),
-                        Some(String::new()),
-                    )
+                    }
                 }
-            }
-            .into_response()
-            .status(),
-        );
-    }
-*/
+                .into_response()
+                .status(),
+            );
+        }
+    */
 }

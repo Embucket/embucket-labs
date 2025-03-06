@@ -15,8 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::http::error::ErrorResponse;
 use axum::{extract::FromRequestParts, response::IntoResponse, Json};
 use http::request::Parts;
+use snafu::prelude::*;
 use snafu::ResultExt;
 use std::{collections::HashMap, sync::Arc};
 use time::OffsetDateTime;
@@ -25,8 +27,6 @@ use tower_sessions::{
     session::{Id, Record},
     session_store, ExpiredDeletion, Session, SessionStore,
 };
-use snafu::prelude::*;
-use crate::http::error::ErrorResponse;
 
 use crate::execution::service::ExecutionService;
 
@@ -43,7 +43,10 @@ impl RequestSessionStore {
         store: Arc<Mutex<HashMap<Id, Record>>>,
         execution_svc: Arc<ExecutionService>,
     ) -> Self {
-        Self { store, execution_svc }
+        Self {
+            store,
+            execution_svc,
+        }
     }
 
     pub async fn continuously_delete_expired(
@@ -171,10 +174,7 @@ where
                 .insert("DF_SESSION_ID", id.clone())
                 .await
                 .context(SessionPersistSnafu)?;
-            session
-                .save()
-                .await
-                .context(SessionPersistSnafu)?;
+            session.save().await.context(SessionPersistSnafu)?;
             id
         };
         Ok(Self(session_id))

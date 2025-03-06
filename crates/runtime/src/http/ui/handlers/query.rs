@@ -15,17 +15,23 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::{execution::query::IceBucketQueryContext, http::{error::ErrorResponse, ui::error::{UIError, UIResult}}};
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
+use crate::{
+    execution::query::IceBucketQueryContext,
+    http::{
+        error::ErrorResponse,
+        ui::error::{UIError, UIResult},
+    },
+};
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
-use validator::Validate;
 use std::{collections::HashMap, time::Instant};
 use utoipa::{OpenApi, ToSchema};
+use validator::Validate;
 
-// Temporarily copied here 
+// Temporarily copied here
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryPayload {
@@ -37,7 +43,10 @@ impl QueryPayload {
     #[allow(clippy::new_without_default)]
     #[must_use]
     pub const fn new(query: String) -> Self {
-        Self { query, context: None }
+        Self {
+            query,
+            context: None,
+        }
     }
 }
 
@@ -99,8 +108,14 @@ pub async fn query(
 ) -> UIResult<Json<QueryResponse>> {
     let request: QueryPayload = payload;
     let query_context = IceBucketQueryContext {
-        database: request.context.as_ref().and_then(|c| c.get("database").cloned()),
-        schema: request.context.as_ref().and_then(|c| c.get("schema").cloned()),
+        database: request
+            .context
+            .as_ref()
+            .and_then(|c| c.get("database").cloned()),
+        schema: request
+            .context
+            .as_ref()
+            .and_then(|c| c.get("schema").cloned()),
     };
 
     let start = Instant::now();

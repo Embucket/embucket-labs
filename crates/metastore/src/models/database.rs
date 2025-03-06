@@ -19,7 +19,7 @@ pub struct IceBucketDatabase {
 }
 
 impl IceBucketDatabase {
-    #[must_use] 
+    #[must_use]
     pub fn prefix(&self, parent: &str) -> String {
         format!("{}{}", parent, self.ident)
     }

@@ -20,7 +20,8 @@ use axum::{
     extract::Request,
     http::StatusCode,
     middleware::{self, Next},
-    response::{IntoResponse, Response}, Router,
+    response::{IntoResponse, Response},
+    Router,
 };
 
 use http_body_util::BodyExt;
@@ -54,7 +55,10 @@ pub mod utils;
 
 use super::http::config::IceBucketWebConfig;
 
-pub fn make_icebucket_app(metastore: Arc<dyn Metastore>, config: &IceBucketWebConfig) -> Result<Router, Box<dyn std::error::Error>> {
+pub fn make_icebucket_app(
+    metastore: Arc<dyn Metastore>,
+    config: &IceBucketWebConfig,
+) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format);
     let execution_svc = Arc::new(ExecutionService::new(metastore.clone(), execution_cfg));
 
@@ -87,7 +91,10 @@ pub fn make_icebucket_app(metastore: Arc<dyn Metastore>, config: &IceBucketWebCo
 }
 
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
-pub async fn run_icebucket_app(app: Router, config: &IceBucketWebConfig) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_icebucket_app(
+    app: Router,
+    config: &IceBucketWebConfig,
+) -> Result<(), Box<dyn std::error::Error>> {
     let host = config.host.clone();
     let port = config.port;
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
@@ -103,7 +110,11 @@ pub async fn run_icebucket_app(app: Router, config: &IceBucketWebConfig) -> Resu
 ///
 /// # Panics
 /// If the function fails to install the signal handler, it will panic.
-#[allow(clippy::expect_used, clippy::redundant_pub_crate, clippy::cognitive_complexity)]
+#[allow(
+    clippy::expect_used,
+    clippy::redundant_pub_crate,
+    clippy::cognitive_complexity
+)]
 async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()

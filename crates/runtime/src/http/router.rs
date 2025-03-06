@@ -29,8 +29,8 @@ use crate::http::dbt::router::create_router as create_dbt_router;
 use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
 // use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
 // use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
-use crate::http::ui::router::{create_router as create_ui_router, ApiDoc as UiApiDoc};
 use crate::http::state::AppState;
+use crate::http::ui::router::{create_router as create_ui_router, ApiDoc as UiApiDoc};
 use tower_http::timeout::TimeoutLayer;
 
 use super::metastore::router::create_router as create_metastore_router;

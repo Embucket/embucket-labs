@@ -1,6 +1,6 @@
 pub mod error;
-pub mod models;
 pub mod metastore;
+pub mod models;
 
-pub use models::*;
 pub use metastore::*;
+pub use models::*;

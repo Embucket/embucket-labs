@@ -19,10 +19,7 @@ pub struct IceBucketSchemaIdent {
 impl IceBucketSchemaIdent {
     #[must_use]
     pub const fn new(schema: String, database: IceBucketDatabaseIdent) -> Self {
-        Self {
-            schema,
-            database,
-        }
+        Self { schema, database }
     }
 }
 
@@ -33,7 +30,7 @@ pub struct IceBucketSchema {
 }
 
 impl IceBucketSchema {
-    #[must_use] 
+    #[must_use]
     pub fn prefix(&self, parent: &str) -> String {
         format!("{}/{}", parent, self.ident.schema)
     }

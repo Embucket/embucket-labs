@@ -1,7 +1,7 @@
+use crate::http::error::ErrorResponse;
 use axum::{response::IntoResponse, Json};
 use icebucket_metastore::error::MetastoreError;
 use snafu::prelude::*;
-use crate::http::error::ErrorResponse;
 
 #[derive(Snafu, Debug)]
 pub struct MetastoreAPIError(pub MetastoreError);
@@ -15,7 +15,9 @@ impl IntoResponse for MetastoreAPIError {
             MetastoreError::TableRequirementFailed { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
             MetastoreError::VolumeValidationFailed { .. } => http::StatusCode::BAD_REQUEST,
             MetastoreError::VolumeMissingCredentials => http::StatusCode::BAD_REQUEST,
-            MetastoreError::CloudProviderNotImplemented { .. } => http::StatusCode::PRECONDITION_FAILED,
+            MetastoreError::CloudProviderNotImplemented { .. } => {
+                http::StatusCode::PRECONDITION_FAILED
+            }
             MetastoreError::ObjectStore { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             MetastoreError::CreateDirectory { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             MetastoreError::SlateDB { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,

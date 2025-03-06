@@ -1,9 +1,9 @@
+use crate::error::{self as metastore_error, MetastoreResult};
 use object_store::{aws::AmazonS3Builder, path::Path, ObjectStore};
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
-use validator::{Validate, ValidationError, ValidationErrors};
 use std::sync::Arc;
-use crate::error::{self as metastore_error, MetastoreResult};
+use validator::{Validate, ValidationError, ValidationErrors};
 
 // Enum for supported cloud providers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
@@ -26,12 +26,12 @@ pub struct AwsAccessKeyCredentials {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, utoipa::ToSchema)]
-#[serde(tag = "credential_type", rename_all = "kebab-case")] 
+#[serde(tag = "credential_type", rename_all = "kebab-case")]
 pub enum AwsCredentials {
     #[serde(rename = "access_key")]
     AccessKey(AwsAccessKeyCredentials),
     #[serde(rename = "token")]
-    Token(String)
+    Token(String),
 }
 
 impl Validate for AwsCredentials {
@@ -55,7 +55,7 @@ impl Validate for AwsCredentials {
 pub struct IceBucketS3Volume {
     #[validate(length(min = 1))]
     pub region: Option<String>,
-    #[validate(length(min = 1), custom(function="validate_bucket_name"))]
+    #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
     pub bucket: Option<String>,
     #[validate(length(min = 1))]
     pub endpoint: Option<String>,
@@ -67,13 +67,22 @@ pub struct IceBucketS3Volume {
 }
 
 fn validate_bucket_name(bucket_name: &str) -> Result<(), ValidationError> {
-    if !bucket_name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+    if !bucket_name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
         return Err(ValidationError::new(
             "Bucket name must only contain alphanumeric characters, hyphens, or underscores",
         ));
     }
-    if bucket_name.starts_with('-') || bucket_name.starts_with('_') || bucket_name.ends_with('-') || bucket_name.ends_with('_') {
-        return Err(ValidationError::new("Bucket name must not start or end with a hyphen or underscore"));
+    if bucket_name.starts_with('-')
+        || bucket_name.starts_with('_')
+        || bucket_name.ends_with('-')
+        || bucket_name.ends_with('_')
+    {
+        return Err(ValidationError::new(
+            "Bucket name must not start or end with a hyphen or underscore",
+        ));
     }
     Ok(())
 }
@@ -86,11 +95,11 @@ pub struct IceBucketFileVolume {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
-#[serde(tag="type", rename_all="kebab-case")]
+#[serde(tag = "type", rename_all = "kebab-case")]
 pub enum IceBucketVolumeType {
     S3(IceBucketS3Volume),
     File(IceBucketFileVolume),
-    Memory
+    Memory,
 }
 
 impl Validate for IceBucketVolumeType {
@@ -116,13 +125,9 @@ pub type IceBucketVolumeIdent = String;
 
 #[allow(clippy::as_conversions)]
 impl IceBucketVolume {
-
     #[must_use]
     pub const fn new(ident: IceBucketVolumeIdent, volume: IceBucketVolumeType) -> Self {
-        Self {
-            ident,
-            volume,
-        }
+        Self { ident, volume }
     }
 
     pub(crate) fn get_object_store(&self) -> MetastoreResult<Arc<dyn ObjectStore>> {
@@ -150,46 +155,53 @@ impl IceBucketVolume {
                 if let Some(credentials) = &volume.credentials {
                     match credentials {
                         AwsCredentials::AccessKey(creds) => {
-                            s3_builder = s3_builder.with_access_key_id(creds.aws_access_key_id.clone());
-                            s3_builder = s3_builder.with_secret_access_key(creds.aws_secret_access_key.clone());
-                        },
+                            s3_builder =
+                                s3_builder.with_access_key_id(creds.aws_access_key_id.clone());
+                            s3_builder = s3_builder
+                                .with_secret_access_key(creds.aws_secret_access_key.clone());
+                        }
                         AwsCredentials::Token(token) => {
                             s3_builder = s3_builder.with_token(token.clone());
                         }
                     }
                 }
-                s3_builder.build().map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
+                s3_builder
+                    .build()
+                    .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
                     .context(metastore_error::ObjectStoreSnafu)
-            },
+            }
             IceBucketVolumeType::File(volume) => {
                 let path = std::path::Path::new(&volume.path);
                 if !path.exists() || !path.is_dir() {
-                    std::fs::create_dir(path)
-                        .context(metastore_error::CreateDirectorySnafu { path: volume.path.clone() })?;
+                    std::fs::create_dir(path).context(metastore_error::CreateDirectorySnafu {
+                        path: volume.path.clone(),
+                    })?;
                 }
                 object_store::local::LocalFileSystem::new_with_prefix(volume.path.clone())
                     .context(metastore_error::ObjectStoreSnafu)
                     .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
-            },
-            IceBucketVolumeType::Memory => Ok(Arc::new(object_store::memory::InMemory::new()) as Arc<dyn ObjectStore>),
+            }
+            IceBucketVolumeType::Memory => {
+                Ok(Arc::new(object_store::memory::InMemory::new()) as Arc<dyn ObjectStore>)
+            }
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn prefix(&self) -> String {
         match &self.volume {
-            IceBucketVolumeType::S3(volume) => {
-                volume.bucket.as_ref().map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}"))
-            },
-            IceBucketVolumeType::File( .. ) | IceBucketVolumeType:: Memory => {
-                "/".to_string()
-            }
+            IceBucketVolumeType::S3(volume) => volume
+                .bucket
+                .as_ref()
+                .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
+            IceBucketVolumeType::File(..) | IceBucketVolumeType::Memory => "/".to_string(),
         }
     }
 
     pub async fn validate_credentials(&self) -> MetastoreResult<()> {
         let object_store = self.get_object_store()?;
-        object_store.get(&Path::from(self.prefix()))
+        object_store
+            .get(&Path::from(self.prefix()))
             .await
             .context(metastore_error::ObjectStoreSnafu)?;
         Ok(())

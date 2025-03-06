@@ -18,15 +18,38 @@ pub fn create_router() -> Router<AppState> {
         .route("/databases/{databaseName}", delete(delete_database))
         .route("/databases/{databaseName}/schemas", get(list_schemas))
         .route("/databases/{databaseName}/schemas", post(create_schema))
-        .route("/databases/{databaseName}/schemas/{schemaName}", get(get_schema))
-        .route("/databases/{databaseName}/schemas/{schemaName}", put(update_schema))
-        .route("/databases/{databaseName}/schemas/{schemaName}", delete(delete_schema))
-        .route("/databases/{databaseName}/schemas/{schemaName}/tables", get(list_tables))
-        .route("/databases/{databaseName}/schemas/{schemaName}/tables", post(create_table))
-        .route("/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}", get(get_table))
-        .route("/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}", put(update_table))
-        .route("/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}", delete(delete_table));
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}",
+            get(get_schema),
+        )
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}",
+            put(update_schema),
+        )
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}",
+            delete(delete_schema),
+        )
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}/tables",
+            get(list_tables),
+        )
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}/tables",
+            post(create_table),
+        )
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}",
+            get(get_table),
+        )
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}",
+            put(update_table),
+        )
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}",
+            delete(delete_table),
+        );
 
-    Router::new()
-        .nest("/v1/metastore", metastore_router)
+    Router::new().nest("/v1/metastore", metastore_router)
 }

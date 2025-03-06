@@ -19,8 +19,12 @@ pub(crate) mod cli;
 
 use clap::Parser;
 use dotenv::dotenv;
+use icebucket_runtime::{
+    config::{IceBucketDbConfig, IceBucketRuntimeConfig},
+    http::config::IceBucketWebConfig,
+    run_icebucket,
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use icebucket_runtime::{config::{IceBucketRuntimeConfig, IceBucketDbConfig}, http::config::IceBucketWebConfig, run_icebucket};
 
 #[tokio::main]
 #[allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stdout)]
@@ -66,16 +70,11 @@ async fn main() {
                     host: host.clone(),
                     port,
                     allow_origin: allow_origin.clone(),
-                    data_format: dbt_serialization_format.clone()
+                    data_format: dbt_serialization_format.clone(),
                 },
             };
 
-            if let Err(e) = run_icebucket(
-                object_store,
-                runtime_config
-            )
-            .await
-            {
+            if let Err(e) = run_icebucket(object_store, runtime_config).await {
                 tracing::error!("Error while running IceBucket: {:?}", e);
             }
         }

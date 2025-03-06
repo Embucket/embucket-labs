@@ -31,7 +31,6 @@ use sqlparser::ast::Ident;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-
 // This isn't the best way to do this, but it'll do for now
 // TODO: Revisit
 pub struct Config {
@@ -317,7 +316,12 @@ pub struct NormalizedIdent(pub Vec<Ident>);
 
 impl From<&NormalizedIdent> for String {
     fn from(ident: &NormalizedIdent) -> Self {
-        ident.0.iter().map(|i| i.value.clone()).collect::<Vec<_>>().join(".")
+        ident
+            .0
+            .iter()
+            .map(|i| i.value.clone())
+            .collect::<Vec<_>>()
+            .join(".")
     }
 }
 

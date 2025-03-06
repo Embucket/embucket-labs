@@ -1,10 +1,13 @@
-use std::{collections::HashMap, fmt::Display};
-use iceberg_rust::{catalog::commit::{TableRequirement, TableUpdate}, spec::table_metadata::TableMetadata};
+use iceberg_rust::{
+    catalog::commit::{TableRequirement, TableUpdate},
+    spec::table_metadata::TableMetadata,
+};
 use iceberg_rust_spec::{partition::PartitionSpec, schema::Schema, sort::SortOrder};
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, fmt::Display};
 use validator::Validate;
 
-use crate::error::{MetastoreResult, MetastoreError};
+use crate::error::{MetastoreError, MetastoreResult};
 
 use super::{IceBucketSchemaIdent, IceBucketVolumeIdent};
 
@@ -94,7 +97,7 @@ pub struct IceBucketTable {
 
 /*impl PartialSchema for IceBucketTable {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        
+
         let table_metadata_schema = openapi::ObjectBuilder::new()
             .property("format_version", openapi::ObjectBuilder::new()
                 .schema_type(openapi::Type::Integer)
@@ -102,7 +105,7 @@ pub struct IceBucketTable {
                 .build()
             )
             .property(
-                "table_uuid", 
+                "table_uuid",
                 openapi::Object::with_type(openapi::Type::String))
             .property("name", openapi::schema::String::default())
             .property("schema_id", openapi::schema::Integer::default())
@@ -238,13 +241,11 @@ impl TableRequirementExt {
                 }
             }
             TableRequirement::AssertRefSnapshotId { r#ref, snapshot_id } => {
-                let snapshot_ref =
-                    metadata
-                        .refs
-                        .get(r#ref)
-                        .ok_or_else(|| MetastoreError::TableRequirementFailed {
-                            message: "Table ref not found".to_string(),
-                        })?;
+                let snapshot_ref = metadata.refs.get(r#ref).ok_or_else(|| {
+                    MetastoreError::TableRequirementFailed {
+                        message: "Table ref not found".to_string(),
+                    }
+                })?;
                 if snapshot_ref.snapshot_id != *snapshot_id {
                     return Err(MetastoreError::TableRequirementFailed {
                         message: "Table ref snapshot id does not match".to_string(),

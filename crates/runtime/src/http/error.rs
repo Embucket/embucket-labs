@@ -6,11 +6,17 @@ use snafu::prelude::*;
 #[snafu(visibility(pub(crate)))]
 pub enum RuntimeHttpError {
     #[snafu(transparent)]
-    Metastore { source: crate::http::metastore::error::MetastoreAPIError},
+    Metastore {
+        source: crate::http::metastore::error::MetastoreAPIError,
+    },
     #[snafu(transparent)]
-    Dbt { source: crate::http::dbt::error::DbtError },
+    Dbt {
+        source: crate::http::dbt::error::DbtError,
+    },
     #[snafu(transparent)]
-    UI { source: crate::http::ui::error::UIError },
+    UI {
+        source: crate::http::ui::error::UIError,
+    },
 }
 
 impl IntoResponse for RuntimeHttpError {

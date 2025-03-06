@@ -1,7 +1,7 @@
+use crate::http::error::ErrorResponse;
 use axum::{response::IntoResponse, Json};
 use datafusion_common::DataFusionError;
 use snafu::prelude::*;
-use crate::http::error::ErrorResponse;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -43,7 +43,9 @@ pub enum ExecutionError {
     Utf8 { source: std::string::FromUtf8Error },
 
     #[snafu(display("Metastore error: {source}"))]
-    Metastore { source: icebucket_metastore::error::MetastoreError },
+    Metastore {
+        source: icebucket_metastore::error::MetastoreError,
+    },
 
     #[snafu(display("Database {db} not found"))]
     DatabaseNotFound { db: String },
