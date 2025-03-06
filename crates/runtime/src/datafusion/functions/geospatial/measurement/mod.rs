@@ -15,16 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod accessors;
-pub mod constructors;
-pub mod data_types;
-pub mod error;
-mod measurement;
+mod contains;
 
 use datafusion::prelude::SessionContext;
 
 pub fn register_udfs(ctx: &SessionContext) {
-    constructors::register_udfs(ctx);
-    accessors::register_udfs(ctx);
-    measurement::register_udfs(ctx);
+    ctx.register_udf(contains::Contains::new().into());
 }

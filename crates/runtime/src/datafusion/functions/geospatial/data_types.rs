@@ -21,6 +21,7 @@ use crate::datafusion::functions::geospatial::error::{
     self as geo_error, GeoDataFusionError, GeoDataFusionResult,
 };
 use arrow_array::ArrayRef;
+use arrow_schema::DataType;
 use datafusion::error::DataFusionError;
 use datafusion::logical_expr::{Signature, Volatility};
 use geoarrow::array::{
@@ -45,20 +46,21 @@ pub const POLYGON_2D_TYPE: NativeType = NativeType::Polygon(CoordType::Separated
 
 #[must_use]
 pub fn any_single_geometry_type_input() -> Signature {
-    Signature::uniform(
-        1,
-        vec![
-            POINT2D_TYPE.into(),
-            POINT3D_TYPE.into(),
-            BOX2D_TYPE.into(),
-            BOX3D_TYPE.into(),
-            LINE_STRING_TYPE.into(),
-            POLYGON_2D_TYPE.into(),
-            GEOMETRY_TYPE.into(),
-            GEOMETRY_COLLECTION_TYPE.into(),
-        ],
-        Volatility::Immutable,
-    )
+    Signature::uniform(1, geo_types(), Volatility::Immutable)
+}
+
+#[must_use]
+pub fn geo_types() -> Vec<DataType> {
+    vec![
+        POINT2D_TYPE.into(),
+        POINT3D_TYPE.into(),
+        BOX2D_TYPE.into(),
+        BOX3D_TYPE.into(),
+        LINE_STRING_TYPE.into(),
+        POLYGON_2D_TYPE.into(),
+        GEOMETRY_TYPE.into(),
+        GEOMETRY_COLLECTION_TYPE.into(),
+    ]
 }
 
 /// This will not cast a `PointArray` to a `GeometryArray`
