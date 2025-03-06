@@ -15,8 +15,22 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod history_item;
-pub mod api;
-pub mod cursor;
+use crate::HistoryItem;
+use bytes::Bytes;
+use icebucket_utils::IterableEntity;
 
-pub use history_item::*;
+pub trait Cursor {
+    fn key_from_cursor (cursor: String) -> Bytes;
+    fn cursor_from_key (key: Bytes) -> String;
+}
+
+impl Cursor for HistoryItem {
+    fn key_from_cursor (cursor: String) -> Bytes {
+        Self::key_with_prefix(cursor)
+    }
+
+    fn cursor_from_key (key: Bytes) -> String {
+        let (_, cursor) = key.split_at(Self::PREFIX.len());
+        String::from_utf8(cursor.to_vec()).unwrap_or(0.to_string())
+    }
+}

@@ -14,6 +14,7 @@ pub struct HistoryItem {
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub status_code: u16,
+    pub error: Option<String>,
 }
 
 impl IterableEntity for HistoryItem {

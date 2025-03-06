@@ -18,6 +18,8 @@ slatedb = { workspace = true }
 async-trait = { workspace = true }
 
 [dev-dependencies]
+tokio = { workspace = true }
+object_store = { workspace = true }
 
 [lints]
 workspace = true

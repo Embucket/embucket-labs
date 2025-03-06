@@ -69,10 +69,10 @@ pub trait IterableEntity {
         buf.into()
     }
 
-    fn key_with_prefix_u8(key_part: &[u8]) -> Bytes {
+    fn key_with_prefix_u8(key_part: Bytes) -> Bytes {
         let mut buf = BytesMut::with_capacity(Self::PREFIX.len() + Self::SUFFIX_MAX_LEN);
         buf.extend_from_slice(Self::PREFIX);
-        buf.extend_from_slice(key_part);
+        buf.extend_from_slice(key_part.as_ref());
         buf.into()
     }    
 }
