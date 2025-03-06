@@ -21,6 +21,7 @@ use crate::http::layers::add_request_metadata;
 //     create_storage_profile, delete_storage_profile, get_storage_profile, list_storage_profiles,
 // };
 use crate::http::ui::handlers::query::query;
+use crate::http::ui::handlers::history::history;
 // use crate::http::ui::handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
 //     update_table_properties, upload_data_to_table,
@@ -30,7 +31,7 @@ use crate::http::ui::handlers::query::query;
 // };
 use crate::http::state::AppState;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::post;
+use axum::routing::{ post, get };
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
@@ -75,6 +76,7 @@ pub fn create_router() -> Router<AppState> {
         //     get(get_table).delete(delete_table),
         // )
         .route("/query", post(query))
+        .route("/history", get(history))
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/settings",
         //     get(get_settings).post(update_table_properties),

@@ -19,5 +19,6 @@
 //pub mod databases;
 //pub mod profiles;
 pub mod query;
+pub mod history;
 //pub mod tables;
 //pub mod warehouses;

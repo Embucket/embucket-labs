@@ -62,12 +62,19 @@ pub trait IterableEntity {
     fn min_key() -> Bytes;
     fn max_key() -> Bytes;
 
-    fn concat_with_prefix<T: ToString>(key_part: T) -> Bytes {
+    fn key_with_prefix<T: ToString>(key_part: T) -> Bytes {
         let mut buf = BytesMut::with_capacity(Self::PREFIX.len() + Self::SUFFIX_MAX_LEN);
         buf.extend_from_slice(Self::PREFIX);
         buf.extend_from_slice(key_part.to_string().as_bytes());
         buf.into()
     }
+
+    fn key_with_prefix_u8(key_part: &[u8]) -> Bytes {
+        let mut buf = BytesMut::with_capacity(Self::PREFIX.len() + Self::SUFFIX_MAX_LEN);
+        buf.extend_from_slice(Self::PREFIX);
+        buf.extend_from_slice(key_part);
+        buf.into()
+    }    
 }
 
 // Kind of cast for range, for cases when for range
@@ -410,15 +417,15 @@ mod test {
         const PREFIX: &[u8] = b"hi.";
 
         fn key(&self) -> Bytes {
-            Self::concat_with_prefix(self.start_time.timestamp_nanos_opt().unwrap_or(0))
+            Self::key_with_prefix(self.start_time.timestamp_nanos_opt().unwrap_or(0))
         }
 
         fn min_key() -> Bytes {
-            Self::concat_with_prefix(0)
+            Self::key_with_prefix(0)
         }
 
         fn max_key() -> Bytes {
-            Self::concat_with_prefix(i64::MAX)
+            Self::key_with_prefix(i64::MAX)
         }
     }
 
@@ -434,15 +441,15 @@ mod test {
         const PREFIX: &[u8] = b"si.";
 
         fn key(&self) -> Bytes {
-            Self::concat_with_prefix(self.start_time.timestamp_nanos_opt().unwrap_or(0))
+            Self::key_with_prefix(self.start_time.timestamp_nanos_opt().unwrap_or(0))
         }
 
         fn min_key() -> Bytes {
-            Self::concat_with_prefix(0)
+            Self::key_with_prefix(0)
         }
 
         fn max_key() -> Bytes {
-            Self::concat_with_prefix(i64::MAX)
+            Self::key_with_prefix(i64::MAX)
         }
     }
 
