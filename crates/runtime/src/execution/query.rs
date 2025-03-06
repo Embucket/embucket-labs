@@ -5,32 +5,24 @@ use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::LogicalPlan;
-use datafusion::parquet::schema;
 use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableWithJoins,
 };
-use datafusion_common::{plan_err, DataFusionError, Result as DFResult, TableReference};
-use datafusion_functions_json::register_all;
-use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use datafusion_common::{DataFusionError, TableReference};
 use datafusion_iceberg::planner::iceberg_transform;
-use geodatafusion::udf::native::register_native;
-use iceberg_rust::catalog::create::CreateTable as CreateTableCatalog;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
-use iceberg_rust::spec::identifier::Identifier;
-use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
-use iceberg_rust_spec::types::StructField;
-use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableIdent, Metastore};
+use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableIdent, Metastore};
 use object_store::aws::AmazonS3Builder;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    visit_expressions_mut, BinaryOperator, ColumnDef, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use
+    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use
 };
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;

@@ -19,11 +19,10 @@ use std::sync::Arc;
 
 use config::IceBucketRuntimeConfig;
 use http::{make_icebucket_app, run_icebucket_app};
-use icebucket_metastore::{Metastore, SlateDBMetastore};
+use icebucket_metastore::SlateDBMetastore;
 use icebucket_utils::Db;
 use object_store::{path::Path, ObjectStore};
 use slatedb::{config::DbOptions, db::Db as SlateDb};
-use snafu::ResultExt;
 
 pub mod execution;
 pub mod http;

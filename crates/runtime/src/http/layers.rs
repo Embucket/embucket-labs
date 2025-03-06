@@ -20,7 +20,6 @@ use axum::http::HeaderMap;
 use axum::{middleware::Next, response::Response};
 use http::header::{AUTHORIZATION, CONTENT_TYPE};
 use http::{HeaderValue, Method};
-use snafu::ResultExt;
 use std::str::FromStr;
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;

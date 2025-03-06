@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::{execution::query::IceBucketQueryContext, http::{error::ErrorResponse, ui::error::{self as ui_error, UIError, UIResult}}};
+use crate::{execution::query::IceBucketQueryContext, http::{error::ErrorResponse, ui::error::{UIError, UIResult}}};
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use axum::{extract::State, Json};

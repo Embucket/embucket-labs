@@ -33,7 +33,7 @@ use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 
-use super::error::{self as ex_error, ExecutionError, ExecutionResult};
+use super::error::{self as ex_error, ExecutionResult};
 
 pub struct IceBucketUserSession {
     pub ctx: SessionContext,

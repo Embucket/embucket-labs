@@ -1,14 +1,12 @@
-use std::{collections::HashMap, env, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
-use datafusion::{execution::{object_store::ObjectStoreUrl, SessionStateBuilder}, prelude::{CsvReadOptions, SessionConfig, SessionContext}, sql::planner::IdentNormalizer};
-use datafusion_iceberg::planner::IcebergQueryPlanner;
+use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
 use object_store::{path::Path, PutPayload};
 use snafu::{OptionExt, ResultExt};
 use uuid::Uuid;
-use crate::execution::{datafusion::type_planner::IceBucketTypePlanner, session::IceBucketSessionParams};
 
 use super::{models::ColumnInfo, query::{IceBucketQuery, IceBucketQueryContext}, session::IceBucketUserSession, utils::{convert_record_batches, Config}};
 use icebucket_metastore::{IceBucketTableIdent, Metastore};

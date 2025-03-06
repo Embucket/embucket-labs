@@ -31,7 +31,6 @@ use sqlparser::ast::Ident;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 // This isn't the best way to do this, but it'll do for now
 // TODO: Revisit

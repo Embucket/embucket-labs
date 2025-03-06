@@ -1,22 +1,17 @@
 
 
-use std::{any::Any, collections::{HashMap, HashSet}, sync::Arc};
+use std::{any::Any, collections::HashMap, sync::Arc};
 
-use arrow_schema::SchemaRef;
 use async_trait::async_trait;
-use chrono::DateTime;
-use datafusion::{arrow::datatypes::Field, logical_expr::TableType, catalog::{CatalogProvider, CatalogProviderList, SchemaProvider, Session, TableProvider}, datasource::{file_format::parquet::ParquetFormat, listing::PartitionedFile, physical_plan::FileScanConfig}, execution::object_store::ObjectStoreUrl, physical_expr::create_physical_expr, physical_optimizer::pruning::PruningPredicate};
-use datafusion_common::{exec_err, not_impl_err, plan_err, DataFusionError, Result as DFResult, ScalarValue};
-use datafusion_expr::{Expr, TableProviderFilterPushDown};
-use datafusion_expr::{dml::InsertOp, utils::conjunction, JoinType};
-use datafusion_iceberg::{DataFusionTable as IcebergDataFusionTable, pruning_statistics::{PruneDataFiles, PruneManifests}, statistics::manifest_statistics};
-use datafusion_physical_plan::{insert::DataSinkExec, ExecutionPlan};
-use iceberg_rust::{catalog::{commit::{CommitTable as IcebergCommitTable, CommitView as IcebergCommitView}, create::{CreateMaterializedView as IcebergCreateMaterializedView, CreateTable as IcebergCreateTable, CreateView as IcebergCreateView}, tabular::Tabular as IcebergTabular, Catalog as IcebergCatalog}, error::Error as IcebergError, materialized_view::MaterializedView as IcebergMaterializedView, object_store::Bucket as IcebergBucket, spec::{identifier::Identifier as IcebergIdentifier, manifest::ManifestEntry, manifest_list::ManifestListEntry}, table::Table as IcebergTable, view::View as IcebergView};
-use iceberg_rust_spec::{identifier::FullIdentifier as IcebergFullIdentifier, manifest::{Content, Status}, namespace::Namespace as IcebergNamespace, schema::Schema, types::{StructField, StructType}, util};
-use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketTable, IceBucketTableIdent, Metastore};
-use object_store::{ObjectMeta, ObjectStore};
+use datafusion::catalog::{CatalogProvider, CatalogProviderList, SchemaProvider, TableProvider};
+use datafusion_common::{exec_err, DataFusionError, Result as DFResult};
+use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
+use datafusion_physical_plan::ExecutionPlan;
+use iceberg_rust::{catalog::{commit::{CommitTable as IcebergCommitTable, CommitView as IcebergCommitView}, create::{CreateMaterializedView as IcebergCreateMaterializedView, CreateTable as IcebergCreateTable, CreateView as IcebergCreateView}, tabular::Tabular as IcebergTabular, Catalog as IcebergCatalog}, error::Error as IcebergError, materialized_view::MaterializedView as IcebergMaterializedView, object_store::Bucket as IcebergBucket, spec::identifier::Identifier as IcebergIdentifier, table::Table as IcebergTable, view::View as IcebergView};
+use iceberg_rust_spec::{identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace};
+use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent, Metastore};
+use object_store::ObjectStore;
 
-use iceberg_rust_spec::arrow::schema::*;
 
 #[derive(Clone)]
 pub struct IceBucketDFMetastore {

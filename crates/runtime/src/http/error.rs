@@ -1,5 +1,4 @@
 use axum::{response::IntoResponse, response::Response};
-use http::header::InvalidHeaderValue;
 use serde::Serialize;
 use snafu::prelude::*;
 
