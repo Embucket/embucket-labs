@@ -89,7 +89,6 @@ macro_rules! match_rhs_within_data_type {
                 WithinTrait::is_within($left.$left_method(), $rhs.as_point())
             }
             NativeType::LineString(_, _) => {
-                println!("left: {:?}, right: {:?}", $left, $rhs);
                 WithinTrait::is_within($left.$left_method(), $rhs.as_line_string())
             }
             NativeType::Polygon(_, _) => {
