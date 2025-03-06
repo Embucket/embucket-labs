@@ -25,6 +25,7 @@ icebucket_utils = { path = "../utils" }
 utoipa = { workspace = true }
 uuid = { workspace = true }
 validator = { version = "0.20.0", features = ["derive"] }
+dashmap = "6.1.0"
 
 [dev-dependencies]
 insta = { version = "1.42.0", features = ["yaml", "filters"] }
