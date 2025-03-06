@@ -101,7 +101,7 @@ impl ExecutionService {
         // Get the underlying buffer back,
         let buf = writer.into_inner();
 
-        Ok(String::from_utf8(buf).context(ex_error::Utf8Snafu)?)
+        String::from_utf8(buf).context(ex_error::Utf8Snafu)
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
@@ -130,7 +130,7 @@ impl ExecutionService {
 
         // this path also computes inside catalog service (create_table)
         // TODO need to refactor the code so this path calculation is in one place
-        let table_path = self.metastore.url_for_table(&table_ident).await
+        let table_path = self.metastore.url_for_table(table_ident).await
             .context(ex_error::MetastoreSnafu)?;
         let upload_path = format!("{table_path}/tmp/{}/{file_name}", unique_file_id.clone());
 
@@ -146,6 +146,8 @@ impl ExecutionService {
             table: unique_file_id.clone()
         };
 
+        // We construct this URL so we can unwrap it
+        #[allow(clippy::unwrap_used)]
         user_session
             .ctx
             .register_object_store(ObjectStoreUrl::parse(&upload_path).unwrap().as_ref(), object_store.clone());
@@ -156,9 +158,7 @@ impl ExecutionService {
             .context(ex_error::DataFusionSnafu)?;
 
         let insert_query = format!(
-            "INSERT INTO {} SELECT * FROM {}",
-            table_ident.to_string(),
-            temp_table_ident
+            "INSERT INTO {table_ident} SELECT * FROM {temp_table_ident}",
         );
 
         let query = IceBucketQuery::new(

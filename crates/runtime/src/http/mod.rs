@@ -20,7 +20,7 @@ use axum::{
     extract::Request,
     http::StatusCode,
     middleware::{self, Next},
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Response}, Router,
 };
 
 use http_body_util::BodyExt;
@@ -42,33 +42,24 @@ pub mod dbt;
 pub mod metastore;
 pub mod ui;
 
+pub mod config;
 pub mod layers;
 pub mod router;
 pub mod session;
 pub mod state;
 pub mod utils;
 
-#[allow(clippy::unwrap_used, clippy::as_conversions)]
-pub async fn run_icebucket(
-    metastore: Arc<dyn Metastore>,
-    host: String,
-    port: u16,
-    allow_origin: Option<String>,
-    data_format: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    /*let db = {
-        let options = DbOptions::default();
-        Arc::new(Db::new(
-            SlateDb::open_with_opts(Path::from(slatedb_prefix.clone()), options, state_store.into())
-                .await?,
-        ))
-    };*/
+//#[cfg(test)]
+//mod tests;
 
-    let execution_cfg = execution::utils::Config::new(data_format);
+use super::http::config::IceBucketWebConfig;
+
+pub fn make_icebucket_app(metastore: Arc<dyn Metastore>, config: &IceBucketWebConfig) -> Result<Router, Box<dyn std::error::Error>> {
+    let execution_cfg = execution::utils::Config::new(&config.data_format);
     let execution_svc = Arc::new(ExecutionService::new(metastore.clone(), execution_cfg));
 
     let session_memory = RequestSessionMemory::default();
-    let session_store = RequestSessionStore::new(session_memory.clone(), execution_svc.clone());
+    let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
 
     tokio::task::spawn(
         session_store
@@ -81,17 +72,24 @@ pub async fn run_icebucket(
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
     // Create the application state
-    let app_state = state::AppState::new(metastore.clone(), execution_svc.clone());
+    let app_state = state::AppState::new(metastore.clone(), execution_svc);
 
     let mut app = router::create_app(app_state)
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn(print_request_response));
 
-    if let Some(allow_origin) = allow_origin {
+    if let Some(allow_origin) = config.allow_origin.as_ref() {
         app = app.layer(make_cors_middleware(allow_origin)?);
     }
 
+    Ok(app)
+}
+
+#[allow(clippy::unwrap_used, clippy::as_conversions)]
+pub async fn run_icebucket_app(app: Router, config: &IceBucketWebConfig) -> Result<(), Box<dyn std::error::Error>> {
+    let host = config.host.clone();
+    let port = config.port;
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
     tracing::info!("Listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app)
@@ -105,7 +103,7 @@ pub async fn run_icebucket(
 ///
 /// # Panics
 /// If the function fails to install the signal handler, it will panic.
-#[allow(clippy::expect_used, clippy::redundant_pub_crate)]
+#[allow(clippy::expect_used, clippy::redundant_pub_crate, clippy::cognitive_complexity)]
 async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
@@ -127,11 +125,9 @@ async fn shutdown_signal() {
     tokio::select! {
         () = ctrl_c => {
             tracing::warn!("Ctrl+C received, starting graceful shutdown");
-            //db.close().await.unwrap();
         },
         () = terminate => {
             tracing::warn!("SIGTERM received, starting graceful shutdown");
-            //db.close().await.unwrap();
         },
     }
 

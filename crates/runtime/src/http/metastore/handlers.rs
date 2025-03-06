@@ -20,7 +20,7 @@ pub struct MetastoreApi;*/
 type RwObjectVec<T> = Vec<RwObject<T>>;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct QueryParameters {
+pub struct QueryParameters {
     #[serde(default)]
     cascade: Option<bool>,
 }

@@ -217,7 +217,7 @@ impl ScalarUDFImpl for DateAddFunc {
 
 super::macros::make_udf_function!(DateAddFunc);
 #[cfg(test)]
-#[allow(clippy::unwrap_in_result)]
+#[allow(clippy::unwrap_in_result, clippy::unwrap_used)]
 mod tests {
     use super::DateAddFunc;
     use datafusion_common::ScalarValue;

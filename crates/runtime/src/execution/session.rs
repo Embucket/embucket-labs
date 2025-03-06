@@ -41,7 +41,6 @@ pub struct IceBucketUserSession {
 }
 
 impl IceBucketUserSession {
-    #[must_use]
     pub fn new(metastore: Arc<dyn Metastore>) -> ExecutionResult<Self> {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());

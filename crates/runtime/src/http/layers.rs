@@ -66,10 +66,11 @@ pub async fn add_request_metadata(
 }
 
 #[allow(clippy::needless_pass_by_value, clippy::expect_used)]
-pub fn make_cors_middleware(origin: String) -> Result<CorsLayer, error::RuntimeHttpError> {
+pub fn make_cors_middleware(origin: &str) -> Result<CorsLayer, error::RuntimeHttpError> {
+    #[allow(clippy::expect_fun_call)]
     let origin_value = origin
         .parse::<HeaderValue>()
-        .expect(&format!("Failed to parse origin value: {}", origin));
+        .expect(&format!("Failed to parse origin value: {origin}"));
     Ok(CorsLayer::new()
         .allow_origin(origin_value)
         .allow_methods(vec![

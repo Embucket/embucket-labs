@@ -184,8 +184,6 @@ impl IceBucketQuery {
                     return Box::pin(self.create_table_query(*s)).await;
                 }
                 Statement::CreateDatabase {
-                    db_name,
-                    if_not_exists,
                     ..
                 } => {
                     // TODO: Databases are only able to be created through the
@@ -294,6 +292,7 @@ impl IceBucketQuery {
             let table_location = create_table_statement.location.clone()
                 .or_else(|| create_table_statement.base_location.clone());
             
+            #[allow(clippy::unwrap_used)]
             let table_name = new_table_ident.0.last().unwrap().clone();
             // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
             // And run the query - this will create an InMemory table
@@ -376,12 +375,12 @@ impl IceBucketQuery {
             // Insert data to new table
             // TODO: What is the point of this?
             let insert_query =
-                format!("INSERT INTO {} SELECT * FROM {}", ib_table_ident.to_string(), table_name);
+                format!("INSERT INTO {} SELECT * FROM {}", ib_table_ident, table_name);
             self.execute_with_custom_plan(&insert_query)
                 .await?;
 
             // Drop InMemory table
-            let drop_query = format!("DROP TABLE {}", table_name);
+            let drop_query = format!("DROP TABLE {table_name}");
             self.session.ctx
                 .sql(&drop_query)
                 .await
@@ -1043,7 +1042,6 @@ impl IceBucketQuery {
 
     // TODO: Modify this function to modify the statement in-place to
     // avoid extra allocations
-    #[must_use]
     #[allow(clippy::too_many_lines)]
     pub fn update_statement_references(
         &self,
@@ -1084,7 +1082,7 @@ impl IceBucketQuery {
                     let source = insert_statement.source.map(
                         |mut query| {
                             self.update_tables_in_query(query.as_mut())
-                                .map(|_| Some(Box::new(AstQuery { ..*query })) )
+                                .map(|()| Some(Box::new(AstQuery { ..*query })) )
                         },
                     );
 
@@ -1110,7 +1108,7 @@ impl IceBucketQuery {
                     purge,
                     temporary,
                 } => {
-                    for name in names.iter_mut() {
+                    for name in &mut names {
                         match object_type {
                             ObjectType::Schema => {
                                 *name = ObjectName(self.resolve_schema_ident(name.0.clone())?.0);
@@ -1190,7 +1188,6 @@ impl IceBucketQuery {
 
     // Fill in the database and schema if they are missing
     // and normalize the identifiers
-    #[must_use]
     pub fn resolve_table_ident(&self, mut table_ident: Vec<Ident>) -> ExecutionResult<NormalizedIdent> {
         let database = self.current_database();
         let schema = self.current_schema();
@@ -1200,11 +1197,7 @@ impl IceBucketQuery {
                     table_ident.insert(0, Ident::new(database));
                     table_ident.insert(1, Ident::new(schema));
                 }
-                (Some(_), None) => {
-                    return Err(ExecutionError::InvalidTableIdentifier {
-                        ident: NormalizedIdent(table_ident).to_string(),
-                    });
-                }
+                (Some(_), None) |
                 (None, Some(_)) => {
                     return Err(ExecutionError::InvalidTableIdentifier {
                         ident: NormalizedIdent(table_ident).to_string(),
@@ -1224,7 +1217,6 @@ impl IceBucketQuery {
             .collect()))
     }
 
-    #[must_use]
     pub fn resolve_schema_ident(&self, mut schema_ident: Vec<Ident>) -> ExecutionResult<NormalizedIdent> {
         let database = self.current_database();
         if schema_ident.len() == 1 {
@@ -1353,8 +1345,6 @@ pub fn created_entity_response() -> ExecutionResult<Vec<RecordBatch>> {
 #[cfg(test)]
 mod tests {
     use crate::execution::query::IceBucketQuery;
-
-    use super::Query;
     use datafusion::sql::parser::DFParser;
 
     #[allow(clippy::unwrap_used)]

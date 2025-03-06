@@ -22,6 +22,7 @@ use object_store::{
 };
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Parser)]
 #[command(version, about, long_about=None)]
@@ -145,7 +146,7 @@ enum StoreBackend {
 
 impl IceBucketOpts {
     #[allow(clippy::unwrap_used, clippy::as_conversions)]
-    pub fn object_store_backend(self) -> ObjectStoreResult<Box<dyn ObjectStore>> {
+    pub fn object_store_backend(self) -> ObjectStoreResult<Arc<dyn ObjectStore>> {
         match self.backend {
             StoreBackend::S3 => {
                 let s3_allow_http = self.allow_http.unwrap_or(false);
@@ -162,11 +163,11 @@ impl IceBucketOpts {
                         .with_endpoint(&endpoint)
                         .with_allow_http(s3_allow_http)
                         .build()
-                        .map(|s3| Box::new(s3) as Box<dyn ObjectStore>)
+                        .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
                 } else {
                     s3_builder
                         .build()
-                        .map(|s3| Box::new(s3) as Box<dyn ObjectStore>)
+                        .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
                 }
             }
             StoreBackend::File => {
@@ -176,9 +177,9 @@ impl IceBucketOpts {
                     fs::create_dir(path).unwrap();
                 }
                 LocalFileSystem::new_with_prefix(file_storage_path)
-                    .map(|fs| Box::new(fs) as Box<dyn ObjectStore>)
+                    .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
             }
-            StoreBackend::Memory => Ok(Box::new(InMemory::new()) as Box<dyn ObjectStore>),
+            StoreBackend::Memory => Ok(Arc::new(InMemory::new()) as Arc<dyn ObjectStore>),
         }
     }
 }
