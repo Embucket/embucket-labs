@@ -26,6 +26,7 @@ use datafusion::sql::planner::IdentNormalizer;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use geodatafusion::udf::native::register_native;
+use geodatafusion::udf::native::register_native as register_geo_native;
 use icebucket_metastore::Metastore;
 use snafu::ResultExt;
 use std::any::Any;
@@ -62,6 +63,7 @@ impl IceBucketUserSession {
         register_native(&ctx);
         register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         register_all(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
+        register_geo_native(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
 
         let enable_ident_normalization = ctx.enable_ident_normalization();
         Ok(Self {
