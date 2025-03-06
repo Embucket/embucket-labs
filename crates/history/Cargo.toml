@@ -6,6 +6,16 @@ license.workspace = true
 license-file.workspace = true
 
 [dependencies]
+icebucket_utils = { path = "../utils" }
+bytes = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+serde = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+snafu = { workspace = true }
+tracing = { workspace = true }
+slatedb = { workspace = true }
+async-trait = { workspace = true }
 
 [dev-dependencies]
 

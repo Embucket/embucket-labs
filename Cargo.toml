@@ -3,6 +3,7 @@ default-members = ["bin/bucketd"]
 members = [
   "bin/bucketd",
   "crates/metastore",
+  "crates/history",
   "crates/runtime",
   "crates/utils",
 ]
