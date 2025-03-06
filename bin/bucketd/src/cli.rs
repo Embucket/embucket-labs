@@ -95,6 +95,9 @@ pub struct IceBucketOpts {
     #[arg(short, long, env = "SLATEDB_PREFIX")]
     pub slatedb_prefix: String,
 
+    #[arg(short, long, env = "SLATEDB_PREFIX_QHISTORY")]
+    pub slatedb_prefix_qhistory: String,
+
     #[arg(
         long,
         env = "BUCKET_HOST",
