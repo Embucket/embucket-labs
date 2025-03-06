@@ -219,10 +219,7 @@ mod tests {
 
         for (left, rhs, exp) in args {
             let args = ScalarFunctionArgs {
-                args: vec![
-                    ColumnarValue::Array(left.clone()),
-                    ColumnarValue::Array(rhs),
-                ],
+                args: vec![ColumnarValue::Array(left), ColumnarValue::Array(rhs)],
                 number_rows: 2,
                 return_type: &DataType::Null,
             };
