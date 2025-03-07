@@ -1,9 +1,9 @@
 [package]
-name = "runtime"
+name = "icebucket_runtime"
 version = "0.1.0"
 edition = "2021"
-license = {workspace = true}
-license-file = {workspace = true}
+license = { workspace = true }
+license-file = { workspace = true }
 
 [dependencies]
 
@@ -12,6 +12,10 @@ arrow-json = { version = "54.1.0" }
 arrow-schema = { version = "54.1.0", default-features = false }
 arrow-array = { version = "54.1.0" }
 async-trait = { workspace = true }
+axum = { workspace = true }
+axum-macros = { workspace = true }
+base64 = { version = "0.22.1" }
+bytes = { workspace = true }
 
 geoarrow = { version = "0.4.0-beta.4" }
 geodatafusion = { git = "https://github.com/geoarrow/geoarrow-rs.git", package = "geodatafusion" }
@@ -24,32 +28,66 @@ chrono = { workspace = true }
 
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }
+datafusion-doc = { workspace = true }
 datafusion-expr = { workspace = true }
 datafusion-functions-json = { workspace = true }
-datafusion-physical-plan = { workspace = true }
-datafusion-doc = { workspace = true }
 datafusion-macros = { workspace = true }
+datafusion-physical-plan = { workspace = true }
 datafusion_iceberg = { workspace = true }
+flate2 = { version = "1.0.34" }
 
 futures = { workspace = true }
+http = "1.2.0"
+http-body-util = "0.1.0"
+hyper = "1.5.0"
 iceberg-rest-catalog = { workspace = true }
 iceberg-rust = { workspace = true }
+iceberg-rust-spec = { workspace = true }
+icebucket_metastore = { version = "0.1.0", path = "../metastore" }
+icebucket_utils = { version = "0.1.0", path = "../utils" }
+indexmap = { version = "2.7.1" }
+itertools = "0.14.0"
 object_store = { workspace = true }
 
 paste = "1"
 regex = { version = "1.11.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+slatedb = { workspace = true }
 snafu = { workspace = true }
-itertools = { version = "0.14.0" }
 
 sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "53c291e3e95f176daea954f614409e5f674ec561", features = [
   "visitor",
 ] }
+strum = { version = "0.27.1", features = ["derive"] }
+
+swagger = { version = "6.1", features = [
+  "serdejson",
+  "server",
+  "client",
+  "tls",
+  "tcp",
+] }
+time = "0.3.37"
 tokio = { workspace = true }
+
+tower-http = { version = "0.6.1", features = [
+  "catch-panic",
+  "timeout",
+  "sensitive-headers",
+  "cors",
+  "trace",
+] }
+tower-sessions = { version = "0.14.0" }
 tracing = { workspace = true }
 url = { version = "2.5.4" }
+
+utoipa = { workspace = true }
+utoipa-axum = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
 uuid = { workspace = true }
+validator = { version = "0.20.0", features = ["derive"] }
 
 [lints]
 workspace = true

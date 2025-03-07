@@ -1,0 +1,51 @@
+---
+source: crates/metastore/src/metastore.rs
+expression: "(no_db_result, schema_create, schema_list, schema_get, schema_list_after)"
+snapshot_kind: text
+---
+(
+    Err(
+        ObjectNotFound {
+            type_name: "database",
+            name: "testdb",
+        },
+    ),
+    RwObject {
+        data: IceBucketSchema {
+            ident: IceBucketSchemaIdent {
+                schema: "testschema",
+                database: "testdb",
+            },
+            properties: None,
+        },
+        created_at: "TIMESTAMP",
+        updated_at: "TIMESTAMP",
+    },
+    [
+        RwObject {
+            data: IceBucketSchema {
+                ident: IceBucketSchemaIdent {
+                    schema: "testschema",
+                    database: "testdb",
+                },
+                properties: None,
+            },
+            created_at: "TIMESTAMP",
+            updated_at: "TIMESTAMP",
+        },
+    ],
+    Some(
+        RwObject {
+            data: IceBucketSchema {
+                ident: IceBucketSchemaIdent {
+                    schema: "testschema",
+                    database: "testdb",
+                },
+                properties: None,
+            },
+            created_at: "TIMESTAMP",
+            updated_at: "TIMESTAMP",
+        },
+    ),
+    [],
+)

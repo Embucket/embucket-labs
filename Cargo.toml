@@ -2,9 +2,7 @@
 default-members = ["bin/bucketd"]
 members = [
   "bin/bucketd",
-  "crates/catalog",
-  "crates/control_plane",
-  "crates/nexus",
+  "crates/metastore",
   "crates/runtime",
   "crates/utils",
 ]
@@ -21,9 +19,9 @@ axum-macros = "0.5"
 tokio = { version = "1", features = ["full"] }
 async-trait = { version = "0.1.84" }
 serde = { version = "1.0", features = ["derive"] }
-slatedb = { version = "0.2.0" }
+slatedb = { version = "0.4.0" }
+bytes = { version = "1.8.0" }
 snmalloc-rs = { version = "0.3" }
-bytes = { version = "1" }
 object_store = { version = "0.11.1", features = ["aws", "gcp", "azure"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
@@ -46,10 +44,10 @@ datafusion-doc = { version = "45.0.0" }
 datafusion-macros = { version = "45.0.0" }
 
 datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "f2b9b88cd9b4282bc0286a970333e8c01cec177b" }
-
-iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1d486d6127ba18dc2dced7ed5f4c403dd8a6a8b9" }
-iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1d486d6127ba18dc2dced7ed5f4c403dd8a6a8b9" }
-datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1d486d6127ba18dc2dced7ed5f4c403dd8a6a8b9" }
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1bfc71ee1353f91773ab7354d64a8ca2c3c3bb3d" }
+iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1bfc71ee1353f91773ab7354d64a8ca2c3c3bb3d" }
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1bfc71ee1353f91773ab7354d64a8ca2c3c3bb3d" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "1bfc71ee1353f91773ab7354d64a8ca2c3c3bb3d" }
 
 [patch.crates-io]
 datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
@@ -76,3 +74,4 @@ missing_errors_doc = { level = "allow", priority = 2 }
 missing_panics_doc = { level = "allow", priority = 2 }
 significant_drop_tightening = { level = "allow", priority = 2 }
 module_name_repetitions = { level = "allow", priority = 2 }
+option_if_let_else = {level = "allow", priority = 2}

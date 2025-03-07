@@ -1,5 +1,5 @@
 [package]
-name = "utils"
+name = "icebucket_utils"
 version = "0.1.0"
 edition = "2021"
 license = {workspace = true}
@@ -10,6 +10,7 @@ async-trait = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
 iceberg = { workspace = true }
+object_store = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 slatedb = { workspace = true }
@@ -18,3 +19,7 @@ uuid = { workspace = true }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+insta = "1.42.1"
+tokio = { workspace = true }

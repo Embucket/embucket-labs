@@ -1,0 +1,284 @@
+---
+source: crates/metastore/src/metastore.rs
+assertion_line: 799
+expression: "(create_table, vol_object_store, paths)"
+---
+(
+    RwObject {
+        data: IceBucketTable {
+            ident: IceBucketTableIdent {
+                table: "testtable",
+                schema: "testschema",
+                database: "testdb",
+            },
+            metadata: TableMetadata {
+                format_version: V2,
+                table_uuid: 01954a95-53cc-7ba1-a638-2d2567c43519,
+                location: "",
+                last_sequence_number: 0,
+                last_updated_ms: 1740713055180,
+                last_column_id: 2,
+                schemas: {
+                    0: Schema {
+                        struct: StructType {
+                            fields: [
+                                NestedField {
+                                    id: 1,
+                                    name: "id",
+                                    required: false,
+                                    field_type: Primitive(
+                                        Int,
+                                    ),
+                                    doc: None,
+                                    initial_default: None,
+                                    write_default: None,
+                                },
+                                NestedField {
+                                    id: 2,
+                                    name: "name",
+                                    required: false,
+                                    field_type: Primitive(
+                                        String,
+                                    ),
+                                    doc: None,
+                                    initial_default: None,
+                                    write_default: None,
+                                },
+                            ],
+                            id_lookup: OnceLock(
+                                <uninit>,
+                            ),
+                            name_lookup: OnceLock(
+                                <uninit>,
+                            ),
+                        },
+                        schema_id: 0,
+                        highest_field_id: 2,
+                        identifier_field_ids: {},
+                        alias_to_id: {},
+                        id_to_field: {
+                            1: NestedField {
+                                id: 1,
+                                name: "id",
+                                required: false,
+                                field_type: Primitive(
+                                    Int,
+                                ),
+                                doc: None,
+                                initial_default: None,
+                                write_default: None,
+                            },
+                            2: NestedField {
+                                id: 2,
+                                name: "name",
+                                required: false,
+                                field_type: Primitive(
+                                    String,
+                                ),
+                                doc: None,
+                                initial_default: None,
+                                write_default: None,
+                            },
+                        },
+                        name_to_id: {
+                            "id": 1,
+                            "name": 2,
+                        },
+                        lowercase_name_to_id: {
+                            "id": 1,
+                            "name": 2,
+                        },
+                        id_to_name: {
+                            2: "name",
+                            1: "id",
+                        },
+                        field_id_to_accessor: {
+                            1: StructAccessor {
+                                position: 0,
+                                type: Int,
+                                inner: None,
+                            },
+                            2: StructAccessor {
+                                position: 1,
+                                type: String,
+                                inner: None,
+                            },
+                        },
+                    },
+                },
+                current_schema_id: 0,
+                partition_specs: {
+                    0: SchemalessPartitionSpec {
+                        spec_id: 0,
+                        fields: [],
+                    },
+                },
+                default_spec: PartitionSpec {
+                    spec_id: 0,
+                    fields: [],
+                    schema: Schema {
+                        struct: StructType {
+                            fields: [
+                                NestedField {
+                                    id: 1,
+                                    name: "id",
+                                    required: false,
+                                    field_type: Primitive(
+                                        Int,
+                                    ),
+                                    doc: None,
+                                    initial_default: None,
+                                    write_default: None,
+                                },
+                                NestedField {
+                                    id: 2,
+                                    name: "name",
+                                    required: false,
+                                    field_type: Primitive(
+                                        String,
+                                    ),
+                                    doc: None,
+                                    initial_default: None,
+                                    write_default: None,
+                                },
+                            ],
+                            id_lookup: OnceLock(
+                                <uninit>,
+                            ),
+                            name_lookup: OnceLock(
+                                <uninit>,
+                            ),
+                        },
+                        schema_id: 0,
+                        highest_field_id: 2,
+                        identifier_field_ids: {},
+                        alias_to_id: {},
+                        id_to_field: {
+                            1: NestedField {
+                                id: 1,
+                                name: "id",
+                                required: false,
+                                field_type: Primitive(
+                                    Int,
+                                ),
+                                doc: None,
+                                initial_default: None,
+                                write_default: None,
+                            },
+                            2: NestedField {
+                                id: 2,
+                                name: "name",
+                                required: false,
+                                field_type: Primitive(
+                                    String,
+                                ),
+                                doc: None,
+                                initial_default: None,
+                                write_default: None,
+                            },
+                        },
+                        name_to_id: {
+                            "id": 1,
+                            "name": 2,
+                        },
+                        lowercase_name_to_id: {
+                            "id": 1,
+                            "name": 2,
+                        },
+                        id_to_name: {
+                            2: "name",
+                            1: "id",
+                        },
+                        field_id_to_accessor: {
+                            1: StructAccessor {
+                                position: 0,
+                                type: Int,
+                                inner: None,
+                            },
+                            2: StructAccessor {
+                                position: 1,
+                                type: String,
+                                inner: None,
+                            },
+                        },
+                    },
+                    partition_type: StructType {
+                        fields: [],
+                        id_lookup: OnceLock(
+                            <uninit>,
+                        ),
+                        name_lookup: OnceLock(
+                            <uninit>,
+                        ),
+                    },
+                },
+                last_partition_id: 999,
+                properties: {
+                    "updated_at: "TIMESTAMP",
+                    "created_at: "TIMESTAMP",
+                },
+                current_snapshot_id: None,
+                snapshots: {},
+                snapshot_log: [],
+                metadata_log: [],
+                sort_orders: {
+                    0: SortOrder {
+                        order_id: 0,
+                        fields: [],
+                    },
+                },
+                default_sort_order_id: 0,
+                refs: {},
+            },
+            metadata_location: "//metadata/c3d4bec2-8cc1-4b77-b674-2e6ab6222a75.metadata.json",
+            properties: {
+                "updated_at: "TIMESTAMP",
+                "created_at: "TIMESTAMP",
+            },
+            volume_ident: Some(
+                "1329cb03-c9d6-4922-b999-b9b50e5ede12",
+            ),
+            volume_location: None,
+            is_temporary: true,
+        },
+        created_at: "TIMESTAMP",
+        updated_at: "TIMESTAMP",
+    },
+    InMemory {
+        storage: RwLock {
+            data: Storage {
+                next_etag: 1,
+                map: {
+                    Path {
+                        raw: "metadata/c3d4bec2-8cc1-4b77-b674-2e6ab6222a75.metadata.json",
+                    }: Entry {
+                        data: b"{\"format-version\":2,\"table-uuid\":\"01954a95-53cc-7ba1-a638-2d2567c43519\",\"location\":\"\",\"last-sequence-number\":0,\"last-updated-ms\":1740713055180,\"last-column-id\":2,\"schemas\":[{\"schema-id\":0,\"type\":\"struct\",\"fields\":[{\"id\":1,\"name\":\"id\",\"required\":false,\"type\":\"int\"},{\"id\":2,\"name\":\"name\",\"required\":false,\"type\":\"string\"}]}],\"current-schema-id\":0,\"partition-specs\":[{\"spec-id\":0,\"fields\":[]}],\"default-spec-id\":0,\"last-partition-id\":999,\"properties\":{\"updated_at: "TIMESTAMP",\"created_at: "TIMESTAMP",\"current-snapshot-id\":-1,\"snapshots\":[],\"sort-orders\":[{\"order-id\":0,\"fields\":[]}],\"default-sort-order-id\":0,\"refs\":{}}",
+                        last_modified: 2025-02-28T03:24:15.377597Z,
+                        attributes: Attributes(
+                            {},
+                        ),
+                        e_tag: 0,
+                    },
+                },
+                uploads: {},
+            },
+        },
+    },
+    Ok(
+        [
+            Ok(
+                ObjectMeta {
+                    location: Path {
+                        raw: "metadata/c3d4bec2-8cc1-4b77-b674-2e6ab6222a75.metadata.json",
+                    },
+                    last_modified: 2025-02-28T03:24:15.377597Z,
+                    size: 666,
+                    e_tag: Some(
+                        "0",
+                    ),
+                    version: None,
+                },
+            ),
+        ],
+    ),
+)

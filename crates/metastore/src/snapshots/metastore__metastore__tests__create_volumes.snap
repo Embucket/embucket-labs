@@ -1,0 +1,24 @@
+---
+source: crates/metastore/src/metastore.rs
+expression: "(volumes_key, test_volume, all_volumes)"
+snapshot_kind: text
+---
+(
+    [
+        "vol/test",
+    ],
+    Some(
+        Object {
+            "created_at: "TIMESTAMP",
+            "type": String("memory"),
+            "updated_at: "TIMESTAMP",
+        },
+    ),
+    [
+        RwObject {
+            data: Memory,
+            created_at: "TIMESTAMP",
+            updated_at: "TIMESTAMP",
+        },
+    ],
+)
