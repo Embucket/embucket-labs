@@ -18,6 +18,7 @@
 use std::sync::Arc;
 
 use config::IceBucketRuntimeConfig;
+use history::api::QHistoryStore;
 use http::{make_icebucket_app, run_icebucket_app};
 use icebucket_metastore::SlateDBMetastore;
 use icebucket_utils::Db;
@@ -42,6 +43,19 @@ pub async fn run_icebucket(
             SlateDb::open_with_opts(
                 Path::from(config.db.slatedb_prefix.clone()),
                 options,
+                state_store.clone(),
+            )
+            .await
+            .map_err(Box::new)?,
+        ))
+    };
+
+    let qhistory_db = {
+        let options = DbOptions::default();
+        Db::new(Arc::new(
+            SlateDb::open_with_opts(
+                Path::from(config.db.slatedb_prefix_qhistory.clone()),
+                options,
                 state_store,
             )
             .await
@@ -50,6 +64,7 @@ pub async fn run_icebucket(
     };
 
     let metastore = Arc::new(SlateDBMetastore::new(db));
-    let app = make_icebucket_app(metastore, &config.web)?;
+    let qhistory = Arc::new(QHistoryStore::new(qhistory_db));
+    let app = make_icebucket_app(metastore, qhistory, &config.web)?;
     run_icebucket_app(app, &config.web).await
 }

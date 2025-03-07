@@ -7,6 +7,7 @@ use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOption
 use object_store::{path::Path, PutPayload};
 use snafu::{OptionExt, ResultExt};
 use uuid::Uuid;
+use history::api::QHistoryApi;
 
 use super::{
     models::ColumnInfo,
@@ -21,14 +22,16 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 pub struct ExecutionService {
     metastore: Arc<dyn Metastore>,
+    qhistory: Arc<dyn QHistoryApi>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<IceBucketUserSession>>>>,
     config: Config,
 }
 
 impl ExecutionService {
-    pub fn new(metastore: Arc<dyn Metastore>, config: Config) -> Self {
+    pub fn new(metastore: Arc<dyn Metastore>, qhistory: Arc<dyn QHistoryApi>, config: Config) -> Self {
         Self {
             metastore,
+            qhistory,
             df_sessions: Arc::new(RwLock::new(HashMap::new())),
             config,
         }

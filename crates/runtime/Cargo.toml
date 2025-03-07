@@ -49,6 +49,7 @@ icebucket_utils = { version = "0.1.0", path = "../utils" }
 indexmap = { version = "2.7.1" }
 itertools = "0.14.0"
 object_store = { workspace = true }
+history = { workspace= true }
 
 paste = "1"
 regex = { version = "1.11.0" }

@@ -25,6 +25,7 @@ use axum::{
 };
 use http_body_util::BodyExt;
 use icebucket_metastore::Metastore;
+use history::api::{QHistoryStore, QHistoryApi};
 use std::sync::Arc;
 use time::Duration;
 use tokio::signal;
@@ -56,6 +57,7 @@ use super::http::config::IceBucketWebConfig;
 
 pub fn make_icebucket_app(
     metastore: Arc<dyn Metastore>,
+    qhistory: Arc<dyn QHistoryApi>,
     config: &IceBucketWebConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format);
