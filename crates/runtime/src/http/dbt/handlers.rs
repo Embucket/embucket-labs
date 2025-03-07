@@ -36,6 +36,7 @@ use axum::Json;
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
+use control_plane::utils::DataFormat;
 use flate2::read::GzDecoder;
 use regex::Regex;
 use snafu::ResultExt;

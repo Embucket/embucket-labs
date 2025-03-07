@@ -14,7 +14,6 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-
 use arrow::array::{Int64Array, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
@@ -119,6 +118,19 @@ impl IceBucketQuery {
             .clone()
             .or_else(|| self.session.get_session_variable("schema"))
             .or_else(|| Some("public".to_string()))
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[tracing::instrument(level = "trace", ret)]
+    pub fn postprocess_query_statement(statement: &mut DFStatement) {
+        if let DFStatement::Statement(value) = statement {
+            visit_expressions_mut(&mut *value, |expr| {
+                if let Expr::Function(ref mut func) = expr {
+                    visit_functions_expressions(func);
+                }
+                ControlFlow::<()>::Continue(())
+            });
+        }
     }
 
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]

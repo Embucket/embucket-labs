@@ -25,6 +25,7 @@ use datafusion::logical_expr::{
     ColumnarValue, Documentation, ScalarUDFImpl, Signature, Volatility,
 };
 use datafusion_common::{DataFusionError, Result};
+use datafusion_expr::ScalarFunctionArgs;
 use geo_traits::{CoordTrait, PointTrait};
 use geoarrow::array::AsNativeArray;
 use geoarrow::error::GeoArrowError;
@@ -34,101 +35,71 @@ use snafu::ResultExt;
 use std::any::Any;
 use std::sync::{Arc, OnceLock};
 
-#[derive(Debug)]
-pub struct PointX {
-    signature: Signature,
-}
-
-impl PointX {
-    pub fn new() -> Self {
-        Self {
-            signature: Signature::exact(vec![POINT2D_TYPE.into()], Volatility::Immutable),
-        }
-    }
-}
-
 static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
-
-impl ScalarUDFImpl for PointX {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn name(&self) -> &'static str {
-        "st_x"
-    }
-
-    fn signature(&self) -> &Signature {
-        &self.signature
-    }
-
-    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
-        Ok(Float64)
-    }
-
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
-        get_coord(args, 0)
-    }
-
-    fn documentation(&self) -> Option<&Documentation> {
-        Some(DOCUMENTATION.get_or_init(|| {
-            Documentation::builder(
-                DOC_SECTION_OTHER,
-                "Returns the longitude (X coordinate) of a Point represented by geometry.",
-                "ST_X(geom)",
-            )
-            .with_argument("g1", "geometry")
-            .build()
-        }))
-    }
-}
-
-#[derive(Debug)]
-pub struct PointY {
-    signature: Signature,
-}
-
-impl PointY {
-    pub fn new() -> Self {
-        Self {
-            signature: Signature::exact(vec![POINT2D_TYPE.into()], Volatility::Immutable),
+macro_rules! create_point_udf {
+    ($name:ident, $func_name:expr, $index:expr, $doc:expr, $syntax:expr) => {
+        #[derive(Debug)]
+        pub struct $name {
+            signature: Signature,
         }
-    }
+
+        impl $name {
+            pub fn new() -> Self {
+                Self {
+                    signature: Signature::exact(vec![POINT2D_TYPE.into()], Volatility::Immutable),
+                }
+            }
+        }
+
+        impl ScalarUDFImpl for $name {
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+
+            fn name(&self) -> &'static str {
+                $func_name
+            }
+
+            fn signature(&self) -> &Signature {
+                &self.signature
+            }
+
+            fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
+                Ok(Float64)
+            }
+
+            fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
+                get_coord(&args.args, $index)
+            }
+
+            fn documentation(&self) -> Option<&Documentation> {
+                Some(DOCUMENTATION.get_or_init(|| {
+                    Documentation::builder(DOC_SECTION_OTHER, $doc, $syntax)
+                        .with_argument("g1", "geometry")
+                        .with_related_udf("st_x")
+                        .with_related_udf("st_y")
+                        .build()
+                }))
+            }
+        }
+    };
 }
 
-impl ScalarUDFImpl for PointY {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+create_point_udf!(
+    PointX,
+    "st_x",
+    0,
+    "Returns the longitude (X coordinate) of a Point represented by geometry.",
+    "ST_X(geom)"
+);
 
-    fn name(&self) -> &'static str {
-        "st_y"
-    }
-
-    fn signature(&self) -> &Signature {
-        &self.signature
-    }
-
-    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
-        Ok(Float64)
-    }
-
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
-        get_coord(args, 1)
-    }
-
-    fn documentation(&self) -> Option<&Documentation> {
-        Some(DOCUMENTATION.get_or_init(|| {
-            Documentation::builder(
-                DOC_SECTION_OTHER,
-                "Returns the latitude (Y coordinate) of a Point represented by geometry.",
-                "ST_Y(geom)",
-            )
-            .with_argument("g1", "geometry")
-            .build()
-        }))
-    }
-}
+create_point_udf!(
+    PointY,
+    "st_y",
+    1,
+    "Returns the latitude (Y coordinate) of a Point represented by geometry.",
+    "ST_Y(geom)"
+);
 
 fn get_coord(args: &[ColumnarValue], n: i64) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?
@@ -181,7 +152,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::unwrap_used, clippy::float_cmp)]
-    fn test_x() {
+    fn test_points() {
         let pa = PointBuilder::from_points(
             [
                 point! {x: 4., y: 2.},
@@ -196,41 +167,23 @@ mod tests {
         .finish()
         .to_array_ref();
 
-        let args = vec![ColumnarValue::Array(pa)];
-        let x = PointX::new();
-        let result = x.invoke_batch(&args, 3).unwrap();
-        let result = result.to_array(3).unwrap();
+        let results: [[f64; 3]; 2] = [[4., 1., 2.], [2., 2., 3.]];
+        let udfs: Vec<Box<dyn ScalarUDFImpl>> =
+            vec![Box::new(PointX::new()), Box::new(PointY::new())];
 
-        let result = result.as_primitive::<Float64Type>();
-        assert_eq!(result.value(0), 4.0);
-        assert_eq!(result.value(1), 1.0);
-        assert_eq!(result.value(2), 2.0);
-    }
-    #[test]
-    #[allow(clippy::unwrap_used, clippy::float_cmp)]
-    fn test_y() {
-        let pa = PointBuilder::from_points(
-            [
-                point! {x: 4., y: 0.},
-                point! {x: 1., y: 2.},
-                point! {x: 2., y: 3.},
-            ]
-            .iter(),
-            Dimension::XY,
-            CoordType::Separated,
-            Arc::default(),
-        )
-        .finish()
-        .to_array_ref();
-
-        let args = vec![ColumnarValue::Array(pa)];
-        let y = PointY::new();
-        let result = y.invoke_batch(&args, 3).unwrap();
-        let result = result.to_array(3).unwrap();
-
-        let result = result.as_primitive::<Float64Type>();
-        assert_eq!(result.value(0), 0.0);
-        assert_eq!(result.value(1), 2.0);
-        assert_eq!(result.value(2), 3.0);
+        for (idx, udf) in udfs.iter().enumerate() {
+            let result = udf
+                .invoke_with_args(ScalarFunctionArgs {
+                    args: vec![ColumnarValue::Array(pa.clone())],
+                    number_rows: 3,
+                    return_type: &DataType::Null,
+                })
+                .unwrap();
+            let result = result.to_array(3).unwrap();
+            let result = result.as_primitive::<Float64Type>();
+            assert_eq!(result.value(0), results[idx][0]);
+            assert_eq!(result.value(1), results[idx][1]);
+            assert_eq!(result.value(2), results[idx][2]);
+        }
     }
 }

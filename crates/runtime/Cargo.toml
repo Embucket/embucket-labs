@@ -10,13 +10,12 @@ license-file = { workspace = true }
 arrow = { version = "54.1.0" }
 arrow-json = { version = "54.1.0" }
 arrow-schema = { version = "54.1.0", default-features = false }
-
+arrow-array = { version = "54.1.0" }
 async-trait = { workspace = true }
 axum = { workspace = true }
 axum-macros = { workspace = true }
 base64 = { version = "0.22.1" }
 bytes = { workspace = true }
-arrow-array = { version = "54.1.0" }
 
 geoarrow = { version = "0.4.0-beta.4" }
 geodatafusion = { git = "https://github.com/geoarrow/geoarrow-rs.git", package = "geodatafusion" }

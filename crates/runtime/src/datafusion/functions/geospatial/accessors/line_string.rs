@@ -28,6 +28,7 @@ use datafusion::logical_expr::{
     ColumnarValue, Documentation, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use datafusion_common::{DataFusionError, Result};
+use datafusion_expr::ScalarFunctionArgs;
 use geo_traits::LineStringTrait;
 use geoarrow::array::{AsNativeArray, CoordType, PointBuilder};
 use geoarrow::datatypes::Dimension;
@@ -38,100 +39,76 @@ use snafu::ResultExt;
 use std::any::Any;
 use std::sync::{Arc, OnceLock};
 
-#[derive(Debug)]
-pub struct EndPoint {
-    signature: Signature,
-}
-
-impl EndPoint {
-    pub fn new() -> Self {
-        Self {
-            signature: Signature::exact(vec![LINE_STRING_TYPE.into()], Volatility::Immutable),
-        }
-    }
-}
-
 static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
 
-impl ScalarUDFImpl for EndPoint {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn name(&self) -> &'static str {
-        "st_endpoint"
-    }
-
-    fn signature(&self) -> &Signature {
-        &self.signature
-    }
-
-    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
-        Ok(POINT2D_TYPE.into())
-    }
-
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
-        get_n_point(args, None)
-    }
-
-    fn documentation(&self) -> Option<&Documentation> {
-        Some(DOCUMENTATION.get_or_init(|| {
-            Documentation::builder(
-                DOC_SECTION_OTHER,
-                "Returns the last point of a LINESTRING geometry as a POINT. Returns NULL if the input is not a LINESTRING", 
-                "ST_EndPoint(line_string)")
-                .with_argument("g1", "geometry")
-                .build()
-        }))
-    }
-}
-
-#[derive(Debug)]
-pub struct StartPoint {
-    signature: Signature,
-}
-
-impl StartPoint {
-    pub fn new() -> Self {
-        Self {
-            signature: Signature::exact(vec![LINE_STRING_TYPE.into()], Volatility::Immutable),
+macro_rules! create_line_string_udf {
+    ($name:ident, $func_name:expr, $index:expr, $doc:expr, $syntax:expr) => {
+        #[derive(Debug)]
+        pub struct $name {
+            signature: Signature,
         }
-    }
+
+        impl $name {
+            pub fn new() -> Self {
+                Self {
+                    signature: Signature::exact(
+                        vec![LINE_STRING_TYPE.into()],
+                        Volatility::Immutable,
+                    ),
+                }
+            }
+        }
+
+        impl ScalarUDFImpl for $name {
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+
+            fn name(&self) -> &'static str {
+                $func_name
+            }
+
+            fn signature(&self) -> &Signature {
+                &self.signature
+            }
+
+            fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
+                Ok(POINT2D_TYPE.into())
+            }
+
+            fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
+                get_n_point(&args.args, $index)
+            }
+
+            fn documentation(&self) -> Option<&Documentation> {
+                Some(DOCUMENTATION.get_or_init(|| {
+                    Documentation::builder(DOC_SECTION_OTHER, $doc, $syntax)
+                        .with_argument("g1", "geometry")
+                        .with_related_udf("st_startpoint")
+                        .with_related_udf("st_pointn")
+                        .with_related_udf("st_endpoint")
+                        .build()
+                }))
+            }
+        }
+    };
 }
 
-impl ScalarUDFImpl for StartPoint {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+create_line_string_udf!(
+    EndPoint,
+    "st_endpoint",
+    None,
+    "Returns the last point of a LINESTRING geometry as a POINT. Returns NULL if the input is not a LINESTRING",
+    "ST_EndPoint(line_string)"
+);
 
-    fn name(&self) -> &'static str {
-        "st_startpoint"
-    }
-
-    fn signature(&self) -> &Signature {
-        &self.signature
-    }
-
-    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
-        Ok(POINT2D_TYPE.into())
-    }
-
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
-        get_n_point(args, Some(1))
-    }
-
-    fn documentation(&self) -> Option<&Documentation> {
-        Some(DOCUMENTATION.get_or_init(|| {
-            Documentation::builder(
-                DOC_SECTION_OTHER,
-                "Returns the first point of a LINESTRING geometry as a POINT.",
-                "ST_StartPoint(line_string)",
-            )
-            .with_argument("g1", "geometry")
-            .build()
-        }))
-    }
-}
+create_line_string_udf!(
+    StartPoint,
+    "st_startpoint",
+    Some(1),
+    "Returns the first point of a LINESTRING geometry as a POINT.",
+    "ST_StartPoint(geom)"
+);
 
 #[derive(Debug)]
 pub struct PointN {
@@ -175,14 +152,15 @@ impl ScalarUDFImpl for PointN {
         Ok(POINT2D_TYPE.into())
     }
 
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = args.args;
         if args.len() < 2 {
             return Err(DataFusionError::Execution(
                 "Expected two arguments in ST_PointN".to_string(),
             ));
         }
         let index = to_primitive_array::<Int64Type>(&args[1])?.value(0);
-        get_n_point(args, Some(index))
+        get_n_point(&args, Some(index))
     }
 
     fn documentation(&self) -> Option<&Documentation> {
@@ -245,6 +223,7 @@ fn get_n_point(args: &[ColumnarValue], n: Option<i64>) -> Result<ColumnarValue> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::{EndPoint, StartPoint};
     use arrow_array::Array;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::line_string;
@@ -255,7 +234,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::unwrap_used)]
-    fn test_start_point() {
+    fn test_start_end_point() {
         let data = vec![
             line_string![(x: 1., y: 1.), (x: 1., y: 0.), (x: 1., y: 1.)],
             line_string![(x: 2., y: 2.), (x: 3., y: 2.), (x: 3., y: 3.)],
@@ -267,46 +246,31 @@ mod tests {
             CoordType::Separated,
             Arc::default(),
         )
-        .finish();
+        .finish()
+        .to_array_ref();
 
-        let data = array.to_array_ref();
-        let args = vec![ColumnarValue::Array(data)];
-        let start_point = StartPoint::new();
-        let result = start_point.invoke_batch(&args, 3).unwrap();
-        let result = result.to_array(3).unwrap();
-        assert_eq!(result.data_type(), &POINT2D_TYPE.into());
-        let result = PointArray::try_from((result.as_ref(), Dimension::XY)).unwrap();
-        assert_eq!(result.get(0).unwrap().to_wkt().unwrap(), "POINT(1 1)");
-        assert_eq!(result.get(1).unwrap().to_wkt().unwrap(), "POINT(2 2)");
-        assert_eq!(result.get(2).unwrap().to_wkt().unwrap(), "POINT(2 2)");
-    }
-
-    #[test]
-    #[allow(clippy::unwrap_used)]
-    fn test_end_point() {
-        let data = vec![
-            line_string![(x: 0., y: 0.), (x: 1., y: 0.), (x: 1., y: 1.)],
-            line_string![(x: 2., y: 2.), (x: 3., y: 2.), (x: 3., y: 3.)],
-            line_string![(x: 2., y: 2.), (x: 3., y: 2.)],
+        let udfs: Vec<Box<dyn ScalarUDFImpl>> =
+            vec![Box::new(StartPoint::new()), Box::new(EndPoint::new())];
+        let results: [[&str; 3]; 2] = [
+            ["POINT(1 1)", "POINT(2 2)", "POINT(2 2)"],
+            ["POINT(1 1)", "POINT(3 3)", "POINT(3 2)"],
         ];
-        let array = LineStringBuilder::from_line_strings(
-            &data,
-            Dimension::XY,
-            CoordType::Separated,
-            Arc::default(),
-        )
-        .finish();
 
-        let data = array.to_array_ref();
-        let args = vec![ColumnarValue::Array(data)];
-        let end_point = EndPoint::new();
-        let result = end_point.invoke_batch(&args, 3).unwrap();
-        let result = result.to_array(3).unwrap();
-        assert_eq!(result.data_type(), &POINT2D_TYPE.into());
-        let result = PointArray::try_from((result.as_ref(), Dimension::XY)).unwrap();
-        assert_eq!(result.get(0).unwrap().to_wkt().unwrap(), "POINT(1 1)");
-        assert_eq!(result.get(1).unwrap().to_wkt().unwrap(), "POINT(3 3)");
-        assert_eq!(result.get(2).unwrap().to_wkt().unwrap(), "POINT(3 2)");
+        for (idx, udf) in udfs.iter().enumerate() {
+            let result = udf
+                .invoke_with_args(ScalarFunctionArgs {
+                    args: vec![ColumnarValue::Array(array.clone())],
+                    number_rows: 3,
+                    return_type: &DataType::Null,
+                })
+                .unwrap();
+            let result = result.to_array(3).unwrap();
+            assert_eq!(result.data_type(), &POINT2D_TYPE.into());
+            let result = PointArray::try_from((result.as_ref(), Dimension::XY)).unwrap();
+            assert_eq!(result.get(0).unwrap().to_wkt().unwrap(), results[idx][0]);
+            assert_eq!(result.get(1).unwrap().to_wkt().unwrap(), results[idx][1]);
+            assert_eq!(result.get(2).unwrap().to_wkt().unwrap(), results[idx][2]);
+        }
     }
 
     #[test]
@@ -335,12 +299,17 @@ mod tests {
 
         for (index, ok, exp) in cases {
             let data = array.to_array_ref();
-            let args = vec![
-                ColumnarValue::Array(data),
-                ColumnarValue::Scalar(index.into()),
-            ];
+            let args = ScalarFunctionArgs {
+                args: vec![
+                    ColumnarValue::Array(data),
+                    ColumnarValue::Scalar(index.into()),
+                ],
+                number_rows: 3,
+                return_type: &DataType::Null,
+            };
+
             let point_n = PointN::new();
-            let result = point_n.invoke_batch(&args, 3);
+            let result = point_n.invoke_with_args(args);
 
             if ok {
                 let result = result.unwrap().to_array(3).unwrap();
