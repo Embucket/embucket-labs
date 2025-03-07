@@ -321,7 +321,7 @@ mod tests {
     #[test]
     fn test_convert_timezone_2_arg_correct() {
         let target_tz = String::from("UTC");
-        let source_timestamp_tz_value = 1736168400000000i64;
+        let source_timestamp_tz_value = 1_736_168_400_000_000_i64;
         let source_timestamp_tz_timezone = String::from("+00");
         //2025-01-06 08:00:00 America/New_York, because it automaticly converts to 2025-01-06 13:00:00 in UTC
         let source_timestamp_tz = ScalarValue::TimestampMicrosecond(
@@ -336,7 +336,7 @@ mod tests {
         match result_wrapped {
             Ok(ColumnarValue::Scalar(result)) => {
                 let expected = ScalarValue::TimestampMicrosecond(
-                    Some(1736168400000000i64),
+                    Some(1_736_168_400_000_000_i64),
                     Some(Arc::from(target_tz.into_boxed_str())),
                 );
                 assert_eq!(
@@ -352,7 +352,7 @@ mod tests {
         let source_tz = String::from("America/New_York");
         let target_tz = String::from("UTC");
         //2025-01-06 08:00:00 in UTC
-        let source_timestamp_tz_value = 1736150400000000i64;
+        let source_timestamp_tz_value = 1_736_150_400_000_000_i64;
         #[allow(deprecated)]
         let result_wrapped = ConvertTimezoneFunc::new().invoke(&[
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(source_tz))),
@@ -365,7 +365,7 @@ mod tests {
         match result_wrapped {
             Ok(ColumnarValue::Scalar(result)) => {
                 let expected = ScalarValue::TimestampMicrosecond(
-                    Some(1736168400000000i64),
+                    Some(1_736_168_400_000_000_i64),
                     Some(Arc::from(target_tz.into_boxed_str())),
                 );
                 assert_eq!(
@@ -383,7 +383,7 @@ mod tests {
         //2025-01-06 08:00:00 America/New_York, because it automaticly converts to 2025-01-06 13:00:00 in UTC
         //shouldn't even consider this value returns 2025-01-06 18:00:00 America/New_York, essentially,
         //beacuse of teh internal conversion it adds the America/New_York offset twice in this example
-        let source_timestamp_tz_value = 1736168400000000i64;
+        let source_timestamp_tz_value = 1_736_168_400_000_000_i64;
         #[allow(deprecated)]
         let result_wrapped = ConvertTimezoneFunc::new().invoke(&[
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(source_tz))),
@@ -396,7 +396,7 @@ mod tests {
         match result_wrapped {
             Ok(ColumnarValue::Scalar(result)) => {
                 let expected = ScalarValue::TimestampMicrosecond(
-                    Some(1736168400000000i64),
+                    Some(1_736_168_400_000_000_i64),
                     Some(Arc::from(target_tz.into_boxed_str())),
                 );
                 assert_ne!(

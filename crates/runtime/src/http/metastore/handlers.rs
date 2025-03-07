@@ -22,6 +22,7 @@ use axum::{
 };
 use snafu::ResultExt;
 //use utoipa::OpenApi;
+#[allow(clippy::wildcard_imports)]
 use icebucket_metastore::{
     error::{self as metastore_error, MetastoreError},
     *,
@@ -40,7 +41,7 @@ pub struct IceBucketVolumeSchema(IceBucketVolume);
 )]
 pub struct MetastoreApi;*/
 
-type RwObjectVec<T> = Vec<RwObject<T>>;
+//type RwObjectVec<T> = Vec<RwObject<T>>;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QueryParameters {

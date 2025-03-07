@@ -41,7 +41,7 @@ use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, SetExpr, Use
+    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use
 };
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
@@ -911,19 +911,6 @@ impl IceBucketQuery {
         }
     }
 
-    #[allow(clippy::unwrap_used)]
-    #[tracing::instrument(level = "trace", ret)]
-    pub fn postprocess_query_statement(statement: &mut DFStatement) {
-        if let DFStatement::Statement(value) = statement {
-            visit_expressions_mut(&mut *value, |expr| {
-                if let Expr::Function(ref mut func) = expr {
-                    visit_functions_expressions(func);
-                }
-                ControlFlow::<()>::Continue(())
-            });
-        }
-    }
-
     // TODO: We need to recursively fix any missing table references with the default
     // database and schema from the session
     /*fn update_statement_table_references(
@@ -1308,9 +1295,9 @@ impl IceBucketQuery {
                     returning,
                     or,
                 } => {
-                    self.update_tables_in_table_with_joins(&mut table);
+                    self.update_tables_in_table_with_joins(&mut table)?;
                     if let Some(from) = from.as_mut() {
-                        self.update_tables_in_table_with_joins(from);
+                        self.update_tables_in_table_with_joins(from)?;
                     }
                     let modified_statement = Statement::Update {
                         table,
@@ -1416,7 +1403,7 @@ impl IceBucketQuery {
         match query.body.as_mut() {
             sqlparser::ast::SetExpr::Select(select) => {
                 for table_with_joins in &mut select.from {
-                    self.update_tables_in_table_with_joins(table_with_joins);
+                    self.update_tables_in_table_with_joins(table_with_joins)?;
                 }
 
                 if let Some(expr) = &mut select.selection {
@@ -1449,12 +1436,14 @@ impl IceBucketQuery {
         Ok(())
     }
 
-    fn update_tables_in_table_with_joins(&self, table_with_joins: &mut TableWithJoins) {
-        self.update_tables_in_table_factor(&mut table_with_joins.relation);
+    fn update_tables_in_table_with_joins(&self, table_with_joins: &mut TableWithJoins) -> ExecutionResult<()> {
+        self.update_tables_in_table_factor(&mut table_with_joins.relation)?;
 
         for join in &mut table_with_joins.joins {
-            self.update_tables_in_table_factor(&mut join.relation);
+            self.update_tables_in_table_factor(&mut join.relation)?;
         }
+
+        Ok(())
     }
 
     fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor) -> ExecutionResult<()> {
@@ -1469,7 +1458,7 @@ impl IceBucketQuery {
             TableFactor::NestedJoin {
                 table_with_joins, ..
             } => {
-                self.update_tables_in_table_with_joins(table_with_joins);
+                self.update_tables_in_table_with_joins(table_with_joins)?;
             }
             _ => {}
         }

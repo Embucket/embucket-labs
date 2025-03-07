@@ -1,0 +1,140 @@
+---
+source: crates/runtime/src/execution/tests/query.rs
+assertion_line: 245
+expression: "(from1, from2, from3, from4)"
+---
+(
+    [
+        TableWithJoins {
+            relation: Table {
+                name: ObjectName(
+                    [
+                        Ident {
+                            value: "table1",
+                            quote_style: None,
+                            span: Span(Location(1,15)..Location(1,21)),
+                        },
+                    ],
+                ),
+                alias: None,
+                args: None,
+                with_hints: [],
+                version: None,
+                with_ordinality: false,
+                partitions: [],
+                json_path: None,
+            },
+            joins: [],
+        },
+    ],
+    [
+        TableWithJoins {
+            relation: Table {
+                name: ObjectName(
+                    [
+                        Ident {
+                            value: "table2",
+                            quote_style: None,
+                            span: Span(Location(1,15)..Location(1,21)),
+                        },
+                    ],
+                ),
+                alias: None,
+                args: None,
+                with_hints: [],
+                version: None,
+                with_ordinality: false,
+                partitions: [],
+                json_path: None,
+            },
+            joins: [],
+        },
+    ],
+    [
+        TableWithJoins {
+            relation: Table {
+                name: ObjectName(
+                    [
+                        Ident {
+                            value: "table3",
+                            quote_style: None,
+                            span: Span(Location(1,15)..Location(1,21)),
+                        },
+                    ],
+                ),
+                alias: None,
+                args: None,
+                with_hints: [],
+                version: None,
+                with_ordinality: false,
+                partitions: [],
+                json_path: None,
+            },
+            joins: [],
+        },
+    ],
+    [
+        TableWithJoins {
+            relation: Table {
+                name: ObjectName(
+                    [
+                        Ident {
+                            value: "table4",
+                            quote_style: None,
+                            span: Span(Location(1,15)..Location(1,21)),
+                        },
+                    ],
+                ),
+                alias: None,
+                args: None,
+                with_hints: [],
+                version: None,
+                with_ordinality: false,
+                partitions: [],
+                json_path: None,
+            },
+            joins: [
+                Join {
+                    relation: Table {
+                        name: ObjectName(
+                            [
+                                Ident {
+                                    value: "table4_1",
+                                    quote_style: None,
+                                    span: Span(Location(1,33)..Location(1,41)),
+                                },
+                            ],
+                        ),
+                        alias: None,
+                        args: None,
+                        with_hints: [],
+                        version: None,
+                        with_ordinality: false,
+                        partitions: [],
+                        json_path: None,
+                    },
+                    global: false,
+                    join_operator: Inner(
+                        On(
+                            BinaryOp {
+                                left: Value(
+                                    Number(
+                                        "1",
+                                        false,
+                                    ),
+                                ),
+                                op: Eq,
+                                right: Value(
+                                    Number(
+                                        "1",
+                                        false,
+                                    ),
+                                ),
+                            },
+                        ),
+                    ),
+                },
+            ],
+        },
+    ],
+)

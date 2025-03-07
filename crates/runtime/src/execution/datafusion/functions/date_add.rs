@@ -230,7 +230,7 @@ mod tests {
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(String::from("days")))),
             ColumnarValue::Scalar(ScalarValue::Int64(Some(5i64))),
             ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
-                Some(1736168400000000i64),
+                Some(1_736_168_400_000_000_i64),
                 Some(Arc::from(String::from("+00").into_boxed_str())),
             )),
         ];
@@ -245,7 +245,7 @@ mod tests {
         match DateAddFunc::new().invoke_with_args(fn_args) {
             Ok(ColumnarValue::Scalar(result)) => {
                 let expected = ScalarValue::TimestampMicrosecond(
-                    Some(1736600400000000i64),
+                    Some(1_736_600_400_000_000_i64),
                     Some(Arc::from(String::from("+00").into_boxed_str())),
                 );
                 assert_eq!(&result, &expected, "date_add created a wrong value");
@@ -260,7 +260,7 @@ mod tests {
             ColumnarValue::Scalar(ScalarValue::Int64(Some(5i64))),
             ColumnarValue::Array(
                 ScalarValue::TimestampMicrosecond(
-                    Some(1736168400000000i64),
+                    Some(1_736_168_400_000_000_i64),
                     Some(Arc::from(String::from("+00").into_boxed_str())),
                 )
                 .to_array()
@@ -278,7 +278,7 @@ mod tests {
         match DateAddFunc::new().invoke_with_args(fn_args) {
             Ok(ColumnarValue::Array(result)) => {
                 let expected = ScalarValue::TimestampMicrosecond(
-                    Some(1736600400000000i64),
+                    Some(1_736_600_400_000_000_i64),
                     Some(Arc::from(String::from("+00").into_boxed_str())),
                 )
                 .to_array()
@@ -295,7 +295,7 @@ mod tests {
             ColumnarValue::Scalar(ScalarValue::Int64(Some(5i64))),
             ColumnarValue::Array(
                 ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
-                    Some(1736168400000000i64),
+                    Some(1_736_168_400_000_000_i64),
                     Some(Arc::from(String::from("+00").into_boxed_str())),
                 ))
                 .to_array(2)
@@ -313,7 +313,7 @@ mod tests {
         match DateAddFunc::new().invoke_with_args(fn_args) {
             Ok(ColumnarValue::Array(result)) => {
                 let expected = ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
-                    Some(1736600400000000i64),
+                    Some(1_736_600_400_000_000_i64),
                     Some(Arc::from(String::from("+00").into_boxed_str())),
                 ))
                 .to_array(2)
