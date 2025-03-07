@@ -18,28 +18,24 @@
 use std::any::Any;
 use std::sync::{Arc, OnceLock};
 
-use crate::datafusion::functions::geospatial::data_types::{
+use crate::execution::datafusion::functions::geospatial::data_types::{
     any_single_geometry_type_input, parse_to_native_array,
 };
-use arrow_array::builder::Int32Builder;
+use crate::execution::datafusion::functions::geospatial::error as geo_error;
 use arrow_schema::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{ColumnarValue, Documentation, ScalarUDFImpl, Signature};
 use datafusion_common::{DataFusionError, Result};
 use datafusion_expr::ScalarFunctionArgs;
-use geoarrow::array::AsNativeArray;
-use geoarrow::datatypes::NativeType;
-use geoarrow::trait_::ArrayAccessor;
-use geoarrow::ArrayBase;
-use geozero::GeozeroGeometry;
+use geoarrow::algorithm::geo::ChamberlainDuquetteArea;
+use snafu::ResultExt;
 
 #[derive(Debug)]
-pub struct Srid {
+pub struct Area {
     signature: Signature,
 }
 
-/// Currently, for any value of the geometry type, only SRID 4326 is supported and is returned.
-impl Srid {
+impl Area {
     pub fn new() -> Self {
         Self {
             signature: any_single_geometry_type_input(),
@@ -49,13 +45,13 @@ impl Srid {
 
 static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
 
-impl ScalarUDFImpl for Srid {
+impl ScalarUDFImpl for Area {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &'static str {
-        "st_srid"
+        "st_area"
     }
 
     fn signature(&self) -> &Signature {
@@ -63,80 +59,48 @@ impl ScalarUDFImpl for Srid {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
-        Ok(DataType::Int32)
+        Ok(DataType::Float64)
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
-        dim_impl(&args.args)
+        area(&args.args)
     }
 
     fn documentation(&self) -> Option<&Documentation> {
         Some(DOCUMENTATION.get_or_init(|| {
             Documentation::builder(
                 DOC_SECTION_OTHER,
-                "Returns the SRID (spatial reference system identifier) of a geometry",
-                "ST_SRID(geometry)",
+                "Returns the area of a geometry in square meters",
+                "ST_Area(geom)",
             )
-            .with_argument("g1", "geometry")
+            .with_argument("geom", "geometry")
             .build()
         }))
     }
 }
 
-macro_rules! build_output_array {
-    ($arr:expr) => {{
-        let mut output_array = Int32Builder::with_capacity($arr.len());
-        for geom in $arr.iter() {
-            if let Some(p) = geom {
-                output_array.append_value(p.srid().unwrap_or(4326));
-            } else {
-                output_array.append_null();
-            }
-        }
-        Ok(ColumnarValue::Array(Arc::new(output_array.finish())))
-    }};
-}
-
-fn dim_impl(args: &[ColumnarValue]) -> Result<ColumnarValue> {
+fn area(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?
         .into_iter()
         .next()
         .ok_or_else(|| {
-            DataFusionError::Execution("Expected only one argument in ST_SRID".to_string())
+            DataFusionError::Execution("Expected only one argument in ST_Area".to_string())
         })?;
-
     let native_array = parse_to_native_array(&array)?;
-    let native_array_ref = native_array.as_ref();
-
-    match native_array.data_type() {
-        NativeType::Point(_, _) => build_output_array!(native_array_ref.as_point()),
-        NativeType::MultiPoint(_, _) => build_output_array!(native_array_ref.as_multi_point()),
-        NativeType::LineString(_, _) => build_output_array!(native_array_ref.as_line_string()),
-        NativeType::MultiLineString(_, _) => {
-            build_output_array!(native_array_ref.as_multi_line_string())
-        }
-        NativeType::Polygon(_, _) => build_output_array!(native_array_ref.as_polygon()),
-        NativeType::MultiPolygon(_, _) => {
-            build_output_array!(native_array_ref.as_multi_polygon())
-        }
-        NativeType::Geometry(_) => build_output_array!(native_array_ref.as_geometry()),
-        NativeType::GeometryCollection(_, _) => {
-            build_output_array!(native_array_ref.as_geometry_collection())
-        }
-        NativeType::Rect(_) => Err(DataFusionError::Execution(
-            "Unsupported geometry type".to_string(),
-        )),
-    }
+    let area = native_array
+        .as_ref()
+        .chamberlain_duquette_unsigned_area()
+        .context(geo_error::GeoArrowSnafu)?;
+    Ok(ColumnarValue::Array(Arc::new(area)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use arrow_array::cast::AsArray;
-    use arrow_array::types::Int32Type;
+    use arrow_array::types::Float64Type;
     use arrow_array::ArrayRef;
     use datafusion::logical_expr::ColumnarValue;
-    use datafusion_expr::ScalarFunctionArgs;
     use geo_types::{line_string, point, polygon};
     use geoarrow::array::LineStringBuilder;
     use geoarrow::array::{CoordType, PointBuilder, PolygonBuilder};
@@ -144,16 +108,16 @@ mod tests {
     use geoarrow::ArrayBase;
 
     #[test]
-    #[allow(clippy::unwrap_used)]
-    fn test_srid() {
+    #[allow(clippy::unwrap_used, clippy::float_cmp)]
+    fn test_area() {
         let dim = Dimension::XY;
         let ct = CoordType::Separated;
 
-        let args: [(ArrayRef, i32); 3] = [
+        let args: [(ArrayRef, [f64; 2]); 3] = [
             (
                 {
                     let data = vec![
-                        line_string![(x: 1., y: 2.), (x: 1., y: 0.), (x: 1., y: 1.), (x: 0., y: 1.), (x: 0., y: 0.)],
+                        line_string![(x: 1., y: 1.), (x: 1., y: 2.), (x: 1., y: 1.), (x: 0., y: 1.), (x: 0., y: 0.)],
                         line_string![(x: 2., y: 2.), (x: 3., y: 2.), (x: 3., y: 3.), (x: 2., y: 3.), (x: 2., y: 2.)],
                     ];
                     let array =
@@ -161,41 +125,42 @@ mod tests {
                             .finish();
                     array.to_array_ref()
                 },
-                4326,
+                [0., 0.],
             ),
             (
                 {
-                    let data = [point! {x: 0., y: 0.}, point! {x: 1., y: 1.}];
+                    let data = [point! {x: 0., y: 0.}, point! {x: 0., y: 0.}];
                     let array =
                         PointBuilder::from_points(data.iter(), dim, ct, Arc::default()).finish();
                     array.to_array_ref()
                 },
-                4326,
+                [0., 0.],
             ),
             (
                 {
                     let data = vec![
-                        polygon![(x: 3.4, y: 30.4), (x: 1.7, y: 24.6), (x: 13.4, y: 25.1), (x: 14.4, y: 31.0),(x:3.3,y:30.4)],
+                        polygon![(x: 0., y: 0.), (x: 0., y: 1.0), (x: 1., y: 2.), (x: 2., y: 0.), (x:0.,y:0.)],
                         polygon![(x: 3.3, y: 30.4), (x: 1.7, y: 24.6), (x: 13.4, y: 25.1), (x: 14.4, y: 31.0),(x:3.3,y:30.4)],
                     ];
                     let array =
                         PolygonBuilder::from_polygons(&data, dim, ct, Arc::default()).finish();
                     array.to_array_ref()
                 },
-                4326,
+                [12_391_399_902., 723_055_529_500.],
             ),
         ];
 
-        for (array, exp) in args {
+        for (arr, exp) in args {
             let args = ScalarFunctionArgs {
-                args: vec![ColumnarValue::Array(array)],
+                args: vec![ColumnarValue::Array(arr)],
                 number_rows: 2,
                 return_type: &DataType::Null,
             };
-            let srid_fn = Srid::new();
-            let result = srid_fn.invoke_with_args(args).unwrap().to_array(2).unwrap();
-            let result = result.as_primitive::<Int32Type>();
-            assert_eq!(result.value(0), exp);
+            let area_fn = Area::new();
+            let result = area_fn.invoke_with_args(args).unwrap().to_array(2).unwrap();
+            let result = result.as_primitive::<Float64Type>();
+            assert_eq!(result.value(0).round(), exp[0]);
+            assert_eq!(result.value(1).round(), exp[1]);
         }
     }
 }

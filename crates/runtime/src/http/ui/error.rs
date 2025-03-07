@@ -14,7 +14,7 @@ pub type UIResult<T> = Result<T, UIError>;
 impl IntoResponse for UIError {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         match self {
-            UIError::Execution { source } => source.into_response(),
+            Self::Execution { source } => source.into_response(),
         }
     }
 }

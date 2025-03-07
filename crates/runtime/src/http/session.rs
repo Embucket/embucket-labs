@@ -38,6 +38,7 @@ pub struct RequestSessionStore {
     execution_svc: Arc<ExecutionService>,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl RequestSessionStore {
     pub fn new(
         store: Arc<Mutex<HashMap<Id, Record>>>,

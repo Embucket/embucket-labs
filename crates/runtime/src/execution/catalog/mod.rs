@@ -1,7 +1,7 @@
 use std::{any::Any, collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use datafusion::catalog::{CatalogProvider, CatalogProviderList, TableProvider};
+use datafusion::catalog::{CatalogProvider, CatalogProviderList, SchemaProvider, TableProvider};
 use datafusion_common::{exec_err, DataFusionError, Result as DFResult};
 use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
 use iceberg_rust::{
@@ -50,15 +50,15 @@ impl std::fmt::Debug for IceBucketDFMetastore {
 
 // Explore using AsyncCatalogProviderList alongside CatalogProviderList
 impl CatalogProviderList for IceBucketDFMetastore {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn register_catalog(
         &self,
         _name: String,
-        _catalog: Arc<dyn datafusion::catalog::CatalogProvider>,
-    ) -> Option<Arc<dyn datafusion::catalog::CatalogProvider>> {
+        _catalog: Arc<dyn CatalogProvider>,
+    ) -> Option<Arc<dyn CatalogProvider>> {
         // This is currently a NOOP because we don't support registering new catalogs yet
         None
     }
@@ -84,10 +84,11 @@ impl CatalogProviderList for IceBucketDFMetastore {
                 .unwrap_or_default()
         });
         database.map(|database| {
-            Arc::new(IceBucketDFCatalog {
+            let catalog: Arc<dyn CatalogProvider> = Arc::new(IceBucketDFCatalog {
                 ident: database.ident.clone(),
                 metastore: self.metastore.clone(),
-            }) as Arc<dyn CatalogProvider>
+            });
+            catalog
         })
     }
 }
@@ -107,7 +108,7 @@ impl std::fmt::Debug for IceBucketDFCatalog {
 }
 
 impl CatalogProvider for IceBucketDFCatalog {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 
@@ -123,7 +124,7 @@ impl CatalogProvider for IceBucketDFCatalog {
         })
     }
 
-    fn schema(&self, name: &str) -> Option<Arc<dyn datafusion::catalog::SchemaProvider>> {
+    fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
         let schema = tokio::runtime::Handle::current().block_on(async {
             self.metastore
                 .get_schema(&IceBucketSchemaIdent {
@@ -134,11 +135,12 @@ impl CatalogProvider for IceBucketDFCatalog {
                 .unwrap_or_default()
         });
         schema.map(|schema| {
-            Arc::new(IceBucketDFSchema {
+            let schema_provider: Arc<dyn SchemaProvider> = Arc::new(IceBucketDFSchema {
                 database: schema.ident.database.clone(),
                 schema: schema.ident.schema.clone(),
                 metastore: self.metastore.clone(),
-            }) as Arc<dyn datafusion::catalog::SchemaProvider>
+            });
+            schema_provider
         })
     }
 }
@@ -154,6 +156,7 @@ impl std::fmt::Debug for IceBucketDFSchema {
         f.debug_struct("IceBucketDFSchema")
             .field("database", &self.database)
             .field("schema", &self.schema)
+            .field("metastore", &"")
             .finish()
     }
 }
@@ -215,8 +218,9 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
                 .await
                 .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
-            let dftable = IcebergDataFusionTable::new(tabular, None, None, None);
-            Ok(Some(Arc::new(dftable) as Arc<dyn TableProvider>))
+            let dftable: Arc<dyn TableProvider> =
+                Arc::new(IcebergDataFusionTable::new(tabular, None, None, None));
+            Ok(Some(dftable))
         } else {
             Ok(None)
         }

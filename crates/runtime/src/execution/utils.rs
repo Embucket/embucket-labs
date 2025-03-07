@@ -368,7 +368,7 @@ impl From<&NormalizedIdent> for String {
 
 impl From<NormalizedIdent> for ObjectName {
     fn from(ident: NormalizedIdent) -> Self {
-        ObjectName(ident.0)
+        Self(ident.0)
     }
 }
 

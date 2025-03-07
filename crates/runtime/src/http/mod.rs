@@ -75,7 +75,7 @@ pub fn make_icebucket_app(
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
     // Create the application state
-    let app_state = state::AppState::new(metastore.clone(), execution_svc);
+    let app_state = state::AppState::new(metastore, execution_svc);
 
     let mut app = router::create_app(app_state)
         .layer(session_layer)
