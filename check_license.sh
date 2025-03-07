@@ -18,7 +18,8 @@ LICENSE_HEADER="// Licensed to the Apache Software Foundation (ASF) under one
 // under the License."
 
 for file in "$@"; do
-    grep -L "$LICENSE_HEADER" "$file"
+    echo "$file"
+    grep -L "$LICENSE_HEADER" $file
     if [ $? -ne 0 ]
       then
         echo "License header not found in $file"
@@ -27,4 +28,4 @@ for file in "$@"; do
 done
 
 echo "LICENSE headers OK."
-exit 0
+exit 1
