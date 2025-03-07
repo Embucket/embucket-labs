@@ -34,7 +34,7 @@ pub struct IceBucketDFMetastore {
 
 impl IceBucketDFMetastore {
     pub fn new(metastore: Arc<dyn Metastore>) -> Self {
-        IceBucketDFMetastore { metastore }
+        Self { metastore }
     }
 }
 
@@ -76,7 +76,7 @@ impl CatalogProviderList for IceBucketDFMetastore {
         })
     }
 
-    fn catalog(&self, name: &str) -> Option<Arc<dyn datafusion::catalog::CatalogProvider>> {
+    fn catalog(&self, name: &str) -> Option<Arc<dyn CatalogProvider>> {
         let database = tokio::runtime::Handle::current().block_on(async {
             self.metastore
                 .get_database(&name.to_string())
@@ -87,7 +87,7 @@ impl CatalogProviderList for IceBucketDFMetastore {
             Arc::new(IceBucketDFCatalog {
                 ident: database.ident.clone(),
                 metastore: self.metastore.clone(),
-            }) as Arc<dyn datafusion::catalog::CatalogProvider>
+            }) as Arc<dyn CatalogProvider>
         })
     }
 }
@@ -97,6 +97,7 @@ pub struct IceBucketDFCatalog {
     pub metastore: Arc<dyn Metastore>,
 }
 
+#[allow(clippy::missing_fields_in_debug)]
 impl std::fmt::Debug for IceBucketDFCatalog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IceBucketDFCatalog")
@@ -549,8 +550,8 @@ impl IcebergCatalog for IceBucketIcebergBridge {
     /// Create a table in the catalog if it doesn't exist.
     async fn create_table(
         self: Arc<Self>,
-        identifier: IcebergIdentifier,
-        create_table: IcebergCreateTable,
+        _identifier: IcebergIdentifier,
+        _create_table: IcebergCreateTable,
     ) -> Result<IcebergTable, IcebergError> {
         todo!()
     }
@@ -580,7 +581,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
     /// perform commit table operation
     async fn update_table(
         self: Arc<Self>,
-        commit: IcebergCommitTable,
+        _commit: IcebergCommitTable,
     ) -> Result<IcebergTable, IcebergError> {
         todo!()
     }

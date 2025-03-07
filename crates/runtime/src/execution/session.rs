@@ -79,7 +79,10 @@ impl IceBucketUserSession {
         self: &Arc<Self>,
         query: S,
         query_context: IceBucketQueryContext,
-    ) -> IceBucketQuery where S: Into<String> {
+    ) -> IceBucketQuery
+    where
+        S: Into<String>,
+    {
         IceBucketQuery::new(self.clone(), query.into(), query_context)
     }
 

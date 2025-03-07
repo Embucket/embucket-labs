@@ -30,8 +30,8 @@ impl IntoResponse for MetastoreAPIError {
         let code = match self.0 {
             MetastoreError::TableDataExists { .. } => http::StatusCode::CONFLICT,
             MetastoreError::TableRequirementFailed { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
-            MetastoreError::VolumeValidationFailed { .. } |
-            MetastoreError::VolumeMissingCredentials => http::StatusCode::BAD_REQUEST,
+            MetastoreError::VolumeValidationFailed { .. }
+            | MetastoreError::VolumeMissingCredentials => http::StatusCode::BAD_REQUEST,
             MetastoreError::CloudProviderNotImplemented { .. } => {
                 http::StatusCode::PRECONDITION_FAILED
             }

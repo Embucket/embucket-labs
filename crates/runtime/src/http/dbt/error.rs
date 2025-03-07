@@ -91,8 +91,9 @@ impl IntoResponse for DbtError {
                 http::StatusCode::UNAUTHORIZED
             }
             Self::NotImplemented => http::StatusCode::NOT_IMPLEMENTED,
-            Self::Metastore { .. } |
-            Self::Execution { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Metastore { .. } | Self::Execution { .. } => {
+                http::StatusCode::INTERNAL_SERVER_ERROR
+            }
         };
 
         let message = match &self {

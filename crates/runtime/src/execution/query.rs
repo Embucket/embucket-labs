@@ -41,7 +41,8 @@ use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use
+    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind,
+    MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use,
 };
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
@@ -66,7 +67,6 @@ pub struct IceBucketQueryContext {
 pub enum IceBucketQueryState {
     Raw(String),
     Preprocessed(String),
-
 }
 
 pub struct IceBucketQuery {
@@ -81,7 +81,10 @@ impl IceBucketQuery {
         session: Arc<IceBucketUserSession>,
         query: S,
         query_context: IceBucketQueryContext,
-    ) -> Self where S: Into<String> {
+    ) -> Self
+    where
+        S: Into<String>,
+    {
         let query = Self::preprocess_query(&query.into());
         Self {
             metastore: session.metastore.clone(),
@@ -135,9 +138,7 @@ impl IceBucketQuery {
 
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn execute(&self) -> ExecutionResult<Vec<RecordBatch>> {
-        let mut statement = self
-            .parse_query()
-            .context(super::error::DataFusionSnafu)?;
+        let mut statement = self.parse_query().context(super::error::DataFusionSnafu)?;
         Self::postprocess_query_statement(&mut statement);
         // statement = self.update_statement_references(statement, warehouse_name);
         // query = statement.to_string();
@@ -399,9 +400,7 @@ impl IceBucketQuery {
 
             // Insert data to new table
             // TODO: What is the point of this?
-            let insert_query = format!(
-                "INSERT INTO {ib_table_ident} SELECT * FROM {table_name}",
-            );
+            let insert_query = format!("INSERT INTO {ib_table_ident} SELECT * FROM {table_name}",);
             self.execute_with_custom_plan(&insert_query).await?;
 
             // Drop InMemory table
@@ -1041,7 +1040,7 @@ impl IceBucketQuery {
             SetExpr::Query(query) => {
                 self.update_query_table_references(query);
             }
-            
+
         }
     }*/
 
@@ -1436,7 +1435,10 @@ impl IceBucketQuery {
         Ok(())
     }
 
-    fn update_tables_in_table_with_joins(&self, table_with_joins: &mut TableWithJoins) -> ExecutionResult<()> {
+    fn update_tables_in_table_with_joins(
+        &self,
+        table_with_joins: &mut TableWithJoins,
+    ) -> ExecutionResult<()> {
         self.update_tables_in_table_factor(&mut table_with_joins.relation)?;
 
         for join in &mut table_with_joins.joins {
