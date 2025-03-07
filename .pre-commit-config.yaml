@@ -9,6 +9,7 @@ repos:
       - id: clippy
         args: [ "--", "-D", "warnings" ]
   - repo: local
+    # chmod +x check_license.sh
     hooks:
       - id: check-license-header
         name: Check License Header
