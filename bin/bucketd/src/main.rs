@@ -87,7 +87,8 @@ async fn main() {
                 },
             };
 
-            if let Err(e) = run_icebucket(object_store, object_store_qhistory, runtime_config).await {
+            if let Err(e) = run_icebucket(object_store, object_store_qhistory, runtime_config).await
+            {
                 tracing::error!("Error while running IceBucket: {:?}", e);
             }
         }

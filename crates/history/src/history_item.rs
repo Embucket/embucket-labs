@@ -1,9 +1,9 @@
 use bytes::Bytes;
+use chrono::{DateTime, Utc};
 use icebucket_utils::IterableEntity;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use utoipa::ToSchema;
-use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 // HistoryItem struct is used for storing Query History result and also used in http response
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]

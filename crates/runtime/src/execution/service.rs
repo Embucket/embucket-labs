@@ -21,11 +21,11 @@ use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
+use history::api::QHistoryApi;
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
-use history::api::QHistoryApi;
-    
+
 use super::{
     models::ColumnInfo,
     query::IceBucketQueryContext,
@@ -45,7 +45,11 @@ pub struct ExecutionService {
 }
 
 impl ExecutionService {
-    pub fn new(metastore: Arc<dyn Metastore>, qhistory: Arc<dyn QHistoryApi>, config: Config) -> Self {
+    pub fn new(
+        metastore: Arc<dyn Metastore>,
+        qhistory: Arc<dyn QHistoryApi>,
+        config: Config,
+    ) -> Self {
         Self {
             metastore,
             qhistory,

@@ -74,7 +74,7 @@ pub trait IterableEntity {
         buf.extend_from_slice(Self::PREFIX);
         buf.extend_from_slice(key_part.as_ref());
         buf.into()
-    }    
+    }
 }
 
 // Kind of cast for range, for cases when for range

@@ -15,18 +15,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::{http::{error::ErrorResponse, ui::error::{self as ui_error, UIError, UIResult}}};
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
+use crate::http::{
+    error::ErrorResponse,
+    ui::error::{self as ui_error, UIError, UIResult},
+};
 use axum::{extract::State, Json};
+use bytes::Bytes;
+use chrono::{DateTime, Utc};
+use icebucket_utils::IterableEntity;
 use serde::{Deserialize, Serialize};
-use validator::Validate;
 use std::time::Instant;
 use utoipa::{IntoParams, OpenApi, ToSchema};
-use icebucket_utils::IterableEntity;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use bytes::Bytes;
+use validator::Validate;
 
 // HistoryItem struct is used for storing Query History result and also used in http response
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
@@ -117,9 +120,11 @@ pub async fn history(
     Query(params): Query<GetHistoryItemsParams>,
     State(state): State<AppState>,
 ) -> UIResult<Json<HistoryResponse>> {
-
     let start = Instant::now();
-    let items = state.metastore.query_history(params.cursor, params.limit).await;
+    let items = state
+        .metastore
+        .query_history(params.cursor, params.limit)
+        .await;
     // let result = state
     //     .execution_svc
     //     .history_table(&session_id, &request.history, history_context)

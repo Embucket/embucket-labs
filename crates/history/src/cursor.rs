@@ -20,16 +20,16 @@ use bytes::Bytes;
 use icebucket_utils::IterableEntity;
 
 pub trait Cursor {
-    fn key_from_cursor (cursor: String) -> Bytes;
-    fn cursor_from_key (key: Bytes) -> String;
+    fn key_from_cursor(cursor: String) -> Bytes;
+    fn cursor_from_key(key: Bytes) -> String;
 }
 
 impl Cursor for HistoryItem {
-    fn key_from_cursor (cursor: String) -> Bytes {
+    fn key_from_cursor(cursor: String) -> Bytes {
         Self::key_with_prefix(cursor)
     }
 
-    fn cursor_from_key (key: Bytes) -> String {
+    fn cursor_from_key(key: Bytes) -> String {
         let (_, cursor) = key.split_at(Self::PREFIX.len());
         String::from_utf8(cursor.to_vec()).unwrap_or(0.to_string())
     }

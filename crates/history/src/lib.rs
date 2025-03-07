@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod history_item;
 pub mod api;
 pub mod cursor;
+pub mod history_item;
 
 pub use history_item::*;

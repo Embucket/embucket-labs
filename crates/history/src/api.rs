@@ -17,7 +17,7 @@
 
 use crate::HistoryItem;
 use async_trait::async_trait;
-use icebucket_utils::{ IterableEntity, Db };
+use icebucket_utils::{Db, IterableEntity};
 use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
@@ -30,7 +30,6 @@ pub enum QHistoryError {
 }
 
 pub type QHistoryResult<T> = std::result::Result<T, QHistoryError>;
-
 
 #[async_trait]
 pub trait QHistoryApi: Send + Sync {
@@ -56,32 +55,35 @@ impl QHistoryStore {
 #[async_trait]
 impl QHistoryApi for QHistoryStore {
     async fn add_history_item(&self, item: HistoryItem) -> QHistoryResult<()> {
-        Ok(self.db.put_iterable_entity(&item)
+        Ok(self
+            .db
+            .put_iterable_entity(&item)
             .await
             .context(QHistoryAddSnafu)?)
     }
 
     async fn query_history(&self, cursor: String, limit: u16) -> QHistoryResult<Vec<HistoryItem>> {
         let start_key = HistoryItem::key_with_prefix(cursor);
-        Ok(self.db.items_from_range(
-            start_key..HistoryItem::max_key(), Some(limit),
-        ).await.context(QHistoryGetSnafu)?)
+        Ok(self
+            .db
+            .items_from_range(start_key..HistoryItem::max_key(), Some(limit))
+            .await
+            .context(QHistoryGetSnafu)?)
     }
 }
-
 
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use chrono::{DateTime, Utc, TimeZone};
-    use tokio;
+    use crate::cursor::Cursor;
+    use chrono::{DateTime, TimeZone, Utc};
+    use icebucket_utils::{Db, IterableEntity};
+    use object_store::path::Path;
     use slatedb::db::Db as SlateDb;
     use std::sync::Arc;
-    use object_store::path::Path;
+    use tokio;
     use uuid::Uuid;
-    use icebucket_utils::{ IterableEntity, Db };
-    use crate::cursor::Cursor;
 
     async fn create_db() -> QHistoryStore {
         let object_store = Arc::new(object_store::memory::InMemory::new());
@@ -96,25 +98,31 @@ mod tests {
     async fn test_history() {
         let db = create_db().await;
         let n: u16 = 2;
-        let ts: i64 = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0)
+        let ts: i64 = Utc
+            .with_ymd_and_hms(2020, 1, 1, 0, 0, 0)
             .unwrap()
             .timestamp();
         let mut created: Vec<HistoryItem> = vec![];
         for i in 0..n {
-            let item = HistoryItem{
+            let item = HistoryItem {
                 id: Uuid::new_v4(),
                 query: format!("select {i}"),
                 start_time: DateTime::from_timestamp(ts, i.into()).unwrap(),
                 end_time: DateTime::from_timestamp(ts, i.into()).unwrap(),
                 status_code: if i == 0 { 200 } else { 500 },
-                error: if i == 0 { None } else { Some("Test query error".to_string()) },
+                error: if i == 0 {
+                    None
+                } else {
+                    Some("Test query error".to_string())
+                },
             };
             created.push(item.clone());
             db.add_history_item(item).await.unwrap();
         }
-        let retrieved = db.query_history(
-            HistoryItem::cursor_from_key(HistoryItem::min_key()), 10
-        ).await.unwrap();
+        let retrieved = db
+            .query_history(HistoryItem::cursor_from_key(HistoryItem::min_key()), 10)
+            .await
+            .unwrap();
         assert_eq!(n as usize, retrieved.len());
         assert_eq!(created, retrieved);
     }

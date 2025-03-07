@@ -23,9 +23,9 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
+use history::api::{QHistoryApi, QHistoryStore};
 use http_body_util::BodyExt;
 use icebucket_metastore::Metastore;
-use history::api::{QHistoryStore, QHistoryApi};
 use std::sync::Arc;
 use time::Duration;
 use tokio::signal;
@@ -61,7 +61,11 @@ pub fn make_icebucket_app(
     config: &IceBucketWebConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format);
-    let execution_svc = Arc::new(ExecutionService::new(metastore.clone(), qhistory.clone(), execution_cfg));
+    let execution_svc = Arc::new(ExecutionService::new(
+        metastore.clone(),
+        qhistory.clone(),
+        execution_cfg,
+    ));
 
     let session_memory = RequestSessionMemory::default();
     let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());

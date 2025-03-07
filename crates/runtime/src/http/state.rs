@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_metastore::metastore::Metastore;
 use history::api::QHistoryApi;
+use icebucket_metastore::metastore::Metastore;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
