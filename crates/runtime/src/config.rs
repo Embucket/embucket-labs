@@ -23,10 +23,10 @@ use crate::http::config::IceBucketWebConfig;
 pub struct IceBucketRuntimeConfig {
     pub web: IceBucketWebConfig,
     pub db: IceBucketDbConfig,
+    pub qhistory: IceBucketDbConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IceBucketDbConfig {
     pub slatedb_prefix: String,
-    pub slatedb_prefix_qhistory: String,
 }

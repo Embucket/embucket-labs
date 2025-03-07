@@ -57,6 +57,12 @@ async fn main() {
         .clone()
         .unwrap_or_else(|| "json".to_string());
     let object_store = opts.object_store_backend();
+    let object_store_qhistory = if let Ok(object_store) = opts.object_store_qhistory() {
+        object_store
+    } else {
+        tracing::error!("Failed to create object store for query history: {:?}", e);
+        return;
+    };
 
     match object_store {
         Err(e) => {
@@ -69,7 +75,9 @@ async fn main() {
             let runtime_config = IceBucketRuntimeConfig {
                 db: IceBucketDbConfig {
                     slatedb_prefix: slatedb_prefix.clone(),
-                    slatedb_prefix_qhistory: slatedb_prefix_qhistory.clone(),
+                },
+                qhistory: IceBucketDbConfig {
+                    slatedb_prefix: slatedb_prefix_qhistory.clone(),
                 },
                 web: IceBucketWebConfig {
                     host: host.clone(),
@@ -79,7 +87,7 @@ async fn main() {
                 },
             };
 
-            if let Err(e) = run_icebucket(object_store, runtime_config).await {
+            if let Err(e) = run_icebucket(object_store, object_store_qhistory, runtime_config).await {
                 tracing::error!("Error while running IceBucket: {:?}", e);
             }
         }

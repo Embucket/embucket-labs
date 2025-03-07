@@ -16,6 +16,7 @@
 // under the License.
 
 use icebucket_metastore::metastore::Metastore;
+use history::api::QHistoryApi;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -26,6 +27,7 @@ use crate::execution::service::ExecutionService;
 #[derive(Clone)]
 pub struct AppState {
     pub metastore: Arc<dyn Metastore + Send + Sync>,
+    pub qhistory: Arc<dyn QHistoryApi + Send + Sync>,
     pub execution_svc: Arc<ExecutionService>,
     pub dbt_sessions: Arc<Mutex<HashMap<String, String>>>,
 }
@@ -34,10 +36,12 @@ impl AppState {
     // You can add helper methods for state initialization if needed
     pub fn new(
         metastore: Arc<dyn Metastore + Send + Sync>,
+        qhistory: Arc<dyn QHistoryApi + Send + Sync>,
         execution_svc: Arc<ExecutionService>,
     ) -> Self {
         Self {
             metastore,
+            qhistory,
             execution_svc,
             dbt_sessions: Arc::new(Mutex::default()),
         }

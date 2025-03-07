@@ -35,6 +35,7 @@ pub(crate) mod tests;
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
 pub async fn run_icebucket(
     state_store: Arc<dyn ObjectStore>,
+    state_store_qhistory: Arc<dyn ObjectStore>,
     config: IceBucketRuntimeConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = {
@@ -54,9 +55,9 @@ pub async fn run_icebucket(
         let options = DbOptions::default();
         Db::new(Arc::new(
             SlateDb::open_with_opts(
-                Path::from(config.db.slatedb_prefix_qhistory.clone()),
+                Path::from(config.qhistory.slatedb_prefix.clone()),
                 options,
-                state_store,
+                state_store_qhistory,
             )
             .await
             .map_err(Box::new)?,

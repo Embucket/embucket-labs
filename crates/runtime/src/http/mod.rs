@@ -61,7 +61,7 @@ pub fn make_icebucket_app(
     config: &IceBucketWebConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format);
-    let execution_svc = Arc::new(ExecutionService::new(metastore.clone(), execution_cfg));
+    let execution_svc = Arc::new(ExecutionService::new(metastore.clone(), qhistory.clone(), execution_cfg));
 
     let session_memory = RequestSessionMemory::default();
     let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
@@ -77,7 +77,7 @@ pub fn make_icebucket_app(
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
     // Create the application state
-    let app_state = state::AppState::new(metastore.clone(), execution_svc);
+    let app_state = state::AppState::new(metastore.clone(), qhistory.clone(), execution_svc);
 
     let mut app = router::create_app(app_state)
         .layer(session_layer)

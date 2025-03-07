@@ -37,6 +37,15 @@ pub struct IceBucketOpts {
     backend: StoreBackend,
 
     #[arg(
+        short,
+        long,
+        value_enum,
+        env = "OBJECT_STORE_QHISTORY",
+        help = "Backend to use for query history storage"
+    )]
+    backend_qhistory: StoreBackend,
+
+    #[arg(
         long,
         env = "AWS_ACCESS_KEY_ID",
         required_if_eq("backend", "s3"),
@@ -183,6 +192,23 @@ impl IceBucketOpts {
                     .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
             }
             StoreBackend::Memory => Ok(Arc::new(InMemory::new()) as Arc<dyn ObjectStore>),
+        }
+    }
+
+    #[allow(clippy::unwrap_used, clippy::as_conversions)]
+    pub fn object_store_qhistory(self) -> ObjectStoreResult<Arc<dyn ObjectStore>> {
+        match self.backend_qhistory {
+            StoreBackend::File => {
+                let file_storage_path = self.file_storage_path.unwrap();
+                let path = file_storage_path.as_path();
+                if !path.exists() || !path.is_dir() {
+                    fs::create_dir(path).unwrap();
+                }
+                LocalFileSystem::new_with_prefix(file_storage_path)
+                    .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
+            }
+            StoreBackend::Memory => Ok(Arc::new(InMemory::new()) as Arc<dyn ObjectStore>),
+            StoreBackend::S3 => Err("Error: Query History doesn't support s3 as an object store"),
         }
     }
 }
