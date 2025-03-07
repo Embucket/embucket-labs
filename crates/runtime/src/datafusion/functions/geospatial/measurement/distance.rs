@@ -64,7 +64,7 @@ impl ScalarUDFImpl for Distance {
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
-        area(&args.args)
+        distance(&args.args)
     }
 
     fn documentation(&self) -> Option<&Documentation> {
@@ -116,7 +116,7 @@ macro_rules! match_line_distance_data_type {
         }
     };
 }
-fn area(args: &[ColumnarValue]) -> Result<ColumnarValue> {
+fn distance(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?;
     if array.len() > 2 {
         return Err(DataFusionError::Execution(
