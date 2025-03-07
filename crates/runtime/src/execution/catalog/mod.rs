@@ -1,7 +1,24 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 use std::{any::Any, collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use datafusion::catalog::{CatalogProvider, CatalogProviderList, TableProvider};
+use datafusion::catalog::{CatalogProvider, CatalogProviderList, SchemaProvider, TableProvider};
 use datafusion_common::{exec_err, DataFusionError, Result as DFResult};
 use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
 use iceberg_rust::{
@@ -34,7 +51,7 @@ pub struct IceBucketDFMetastore {
 
 impl IceBucketDFMetastore {
     pub fn new(metastore: Arc<dyn Metastore>) -> Self {
-        IceBucketDFMetastore { metastore }
+        Self { metastore }
     }
 }
 
@@ -50,15 +67,15 @@ impl std::fmt::Debug for IceBucketDFMetastore {
 
 // Explore using AsyncCatalogProviderList alongside CatalogProviderList
 impl CatalogProviderList for IceBucketDFMetastore {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn register_catalog(
         &self,
         _name: String,
-        _catalog: Arc<dyn datafusion::catalog::CatalogProvider>,
-    ) -> Option<Arc<dyn datafusion::catalog::CatalogProvider>> {
+        _catalog: Arc<dyn CatalogProvider>,
+    ) -> Option<Arc<dyn CatalogProvider>> {
         // This is currently a NOOP because we don't support registering new catalogs yet
         None
     }
@@ -76,7 +93,7 @@ impl CatalogProviderList for IceBucketDFMetastore {
         })
     }
 
-    fn catalog(&self, name: &str) -> Option<Arc<dyn datafusion::catalog::CatalogProvider>> {
+    fn catalog(&self, name: &str) -> Option<Arc<dyn CatalogProvider>> {
         let database = tokio::runtime::Handle::current().block_on(async {
             self.metastore
                 .get_database(&name.to_string())
@@ -84,10 +101,11 @@ impl CatalogProviderList for IceBucketDFMetastore {
                 .unwrap_or_default()
         });
         database.map(|database| {
-            Arc::new(IceBucketDFCatalog {
+            let catalog: Arc<dyn CatalogProvider> = Arc::new(IceBucketDFCatalog {
                 ident: database.ident.clone(),
                 metastore: self.metastore.clone(),
-            }) as Arc<dyn datafusion::catalog::CatalogProvider>
+            });
+            catalog
         })
     }
 }
@@ -97,6 +115,7 @@ pub struct IceBucketDFCatalog {
     pub metastore: Arc<dyn Metastore>,
 }
 
+#[allow(clippy::missing_fields_in_debug)]
 impl std::fmt::Debug for IceBucketDFCatalog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IceBucketDFCatalog")
@@ -106,7 +125,7 @@ impl std::fmt::Debug for IceBucketDFCatalog {
 }
 
 impl CatalogProvider for IceBucketDFCatalog {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 
@@ -122,7 +141,7 @@ impl CatalogProvider for IceBucketDFCatalog {
         })
     }
 
-    fn schema(&self, name: &str) -> Option<Arc<dyn datafusion::catalog::SchemaProvider>> {
+    fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
         let schema = tokio::runtime::Handle::current().block_on(async {
             self.metastore
                 .get_schema(&IceBucketSchemaIdent {
@@ -133,11 +152,12 @@ impl CatalogProvider for IceBucketDFCatalog {
                 .unwrap_or_default()
         });
         schema.map(|schema| {
-            Arc::new(IceBucketDFSchema {
+            let schema_provider: Arc<dyn SchemaProvider> = Arc::new(IceBucketDFSchema {
                 database: schema.ident.database.clone(),
                 schema: schema.ident.schema.clone(),
                 metastore: self.metastore.clone(),
-            }) as Arc<dyn datafusion::catalog::SchemaProvider>
+            });
+            schema_provider
         })
     }
 }
@@ -153,6 +173,7 @@ impl std::fmt::Debug for IceBucketDFSchema {
         f.debug_struct("IceBucketDFSchema")
             .field("database", &self.database)
             .field("schema", &self.schema)
+            .field("metastore", &"")
             .finish()
     }
 }
@@ -214,8 +235,9 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
                 .await
                 .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
-            let dftable = IcebergDataFusionTable::new(tabular, None, None, None);
-            Ok(Some(Arc::new(dftable) as Arc<dyn TableProvider>))
+            let dftable: Arc<dyn TableProvider> =
+                Arc::new(IcebergDataFusionTable::new(tabular, None, None, None));
+            Ok(Some(dftable))
         } else {
             Ok(None)
         }
@@ -549,8 +571,8 @@ impl IcebergCatalog for IceBucketIcebergBridge {
     /// Create a table in the catalog if it doesn't exist.
     async fn create_table(
         self: Arc<Self>,
-        identifier: IcebergIdentifier,
-        create_table: IcebergCreateTable,
+        _identifier: IcebergIdentifier,
+        _create_table: IcebergCreateTable,
     ) -> Result<IcebergTable, IcebergError> {
         todo!()
     }
@@ -580,7 +602,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
     /// perform commit table operation
     async fn update_table(
         self: Arc<Self>,
-        commit: IcebergCommitTable,
+        _commit: IcebergCommitTable,
     ) -> Result<IcebergTable, IcebergError> {
         todo!()
     }

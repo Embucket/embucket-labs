@@ -16,6 +16,7 @@
 // under the License.
 
 use super::catalog::IceBucketDFMetastore;
+use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::IceBucketTypePlanner;
 use super::query::{IceBucketQuery, IceBucketQueryContext};
@@ -26,7 +27,6 @@ use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_iceberg::planner::IcebergQueryPlanner;
-use geodatafusion::udf::native::register_native;
 use geodatafusion::udf::native::register_native as register_geo_native;
 use icebucket_metastore::Metastore;
 use snafu::ResultExt;
@@ -62,10 +62,10 @@ impl IceBucketUserSession {
             .with_type_planner(Arc::new(IceBucketTypePlanner {}))
             .build();
         let mut ctx = SessionContext::new_with_state(state);
-        register_native(&ctx);
         register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         register_all(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         register_geo_native(&ctx);
+        register_geo_udfs(&ctx);
 
         let enable_ident_normalization = ctx.enable_ident_normalization();
         Ok(Self {
@@ -79,7 +79,10 @@ impl IceBucketUserSession {
         self: &Arc<Self>,
         query: S,
         query_context: IceBucketQueryContext,
-    ) -> IceBucketQuery where S: Into<String> {
+    ) -> IceBucketQuery
+    where
+        S: Into<String>,
+    {
         IceBucketQuery::new(self.clone(), query.into(), query_context)
     }
 

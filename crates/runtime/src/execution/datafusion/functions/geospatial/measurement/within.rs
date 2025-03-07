@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::datafusion::functions::geospatial::data_types::parse_to_native_array;
+use crate::execution::datafusion::functions::geospatial::data_types::parse_to_native_array;
 use arrow_schema::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{

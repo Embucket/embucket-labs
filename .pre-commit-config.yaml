@@ -8,3 +8,11 @@ repos:
         args: [ "--", "--check" ]
       - id: clippy
         args: [ "--", "-D", "warnings" ]
+  - repo: local
+    # chmod +x check_license.sh
+    hooks:
+      - id: check-license-header
+        name: check license header
+        entry: ./check_license.sh
+        language: script
+        files: \.rs$

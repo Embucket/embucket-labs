@@ -17,9 +17,10 @@
 
 pub mod accessors;
 pub mod constructors;
+pub mod measurement;
+
 pub mod data_types;
 pub mod error;
-mod measurement;
 
 use datafusion::prelude::SessionContext;
 

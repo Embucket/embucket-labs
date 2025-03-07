@@ -84,15 +84,15 @@ impl IntoResponse for DbtError {
             | Self::LoginRequestParse { .. }
             | Self::QueryBodyParse { .. }
             | Self::InvalidWarehouseIdFormat { .. } => http::StatusCode::BAD_REQUEST,
-            Self::RowParse { .. } | Self::Utf8 { .. } | Self::Arrow { .. } => {
-                http::StatusCode::INTERNAL_SERVER_ERROR
-            }
+            Self::RowParse { .. }
+            | Self::Utf8 { .. }
+            | Self::Arrow { .. }
+            | Self::Metastore { .. }
+            | Self::Execution { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
                 http::StatusCode::UNAUTHORIZED
             }
             Self::NotImplemented => http::StatusCode::NOT_IMPLEMENTED,
-            Self::Metastore { .. } |
-            Self::Execution { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let message = match &self {

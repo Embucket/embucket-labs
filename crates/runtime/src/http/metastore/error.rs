@@ -28,24 +28,26 @@ impl IntoResponse for MetastoreAPIError {
     fn into_response(self) -> axum::response::Response {
         let message = (self.0.to_string(),);
         let code = match self.0 {
-            MetastoreError::TableDataExists { .. } => http::StatusCode::CONFLICT,
+            MetastoreError::TableDataExists { .. }
+            | MetastoreError::ObjectAlreadyExists { .. }
+            | MetastoreError::VolumeInUse { .. } => http::StatusCode::CONFLICT,
             MetastoreError::TableRequirementFailed { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
-            MetastoreError::VolumeValidationFailed { .. } |
-            MetastoreError::VolumeMissingCredentials => http::StatusCode::BAD_REQUEST,
+            MetastoreError::VolumeValidationFailed { .. }
+            | MetastoreError::VolumeMissingCredentials
+            | MetastoreError::Validation { .. } => http::StatusCode::BAD_REQUEST,
             MetastoreError::CloudProviderNotImplemented { .. } => {
                 http::StatusCode::PRECONDITION_FAILED
             }
-            MetastoreError::ObjectStore { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
-            MetastoreError::CreateDirectory { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
-            MetastoreError::SlateDB { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
-            MetastoreError::UtilSlateDB { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
-            MetastoreError::ObjectAlreadyExists { .. } => http::StatusCode::CONFLICT,
             MetastoreError::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
-            MetastoreError::VolumeInUse { .. } => http::StatusCode::CONFLICT,
-            MetastoreError::Iceberg { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
-            MetastoreError::Serde { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
-            MetastoreError::Validation { .. } => http::StatusCode::BAD_REQUEST,
-            MetastoreError::TableMetadataBuilder { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+            MetastoreError::ObjectStore { .. }
+            | MetastoreError::CreateDirectory { .. }
+            | MetastoreError::SlateDB { .. }
+            | MetastoreError::UtilSlateDB { .. }
+            | MetastoreError::Iceberg { .. }
+            | MetastoreError::Serde { .. }
+            | MetastoreError::TableMetadataBuilder { .. } => {
+                http::StatusCode::INTERNAL_SERVER_ERROR
+            }
         };
 
         let error = ErrorResponse {

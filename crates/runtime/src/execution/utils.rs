@@ -28,9 +28,9 @@ use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
 use sqlparser::ast::{Ident, ObjectName};
-use strum::{Display, EnumString};
 use std::collections::HashMap;
 use std::sync::Arc;
+use strum::{Display, EnumString};
 
 // This isn't the best way to do this, but it'll do for now
 // TODO: Revisit
@@ -368,7 +368,7 @@ impl From<&NormalizedIdent> for String {
 
 impl From<NormalizedIdent> for ObjectName {
     fn from(ident: NormalizedIdent) -> Self {
-        ObjectName(ident.0)
+        Self(ident.0)
     }
 }
 
@@ -448,7 +448,8 @@ mod tests {
                     Arc::new(TimestampNanosecondArray::from(values)) as ArrayRef
                 }
             };
-            let result = convert_timestamp_to_struct(&timestamp_array, *unit, DataSerializationFormat::Json);
+            let result =
+                convert_timestamp_to_struct(&timestamp_array, *unit, DataSerializationFormat::Json);
             let string_array = result.as_any().downcast_ref::<StringArray>().unwrap();
             assert_eq!(string_array.len(), 2);
             assert_eq!(string_array.value(0), *expected);
@@ -496,7 +497,8 @@ mod tests {
         assert_eq!(column_infos[1].name, "timestamp_col");
         assert_eq!(column_infos[1].r#type, "timestamp_ntz");
 
-        let (converted_batches, _) = convert_record_batches(records, DataSerializationFormat::Arrow).unwrap();
+        let (converted_batches, _) =
+            convert_record_batches(records, DataSerializationFormat::Arrow).unwrap();
         let converted_batch = &converted_batches[0];
         let converted_timestamp_array = converted_batch
             .column(1)

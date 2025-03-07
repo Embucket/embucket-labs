@@ -39,9 +39,9 @@ pub enum RuntimeHttpError {
 impl IntoResponse for RuntimeHttpError {
     fn into_response(self) -> Response {
         match self {
-            RuntimeHttpError::Metastore { source } => source.into_response(),
-            RuntimeHttpError::Dbt { source } => source.into_response(),
-            RuntimeHttpError::UI { source } => source.into_response(),
+            Self::Metastore { source } => source.into_response(),
+            Self::Dbt { source } => source.into_response(),
+            Self::UI { source } => source.into_response(),
         }
     }
 }
