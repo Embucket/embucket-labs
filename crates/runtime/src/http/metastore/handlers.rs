@@ -22,6 +22,7 @@ use axum::{
 };
 use snafu::ResultExt;
 //use utoipa::OpenApi;
+#[allow(clippy::wildcard_imports)]
 use icebucket_metastore::{
     error::{self as metastore_error, MetastoreError},
     *,
@@ -40,7 +41,7 @@ pub struct IceBucketVolumeSchema(IceBucketVolume);
 )]
 pub struct MetastoreApi;*/
 
-type RwObjectVec<T> = Vec<RwObject<T>>;
+//type RwObjectVec<T> = Vec<RwObject<T>>;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QueryParameters {
@@ -109,7 +110,7 @@ pub async fn create_volume(
         .context(metastore_error::ValidationSnafu)?;
     state
         .metastore
-        .create_volume(volume.ident.clone(), volume)
+        .create_volume(&volume.ident.clone(), volume)
         .await
         .map_err(MetastoreAPIError)
         .map(Json)
@@ -222,7 +223,7 @@ pub async fn create_database(
         .context(metastore_error::ValidationSnafu)?;
     state
         .metastore
-        .create_database(database.ident.clone(), database)
+        .create_database(&database.ident.clone(), database)
         .await
         .map_err(MetastoreAPIError)
         .map(Json)
@@ -342,7 +343,7 @@ pub async fn create_schema(
 ) -> MetastoreAPIResult<Json<RwObject<IceBucketSchema>>> {
     state
         .metastore
-        .create_schema(schema.ident.clone(), schema)
+        .create_schema(&schema.ident.clone(), schema)
         .await
         .map_err(MetastoreAPIError)
         .map(Json)
@@ -451,7 +452,7 @@ pub async fn create_table(
     let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table.ident.table);
     state
         .metastore
-        .create_table(table_ident, table)
+        .create_table(&table_ident, table)
         .await
         .map_err(MetastoreAPIError)
         .map(Json)

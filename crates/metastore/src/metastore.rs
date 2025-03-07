@@ -21,13 +21,13 @@ use crate::error::{self as metastore_error, MetastoreResult};
 use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::Utc;
+use dashmap::DashMap;
 use iceberg_rust::catalog::commit::apply_table_updates;
 use iceberg_rust_spec::table_metadata::{FormatVersion, TableMetadataBuilder};
 use icebucket_utils::Db;
 use object_store::{path::Path, ObjectStore, PutPayload};
 use serde::de::DeserializeOwned;
 use snafu::ResultExt;
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 #[allow(clippy::wildcard_imports)]
@@ -38,7 +38,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn list_volumes(&self) -> MetastoreResult<Vec<RwObject<IceBucketVolume>>>;
     async fn create_volume(
         &self,
-        name: IceBucketVolumeIdent,
+        name: &IceBucketVolumeIdent,
         volume: IceBucketVolume,
     ) -> MetastoreResult<RwObject<IceBucketVolume>>;
     async fn get_volume(
@@ -63,7 +63,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn list_databases(&self) -> MetastoreResult<Vec<RwObject<IceBucketDatabase>>>;
     async fn create_database(
         &self,
-        name: IceBucketDatabaseIdent,
+        name: &IceBucketDatabaseIdent,
         database: IceBucketDatabase,
     ) -> MetastoreResult<RwObject<IceBucketDatabase>>;
     async fn get_database(
@@ -87,7 +87,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     ) -> MetastoreResult<Vec<RwObject<IceBucketSchema>>>;
     async fn create_schema(
         &self,
-        ident: IceBucketSchemaIdent,
+        ident: &IceBucketSchemaIdent,
         schema: IceBucketSchema,
     ) -> MetastoreResult<RwObject<IceBucketSchema>>;
     async fn get_schema(
@@ -111,7 +111,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     ) -> MetastoreResult<Vec<RwObject<IceBucketTable>>>;
     async fn create_table(
         &self,
-        ident: IceBucketTableIdent,
+        ident: &IceBucketTableIdent,
         table: IceBucketTableCreateRequest,
     ) -> MetastoreResult<RwObject<IceBucketTable>>;
     async fn get_table(
@@ -159,7 +159,7 @@ const KEY_TABLE: &str = "tbl";
 
 pub struct SlateDBMetastore {
     db: Db,
-    object_store_cache: Mutex<HashMap<IceBucketVolumeIdent, Arc<dyn ObjectStore>>>,
+    object_store_cache: DashMap<IceBucketVolumeIdent, Arc<dyn ObjectStore>>,
 }
 
 impl std::fmt::Debug for SlateDBMetastore {
@@ -173,8 +173,13 @@ impl SlateDBMetastore {
     pub fn new(db: Db) -> Self {
         Self {
             db,
-            object_store_cache: Mutex::new(HashMap::new()),
+            object_store_cache: DashMap::new(),
         }
+    }
+
+    // Create a new SlateDBMetastore with a new in-memory database
+    pub async fn new_in_memory() -> Arc<Self> {
+        Arc::new(Self::new(Db::memory().await))
     }
 
     #[cfg(test)]
@@ -294,7 +299,7 @@ impl Metastore for SlateDBMetastore {
 
     async fn create_volume(
         &self,
-        name: IceBucketVolumeIdent,
+        name: &IceBucketVolumeIdent,
         volume: IceBucketVolume,
     ) -> MetastoreResult<RwObject<IceBucketVolume>> {
         let key = format!("{KEY_VOLUME}/{name}");
@@ -302,8 +307,7 @@ impl Metastore for SlateDBMetastore {
         let rwobject = self
             .create_object(&key, KEY_VOLUMES, "volume", volume)
             .await?;
-        let mut cache = self.object_store_cache.lock().await;
-        cache.insert(name.clone(), object_store);
+        self.object_store_cache.insert(name.clone(), object_store);
         Ok(rwobject)
     }
 
@@ -349,8 +353,7 @@ impl Metastore for SlateDBMetastore {
             self.delete_object(&key, KEY_VOLUMES).await
         } else if databases_using.is_empty() {
             self.delete_object(&key, KEY_VOLUMES).await?;
-            let mut cache = self.object_store_cache.lock().await;
-            cache.remove(name);
+            self.object_store_cache.remove(name);
             Ok(())
         } else {
             Err(metastore_error::MetastoreError::VolumeInUse {
@@ -363,8 +366,7 @@ impl Metastore for SlateDBMetastore {
         &self,
         name: &IceBucketVolumeIdent,
     ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>> {
-        let mut cache = self.object_store_cache.lock().await;
-        if let Some(store) = cache.get(name) {
+        if let Some(store) = self.object_store_cache.get(name) {
             Ok(Some(store.clone()))
         } else {
             let volume = self.get_volume(name).await?.ok_or(
@@ -374,7 +376,8 @@ impl Metastore for SlateDBMetastore {
                 },
             )?;
             let object_store = volume.get_object_store()?;
-            cache.insert(name.clone(), object_store.clone());
+            self.object_store_cache
+                .insert(name.clone(), object_store.clone());
             Ok(Some(object_store))
         }
     }
@@ -385,7 +388,7 @@ impl Metastore for SlateDBMetastore {
 
     async fn create_database(
         &self,
-        name: IceBucketDatabaseIdent,
+        name: &IceBucketDatabaseIdent,
         database: IceBucketDatabase,
     ) -> MetastoreResult<RwObject<IceBucketDatabase>> {
         self.get_volume(&database.volume).await?.ok_or(
@@ -446,7 +449,7 @@ impl Metastore for SlateDBMetastore {
 
     async fn create_schema(
         &self,
-        ident: IceBucketSchemaIdent,
+        ident: &IceBucketSchemaIdent,
         schema: IceBucketSchema,
     ) -> MetastoreResult<RwObject<IceBucketSchema>> {
         let key = format!("{KEY_SCHEMA}/{}/{}", ident.database, ident.schema);
@@ -461,7 +464,7 @@ impl Metastore for SlateDBMetastore {
         } else {
             Err(metastore_error::MetastoreError::ObjectNotFound {
                 type_name: "database".to_string(),
-                name: ident.database,
+                name: ident.database.clone(),
             })
         }
     }
@@ -513,9 +516,10 @@ impl Metastore for SlateDBMetastore {
         self.list_objects(&key).await
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn create_table(
         &self,
-        ident: IceBucketTableIdent,
+        ident: &IceBucketTableIdent,
         mut table: IceBucketTableCreateRequest,
     ) -> MetastoreResult<RwObject<IceBucketTable>> {
         if let Some(_schema) = self.get_schema(&ident.clone().into()).await? {
@@ -535,7 +539,7 @@ impl Metastore for SlateDBMetastore {
                     ident: volume_ident.clone(),
                     volume: IceBucketVolumeType::Memory,
                 };
-                let volume = self.create_volume(volume_ident.to_string(), volume).await?;
+                let volume = self.create_volume(&volume_ident, volume).await?;
                 if table.volume_ident.is_none() {
                     table.volume_ident = Some(volume_ident);
                 }
@@ -566,12 +570,6 @@ impl Metastore for SlateDBMetastore {
             };
 
             let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
-            dbg!(&table_location);
-            /*let table_creation = {
-                let mut creation:TableCreation = table.clone().try_into()?;
-                creation.location = Some(table_location.clone());
-                creation
-            };*/
 
             let mut table_metadata = TableMetadataBuilder::default();
 
@@ -622,7 +620,7 @@ impl Metastore for SlateDBMetastore {
                 )
                 .await?;
 
-            let object_store = self.table_object_store(&ident).await?.ok_or(
+            let object_store = self.table_object_store(ident).await?.ok_or(
                 metastore_error::MetastoreError::ObjectNotFound {
                     type_name: "table_volume".to_string(),
                     name: ident.to_string(),
@@ -891,7 +889,7 @@ mod tests {
         let ms = get_metastore().await;
 
         let volume = IceBucketVolume::new("test".to_owned(), IceBucketVolumeType::Memory);
-        ms.create_volume("test".to_owned(), volume)
+        ms.create_volume(&"test".to_string(), volume)
             .await
             .expect("create volume failed");
         let all_volumes = ms.list_volumes().await.expect("list volumes failed");
@@ -920,12 +918,12 @@ mod tests {
         let ms = get_metastore().await;
 
         let volume = IceBucketVolume::new("test".to_owned(), IceBucketVolumeType::Memory);
-        ms.create_volume("test".to_owned(), volume)
+        ms.create_volume(&"test".to_owned(), volume)
             .await
             .expect("create volume failed");
 
         let volume2 = IceBucketVolume::new("test".to_owned(), IceBucketVolumeType::Memory);
-        let result = ms.create_volume("test".to_owned(), volume2).await;
+        let result = ms.create_volume(&"test".to_owned(), volume2).await;
         insta::with_settings!({
             filters => insta_filters(),
         }, {
@@ -938,7 +936,7 @@ mod tests {
         let ms = get_metastore().await;
 
         let volume = IceBucketVolume::new("test".to_owned(), IceBucketVolumeType::Memory);
-        ms.create_volume("test".to_string(), volume)
+        ms.create_volume(&"test".to_string(), volume)
             .await
             .expect("create volume failed");
         let all_volumes = ms.list_volumes().await.expect("list volumes failed");
@@ -964,7 +962,7 @@ mod tests {
 
         let volume = IceBucketVolume::new("test".to_owned(), IceBucketVolumeType::Memory);
         let rwo1 = ms
-            .create_volume("test".to_owned(), volume)
+            .create_volume(&"test".to_owned(), volume)
             .await
             .expect("create volume failed");
         let volume = IceBucketVolume::new(
@@ -993,7 +991,7 @@ mod tests {
             properties: None,
         };
         let no_volume_result = ms
-            .create_database("testdb".to_owned(), database.clone())
+            .create_database(&"testdb".to_owned(), database.clone())
             .await;
 
         let volume = IceBucketVolume::new("test".to_owned(), IceBucketVolumeType::Memory);
@@ -1003,13 +1001,13 @@ mod tests {
                 path: "/tmp".to_owned(),
             }),
         );
-        ms.create_volume("testv1".to_owned(), volume)
+        ms.create_volume(&"testv1".to_owned(), volume)
             .await
             .expect("create volume failed");
-        ms.create_volume("testv2".to_owned(), volume2)
+        ms.create_volume(&"testv2".to_owned(), volume2)
             .await
             .expect("create volume failed");
-        ms.create_database("testdb".to_owned(), database.clone())
+        ms.create_database(&"testdb".to_owned(), database.clone())
             .await
             .expect("create database failed");
         let all_databases = ms.list_databases().await.expect("list databases failed");
@@ -1046,14 +1044,16 @@ mod tests {
             properties: None,
         };
 
-        let no_db_result = ms.create_schema(schema.ident.clone(), schema.clone()).await;
+        let no_db_result = ms
+            .create_schema(&schema.ident.clone(), schema.clone())
+            .await;
 
         let volume = IceBucketVolume::new("test".to_owned(), IceBucketVolumeType::Memory);
-        ms.create_volume("testv1".to_owned(), volume)
+        ms.create_volume(&"testv1".to_owned(), volume)
             .await
             .expect("create volume failed");
         ms.create_database(
-            "testdb".to_owned(),
+            &"testdb".to_owned(),
             IceBucketDatabase {
                 ident: "testdb".to_owned(),
                 volume: "testv1".to_owned(),
@@ -1063,7 +1063,7 @@ mod tests {
         .await
         .expect("create database failed");
         let schema_create = ms
-            .create_schema(schema.ident.clone(), schema.clone())
+            .create_schema(&schema.ident.clone(), schema.clone())
             .await
             .expect("create schema failed");
 
@@ -1091,6 +1091,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::too_many_lines)]
     async fn test_tables() {
         let object_store = Arc::new(object_store::memory::InMemory::new());
         let sdb = SlateDb::open(Path::from("/"), object_store.clone())
@@ -1136,14 +1137,14 @@ mod tests {
             is_temporary: None,
         };
 
-        let no_schema_result = ms.create_table(table.ident.clone(), table.clone()).await;
+        let no_schema_result = ms.create_table(&table.ident.clone(), table.clone()).await;
 
         let volume = IceBucketVolume::new("test".to_owned(), IceBucketVolumeType::Memory);
-        ms.create_volume("testv1".to_owned(), volume)
+        ms.create_volume(&"testv1".to_owned(), volume)
             .await
             .expect("create volume failed");
         ms.create_database(
-            "testdb".to_owned(),
+            &"testdb".to_owned(),
             IceBucketDatabase {
                 ident: "testdb".to_owned(),
                 volume: "testv1".to_owned(),
@@ -1153,7 +1154,7 @@ mod tests {
         .await
         .expect("create database failed");
         ms.create_schema(
-            IceBucketSchemaIdent {
+            &IceBucketSchemaIdent {
                 database: "testdb".to_owned(),
                 schema: "testschema".to_owned(),
             },
@@ -1168,7 +1169,7 @@ mod tests {
         .await
         .expect("create schema failed");
         let table_create = ms
-            .create_table(table.ident.clone(), table.clone())
+            .create_table(&table.ident.clone(), table.clone())
             .await
             .expect("create table failed");
         let vol_object_store = ms
@@ -1251,11 +1252,11 @@ mod tests {
         };
 
         let volume = IceBucketVolume::new("testv1".to_owned(), IceBucketVolumeType::Memory);
-        ms.create_volume("testv1".to_owned(), volume)
+        ms.create_volume(&"testv1".to_owned(), volume)
             .await
             .expect("create volume failed");
         ms.create_database(
-            "testdb".to_owned(),
+            &"testdb".to_owned(),
             IceBucketDatabase {
                 ident: "testdb".to_owned(),
                 volume: "testv1".to_owned(),
@@ -1265,7 +1266,7 @@ mod tests {
         .await
         .expect("create database failed");
         ms.create_schema(
-            IceBucketSchemaIdent {
+            &IceBucketSchemaIdent {
                 database: "testdb".to_owned(),
                 schema: "testschema".to_owned(),
             },
@@ -1280,7 +1281,7 @@ mod tests {
         .await
         .expect("create schema failed");
         let create_table = ms
-            .create_table(table.ident.clone(), table.clone())
+            .create_table(&table.ident.clone(), table.clone())
             .await
             .expect("create table failed");
         let vol_object_store = ms

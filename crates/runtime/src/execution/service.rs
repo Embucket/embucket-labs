@@ -5,13 +5,13 @@ use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
 use object_store::{path::Path, PutPayload};
-use snafu::{OptionExt, ResultExt};
+use snafu::ResultExt;
 use uuid::Uuid;
 use history::api::QHistoryApi;
-
+    
 use super::{
     models::ColumnInfo,
-    query::{IceBucketQuery, IceBucketQueryContext},
+    query::IceBucketQueryContext,
     session::IceBucketUserSession,
     utils::{convert_record_batches, Config},
 };
@@ -73,16 +73,11 @@ impl ExecutionService {
                 .ok_or(ExecutionError::MissingDataFusionSession {
                     id: session_id.to_string(),
                 })?;
-        let query_obj = IceBucketQuery::new(
-            user_session.clone(),
-            self.metastore.clone(),
-            query.to_string(),
-            query_context,
-        );
+        let query_obj = user_session.query(query, query_context);
 
         let records: Vec<RecordBatch> = query_obj.execute().await?;
 
-        let data_format = self.config().data_format;
+        let data_format = self.config().dbt_serialization_format;
         // Add columns dbt metadata to each field
         convert_record_batches(records, data_format)
             .context(ex_error::DataFusionQuerySnafu { query })
@@ -185,12 +180,7 @@ impl ExecutionService {
 
         let insert_query = format!("INSERT INTO {table_ident} SELECT * FROM {temp_table_ident}",);
 
-        let query = IceBucketQuery::new(
-            user_session.clone(),
-            self.metastore.clone(),
-            insert_query,
-            IceBucketQueryContext::default(),
-        );
+        let query = user_session.query(&insert_query, IceBucketQueryContext::default());
 
         query.execute().await?;
 
@@ -206,7 +196,8 @@ impl ExecutionService {
         Ok(())
     }
 
-    pub fn config(&self) -> &Config {
+    #[must_use]
+    pub const fn config(&self) -> &Config {
         &self.config
     }
 }

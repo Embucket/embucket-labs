@@ -26,6 +26,7 @@ use arrow_schema::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{ColumnarValue, Documentation, ScalarUDFImpl, Signature};
 use datafusion_common::{DataFusionError, Result};
+use datafusion_expr::ScalarFunctionArgs;
 use geoarrow::array::AsNativeArray;
 use geoarrow::datatypes::NativeType;
 use geoarrow::scalar::Geometry;
@@ -63,8 +64,8 @@ impl ScalarUDFImpl for GeomDimension {
         Ok(DataType::UInt8)
     }
 
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
-        dim_impl(args)
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
+        dim_impl(&args.args)
     }
 
     fn documentation(&self) -> Option<&Documentation> {
@@ -198,9 +199,13 @@ mod tests {
         ];
 
         for (array, exp) in args {
-            let args = vec![ColumnarValue::Array(array.clone())];
+            let args = ScalarFunctionArgs {
+                args: vec![ColumnarValue::Array(array)],
+                number_rows: 2,
+                return_type: &DataType::Null,
+            };
             let dim_fn = GeomDimension::new();
-            let result = dim_fn.invoke_batch(&args, 2).unwrap().to_array(2).unwrap();
+            let result = dim_fn.invoke_with_args(args).unwrap().to_array(2).unwrap();
             let result = result.as_primitive::<UInt8Type>();
             assert_eq!(result.value(0), exp);
         }

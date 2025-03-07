@@ -17,7 +17,7 @@
 
 use std::sync::Arc;
 
-use crate::datafusion::functions::geospatial::error::{
+use crate::execution::datafusion::functions::geospatial::error::{
     self as geo_error, GeoDataFusionError, GeoDataFusionResult,
 };
 use arrow_array::ArrayRef;

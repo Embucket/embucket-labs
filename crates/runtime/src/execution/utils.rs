@@ -27,38 +27,29 @@ use chrono::DateTime;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
-use sqlparser::ast::Ident;
+use sqlparser::ast::{Ident, ObjectName};
+use strum::{Display, EnumString};
 use std::collections::HashMap;
-use snafu::ResultExt;
 use std::sync::Arc;
 
 // This isn't the best way to do this, but it'll do for now
 // TODO: Revisit
 pub struct Config {
-    pub data_format: DataFormat,
+    pub dbt_serialization_format: DataSerializationFormat,
 }
 
 impl Config {
-    #[must_use]
-    pub fn new(data_format: &str) -> Self {
-        Self {
-            data_format: DataFormat::from_str(data_format),
-        }
+    pub fn new(data_format: &str) -> Result<Self, strum::ParseError> {
+        Ok(Self {
+            dbt_serialization_format: DataSerializationFormat::try_from(data_format)?,
+        })
     }
 }
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum DataFormat {
+#[derive(Copy, Clone, PartialEq, Eq, EnumString, Display)]
+#[strum(ascii_case_insensitive)]
+pub enum DataSerializationFormat {
     Arrow,
     Json,
-}
-
-impl DataFormat {
-    fn from_str(value: &str) -> Self {
-        match value {
-            "arrow" => Self::Arrow,
-            _ => Self::Json,
-        }
-    }
 }
 
 /*#[async_trait::async_trait]
@@ -133,7 +124,7 @@ pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, Array
 
 pub fn convert_record_batches(
     records: Vec<RecordBatch>,
-    data_format: DataFormat,
+    data_format: DataSerializationFormat,
 ) -> DataFusionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
     let mut converted_batches = Vec::new();
     let column_infos = ColumnInfo::from_batch(&records);
@@ -221,10 +212,10 @@ macro_rules! downcast_and_iter {
 fn convert_timestamp_to_struct(
     column: &ArrayRef,
     unit: TimeUnit,
-    data_format: DataFormat,
+    data_format: DataSerializationFormat,
 ) -> ArrayRef {
     match data_format {
-        DataFormat::Arrow => {
+        DataSerializationFormat::Arrow => {
             let timestamps: Vec<_> = match unit {
                 TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray).collect(),
                 TimeUnit::Millisecond => {
@@ -239,7 +230,7 @@ fn convert_timestamp_to_struct(
             };
             Arc::new(Int64Array::from(timestamps)) as ArrayRef
         }
-        DataFormat::Json => {
+        DataSerializationFormat::Json => {
             let timestamps: Vec<_> = match unit {
                 TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray)
                     .map(|x| {
@@ -291,11 +282,11 @@ fn convert_uint_to_int_datatypes(
     field: &Field,
     column: &ArrayRef,
     metadata: HashMap<String, String>,
-    data_format: DataFormat,
+    data_format: DataSerializationFormat,
     precision_scale: (i32, i32),
 ) -> ArrayRef {
     match data_format {
-        DataFormat::Arrow => {
+        DataSerializationFormat::Arrow => {
             match field.data_type() {
                 DataType::UInt64 => {
                     fields.push(
@@ -355,7 +346,7 @@ fn convert_uint_to_int_datatypes(
                 }
             }
         }
-        DataFormat::Json => {
+        DataSerializationFormat::Json => {
             fields.push(field.clone().with_metadata(metadata));
             Arc::clone(column)
         }
@@ -372,6 +363,12 @@ impl From<&NormalizedIdent> for String {
             .map(|i| i.value.clone())
             .collect::<Vec<_>>()
             .join(".")
+    }
+}
+
+impl From<NormalizedIdent> for ObjectName {
+    fn from(ident: NormalizedIdent) -> Self {
+        ObjectName(ident.0)
     }
 }
 
@@ -451,7 +448,7 @@ mod tests {
                     Arc::new(TimestampNanosecondArray::from(values)) as ArrayRef
                 }
             };
-            let result = convert_timestamp_to_struct(&timestamp_array, *unit, DataFormat::Json);
+            let result = convert_timestamp_to_struct(&timestamp_array, *unit, DataSerializationFormat::Json);
             let string_array = result.as_any().downcast_ref::<StringArray>().unwrap();
             assert_eq!(string_array.len(), 2);
             assert_eq!(string_array.value(0), *expected);
@@ -478,7 +475,7 @@ mod tests {
         let batch = RecordBatch::try_new(schema, vec![int_array, timestamp_array]).unwrap();
         let records = vec![batch];
         let (converted_batches, column_infos) =
-            convert_record_batches(records.clone(), DataFormat::Json).unwrap();
+            convert_record_batches(records.clone(), DataSerializationFormat::Json).unwrap();
 
         let converted_batch = &converted_batches[0];
         assert_eq!(converted_batches.len(), 1);
@@ -499,7 +496,7 @@ mod tests {
         assert_eq!(column_infos[1].name, "timestamp_col");
         assert_eq!(column_infos[1].r#type, "timestamp_ntz");
 
-        let (converted_batches, _) = convert_record_batches(records, DataFormat::Arrow).unwrap();
+        let (converted_batches, _) = convert_record_batches(records, DataSerializationFormat::Arrow).unwrap();
         let converted_batch = &converted_batches[0];
         let converted_timestamp_array = converted_batch
             .column(1)
@@ -628,7 +625,7 @@ mod tests {
         .unwrap()];
 
         let (converted_batches, column_infos) =
-            convert_record_batches(record_batches.clone(), DataFormat::Arrow).unwrap();
+            convert_record_batches(record_batches.clone(), DataSerializationFormat::Arrow).unwrap();
 
         let fields_tested =
             check_record_batches_uint_to_int(record_batches, converted_batches, column_infos);

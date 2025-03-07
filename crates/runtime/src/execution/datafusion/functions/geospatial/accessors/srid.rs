@@ -18,7 +18,7 @@
 use std::any::Any;
 use std::sync::{Arc, OnceLock};
 
-use crate::datafusion::functions::geospatial::data_types::{
+use crate::execution::datafusion::functions::geospatial::data_types::{
     any_single_geometry_type_input, parse_to_native_array,
 };
 use arrow_array::builder::Int32Builder;

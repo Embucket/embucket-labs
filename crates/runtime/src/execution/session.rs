@@ -18,6 +18,7 @@
 use super::catalog::IceBucketDFMetastore;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::IceBucketTypePlanner;
+use super::query::{IceBucketQuery, IceBucketQueryContext};
 use datafusion::common::error::Result as DFResult;
 use datafusion::execution::SessionStateBuilder;
 use datafusion::functions::register_all;
@@ -37,6 +38,7 @@ use std::sync::Arc;
 use super::error::{self as ex_error, ExecutionResult};
 
 pub struct IceBucketUserSession {
+    pub metastore: Arc<dyn Metastore>,
     pub ctx: SessionContext,
     pub ident_normalizer: IdentNormalizer,
 }
@@ -46,7 +48,7 @@ impl IceBucketUserSession {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
 
-        let catalog_list_impl = Arc::new(IceBucketDFMetastore::new(metastore));
+        let catalog_list_impl = Arc::new(IceBucketDFMetastore::new(metastore.clone()));
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::new()
@@ -63,13 +65,22 @@ impl IceBucketUserSession {
         register_native(&ctx);
         register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         register_all(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
-        register_geo_native(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
+        register_geo_native(&ctx);
 
         let enable_ident_normalization = ctx.enable_ident_normalization();
         Ok(Self {
+            metastore,
             ctx,
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
         })
+    }
+
+    pub fn query<S>(
+        self: &Arc<Self>,
+        query: S,
+        query_context: IceBucketQueryContext,
+    ) -> IceBucketQuery where S: Into<String> {
+        IceBucketQuery::new(self.clone(), query.into(), query_context)
     }
 
     pub fn set_session_variable(

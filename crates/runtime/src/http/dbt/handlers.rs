@@ -17,7 +17,7 @@
 
 use super::error::{self as dbt_error, DbtError, DbtResult};
 use crate::execution::query::IceBucketQueryContext;
-use crate::execution::utils::DataFormat;
+use crate::execution::utils::DataSerializationFormat;
 use crate::http::dbt::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
     QueryRequestBody, ResponseData,
@@ -173,15 +173,15 @@ pub async fn query(
     let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {
             row_type: columns.into_iter().map(Into::into).collect(),
-            query_result_format: Some(data_format.to_string()),
-            row_set: if data_format == DataFormat::Json {
+            query_result_format: Some(serialization_format.to_string()),
+            row_set: if serialization_format == DataSerializationFormat::Json {
                 Option::from(ResponseData::rows_to_vec(
                     records_to_json_string(&records)?.as_str(),
                 )?)
             } else {
                 None
             },
-            row_set_base_64: if data_format == DataFormat::Arrow {
+            row_set_base_64: if serialization_format == DataSerializationFormat::Arrow {
                 Option::from(records_to_arrow_string(&records)?)
             } else {
                 None

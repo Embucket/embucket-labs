@@ -15,12 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::datafusion::functions::geospatial::data_types::{
+use crate::execution::datafusion::functions::geospatial::data_types::{
     parse_to_native_array, BOX2D_TYPE, BOX3D_TYPE, GEOMETRY_TYPE, LINE_STRING_TYPE, POINT2D_TYPE,
     POINT3D_TYPE, POLYGON_2D_TYPE,
 };
-use crate::datafusion::functions::geospatial::error as geo_error;
-use crate::datafusion::functions::timestamp_from_parts::to_primitive_array;
+use crate::execution::datafusion::functions::geospatial::error as geo_error;
+use crate::execution::datafusion::functions::timestamp_from_parts::to_primitive_array;
 use arrow_array::types::Int64Type;
 use arrow_schema::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;

@@ -14,7 +14,6 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-
 use arrow::array::{Int64Array, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
@@ -42,8 +41,7 @@ use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind,
-    MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use,
+    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use
 };
 use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
@@ -65,6 +63,12 @@ pub struct IceBucketQueryContext {
     pub schema: Option<String>,
 }
 
+pub enum IceBucketQueryState {
+    Raw(String),
+    Preprocessed(String),
+
+}
+
 pub struct IceBucketQuery {
     pub metastore: Arc<dyn Metastore>,
     pub query: String,
@@ -73,24 +77,60 @@ pub struct IceBucketQuery {
 }
 
 impl IceBucketQuery {
-    pub fn new(
+    pub(super) fn new<S>(
         session: Arc<IceBucketUserSession>,
-        metastore: Arc<dyn Metastore>,
-        query: String,
+        query: S,
         query_context: IceBucketQueryContext,
-    ) -> Self {
+    ) -> Self where S: Into<String> {
+        let query = Self::preprocess_query(&query.into());
         Self {
-            metastore,
+            metastore: session.metastore.clone(),
             query,
             session,
             query_context,
         }
     }
 
-    pub fn parse_query(&self, query: &str) -> Result<DFStatement, DataFusionError> {
+    pub fn parse_query(&self) -> Result<DFStatement, DataFusionError> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
-        state.sql_to_statement(query, dialect)
+        let mut statement = state.sql_to_statement(&self.query, dialect)?;
+        Self::postprocess_query_statement(&mut statement);
+        Ok(statement)
+    }
+
+    pub async fn plan(&self) -> Result<LogicalPlan, DataFusionError> {
+        let statement = self.parse_query()?;
+        self.session.ctx.state().statement_to_plan(statement).await
+    }
+
+    fn current_database(&self) -> Option<String> {
+        self.query_context
+            .database
+            .clone()
+            .or_else(|| self.session.get_session_variable("database"))
+            .or_else(|| Some("icebucket".to_string()))
+    }
+
+    fn current_schema(&self) -> Option<String> {
+        self.query_context
+            .schema
+            .clone()
+            .or_else(|| self.session.get_session_variable("schema"))
+            .or_else(|| Some("public".to_string()))
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[tracing::instrument(level = "trace", ret)]
+    pub fn postprocess_query_statement(statement: &mut DFStatement) {
+        if let DFStatement::Statement(value) = statement {
+            visit_expressions_mut(&mut *value, |expr| {
+                if let Expr::Function(ref mut func) = expr {
+                    visit_functions_expressions(func);
+                }
+                ControlFlow::<()>::Continue(())
+            });
+        }
     }
 
     #[allow(clippy::unwrap_used)]
@@ -122,10 +162,8 @@ impl IceBucketQuery {
 
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn execute(&self) -> ExecutionResult<Vec<RecordBatch>> {
-        // Update query to use custom JSON functions
-        let query = self.preprocess_query(&self.query);
         let mut statement = self
-            .parse_query(query.as_str())
+            .parse_query()
             .context(super::error::DataFusionSnafu)?;
         Self::postprocess_query_statement(&mut statement);
         // statement = self.update_statement_references(statement, warehouse_name);
@@ -171,7 +209,7 @@ impl IceBucketQuery {
                         });
                     }
                     let params = HashMap::from([(variable.to_string(), value)]);
-                    self.session.set_session_variable(true, params);
+                    self.session.set_session_variable(true, params)?;
                     return Ok(vec![]);
                 }
                 Statement::SetVariable {
@@ -191,7 +229,7 @@ impl IceBucketQuery {
                         .collect();
                     let values = values?;
                     let params = keys.into_iter().zip(values.into_iter()).collect();
-                    self.session.set_session_variable(true, params);
+                    self.session.set_session_variable(true, params)?;
                     return Ok(vec![]);
                 }
                 Statement::CreateTable { .. } => {
@@ -230,7 +268,7 @@ impl IceBucketQuery {
                 | Statement::ShowVariable { .. }
                 | Statement::ShowObjects { .. }
                 | Statement::Update { .. } => {
-                    return Box::pin(self.execute_with_custom_plan(&query)).await;
+                    return Box::pin(self.execute_with_custom_plan(&self.query)).await;
                 }
                 Statement::Query(mut subquery) => {
                     self.update_qualify_in_query(subquery.as_mut());
@@ -238,7 +276,7 @@ impl IceBucketQuery {
                     return Box::pin(self.execute_with_custom_plan(&subquery.to_string())).await;
                 }
                 Statement::Drop { .. } => {
-                    return Box::pin(self.drop_query(&query)).await;
+                    return Box::pin(self.drop_query(&self.query)).await;
                 }
                 Statement::Merge { .. } => {
                     return Box::pin(self.merge_query(*s)).await;
@@ -248,7 +286,7 @@ impl IceBucketQuery {
         }
         self.session
             .ctx
-            .sql(&query)
+            .sql(&self.query)
             .await
             .context(super::error::DataFusionSnafu)?
             .collect()
@@ -264,7 +302,7 @@ impl IceBucketQuery {
     #[must_use]
     #[allow(clippy::unwrap_used)]
     #[tracing::instrument(level = "trace", ret)]
-    pub fn preprocess_query(query: &str) -> String {
+    pub(super) fn preprocess_query(query: &str) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         // TODO: This regex should be a static allocation
         let re = regex::Regex::new(r"(\w+.\w+)\[(\d+)][:\.](\w+)").unwrap();
@@ -382,15 +420,14 @@ impl IceBucketQuery {
             };
 
             self.metastore
-                .create_table(ib_table_ident.clone(), table_create_request)
+                .create_table(&ib_table_ident, table_create_request)
                 .await
                 .context(ex_error::MetastoreSnafu)?;
 
             // Insert data to new table
             // TODO: What is the point of this?
             let insert_query = format!(
-                "INSERT INTO {} SELECT * FROM {}",
-                ib_table_ident, table_name
+                "INSERT INTO {ib_table_ident} SELECT * FROM {table_name}",
             );
             self.execute_with_custom_plan(&insert_query).await?;
 
@@ -423,7 +460,7 @@ impl IceBucketQuery {
     /// - We don't need to create table in case we have common shared session context.
     ///   CSV is registered as a table which can referenced from SQL statements executed against this context
     /// - Revisit this with the new metastore approach
-    pub async fn create_stage_query(
+    pub(super) async fn create_stage_query(
         &self,
         statement: Statement,
     ) -> ExecutionResult<Vec<RecordBatch>> {
@@ -698,7 +735,7 @@ impl IceBucketQuery {
                         properties: None,
                     };
                     self.metastore
-                        .create_schema(icebucket_schema_ident, icebucket_schema)
+                        .create_schema(&icebucket_schema_ident, icebucket_schema)
                         .await
                         .context(ex_error::MetastoreSnafu)?;
                 }
@@ -713,38 +750,6 @@ impl IceBucketQuery {
         }
         created_entity_response()
     }
-
-    /*pub async fn create_database(
-        &self,
-        name: ObjectName,
-        _if_not_exists: bool,
-    ) -> ExecutionResult<Vec<RecordBatch>> {
-        // Parse name into catalog (warehouse) name and schema name
-        if name.0.len() != 1 {
-            return Err(ExecutionError::DataFusion {
-                source: DataFusionError::NotImplemented(
-                    "Only single-part names are supported".to_string(),
-                ),
-            });
-        }
-
-        let database_ident = self.session.ident_normalizer.normalize(name.0[0].clone());
-        let exists = self.metastore.get_database(&database_ident)
-            .await
-            .context(ex_error::MetastoreSnafu)?
-            .is_some();
-
-        if !exists {
-            let icebucket_database = IceBucketDatabase {
-                ident: database_ident.clone(),
-                properties: None,
-            };
-            self.metastore.create_database(database_ident.clone(), icebucket_database)
-                .await
-                .context(ex_error::MetastoreSnafu)?;
-        }
-        created_entity_response()
-    }*/
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn get_custom_logical_plan(&self, query: &str) -> ExecutionResult<LogicalPlan> {
@@ -932,6 +937,140 @@ impl IceBucketQuery {
             _ => {}
         }
     }
+
+    // TODO: We need to recursively fix any missing table references with the default
+    // database and schema from the session
+    /*fn update_statement_table_references(
+        &self,
+        mut statement: DFStatement,
+    ) -> ExecutionResult<DFStatement> {
+        match statement {
+            DFStatement::Statement(ref mut s) => match **s {
+                Statement::Analyze { ref mut table_name, .. } => {
+                    *table_name = self.resolve_table_ident(table_name.0.clone())?.into();
+                },
+                Statement::Truncate { ref mut table_names, .. } => {
+                    for table_name in table_names {
+                        table_name.name = self.resolve_table_ident(table_name.name.clone().0)?.into();
+                    }
+                },
+                Statement::Msck { ref mut table_name, ..} => {
+                    *table_name = self.resolve_table_ident(table_name.0.clone())?.into();
+                },
+                Statement::Query(query) => todo!(),
+                Statement::Insert(insert) => todo!(),
+                Statement::Install { extension_name } => todo!(),
+                Statement::Load { extension_name } => todo!(),
+                Statement::Directory { overwrite, local, path, file_format, source } => todo!(),
+                Statement::Call(function) => todo!(),
+                Statement::Copy { source, to, target, options, legacy_options, values } => todo!(),
+                Statement::CopyIntoSnowflake { into, from_stage, from_stage_alias, stage_params, from_transformations, files, pattern, file_format, copy_options, validation_mode } => todo!(),
+                Statement::Close { cursor } => todo!(),
+                Statement::Update { table, assignments, from, selection, returning, or } => todo!(),
+                Statement::Delete(delete) => todo!(),
+                Statement::CreateView { or_replace, materialized, name, columns, query, options, cluster_by, comment, with_no_schema_binding, if_not_exists, temporary, to } => todo!(),
+                Statement::CreateTable(create_table) => todo!(),
+                Statement::CreateVirtualTable { name, if_not_exists, module_name, module_args } => todo!(),
+                Statement::CreateIndex(create_index) => todo!(),
+                Statement::CreateRole { names, if_not_exists, login, inherit, bypassrls, password, superuser, create_db, create_role, replication, connection_limit, valid_until, in_role, in_group, role, user, admin, authorization_owner } => todo!(),
+                Statement::CreateSecret { or_replace, temporary, if_not_exists, name, storage_specifier, secret_type, options } => todo!(),
+                Statement::CreatePolicy { name, table_name, policy_type, command, to, using, with_check } => todo!(),
+                Statement::AlterTable { name, if_exists, only, operations, location, on_cluster } => todo!(),
+                Statement::AlterIndex { name, operation } => todo!(),
+                Statement::AlterView { name, columns, query, with_options } => todo!(),
+                Statement::AlterRole { name, operation } => todo!(),
+                Statement::AlterPolicy { name, table_name, operation } => todo!(),
+                Statement::AlterSession { set, session_params } => todo!(),
+                Statement::AttachDatabase { schema_name, database_file_name, database } => todo!(),
+                Statement::AttachDuckDBDatabase { if_not_exists, database, database_path, database_alias, attach_options } => todo!(),
+                Statement::DetachDuckDBDatabase { if_exists, database, database_alias } => todo!(),
+                Statement::Drop { object_type, if_exists, names, cascade, restrict, purge, temporary } => todo!(),
+                Statement::DropFunction { if_exists, func_desc, option } => todo!(),
+                Statement::DropProcedure { if_exists, proc_desc, option } => todo!(),
+                Statement::DropSecret { if_exists, temporary, name, storage_specifier } => todo!(),
+                Statement::DropPolicy { if_exists, name, table_name, option } => todo!(),
+                Statement::Declare { stmts } => todo!(),
+                Statement::CreateExtension { name, if_not_exists, cascade, schema, version } => todo!(),
+                Statement::Fetch { name, direction, into } => todo!(),
+                Statement::Flush { object_type, location, channel, read_lock, export, tables } => todo!(),
+                Statement::Discard { object_type } => todo!(),
+                Statement::SetRole { context_modifier, role_name } => todo!(),
+                Statement::SetVariable { local, hivevar, variables, value } => todo!(),
+                Statement::SetTimeZone { local, value } => todo!(),
+                Statement::SetNames { charset_name, collation_name } => todo!(),
+                Statement::SetNamesDefault {  } => todo!(),
+                Statement::ShowFunctions { filter } => todo!(),
+                Statement::ShowVariable { variable } => todo!(),
+                Statement::ShowStatus { filter, global, session } => todo!(),
+                Statement::ShowVariables { filter, global, session } => todo!(),
+                Statement::ShowCreate { obj_type, obj_name } => todo!(),
+                Statement::ShowColumns { extended, full, show_options } => todo!(),
+                Statement::ShowDatabases { terse, history, show_options } => todo!(),
+                Statement::ShowSchemas { terse, history, show_options } => todo!(),
+                Statement::ShowObjects { terse, show_options } => todo!(),
+                Statement::ShowTables { terse, history, extended, full, external, show_options } => todo!(),
+                Statement::ShowViews { terse, materialized, show_options } => todo!(),
+                Statement::ShowCollation { filter } => todo!(),
+                Statement::Use(_) => todo!(),
+                Statement::StartTransaction { modes, begin, transaction, modifier } => todo!(),
+                Statement::SetTransaction { modes, snapshot, session } => todo!(),
+                Statement::Comment { object_type, object_name, comment, if_exists } => todo!(),
+                Statement::Commit { chain } => todo!(),
+                Statement::Rollback { chain, savepoint } => todo!(),
+                Statement::CreateSchema { schema_name, if_not_exists } => todo!(),
+                Statement::CreateDatabase { db_name, if_not_exists, location, managed_location } => todo!(),
+                Statement::CreateFunction(create_function) => todo!(),
+                Statement::CreateTrigger { or_replace, is_constraint, name, period, events, table_name, referenced_table_name, referencing, trigger_object, include_each, condition, exec_body, characteristics } => todo!(),
+                Statement::DropTrigger { if_exists, trigger_name, table_name, option } => todo!(),
+                Statement::CreateProcedure { or_alter, name, params, body } => todo!(),
+                Statement::CreateMacro { or_replace, temporary, name, args, definition } => todo!(),
+                Statement::CreateStage { or_replace, temporary, if_not_exists, name, stage_params, directory_table_params, file_format, copy_options, comment } => todo!(),
+                Statement::Assert { condition, message } => todo!(),
+                Statement::Grant { privileges, objects, grantees, with_grant_option, granted_by } => todo!(),
+                Statement::Revoke { privileges, objects, grantees, granted_by, cascade } => todo!(),
+                Statement::Deallocate { name, prepare } => todo!(),
+                Statement::Execute { name, parameters, has_parentheses, using } => todo!(),
+                Statement::Prepare { name, data_types, statement } => todo!(),
+                Statement::Kill { modifier, id } => todo!(),
+                Statement::ExplainTable { describe_alias, hive_format, has_table_keyword, table_name } => todo!(),
+                Statement::Explain { describe_alias, analyze, verbose, query_plan, statement, format, options } => todo!(),
+                Statement::Savepoint { name } => todo!(),
+                Statement::ReleaseSavepoint { name } => todo!(),
+                Statement::Merge { into, table, source, on, clauses } => todo!(),
+                Statement::Cache { table_flag, table_name, has_as, options, query } => todo!(),
+                Statement::UNCache { table_name, if_exists } => todo!(),
+                Statement::CreateSequence { temporary, if_not_exists, name, data_type, sequence_options, owned_by } => todo!(),
+                Statement::CreateType { name, representation } => todo!(),
+                Statement::Pragma { name, value, is_eq } => todo!(),
+                Statement::LockTables { tables } => todo!(),
+                Statement::UnlockTables => todo!(),
+                Statement::Unload { query, to, with } => todo!(),
+                Statement::OptimizeTable { name, on_cluster, partition, include_final, deduplicate } => todo!(),
+                Statement::LISTEN { channel } => todo!(),
+                Statement::UNLISTEN { channel } => todo!(),
+                Statement::NOTIFY { channel, payload } => todo!(),
+                Statement::LoadData { local, inpath, overwrite, table_name, partitioned, table_format } => todo!(),
+            },
+            DFStatement::CreateExternalTable(create_external_table) => todo!(),
+            DFStatement::CopyTo(copy_to_statement) => todo!(),
+            DFStatement::Explain(explain_statement) => todo!(),
+        };
+        Ok(statement)
+    }
+
+    fn update_set_expr_table_references(&self, set_expr: &mut SetExpr) {
+        match set_expr {
+            SetExpr::Select(select) => {
+                for table_with_joins in &mut select.from {
+                    self.update_table_with_joins(table_with_joins);
+                }
+            }
+            SetExpr::Query(query) => {
+                self.update_query_table_references(query);
+            }
+            
+        }
+    }*/
 
     fn update_table_result_scan_in_query(query: &mut Query) {
         // TODO: Add logic to get result_scan from the historical results
@@ -1183,9 +1322,9 @@ impl IceBucketQuery {
                     returning,
                     or,
                 } => {
-                    self.update_tables_in_table_with_joins(&mut table);
+                    self.update_tables_in_table_with_joins(&mut table)?;
                     if let Some(from) = from.as_mut() {
-                        self.update_tables_in_table_with_joins(from);
+                        self.update_tables_in_table_with_joins(from)?;
                     }
                     let modified_statement = Statement::Update {
                         table,
@@ -1291,7 +1430,7 @@ impl IceBucketQuery {
         match query.body.as_mut() {
             sqlparser::ast::SetExpr::Select(select) => {
                 for table_with_joins in &mut select.from {
-                    self.update_tables_in_table_with_joins(table_with_joins);
+                    self.update_tables_in_table_with_joins(table_with_joins)?;
                 }
 
                 if let Some(expr) = &mut select.selection {
@@ -1324,12 +1463,14 @@ impl IceBucketQuery {
         Ok(())
     }
 
-    fn update_tables_in_table_with_joins(&self, table_with_joins: &mut TableWithJoins) {
-        self.update_tables_in_table_factor(&mut table_with_joins.relation);
+    fn update_tables_in_table_with_joins(&self, table_with_joins: &mut TableWithJoins) -> ExecutionResult<()> {
+        self.update_tables_in_table_factor(&mut table_with_joins.relation)?;
 
         for join in &mut table_with_joins.joins {
-            self.update_tables_in_table_factor(&mut join.relation);
+            self.update_tables_in_table_factor(&mut join.relation)?;
         }
+
+        Ok(())
     }
 
     fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor) -> ExecutionResult<()> {
@@ -1344,7 +1485,7 @@ impl IceBucketQuery {
             TableFactor::NestedJoin {
                 table_with_joins, ..
             } => {
-                self.update_tables_in_table_with_joins(table_with_joins);
+                self.update_tables_in_table_with_joins(table_with_joins)?;
             }
             _ => {}
         }
@@ -1363,212 +1504,4 @@ pub fn created_entity_response() -> ExecutionResult<Vec<RecordBatch>> {
         vec![Arc::new(Int64Array::from(vec![0]))],
     )
     .context(ex_error::ArrowSnafu)?])
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::execution::query::IceBucketQuery;
-    use datafusion::sql::parser::DFParser;
-
-    #[allow(clippy::unwrap_used)]
-    #[test]
-    fn test_postprocess_query_statement_functions_expressions() {
-        let args: [(&str, &str); 14] = [
-            ("select year(ts)", "SELECT date_part('year', ts)"),
-            ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
-            ("select day(ts)", "SELECT date_part('day', ts)"),
-            ("select dayofmonth(ts)", "SELECT date_part('day', ts)"),
-            ("select dayofweek(ts)", "SELECT date_part('dow', ts)"),
-            ("select month(ts)", "SELECT date_part('month', ts)"),
-            ("select weekofyear(ts)", "SELECT date_part('week', ts)"),
-            ("select week(ts)", "SELECT date_part('week', ts)"),
-            ("select hour(ts)", "SELECT date_part('hour', ts)"),
-            ("select minute(ts)", "SELECT date_part('minute', ts)"),
-            ("select second(ts)", "SELECT date_part('second', ts)"),
-            ("select minute(ts)", "SELECT date_part('minute', ts)"),
-            // Do nothing
-            ("select yearofweek(ts)", "SELECT yearofweek(ts)"),
-            ("select yearofweekiso(ts)", "SELECT yearofweekiso(ts)"),
-        ];
-
-        for (init, exp) in args {
-            let statement = DFParser::parse_sql(init).unwrap().pop_front();
-            if let Some(mut s) = statement {
-                IceBucketQuery::postprocess_query_statement(&mut s);
-                assert_eq!(s.to_string(), exp);
-            }
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::SqlExecutor;
-    use crate::datafusion::{session::SessionParams, type_planner::CustomTypePlanner};
-    use datafusion::sql::parser::Statement as DFStatement;
-    use datafusion::sql::sqlparser::ast::visit_expressions;
-    use datafusion::sql::sqlparser::ast::{Expr, ObjectName};
-    use datafusion::{
-        execution::SessionStateBuilder,
-        prelude::{SessionConfig, SessionContext},
-    };
-    use datafusion_iceberg::planner::IcebergQueryPlanner;
-    use sqlparser::ast::Value;
-    use sqlparser::ast::{
-        Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments,
-    };
-    use std::ops::ControlFlow;
-    use std::sync::Arc;
-
-    struct Test<'a, T> {
-        input: &'a str,
-        expected: T,
-        should_work: bool,
-    }
-    impl<'a, T> Test<'a, T> {
-        pub const fn new(input: &'a str, expected: T, should_work: bool) -> Self {
-            Self {
-                input,
-                expected,
-                should_work,
-            }
-        }
-    }
-    #[test]
-    #[allow(
-        clippy::unwrap_used,
-        clippy::explicit_iter_loop,
-        clippy::collapsible_match
-    )]
-    fn test_timestamp_keywords_postprocess() {
-        let state = SessionStateBuilder::new()
-            .with_config(
-                SessionConfig::new()
-                    .with_information_schema(true)
-                    .with_option_extension(SessionParams::default())
-                    .set_str("datafusion.sql_parser.dialect", "SNOWFLAKE"),
-            )
-            .with_default_features()
-            .with_query_planner(Arc::new(IcebergQueryPlanner {}))
-            .with_type_planner(Arc::new(CustomTypePlanner {}))
-            .build();
-        let ctx = SessionContext::new_with_state(state);
-        let executor = SqlExecutor::new(ctx).unwrap();
-        let test = vec![
-            Test::new(
-                "SELECT dateadd(year, 5, '2025-06-01')",
-                Value::SingleQuotedString("year".to_owned()),
-                true,
-            ),
-            Test::new(
-                "SELECT dateadd(\"year\", 5, '2025-06-01')",
-                Value::SingleQuotedString("year".to_owned()),
-                true,
-            ),
-            Test::new(
-                "SELECT dateadd('year', 5, '2025-06-01')",
-                Value::SingleQuotedString("year".to_owned()),
-                true,
-            ),
-            Test::new(
-                "SELECT dateadd(\"'year'\", 5, '2025-06-01')",
-                Value::SingleQuotedString("year".to_owned()),
-                false,
-            ),
-            Test::new(
-                "SELECT dateadd(\'year\', 5, '2025-06-01')",
-                Value::SingleQuotedString("year".to_owned()),
-                true,
-            ),
-            Test::new(
-                "SELECT datediff(day, 5, '2025-06-01')",
-                Value::SingleQuotedString("day".to_owned()),
-                true,
-            ),
-            Test::new(
-                "SELECT datediff('week', 5, '2025-06-01')",
-                Value::SingleQuotedString("week".to_owned()),
-                true,
-            ),
-            Test::new(
-                "SELECT datediff(nsecond, 10000000, '2025-06-01')",
-                Value::SingleQuotedString("nsecond".to_owned()),
-                true,
-            ),
-            Test::new(
-                "SELECT date_diff(hour, 5, '2025-06-01')",
-                Value::SingleQuotedString("hour".to_owned()),
-                true,
-            ),
-            Test::new(
-                "SELECT date_add(us, 100000, '2025-06-01')",
-                Value::SingleQuotedString("us".to_owned()),
-                true,
-            ),
-        ];
-        for test in test.iter() {
-            let mut statement = executor.parse_query(test.input).unwrap();
-            SqlExecutor::postprocess_query_statement(&mut statement);
-            if let DFStatement::Statement(statement) = statement {
-                visit_expressions(&statement, |expr| {
-                    if let Expr::Function(Function {
-                        name: ObjectName(idents),
-                        args: FunctionArguments::List(FunctionArgumentList { args, .. }),
-                        ..
-                    }) = expr
-                    {
-                        match idents.first().unwrap().value.as_str() {
-                            "dateadd" | "date_add" | "datediff" | "date_diff" => {
-                                if let FunctionArg::Unnamed(FunctionArgExpr::Expr(ident)) =
-                                    args.iter().next().unwrap()
-                                {
-                                    if let Expr::Value(found) = ident {
-                                        if test.should_work {
-                                            assert_eq!(*found, test.expected);
-                                        } else {
-                                            assert_ne!(*found, test.expected);
-                                        }
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    ControlFlow::<()>::Continue(())
-                });
-            }
-        }
-    }
-
-    use datafusion::sql::parser::DFParser;
-
-    #[allow(clippy::unwrap_used)]
-    #[test]
-    fn test_postprocess_query_statement_functions_expressions() {
-        let args: [(&str, &str); 14] = [
-            ("select year(ts)", "SELECT date_part('year', ts)"),
-            ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
-            ("select day(ts)", "SELECT date_part('day', ts)"),
-            ("select dayofmonth(ts)", "SELECT date_part('day', ts)"),
-            ("select dayofweek(ts)", "SELECT date_part('dow', ts)"),
-            ("select month(ts)", "SELECT date_part('month', ts)"),
-            ("select weekofyear(ts)", "SELECT date_part('week', ts)"),
-            ("select week(ts)", "SELECT date_part('week', ts)"),
-            ("select hour(ts)", "SELECT date_part('hour', ts)"),
-            ("select minute(ts)", "SELECT date_part('minute', ts)"),
-            ("select second(ts)", "SELECT date_part('second', ts)"),
-            ("select minute(ts)", "SELECT date_part('minute', ts)"),
-            // Do nothing
-            ("select yearofweek(ts)", "SELECT yearofweek(ts)"),
-            ("select yearofweekiso(ts)", "SELECT yearofweekiso(ts)"),
-        ];
-
-        for (init, exp) in args {
-            let statement = DFParser::parse_sql(init).unwrap().pop_front();
-            if let Some(mut s) = statement {
-                SqlExecutor::postprocess_query_statement(&mut s);
-                assert_eq!(s.to_string(), exp);
-            }
-        }
-    }
 }

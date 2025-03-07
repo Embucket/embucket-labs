@@ -26,7 +26,6 @@ use crate::{
 };
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
-use snafu::ResultExt;
 use std::{collections::HashMap, time::Instant};
 use utoipa::{OpenApi, ToSchema};
 use validator::Validate;

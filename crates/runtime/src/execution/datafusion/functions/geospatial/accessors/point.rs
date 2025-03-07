@@ -15,8 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::datafusion::functions::geospatial::data_types::{parse_to_native_array, POINT2D_TYPE};
-use crate::datafusion::functions::geospatial::error as geo_error;
+use crate::execution::datafusion::functions::geospatial::data_types::{
+    parse_to_native_array, POINT2D_TYPE,
+};
+use crate::execution::datafusion::functions::geospatial::error as geo_error;
 use arrow_array::builder::Float64Builder;
 use arrow_schema::DataType;
 use arrow_schema::DataType::Float64;
