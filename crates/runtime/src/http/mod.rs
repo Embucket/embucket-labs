@@ -60,7 +60,7 @@ pub fn make_icebucket_app(
     qhistory: Arc<dyn QHistoryApi>,
     config: &IceBucketWebConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
-    let execution_cfg = execution::utils::Config::new(&config.data_format);
+    let execution_cfg = execution::utils::Config::new(&config.data_format)?;
     let execution_svc = Arc::new(ExecutionService::new(
         metastore.clone(),
         qhistory.clone(),

@@ -136,33 +136,6 @@ impl IceBucketQuery {
         }
     }
 
-    #[allow(clippy::unwrap_used)]
-    #[tracing::instrument(level = "trace", ret)]
-    pub fn postprocess_query_statement(statement: &mut DFStatement) {
-        if let DFStatement::Statement(value) = statement {
-            visit_expressions_mut(&mut *value, |expr| {
-                if let Expr::Function(ref mut func) = expr {
-                    visit_functions_expressions(func);
-                }
-                ControlFlow::<()>::Continue(())
-            });
-        }
-    }
-
-    fn current_database(&self) -> Option<String> {
-        self.query_context
-            .database
-            .clone()
-            .or_else(|| self.session.get_session_variable("database"))
-    }
-
-    fn current_schema(&self) -> Option<String> {
-        self.query_context
-            .schema
-            .clone()
-            .or_else(|| self.session.get_session_variable("schema"))
-    }
-
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn execute(&self) -> ExecutionResult<Vec<RecordBatch>> {
         let mut statement = self.parse_query().context(super::error::DataFusionSnafu)?;

@@ -48,7 +48,7 @@ impl IntoResponse for HistoryError {
 pub type HistoryResult<T> = Result<T, HistoryError>;
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
-struct GetHistoryItemsParams {
+pub struct GetHistoryItemsParams {
     cursor: Option<String>,
     limit: Option<u16>,
 }
