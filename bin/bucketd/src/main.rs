@@ -44,7 +44,6 @@ async fn main() {
 
     let opts = cli::IceBucketOpts::parse();
     let slatedb_prefix = opts.slatedb_prefix.clone();
-    let slatedb_prefix_qhistory = opts.slatedb_prefix_qhistory.clone();
     let host = opts.host.clone().unwrap();
     let port = opts.port.unwrap();
     let allow_origin = if opts.cors_enabled.unwrap_or(false) {
@@ -69,9 +68,6 @@ async fn main() {
             let runtime_config = IceBucketRuntimeConfig {
                 db: IceBucketDbConfig {
                     slatedb_prefix: slatedb_prefix.clone(),
-                },
-                qhistory: IceBucketDbConfig {
-                    slatedb_prefix: slatedb_prefix_qhistory.clone(),
                 },
                 web: IceBucketWebConfig {
                     host: host.clone(),
