@@ -17,70 +17,64 @@
 
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
-use crate::http::{
-    error::ErrorResponse,
-    ui::error::{self as ui_error, UIError, UIResult},
-};
-use axum::{extract::State, Json};
-use bytes::Bytes;
-use chrono::{DateTime, Utc};
-use icebucket_utils::IterableEntity;
+use crate::http::{error::ErrorResponse};
+use axum::{extract::State, extract::Query, Json};
+use axum::response::IntoResponse;
+use icebucket_utils::iterable::{IterableEntity};
 use serde::{Deserialize, Serialize};
+use snafu::ResultExt;
 use std::time::Instant;
 use utoipa::{IntoParams, OpenApi, ToSchema};
-use uuid::Uuid;
-use validator::Validate;
+use snafu::prelude::*;
+use history::HistoryItem;
 
-// HistoryItem struct is used for storing Query History result and also used in http response
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct HistoryItem {
-    pub id: Uuid,
-    pub query: String,
-    pub start_time: DateTime<Utc>,
-    pub end_time: DateTime<Utc>,
-    pub status_code: u16,
+#[derive(Snafu, Debug)]
+#[snafu(visibility(pub))]
+pub enum HistoryError {
+    GetHistory {
+        source: history::api::QHistoryError,
+    },
 }
 
-impl IterableEntity for HistoryItem {
-    const SUFFIX_MAX_LEN: usize = 19; //for int64::MAX
-    const PREFIX: &[u8] = b"hi.";
-
-    fn key(&self) -> Bytes {
-        Self::key_with_prefix(self.start_time.timestamp_nanos_opt().unwrap_or(0))
-    }
-
-    fn min_key() -> Bytes {
-        Self::key_with_prefix(0)
-    }
-
-    fn max_key() -> Bytes {
-        Self::key_with_prefix(i64::MAX)
+impl IntoResponse for HistoryError {
+    fn into_response(self) -> axum::response::Response {
+        let err_code = http::StatusCode::INTERNAL_SERVER_ERROR;
+        let er = ErrorResponse {
+            message: self.to_string(),
+            status_code: err_code.as_u16(),
+        };
+        (err_code, Json(er)).into_response()
     }
 }
 
-#[derive(Deserialize, utoipa::IntoParams)]
+pub type HistoryResult<T> = Result<T, HistoryError>;
+
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
 struct GetHistoryItemsParams {
     cursor: Option<String>,
     limit: Option<u16>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema, utoipa::IntoParams)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
 #[serde(rename_all = "camelCase")]
 pub struct HistoryResponse {
     pub items: Vec<HistoryItem>,
     pub result: String,
     pub duration_seconds: f32,
+    pub current_cursor: Option<String>,
+    pub next_cursor: String,
 }
 
 impl HistoryResponse {
     #[allow(clippy::new_without_default)]
     #[must_use]
-    pub const fn new(items: Vec<HistoryItem>, result: String, duration_seconds: f32) -> Self {
+    pub const fn new(items: Vec<HistoryItem>, result: String, duration_seconds: f32, current_cursor: Option<String>, next_cursor: String) -> Self {
         Self {
             items,
             result,
             duration_seconds,
+            current_cursor,
+            next_cursor,
         }
     }
 }
@@ -119,21 +113,23 @@ pub async fn history(
     DFSessionId(session_id): DFSessionId,
     Query(params): Query<GetHistoryItemsParams>,
     State(state): State<AppState>,
-) -> UIResult<Json<HistoryResponse>> {
+) -> HistoryResult<Json<HistoryResponse>> {
     let start = Instant::now();
     let items = state
-        .metastore
-        .query_history(params.cursor, params.limit)
-        .await;
-    // let result = state
-    //     .execution_svc
-    //     .history_table(&session_id, &request.history, history_context)
-    //     .await
-    //     .map_err(|e| UIError::Execution { source: e })?;
+        .qhistory
+        .query_history(params.cursor.clone(), params.limit)
+        .await.context(GetHistorySnafu)?;
+    let next_cursor = if let Some(last_item) = items.last() {
+        last_item.next_cursor().to_string()
+    } else {
+        String::new() // no items in range -> go to beginning
+    };
     let duration = start.elapsed();
     Ok(Json(HistoryResponse {
         items,
         result: String::new(),
         duration_seconds: duration.as_secs_f32(),
+        current_cursor: params.cursor,
+        next_cursor: next_cursor.to_string(),
     }))
 }

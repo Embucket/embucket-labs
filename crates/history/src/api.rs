@@ -17,8 +17,10 @@
 
 use crate::HistoryItem;
 use async_trait::async_trait;
-use icebucket_utils::{Db, IterableEntity};
+use icebucket_utils::Db;
+use icebucket_utils::iterable::{IterableEntity};
 use snafu::prelude::*;
+use bytes::Bytes;
 
 #[derive(Snafu, Debug)]
 pub enum QHistoryError {
@@ -34,7 +36,7 @@ pub type QHistoryResult<T> = std::result::Result<T, QHistoryError>;
 #[async_trait]
 pub trait QHistoryApi: Send + Sync {
     async fn add_history_item(&self, item: HistoryItem) -> QHistoryResult<()>;
-    async fn query_history(&self, cursor: String, limit: u16) -> QHistoryResult<Vec<HistoryItem>>;
+    async fn query_history(&self, cursor: Option<String>, limit: Option<u16>) -> QHistoryResult<Vec<HistoryItem>>;
 }
 
 pub struct QHistoryStore {
@@ -62,11 +64,18 @@ impl QHistoryApi for QHistoryStore {
             .context(QHistoryAddSnafu)?)
     }
 
-    async fn query_history(&self, cursor: String, limit: u16) -> QHistoryResult<Vec<HistoryItem>> {
-        let start_key = HistoryItem::key_with_prefix(cursor);
+    async fn query_history(&self, cursor: Option<String>, limit: Option<u16>) -> QHistoryResult<Vec<HistoryItem>> {
+        let start_key = if let Some(cursor) = cursor {
+            HistoryItem::key_from_cursor(
+                Bytes::from(cursor)
+            )
+        } else {
+            HistoryItem::min_key()
+        };
+        let end_key = HistoryItem::max_key();
         Ok(self
             .db
-            .items_from_range(start_key..HistoryItem::max_key(), Some(limit))
+            .items_from_range(start_key..end_key, limit)
             .await
             .context(QHistoryGetSnafu)?)
     }
@@ -76,9 +85,9 @@ impl QHistoryApi for QHistoryStore {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::cursor::Cursor;
     use chrono::{DateTime, TimeZone, Utc};
-    use icebucket_utils::{Db, IterableEntity};
+    use icebucket_utils::Db;
+    use icebucket_utils::iterable::{IterableEntity, IterableCursor};
     use object_store::path::Path;
     use slatedb::db::Db as SlateDb;
     use std::sync::Arc;
@@ -119,8 +128,12 @@ mod tests {
             created.push(item.clone());
             db.add_history_item(item).await.unwrap();
         }
+        
         let retrieved = db
-            .query_history(HistoryItem::cursor_from_key(HistoryItem::min_key()), 10)
+            .query_history(
+                Some(<HistoryItem as IterableEntity>::Cursor::CURSOR_MIN.to_string()),
+                Some(10),
+            )
             .await
             .unwrap();
         assert_eq!(n as usize, retrieved.len());

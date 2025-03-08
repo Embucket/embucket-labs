@@ -16,7 +16,6 @@
 // under the License.
 
 pub mod api;
-pub mod cursor;
 pub mod history_item;
 
 pub use history_item::*;

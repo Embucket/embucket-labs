@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use icebucket_utils::IterableEntity;
+use icebucket_utils::iterable::{IterableEntity, IterableCursor};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -17,19 +17,16 @@ pub struct HistoryItem {
     pub error: Option<String>,
 }
 
+#[allow(clippy::trait_duplication_in_bounds)]
 impl IterableEntity for HistoryItem {
-    const SUFFIX_MAX_LEN: usize = 19; //for int64::MAX
+    type Cursor = i64;
     const PREFIX: &[u8] = b"hi.";
 
-    fn key(&self) -> Bytes {
-        Self::key_with_prefix(self.start_time.timestamp_nanos_opt().unwrap_or(0))
+    fn cursor(&self) -> Self::Cursor {
+        self.start_time.timestamp_nanos_opt().unwrap_or(0)
     }
 
-    fn min_key() -> Bytes {
-        Self::key_with_prefix(0)
-    }
-
-    fn max_key() -> Bytes {
-        Self::key_with_prefix(i64::MAX)
+    fn next_cursor(&self) -> Self::Cursor {
+        self.cursor() + 1
     }
 }

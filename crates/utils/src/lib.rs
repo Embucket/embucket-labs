@@ -15,8 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
+pub mod iterable;
+
 use async_trait::async_trait;
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::de;
 use serde_json::ser;
@@ -28,6 +30,7 @@ use std::ops::RangeBounds;
 use std::string::ToString;
 use std::sync::Arc;
 use uuid::Uuid;
+use iterable::IterableEntity;
 
 #[derive(Snafu, Debug)]
 //#[snafu(visibility(pub(crate)))]
@@ -52,29 +55,6 @@ pub enum Error {
 
     #[snafu(display("Key Not found"))]
     KeyNotFound,
-}
-
-pub trait IterableEntity {
-    const SUFFIX_MAX_LEN: usize;
-    const PREFIX: &[u8];
-
-    fn key(&self) -> Bytes;
-    fn min_key() -> Bytes;
-    fn max_key() -> Bytes;
-
-    fn key_with_prefix<T: ToString>(key_part: T) -> Bytes {
-        let mut buf = BytesMut::with_capacity(Self::PREFIX.len() + Self::SUFFIX_MAX_LEN);
-        buf.extend_from_slice(Self::PREFIX);
-        buf.extend_from_slice(key_part.to_string().as_bytes());
-        buf.into()
-    }
-
-    fn key_with_prefix_u8(key_part: Bytes) -> Bytes {
-        let mut buf = BytesMut::with_capacity(Self::PREFIX.len() + Self::SUFFIX_MAX_LEN);
-        buf.extend_from_slice(Self::PREFIX);
-        buf.extend_from_slice(key_part.as_ref());
-        buf.into()
-    }
 }
 
 // Kind of cast for range, for cases when for range
@@ -367,6 +347,7 @@ mod test {
     use serde::{Deserialize, Serialize};
     use std::time::SystemTime;
     use tokio;
+    use iterable::{IterableEntity, IterableCursor};
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
     struct TestEntity {
@@ -413,19 +394,15 @@ mod test {
     }
 
     impl IterableEntity for PseudoItem {
-        const SUFFIX_MAX_LEN: usize = 19; //for int64::MAX
+        type Cursor = i64;
         const PREFIX: &[u8] = b"hi.";
 
-        fn key(&self) -> Bytes {
-            Self::key_with_prefix(self.start_time.timestamp_nanos_opt().unwrap_or(0))
+        fn cursor(&self) -> Self::Cursor {
+            self.start_time.timestamp_nanos_opt().unwrap_or(0)
         }
 
-        fn min_key() -> Bytes {
-            Self::key_with_prefix(0)
-        }
-
-        fn max_key() -> Bytes {
-            Self::key_with_prefix(i64::MAX)
+        fn next_cursor(&self) -> Self::Cursor {
+            self.cursor() + 1
         }
     }
 
@@ -437,19 +414,15 @@ mod test {
     }
 
     impl IterableEntity for PseudoItem2 {
-        const SUFFIX_MAX_LEN: usize = 19; //for int64::MAX
+        type Cursor = i64;
         const PREFIX: &[u8] = b"si.";
 
-        fn key(&self) -> Bytes {
-            Self::key_with_prefix(self.start_time.timestamp_nanos_opt().unwrap_or(0))
+        fn cursor(&self) -> Self::Cursor {
+            self.start_time.timestamp_nanos_opt().unwrap_or(0)
         }
 
-        fn min_key() -> Bytes {
-            Self::key_with_prefix(0)
-        }
-
-        fn max_key() -> Bytes {
-            Self::key_with_prefix(i64::MAX)
+        fn next_cursor(&self) -> Self::Cursor {
+            self.cursor() + 1
         }
     }
 
@@ -491,6 +464,7 @@ mod test {
 
         let mut fut = Vec::new();
         for item in items.iter() {
+            println!("Add item, key={:?}", item.key());
             fut.push(db.put_iterable_entity(item))
         }
         join_all(fut).await;
