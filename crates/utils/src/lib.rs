@@ -19,6 +19,7 @@ pub mod iterable;
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use iterable::IterableEntity;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::de;
 use serde_json::ser;
@@ -30,7 +31,6 @@ use std::ops::RangeBounds;
 use std::string::ToString;
 use std::sync::Arc;
 use uuid::Uuid;
-use iterable::IterableEntity;
 
 #[derive(Snafu, Debug)]
 //#[snafu(visibility(pub(crate)))]
@@ -89,6 +89,7 @@ macro_rules! RangeFull {
 
 type Result<T> = std::result::Result<T, Error>;
 
+#[derive(Clone)]
 pub struct Db(Arc<SlateDb>);
 
 impl Db {
@@ -344,10 +345,10 @@ mod test {
     use bytes::Bytes;
     use chrono::{DateTime, TimeZone, Utc};
     use futures::future::join_all;
+    use iterable::{IterableCursor, IterableEntity};
     use serde::{Deserialize, Serialize};
     use std::time::SystemTime;
     use tokio;
-    use iterable::{IterableEntity, IterableCursor};
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
     struct TestEntity {

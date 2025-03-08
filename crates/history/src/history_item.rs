@@ -1,6 +1,5 @@
-use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use icebucket_utils::iterable::{IterableEntity, IterableCursor};
+use icebucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;

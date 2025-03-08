@@ -18,7 +18,7 @@
 use std::sync::Arc;
 
 use config::IceBucketRuntimeConfig;
-use history::api::QHistoryStore;
+use history::store::QHistoryStore;
 use http::{make_icebucket_app, run_icebucket_app};
 use icebucket_metastore::SlateDBMetastore;
 use icebucket_utils::Db;
@@ -35,7 +35,6 @@ pub(crate) mod tests;
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
 pub async fn run_icebucket(
     state_store: Arc<dyn ObjectStore>,
-    state_store_qhistory: Arc<dyn ObjectStore>,
     config: IceBucketRuntimeConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = {
@@ -51,21 +50,8 @@ pub async fn run_icebucket(
         ))
     };
 
-    let qhistory_db = {
-        let options = DbOptions::default();
-        Db::new(Arc::new(
-            SlateDb::open_with_opts(
-                Path::from(config.qhistory.slatedb_prefix.clone()),
-                options,
-                state_store_qhistory,
-            )
-            .await
-            .map_err(Box::new)?,
-        ))
-    };
-
-    let metastore = Arc::new(SlateDBMetastore::new(db));
-    let qhistory = Arc::new(QHistoryStore::new(qhistory_db));
+    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let qhistory = Arc::new(QHistoryStore::new(db));
     let app = make_icebucket_app(metastore, qhistory, &config.web)?;
     run_icebucket_app(app, &config.web).await
 }

@@ -23,7 +23,7 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
-use history::api::{QHistoryApi, QHistoryStore};
+use history::store::QHistoryApi;
 use http_body_util::BodyExt;
 use icebucket_metastore::Metastore;
 use std::sync::Arc;

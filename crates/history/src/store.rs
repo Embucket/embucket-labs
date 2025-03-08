@@ -17,10 +17,12 @@
 
 use crate::HistoryItem;
 use async_trait::async_trait;
-use icebucket_utils::Db;
-use icebucket_utils::iterable::{IterableEntity};
-use snafu::prelude::*;
 use bytes::Bytes;
+use icebucket_utils::iterable::IterableEntity;
+use icebucket_utils::Db;
+use snafu::prelude::*;
+#[cfg(test)]
+use std::sync::Arc;
 
 #[derive(Snafu, Debug)]
 pub enum QHistoryError {
@@ -36,7 +38,11 @@ pub type QHistoryResult<T> = std::result::Result<T, QHistoryError>;
 #[async_trait]
 pub trait QHistoryApi: Send + Sync {
     async fn add_history_item(&self, item: HistoryItem) -> QHistoryResult<()>;
-    async fn query_history(&self, cursor: Option<String>, limit: Option<u16>) -> QHistoryResult<Vec<HistoryItem>>;
+    async fn query_history(
+        &self,
+        cursor: Option<String>,
+        limit: Option<u16>,
+    ) -> QHistoryResult<Vec<HistoryItem>>;
 }
 
 pub struct QHistoryStore {
@@ -44,8 +50,15 @@ pub struct QHistoryStore {
 }
 
 impl QHistoryStore {
+    #[must_use]
     pub fn new(db: Db) -> Self {
         Self { db }
+    }
+
+    // Create a new store with a new in-memory database
+    #[cfg(test)]
+    pub async fn new_in_memory() -> Arc<Self> {
+        Arc::new(Self::new(Db::memory().await))
     }
 
     #[must_use]
@@ -64,11 +77,13 @@ impl QHistoryApi for QHistoryStore {
             .context(QHistoryAddSnafu)?)
     }
 
-    async fn query_history(&self, cursor: Option<String>, limit: Option<u16>) -> QHistoryResult<Vec<HistoryItem>> {
+    async fn query_history(
+        &self,
+        cursor: Option<String>,
+        limit: Option<u16>,
+    ) -> QHistoryResult<Vec<HistoryItem>> {
         let start_key = if let Some(cursor) = cursor {
-            HistoryItem::key_from_cursor(
-                Bytes::from(cursor)
-            )
+            HistoryItem::key_from_cursor(Bytes::from(cursor))
         } else {
             HistoryItem::min_key()
         };
@@ -86,26 +101,13 @@ impl QHistoryApi for QHistoryStore {
 mod tests {
     use super::*;
     use chrono::{DateTime, TimeZone, Utc};
-    use icebucket_utils::Db;
-    use icebucket_utils::iterable::{IterableEntity, IterableCursor};
-    use object_store::path::Path;
-    use slatedb::db::Db as SlateDb;
-    use std::sync::Arc;
+    use icebucket_utils::iterable::{IterableCursor, IterableEntity};
     use tokio;
     use uuid::Uuid;
 
-    async fn create_db() -> QHistoryStore {
-        let object_store = Arc::new(object_store::memory::InMemory::new());
-        let sdb = SlateDb::open(Path::from("/"), object_store)
-            .await
-            .expect("Failed to open db");
-        let db = Db::new(Arc::new(sdb));
-        QHistoryStore::new(db)
-    }
-
     #[tokio::test]
     async fn test_history() {
-        let db = create_db().await;
+        let db = QHistoryStore::new_in_memory().await;
         let n: u16 = 2;
         let ts: i64 = Utc
             .with_ymd_and_hms(2020, 1, 1, 0, 0, 0)
@@ -122,13 +124,13 @@ mod tests {
                 error: if i == 0 {
                     None
                 } else {
-                    Some("Test query error".to_string())
+                    Some("Test query pseudo error".to_string())
                 },
             };
             created.push(item.clone());
             db.add_history_item(item).await.unwrap();
         }
-        
+
         let retrieved = db
             .query_history(
                 Some(<HistoryItem as IterableEntity>::Cursor::CURSOR_MIN.to_string()),

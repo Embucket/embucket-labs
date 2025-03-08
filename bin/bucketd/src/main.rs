@@ -57,12 +57,6 @@ async fn main() {
         .clone()
         .unwrap_or_else(|| "json".to_string());
     let object_store = opts.object_store_backend();
-    let object_store_qhistory = if let Ok(object_store) = opts.object_store_qhistory() {
-        object_store
-    } else {
-        tracing::error!("Failed to create object store for query history: {:?}", e);
-        return;
-    };
 
     match object_store {
         Err(e) => {
@@ -87,8 +81,7 @@ async fn main() {
                 },
             };
 
-            if let Err(e) = run_icebucket(object_store, object_store_qhistory, runtime_config).await
-            {
+            if let Err(e) = run_icebucket(object_store, runtime_config).await {
                 tracing::error!("Error while running IceBucket: {:?}", e);
             }
         }

@@ -15,25 +15,23 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
-use crate::http::{error::ErrorResponse};
-use axum::{extract::State, extract::Query, Json};
 use axum::response::IntoResponse;
-use icebucket_utils::iterable::{IterableEntity};
+use axum::{extract::Query, extract::State, Json};
+use history::HistoryItem;
+use icebucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
+use snafu::prelude::*;
 use snafu::ResultExt;
 use std::time::Instant;
-use utoipa::{IntoParams, OpenApi, ToSchema};
-use snafu::prelude::*;
-use history::HistoryItem;
+use utoipa::{OpenApi, ToSchema};
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub))]
 pub enum HistoryError {
-    GetHistory {
-        source: history::api::QHistoryError,
-    },
+    GetHistory { source: history::store::QHistoryError },
 }
 
 impl IntoResponse for HistoryError {
@@ -68,7 +66,13 @@ pub struct HistoryResponse {
 impl HistoryResponse {
     #[allow(clippy::new_without_default)]
     #[must_use]
-    pub const fn new(items: Vec<HistoryItem>, result: String, duration_seconds: f32, current_cursor: Option<String>, next_cursor: String) -> Self {
+    pub const fn new(
+        items: Vec<HistoryItem>,
+        result: String,
+        duration_seconds: f32,
+        current_cursor: Option<String>,
+        next_cursor: String,
+    ) -> Self {
         Self {
             items,
             result,
@@ -118,7 +122,8 @@ pub async fn history(
     let items = state
         .qhistory
         .query_history(params.cursor.clone(), params.limit)
-        .await.context(GetHistorySnafu)?;
+        .await
+        .context(GetHistorySnafu)?;
     let next_cursor = if let Some(last_item) = items.last() {
         last_item.next_cursor().to_string()
     } else {

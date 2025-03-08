@@ -21,7 +21,7 @@ use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
-use history::api::QHistoryApi;
+use history::store::QHistoryApi;
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
