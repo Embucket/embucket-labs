@@ -21,7 +21,7 @@ use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
-use history::store::QHistoryApi;
+use history::{store::QHistoryApi, HistoryItem};
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -94,14 +94,33 @@ impl ExecutionService {
                 .ok_or(ExecutionError::MissingDataFusionSession {
                     id: session_id.to_string(),
                 })?;
+        let mut history_item = HistoryItem::before_started(query, None, None);
+
         let query_obj = user_session.query(query, query_context);
 
         let records: Vec<RecordBatch> = query_obj.execute().await?;
 
         let data_format = self.config().dbt_serialization_format;
         // Add columns dbt metadata to each field
-        convert_record_batches(records, data_format)
-            .context(ex_error::DataFusionQuerySnafu { query })
+        let res = convert_record_batches(records, data_format)
+            .context(ex_error::DataFusionQuerySnafu { query });
+    
+        let result_count = if let Ok(recs) = &res {
+            recs.0.len() as i64
+        } else {0};
+        
+        // TODO: add result records, perhaps using records_to_json_string
+
+        history_item.set_finished(result_count, None);
+        match self.qhistory.add_history_item(history_item).await {
+            Err(err) => {
+                // do not raise
+                tracing::error!("{err}");
+            }
+            _ => {}
+        };
+
+        res
     }
 
     #[tracing::instrument(level = "debug", skip(self))]

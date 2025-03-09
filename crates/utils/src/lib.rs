@@ -343,9 +343,9 @@ pub trait Repository {
 mod test {
     use super::*;
     use bytes::Bytes;
-    use chrono::{DateTime, TimeZone, Utc};
+    use chrono::{DateTime, Duration, TimeZone, Utc};
     use futures::future::join_all;
-    use iterable::{IterableCursor, IterableEntity};
+    use iterable::IterableEntity;
     use serde::{Deserialize, Serialize};
     use std::time::SystemTime;
     use tokio;
@@ -428,14 +428,13 @@ mod test {
     }
 
     fn new_pseudo_item(prev: Option<PseudoItem>) -> PseudoItem {
-        let ts = match prev {
-            Some(item) => item.start_time.timestamp(),
+        let start_time = match prev {
+            Some(item) => item.start_time,
             _ => Utc
                 .with_ymd_and_hms(2020, 1, 1, 0, 0, 0)
                 .unwrap()
-                .timestamp(),
         };
-        let start_time = DateTime::from_timestamp(ts + 60 * 60 * 24, 0).unwrap();
+        let start_time = start_time + Duration::days(1);
         PseudoItem {
             query: String::from(format!("SELECT {start_time}")),
             start_time: start_time,
@@ -494,15 +493,15 @@ mod test {
     }
 
     async fn populate_with_more_items(db: &Db) -> Vec<PseudoItem2> {
-        let ts = Utc::now().timestamp();
+        let start_time = Utc::now();
         let items = vec![
             PseudoItem2 {
                 query: "SELECT 1".to_string(),
-                start_time: DateTime::from_timestamp(ts, 0).unwrap(),
+                start_time,
             },
             PseudoItem2 {
                 query: "SELECT 2".to_string(),
-                start_time: DateTime::from_timestamp(ts, 1).unwrap(),
+                start_time: start_time + Duration::nanoseconds(1),
             },
         ];
         for item in items.iter() {

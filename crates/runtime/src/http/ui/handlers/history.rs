@@ -133,7 +133,7 @@ pub async fn history(
     Ok(Json(HistoryResponse {
         items,
         result: String::new(),
-        duration_seconds: duration.as_secs_f32(),
+        duration_seconds: duration.as_secs_f32(), // how much time query history request taken
         current_cursor: params.cursor,
         next_cursor: next_cursor.to_string(),
     }))

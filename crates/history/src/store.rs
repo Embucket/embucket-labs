@@ -100,33 +100,29 @@ impl QHistoryApi for QHistoryStore {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use chrono::{DateTime, TimeZone, Utc};
+    use chrono::{TimeZone, Utc, Duration};
     use icebucket_utils::iterable::{IterableCursor, IterableEntity};
     use tokio;
-    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_history() {
         let db = QHistoryStore::new_in_memory().await;
         let n: u16 = 2;
-        let ts: i64 = Utc
-            .with_ymd_and_hms(2020, 1, 1, 0, 0, 0)
-            .unwrap()
-            .timestamp();
         let mut created: Vec<HistoryItem> = vec![];
         for i in 0..n {
-            let item = HistoryItem {
-                id: Uuid::new_v4(),
-                query: format!("select {i}"),
-                start_time: DateTime::from_timestamp(ts, i.into()).unwrap(),
-                end_time: DateTime::from_timestamp(ts, i.into()).unwrap(),
-                status_code: if i == 0 { 200 } else { 500 },
-                error: if i == 0 {
-                    None
-                } else {
-                    Some("Test query pseudo error".to_string())
-                },
-            };
+            let start_time = Utc
+                .with_ymd_and_hms(2020, 1, 1, 0, 0, 0)
+                .unwrap() + Duration::milliseconds(1);
+            let mut item = HistoryItem::before_started(
+                format!("select {i}").as_str(),
+                None, 
+                Some(start_time),
+            );
+            if i ==0 {
+                item.set_finished(1, Some(item.start_time))
+            } else {
+                item.set_error("Test query pseudo error".to_string(), 500);
+            }
             created.push(item.clone());
             db.add_history_item(item).await.unwrap();
         }

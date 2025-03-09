@@ -22,21 +22,16 @@ pub trait IterableCursor {
     const CURSOR_MIN: Self;
     const CURSOR_MAX: Self;
 
-    fn foo() -> Self;
-
     fn cursor_from<T: ToString>(value: T) -> Bytes;
     fn next_cursor(&self) -> Bytes;
     fn as_bytes(&self) -> Bytes;
 }
 
+#[allow(clippy::trait_duplication_in_bounds)]
 impl IterableCursor for i64 {
     const MAX_LEN: usize = 19; // holds 19 digits max
     const CURSOR_MIN: Self = 0;
     const CURSOR_MAX: Self = Self::MAX;
-
-    fn foo() -> Self {
-        0
-    }
 
     fn cursor_from<T: ToString>(value: T) -> Bytes {
         Bytes::from(value.to_string())
