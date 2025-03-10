@@ -136,17 +136,18 @@ impl Db {
     /// Returns a `DbError` if the underlying database operation fails.
     /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
     pub async fn list_objects<T: for<'de> serde::de::Deserialize<'de>>(&self, key: &str) -> Result<Vec<T>> {
+        dbg!(&key);
         let start = format!("{key}.");
         let end = format!("{key}.\x7F");
         let range = Bytes::from(start)..Bytes::from(end);
         let mut test= self.0.scan(range).await.unwrap();
-        let mut keys: Vec<T> = vec![];
+        let mut objects: Vec<T> = vec![];
         while let Ok(Some(value)) = test.next().await {
             let value = de::from_slice(&value.value).context(DeserializeValueSnafu)?;
-            keys.push(value);
+            objects.push(value);
         }
         //let keys: Option<Vec<String>> = self.get(key).await?;
-        Ok(keys)
+        Ok(objects)
     }
 
     // Appends a value to a list stored in the database.
@@ -267,13 +268,15 @@ mod test {
             id: 1,
             name: "test".to_string(),
         };
-        let get_empty = db.get::<TestEntity>("test").await;
-        db.put("test", &entity).await.expect("Failed to put entity");
-        let get_after_put = db.get::<TestEntity>("test").await;
-        let list_after_append = db.list_objects("test_list").await;
-        db.delete("test").await.expect("Failed to delete entity");
-        let get_after_delete = db.get::<TestEntity>("test").await;
-        let list_after_remove = db.list_objects("test_list").await;
+        let get_empty = db.get::<TestEntity>("test.abc").await;
+        db.put("test.abc", &entity).await.expect("Failed to put entity");
+        let get_after_put = db.get::<TestEntity>("test.abc").await;
+        let list_after_append = db.list_objects::<TestEntity>("test").await;
+        assert_eq!(list_after_append.as_ref().unwrap().len(), 1);
+        db.delete("test.abc").await.expect("Failed to delete entity");
+        let get_after_delete = db.get::<TestEntity>("test.abc").await;
+        let list_after_remove = db.list_objects::<TestEntity>("test").await;
+        assert_eq!(list_after_remove.as_ref().unwrap().len(), 0);
 
         insta::assert_debug_snapshot!((
             get_empty,
