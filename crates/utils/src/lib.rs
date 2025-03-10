@@ -277,13 +277,11 @@ mod test {
             .expect("Failed to put entity");
         let get_after_put = db.get::<TestEntity>("test/abc").await;
         let list_after_append = db.list_objects::<TestEntity>("test").await;
-        assert_eq!(list_after_append.as_ref().unwrap().len(), 1);
         db.delete("test/abc")
             .await
             .expect("Failed to delete entity");
         let get_after_delete = db.get::<TestEntity>("test/abc").await;
         let list_after_remove = db.list_objects::<TestEntity>("test").await;
-        assert_eq!(list_after_remove.as_ref().unwrap().len(), 0);
 
         insta::assert_debug_snapshot!((
             get_empty,
