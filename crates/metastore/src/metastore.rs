@@ -192,17 +192,21 @@ impl SlateDBMetastore {
     where
         T: serde::Serialize + DeserializeOwned + Eq + PartialEq + Send + Sync,
     {
-        let keys = self
-            .db
-            .get::<Vec<String>>(list_key)
-            .await
-            .context(metastore_error::UtilSlateDBSnafu)?
-            .unwrap_or_default();
-        let futures = keys.iter().map(|key| self.db.get(key)).collect::<Vec<_>>();
-        let results = futures::future::try_join_all(futures)
+        let entities = self.db
+            .list_objects(list_key)
             .await
             .context(metastore_error::UtilSlateDBSnafu)?;
-        let entities = results.into_iter().flatten().collect::<Vec<_>>();
+        // let keys = self
+        //     .db
+        //     .get::<Vec<String>>(list_key)
+        //     .await
+        //     .context(metastore_error::UtilSlateDBSnafu)?
+        //     .unwrap_or_default();
+        // let futures = keys.iter().map(|key| self.db.get(key)).collect::<Vec<_>>();
+        // let results = futures::future::try_join_all(futures)
+        //     .await
+        //     .context(metastore_error::UtilSlateDBSnafu)?;
+        // let entities = results.into_iter().flatten().collect::<Vec<_>>();
         Ok(entities)
     }
 
@@ -228,10 +232,10 @@ impl SlateDBMetastore {
                 .put(key, &rwobject)
                 .await
                 .context(metastore_error::UtilSlateDBSnafu)?;
-            self.db
-                .list_append(plural_key, key.to_string())
-                .await
-                .context(metastore_error::UtilSlateDBSnafu)?;
+            // self.db
+            //     .list_append(plural_key, key.to_string())
+            //     .await
+            //     .context(metastore_error::UtilSlateDBSnafu)?;
             Ok(rwobject)
         } else {
             Err(metastore_error::MetastoreError::ObjectAlreadyExists {
@@ -267,7 +271,7 @@ impl SlateDBMetastore {
 
     async fn delete_object(&self, key: &str, plural_key: &str) -> MetastoreResult<()> {
         self.db.delete(key).await.ok();
-        self.db.list_remove(plural_key, key).await.ok();
+        // self.db.list_remove(plural_key, key).await.ok();
         Ok(())
     }
 

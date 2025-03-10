@@ -23,6 +23,7 @@ use slatedb::db::Db as SlateDb;
 use slatedb::error::SlateDBError;
 use snafu::prelude::*;
 use std::sync::Arc;
+use bytes::Bytes;
 use uuid::Uuid;
 
 #[derive(Snafu, Debug)]
@@ -134,9 +135,18 @@ impl Db {
     ///
     /// Returns a `DbError` if the underlying database operation fails.
     /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
-    pub async fn list_keys(&self, key: &str) -> Result<Vec<String>> {
-        let keys: Option<Vec<String>> = self.get(key).await?;
-        Ok(keys.unwrap_or_default())
+    pub async fn list_objects<T: for<'de> serde::de::Deserialize<'de>>(&self, key: &str) -> Result<Vec<T>> {
+        let start = format!("{key}.");
+        let end = format!("{key}.\x7F");
+        let range = Bytes::from(start)..Bytes::from(end);
+        let mut test= self.0.scan(range).await.unwrap();
+        let mut keys: Vec<T> = vec![];
+        while let Ok(Some(value)) = test.next().await {
+            let value = de::from_slice(&value.value).context(DeserializeValueSnafu)?;
+            keys.push(value);
+        }
+        //let keys: Option<Vec<String>> = self.get(key).await?;
+        Ok(keys)
     }
 
     /// Appends a value to a list stored in the database.
@@ -145,14 +155,14 @@ impl Db {
     ///
     /// Returns a `DbError` if the database operations fail, or
     /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
-    pub async fn list_append(&self, key: &str, value: String) -> Result<()> {
-        self.modify(key, |all_keys: &mut Vec<String>| {
-            if !all_keys.contains(&value) {
-                all_keys.push(value.clone());
-            }
-        })
-        .await
-    }
+    // pub async fn list_append(&self, key: &str, value: String) -> Result<()> {
+    //     self.modify(key, |all_keys: &mut Vec<String>| {
+    //         if !all_keys.contains(&value) {
+    //             all_keys.push(value.clone());
+    //         }
+    //     })
+    //     .await
+    // }
 
     /// Removes a value from a list stored in the database.
     ///
@@ -160,12 +170,12 @@ impl Db {
     ///
     /// Returns a `DbError` if the database operations fail, or
     /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
-    pub async fn list_remove(&self, key: &str, value: &str) -> Result<()> {
-        self.modify(key, |all_keys: &mut Vec<String>| {
-            all_keys.retain(|key| *key != value);
-        })
-        .await
-    }
+    // pub async fn list_remove(&self, key: &str, value: &str) -> Result<()> {
+    //     self.modify(key, |all_keys: &mut Vec<String>| {
+    //         all_keys.retain(|key| *key != value);
+    //     })
+    //     .await
+    // }
 
     /// Modifies a value in the database using the provided closure.
     ///
@@ -173,16 +183,16 @@ impl Db {
     ///
     /// Returns a `DbError` if the database operations fail, or
     /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
-    pub async fn modify<T>(&self, key: &str, f: impl Fn(&mut T) + Send) -> Result<()>
-    where
-        T: serde::Serialize + DeserializeOwned + Default + Sync + Send,
-    {
-        let mut value: T = self.get(key).await?.unwrap_or_default();
-
-        f(&mut value);
-
-        self.put(key, &value).await
-    }
+    // pub async fn modify<T>(&self, key: &str, f: impl Fn(&mut T) + Send) -> Result<()>
+    // where
+    //     T: serde::Serialize + DeserializeOwned + Default + Sync + Send,
+    // {
+    //     let mut value: T = self.get(key).await?.unwrap_or_default();
+    //
+    //     f(&mut value);
+    //
+    //     self.put(key, &value).await
+    // }
 }
 
 impl From<Error> for iceberg::Error {
@@ -205,7 +215,7 @@ pub trait Repository {
     async fn _create(&self, entity: &Self::Entity) -> Result<()> {
         let key = format!("{}.{}", Self::prefix(), entity.id());
         self.db().put(&key, &entity).await?;
-        self.db().list_append(Self::collection_key(), key).await?;
+        //self.db().list_append(Self::collection_key(), key).await?;
         Ok(())
     }
 
@@ -219,18 +229,18 @@ pub trait Repository {
     async fn _delete(&self, id: Uuid) -> Result<()> {
         let key = format!("{}.{}", Self::prefix(), id);
         self.db().delete(&key).await?;
-        self.db().list_remove(Self::collection_key(), &key).await?;
+        //self.db().list_remove(Self::collection_key(), &key).await?;
         Ok(())
     }
 
     async fn _list(&self) -> Result<Vec<Self::Entity>> {
-        let keys = self.db().list_keys(Self::collection_key()).await?;
-        let futures = keys
-            .iter()
-            .map(|key| self.db().get(key))
-            .collect::<Vec<_>>();
-        let results = futures::future::try_join_all(futures).await?;
-        let entities = results.into_iter().flatten().collect::<Vec<Self::Entity>>();
+        let entities = self.db().list_keys(Self::collection_key()).await?;
+        // let futures = keys
+        //     .iter()
+        //     .map(|key| self.db().get(key))
+        //     .collect::<Vec<_>>();
+        // let results = futures::future::try_join_all(futures).await?;
+        // let entities = results.into_iter().flatten().collect::<Vec<Self::Entity>>();
         Ok(entities)
     }
 
@@ -260,17 +270,10 @@ mod test {
         let get_empty = db.get::<TestEntity>("test").await;
         db.put("test", &entity).await.expect("Failed to put entity");
         let get_after_put = db.get::<TestEntity>("test").await;
+        let list_after_append = db.list_objects("test_list").await;
         db.delete("test").await.expect("Failed to delete entity");
         let get_after_delete = db.get::<TestEntity>("test").await;
-
-        db.list_append("test_list", "test".to_string())
-            .await
-            .expect("Failed to append to list");
-        let list_after_append = db.list_keys("test_list").await;
-        db.list_remove("test_list", "test")
-            .await
-            .expect("Failed to remove from list");
-        let list_after_remove = db.list_keys("test_list").await;
+        let list_after_remove = db.list_objects("test_list").await;
 
         insta::assert_debug_snapshot!((
             get_empty,
