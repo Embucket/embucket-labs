@@ -16,6 +16,7 @@
 // under the License.
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::de;
 use serde_json::ser;
@@ -23,7 +24,6 @@ use slatedb::db::Db as SlateDb;
 use slatedb::error::SlateDBError;
 use snafu::prelude::*;
 use std::sync::Arc;
-use bytes::Bytes;
 use uuid::Uuid;
 
 #[derive(Snafu, Debug)]
@@ -135,12 +135,15 @@ impl Db {
     ///
     /// Returns a `DbError` if the underlying database operation fails.
     /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
-    pub async fn list_objects<T: for<'de> serde::de::Deserialize<'de>>(&self, key: &str) -> Result<Vec<T>> {
+    pub async fn list_objects<T: for<'de> serde::de::Deserialize<'de>>(
+        &self,
+        key: &str,
+    ) -> Result<Vec<T>> {
         dbg!(&key);
         let start = format!("{key}/");
         let end = format!("{key}/\x7F");
         let range = Bytes::from(start)..Bytes::from(end);
-        let mut test= self.0.scan(range).await.unwrap();
+        let mut test = self.0.scan(range).await.unwrap();
         let mut objects: Vec<T> = vec![];
         while let Ok(Some(value)) = test.next().await {
             let value = de::from_slice(&value.value).context(DeserializeValueSnafu)?;
@@ -269,11 +272,15 @@ mod test {
             name: "test".to_string(),
         };
         let get_empty = db.get::<TestEntity>("test/abc").await;
-        db.put("test/abc", &entity).await.expect("Failed to put entity");
+        db.put("test/abc", &entity)
+            .await
+            .expect("Failed to put entity");
         let get_after_put = db.get::<TestEntity>("test/abc").await;
         let list_after_append = db.list_objects::<TestEntity>("test").await;
         assert_eq!(list_after_append.as_ref().unwrap().len(), 1);
-        db.delete("test/abc").await.expect("Failed to delete entity");
+        db.delete("test/abc")
+            .await
+            .expect("Failed to delete entity");
         let get_after_delete = db.get::<TestEntity>("test/abc").await;
         let list_after_remove = db.list_objects::<TestEntity>("test").await;
         assert_eq!(list_after_remove.as_ref().unwrap().len(), 0);

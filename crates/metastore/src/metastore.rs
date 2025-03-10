@@ -139,22 +139,18 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
 }
 
 ///
-/// volumes -> List of volumes
-/// vol.<name> -> `IceBucketVolume`
-/// databases -> List of databases
-/// db.<name> -> `IceBucketDatabase`
-/// schemas.<db> -> List of schemas for <db>
-/// sch.<db>.<name> -> `IceBucketSchema`
-/// tables.<db>.<schema> -> List of tables for <schema> in <db>
-/// tbl.<db>.<schema>.<table> -> `IceBucketTable`
+/// vol -> List of volumes
+/// vol/<name> -> `IceBucketVolume`
+/// db -> List of databases
+/// db/<name> -> `IceBucketDatabase`
+/// sch/<db> -> List of schemas for <db>
+/// sch/<db>/<name> -> `IceBucketSchema`
+/// tbl/<db>/<schema> -> List of tables for <schema> in <db>
+/// tbl/<db>/<schema>/<table> -> `IceBucketTable`
 ///
-// const KEY_VOLUMES: &str = "volumes";
 const KEY_VOLUME: &str = "vol";
-// const KEY_DATABASES: &str = "databases";
 const KEY_DATABASE: &str = "db";
-// const KEY_SCHEMAS: &str = "schemas";
 const KEY_SCHEMA: &str = "sch";
-// const KEY_TABLES: &str = "tables";
 const KEY_TABLE: &str = "tbl";
 
 pub struct SlateDBMetastore {
@@ -192,7 +188,8 @@ impl SlateDBMetastore {
     where
         T: serde::Serialize + DeserializeOwned + Eq + PartialEq + Send + Sync,
     {
-        let entities = self.db
+        let entities = self
+            .db
             .list_objects(list_key)
             .await
             .context(metastore_error::UtilSlateDBSnafu)?;
@@ -213,7 +210,6 @@ impl SlateDBMetastore {
     async fn create_object<T>(
         &self,
         key: &str,
-        plural_key: &str,
         object_type: &str,
         object: T,
     ) -> MetastoreResult<RwObject<T>>
@@ -232,10 +228,6 @@ impl SlateDBMetastore {
                 .put(key, &rwobject)
                 .await
                 .context(metastore_error::UtilSlateDBSnafu)?;
-            // self.db
-            //     .list_append(plural_key, key.to_string())
-            //     .await
-            //     .context(metastore_error::UtilSlateDBSnafu)?;
             Ok(rwobject)
         } else {
             Err(metastore_error::MetastoreError::ObjectAlreadyExists {
@@ -269,9 +261,8 @@ impl SlateDBMetastore {
         }
     }
 
-    async fn delete_object(&self, key: &str, plural_key: &str) -> MetastoreResult<()> {
+    async fn delete_object(&self, key: &str) -> MetastoreResult<()> {
         self.db.delete(key).await.ok();
-        // self.db.list_remove(plural_key, key).await.ok();
         Ok(())
     }
 
@@ -308,9 +299,7 @@ impl Metastore for SlateDBMetastore {
     ) -> MetastoreResult<RwObject<IceBucketVolume>> {
         let key = format!("{KEY_VOLUME}/{name}");
         let object_store = volume.get_object_store()?;
-        let rwobject = self
-            .create_object(&key, KEY_VOLUME, "volume", volume)
-            .await?;
+        let rwobject = self.create_object(&key, "volume", volume).await?;
         self.object_store_cache.insert(name.clone(), object_store);
         Ok(rwobject)
     }
@@ -354,9 +343,9 @@ impl Metastore for SlateDBMetastore {
                 .map(|db| self.delete_database(db, cascade))
                 .collect::<Vec<_>>();
             futures::future::try_join_all(futures).await?;
-            self.delete_object(&key, KEY_VOLUME).await
+            self.delete_object(&key).await
         } else if databases_using.is_empty() {
-            self.delete_object(&key, KEY_VOLUME).await?;
+            self.delete_object(&key).await?;
             self.object_store_cache.remove(name);
             Ok(())
         } else {
@@ -402,8 +391,7 @@ impl Metastore for SlateDBMetastore {
             },
         )?;
         let key = format!("{KEY_DATABASE}/{name}");
-        self.create_object(&key, KEY_DATABASE, "database", database)
-            .await
+        self.create_object(&key, "database", database).await
     }
 
     async fn get_database(
@@ -440,7 +428,7 @@ impl Metastore for SlateDBMetastore {
             futures::future::try_join_all(futures).await?;
         }
         let key = format!("{KEY_DATABASE}/{name}");
-        self.delete_object(&key, KEY_DATABASE).await
+        self.delete_object(&key).await
     }
 
     async fn list_schemas(
@@ -458,13 +446,7 @@ impl Metastore for SlateDBMetastore {
     ) -> MetastoreResult<RwObject<IceBucketSchema>> {
         let key = format!("{KEY_SCHEMA}/{}/{}", ident.database, ident.schema);
         if self.get_database(&ident.database).await?.is_some() {
-            self.create_object(
-                &key,
-                &format!("{KEY_SCHEMA}/{}", ident.database),
-                "schema",
-                schema,
-            )
-            .await
+            self.create_object(&key, "schema", schema).await
         } else {
             Err(metastore_error::MetastoreError::ObjectNotFound {
                 type_name: "database".to_string(),
@@ -508,8 +490,7 @@ impl Metastore for SlateDBMetastore {
             futures::future::try_join_all(futures).await?;
         }
         let key = format!("{KEY_SCHEMA}/{}/{}", ident.database, ident.schema);
-        let plural_key = format!("{KEY_SCHEMA}/{}", ident.database);
-        self.delete_object(&key, &plural_key).await
+        self.delete_object(&key).await
     }
 
     async fn list_tables(
@@ -615,14 +596,7 @@ impl Metastore for SlateDBMetastore {
                 volume_location: table.location,
                 is_temporary: table.is_temporary.unwrap_or_default(),
             };
-            let rwo_table = self
-                .create_object(
-                    &key,
-                    &format!("{KEY_TABLE}/{}/{}", ident.database, ident.schema),
-                    "table",
-                    table.clone(),
-                )
-                .await?;
+            let rwo_table = self.create_object(&key, "table", table.clone()).await?;
 
             let object_store = self.table_object_store(ident).await?.ok_or(
                 metastore_error::MetastoreError::ObjectNotFound {
@@ -741,11 +715,7 @@ impl Metastore for SlateDBMetastore {
                 "{KEY_TABLE}/{}/{}/{}",
                 ident.database, ident.schema, ident.table
             );
-            self.delete_object(
-                &key,
-                &format!("{KEY_TABLE}/{}/{}", ident.database, ident.schema),
-            )
-            .await
+            self.delete_object(&key).await
         } else {
             Err(metastore_error::MetastoreError::ObjectNotFound {
                 type_name: "table".to_string(),
