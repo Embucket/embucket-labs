@@ -149,12 +149,12 @@ impl Db {
         Ok(keys)
     }
 
-    /// Appends a value to a list stored in the database.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `DbError` if the database operations fail, or
-    /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
+    // Appends a value to a list stored in the database.
+    //
+    // # Errors
+    //
+    // Returns a `DbError` if the database operations fail, or
+    // `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
     // pub async fn list_append(&self, key: &str, value: String) -> Result<()> {
     //     self.modify(key, |all_keys: &mut Vec<String>| {
     //         if !all_keys.contains(&value) {
@@ -164,12 +164,12 @@ impl Db {
     //     .await
     // }
 
-    /// Removes a value from a list stored in the database.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `DbError` if the database operations fail, or
-    /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
+    // Removes a value from a list stored in the database.
+    //
+    // # Errors
+    //
+    // Returns a `DbError` if the database operations fail, or
+    // `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
     // pub async fn list_remove(&self, key: &str, value: &str) -> Result<()> {
     //     self.modify(key, |all_keys: &mut Vec<String>| {
     //         all_keys.retain(|key| *key != value);
@@ -177,12 +177,12 @@ impl Db {
     //     .await
     // }
 
-    /// Modifies a value in the database using the provided closure.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `DbError` if the database operations fail, or
-    /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
+    // Modifies a value in the database using the provided closure.
+    //
+    // # Errors
+    //
+    // Returns a `DbError` if the database operations fail, or
+    // `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
     // pub async fn modify<T>(&self, key: &str, f: impl Fn(&mut T) + Send) -> Result<()>
     // where
     //     T: serde::Serialize + DeserializeOwned + Default + Sync + Send,
@@ -234,7 +234,7 @@ pub trait Repository {
     }
 
     async fn _list(&self) -> Result<Vec<Self::Entity>> {
-        let entities = self.db().list_keys(Self::collection_key()).await?;
+        let entities = self.db().list_objects(Self::collection_key()).await?;
         // let futures = keys
         //     .iter()
         //     .map(|key| self.db().get(key))
