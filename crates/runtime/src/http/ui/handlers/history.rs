@@ -23,29 +23,45 @@ use axum::{extract::Query, extract::State, Json};
 use history::HistoryItem;
 use icebucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
-use snafu::prelude::*;
-use snafu::ResultExt;
 use std::time::Instant;
 use utoipa::{OpenApi, ToSchema};
+use http::status::StatusCode;
+use history::store;
+use tracing;
+use std::fmt::{Display, Formatter, Error};
 
-#[derive(Snafu, Debug)]
-#[snafu(visibility(pub))]
-pub enum HistoryError {
-    GetHistory { source: history::store::QHistoryError },
+pub struct HistoryHandlerError(store::QueryHistoryError);
+
+// for tracing logs
+impl Display for HistoryHandlerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        self.0.fmt(f)
+    }
 }
 
-impl IntoResponse for HistoryError {
+impl HistoryHandlerError {
+    #[must_use]
+    pub const fn map_error_to_http_error(&self) -> StatusCode {
+        match self.0 {
+            store::QueryHistoryError::QHistoryGet { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            // OK is a stub for us, as this store function has no handler
+            store::QueryHistoryError::QHistoryAdd { .. } => StatusCode::OK,
+        }
+    }
+}
+
+impl IntoResponse for HistoryHandlerError {
     fn into_response(self) -> axum::response::Response {
         let err_code = http::StatusCode::INTERNAL_SERVER_ERROR;
         let er = ErrorResponse {
-            message: self.to_string(),
+            message: self.0.to_string(),
             status_code: err_code.as_u16(),
         };
         (err_code, Json(er)).into_response()
     }
 }
 
-pub type HistoryResult<T> = Result<T, HistoryError>;
+pub type HistoryResult<T> = Result<T, HistoryHandlerError>;
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
 pub struct GetHistoryItemsParams {
@@ -123,7 +139,7 @@ pub async fn history(
         .qhistory
         .query_history(params.cursor.clone(), params.limit)
         .await
-        .context(GetHistorySnafu)?;
+        .map_err(HistoryHandlerError)?;
     let next_cursor = if let Some(last_item) = items.last() {
         last_item.next_cursor().to_string()
     } else {
@@ -135,6 +151,6 @@ pub async fn history(
         result: String::new(),
         duration_seconds: duration.as_secs_f32(), // how much time query history request taken
         current_cursor: params.cursor,
-        next_cursor: next_cursor.to_string(),
+        next_cursor,
     }))
 }

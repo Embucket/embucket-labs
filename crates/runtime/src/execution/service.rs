@@ -105,20 +105,22 @@ impl ExecutionService {
         let res = convert_record_batches(records, data_format)
             .context(ex_error::DataFusionQuerySnafu { query });
     
-        let result_count = if let Ok(recs) = &res {
-            recs.0.len() as i64
-        } else {0};
-        
-        // TODO: add result records, perhaps using records_to_json_string
-
-        history_item.set_finished(result_count, None);
-        match self.qhistory.add_history_item(history_item).await {
-            Err(err) => {
-                // do not raise
-                tracing::error!("{err}");
+        match &res {
+            Ok(recs) => {
+                let result_count = i64::try_from(recs.0.len()).unwrap_or(0);
+                history_item.set_finished(result_count, None);
+                // TODO: add result records, perhaps using records_to_json_string
             }
-            _ => {}
-        };
+            Err(err) => { 
+                history_item.set_finished_with_error(err.to_string(), 0);
+                // TODO: http code
+            }
+        }
+
+        if let Err(err) = self.qhistory.add_history_item(history_item).await {
+            // do not raise error, just log ?
+            tracing::error!("{err}");
+        }
 
         res
     }

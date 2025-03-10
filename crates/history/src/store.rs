@@ -25,7 +25,7 @@ use snafu::prelude::*;
 use std::sync::Arc;
 
 #[derive(Snafu, Debug)]
-pub enum QHistoryError {
+pub enum QueryHistoryError {
     #[snafu(display("Error adding query history: {source}"))]
     QHistoryAdd { source: icebucket_utils::Error },
 
@@ -33,16 +33,16 @@ pub enum QHistoryError {
     QHistoryGet { source: icebucket_utils::Error },
 }
 
-pub type QHistoryResult<T> = std::result::Result<T, QHistoryError>;
+pub type QueryHistoryResult<T> = std::result::Result<T, QueryHistoryError>;
 
 #[async_trait]
 pub trait QueryHistory: std::fmt::Debug + Send + Sync {
-    async fn add_history_item(&self, item: HistoryItem) -> QHistoryResult<()>;
+    async fn add_history_item(&self, item: HistoryItem) -> QueryHistoryResult<()>;
     async fn query_history(
         &self,
         cursor: Option<String>,
         limit: Option<u16>,
-    ) -> QHistoryResult<Vec<HistoryItem>>;
+    ) -> QueryHistoryResult<Vec<HistoryItem>>;
 }
 
 pub struct QueryHistoryStore {
@@ -57,7 +57,7 @@ impl std::fmt::Debug for QueryHistoryStore {
 
 impl QueryHistoryStore {
     #[must_use]
-    pub fn new(db: Db) -> Self {
+    pub const fn new(db: Db) -> Self {
         Self { db }
     }
 
@@ -75,7 +75,7 @@ impl QueryHistoryStore {
 
 #[async_trait]
 impl QueryHistory for QueryHistoryStore {
-    async fn add_history_item(&self, item: HistoryItem) -> QHistoryResult<()> {
+    async fn add_history_item(&self, item: HistoryItem) -> QueryHistoryResult<()> {
         Ok(self
             .db
             .put_iterable_entity(&item)
@@ -87,7 +87,7 @@ impl QueryHistory for QueryHistoryStore {
         &self,
         cursor: Option<String>,
         limit: Option<u16>,
-    ) -> QHistoryResult<Vec<HistoryItem>> {
+    ) -> QueryHistoryResult<Vec<HistoryItem>> {
         let start_key = if let Some(cursor) = cursor {
             HistoryItem::key_from_cursor(Bytes::from(cursor))
         } else {
@@ -118,7 +118,7 @@ mod tests {
         for i in 0..n {
             let start_time = Utc
                 .with_ymd_and_hms(2020, 1, 1, 0, 0, 0)
-                .unwrap() + Duration::milliseconds(1);
+                .unwrap() + Duration::milliseconds(i.into());
             let mut item = HistoryItem::before_started(
                 format!("select {i}").as_str(),
                 None, 
@@ -127,19 +127,26 @@ mod tests {
             if i ==0 {
                 item.set_finished(1, Some(item.start_time))
             } else {
-                item.set_error("Test query pseudo error".to_string(), 500);
+                item.set_finished_with_error("Test query pseudo error".to_string(), 500);
             }
             created.push(item.clone());
+            println!("added {:?}", item.key());
             db.add_history_item(item).await.unwrap();
         }
 
+        let cursor = <HistoryItem as IterableEntity>::Cursor::CURSOR_MIN.to_string();
+        println!("cursor: {cursor}");
         let retrieved = db
             .query_history(
-                Some(<HistoryItem as IterableEntity>::Cursor::CURSOR_MIN.to_string()),
+                Some(cursor),
                 Some(10),
             )
             .await
             .unwrap();
+        for i in 0..retrieved.len() {
+            println!("retrieved: {:?}", retrieved[i].key());
+        }
+        
         assert_eq!(n as usize, retrieved.len());
         assert_eq!(created, retrieved);
     }

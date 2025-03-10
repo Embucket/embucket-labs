@@ -37,17 +37,17 @@ pub struct HistoryItem {
 
 impl HistoryItem {
     #[must_use]
-    pub fn before_started(query: &str, id: Option<Uuid>, start_time: Option<DateTime<Utc>>) -> HistoryItem {
-        let start_time = start_time.unwrap_or(Utc::now());
-        HistoryItem {
-            id: id.unwrap_or(Uuid::new_v4()),
+    pub fn before_started(query: &str, id: Option<Uuid>, start_time: Option<DateTime<Utc>>) -> Self {
+        let start_time = start_time.unwrap_or_else(Utc::now);
+        Self {
+            id: id.unwrap_or_else(Uuid::new_v4),
             query: String::from(query),
             start_time,
             end_time: start_time,
             status_code: 200,
             duration_ms: 0,
             result_count: 0,
-error: None,
+            error: None,
         }
     }
 
@@ -62,7 +62,8 @@ error: None,
         }
     }
 
-    pub fn set_error(&mut self, error: String, error_code: u16) {
+    pub fn set_finished_with_error(&mut self, error: String, error_code: u16) {
+        self.set_finished(0, None);
         self.error = Some(error);
         self.status_code = error_code;
     }
