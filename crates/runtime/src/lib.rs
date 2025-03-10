@@ -18,7 +18,7 @@
 use std::sync::Arc;
 
 use config::IceBucketRuntimeConfig;
-use history::store::QHistoryStore;
+use history::store::QueryHistoryStore;
 use http::{make_icebucket_app, run_icebucket_app};
 use icebucket_metastore::SlateDBMetastore;
 use icebucket_utils::Db;
@@ -51,7 +51,7 @@ pub async fn run_icebucket(
     };
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let qhistory = Arc::new(QHistoryStore::new(db));
+    let qhistory = Arc::new(QueryHistoryStore::new(db));
     let app = make_icebucket_app(metastore, qhistory, &config.web)?;
     run_icebucket_app(app, &config.web).await
 }

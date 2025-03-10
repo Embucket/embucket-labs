@@ -21,7 +21,7 @@ use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
-use history::{store::QHistoryApi, HistoryItem};
+use history::{store::QueryHistory, HistoryItem};
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -39,7 +39,7 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 pub struct ExecutionService {
     metastore: Arc<dyn Metastore>,
-    qhistory: Arc<dyn QHistoryApi>,
+    qhistory: Arc<dyn QueryHistory>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<IceBucketUserSession>>>>,
     config: Config,
 }
@@ -47,7 +47,7 @@ pub struct ExecutionService {
 impl ExecutionService {
     pub fn new(
         metastore: Arc<dyn Metastore>,
-        qhistory: Arc<dyn QHistoryApi>,
+        qhistory: Arc<dyn QueryHistory>,
         config: Config,
     ) -> Self {
         Self {

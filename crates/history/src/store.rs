@@ -36,7 +36,7 @@ pub enum QHistoryError {
 pub type QHistoryResult<T> = std::result::Result<T, QHistoryError>;
 
 #[async_trait]
-pub trait QHistoryApi: Send + Sync {
+pub trait QueryHistory: std::fmt::Debug + Send + Sync {
     async fn add_history_item(&self, item: HistoryItem) -> QHistoryResult<()>;
     async fn query_history(
         &self,
@@ -45,11 +45,17 @@ pub trait QHistoryApi: Send + Sync {
     ) -> QHistoryResult<Vec<HistoryItem>>;
 }
 
-pub struct QHistoryStore {
+pub struct QueryHistoryStore {
     db: Db,
 }
 
-impl QHistoryStore {
+impl std::fmt::Debug for QueryHistoryStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("QueryHistoryStore").finish()
+    }
+}
+
+impl QueryHistoryStore {
     #[must_use]
     pub fn new(db: Db) -> Self {
         Self { db }
@@ -68,7 +74,7 @@ impl QHistoryStore {
 }
 
 #[async_trait]
-impl QHistoryApi for QHistoryStore {
+impl QueryHistory for QueryHistoryStore {
     async fn add_history_item(&self, item: HistoryItem) -> QHistoryResult<()> {
         Ok(self
             .db
@@ -106,7 +112,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_history() {
-        let db = QHistoryStore::new_in_memory().await;
+        let db = QueryHistoryStore::new_in_memory().await;
         let n: u16 = 2;
         let mut created: Vec<HistoryItem> = vec![];
         for i in 0..n {
