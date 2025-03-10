@@ -148,13 +148,13 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
 /// tables.<db>.<schema> -> List of tables for <schema> in <db>
 /// tbl.<db>.<schema>.<table> -> `IceBucketTable`
 ///
-const KEY_VOLUMES: &str = "volumes";
+// const KEY_VOLUMES: &str = "volumes";
 const KEY_VOLUME: &str = "vol";
-const KEY_DATABASES: &str = "databases";
+// const KEY_DATABASES: &str = "databases";
 const KEY_DATABASE: &str = "db";
-const KEY_SCHEMAS: &str = "schemas";
+// const KEY_SCHEMAS: &str = "schemas";
 const KEY_SCHEMA: &str = "sch";
-const KEY_TABLES: &str = "tables";
+// const KEY_TABLES: &str = "tables";
 const KEY_TABLE: &str = "tbl";
 
 pub struct SlateDBMetastore {
@@ -298,7 +298,7 @@ impl SlateDBMetastore {
 #[async_trait]
 impl Metastore for SlateDBMetastore {
     async fn list_volumes(&self) -> MetastoreResult<Vec<RwObject<IceBucketVolume>>> {
-        self.list_objects(KEY_VOLUMES).await
+        self.list_objects(KEY_VOLUME).await
     }
 
     async fn create_volume(
@@ -309,7 +309,7 @@ impl Metastore for SlateDBMetastore {
         let key = format!("{KEY_VOLUME}/{name}");
         let object_store = volume.get_object_store()?;
         let rwobject = self
-            .create_object(&key, KEY_VOLUMES, "volume", volume)
+            .create_object(&key, KEY_VOLUME, "volume", volume)
             .await?;
         self.object_store_cache.insert(name.clone(), object_store);
         Ok(rwobject)
@@ -354,9 +354,9 @@ impl Metastore for SlateDBMetastore {
                 .map(|db| self.delete_database(db, cascade))
                 .collect::<Vec<_>>();
             futures::future::try_join_all(futures).await?;
-            self.delete_object(&key, KEY_VOLUMES).await
+            self.delete_object(&key, KEY_VOLUME).await
         } else if databases_using.is_empty() {
-            self.delete_object(&key, KEY_VOLUMES).await?;
+            self.delete_object(&key, KEY_VOLUME).await?;
             self.object_store_cache.remove(name);
             Ok(())
         } else {
@@ -387,7 +387,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     async fn list_databases(&self) -> MetastoreResult<Vec<RwObject<IceBucketDatabase>>> {
-        self.list_objects(KEY_DATABASES).await
+        self.list_objects(KEY_DATABASE).await
     }
 
     async fn create_database(
@@ -402,7 +402,7 @@ impl Metastore for SlateDBMetastore {
             },
         )?;
         let key = format!("{KEY_DATABASE}/{name}");
-        self.create_object(&key, KEY_DATABASES, "database", database)
+        self.create_object(&key, KEY_DATABASE, "database", database)
             .await
     }
 
@@ -440,14 +440,14 @@ impl Metastore for SlateDBMetastore {
             futures::future::try_join_all(futures).await?;
         }
         let key = format!("{KEY_DATABASE}/{name}");
-        self.delete_object(&key, KEY_DATABASES).await
+        self.delete_object(&key, KEY_DATABASE).await
     }
 
     async fn list_schemas(
         &self,
         database: &IceBucketDatabaseIdent,
     ) -> MetastoreResult<Vec<RwObject<IceBucketSchema>>> {
-        let key = format!("{KEY_SCHEMAS}/{database}");
+        let key = format!("{KEY_SCHEMA}/{database}");
         self.list_objects(&key).await
     }
 
@@ -460,7 +460,7 @@ impl Metastore for SlateDBMetastore {
         if self.get_database(&ident.database).await?.is_some() {
             self.create_object(
                 &key,
-                &format!("{KEY_SCHEMAS}/{}", ident.database),
+                &format!("{KEY_SCHEMA}/{}", ident.database),
                 "schema",
                 schema,
             )
@@ -508,7 +508,7 @@ impl Metastore for SlateDBMetastore {
             futures::future::try_join_all(futures).await?;
         }
         let key = format!("{KEY_SCHEMA}/{}/{}", ident.database, ident.schema);
-        let plural_key = format!("{KEY_SCHEMAS}/{}", ident.database);
+        let plural_key = format!("{KEY_SCHEMA}/{}", ident.database);
         self.delete_object(&key, &plural_key).await
     }
 
@@ -516,7 +516,7 @@ impl Metastore for SlateDBMetastore {
         &self,
         schema: &IceBucketSchemaIdent,
     ) -> MetastoreResult<Vec<RwObject<IceBucketTable>>> {
-        let key = format!("{KEY_TABLES}/{}/{}", schema.database, schema.schema);
+        let key = format!("{KEY_TABLE}/{}/{}", schema.database, schema.schema);
         self.list_objects(&key).await
     }
 
@@ -618,7 +618,7 @@ impl Metastore for SlateDBMetastore {
             let rwo_table = self
                 .create_object(
                     &key,
-                    &format!("{KEY_TABLES}/{}/{}", ident.database, ident.schema),
+                    &format!("{KEY_TABLE}/{}/{}", ident.database, ident.schema),
                     "table",
                     table.clone(),
                 )
@@ -743,7 +743,7 @@ impl Metastore for SlateDBMetastore {
             );
             self.delete_object(
                 &key,
-                &format!("{KEY_TABLES}/{}/{}", ident.database, ident.schema),
+                &format!("{KEY_TABLE}/{}/{}", ident.database, ident.schema),
             )
             .await
         } else {
@@ -898,12 +898,12 @@ mod tests {
             .expect("create volume failed");
         let all_volumes = ms.list_volumes().await.expect("list volumes failed");
 
-        let volumes_key = ms
-            .db()
-            .get::<Vec<String>>(KEY_VOLUMES)
-            .await
-            .expect("get volumes key failed")
-            .unwrap_or_default();
+        // let volumes_key = ms
+        //     .db()
+        //     .get::<Vec<String>>(KEY_VOLUME)
+        //     .await
+        //     .expect("get volumes key failed")
+        //     .unwrap_or_default();
         let test_volume = ms
             .db()
             .get::<serde_json::Value>(&format!("{KEY_VOLUME}/test"))
@@ -913,7 +913,7 @@ mod tests {
         insta::with_settings!({
             filters => insta_filters(),
         }, {
-            insta::assert_debug_snapshot!((volumes_key, test_volume, all_volumes));
+            insta::assert_debug_snapshot!((test_volume, all_volumes));
         });
     }
 

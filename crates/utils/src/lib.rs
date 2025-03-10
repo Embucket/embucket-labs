@@ -137,8 +137,8 @@ impl Db {
     /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
     pub async fn list_objects<T: for<'de> serde::de::Deserialize<'de>>(&self, key: &str) -> Result<Vec<T>> {
         dbg!(&key);
-        let start = format!("{key}.");
-        let end = format!("{key}.\x7F");
+        let start = format!("{key}/");
+        let end = format!("{key}/\x7F");
         let range = Bytes::from(start)..Bytes::from(end);
         let mut test= self.0.scan(range).await.unwrap();
         let mut objects: Vec<T> = vec![];
@@ -214,21 +214,21 @@ pub trait Repository {
     fn db(&self) -> &Db;
 
     async fn _create(&self, entity: &Self::Entity) -> Result<()> {
-        let key = format!("{}.{}", Self::prefix(), entity.id());
+        let key = format!("{}/{}", Self::prefix(), entity.id());
         self.db().put(&key, &entity).await?;
         //self.db().list_append(Self::collection_key(), key).await?;
         Ok(())
     }
 
     async fn _get(&self, id: Uuid) -> Result<Self::Entity> {
-        let key = format!("{}.{}", Self::prefix(), id);
+        let key = format!("{}/{}", Self::prefix(), id);
         let entity = self.db().get(&key).await?;
         let entity = entity.ok_or(Error::KeyNotFound)?;
         Ok(entity)
     }
 
     async fn _delete(&self, id: Uuid) -> Result<()> {
-        let key = format!("{}.{}", Self::prefix(), id);
+        let key = format!("{}/{}", Self::prefix(), id);
         self.db().delete(&key).await?;
         //self.db().list_remove(Self::collection_key(), &key).await?;
         Ok(())
@@ -268,13 +268,13 @@ mod test {
             id: 1,
             name: "test".to_string(),
         };
-        let get_empty = db.get::<TestEntity>("test.abc").await;
-        db.put("test.abc", &entity).await.expect("Failed to put entity");
-        let get_after_put = db.get::<TestEntity>("test.abc").await;
+        let get_empty = db.get::<TestEntity>("test/abc").await;
+        db.put("test/abc", &entity).await.expect("Failed to put entity");
+        let get_after_put = db.get::<TestEntity>("test/abc").await;
         let list_after_append = db.list_objects::<TestEntity>("test").await;
         assert_eq!(list_after_append.as_ref().unwrap().len(), 1);
-        db.delete("test.abc").await.expect("Failed to delete entity");
-        let get_after_delete = db.get::<TestEntity>("test.abc").await;
+        db.delete("test/abc").await.expect("Failed to delete entity");
+        let get_after_delete = db.get::<TestEntity>("test/abc").await;
         let list_after_remove = db.list_objects::<TestEntity>("test").await;
         assert_eq!(list_after_remove.as_ref().unwrap().len(), 0);
 
