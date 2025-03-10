@@ -104,14 +104,14 @@ impl ExecutionService {
         // Add columns dbt metadata to each field
         let res = convert_record_batches(records, data_format)
             .context(ex_error::DataFusionQuerySnafu { query });
-    
+
         match &res {
             Ok(recs) => {
                 let result_count = i64::try_from(recs.0.len()).unwrap_or(0);
                 history_item.set_finished(result_count, None);
                 // TODO: add result records, perhaps using records_to_json_string
             }
-            Err(err) => { 
+            Err(err) => {
                 history_item.set_finished_with_error(err.to_string(), 0);
                 // TODO: http code
             }

@@ -37,7 +37,11 @@ pub struct HistoryItem {
 
 impl HistoryItem {
     #[must_use]
-    pub fn before_started(query: &str, id: Option<Uuid>, start_time: Option<DateTime<Utc>>) -> Self {
+    pub fn before_started(
+        query: &str,
+        id: Option<Uuid>,
+        start_time: Option<DateTime<Utc>>,
+    ) -> Self {
         let start_time = start_time.unwrap_or_else(Utc::now);
         Self {
             id: id.unwrap_or_else(Uuid::new_v4),
@@ -54,7 +58,8 @@ impl HistoryItem {
     pub fn set_finished(&mut self, result_count: i64, end_time: Option<DateTime<Utc>>) {
         self.result_count = result_count;
         self.end_time = Utc::now();
-        self.duration_ms = self.end_time
+        self.duration_ms = self
+            .end_time
             .signed_duration_since(self.start_time)
             .num_milliseconds();
         if let Some(end_time) = end_time {

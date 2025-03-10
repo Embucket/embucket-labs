@@ -20,15 +20,15 @@ use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use axum::response::IntoResponse;
 use axum::{extract::Query, extract::State, Json};
+use history::store;
 use history::HistoryItem;
+use http::status::StatusCode;
 use icebucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Error, Formatter};
 use std::time::Instant;
-use utoipa::{OpenApi, ToSchema};
-use http::status::StatusCode;
-use history::store;
 use tracing;
-use std::fmt::{Display, Formatter, Error};
+use utoipa::{OpenApi, ToSchema};
 
 pub struct HistoryHandlerError(store::QueryHistoryError);
 

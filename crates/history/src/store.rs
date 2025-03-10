@@ -106,7 +106,7 @@ impl QueryHistory for QueryHistoryStore {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use chrono::{TimeZone, Utc, Duration};
+    use chrono::{Duration, TimeZone, Utc};
     use icebucket_utils::iterable::{IterableCursor, IterableEntity};
     use tokio;
 
@@ -116,15 +116,11 @@ mod tests {
         let n: u16 = 2;
         let mut created: Vec<HistoryItem> = vec![];
         for i in 0..n {
-            let start_time = Utc
-                .with_ymd_and_hms(2020, 1, 1, 0, 0, 0)
-                .unwrap() + Duration::milliseconds(i.into());
-            let mut item = HistoryItem::before_started(
-                format!("select {i}").as_str(),
-                None, 
-                Some(start_time),
-            );
-            if i ==0 {
+            let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
+                + Duration::milliseconds(i.into());
+            let mut item =
+                HistoryItem::before_started(format!("select {i}").as_str(), None, Some(start_time));
+            if i == 0 {
                 item.set_finished(1, Some(item.start_time))
             } else {
                 item.set_finished_with_error("Test query pseudo error".to_string(), 500);
@@ -136,17 +132,11 @@ mod tests {
 
         let cursor = <HistoryItem as IterableEntity>::Cursor::CURSOR_MIN.to_string();
         println!("cursor: {cursor}");
-        let retrieved = db
-            .query_history(
-                Some(cursor),
-                Some(10),
-            )
-            .await
-            .unwrap();
+        let retrieved = db.query_history(Some(cursor), Some(10)).await.unwrap();
         for i in 0..retrieved.len() {
             println!("retrieved: {:?}", retrieved[i].key());
         }
-        
+
         assert_eq!(n as usize, retrieved.len());
         assert_eq!(created, retrieved);
     }

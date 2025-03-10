@@ -430,9 +430,7 @@ mod test {
     fn new_pseudo_item(prev: Option<PseudoItem>) -> PseudoItem {
         let start_time = match prev {
             Some(item) => item.start_time,
-            _ => Utc
-                .with_ymd_and_hms(2020, 1, 1, 0, 0, 0)
-                .unwrap()
+            _ => Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
         };
         let start_time = start_time + Duration::days(1);
         PseudoItem {
