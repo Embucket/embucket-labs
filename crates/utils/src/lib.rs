@@ -49,6 +49,9 @@ pub enum Error {
 
     #[snafu(display("Key Not found"))]
     KeyNotFound,
+
+    #[snafu(display("Scan Failed: {source}"))]
+    ScanFailed { source: SlateDBError },
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -142,13 +145,12 @@ impl Db {
         let start = format!("{key}/");
         let end = format!("{key}/\x7F");
         let range = Bytes::from(start)..Bytes::from(end);
-        let mut test = self.0.scan(range).await.unwrap();
+        let mut iter = self.0.scan(range).await.context(ScanFailedSnafu)?;
         let mut objects: Vec<T> = vec![];
-        while let Ok(Some(value)) = test.next().await {
+        while let Ok(Some(value)) = iter.next().await {
             let value = de::from_slice(&value.value).context(DeserializeValueSnafu)?;
             objects.push(value);
         }
-        //let keys: Option<Vec<String>> = self.get(key).await?;
         Ok(objects)
     }
 
