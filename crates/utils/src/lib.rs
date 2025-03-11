@@ -138,6 +138,7 @@ impl Db {
     ///
     /// Returns a `DbError` if the underlying database operation fails.
     /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
+    #[allow(clippy::unwrap_used)]
     pub async fn list_objects<T: for<'de> serde::de::Deserialize<'de>>(
         &self,
         key: &str,

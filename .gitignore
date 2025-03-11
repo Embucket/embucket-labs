@@ -40,3 +40,4 @@ dummyprefix/
 *.manifest
 *.sst
 *.manifest.json
+**.new
