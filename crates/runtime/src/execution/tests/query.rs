@@ -174,7 +174,7 @@ fn test_postprocess_query_statement_functions_expressions() {
 }
 
 #[tokio::test]
-#[allow(clippy::expect_used, clippy::manual_let_else)]
+#[allow(clippy::expect_used, clippy::manual_let_els, clippy::too_many_lines)]
 async fn test_context_name_injection() {
     let metastore = SlateDBMetastore::new_in_memory().await;
     let session =

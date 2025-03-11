@@ -80,13 +80,27 @@ pub enum MetastoreError {
     SchemaNotFound { schema: String, db: String },
 
     #[snafu(display("Table {table} already exists in schema {schema} in database {db}"))]
-    TableAlreadyExists { table: String, schema: String, db: String },
+    TableAlreadyExists {
+        table: String,
+        schema: String,
+        db: String,
+    },
 
     #[snafu(display("Table {table} not found in schema {schema} in database {db}"))]
-    TableNotFound { table: String, schema: String, db: String },
+    TableNotFound {
+        table: String,
+        schema: String,
+        db: String,
+    },
 
-    #[snafu(display("Table Object Store for table {table} in schema {schema} in database {db} not found"))]
-    TableObjectStoreNotFound { table: String, schema: String, db: String },
+    #[snafu(display(
+        "Table Object Store for table {table} in schema {schema} in database {db} not found"
+    ))]
+    TableObjectStoreNotFound {
+        table: String,
+        schema: String,
+        db: String,
+    },
 
     #[snafu(display("Volume in use by database(s): {database}"))]
     VolumeInUse { database: String },

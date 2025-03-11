@@ -254,7 +254,7 @@ impl SlateDBMetastore {
                 .context(metastore_error::UtilSlateDBSnafu)?;
             Ok(rwo)
         } else {
-            Err(metastore_error::MetastoreError::ObjectNotFound )
+            Err(metastore_error::MetastoreError::ObjectNotFound)
         }
     }
 
@@ -296,10 +296,14 @@ impl Metastore for SlateDBMetastore {
     ) -> MetastoreResult<RwObject<IceBucketVolume>> {
         let key = format!("{KEY_VOLUME}/{name}");
         let object_store = volume.get_object_store()?;
-        let rwobject = self.create_object(&key, "volume", volume)
+        let rwobject = self
+            .create_object(&key, "volume", volume)
             .await
             .map_err(|e| {
-                if matches!(e, metastore_error::MetastoreError::ObjectAlreadyExists { .. }) {
+                if matches!(
+                    e,
+                    metastore_error::MetastoreError::ObjectAlreadyExists { .. }
+                ) {
                     metastore_error::MetastoreError::VolumeAlreadyExists {
                         volume: name.clone(),
                     }
@@ -370,7 +374,9 @@ impl Metastore for SlateDBMetastore {
             Ok(Some(store.clone()))
         } else {
             let volume = self.get_volume(name).await?.ok_or(
-                metastore_error::MetastoreError::VolumeNotFound { volume: name.clone() }
+                metastore_error::MetastoreError::VolumeNotFound {
+                    volume: name.clone(),
+                },
             )?;
             let object_store = volume.get_object_store()?;
             self.object_store_cache
@@ -389,7 +395,9 @@ impl Metastore for SlateDBMetastore {
         database: IceBucketDatabase,
     ) -> MetastoreResult<RwObject<IceBucketDatabase>> {
         self.get_volume(&database.volume).await?.ok_or(
-            metastore_error::MetastoreError::VolumeNotFound { volume: database.volume.clone() }
+            metastore_error::MetastoreError::VolumeNotFound {
+                volume: database.volume.clone(),
+            },
         )?;
         let key = format!("{KEY_DATABASE}/{name}");
         self.create_object(&key, "database", database).await
@@ -535,10 +543,14 @@ impl Metastore for SlateDBMetastore {
                 )
             } else {
                 let database = self.get_database(&ident.database).await?.ok_or(
-                    metastore_error::MetastoreError::DatabaseNotFound { db: ident.database.clone() }
+                    metastore_error::MetastoreError::DatabaseNotFound {
+                        db: ident.database.clone(),
+                    },
                 )?;
                 let volume = self.get_volume(&database.volume).await?.ok_or(
-                    metastore_error::MetastoreError::VolumeNotFound { volume: database.volume.clone() }
+                    metastore_error::MetastoreError::VolumeNotFound {
+                        volume: database.volume.clone(),
+                    },
                 )?;
 
                 let prefix = volume.prefix();
@@ -594,11 +606,11 @@ impl Metastore for SlateDBMetastore {
             let rwo_table = self.create_object(&key, "table", table.clone()).await?;
 
             let object_store = self.table_object_store(ident).await?.ok_or(
-                metastore_error::MetastoreError::TableObjectStoreNotFound { 
-                    table: ident.table.clone(), 
-                    schema: ident.schema.clone(), 
-                    db: ident.database.clone() 
-                }
+                metastore_error::MetastoreError::TableObjectStoreNotFound {
+                    table: ident.table.clone(),
+                    schema: ident.schema.clone(),
+                    db: ident.database.clone(),
+                },
             )?;
             let data = Bytes::from(
                 serde_json::to_vec(&table_metadata).context(metastore_error::SerdeSnafu)?,
@@ -610,9 +622,9 @@ impl Metastore for SlateDBMetastore {
                 .context(metastore_error::ObjectStoreSnafu)?;
             Ok(rwo_table)
         } else {
-            Err(metastore_error::MetastoreError::SchemaNotFound { 
-                schema: ident.schema.clone(), 
-                db: ident.schema.clone()
+            Err(metastore_error::MetastoreError::SchemaNotFound {
+                schema: ident.schema.clone(),
+                db: ident.schema.clone(),
             })
         }
     }
@@ -625,10 +637,10 @@ impl Metastore for SlateDBMetastore {
         let mut table = self
             .get_table(ident)
             .await?
-            .ok_or(metastore_error::MetastoreError::TableNotFound { 
-                table: ident.table.clone(), 
-                schema: ident.schema.clone(), 
-                db: ident.database.clone() 
+            .ok_or(metastore_error::MetastoreError::TableNotFound {
+                table: ident.table.clone(),
+                schema: ident.schema.clone(),
+                db: ident.database.clone(),
             })?
             .data;
 
@@ -659,12 +671,12 @@ impl Metastore for SlateDBMetastore {
         let db = self.get_database(&ident.database).await?.ok_or(
             metastore_error::MetastoreError::DatabaseNotFound {
                 db: ident.database.clone(),
-            }
+            },
         )?;
         let volume = self.get_volume(&db.volume).await?.ok_or(
             metastore_error::MetastoreError::VolumeNotFound {
                 volume: db.volume.clone(),
-            }
+            },
         )?;
 
         let object_store = volume.get_object_store()?;
@@ -687,11 +699,11 @@ impl Metastore for SlateDBMetastore {
         if let Some(table) = self.get_table(ident).await? {
             if cascade {
                 let object_store = self.table_object_store(ident).await?.ok_or(
-                    metastore_error::MetastoreError::TableObjectStoreNotFound { 
-                        table: ident.table.clone(), 
-                        schema: ident.schema.clone(), 
-                        db: ident.database.clone() 
-                    }
+                    metastore_error::MetastoreError::TableObjectStoreNotFound {
+                        table: ident.table.clone(),
+                        schema: ident.schema.clone(),
+                        db: ident.database.clone(),
+                    },
                 )?;
                 let metadata_path = Path::from(self.url_for_table(ident).await?);
                 object_store
@@ -713,10 +725,10 @@ impl Metastore for SlateDBMetastore {
             );
             self.delete_object(&key).await
         } else {
-            Err(metastore_error::MetastoreError::TableNotFound { 
-                table: ident.table.clone(), 
-                schema: ident.schema.clone(), 
-                db: ident.database.clone() 
+            Err(metastore_error::MetastoreError::TableNotFound {
+                table: ident.table.clone(),
+                schema: ident.schema.clone(),
+                db: ident.database.clone(),
             })
         }
     }
@@ -755,7 +767,7 @@ impl Metastore for SlateDBMetastore {
             let database = self.get_database(&ident.database).await?.ok_or(
                 metastore_error::MetastoreError::DatabaseNotFound {
                     db: ident.database.clone(),
-                }
+                },
             )?;
 
             // Table has a custom volume associated
@@ -763,7 +775,7 @@ impl Metastore for SlateDBMetastore {
                 let volume = self.get_volume(volume_ident).await?.ok_or(
                     metastore_error::MetastoreError::VolumeNotFound {
                         volume: volume_ident.clone(),
-                    }
+                    },
                 )?;
 
                 let prefix = volume.prefix();
@@ -778,7 +790,7 @@ impl Metastore for SlateDBMetastore {
             let volume = self.get_volume(&database.volume).await?.ok_or(
                 metastore_error::MetastoreError::VolumeNotFound {
                     volume: database.volume.clone(),
-                }
+                },
             )?;
 
             let prefix = volume.prefix();
@@ -794,10 +806,10 @@ impl Metastore for SlateDBMetastore {
             ));
         }
 
-        return Err(metastore_error::MetastoreError::TableObjectStoreNotFound { 
-            table: ident.table.clone(), 
-            schema: ident.schema.clone(), 
-            db: ident.database.clone() 
+        return Err(metastore_error::MetastoreError::TableObjectStoreNotFound {
+            table: ident.table.clone(),
+            schema: ident.schema.clone(),
+            db: ident.database.clone(),
         });
     }
 
@@ -843,7 +855,10 @@ mod tests {
             (r"last_modified[^,]*", "last_modified: \"TIMESTAMP\""),
             (r"size[^,]*", "size: \"INTEGER\""),
             (r"last_updated_ms[^,]*", "last_update_ms: \"INTEGER\""),
-            (r"[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "UUID"),
+            (
+                r"[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}",
+                "UUID",
+            ),
             (r"lookup: \{[^}]*\}", "lookup: {LOOKUPS}"),
             (r"properties: \{[^}]*\}", "properties: {PROPERTIES}"),
         ]
@@ -1171,11 +1186,11 @@ mod tests {
         }, {
             insta::assert_debug_snapshot!(
                 (
-                    no_schema_result, 
-                    table_create, 
-                    paths, 
-                    table_list, 
-                    table_get, 
+                    no_schema_result,
+                    table_create,
+                    paths,
+                    table_list,
+                    table_get,
                     table_list_after
                 )
             );

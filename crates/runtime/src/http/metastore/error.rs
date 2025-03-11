@@ -32,7 +32,7 @@ impl IntoResponse for MetastoreAPIError {
             | MetastoreError::ObjectAlreadyExists { .. }
             | MetastoreError::VolumeAlreadyExists { .. }
             | MetastoreError::DatabaseAlreadyExists { .. }
-            | MetastoreError::SchemaAlreadyExists { .. } 
+            | MetastoreError::SchemaAlreadyExists { .. }
             | MetastoreError::TableAlreadyExists { .. }
             | MetastoreError::VolumeInUse { .. } => http::StatusCode::CONFLICT,
             MetastoreError::TableRequirementFailed { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
