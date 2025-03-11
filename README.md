@@ -57,7 +57,6 @@ cat << EOF > .env
 OBJECT_STORE_BACKEND=memory
 FILE_STORAGE_PATH=data
 SLATEDB_PREFIX=sdb
-SLATEDB_PREFIX_QHISTORY=qhistory
 
 # Optional: AWS S3 storage (leave blank if using local storage)
 AWS_ACCESS_KEY_ID="1"
