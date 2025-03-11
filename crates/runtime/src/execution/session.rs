@@ -44,11 +44,15 @@ pub struct IceBucketUserSession {
 }
 
 impl IceBucketUserSession {
-    pub fn new(metastore: Arc<dyn Metastore>) -> ExecutionResult<Self> {
+    pub async fn new(metastore: Arc<dyn Metastore>) -> ExecutionResult<Self> {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
 
         let catalog_list_impl = Arc::new(IceBucketDFMetastore::new(metastore.clone()));
+        catalog_list_impl
+            .refresh()
+            .await
+            .context(ex_error::MetastoreSnafu)?;
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::new()

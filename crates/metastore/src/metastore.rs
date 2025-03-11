@@ -574,6 +574,7 @@ impl Metastore for SlateDBMetastore {
             let mut table_metadata = TableMetadataBuilder::default();
 
             table_metadata
+                .current_schema_id(*table.schema.schema_id())
                 .with_schema((0, table.schema))
                 .format_version(FormatVersion::V2);
 

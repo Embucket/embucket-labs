@@ -28,9 +28,10 @@ pub mod volumes;
 pub use database::*;
 pub use schema::*;
 pub use table::*;
+
 pub use volumes::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RwObject<T>
 where
     T: Eq + PartialEq,
@@ -76,3 +77,36 @@ where
         &self.data
     }
 }
+
+/*#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RwObjectVec<T>(pub Vec<RwObject<T>>) where T: Eq + PartialEq;
+
+impl<T> Deref for RwObjectVec<T> where T: Eq + PartialEq
+{
+    type Target = Vec<RwObject<T>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T: Eq + PartialEq> From<Vec<RwObject<T>>> for RwObjectVec<T> {
+    fn from(rw_objects: Vec<RwObject<T>>) -> Self {
+        Self(rw_objects)
+    }
+}
+
+impl<T: Eq + PartialEq> From<RwObjectVec<T>> for Vec<RwObject<T>> {
+    fn from(rw_objects: RwObjectVec<T>) -> Self {
+        rw_objects.0
+    }
+}
+
+impl<T: Eq + PartialEq> IntoIterator for RwObjectVec<T> {
+    type Item = RwObject<T>;
+    type IntoIter = std::vec::IntoIter<RwObject<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}*/

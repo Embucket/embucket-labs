@@ -53,8 +53,11 @@ impl<'a, T> Test<'a, T> {
 )]
 async fn test_timestamp_keywords_postprocess() {
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let session =
-        Arc::new(IceBucketUserSession::new(metastore).expect("Failed to create user session"));
+    let session = Arc::new(
+        IceBucketUserSession::new(metastore)
+            .await
+            .expect("Failed to create user session"),
+    );
     let query_context = IceBucketQueryContext::default();
     let test = vec![
         Test::new(
@@ -174,11 +177,14 @@ fn test_postprocess_query_statement_functions_expressions() {
 }
 
 #[tokio::test]
-#[allow(clippy::expect_used, clippy::manual_let_else)]
+#[allow(clippy::expect_used, clippy::manual_let_else, clippy::too_many_lines)]
 async fn test_context_name_injection() {
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let session =
-        Arc::new(IceBucketUserSession::new(metastore).expect("Failed to create user session"));
+    let session = Arc::new(
+        IceBucketUserSession::new(metastore)
+            .await
+            .expect("Failed to create user session"),
+    );
     let query1 = session.query("SELECT * FROM table1", IceBucketQueryContext::default());
     let query_statement = if let DFStatement::Statement(statement) =
         query1.parse_query().expect("Failed to parse query")
