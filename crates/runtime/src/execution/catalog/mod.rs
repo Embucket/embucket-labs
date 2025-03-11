@@ -15,7 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use std::{any::Any, collections::{HashMap, HashSet}, sync::Arc};
+use std::{
+    any::Any,
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use async_trait::async_trait;
 use dashmap::{DashMap, DashSet};
@@ -42,7 +46,9 @@ use iceberg_rust::{
 use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
-use icebucket_metastore::{error::MetastoreResult, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent, Metastore};
+use icebucket_metastore::{
+    error::MetastoreResult, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent, Metastore,
+};
 use object_store::ObjectStore;
 
 #[derive(Clone)]
@@ -53,15 +59,15 @@ pub struct IceBucketDFMetastore {
 
 impl IceBucketDFMetastore {
     pub fn new(metastore: Arc<dyn Metastore>) -> Self {
-        Self { 
+        Self {
             metastore,
             mirror: Arc::new(DashMap::new()),
         }
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    pub async fn refresh(&self) -> MetastoreResult<()>{
-        let mut seen:HashMap<String, HashMap<String, HashSet<String>>> = HashMap::default();
+    pub async fn refresh(&self) -> MetastoreResult<()> {
+        let mut seen: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::default();
 
         let databases = self.metastore.list_databases().await?;
         for database in databases {
@@ -69,10 +75,11 @@ impl IceBucketDFMetastore {
             for schema in schemas {
                 let tables = self.metastore.list_tables(&schema.ident).await?;
                 for table in tables {
-                    let db_entry = self.mirror
+                    let db_entry = self
+                        .mirror
                         .entry(database.ident.clone())
                         .or_insert(DashMap::new());
-                    let mirror_entry = db_entry 
+                    let mirror_entry = db_entry
                         .entry(schema.ident.schema.clone())
                         .insert(DashSet::default());
                     mirror_entry.insert(table.ident.table.clone());
@@ -87,7 +94,6 @@ impl IceBucketDFMetastore {
         }
 
         for db in self.mirror.iter_mut() {
-            
             if seen.contains_key(db.key()) {
                 for schema in db.iter_mut() {
                     if seen[db.key()].contains_key(schema.key()) {
@@ -97,7 +103,7 @@ impl IceBucketDFMetastore {
                                 tables_to_remove.push(table.clone());
                             }
                         }
-                        
+
                         for table in tables_to_remove {
                             schema.remove(&table);
                         }
@@ -152,7 +158,6 @@ impl CatalogProviderList for IceBucketDFMetastore {
             mirror: self.mirror.clone(),
         });
         Some(catalog)
-    
     }
 }
 
@@ -203,7 +208,7 @@ pub struct IceBucketDFSchema {
     pub database: String,
     pub schema: String,
     pub metastore: Arc<dyn Metastore>,
-    pub mirror: Arc<DashMap<String, DashMap<String, DashSet<String>>>>
+    pub mirror: Arc<DashMap<String, DashMap<String, DashSet<String>>>>,
 }
 
 #[allow(clippy::missing_fields_in_debug)]
@@ -235,7 +240,10 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
     fn table_names(&self) -> Vec<String> {
         self.mirror
             .get(&self.database)
-            .and_then(|db| db.get(&self.schema).map(|schema| schema.iter().map(|table| table.key().clone()).collect()))
+            .and_then(|db| {
+                db.get(&self.schema)
+                    .map(|schema| schema.iter().map(|table| table.key().clone()).collect())
+            })
             .unwrap_or_default()
     }
 
@@ -248,7 +256,10 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
             table: name.to_string(),
         };
         let ident_clone = table_ident.clone();
-        let table_object_store = self.metastore.table_object_store(&table_ident).await
+        let table_object_store = self
+            .metastore
+            .table_object_store(&table_ident)
+            .await
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
         if let Some(object_store) = table_object_store {

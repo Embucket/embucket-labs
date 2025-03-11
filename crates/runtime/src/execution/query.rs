@@ -125,13 +125,22 @@ impl IceBucketQuery {
     }
 
     async fn refresh_catalog(&self) -> ExecutionResult<()> {
-        if let Some(catalog_list_impl) =  self.session.ctx.state().catalog_list().as_any().downcast_ref::<IceBucketDFMetastore>() {
+        if let Some(catalog_list_impl) = self
+            .session
+            .ctx
+            .state()
+            .catalog_list()
+            .as_any()
+            .downcast_ref::<IceBucketDFMetastore>()
+        {
             catalog_list_impl
                 .refresh()
                 .await
                 .context(ex_error::MetastoreSnafu)
         } else {
-            Err(ExecutionError::RefreshCatalogList { message: "Catalog list implementation is not castable".to_string() })
+            Err(ExecutionError::RefreshCatalogList {
+                message: "Catalog list implementation is not castable".to_string(),
+            })
         }
     }
 

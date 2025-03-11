@@ -79,7 +79,7 @@ pub async fn list_volumes(
         .map_err(MetastoreAPIError)
         .map(Json)?;
     Ok(res)
-} 
+}
 
 /*#[utoipa::path(
     get,

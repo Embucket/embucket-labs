@@ -49,7 +49,10 @@ impl IceBucketUserSession {
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
 
         let catalog_list_impl = Arc::new(IceBucketDFMetastore::new(metastore.clone()));
-        catalog_list_impl.refresh().await.context(ex_error::MetastoreSnafu)?;
+        catalog_list_impl
+            .refresh()
+            .await
+            .context(ex_error::MetastoreSnafu)?;
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::new()

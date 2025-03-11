@@ -515,7 +515,7 @@ impl Metastore for SlateDBMetastore {
         let key = format!("{KEY_TABLES}/{}/{}", schema.database, schema.schema);
         self.list_objects(&key).await
     }
- 
+
     #[allow(clippy::too_many_lines)]
     async fn create_table(
         &self,

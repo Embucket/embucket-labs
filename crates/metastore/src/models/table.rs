@@ -21,8 +21,8 @@ use iceberg_rust::{
 };
 use iceberg_rust_spec::{partition::PartitionSpec, schema::Schema, sort::SortOrder};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use std::{collections::HashMap, fmt::Display};
+use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::error::{MetastoreError, MetastoreResult};
@@ -220,12 +220,12 @@ pub struct IceBucketTableCreateRequest {
 impl ToSchema for IceBucketTableCreateRequest {}
 impl PartialSchema for IceBucketTableCreateRequest {
     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-        
-        let 
+
+        let
         let mut type_schema = openapi::OneOfBuilder::new()
             .item(primitive_type)
 
-            
+
         let mut struct_field_type = openapi::OneOfBuilder::new()
             .item(primitive_type)
         let struct_field = openapi::ObjectBuilder::new()
@@ -237,10 +237,7 @@ impl PartialSchema for IceBucketTableCreateRequest {
 enum MyPrimitive {
     Int,
     Str,
-    Decimal {
-        precision: u32,
-        scale: u32
-    }
+    Decimal { precision: u32, scale: u32 },
 }
 
 #[derive(ToSchema, Deserialize, Serialize)]
@@ -256,7 +253,7 @@ struct MyList {
 
 #[derive(ToSchema, Deserialize, Serialize)]
 struct MyStruct {
-    fields: Vec<MyStructField>
+    fields: Vec<MyStructField>,
 }
 
 #[derive(ToSchema, Deserialize, Serialize)]

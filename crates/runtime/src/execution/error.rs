@@ -83,7 +83,7 @@ pub enum ExecutionError {
     ObjectAlreadyExists { type_name: String, name: String },
 
     #[snafu(display("Cannot refresh catalog list"))]
-    RefreshCatalogList { message: String }
+    RefreshCatalogList { message: String },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
