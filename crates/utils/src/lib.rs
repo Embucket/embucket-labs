@@ -139,7 +139,6 @@ impl Db {
         &self,
         key: &str,
     ) -> Result<Vec<T>> {
-        dbg!(&key);
         let start = format!("{key}/");
         let end = format!("{key}/\x7F");
         let range = Bytes::from(start)..Bytes::from(end);
