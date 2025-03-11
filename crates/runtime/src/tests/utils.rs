@@ -26,7 +26,7 @@ static TABLE_SETUP: &str = include_str!(r"./queries/table_setup.sql");
 pub async fn create_df_session() -> Arc<IceBucketUserSession> {
     let metastore = SlateDBMetastore::new_in_memory().await;
     let user_session =
-        Arc::new(IceBucketUserSession::new(metastore).expect("Failed to create user session"));
+        Arc::new(IceBucketUserSession::new(metastore).await.expect("Failed to create user session"));
 
     for query in TABLE_SETUP.split(';') {
         if !query.is_empty() {

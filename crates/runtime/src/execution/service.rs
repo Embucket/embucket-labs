@@ -55,7 +55,7 @@ impl ExecutionService {
     pub async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
         let session_exists = { self.df_sessions.read().await.contains_key(&session_id) };
         if !session_exists {
-            let user_session = IceBucketUserSession::new(self.metastore.clone())?;
+            let user_session = IceBucketUserSession::new(self.metastore.clone()).await?;
             tracing::trace!("Acuiring write lock for df_sessions");
             let mut session_list_mut = self.df_sessions.write().await;
             tracing::trace!("Acquired write lock for df_sessions");
