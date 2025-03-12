@@ -154,51 +154,6 @@ impl Db {
         }
         Ok(objects)
     }
-
-    // Appends a value to a list stored in the database.
-    //
-    // # Errors
-    //
-    // Returns a `DbError` if the database operations fail, or
-    // `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
-    // pub async fn list_append(&self, key: &str, value: String) -> Result<()> {
-    //     self.modify(key, |all_keys: &mut Vec<String>| {
-    //         if !all_keys.contains(&value) {
-    //             all_keys.push(value.clone());
-    //         }
-    //     })
-    //     .await
-    // }
-
-    // Removes a value from a list stored in the database.
-    //
-    // # Errors
-    //
-    // Returns a `DbError` if the database operations fail, or
-    // `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
-    // pub async fn list_remove(&self, key: &str, value: &str) -> Result<()> {
-    //     self.modify(key, |all_keys: &mut Vec<String>| {
-    //         all_keys.retain(|key| *key != value);
-    //     })
-    //     .await
-    // }
-
-    // Modifies a value in the database using the provided closure.
-    //
-    // # Errors
-    //
-    // Returns a `DbError` if the database operations fail, or
-    // `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
-    // pub async fn modify<T>(&self, key: &str, f: impl Fn(&mut T) + Send) -> Result<()>
-    // where
-    //     T: serde::Serialize + DeserializeOwned + Default + Sync + Send,
-    // {
-    //     let mut value: T = self.get(key).await?.unwrap_or_default();
-    //
-    //     f(&mut value);
-    //
-    //     self.put(key, &value).await
-    // }
 }
 
 impl From<Error> for iceberg::Error {
@@ -241,12 +196,6 @@ pub trait Repository {
 
     async fn _list(&self) -> Result<Vec<Self::Entity>> {
         let entities = self.db().list_objects(Self::collection_key()).await?;
-        // let futures = keys
-        //     .iter()
-        //     .map(|key| self.db().get(key))
-        //     .collect::<Vec<_>>();
-        // let results = futures::future::try_join_all(futures).await?;
-        // let entities = results.into_iter().flatten().collect::<Vec<Self::Entity>>();
         Ok(entities)
     }
 

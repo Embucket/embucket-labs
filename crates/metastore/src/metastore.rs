@@ -193,17 +193,6 @@ impl SlateDBMetastore {
             .list_objects(list_key)
             .await
             .context(metastore_error::UtilSlateDBSnafu)?;
-        // let keys = self
-        //     .db
-        //     .get::<Vec<String>>(list_key)
-        //     .await
-        //     .context(metastore_error::UtilSlateDBSnafu)?
-        //     .unwrap_or_default();
-        // let futures = keys.iter().map(|key| self.db.get(key)).collect::<Vec<_>>();
-        // let results = futures::future::try_join_all(futures)
-        //     .await
-        //     .context(metastore_error::UtilSlateDBSnafu)?;
-        // let entities = results.into_iter().flatten().collect::<Vec<_>>();
         Ok(entities)
     }
 
