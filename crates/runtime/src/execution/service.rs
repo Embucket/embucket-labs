@@ -108,11 +108,11 @@ impl ExecutionService {
         match &res {
             Ok(recs) => {
                 let result_count = i64::try_from(recs.0.len()).unwrap_or(0);
-                history_item.set_finished(result_count, None);
+                history_item.query_finished(result_count, None);
                 // TODO: add result records, perhaps using records_to_json_string
             }
             Err(err) => {
-                history_item.set_finished_with_error(err.to_string());
+                history_item.query_finished_with_error(err.to_string());
             }
         }
 

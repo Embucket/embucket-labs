@@ -16,7 +16,6 @@
 // under the License.
 
 use crate::http::error::ErrorResponse;
-use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use axum::response::IntoResponse;
 use axum::{extract::Query, extract::State, Json};
@@ -122,7 +121,6 @@ pub struct ApiDoc;
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 // Add time sql took
 pub async fn history(
-    DFSessionId(session_id): DFSessionId,
     Query(params): Query<GetHistoryItemsParams>,
     State(state): State<AppState>,
 ) -> HistoryResult<Json<HistoryResponse>> {

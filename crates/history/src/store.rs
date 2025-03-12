@@ -121,9 +121,9 @@ mod tests {
             let mut item =
                 HistoryItem::query_start(format!("select {i}").as_str(), None, Some(start_time));
             if i == 0 {
-                item.set_finished(1, Some(item.start_time))
+                item.query_finished(1, Some(item.start_time))
             } else {
-                item.set_finished_with_error("Test query pseudo error".to_string());
+                item.query_finished_with_error("Test query pseudo error".to_string());
             }
             created.push(item.clone());
             println!("added {:?}", item.key());

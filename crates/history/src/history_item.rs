@@ -57,7 +57,7 @@ impl HistoryItem {
         }
     }
 
-    pub fn set_finished(&mut self, result_count: i64, end_time: Option<DateTime<Utc>>) {
+    pub fn query_finished(&mut self, result_count: i64, end_time: Option<DateTime<Utc>>) {
         self.result_count = result_count;
         self.end_time = Utc::now();
         self.duration_ms = self
@@ -69,8 +69,8 @@ impl HistoryItem {
         }
     }
 
-    pub fn set_finished_with_error(&mut self, error: String) {
-        self.set_finished(0, None);
+    pub fn query_finished_with_error(&mut self, error: String) {
+        self.query_finished(0, None);
         self.status = QueryStatus::Error;
         self.error = Some(error);
     }
