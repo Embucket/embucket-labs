@@ -23,8 +23,8 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
-use history::store::QueryHistory;
 use http_body_util::BodyExt;
+use icebucket_history::store::QueryHistory;
 use icebucket_metastore::Metastore;
 use std::sync::Arc;
 use time::Duration;

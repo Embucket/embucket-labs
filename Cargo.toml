@@ -36,7 +36,7 @@ utoipa-swagger-ui = { version = "9.0.0", features = ["axum"] }
 lazy_static = { version = "1.5" }
 snafu = { version = "0.8.5", features = ["futures"] }
 tracing = { version = "0.1" }
-history = { path = "crates/history" }
+icebucket_history = { version = "0.1.0", path = "crates/history" }
 
 datafusion = { version = "45.0.0" }
 datafusion-common = { version = "45.0.0" }

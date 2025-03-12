@@ -18,8 +18,8 @@
 use std::sync::Arc;
 
 use config::IceBucketRuntimeConfig;
-use history::store::QueryHistoryStore;
 use http::{make_icebucket_app, run_icebucket_app};
+use icebucket_history::store::QueryHistoryStore;
 use icebucket_metastore::SlateDBMetastore;
 use icebucket_utils::Db;
 use object_store::{path::Path, ObjectStore};

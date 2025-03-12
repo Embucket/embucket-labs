@@ -21,7 +21,7 @@ use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
-use history::{store::QueryHistory, HistoryItem};
+use icebucket_history::{store::QueryHistory, HistoryItem};
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -94,7 +94,7 @@ impl ExecutionService {
                 .ok_or(ExecutionError::MissingDataFusionSession {
                     id: session_id.to_string(),
                 })?;
-        let mut history_item = HistoryItem::before_started(query, None, None);
+        let mut history_item = HistoryItem::query_start(query, None, None);
 
         let query_obj = user_session.query(query, query_context);
 
@@ -112,8 +112,7 @@ impl ExecutionService {
                 // TODO: add result records, perhaps using records_to_json_string
             }
             Err(err) => {
-                history_item.set_finished_with_error(err.to_string(), 0);
-                // TODO: http code
+                history_item.set_finished_with_error(err.to_string());
             }
         }
 

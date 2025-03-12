@@ -119,11 +119,11 @@ mod tests {
             let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
                 + Duration::milliseconds(i.into());
             let mut item =
-                HistoryItem::before_started(format!("select {i}").as_str(), None, Some(start_time));
+                HistoryItem::query_start(format!("select {i}").as_str(), None, Some(start_time));
             if i == 0 {
                 item.set_finished(1, Some(item.start_time))
             } else {
-                item.set_finished_with_error("Test query pseudo error".to_string(), 500);
+                item.set_finished_with_error("Test query pseudo error".to_string());
             }
             created.push(item.clone());
             println!("added {:?}", item.key());

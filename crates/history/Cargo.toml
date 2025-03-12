@@ -1,9 +1,9 @@
 [package]
-name = "history"
+name = "icebucket_history"
 version = "0.1.0"
 edition = "2021"
-license.workspace = true
-license-file.workspace = true
+license = { workspace = true }
+license-file = { workspace = true }
 
 [dependencies]
 icebucket_utils = { path = "../utils" }

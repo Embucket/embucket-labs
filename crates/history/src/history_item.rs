@@ -21,8 +21,14 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+pub enum QueryStatus {
+    Ok,
+    Error,
+}
+
 // HistoryItem struct is used for storing Query History result and also used in http response
-#[derive(Default, Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct HistoryItem {
     pub id: Uuid,
@@ -31,26 +37,22 @@ pub struct HistoryItem {
     pub end_time: DateTime<Utc>,
     pub duration_ms: i64,
     pub result_count: i64,
-    pub status_code: u16,
+    pub status: QueryStatus,
     pub error: Option<String>,
 }
 
 impl HistoryItem {
     #[must_use]
-    pub fn before_started(
-        query: &str,
-        id: Option<Uuid>,
-        start_time: Option<DateTime<Utc>>,
-    ) -> Self {
+    pub fn query_start(query: &str, id: Option<Uuid>, start_time: Option<DateTime<Utc>>) -> Self {
         let start_time = start_time.unwrap_or_else(Utc::now);
         Self {
             id: id.unwrap_or_else(Uuid::new_v4),
             query: String::from(query),
             start_time,
             end_time: start_time,
-            status_code: 200,
             duration_ms: 0,
             result_count: 0,
+            status: QueryStatus::Ok,
             error: None,
         }
     }
@@ -67,10 +69,10 @@ impl HistoryItem {
         }
     }
 
-    pub fn set_finished_with_error(&mut self, error: String, error_code: u16) {
+    pub fn set_finished_with_error(&mut self, error: String) {
         self.set_finished(0, None);
+        self.status = QueryStatus::Error;
         self.error = Some(error);
-        self.status_code = error_code;
     }
 }
 

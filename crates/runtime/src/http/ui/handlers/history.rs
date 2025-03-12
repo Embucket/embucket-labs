@@ -20,9 +20,8 @@ use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use axum::response::IntoResponse;
 use axum::{extract::Query, extract::State, Json};
-use history::store;
-use history::HistoryItem;
 use http::status::StatusCode;
+use icebucket_history::{store, HistoryItem};
 use icebucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Error, Formatter};
@@ -39,20 +38,13 @@ impl Display for HistoryHandlerError {
     }
 }
 
-impl HistoryHandlerError {
-    #[must_use]
-    pub const fn map_error_to_http_error(&self) -> StatusCode {
-        match self.0 {
+impl IntoResponse for HistoryHandlerError {
+    fn into_response(self) -> axum::response::Response {
+        let err_code = match self.0 {
             store::QueryHistoryError::QHistoryGet { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             // OK is a stub for us, as this store function has no handler
             store::QueryHistoryError::QHistoryAdd { .. } => StatusCode::OK,
-        }
-    }
-}
-
-impl IntoResponse for HistoryHandlerError {
-    fn into_response(self) -> axum::response::Response {
-        let err_code = http::StatusCode::INTERNAL_SERVER_ERROR;
+        };
         let er = ErrorResponse {
             message: self.0.to_string(),
             status_code: err_code.as_u16(),

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use history::store::QueryHistory;
+use icebucket_history::store::QueryHistory;
 use icebucket_metastore::metastore::Metastore;
 use std::collections::HashMap;
 use std::sync::Arc;
