@@ -101,9 +101,8 @@ pub async fn get_volume(
 ) -> MetastoreAPIResult<Json<RwObject<IceBucketVolume>>> {
     match state.metastore.get_volume(&volume_name).await {
         Ok(Some(volume)) => Ok(Json(volume)),
-        Ok(None) => Err(MetastoreError::ObjectNotFound {
-            type_name: "volume".to_string(),
-            name: volume_name.clone(),
+        Ok(None) => Err(MetastoreError::VolumeNotFound {
+            volume: volume_name.clone(),
         }
         .into()),
         Err(e) => Err(e.into()),
@@ -217,9 +216,8 @@ pub async fn get_database(
 ) -> MetastoreAPIResult<Json<RwObject<IceBucketDatabase>>> {
     match state.metastore.get_database(&database_name).await {
         Ok(Some(db)) => Ok(Json(db)),
-        Ok(None) => Err(MetastoreError::ObjectNotFound {
-            type_name: "database".to_string(),
-            name: database_name.clone(),
+        Ok(None) => Err(MetastoreError::DatabaseNotFound {
+            db: database_name.clone(),
         }
         .into()),
         Err(e) => Err(e.into()),
@@ -341,9 +339,9 @@ pub async fn get_schema(
     };
     match state.metastore.get_schema(&schema_ident).await {
         Ok(Some(schema)) => Ok(Json(schema)),
-        Ok(None) => Err(MetastoreError::ObjectNotFound {
-            type_name: "schema".to_string(),
-            name: schema_name.clone(),
+        Ok(None) => Err(MetastoreError::SchemaNotFound {
+            db: database_name.clone(),
+            schema: schema_name.clone(),
         }
         .into()),
         Err(e) => Err(e.into()),
@@ -456,9 +454,10 @@ pub async fn get_table(
     let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
     match state.metastore.get_table(&table_ident).await {
         Ok(Some(table)) => Ok(Json(table)),
-        Ok(None) => Err(MetastoreError::ObjectNotFound {
-            type_name: "table".to_string(),
-            name: table_name.clone(),
+        Ok(None) => Err(MetastoreError::TableNotFound {
+            db: database_name.clone(),
+            schema: schema_name.clone(),
+            table: table_name.clone(),
         }
         .into()),
         Err(e) => Err(e.into()),

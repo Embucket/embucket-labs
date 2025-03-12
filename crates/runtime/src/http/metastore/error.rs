@@ -30,6 +30,10 @@ impl IntoResponse for MetastoreAPIError {
         let code = match self.0 {
             MetastoreError::TableDataExists { .. }
             | MetastoreError::ObjectAlreadyExists { .. }
+            | MetastoreError::VolumeAlreadyExists { .. }
+            | MetastoreError::DatabaseAlreadyExists { .. }
+            | MetastoreError::SchemaAlreadyExists { .. }
+            | MetastoreError::TableAlreadyExists { .. }
             | MetastoreError::VolumeInUse { .. } => http::StatusCode::CONFLICT,
             MetastoreError::TableRequirementFailed { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
             MetastoreError::VolumeValidationFailed { .. }
@@ -38,14 +42,19 @@ impl IntoResponse for MetastoreAPIError {
             MetastoreError::CloudProviderNotImplemented { .. } => {
                 http::StatusCode::PRECONDITION_FAILED
             }
-            MetastoreError::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
+            MetastoreError::VolumeNotFound { .. }
+            | MetastoreError::DatabaseNotFound { .. }
+            | MetastoreError::SchemaNotFound { .. }
+            | MetastoreError::TableNotFound { .. }
+            | MetastoreError::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
             MetastoreError::ObjectStore { .. }
             | MetastoreError::CreateDirectory { .. }
             | MetastoreError::SlateDB { .. }
             | MetastoreError::UtilSlateDB { .. }
             | MetastoreError::Iceberg { .. }
             | MetastoreError::Serde { .. }
-            | MetastoreError::TableMetadataBuilder { .. } => {
+            | MetastoreError::TableMetadataBuilder { .. }
+            | MetastoreError::TableObjectStoreNotFound { .. } => {
                 http::StatusCode::INTERNAL_SERVER_ERROR
             }
         };

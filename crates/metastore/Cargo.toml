@@ -2,7 +2,6 @@
 name = "icebucket_metastore"
 version = "0.1.0"
 edition = "2021"
-license = { workspace = true }
 license-file = { workspace = true }
 
 [dependencies]
@@ -28,7 +27,7 @@ validator = { version = "0.20.0", features = ["derive"] }
 dashmap = "6.1.0"
 
 [dev-dependencies]
-insta = { version = "1.42.0", features = ["yaml", "filters"] }
+insta = { version = "1.42.0", features = ["yaml", "filters", "redactions"] }
 
 [lints]
 workspace = true

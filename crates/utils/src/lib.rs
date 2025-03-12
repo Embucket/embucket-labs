@@ -55,6 +55,9 @@ pub enum Error {
 
     #[snafu(display("Key Not found"))]
     KeyNotFound,
+
+    #[snafu(display("Scan Failed: {source}"))]
+    ScanFailed { source: SlateDBError },
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -142,54 +145,21 @@ impl Db {
     ///
     /// Returns a `DbError` if the underlying database operation fails.
     /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
-    pub async fn list_keys(&self, key: &str) -> Result<Vec<String>> {
-        let keys: Option<Vec<String>> = self.get(key).await?;
-        Ok(keys.unwrap_or_default())
-    }
-
-    /// Appends a value to a list stored in the database.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `DbError` if the database operations fail, or
-    /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
-    pub async fn list_append(&self, key: &str, value: String) -> Result<()> {
-        self.modify(key, |all_keys: &mut Vec<String>| {
-            if !all_keys.contains(&value) {
-                all_keys.push(value.clone());
-            }
-        })
-        .await
-    }
-
-    /// Removes a value from a list stored in the database.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `DbError` if the database operations fail, or
-    /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
-    pub async fn list_remove(&self, key: &str, value: &str) -> Result<()> {
-        self.modify(key, |all_keys: &mut Vec<String>| {
-            all_keys.retain(|key| *key != value);
-        })
-        .await
-    }
-
-    /// Modifies a value in the database using the provided closure.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `DbError` if the database operations fail, or
-    /// `SerializeError`/`DeserializeError` if the value cannot be serialized or deserialized.
-    pub async fn modify<T>(&self, key: &str, f: impl Fn(&mut T) + Send) -> Result<()>
-    where
-        T: serde::Serialize + DeserializeOwned + Default + Sync + Send,
-    {
-        let mut value: T = self.get(key).await?.unwrap_or_default();
-
-        f(&mut value);
-
-        self.put(key, &value).await
+    #[allow(clippy::unwrap_used)]
+    pub async fn list_objects<T: for<'de> serde::de::Deserialize<'de>>(
+        &self,
+        key: &str,
+    ) -> Result<Vec<T>> {
+        let start = format!("{key}/");
+        let end = format!("{key}/\x7F");
+        let range = Bytes::from(start)..Bytes::from(end);
+        let mut iter = self.0.scan(range).await.context(ScanFailedSnafu)?;
+        let mut objects: Vec<T> = vec![];
+        while let Ok(Some(value)) = iter.next().await {
+            let value = de::from_slice(&value.value).context(DeserializeValueSnafu)?;
+            objects.push(value);
+        }
+        Ok(objects)
     }
 
     /// Stores template object in the database.
@@ -266,34 +236,28 @@ pub trait Repository {
     fn db(&self) -> &Db;
 
     async fn _create(&self, entity: &Self::Entity) -> Result<()> {
-        let key = format!("{}.{}", Self::prefix(), entity.id());
+        let key = format!("{}/{}", Self::prefix(), entity.id());
         self.db().put(&key, &entity).await?;
-        self.db().list_append(Self::collection_key(), key).await?;
+        //self.db().list_append(Self::collection_key(), key).await?;
         Ok(())
     }
 
     async fn _get(&self, id: Uuid) -> Result<Self::Entity> {
-        let key = format!("{}.{}", Self::prefix(), id);
+        let key = format!("{}/{}", Self::prefix(), id);
         let entity = self.db().get(&key).await?;
         let entity = entity.ok_or(Error::KeyNotFound)?;
         Ok(entity)
     }
 
     async fn _delete(&self, id: Uuid) -> Result<()> {
-        let key = format!("{}.{}", Self::prefix(), id);
+        let key = format!("{}/{}", Self::prefix(), id);
         self.db().delete(&key).await?;
-        self.db().list_remove(Self::collection_key(), &key).await?;
+        //self.db().list_remove(Self::collection_key(), &key).await?;
         Ok(())
     }
 
     async fn _list(&self) -> Result<Vec<Self::Entity>> {
-        let keys = self.db().list_keys(Self::collection_key()).await?;
-        let futures = keys
-            .iter()
-            .map(|key| self.db().get(key))
-            .collect::<Vec<_>>();
-        let results = futures::future::try_join_all(futures).await?;
-        let entities = results.into_iter().flatten().collect::<Vec<Self::Entity>>();
+        let entities = self.db().list_objects(Self::collection_key()).await?;
         Ok(entities)
     }
 
@@ -327,20 +291,17 @@ mod test {
             id: 1,
             name: "test".to_string(),
         };
-        let get_empty = db.get::<TestEntity>("test").await;
-        db.put("test", &entity).await.expect("Failed to put entity");
-        let get_after_put = db.get::<TestEntity>("test").await;
-        db.delete("test").await.expect("Failed to delete entity");
-        let get_after_delete = db.get::<TestEntity>("test").await;
-
-        db.list_append("test_list", "test".to_string())
+        let get_empty = db.get::<TestEntity>("test/abc").await;
+        db.put("test/abc", &entity)
             .await
-            .expect("Failed to append to list");
-        let list_after_append = db.list_keys("test_list").await;
-        db.list_remove("test_list", "test")
+            .expect("Failed to put entity");
+        let get_after_put = db.get::<TestEntity>("test/abc").await;
+        let list_after_append = db.list_objects::<TestEntity>("test").await;
+        db.delete("test/abc")
             .await
-            .expect("Failed to remove from list");
-        let list_after_remove = db.list_keys("test_list").await;
+            .expect("Failed to delete entity");
+        let get_after_delete = db.get::<TestEntity>("test/abc").await;
+        let list_after_remove = db.list_objects::<TestEntity>("test").await;
 
         insta::assert_debug_snapshot!((
             get_empty,

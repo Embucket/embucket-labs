@@ -38,7 +38,7 @@ pub struct IceBucketDatabase {
 impl IceBucketDatabase {
     #[must_use]
     pub fn prefix(&self, parent: &str) -> String {
-        format!("{}{}", parent, self.ident)
+        format!("{}/{}", parent, self.ident)
     }
 }
 
