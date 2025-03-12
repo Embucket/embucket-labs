@@ -126,7 +126,7 @@ pub async fn history(
 ) -> HistoryResult<Json<HistoryResponse>> {
     let start = Instant::now();
     let items = state
-        .qhistory
+        .history
         .query_history(params.cursor.clone(), params.limit)
         .await
         .map_err(HistoryHandlerError)?;

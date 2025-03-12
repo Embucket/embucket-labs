@@ -39,7 +39,7 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 pub struct ExecutionService {
     metastore: Arc<dyn Metastore>,
-    qhistory: Arc<dyn QueryHistory>,
+    history: Arc<dyn QueryHistory>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<IceBucketUserSession>>>>,
     config: Config,
 }
@@ -47,12 +47,12 @@ pub struct ExecutionService {
 impl ExecutionService {
     pub fn new(
         metastore: Arc<dyn Metastore>,
-        qhistory: Arc<dyn QueryHistory>,
+        history: Arc<dyn QueryHistory>,
         config: Config,
     ) -> Self {
         Self {
             metastore,
-            qhistory,
+            history,
             df_sessions: Arc::new(RwLock::new(HashMap::new())),
             config,
         }
@@ -116,7 +116,7 @@ impl ExecutionService {
             }
         }
 
-        if let Err(err) = self.qhistory.add_history_item(history_item).await {
+        if let Err(err) = self.history.add_history_item(history_item).await {
             // do not raise error, just log ?
             tracing::error!("{err}");
         }

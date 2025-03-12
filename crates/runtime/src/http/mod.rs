@@ -57,13 +57,13 @@ use super::http::config::IceBucketWebConfig;
 
 pub fn make_icebucket_app(
     metastore: Arc<dyn Metastore>,
-    qhistory: Arc<dyn QueryHistory>,
+    history: Arc<dyn QueryHistory>,
     config: &IceBucketWebConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format)?;
     let execution_svc = Arc::new(ExecutionService::new(
         metastore.clone(),
-        qhistory.clone(),
+        history.clone(),
         execution_cfg,
     ));
 
@@ -81,7 +81,7 @@ pub fn make_icebucket_app(
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
     // Create the application state
-    let app_state = state::AppState::new(metastore.clone(), qhistory.clone(), execution_svc);
+    let app_state = state::AppState::new(metastore.clone(), history.clone(), execution_svc);
 
     let mut app = router::create_app(app_state)
         .layer(session_layer)

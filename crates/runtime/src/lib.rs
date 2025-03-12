@@ -51,7 +51,7 @@ pub async fn run_icebucket(
     };
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let qhistory = Arc::new(QueryHistoryStore::new(db));
-    let app = make_icebucket_app(metastore, qhistory, &config.web)?;
+    let history = Arc::new(QueryHistoryStore::new(db));
+    let app = make_icebucket_app(metastore, history, &config.web)?;
     run_icebucket_app(app, &config.web).await
 }
