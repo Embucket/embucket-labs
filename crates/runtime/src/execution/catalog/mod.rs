@@ -15,9 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use std::{any::Any, collections::HashMap, sync::Arc};
+use std::{
+    any::Any,
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use async_trait::async_trait;
+use dashmap::{DashMap, DashSet};
 use datafusion::catalog::{CatalogProvider, CatalogProviderList, SchemaProvider, TableProvider};
 use datafusion_common::{exec_err, DataFusionError, Result as DFResult};
 use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
@@ -41,23 +46,82 @@ use iceberg_rust::{
 use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
-use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent, Metastore};
+use icebucket_metastore::{
+    error::MetastoreResult, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent, Metastore,
+};
 use object_store::ObjectStore;
 
 #[derive(Clone)]
 pub struct IceBucketDFMetastore {
     pub metastore: Arc<dyn Metastore>,
+    pub mirror: Arc<DashMap<String, DashMap<String, DashSet<String>>>>,
 }
 
 impl IceBucketDFMetastore {
     pub fn new(metastore: Arc<dyn Metastore>) -> Self {
-        Self { metastore }
+        Self {
+            metastore,
+            mirror: Arc::new(DashMap::new()),
+        }
+    }
+
+    #[tracing::instrument(level = "debug", skip(self))]
+    pub async fn refresh(&self) -> MetastoreResult<()> {
+        let mut seen: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::default();
+
+        let databases = self.metastore.list_databases().await?;
+        for database in databases {
+            let schemas = self.metastore.list_schemas(&database.ident).await?;
+            for schema in schemas {
+                let tables = self.metastore.list_tables(&schema.ident).await?;
+                for table in tables {
+                    let db_entry = self
+                        .mirror
+                        .entry(database.ident.clone())
+                        .or_insert(DashMap::new());
+                    let mirror_entry = db_entry
+                        .entry(schema.ident.schema.clone())
+                        .insert(DashSet::default());
+                    mirror_entry.insert(table.ident.table.clone());
+                    let seen_entry = seen
+                        .entry(database.ident.clone())
+                        .or_default()
+                        .entry(schema.ident.schema.clone())
+                        .or_default();
+                    seen_entry.insert(table.ident.table.clone());
+                }
+            }
+        }
+
+        for db in self.mirror.iter_mut() {
+            if seen.contains_key(db.key()) {
+                for schema in db.iter_mut() {
+                    if seen[db.key()].contains_key(schema.key()) {
+                        let mut tables_to_remove = vec![];
+                        for table in schema.iter() {
+                            if !seen[db.key()][schema.key()].contains(table.key()) {
+                                tables_to_remove.push(table.clone());
+                            }
+                        }
+
+                        for table in tables_to_remove {
+                            schema.remove(&table);
+                        }
+                        if schema.value().is_empty() {
+                            db.remove(schema.key());
+                        }
+                    } else {
+                        db.remove(schema.key());
+                    }
+                }
+            } else {
+                self.mirror.remove(db.key());
+            }
+        }
+
+        Ok(())
     }
 }
-
-// TODO: Fix iceberg_rust so that the Table struct is a trait
-// because the Iceberg Catalog .object_store method expects
-// a 'Bucket' type which is very limiting
 
 impl std::fmt::Debug for IceBucketDFMetastore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -81,38 +145,26 @@ impl CatalogProviderList for IceBucketDFMetastore {
     }
 
     fn catalog_names(&self) -> Vec<String> {
-        // TODO: Cache the catalog names in the metastore to avoid async calls
-        tokio::runtime::Handle::current().block_on(async {
-            self.metastore
-                .list_databases()
-                .await
-                .unwrap_or_default()
-                .iter()
-                .map(|catalog| catalog.ident.clone())
-                .collect()
-        })
+        self.mirror.iter().map(|e| e.key().clone()).collect()
     }
 
     fn catalog(&self, name: &str) -> Option<Arc<dyn CatalogProvider>> {
-        let database = tokio::runtime::Handle::current().block_on(async {
-            self.metastore
-                .get_database(&name.to_string())
-                .await
-                .unwrap_or_default()
+        if !self.mirror.contains_key(name) {
+            return None;
+        }
+        let catalog: Arc<dyn CatalogProvider> = Arc::new(IceBucketDFCatalog {
+            ident: name.to_string(),
+            metastore: self.metastore.clone(),
+            mirror: self.mirror.clone(),
         });
-        database.map(|database| {
-            let catalog: Arc<dyn CatalogProvider> = Arc::new(IceBucketDFCatalog {
-                ident: database.ident.clone(),
-                metastore: self.metastore.clone(),
-            });
-            catalog
-        })
+        Some(catalog)
     }
 }
 
 pub struct IceBucketDFCatalog {
     pub ident: String,
     pub metastore: Arc<dyn Metastore>,
+    pub mirror: Arc<DashMap<String, DashMap<String, DashSet<String>>>>,
 }
 
 #[allow(clippy::missing_fields_in_debug)]
@@ -130,35 +182,25 @@ impl CatalogProvider for IceBucketDFCatalog {
     }
 
     fn schema_names(&self) -> Vec<String> {
-        tokio::runtime::Handle::current().block_on(async {
-            self.metastore
-                .list_schemas(&self.ident)
-                .await
-                .unwrap_or_default()
-                .iter()
-                .map(|schema| schema.ident.schema.clone())
-                .collect()
-        })
+        self.mirror
+            .get(&self.ident)
+            .map(|db| db.iter().map(|schema| schema.key().clone()).collect())
+            .unwrap_or_default()
     }
 
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
-        let schema = tokio::runtime::Handle::current().block_on(async {
-            self.metastore
-                .get_schema(&IceBucketSchemaIdent {
+        if let Some(db) = self.mirror.get(&self.ident) {
+            if db.contains_key(name) {
+                let schema: Arc<dyn SchemaProvider> = Arc::new(IceBucketDFSchema {
                     database: self.ident.clone(),
                     schema: name.to_string(),
-                })
-                .await
-                .unwrap_or_default()
-        });
-        schema.map(|schema| {
-            let schema_provider: Arc<dyn SchemaProvider> = Arc::new(IceBucketDFSchema {
-                database: schema.ident.database.clone(),
-                schema: schema.ident.schema.clone(),
-                metastore: self.metastore.clone(),
-            });
-            schema_provider
-        })
+                    metastore: self.metastore.clone(),
+                    mirror: self.mirror.clone(),
+                });
+                return Some(schema);
+            }
+        }
+        None
     }
 }
 
@@ -166,8 +208,10 @@ pub struct IceBucketDFSchema {
     pub database: String,
     pub schema: String,
     pub metastore: Arc<dyn Metastore>,
+    pub mirror: Arc<DashMap<String, DashMap<String, DashSet<String>>>>,
 }
 
+#[allow(clippy::missing_fields_in_debug)]
 impl std::fmt::Debug for IceBucketDFSchema {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IceBucketDFSchema")
@@ -194,18 +238,13 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
 
     /// Retrieves the list of available table names in this schema.
     fn table_names(&self) -> Vec<String> {
-        tokio::runtime::Handle::current().block_on(async {
-            self.metastore
-                .list_tables(&IceBucketSchemaIdent {
-                    schema: self.schema.clone(),
-                    database: self.database.clone(),
-                })
-                .await
-                .unwrap_or_default()
-                .iter()
-                .map(|table| table.ident.table.clone())
-                .collect()
-        })
+        self.mirror
+            .get(&self.database)
+            .and_then(|db| {
+                db.get(&self.schema)
+                    .map(|schema| schema.iter().map(|table| table.key().clone()).collect())
+            })
+            .unwrap_or_default()
     }
 
     /// Retrieves a specific table from the schema by name, if it exists,
@@ -217,8 +256,10 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
             table: name.to_string(),
         };
         let ident_clone = table_ident.clone();
-        let table_object_store = tokio::runtime::Handle::current()
-            .block_on(async move { self.metastore.table_object_store(&table_ident).await })
+        let table_object_store = self
+            .metastore
+            .table_object_store(&table_ident)
+            .await
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
         if let Some(object_store) = table_object_store {

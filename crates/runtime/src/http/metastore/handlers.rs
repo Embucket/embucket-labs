@@ -20,28 +20,38 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use http::StatusCode;
 use snafu::ResultExt;
-//use utoipa::OpenApi;
+use utoipa::OpenApi;
+
 #[allow(clippy::wildcard_imports)]
 use icebucket_metastore::{
     error::{self as metastore_error, MetastoreError},
     *,
 };
+//use super::models::*;
+
 use validator::Validate;
+
+use crate::http::error::ErrorResponse;
 
 use crate::http::state::AppState;
 
-/*#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct IceBucketVolumeSchema(IceBucketVolume);
-
-#[derive(OpenApi)]
+/*#[derive(OpenApi)]
 #[openapi(
-    paths(list_volumes, get_volume),
-    components(schemas(IceBucketVolume,),)
+    paths(
+        list_volumes,
+        get_volume
+    ),
+    components(
+        schemas(
+            HTTPIceBucketVolume,
+        ),
+    )
 )]
 pub struct MetastoreApi;*/
 
-//type RwObjectVec<T> = Vec<RwObject<T>>;
+pub type RwObjectVec<T> = Vec<RwObject<T>>;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QueryParameters {
@@ -53,12 +63,15 @@ pub struct QueryParameters {
     get,
     operation_id = "listVolumes",
     path="/volumes",
-    responses((status = 200, body = RwObjectVec<IceBucketVolume>))
+    responses(
+        (status = StatusCode::OK, body = RwObjectVec<IceBucketVolume>),
+        (status = "5XX", description = "server error"),
+    )
 )]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_volumes(
     State(state): State<AppState>,
-) -> MetastoreAPIResult<Json<Vec<RwObject<IceBucketVolume>>>> {
+) -> MetastoreAPIResult<Json<RwObjectVec<IceBucketVolume>>> {
     let res = state
         .metastore
         .list_volumes()
@@ -72,9 +85,13 @@ pub async fn list_volumes(
     get,
     operation_id = "getVolume",
     path="/volumes/{volumeName}",
-    params(("volumeName" = String, description = "Volume Name")),
-    responses((status = 200, body = RwObject<IceBucketVolume>),
-              (status = 404, description = "Volume not found")
+    params(
+        ("volumeName" = String, description = "Volume Name")
+    ),
+    responses(
+        (status = StatusCode::OK, body = RwObject<IceBucketVolume>),
+        (status = StatusCode::NOT_FOUND, description = "Volume not found", body = ErrorResponse),
+        (status = "5XX", description = "server error", body = ErrorResponse),
     )
 )]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
@@ -98,7 +115,10 @@ pub async fn get_volume(
     operation_id = "createVolume",
     path="/volumes",
     request_body = IceBucketVolume,
-    responses((status = 200, body = IceBucketVolume))
+    responses(
+        (status = 200, body = RwObject<IceBucketVolume>),
+        (status = "5XX", description = "server error", body = ErrorResponse),
+    )
 )]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_volume(
@@ -315,7 +335,10 @@ pub async fn get_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> MetastoreAPIResult<Json<RwObject<IceBucketSchema>>> {
-    let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name.clone());
+    let schema_ident = IceBucketSchemaIdent {
+        database: database_name.clone(),
+        schema: schema_name.clone(),
+    };
     match state.metastore.get_schema(&schema_ident).await {
         Ok(Some(schema)) => Ok(Json(schema)),
         Ok(None) => Err(MetastoreError::ObjectNotFound {

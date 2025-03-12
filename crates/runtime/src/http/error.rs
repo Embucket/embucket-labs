@@ -46,6 +46,9 @@ impl IntoResponse for RuntimeHttpError {
     }
 }
 
+//pub struct RuntimeHttpResult<T>(pub T);
+pub type RuntimeHttpResult<T> = Result<T, RuntimeHttpError>;
+
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ErrorResponse {
     pub message: String,

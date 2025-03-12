@@ -51,6 +51,7 @@ use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
 
+use super::catalog::IceBucketDFMetastore;
 use super::datafusion::functions::visit_functions_expressions;
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
@@ -121,6 +122,26 @@ impl IceBucketQuery {
             .clone()
             .or_else(|| self.session.get_session_variable("schema"))
             .or_else(|| Some("public".to_string()))
+    }
+
+    async fn refresh_catalog(&self) -> ExecutionResult<()> {
+        if let Some(catalog_list_impl) = self
+            .session
+            .ctx
+            .state()
+            .catalog_list()
+            .as_any()
+            .downcast_ref::<IceBucketDFMetastore>()
+        {
+            catalog_list_impl
+                .refresh()
+                .await
+                .context(ex_error::MetastoreSnafu)
+        } else {
+            Err(ExecutionError::RefreshCatalogList {
+                message: "Catalog list implementation is not castable".to_string(),
+            })
+        }
     }
 
     #[allow(clippy::unwrap_used)]
@@ -207,7 +228,9 @@ impl IceBucketQuery {
                     return Ok(vec![]);
                 }
                 Statement::CreateTable { .. } => {
-                    return Box::pin(self.create_table_query(*s)).await;
+                    let result = Box::pin(self.create_table_query(*s)).await;
+                    self.refresh_catalog().await?;
+                    return result;
                 }
                 Statement::CreateDatabase { .. } => {
                     // TODO: Databases are only able to be created through the
@@ -225,11 +248,15 @@ impl IceBucketQuery {
                     schema_name,
                     if_not_exists,
                 } => {
-                    return self.create_schema(schema_name, if_not_exists).await;
+                    let result = self.create_schema(schema_name, if_not_exists).await;
+                    self.refresh_catalog().await?;
+                    return result;
                 }
                 Statement::CreateStage { .. } => {
                     // We support only CSV uploads for now
-                    return Box::pin(self.create_stage_query(*s)).await;
+                    let result = Box::pin(self.create_stage_query(*s)).await;
+                    self.refresh_catalog().await?;
+                    return result;
                 }
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s)).await;
@@ -250,7 +277,9 @@ impl IceBucketQuery {
                     return Box::pin(self.execute_with_custom_plan(&subquery.to_string())).await;
                 }
                 Statement::Drop { .. } => {
-                    return Box::pin(self.drop_query(&self.query)).await;
+                    let result = Box::pin(self.drop_query(&self.query)).await;
+                    self.refresh_catalog().await?;
+                    return result;
                 }
                 Statement::Merge { .. } => {
                     return Box::pin(self.merge_query(*s)).await;

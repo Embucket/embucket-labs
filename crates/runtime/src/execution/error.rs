@@ -81,6 +81,9 @@ pub enum ExecutionError {
 
     #[snafu(display("Object of type {type_name} with name {name} already exists"))]
     ObjectAlreadyExists { type_name: String, name: String },
+
+    #[snafu(display("Cannot refresh catalog list"))]
+    RefreshCatalogList { message: String },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
