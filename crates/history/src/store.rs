@@ -118,8 +118,11 @@ mod tests {
         for i in 0..n {
             let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
                 + Duration::milliseconds(i.into());
-            let mut item =
-                QueryHistoryItem::query_start(format!("select {i}").as_str(), None, Some(start_time));
+            let mut item = QueryHistoryItem::query_start(
+                format!("select {i}").as_str(),
+                None,
+                Some(start_time),
+            );
             if i == 0 {
                 item.query_finished(1, Some(item.start_time))
             } else {
