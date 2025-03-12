@@ -27,10 +27,10 @@ pub enum QueryStatus {
     Error,
 }
 
-// HistoryItem struct is used for storing Query History result and also used in http response
+// QueryHistoryItem struct is used for storing Query History result and also used in http response
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct HistoryItem {
+pub struct QueryHistoryItem {
     pub id: Uuid,
     pub query: String,
     pub start_time: DateTime<Utc>,
@@ -41,7 +41,7 @@ pub struct HistoryItem {
     pub error: Option<String>,
 }
 
-impl HistoryItem {
+impl QueryHistoryItem {
     #[must_use]
     pub fn query_start(query: &str, id: Option<Uuid>, start_time: Option<DateTime<Utc>>) -> Self {
         let start_time = start_time.unwrap_or_else(Utc::now);
@@ -76,7 +76,7 @@ impl HistoryItem {
     }
 }
 
-impl IterableEntity for HistoryItem {
+impl IterableEntity for QueryHistoryItem {
     type Cursor = i64;
     const PREFIX: &[u8] = b"hi.";
 

@@ -21,7 +21,7 @@ use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
-use icebucket_history::{store::QueryHistory, HistoryItem};
+use icebucket_history::{store::HistoryStore, QueryHistoryItem};
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -39,7 +39,7 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 pub struct ExecutionService {
     metastore: Arc<dyn Metastore>,
-    history: Arc<dyn QueryHistory>,
+    history: Arc<dyn HistoryStore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<IceBucketUserSession>>>>,
     config: Config,
 }
@@ -47,7 +47,7 @@ pub struct ExecutionService {
 impl ExecutionService {
     pub fn new(
         metastore: Arc<dyn Metastore>,
-        history: Arc<dyn QueryHistory>,
+        history: Arc<dyn HistoryStore>,
         config: Config,
     ) -> Self {
         Self {
@@ -94,7 +94,7 @@ impl ExecutionService {
                 .ok_or(ExecutionError::MissingDataFusionSession {
                     id: session_id.to_string(),
                 })?;
-        let mut history_item = HistoryItem::query_start(query, None, None);
+        let mut history_item = QueryHistoryItem::query_start(query, None, None);
 
         let query_obj = user_session.query(query, query_context);
 

@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use config::IceBucketRuntimeConfig;
 use http::{make_icebucket_app, run_icebucket_app};
-use icebucket_history::store::QueryHistoryStore;
+use icebucket_history::store::SlateDBHistoryStore;
 use icebucket_metastore::SlateDBMetastore;
 use icebucket_utils::Db;
 use object_store::{path::Path, ObjectStore};
@@ -51,7 +51,7 @@ pub async fn run_icebucket(
     };
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history = Arc::new(QueryHistoryStore::new(db));
+    let history = Arc::new(SlateDBHistoryStore::new(db));
     let app = make_icebucket_app(metastore, history, &config.web)?;
     run_icebucket_app(app, &config.web).await
 }

@@ -24,7 +24,7 @@ use axum::{
     Router,
 };
 use http_body_util::BodyExt;
-use icebucket_history::store::QueryHistory;
+use icebucket_history::store::HistoryStore;
 use icebucket_metastore::Metastore;
 use std::sync::Arc;
 use time::Duration;
@@ -57,7 +57,7 @@ use super::http::config::IceBucketWebConfig;
 
 pub fn make_icebucket_app(
     metastore: Arc<dyn Metastore>,
-    history: Arc<dyn QueryHistory>,
+    history: Arc<dyn HistoryStore>,
     config: &IceBucketWebConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format)?;

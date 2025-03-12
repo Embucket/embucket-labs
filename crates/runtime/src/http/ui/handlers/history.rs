@@ -20,7 +20,7 @@ use crate::http::state::AppState;
 use axum::response::IntoResponse;
 use axum::{extract::Query, extract::State, Json};
 use http::status::StatusCode;
-use icebucket_history::{store, HistoryItem};
+use icebucket_history::{store, QueryHistoryItem};
 use icebucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Error, Formatter};
@@ -28,7 +28,7 @@ use std::time::Instant;
 use tracing;
 use utoipa::{OpenApi, ToSchema};
 
-pub struct HistoryHandlerError(store::QueryHistoryError);
+pub struct HistoryHandlerError(store::HistoryStoreError);
 
 // for tracing logs
 impl Display for HistoryHandlerError {
@@ -40,9 +40,9 @@ impl Display for HistoryHandlerError {
 impl IntoResponse for HistoryHandlerError {
     fn into_response(self) -> axum::response::Response {
         let err_code = match self.0 {
-            store::QueryHistoryError::QHistoryGet { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            store::HistoryStoreError::QHistoryGet { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             // OK is a stub for us, as this store function has no handler
-            store::QueryHistoryError::QHistoryAdd { .. } => StatusCode::OK,
+            store::HistoryStoreError::QHistoryAdd { .. } => StatusCode::OK,
         };
         let er = ErrorResponse {
             message: self.0.to_string(),
@@ -63,7 +63,7 @@ pub struct GetHistoryItemsParams {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
 #[serde(rename_all = "camelCase")]
 pub struct HistoryResponse {
-    pub items: Vec<HistoryItem>,
+    pub items: Vec<QueryHistoryItem>,
     pub result: String,
     pub duration_seconds: f32,
     pub current_cursor: Option<String>,
@@ -74,7 +74,7 @@ impl HistoryResponse {
     #[allow(clippy::new_without_default)]
     #[must_use]
     pub const fn new(
-        items: Vec<HistoryItem>,
+        items: Vec<QueryHistoryItem>,
         result: String,
         duration_seconds: f32,
         current_cursor: Option<String>,
