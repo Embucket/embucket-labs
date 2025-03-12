@@ -57,36 +57,6 @@ pub enum Error {
     KeyNotFound,
 }
 
-// Kind of cast for range, for cases when for range
-// trait `RangeBounds<bytes::Bytes>` is not implemented.
-macro_rules! RangeAsRef {
-    { $range: ident } => {
-        (
-            $range
-            .start_bound()
-            .map(|b| Bytes::copy_from_slice(b.as_ref())),
-            $range
-            .end_bound()
-            .map(|b| Bytes::copy_from_slice(b.as_ref()))
-        )
-    }
-}
-
-// To be used with the RangeFull
-#[allow(unused_macros)]
-macro_rules! RangeFull {
-    { $range: ident } => {
-        (
-            $range
-            .start_bound()
-            .map(|b| Bytes::copy_from_slice(b)),
-            $range
-            .end_bound()
-            .map(|b| Bytes::copy_from_slice(b))
-        )
-    }
-}
-
 type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone)]
@@ -244,12 +214,11 @@ impl Db {
     /// # Errors
     ///
     /// Returns a `DbError` if the underlying database operation fails.
-    pub async fn range_iterator<K, T>(&self, range: T) -> Result<DbIterator<'_>>
-    where
-        K: AsRef<[u8]>,
-        T: RangeBounds<K>,
-    {
-        self.0.scan(RangeAsRef!(range)).await.context(DatabaseSnafu)
+    pub async fn range_iterator<R: RangeBounds<Bytes> + Send>(
+        &self,
+        range: R,
+    ) -> Result<DbIterator<'_>> {
+        self.0.scan(range).await.context(DatabaseSnafu)
     }
 
     /// Fetch iterable items from database
@@ -259,18 +228,13 @@ impl Db {
     /// Returns a `DeserializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.    
     pub async fn items_from_range<
-        K,
-        R,
+        R: RangeBounds<Bytes> + Send,
         T: for<'de> serde::de::Deserialize<'de> + IterableEntity + Sync + Send,
     >(
         &self,
         range: R,
         limit: Option<u16>,
-    ) -> Result<Vec<T>>
-    where
-        K: AsRef<[u8]>,
-        R: RangeBounds<K>,
-    {
+    ) -> Result<Vec<T>> {
         let mut iter = self.range_iterator(range).await?;
         let mut items: Vec<T> = vec![];
         while let Ok(Some(item)) = iter.next().await {
@@ -607,8 +571,7 @@ mod test {
         let created_more_items = populate_with_more_items(&db).await;
 
         let range = ..;
-        let retrieved: Vec<PseudoItem> =
-            db.items_from_range(RangeFull!(range), None).await.unwrap();
+        let retrieved: Vec<PseudoItem> = db.items_from_range(range, None).await.unwrap();
         assert_eq!(
             created_items.len() + created_more_items.len(),
             retrieved.len()
