@@ -104,7 +104,9 @@ impl IceBucketDFMetastore {
                 let schema_entry = db_entry
                     .entry(schema.ident.schema.clone())
                     .insert(TableProviderCache::default());
-                let schema_seen_entry = db_seen_entry.entry(schema.ident.schema.clone()).or_default();
+                let schema_seen_entry = db_seen_entry
+                    .entry(schema.ident.schema.clone())
+                    .or_default();
                 let tables = self
                     .metastore
                     .list_tables(&schema.ident)
@@ -230,9 +232,9 @@ impl ObjectStoreRegistry for IceBucketDFMetastore {
         if let Some(object_store) = self.table_object_store.get(url) {
             Ok(object_store.clone())
         } else {
-            Err(DataFusionError::Execution(
-                format!("Object store not found for url {url}"),
-            ))
+            Err(DataFusionError::Execution(format!(
+                "Object store not found for url {url}"
+            )))
         }
     }
 }

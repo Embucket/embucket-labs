@@ -87,7 +87,7 @@ pub enum ExecutionError {
 
     #[snafu(display("URL Parsing error: {source}"))]
     UrlParse { source: url::ParseError },
-    
+
     #[snafu(display("Threaded Job error: {source}"))]
     JobError {
         source: crate::execution::dedicated_executor::JobError,
