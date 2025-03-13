@@ -49,8 +49,8 @@ pub mod session;
 pub mod state;
 pub mod utils;
 
-//#[cfg(test)]
-//mod tests;
+#[cfg(test)]
+mod tests;
 
 use super::http::config::IceBucketWebConfig;
 

@@ -52,8 +52,8 @@ use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
 use icebucket_metastore::{
-    error::MetastoreError,
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent, Metastore,
+    error::MetastoreError, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent,
+    IceBucketTableUpdate, Metastore,
 };
 use object_store::ObjectStore;
 use snafu::ResultExt;
@@ -79,6 +79,7 @@ impl IceBucketDFMetastore {
         }
     }
 
+    #[allow(clippy::as_conversions)]
     #[tracing::instrument(level = "debug", skip(self, ctx))]
     pub async fn refresh(&self, ctx: &SessionContext) -> ExecutionResult<()> {
         let mut seen: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::default();
@@ -89,12 +90,21 @@ impl IceBucketDFMetastore {
             .await
             .context(ex_error::MetastoreSnafu)?;
         for database in databases {
+            let db_entry = self
+                .mirror
+                .entry(database.ident.clone())
+                .or_insert(SchemaProviderCache::default());
+            let db_seen_entry = seen.entry(database.ident.clone()).or_default();
             let schemas = self
                 .metastore
                 .list_schemas(&database.ident)
                 .await
                 .context(ex_error::MetastoreSnafu)?;
             for schema in schemas {
+                let schema_entry = db_entry
+                    .entry(schema.ident.schema.clone())
+                    .insert(TableProviderCache::default());
+                let schema_seen_entry = db_seen_entry.entry(schema.ident.schema.clone()).or_default();
                 let tables = self
                     .metastore
                     .list_tables(&schema.ident)
@@ -164,21 +174,9 @@ impl IceBucketDFMetastore {
                                 as Arc<dyn TableProvider>
                         }
                     };
-                    let db_entry = self
-                        .mirror
-                        .entry(database.ident.clone())
-                        .or_insert(SchemaProviderCache::default());
-                    let schema_entry = db_entry
-                        .entry(schema.ident.schema.clone())
-                        .insert(TableProviderCache::default());
                     //mirror_entry.insert(table.ident.table.clone());
                     schema_entry.insert(table.ident.table.clone(), table_provider.clone());
-                    let seen_entry = seen
-                        .entry(database.ident.clone())
-                        .or_default()
-                        .entry(schema.ident.schema.clone())
-                        .or_default();
-                    seen_entry.insert(table.ident.table.clone());
+                    schema_seen_entry.insert(table.ident.table.clone());
                 }
             }
         }
@@ -196,9 +194,6 @@ impl IceBucketDFMetastore {
 
                         for table in tables_to_remove {
                             schema.remove(&table);
-                        }
-                        if schema.value().is_empty() {
-                            db.remove(schema.key());
                         }
                     } else {
                         db.remove(schema.key());
@@ -236,7 +231,7 @@ impl ObjectStoreRegistry for IceBucketDFMetastore {
             Ok(object_store.clone())
         } else {
             Err(DataFusionError::Execution(
-                format!("Object store not found for url {url}").to_string(),
+                format!("Object store not found for url {url}"),
             ))
         }
     }
@@ -295,10 +290,12 @@ impl CatalogProvider for IceBucketDFCatalog {
     }
 
     fn schema_names(&self) -> Vec<String> {
-        self.mirror
+        let schemas = self
+            .mirror
             .get(&self.ident)
             .map(|db| db.iter().map(|schema| schema.key().clone()).collect())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        schemas
     }
 
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
@@ -732,9 +729,31 @@ impl IcebergCatalog for IceBucketIcebergBridge {
     /// perform commit table operation
     async fn update_table(
         self: Arc<Self>,
-        _commit: IcebergCommitTable,
+        commit: IcebergCommitTable,
     ) -> Result<IcebergTable, IcebergError> {
-        todo!()
+        let table_ident = IceBucketTableIdent {
+            database: commit.identifier.namespace()[0].clone(),
+            schema: commit.identifier.namespace()[1].clone(),
+            table: commit.identifier.name().to_string(),
+        };
+        let table_update = IceBucketTableUpdate {
+            requirements: commit.requirements,
+            updates: commit.updates,
+        };
+
+        let rwobject = self
+            .metastore
+            .update_table(&table_ident, table_update)
+            .await
+            .map_err(|e| IcebergError::External(Box::new(e)))?;
+
+        let iceberg_table = IcebergTable::new(
+            commit.identifier.clone(),
+            self.clone(),
+            rwobject.metadata.clone(),
+        )
+        .await?;
+        Ok(iceberg_table)
     }
 
     /// perform commit view operation

@@ -24,8 +24,8 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::dbt::router::create_router as create_dbt_router;
-// use crate::http::ui::handlers::databases::ApiDoc as DatabaseApiDoc;
 use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
+use crate::http::ui::handlers::schemas::ApiDoc as SchemasApiDoc;
 use crate::http::ui::handlers::volumes::ApiDoc as VolumesApiDoc;
 // use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
 // use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
@@ -60,7 +60,7 @@ pub fn create_app(state: AppState) -> Router {
         .merge_from(VolumesApiDoc::openapi())
         // .merge_from(WarehouseApiDoc::openapi())
         // .merge_from(TableApiDoc::openapi())
-        // .merge_from(DatabaseApiDoc::openapi())
+        .merge_from(SchemasApiDoc::openapi())
         .merge_from(QueryApiDoc::openapi());
     if let Some(extra_spec) = load_openapi_spec() {
         ui_spec = ui_spec.merge_from(extra_spec);
