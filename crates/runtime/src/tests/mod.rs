@@ -16,4 +16,5 @@
 // under the License.
 
 mod queries;
+mod session;
 pub mod utils;

@@ -325,33 +325,32 @@ impl IceBucketQuery {
         &self,
         statement: Statement,
     ) -> ExecutionResult<Vec<RecordBatch>> {
-        if let Statement::CreateTable(create_table_statement) = statement {
-            let new_table_ident = self.resolve_table_ident(create_table_statement.name.0)?;
+        if let Statement::CreateTable(mut create_table_statement) = statement {
+            let new_table_ident =
+                self.resolve_table_ident(create_table_statement.name.0.clone())?;
+            create_table_statement.name = new_table_ident.clone().into();
 
             let table_location = create_table_statement
                 .location
                 .clone()
                 .or_else(|| create_table_statement.base_location.clone());
 
-            #[allow(clippy::unwrap_used)]
-            let table_name = new_table_ident.0.last().unwrap().clone();
-            // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
-            // And run the query - this will create an InMemory table
-            let mut modified_statement = CreateTableStatement {
-                name: ObjectName(vec![table_name.clone()]),
-                transient: false,
-                ..create_table_statement
-            };
-
-            // Replace qualify with nested select
-            if let Some(ref mut query) = modified_statement.query {
+            if let Some(ref mut query) = create_table_statement.query {
                 self.update_qualify_in_query(query);
             }
-            // Create InMemory table since external tables with "AS SELECT" are not supported
-            let updated_query = modified_statement.to_string();
 
-            let plan = self.get_custom_logical_plan(&updated_query).await?;
-            self.execute_logical_plan(plan.clone()).await?;
+            let session_context = HashMap::new();
+            let session_context_planner = SessionContextProvider {
+                state: &self.session.ctx.state(),
+                tables: session_context,
+            };
+            let planner = ExtendedSqlToRel::new(
+                &session_context_planner,
+                self.session.ctx.state().get_parser_options(),
+            );
+            let plan = planner
+                .sql_statement_to_plan(Statement::CreateTable(create_table_statement.clone()))
+                .context(super::error::DataFusionSnafu)?;
 
             let fields_with_ids = StructType::try_from(&new_fields_with_ids(
                 plan.schema().as_arrow().fields(),
@@ -415,7 +414,7 @@ impl IceBucketQuery {
 
             // Insert data to new table
             // TODO: What is the point of this?
-            let insert_query = format!("INSERT INTO {ib_table_ident} SELECT * FROM {table_name}",);
+            /*let insert_query = format!("INSERT INTO {ib_table_ident} SELECT * FROM {table_name}",);
             self.execute_with_custom_plan(&insert_query).await?;
 
             // Drop InMemory table
@@ -427,7 +426,7 @@ impl IceBucketQuery {
                 .context(super::error::DataFusionSnafu)?
                 .collect()
                 .await
-                .context(super::error::DataFusionSnafu)?;
+                .context(super::error::DataFusionSnafu)?;*/
 
             created_entity_response()
         } else {
