@@ -287,14 +287,7 @@ impl IceBucketQuery {
                 _ => {}
             }
         }
-        self.session
-            .ctx
-            .sql(&self.query)
-            .await
-            .context(super::error::DataFusionSnafu)?
-            .collect()
-            .await
-            .context(super::error::DataFusionSnafu)
+        self.execute_sql(&self.query).await
     }
 
     /// .
@@ -680,15 +673,7 @@ impl IceBucketQuery {
             .transform(iceberg_transform)
             .data()
             .context(ex_error::DataFusionSnafu)?;
-        let res = self
-            .session
-            .ctx
-            .execute_logical_plan(transformed)
-            .await
-            .context(ex_error::DataFusionSnafu)?
-            .collect()
-            .await
-            .context(ex_error::DataFusionSnafu)?;
+        let res = self.execute_logical_plan(transformed).await?;
         Ok(res)
     }
 
@@ -827,17 +812,67 @@ impl IceBucketQuery {
         }
     }
 
+    async fn execute_sql(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
+        let session = self.session.clone();
+        let query = query.to_string();
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                session
+                    .ctx
+                    .sql(&query)
+                    .await
+                    .context(super::error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(super::error::DataFusionSnafu)
+            })
+            .await
+            .context(super::error::JobSnafu)??;
+        Ok(stream)
+    }
+
+    async fn execute_logical_plan(&self, plan: LogicalPlan) -> ExecutionResult<Vec<RecordBatch>> {
+        let session = self.session.clone();
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                session
+                    .ctx
+                    .execute_logical_plan(plan)
+                    .await
+                    .context(super::error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(super::error::DataFusionSnafu)
+            })
+            .await
+            .context(super::error::JobSnafu)??;
+        Ok(stream)
+    }
+
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query).await?;
-        self.session
-            .ctx
-            .execute_logical_plan(plan)
+        let session = self.session.clone();
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                session
+                    .ctx
+                    .execute_logical_plan(plan)
+                    .await
+                    .context(super::error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(super::error::DataFusionSnafu)
+            })
             .await
-            .context(super::error::DataFusionSnafu)?
-            .collect()
-            .await
-            .context(super::error::DataFusionSnafu)
+            .context(super::error::JobSnafu)??;
+        Ok(stream)
     }
 
     #[allow(clippy::only_used_in_recursion)]

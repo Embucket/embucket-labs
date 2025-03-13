@@ -16,11 +16,14 @@
 // under the License.
 
 use crate::http::layers::add_request_metadata;
-// use crate::http::ui::handlers::databases::{create_database, delete_database, get_database};
-// use crate::http::ui::handlers::profiles::{
-//     create_storage_profile, delete_storage_profile, get_storage_profile, list_storage_profiles,
-// };
+use crate::http::ui::handlers::schemas::{
+    create_schema, delete_schema, get_schema, list_schemas, update_schema,
+};
+
 use crate::http::ui::handlers::query::query;
+use crate::http::ui::handlers::volumes::{
+    create_volume, delete_volume, get_volume, list_volumes, update_volume,
+};
 // use crate::http::ui::handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
 //     update_table_properties, upload_data_to_table,
@@ -30,7 +33,7 @@ use crate::http::ui::handlers::query::query;
 // };
 use crate::http::state::AppState;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::post;
+use axum::routing::{delete, post};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
@@ -39,13 +42,17 @@ use utoipa::OpenApi;
 #[openapi(info(
     title = "UI Router API",
     description = "API documentation for the UI endpoints.",
-    version = "1.0.1",
+    version = "1.0.2",
     license(
         name = "Apache 2.0",
         url = "https://www.apache.org/licenses/LICENSE-2.0.html"
     ),
     contact(name = "Embucket, Inc.", url = "https://embucket.com"),
     description = "Defines the specification for the UI Catalog API",
+), tags(
+    (name = "volumes", description = "Volumes endpoints"),
+    (name = "databases", description = "Databases endpoints"),
+    (name = "schemas", description = "Schemas endpoints"),
 ))]
 pub struct ApiDoc;
 
@@ -57,11 +64,14 @@ pub fn create_router() -> Router<AppState> {
         //     "/warehouses/{warehouseId}",
         //     delete(delete_warehouse).get(get_warehouse),
         // )
-        // .route(
-        //     "/warehouses/{warehouseId}/databases/{databaseName}",
-        //     get(get_database).delete(delete_database),
-        // )
-        // .route("/warehouses/{warehouseId}/databases", post(create_database))
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}",
+            delete(delete_schema).get(get_schema).put(update_schema),
+        )
+        .route(
+            "/databases/{databaseName}/schemas",
+            post(create_schema).get(list_schemas),
+        )
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/register",
         //     post(register_table),
@@ -87,14 +97,11 @@ pub fn create_router() -> Router<AppState> {
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/snapshots",
         //     get(get_snapshots),
         // )
-        // .route(
-        //     "/storage-profiles",
-        //     post(create_storage_profile).get(list_storage_profiles),
-        // )
-        // .route(
-        //     "/storage-profiles/{storageProfileId}",
-        //     delete(delete_storage_profile).get(get_storage_profile),
-        // )
+        .route("/volumes", post(create_volume).get(list_volumes))
+        .route(
+            "/volumes/{volumeName}",
+            delete(delete_volume).get(get_volume).put(update_volume),
+        )
         .layer(SetSensitiveHeadersLayer::new([
             axum::http::header::AUTHORIZATION,
         ]))

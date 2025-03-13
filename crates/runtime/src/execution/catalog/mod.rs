@@ -47,8 +47,8 @@ use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
 use icebucket_metastore::{
-    error::MetastoreResult, IceBucketSchema, IceBucketSchemaIdent,
-    IceBucketTableIdent, IceBucketTableUpdate, Metastore,
+    error::MetastoreResult, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent,
+    IceBucketTableUpdate, Metastore,
 };
 use object_store::ObjectStore;
 

@@ -20,9 +20,7 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use http::StatusCode;
 use snafu::ResultExt;
-use utoipa::OpenApi;
 
 #[allow(clippy::wildcard_imports)]
 use icebucket_metastore::{
@@ -32,8 +30,6 @@ use icebucket_metastore::{
 //use super::models::*;
 
 use validator::Validate;
-
-use crate::http::error::ErrorResponse;
 
 use crate::http::state::AppState;
 
@@ -56,7 +52,7 @@ pub type RwObjectVec<T> = Vec<RwObject<T>>;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QueryParameters {
     #[serde(default)]
-    cascade: Option<bool>,
+    pub cascade: Option<bool>,
 }
 
 /*#[utoipa::path(

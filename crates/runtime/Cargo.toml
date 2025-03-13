@@ -88,9 +88,12 @@ utoipa-swagger-ui = { workspace = true }
 uuid = { workspace = true }
 validator = { version = "0.20.0", features = ["derive"] }
 dashmap = "6.1.0"
+tokio-stream = "0.1.17"
+tower.workspace = true
 
 [lints]
 workspace = true
 
 [dev-dependencies]
 insta = { version = "1.42.0", features = ["yaml"] }
+reqwest = "0.12.14"
