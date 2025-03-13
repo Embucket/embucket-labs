@@ -184,7 +184,7 @@ pub async fn update_schema(
     ),
     responses(
         (status = 200, body = Vec<IceBucketSchema>),
-        (status = 404, description = "Database not found")
+        (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
