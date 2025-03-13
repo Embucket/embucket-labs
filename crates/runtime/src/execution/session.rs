@@ -42,7 +42,7 @@ pub struct IceBucketUserSession {
     pub metastore: Arc<dyn Metastore>,
     pub ctx: SessionContext,
     pub ident_normalizer: IdentNormalizer,
-    pub executor: DedicatedExecutor
+    pub executor: DedicatedExecutor,
 }
 
 impl IceBucketUserSession {

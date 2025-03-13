@@ -30,8 +30,8 @@ use futures::{
 };
 use object_store::path::Path;
 use object_store::{
-    GetOptions, GetResult, GetResultPayload, ListResult, MultipartUpload, ObjectMeta,
-    ObjectStore, PutMultipartOpts, PutOptions, PutPayload, PutResult, UploadPart,
+    GetOptions, GetResult, GetResultPayload, ListResult, MultipartUpload, ObjectMeta, ObjectStore,
+    PutMultipartOpts, PutOptions, PutPayload, PutResult, UploadPart,
 };
 use std::cell::RefCell;
 use std::pin::Pin;
@@ -418,10 +418,7 @@ struct StreamAndTask<T> {
 impl<T> Stream for StreamAndTask<T> {
     type Item = T;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.inner.poll_next_unpin(cx)
     }
 }
@@ -487,9 +484,7 @@ impl Drop for State {
         }
 
         // do NOT poll the shared future if we are panicking due to https://github.com/rust-lang/futures-rs/issues/2575
-        if !std::thread::panicking()
-            && self.completed_shutdown.clone().now_or_never().is_none()
-        {
+        if !std::thread::panicking() && self.completed_shutdown.clone().now_or_never().is_none() {
             tracing::warn!("DedicatedExecutor dropped without waiting for worker termination",);
         }
 
@@ -530,8 +525,7 @@ pub struct DedicatedExecutorBuilder {
 
 impl From<JobError> for DataFusionError {
     fn from(value: JobError) -> Self {
-        DataFusionError::External(Box::new(value))
-            .context("JobError from DedicatedExecutor")
+        DataFusionError::External(Box::new(value)).context("JobError from DedicatedExecutor")
     }
 }
 
@@ -722,11 +716,7 @@ impl ObjectStore for IoObjectStore {
             .await
     }
 
-    async fn copy_if_not_exists(
-        &self,
-        from: &Path,
-        to: &Path,
-    ) -> object_store::Result<()> {
+    async fn copy_if_not_exists(&self, from: &Path, to: &Path) -> object_store::Result<()> {
         let from = from.clone();
         let to = to.clone();
         let store = Arc::clone(&self.inner);
@@ -743,10 +733,7 @@ impl ObjectStore for IoObjectStore {
             .await
     }
 
-    fn list(
-        &self,
-        prefix: Option<&Path>,
-    ) -> BoxStream<'_, object_store::Result<ObjectMeta>> {
+    fn list(&self, prefix: Option<&Path>) -> BoxStream<'_, object_store::Result<ObjectMeta>> {
         // run the inner list on the dedicated executor
         //
         // This requires some fiddling as we can't pass the result of list
@@ -780,10 +767,7 @@ impl ObjectStore for IoObjectStore {
         .boxed()
     }
 
-    async fn list_with_delimiter(
-        &self,
-        prefix: Option<&Path>,
-    ) -> object_store::Result<ListResult> {
+    async fn list_with_delimiter(&self, prefix: Option<&Path>) -> object_store::Result<ListResult> {
         let prefix = prefix.cloned();
         let store = Arc::clone(&self.inner);
         self.dedicated_executor
@@ -833,10 +817,7 @@ struct IoMultipartUpload {
     inner: Option<Box<dyn MultipartUpload>>,
 }
 impl IoMultipartUpload {
-    fn new(
-        dedicated_executor: DedicatedExecutor,
-        inner: Box<dyn MultipartUpload>,
-    ) -> Self {
+    fn new(dedicated_executor: DedicatedExecutor, inner: Box<dyn MultipartUpload>) -> Self {
         Self {
             dedicated_executor,
             inner: Some(inner),
@@ -936,10 +917,9 @@ mod tests {
         dedicated
             .spawn(async move {
                 let dedicated_id = std::thread::current().id();
-                let spawned = DedicatedExecutor::spawn_io_static(async move {
-                    std::thread::current().id()
-                })
-                .await;
+                let spawned =
+                    DedicatedExecutor::spawn_io_static(async move { std::thread::current().id() })
+                        .await;
 
                 assert_ne!(dedicated_id, spawned);
                 assert_eq!(io_runtime_id, spawned);
@@ -1313,10 +1293,7 @@ mod tests {
         DedicatedExecutor::register_io_runtime(Some(rt_io.handle().clone()));
 
         let measured_thread_id =
-            DedicatedExecutor::spawn_io_static(
-                async move { std::thread::current().id() },
-            )
-            .await;
+            DedicatedExecutor::spawn_io_static(async move { std::thread::current().id() }).await;
         assert_eq!(measured_thread_id, io_thread_id);
 
         rt_io.shutdown_background();
@@ -1545,10 +1522,7 @@ mod tests {
     }
 
     /// Runs list_with_delimiter on MockStore with the DedicatedExecutor
-    async fn do_list_with_delimiter(
-        exec: DedicatedExecutor,
-        store: Arc<dyn ObjectStore>,
-    ) {
+    async fn do_list_with_delimiter(exec: DedicatedExecutor, store: Arc<dyn ObjectStore>) {
         exec.spawn(async move {
             // run the stream to completion
             let list_result = store.list_with_delimiter(None).await.unwrap();
@@ -1620,10 +1594,7 @@ mod tests {
         exec.spawn(async move {
             // run the stream to completion
             store
-                .copy_if_not_exists(
-                    &Path::from("the/object"),
-                    &Path::from("the/other_object"),
-                )
+                .copy_if_not_exists(&Path::from("the/object"), &Path::from("the/other_object"))
                 .await
                 .unwrap()
         })
@@ -1702,10 +1673,7 @@ mod tests {
             self.inner.delete(location).await
         }
 
-        fn list(
-            &self,
-            prefix: Option<&Path>,
-        ) -> BoxStream<'_, object_store::Result<ObjectMeta>> {
+        fn list(&self, prefix: Option<&Path>) -> BoxStream<'_, object_store::Result<ObjectMeta>> {
             self.inner.list(prefix).then(with_mock_io).boxed()
         }
 
@@ -1722,11 +1690,7 @@ mod tests {
             self.inner.copy(from, to).await
         }
 
-        async fn copy_if_not_exists(
-            &self,
-            from: &Path,
-            to: &Path,
-        ) -> object_store::Result<()> {
+        async fn copy_if_not_exists(&self, from: &Path, to: &Path) -> object_store::Result<()> {
             mock_io().await;
             self.inner.copy_if_not_exists(from, to).await
         }

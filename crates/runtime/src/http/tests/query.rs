@@ -17,18 +17,20 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume, SlateDBMetastore};
+use crate::http::{config::IceBucketWebConfig, make_icebucket_app};
+use axum::Router;
 use axum::{
     body::Body,
     extract::connect_info::MockConnectInfo,
     http::{self, Request, StatusCode},
 };
 use http_body_util::BodyExt; // for `collect`
+use icebucket_metastore::{
+    IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume, SlateDBMetastore,
+};
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tower::{Service, ServiceExt};
-use axum::Router;
-use crate::http::{config::IceBucketWebConfig, make_icebucket_app};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -36,14 +38,17 @@ async fn test_parallel_queries() {
     let listener = TcpListener::bind("0.0.0.0:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
 
-
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let mut app = make_icebucket_app(metastore, &IceBucketWebConfig {
-        port: 3000,
-        host: "0.0.0.0".to_string(),
-        allow_origin: None,
-        data_format: "json".to_string(),
-    }).unwrap();
+    let mut app = make_icebucket_app(
+        metastore,
+        &IceBucketWebConfig {
+            port: 3000,
+            host: "0.0.0.0".to_string(),
+            allow_origin: None,
+            data_format: "json".to_string(),
+        },
+    )
+    .unwrap();
 
     tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
@@ -54,7 +59,7 @@ async fn test_parallel_queries() {
 
     let vol = IceBucketVolume {
         ident: "test_volume".to_string(),
-        volume: icebucket_metastore::IceBucketVolumeType::Memory
+        volume: icebucket_metastore::IceBucketVolumeType::Memory,
     };
 
     let create_volume = client
@@ -92,7 +97,9 @@ async fn test_parallel_queries() {
     };
 
     let create_schema = client
-        .post(format!("http://{addr}/v1/metastore/databases/benchmark/schemas"))
+        .post(format!(
+            "http://{addr}/v1/metastore/databases/benchmark/schemas"
+        ))
         .header("Content-Type", "application/json")
         .body(json!(schema).to_string())
         .send()
@@ -119,10 +126,13 @@ async fn test_parallel_queries() {
     let query1 = client
         .post(format!("http://{addr}/ui/query"))
         .header("Content-Type", "application/json")
-        .body(json!({
-            "query": create_query,
-            "context": {}
-        }).to_string())
+        .body(
+            json!({
+                "query": create_query,
+                "context": {}
+            })
+            .to_string(),
+        )
         .send()
         .await
         .expect("failed to create query");
@@ -141,10 +151,13 @@ async fn test_parallel_queries() {
     let query2 = client2
         .post(format!("http://{addr}/ui/query"))
         .header("Content-Type", "application/json")
-        .body(json!({
-            "query": insert_query,
-            "context": {}
-        }).to_string())
+        .body(
+            json!({
+                "query": insert_query,
+                "context": {}
+            })
+            .to_string(),
+        )
         .send()
         .await
         .expect("failed to run insert query");
@@ -155,8 +168,5 @@ async fn test_parallel_queries() {
 
     let query2 = query2.text().await.expect("Failed to get query response");
 
-    insta::assert_debug_snapshot!((
-        query1,
-        query2,
-    ));
+    insta::assert_debug_snapshot!((query1, query2,));
 }

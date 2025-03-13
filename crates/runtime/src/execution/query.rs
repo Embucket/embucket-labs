@@ -815,32 +815,40 @@ impl IceBucketQuery {
     async fn execute_sql(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
         let session = self.session.clone();
         let query = query.to_string();
-        let stream = self.session.executor.spawn(async move {
-            session
-                .ctx
-                .sql(&query)
-                .await
-                .context(super::error::DataFusionSnafu)?
-                .collect()
-                .await
-                .context(super::error::DataFusionSnafu)
-        }).await
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                session
+                    .ctx
+                    .sql(&query)
+                    .await
+                    .context(super::error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(super::error::DataFusionSnafu)
+            })
+            .await
             .context(super::error::JobSnafu)??;
         Ok(stream)
     }
 
     async fn execute_logical_plan(&self, plan: LogicalPlan) -> ExecutionResult<Vec<RecordBatch>> {
         let session = self.session.clone();
-        let stream = self.session.executor.spawn(async move {
-            session
-                .ctx
-                .execute_logical_plan(plan)
-                .await
-                .context(super::error::DataFusionSnafu)?
-                .collect()
-                .await
-                .context(super::error::DataFusionSnafu)
-        }).await
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                session
+                    .ctx
+                    .execute_logical_plan(plan)
+                    .await
+                    .context(super::error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(super::error::DataFusionSnafu)
+            })
+            .await
             .context(super::error::JobSnafu)??;
         Ok(stream)
     }
@@ -849,16 +857,20 @@ impl IceBucketQuery {
     pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query).await?;
         let session = self.session.clone();
-        let stream = self.session.executor.spawn(async move { 
-            session
-                .ctx
-                .execute_logical_plan(plan)
-                .await
-                .context(super::error::DataFusionSnafu)?
-                .collect()
-                .await
-                .context(super::error::DataFusionSnafu)
-        }).await
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                session
+                    .ctx
+                    .execute_logical_plan(plan)
+                    .await
+                    .context(super::error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(super::error::DataFusionSnafu)
+            })
+            .await
             .context(super::error::JobSnafu)??;
         Ok(stream)
     }
