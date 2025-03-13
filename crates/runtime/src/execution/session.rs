@@ -58,7 +58,8 @@ impl IceBucketUserSession {
                 SessionConfig::new()
                     .with_option_extension(IceBucketSessionParams::default())
                     .with_information_schema(true)
-                    .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
+                    .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect)
+                    .set_str("datafusion.catalog.default_catalog", "icebucket"),
             )
             .with_default_features()
             .with_catalog_list(catalog_list_impl)
