@@ -60,10 +60,6 @@ pub fn create_router() -> Router<AppState> {
     Router::new()
         // .route("/navigation", get(navigation))
         // .route("/warehouses", post(create_warehouse).get(list_warehouses))
-        // .route(
-        //     "/warehouses/{warehouseId}",
-        //     delete(delete_warehouse).get(get_warehouse),
-        // )
         .route(
             "/databases/{databaseName}/schemas/{schemaName}",
             delete(delete_schema).get(get_schema).put(update_schema),
@@ -72,6 +68,16 @@ pub fn create_router() -> Router<AppState> {
             "/databases/{databaseName}/schemas",
             post(create_schema).get(list_schemas),
         )
+        .route("/warehouses", post(create_warehouse).get(list_warehouses))
+        .route(
+            "/warehouses/{warehouseId}",
+            delete(delete_warehouse).get(get_warehouse),
+        )
+        // .route(
+        //     "/warehouses/{warehouseId}/databases/{databaseName}",
+        //     get(get_database).delete(delete_database),
+        // )
+        // .route("/warehouses/{warehouseId}/databases", post(create_database))
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/register",
         //     post(register_table),
