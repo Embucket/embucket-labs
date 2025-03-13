@@ -1,4 +1,6 @@
-#![allow(clippy::expect_used, clippy::unwrap_used, clippy::new_without_default)]
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::new_without_default, 
+    clippy::doc_markdown, clippy::must_use_candidate,
+    clippy::semicolon_if_nothing_returned)]
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -182,6 +184,7 @@ impl DedicatedExecutor {
                         let s = if let Some(s) = e.downcast_ref::<String>() {
                             s.clone()
                         } else if let Some(s) = e.downcast_ref::<&str>() {
+                            #[allow(clippy::inefficient_to_string)]
                             s.to_string()
                         } else {
                             "unknown internal error".to_string()
@@ -227,7 +230,7 @@ impl DedicatedExecutor {
 
         // wait for completion while not holding the mutex to avoid
         // deadlocks
-        handle.await.expect("Thread died?")
+        handle.await.expect("Thread died?");
     }
 
     /// Returns an [`ObjectStore`] instance that will always perform I/O work on the
@@ -370,7 +373,7 @@ impl DedicatedExecutor {
     ///
     /// See [`spawn_io`](Self::spawn_io) for more details
     pub fn register_io_runtime(handle: Option<Handle>) {
-        IO_RUNTIME.set(handle)
+        IO_RUNTIME.set(handle);
     }
 
     /// Runs `fut` on IO runtime of this DedicatedExecutor
@@ -396,7 +399,7 @@ impl DedicatedExecutor {
         Fut: Future + Send + 'static,
         Fut::Output: Send,
     {
-        let h = IO_RUNTIME.with_borrow(|h| h.clone()).expect(
+        let h = IO_RUNTIME.with_borrow(std::clone::Clone::clone).expect(
             "No IO runtime registered. If you hit this panic, it likely \
             means a DataFusion plan or other CPU bound work is running on the \
             a tokio threadpool used for IO. Try spawning the work using \
@@ -431,7 +434,7 @@ thread_local! {
 struct DropGuard<T>(JoinHandle<T>);
 impl<T> Drop for DropGuard<T> {
     fn drop(&mut self) {
-        self.0.abort()
+        self.0.abort();
     }
 }
 
@@ -505,10 +508,10 @@ pub enum JobError {
 impl Display for JobError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            JobError::WorkerGone => {
+            Self::WorkerGone => {
                 write!(f, "Worker thread gone, executor was likely shut down")
             }
-            JobError::Panic { msg } => write!(f, "Panic: {}", msg),
+            Self::Panic { msg } => write!(f, "Panic: {msg}"),
         }
     }
 }
@@ -525,7 +528,7 @@ pub struct DedicatedExecutorBuilder {
 
 impl From<JobError> for DataFusionError {
     fn from(value: JobError) -> Self {
-        DataFusionError::External(Box::new(value)).context("JobError from DedicatedExecutor")
+        Self::External(Box::new(value)).context("JobError from DedicatedExecutor")
     }
 }
 
@@ -557,6 +560,7 @@ impl DedicatedExecutorBuilder {
     ///
     /// Defaults to "DedicatedExecutor"
     #[cfg(test)]
+    #[must_use]
     pub fn with_name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
@@ -565,6 +569,7 @@ impl DedicatedExecutorBuilder {
     /// Set the number of worker threads. Defaults to the tokio default (the
     /// number of virtual CPUs)
     #[allow(dead_code)]
+    #[must_use]
     pub fn with_worker_threads(mut self, num_threads: usize) -> Self {
         self.runtime_builder.worker_threads(num_threads);
         self
@@ -604,7 +609,7 @@ impl DedicatedExecutorBuilder {
                 let mut runtime_builder = runtime_builder;
                 let runtime = runtime_builder
                     .on_thread_start(move || {
-                        DedicatedExecutor::register_io_runtime(io_handle.clone())
+                        DedicatedExecutor::register_io_runtime(io_handle.clone());
                     })
                     .build()
                     .expect("Creating tokio runtime");
@@ -882,6 +887,7 @@ mod tests {
     use tokio::{net::TcpListener, sync::Barrier as AsyncBarrier};
 
     /// Wait for the barrier and then return `result`
+    #[allow(clippy::unused_async)]
     async fn do_work(result: usize, barrier: Arc<Barrier>) -> usize {
         barrier.wait();
         result
@@ -1530,7 +1536,7 @@ mod tests {
             let prefixes: Vec<_> = list_result
                 .common_prefixes
                 .iter()
-                .map(|p| p.to_string())
+                .map(std::string::ToString::to_string)
                 .collect();
 
             assert_eq!(prefixes.join(","), "the");

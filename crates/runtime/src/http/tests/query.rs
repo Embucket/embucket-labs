@@ -18,7 +18,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::{config::IceBucketWebConfig, make_icebucket_app};
- // for `collect`
+// for `collect`
 use icebucket_metastore::{
     IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume, SlateDBMetastore,
 };
@@ -55,7 +55,7 @@ async fn test_parallel_queries() {
         volume: icebucket_metastore::IceBucketVolumeType::Memory,
     };
 
-    let create_volume = client
+    let _create_volume = client
         .post(format!("http://{addr}/v1/metastore/volumes"))
         .header("Content-Type", "application/json")
         .body(json!(vol).to_string())
@@ -71,7 +71,7 @@ async fn test_parallel_queries() {
         properties: None,
     };
 
-    let create_db = client
+    let _create_db = client
         .post(format!("http://{addr}/v1/metastore/databases"))
         .header("Content-Type", "application/json")
         .body(json!(db).to_string())
@@ -89,7 +89,7 @@ async fn test_parallel_queries() {
         properties: None,
     };
 
-    let create_schema = client
+    let _create_schema = client
         .post(format!(
             "http://{addr}/v1/metastore/databases/benchmark/schemas"
         ))
@@ -138,7 +138,7 @@ async fn test_parallel_queries() {
 
     let mut insert_query = "INSERT INTO benchmark.public.hits VALUES ".to_string();
     for i in 0..100 {
-        insert_query.push_str(&format!("({}, 1, 'test', 1, 1, 1, 1, 1),", i));
+        insert_query.push_str(&format!("({i}, 1, 'test', 1, 1, 1, 1, 1),"));
     }
 
     let query2 = client2
