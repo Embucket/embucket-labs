@@ -25,7 +25,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::dbt::router::create_router as create_dbt_router;
 // use crate::http::ui::handlers::databases::ApiDoc as DatabaseApiDoc;
-// use crate::http::ui::handlers::profiles::ApiDoc as ProfileApiDoc;
+use crate::http::ui::handlers::volumes::ApiDoc as VolumesApiDoc;
 use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
 // use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
 // use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
@@ -38,13 +38,14 @@ use super::metastore::router::create_router as create_metastore_router;
 // TODO: Fix OpenAPI spec generation
 #[derive(OpenApi)]
 #[openapi(
+    nest(
+        (path = "/ui", api = UiApiDoc, tags = ["query", "volumes", "warehouses",])
+    ),
     /*nest(
         (path = "/v1/storage-profile", api = StorageProfileApi, tags = ["storage-profiles"]),
         (path = "/v1/warehouse", api = WarehouseApi, tags = ["warehouses"]),
     ),*/
     tags(
-        (name = "storage-profile", description = "Storage profile API"),
-        (name = "warehouse", description = "Warehouse API"),
         (name = "ui", description = "Web UI API"),
     )
 )]
@@ -57,7 +58,7 @@ pub fn create_app(state: AppState) -> Router {
     }
 
     let mut ui_spec = UiApiDoc::openapi()
-        // .merge_from(ProfileApiDoc::openapi())
+        .merge_from(VolumesApiDoc::openapi())
         // .merge_from(WarehouseApiDoc::openapi())
         // .merge_from(TableApiDoc::openapi())
         // .merge_from(DatabaseApiDoc::openapi())

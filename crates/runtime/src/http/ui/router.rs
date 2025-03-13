@@ -17,9 +17,10 @@
 
 use crate::http::layers::add_request_metadata;
 // use crate::http::ui::handlers::databases::{create_database, delete_database, get_database};
-// use crate::http::ui::handlers::profiles::{
-//     create_storage_profile, delete_storage_profile, get_storage_profile, list_storage_profiles,
-// };
+
+use crate::http::ui::handlers::volumes::{
+    create_volume, get_volume, delete_volume, update_volume, list_volumes, 
+};
 use crate::http::ui::handlers::query::query;
 // use crate::http::ui::handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
@@ -30,7 +31,7 @@ use crate::http::ui::handlers::query::query;
 // };
 use crate::http::state::AppState;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::post;
+use axum::routing::{post, get, delete};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
@@ -46,6 +47,9 @@ use utoipa::OpenApi;
     ),
     contact(name = "Embucket, Inc.", url = "https://embucket.com"),
     description = "Defines the specification for the UI Catalog API",
+), tags(
+    (name = "volumes", description = "Metastore/Volume API"),
+    (name = "databases", description = "Metastore/Database API"),
 ))]
 pub struct ApiDoc;
 
@@ -87,14 +91,14 @@ pub fn create_router() -> Router<AppState> {
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/snapshots",
         //     get(get_snapshots),
         // )
-        // .route(
-        //     "/storage-profiles",
-        //     post(create_storage_profile).get(list_storage_profiles),
-        // )
-        // .route(
-        //     "/storage-profiles/{storageProfileId}",
-        //     delete(delete_storage_profile).get(get_storage_profile),
-        // )
+        .route(
+            "/volumes",
+            post(create_volume).get(list_volumes),
+        )
+        .route(
+            "/volumes/{volumeName}",
+            delete(delete_volume).get(get_volume).put(update_volume),
+        )
         .layer(SetSensitiveHeadersLayer::new([
             axum::http::header::AUTHORIZATION,
         ]))
