@@ -182,12 +182,11 @@ pub async fn update_volume(
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_volumes(State(state): State<AppState>) -> UIResult<Json<Vec<IceBucketVolume>>> {
-    Ok(state
+    state
         .metastore
         .list_volumes()
         .await
         .map_err(|e| UIError::Metastore { source: e })
         // TODO: use deref
-        .map(|o| Json(o.iter().map(|x| x.data.clone()).collect()))?
-    )
+        .map(|o| Json(o.iter().map(|x| x.data.clone()).collect()))
 }

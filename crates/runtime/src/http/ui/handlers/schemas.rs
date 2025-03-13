@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
 use crate::http::state::AppState;
 use crate::http::{
     error::ErrorResponse,
@@ -27,6 +26,7 @@ use axum::{
     Json,
 };
 use icebucket_metastore::error::MetastoreError;
+use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -108,7 +108,7 @@ pub async fn get_schema(
             db: database_name.clone(),
             schema: schema_name.clone(),
         }
-            .into()),
+        .into()),
         Err(e) => Err(e.into()),
     }
 }
@@ -192,11 +192,17 @@ pub async fn list_schemas(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
 ) -> UIResult<Json<Vec<IceBucketSchema>>> {
-    Ok(state
+    state
         .metastore
         .list_schemas(&database_name)
         .await
         .map_err(|e| UIError::Metastore { source: e })
-        .map(|rw_objects| Json(rw_objects.iter().map(|rw_object| rw_object.data.clone()).collect()))?
-    )
+        .map(|rw_objects| {
+            Json(
+                rw_objects
+                    .iter()
+                    .map(|rw_object| rw_object.data.clone())
+                    .collect(),
+            )
+        })
 }
