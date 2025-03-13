@@ -39,10 +39,9 @@ use super::metastore::router::create_router as create_metastore_router;
 #[derive(OpenApi)]
 #[openapi(
     nest(
-        (path = "/ui", api = UiApiDoc, tags = ["query", "volumes", "warehouses",])
+        (path = "/ui", api = UiApiDoc, tags = ["query", "volumes", "databases", "schemas"])
     ),
     /*nest(
-        (path = "/v1/storage-profile", api = StorageProfileApi, tags = ["storage-profiles"]),
         (path = "/v1/warehouse", api = WarehouseApi, tags = ["warehouses"]),
     ),*/
     tags(

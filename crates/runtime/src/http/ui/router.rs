@@ -40,7 +40,7 @@ use utoipa::OpenApi;
 #[openapi(info(
     title = "UI Router API",
     description = "API documentation for the UI endpoints.",
-    version = "1.0.1",
+    version = "1.0.2",
     license(
         name = "Apache 2.0",
         url = "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -48,8 +48,9 @@ use utoipa::OpenApi;
     contact(name = "Embucket, Inc.", url = "https://embucket.com"),
     description = "Defines the specification for the UI Catalog API",
 ), tags(
-    (name = "volumes", description = "Metastore/Volume API"),
-    (name = "databases", description = "Metastore/Database API"),
+    (name = "volumes", description = "Volumes endpoints"),
+    (name = "databases", description = "Databases endpoints"),
+    (name = "schemas", description = "Schemas endpoints"),
 ))]
 pub struct ApiDoc;
 
