@@ -16,7 +16,7 @@
 // under the License.
 
 use crate::http::layers::add_request_metadata;
-// use crate::http::ui::handlers::databases::{create_database, delete_database, get_database};
+use crate::http::ui::handlers::schemas::{create_schema, delete_schema, get_schema, update_schema, list_schemas};
 
 use crate::http::ui::handlers::query::query;
 use crate::http::ui::handlers::volumes::{
@@ -35,6 +35,7 @@ use axum::routing::{delete, post};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
+use crate::http::metastore::handlers::list_databases;
 
 #[derive(OpenApi)]
 #[openapi(info(
@@ -62,11 +63,13 @@ pub fn create_router() -> Router<AppState> {
         //     "/warehouses/{warehouseId}",
         //     delete(delete_warehouse).get(get_warehouse),
         // )
-        // .route(
-        //     "/warehouses/{warehouseId}/databases/{databaseName}",
-        //     get(get_database).delete(delete_database),
-        // )
-        // .route("/warehouses/{warehouseId}/databases", post(create_database))
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}",
+            delete(delete_schema).get(get_schema).put(update_schema),
+        )
+        .route("/databases/{databaseName}/schemas",
+               post(create_schema).get(list_databases)
+        )
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/register",
         //     post(register_table),
