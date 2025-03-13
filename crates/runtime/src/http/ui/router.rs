@@ -68,7 +68,7 @@ pub fn create_router() -> Router<AppState> {
             delete(delete_schema).get(get_schema).put(update_schema),
         )
         .route("/databases/{databaseName}/schemas",
-               post(create_schema).get(list_databases)
+               post(create_schema).get(list_schemas)
         )
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/register",

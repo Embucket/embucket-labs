@@ -188,6 +188,6 @@ pub async fn list_volumes(State(state): State<AppState>) -> UIResult<Json<Vec<Ic
         .await
         .map_err(|e| UIError::Metastore { source: e })
         // TODO: use deref
-        .map(|o| Json(o.iter().map(|x| x.data).collect()))?
+        .map(|o| Json(o.iter().map(|x| x.data.clone()).collect()))?
     )
 }

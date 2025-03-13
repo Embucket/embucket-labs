@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent, IceBucketDatabaseIdent};
+use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
 use crate::http::state::AppState;
 use crate::http::{
     error::ErrorResponse,
@@ -197,6 +197,6 @@ pub async fn list_schemas(
         .list_schemas(&database_name)
         .await
         .map_err(|e| UIError::Metastore { source: e })
-        .map(|rw_objects| Json(rw_objects.iter().map(|x| x.data).collect()))?
+        .map(|rw_objects| Json(rw_objects.iter().map(|rw_object| rw_object.data.clone()).collect()))?
     )
 }
