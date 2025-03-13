@@ -18,19 +18,12 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::{config::IceBucketWebConfig, make_icebucket_app};
-use axum::Router;
-use axum::{
-    body::Body,
-    extract::connect_info::MockConnectInfo,
-    http::{self, Request, StatusCode},
-};
-use http_body_util::BodyExt; // for `collect`
+ // for `collect`
 use icebucket_metastore::{
     IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume, SlateDBMetastore,
 };
-use serde_json::{json, Value};
+use serde_json::json;
 use tokio::net::TcpListener;
-use tower::{Service, ServiceExt};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -39,7 +32,7 @@ async fn test_parallel_queries() {
     let addr = listener.local_addr().unwrap();
 
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let mut app = make_icebucket_app(
+    let app = make_icebucket_app(
         metastore,
         &IceBucketWebConfig {
             port: 3000,
