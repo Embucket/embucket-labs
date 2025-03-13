@@ -139,7 +139,7 @@ pub async fn delete_database(
 }
 
 #[utoipa::path(
-    get,
+    put,
     operation_id = "updateDatabase",
     tags = ["databases"],
     path = "/ui/databases/{databaseName}",

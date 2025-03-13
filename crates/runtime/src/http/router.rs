@@ -28,7 +28,7 @@ use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
 use crate::http::ui::handlers::schemas::ApiDoc as SchemasApiDoc;
 use crate::http::ui::handlers::volumes::ApiDoc as VolumesApiDoc;
 // use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
-// use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
+use crate::http::ui::handlers::databases::ApiDoc as DatabasesApiDoc;
 use crate::http::state::AppState;
 use crate::http::ui::router::{create_router as create_ui_router, ApiDoc as UiApiDoc};
 use tower_http::timeout::TimeoutLayer;
@@ -41,9 +41,6 @@ use super::metastore::router::create_router as create_metastore_router;
     nest(
         (path = "/ui", api = UiApiDoc, tags = ["query", "volumes", "databases", "schemas"])
     ),
-    /*nest(
-        (path = "/v1/warehouse", api = WarehouseApi, tags = ["warehouses"]),
-    ),*/
     tags(
         (name = "ui", description = "Web UI API"),
     )
@@ -58,7 +55,7 @@ pub fn create_app(state: AppState) -> Router {
 
     let mut ui_spec = UiApiDoc::openapi()
         .merge_from(VolumesApiDoc::openapi())
-        // .merge_from(WarehouseApiDoc::openapi())
+        .merge_from(DatabasesApiDoc::openapi())
         // .merge_from(TableApiDoc::openapi())
         .merge_from(SchemasApiDoc::openapi())
         .merge_from(QueryApiDoc::openapi());
