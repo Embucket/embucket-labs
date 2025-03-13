@@ -1,6 +1,11 @@
-#![allow(clippy::expect_used, clippy::unwrap_used, clippy::new_without_default, 
-    clippy::doc_markdown, clippy::must_use_candidate,
-    clippy::semicolon_if_nothing_returned)]
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::new_without_default,
+    clippy::doc_markdown,
+    clippy::must_use_candidate,
+    clippy::semicolon_if_nothing_returned
+)]
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
