@@ -84,6 +84,9 @@ pub enum ExecutionError {
 
     #[snafu(display("Cannot refresh catalog list"))]
     RefreshCatalogList { message: String },
+
+    #[snafu(display("URL Parsing error: {source}"))]
+    UrlParse { source: url::ParseError },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;

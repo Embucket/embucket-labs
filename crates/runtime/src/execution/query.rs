@@ -133,10 +133,7 @@ impl IceBucketQuery {
             .as_any()
             .downcast_ref::<IceBucketDFMetastore>()
         {
-            catalog_list_impl
-                .refresh()
-                .await
-                .context(ex_error::MetastoreSnafu)
+            catalog_list_impl.refresh(&self.session.ctx).await
         } else {
             Err(ExecutionError::RefreshCatalogList {
                 message: "Catalog list implementation is not castable".to_string(),

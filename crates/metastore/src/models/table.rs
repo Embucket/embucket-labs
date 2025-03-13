@@ -72,12 +72,13 @@ impl Display for IceBucketTableIdent {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum IceBucketTableFormat {
-    /*Parquet,
+    /*
     Avro,
     Orc,
     Delta,
     Json,
     Csv,*/
+    Parquet,
     Iceberg,
 }
 
@@ -111,6 +112,7 @@ pub struct IceBucketTable {
     pub volume_ident: Option<IceBucketVolumeIdent>,
     pub volume_location: Option<String>,
     pub is_temporary: bool,
+    pub format: IceBucketTableFormat,
 }
 
 /*impl PartialSchema for IceBucketTable {
