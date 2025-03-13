@@ -16,21 +16,20 @@
 // under the License.
 
 use crate::http::state::AppState;
-use axum::{
-    extract::{Path, Query, State}, 
-    Json
-};
-use snafu::ResultExt;
-use validator::Validate;
-use utoipa::OpenApi;
-use icebucket_metastore::models::{IceBucketVolume};
-use icebucket_metastore::error::{self as metastore_error, MetastoreError};
 use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
     ui::error::{UIError, UIResult},
 };
-
+use axum::{
+    extract::{Path, Query, State},
+    Json,
+};
+use icebucket_metastore::error::{self as metastore_error, MetastoreError};
+use icebucket_metastore::models::IceBucketVolume;
+use snafu::ResultExt;
+use utoipa::OpenApi;
+use validator::Validate;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -106,7 +105,7 @@ pub async fn get_volume(
         Ok(None) => Err(UIError::Metastore {
             source: MetastoreError::VolumeNotFound {
                 volume: volume_name.clone(),
-            }
+            },
         }),
         Err(e) => Err(e.into()),
     }
@@ -181,9 +180,7 @@ pub async fn update_volume(
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn list_volumes(
-    State(state): State<AppState>,
-) -> UIResult<Json<Vec<IceBucketVolume>>> {
+pub async fn list_volumes(State(state): State<AppState>) -> UIResult<Json<Vec<IceBucketVolume>>> {
     let res = state
         .metastore
         .list_volumes()

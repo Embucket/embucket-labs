@@ -18,10 +18,10 @@
 use crate::http::layers::add_request_metadata;
 // use crate::http::ui::handlers::databases::{create_database, delete_database, get_database};
 
-use crate::http::ui::handlers::volumes::{
-    create_volume, get_volume, delete_volume, update_volume, list_volumes, 
-};
 use crate::http::ui::handlers::query::query;
+use crate::http::ui::handlers::volumes::{
+    create_volume, delete_volume, get_volume, list_volumes, update_volume,
+};
 // use crate::http::ui::handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
 //     update_table_properties, upload_data_to_table,
@@ -31,7 +31,7 @@ use crate::http::ui::handlers::query::query;
 // };
 use crate::http::state::AppState;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::{post, get, delete};
+use axum::routing::{delete, post};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
@@ -91,10 +91,7 @@ pub fn create_router() -> Router<AppState> {
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/snapshots",
         //     get(get_snapshots),
         // )
-        .route(
-            "/volumes",
-            post(create_volume).get(list_volumes),
-        )
+        .route("/volumes", post(create_volume).get(list_volumes))
         .route(
             "/volumes/{volumeName}",
             delete(delete_volume).get(get_volume).put(update_volume),

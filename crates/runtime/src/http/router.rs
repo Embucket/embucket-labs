@@ -25,8 +25,8 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::dbt::router::create_router as create_dbt_router;
 // use crate::http::ui::handlers::databases::ApiDoc as DatabaseApiDoc;
-use crate::http::ui::handlers::volumes::ApiDoc as VolumesApiDoc;
 use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
+use crate::http::ui::handlers::volumes::ApiDoc as VolumesApiDoc;
 // use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
 // use crate::http::ui::handlers::warehouses::ApiDoc as WarehouseApiDoc;
 use crate::http::state::AppState;
