@@ -29,9 +29,8 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
-use std::fmt::Display;
 use std::sync::Arc;
-use strum::EnumString;
+use strum::{Display, EnumString};
 
 // This isn't the best way to do this, but it'll do for now
 // TODO: Revisit
@@ -46,20 +45,11 @@ impl Config {
         })
     }
 }
-#[derive(Copy, Clone, PartialEq, Eq, EnumString)]
+#[derive(Copy, Clone, PartialEq, Eq, EnumString, Display)]
 #[strum(ascii_case_insensitive)]
 pub enum DataSerializationFormat {
     Arrow,
     Json,
-}
-
-impl Display for DataSerializationFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Arrow => write!(f, "arrow"),
-            Self::Json => write!(f, "json"),
-        }
-    }
 }
 
 /*#[async_trait::async_trait]
