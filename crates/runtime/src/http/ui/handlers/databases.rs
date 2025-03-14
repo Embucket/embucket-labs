@@ -79,7 +79,6 @@ pub async fn create_database(
         .await
         .map_err(|e| UIError::Metastore { source: e })
         .map(|o| Json(o.data))
-
 }
 
 #[utoipa::path(

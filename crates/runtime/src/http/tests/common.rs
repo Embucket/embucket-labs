@@ -17,14 +17,12 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::net::SocketAddr;
 use crate::http::{config::IceBucketWebConfig, make_icebucket_app};
 use http::Method;
+use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketVolume, SlateDBMetastore};
 use reqwest::Response;
-use icebucket_metastore::{
-    IceBucketDatabase, IceBucketSchema, IceBucketVolume, SlateDBMetastore,
-};
 use serde_json::json;
+use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
 #[derive(Debug)]
@@ -66,7 +64,12 @@ pub async fn create_server() -> SocketAddr {
     addr
 }
 
-pub async fn req(client: &reqwest::Client, method: Method, url: &String, payload: String) -> Result<reqwest::Response, reqwest::Error> {
+pub async fn req(
+    client: &reqwest::Client,
+    method: Method,
+    url: &String,
+    payload: String,
+) -> Result<reqwest::Response, reqwest::Error> {
     client
         .request(method, url)
         .header("Content-Type", "application/json")
@@ -75,28 +78,25 @@ pub async fn req(client: &reqwest::Client, method: Method, url: &String, payload
         .await
 }
 
-
-
 fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
     match t {
-        Entity::Volume(vol) => {
-            match op {
-                Op::Create | Op::List => format!("http://{addr}/ui/volumes"),
-                Op::Delete | Op::Get | Op::Update => format!("http://{addr}/ui/volumes/{}", vol.ident),
+        Entity::Volume(vol) => match op {
+            Op::Create | Op::List => format!("http://{addr}/ui/volumes"),
+            Op::Delete | Op::Get | Op::Update => format!("http://{addr}/ui/volumes/{}", vol.ident),
+        },
+        Entity::Database(db) => match op {
+            Op::Create | Op::List => format!("http://{addr}/ui/databases"),
+            Op::Delete | Op::Get | Op::Update => format!("http://{addr}/ui/databases/{}", db.ident),
+        },
+        Entity::Schema(sc) => match op {
+            Op::Create | Op::List => {
+                format!("http://{addr}/ui/databases/{}/schemas", sc.ident.database)
             }
-        }
-        Entity::Database(db) => {
-            match op {
-                Op::Create | Op::List => format!("http://{addr}/ui/databases"),
-                Op::Delete | Op::Get | Op::Update => format!("http://{addr}/ui/databases/{}", db.ident),
-            }
-        }
-        Entity::Schema(sc) => {
-            match op {
-                Op::Create | Op::List => format!("http://{addr}/ui/databases/{}/schemas", sc.ident.database),
-                Op::Delete | Op::Get | Op::Update => format!("http://{addr}/ui/databases/{}/schemas/{}", sc.ident.database, sc.ident.schema),
-            }
-        }
+            Op::Delete | Op::Get | Op::Update => format!(
+                "http://{addr}/ui/databases/{}/schemas/{}",
+                sc.ident.database, sc.ident.schema
+            ),
+        },
     }
 }
 
@@ -114,22 +114,17 @@ pub async fn ui_test_op(addr: SocketAddr, op: Op, t_from: Option<&Entity>, t: &E
         Entity::Schema(sc) => json!(sc).to_string(),
     };
     let res = match op {
-        Op::Create => {
-            req(&client, Method::POST, &ui_url, payload).await.unwrap()
-        }
-        Op::List => {
-            req(&client, Method::GET, &ui_url, payload).await.unwrap()
-        }        
-        Op::Delete => {
-            req(&client, Method::DELETE, &ui_url, payload).await.unwrap()
-        }
-        Op::Get => {
-            req(&client, Method::GET, &ui_url, payload).await.unwrap()
-        }
-        Op::Update => {
-            req(&client, Method::PUT, &ui_url, payload).await.unwrap()
-        }
+        Op::Create => req(&client, Method::POST, &ui_url, payload).await.unwrap(),
+        Op::List => req(&client, Method::GET, &ui_url, payload).await.unwrap(),
+        Op::Delete => req(&client, Method::DELETE, &ui_url, payload)
+            .await
+            .unwrap(),
+        Op::Get => req(&client, Method::GET, &ui_url, payload).await.unwrap(),
+        Op::Update => req(&client, Method::PUT, &ui_url, payload).await.unwrap(),
     };
-    println!("UI_TEST_OP ui_url: {ui_url}, op: {op:?}, t_from: {t_from:?}, t: {t:?}, body: {:?}", res);
+    println!(
+        "UI_TEST_OP ui_url: {ui_url}, op: {op:?}, t_from: {t_from:?}, t: {t:?}, body: {:?}",
+        res
+    );
     res
 }

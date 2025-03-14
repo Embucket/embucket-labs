@@ -20,12 +20,12 @@ use crate::http::ui::handlers::schemas::{
     create_schema, delete_schema, get_schema, list_schemas, update_schema,
 };
 
+use crate::http::ui::handlers::databases::{
+    create_database, delete_database, get_database, list_databases, update_database,
+};
 use crate::http::ui::handlers::query::query;
 use crate::http::ui::handlers::volumes::{
     create_volume, delete_volume, get_volume, list_volumes, update_volume,
-};
-use crate::http::ui::handlers::databases::{
-    create_database, delete_database, get_database, list_databases, update_database,
 };
 // use crate::http::ui::handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
@@ -70,7 +70,9 @@ pub fn create_router() -> Router<AppState> {
         .route("/databases", post(create_database).get(list_databases))
         .route(
             "/databases/{databaseName}",
-            delete(delete_database).get(get_database).put(update_database),
+            delete(delete_database)
+                .get(get_database)
+                .put(update_database),
         )
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/register",

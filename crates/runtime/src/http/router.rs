@@ -28,8 +28,8 @@ use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
 use crate::http::ui::handlers::schemas::ApiDoc as SchemasApiDoc;
 use crate::http::ui::handlers::volumes::ApiDoc as VolumesApiDoc;
 // use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
-use crate::http::ui::handlers::databases::ApiDoc as DatabasesApiDoc;
 use crate::http::state::AppState;
+use crate::http::ui::handlers::databases::ApiDoc as DatabasesApiDoc;
 use crate::http::ui::router::{create_router as create_ui_router, ApiDoc as UiApiDoc};
 use tower_http::timeout::TimeoutLayer;
 
