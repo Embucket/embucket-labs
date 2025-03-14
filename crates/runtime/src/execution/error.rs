@@ -84,7 +84,7 @@ pub enum ExecutionError {
     #[snafu(display("Object of type {type_name} with name {name} already exists"))]
     ObjectAlreadyExists { type_name: String, name: String },
 
-    #[snafu(display("Unsupported file formath {format}"))]
+    #[snafu(display("Unsupported file format {format}"))]
     UnsupportedFileFormat { format: String },
 
     #[snafu(display("Cannot refresh catalog list"))]
@@ -96,7 +96,7 @@ pub enum ExecutionError {
     #[snafu(display("Threaded Job error: {source}: {backtrace}"))]
     JobError {
         source: crate::execution::dedicated_executor::JobError,
-        backtrace: Backtrace
+        backtrace: Backtrace,
     },
 }
 

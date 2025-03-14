@@ -33,7 +33,8 @@ use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use icebucket_metastore::{
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableFormat, IceBucketTableIdent, Metastore
+    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableFormat,
+    IceBucketTableIdent, Metastore,
 };
 use object_store::aws::AmazonS3Builder;
 use serde::{Deserialize, Serialize};
@@ -49,8 +50,6 @@ use std::collections::HashMap;
 use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
-
-use crate::http::state;
 
 use super::catalog::IceBucketDFMetastore;
 use super::datafusion::functions::visit_functions_expressions;
@@ -230,7 +229,7 @@ impl IceBucketQuery {
                     self.refresh_catalog().await?;
                     return result;
                 }
-                
+
                 Statement::CreateDatabase { .. } => {
                     // TODO: Databases are only able to be created through the
                     // metastore API. We need to add Snowflake volume syntax to CREATE DATABASE query
@@ -443,33 +442,45 @@ impl IceBucketQuery {
         &self,
         statement: CreateExternalTable,
     ) -> ExecutionResult<Vec<RecordBatch>> {
-        let table_name = statement.name.to_string();
         let table_location = statement.location.clone();
-        let table_format = IceBucketTableFormat::try_from(statement.file_type.as_ref())
-            .map_err(|_err| ExecutionError::UnsupportedFileFormat { format: statement.file_type })?;
-        let table_schema = statement.schema.clone();
-        let table_options = statement.options.clone();
+        let table_format = IceBucketTableFormat::from(statement.file_type);
+        let session_context = HashMap::new();
+        let session_context_planner = SessionContextProvider {
+            state: &self.session.ctx.state(),
+            tables: session_context,
+        };
+        let planner = ExtendedSqlToRel::new(
+            &session_context_planner,
+            self.session.ctx.state().get_parser_options(),
+        );
+        let table_schema = planner
+            .build_schema(statement.columns)
+            .context(ex_error::DataFusionSnafu)?;
+        let fields_with_ids =
+            StructType::try_from(&new_fields_with_ids(table_schema.fields(), &mut 0))
+                .map_err(|err| DataFusionError::External(Box::new(err)))
+                .context(ex_error::DataFusionSnafu)?;
 
-        let table_ident = self.resolve_table_ident(table_name.0)?;
+        let table_options = statement.options.clone();
+        let table_ident: IceBucketTableIdent = self.resolve_table_ident(statement.name.0)?.into();
 
         let table_create_request = IceBucketTableCreateRequest {
             ident: table_ident.clone(),
             schema: Schema::builder()
                 .with_schema_id(0)
                 .with_identifier_field_ids(vec![])
-                .with_fields(StructType::try_from(&table_schema).map_err(|err| {
-                    DataFusionError::External(Box::new(err))
-                })?)
+                .with_fields(fields_with_ids)
                 .build()
-                .map_err(|err| DataFusionError::External(Box::new(err)))?,
-            location: table_location,
+                .map_err(|err| DataFusionError::External(Box::new(err)))
+                .context(ex_error::DataFusionSnafu)?,
+            location: Some(table_location),
             partition_spec: None,
             sort_order: None,
             stage_create: None,
             volume_ident: None,
             is_temporary: Some(false),
             format: Some(table_format),
-            properties: table_options,
+            properties: None,
         };
 
         self.metastore

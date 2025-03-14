@@ -69,7 +69,9 @@ impl Display for IceBucketTableIdent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema, strum::EnumString)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema, strum::EnumString,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum IceBucketTableFormat {
     /*
@@ -80,6 +82,15 @@ pub enum IceBucketTableFormat {
     Csv,*/
     Parquet,
     Iceberg,
+}
+
+impl From<String> for IceBucketTableFormat {
+    fn from(value: String) -> Self {
+        match value.to_lowercase().as_str() {
+            "parquet" => Self::Parquet,
+            _ => Self::Iceberg,
+        }
+    }
 }
 
 /*#[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
