@@ -39,6 +39,9 @@ pub enum MetastoreError {
     #[snafu(display("ObjectStore: {source}"))]
     ObjectStore { source: object_store::Error },
 
+    #[snafu(display("ObjectStore path: {source}"))]
+    ObjectStorePath { source: object_store::path::Error },
+
     #[snafu(display(
         "Unable to create directory for File ObjectStore path {path}, error: {source}"
     ))]

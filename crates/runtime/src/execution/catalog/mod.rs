@@ -222,7 +222,7 @@ impl ObjectStoreRegistry for IceBucketDFMetastore {
         _url: &url::Url,
         _store: Arc<dyn object_store::ObjectStore>,
     ) -> Option<Arc<dyn object_store::ObjectStore>> {
-        unimplemented!()
+        None
     }
 
     fn get_store(
@@ -397,18 +397,13 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
 
     /// Returns true if table exist in the schema provider, false otherwise.
     fn table_exist(&self, name: &str) -> bool {
-        let table_ident = IceBucketTableIdent {
-            schema: self.schema.clone(),
-            database: self.database.clone(),
-            table: name.to_string(),
-        };
-        tokio::runtime::Handle::current().block_on(async {
-            self.metastore
-                .get_table(&table_ident)
-                .await
-                .unwrap_or_default()
-                .is_some()
-        })
+        self.mirror
+            .get(&self.database)
+            .and_then(|db| {
+                db.get(&self.schema)
+                    .map(|schema| schema.contains_key(name))
+            })
+            .unwrap_or_default()
     }
 }
 

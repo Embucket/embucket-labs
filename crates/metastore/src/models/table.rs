@@ -69,7 +69,7 @@ impl Display for IceBucketTableIdent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema, strum::EnumString)]
 #[serde(rename_all = "kebab-case")]
 pub enum IceBucketTableFormat {
     /*
