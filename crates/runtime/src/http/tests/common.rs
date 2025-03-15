@@ -17,13 +17,11 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::http::{config::IceBucketWebConfig, make_icebucket_app};
 use http::Method;
-use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketVolume, SlateDBMetastore};
+use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketVolume};
 use reqwest::Response;
 use serde_json::json;
 use std::net::SocketAddr;
-use tokio::net::TcpListener;
 
 #[derive(Debug)]
 pub enum Entity {
@@ -39,29 +37,6 @@ pub enum Op {
     Delete,
     Get,
     Update,
-}
-
-pub async fn create_server() -> SocketAddr {
-    let listener = TcpListener::bind("0.0.0.0:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let app = make_icebucket_app(
-        metastore,
-        &IceBucketWebConfig {
-            port: 3000,
-            host: "0.0.0.0".to_string(),
-            allow_origin: None,
-            data_format: "json".to_string(),
-        },
-    )
-    .unwrap();
-
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
-
-    addr
 }
 
 pub async fn req(

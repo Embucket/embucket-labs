@@ -34,7 +34,7 @@ use crate::http::ui::handlers::volumes::{
 // };
 use crate::http::state::AppState;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::{delete, post, get};
+use axum::routing::{delete, get, post};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;

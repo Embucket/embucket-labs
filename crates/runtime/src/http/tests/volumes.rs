@@ -16,8 +16,8 @@
 // under the License.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-
-use crate::http::tests::common::{create_server, ui_test_op, Entity, Op};
+use crate::http::tests::common::{ui_test_op, Entity, Op};
+use crate::tests::run_icebucket_test_server;
 use icebucket_metastore::IceBucketVolume;
 use icebucket_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, IceBucketFileVolume, IceBucketS3Volume,
@@ -27,7 +27,7 @@ use icebucket_metastore::{
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_volumes_memory() {
-    let addr = create_server().await;
+    let addr = run_icebucket_test_server().await;
 
     // memory volume with empty ident create Ok
     let expected = IceBucketVolume {
@@ -43,7 +43,7 @@ async fn test_ui_volumes_memory() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_volumes_file() {
-    let addr = create_server().await;
+    let addr = run_icebucket_test_server().await;
 
     // memory volume with empty ident create Ok
     let expected = IceBucketVolume {
@@ -62,7 +62,7 @@ async fn test_ui_volumes_file() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_volumes_s3() {
-    let addr = create_server().await;
+    let addr = run_icebucket_test_server().await;
 
     // memory volume with empty ident create Ok
     let expected = IceBucketVolume {

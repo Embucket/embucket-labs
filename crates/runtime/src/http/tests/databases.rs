@@ -18,14 +18,15 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::error::ErrorResponse;
-use crate::http::tests::common::{create_server, ui_test_op, Entity, Op};
+use crate::http::tests::common::{ui_test_op, Entity, Op};
+use crate::tests::run_icebucket_test_server;
 use icebucket_metastore::IceBucketVolumeType;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_databases_metastore_update_bug() {
-    let addr = create_server().await;
+    let addr = run_icebucket_test_server().await;
 
     // Create volume with empty name
     let res = ui_test_op(
@@ -98,7 +99,7 @@ async fn test_ui_databases_metastore_update_bug() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_databases() {
-    let addr = create_server().await;
+    let addr = run_icebucket_test_server().await;
 
     // Create volume with empty name
     let res = ui_test_op(
