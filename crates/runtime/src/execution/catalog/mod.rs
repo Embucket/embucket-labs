@@ -47,7 +47,8 @@ use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
 use icebucket_metastore::{
-    error::MetastoreResult, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent, Metastore,
+    error::MetastoreResult, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent,
+    IceBucketTableUpdate, Metastore,
 };
 use object_store::ObjectStore;
 
@@ -71,24 +72,21 @@ impl IceBucketDFMetastore {
 
         let databases = self.metastore.list_databases().await?;
         for database in databases {
+            let db_entry = self
+                .mirror
+                .entry(database.ident.clone())
+                .or_insert(DashMap::new());
+            let db_seen = seen.entry(database.ident.clone()).or_default();
             let schemas = self.metastore.list_schemas(&database.ident).await?;
             for schema in schemas {
+                let schema_entry = db_entry
+                    .entry(schema.ident.schema.clone())
+                    .or_insert(DashSet::default());
+                let schema_seen = db_seen.entry(schema.ident.schema.clone()).or_default();
                 let tables = self.metastore.list_tables(&schema.ident).await?;
                 for table in tables {
-                    let db_entry = self
-                        .mirror
-                        .entry(database.ident.clone())
-                        .or_insert(DashMap::new());
-                    let mirror_entry = db_entry
-                        .entry(schema.ident.schema.clone())
-                        .insert(DashSet::default());
-                    mirror_entry.insert(table.ident.table.clone());
-                    let seen_entry = seen
-                        .entry(database.ident.clone())
-                        .or_default()
-                        .entry(schema.ident.schema.clone())
-                        .or_default();
-                    seen_entry.insert(table.ident.table.clone());
+                    schema_entry.insert(table.ident.table.clone());
+                    schema_seen.insert(table.ident.table.clone());
                 }
             }
         }
@@ -106,9 +104,6 @@ impl IceBucketDFMetastore {
 
                         for table in tables_to_remove {
                             schema.remove(&table);
-                        }
-                        if schema.value().is_empty() {
-                            db.remove(schema.key());
                         }
                     } else {
                         db.remove(schema.key());
@@ -182,10 +177,12 @@ impl CatalogProvider for IceBucketDFCatalog {
     }
 
     fn schema_names(&self) -> Vec<String> {
-        self.mirror
+        let schemas = self
+            .mirror
             .get(&self.ident)
             .map(|db| db.iter().map(|schema| schema.key().clone()).collect())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        schemas
     }
 
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
@@ -275,7 +272,6 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
                 .load_tabular(&ib_identifier)
                 .await
                 .map_err(|e| DataFusionError::External(Box::new(e)))?;
-
             let dftable: Arc<dyn TableProvider> =
                 Arc::new(IcebergDataFusionTable::new(tabular, None, None, None));
             Ok(Some(dftable))
@@ -643,9 +639,31 @@ impl IcebergCatalog for IceBucketIcebergBridge {
     /// perform commit table operation
     async fn update_table(
         self: Arc<Self>,
-        _commit: IcebergCommitTable,
+        commit: IcebergCommitTable,
     ) -> Result<IcebergTable, IcebergError> {
-        todo!()
+        let table_ident = IceBucketTableIdent {
+            database: commit.identifier.namespace()[0].clone(),
+            schema: commit.identifier.namespace()[1].clone(),
+            table: commit.identifier.name().to_string(),
+        };
+        let table_update = IceBucketTableUpdate {
+            requirements: commit.requirements,
+            updates: commit.updates,
+        };
+
+        let rwobject = self
+            .metastore
+            .update_table(&table_ident, table_update)
+            .await
+            .map_err(|e| IcebergError::External(Box::new(e)))?;
+
+        let iceberg_table = IcebergTable::new(
+            commit.identifier.clone(),
+            self.clone(),
+            rwobject.metadata.clone(),
+        )
+        .await?;
+        Ok(iceberg_table)
     }
 
     /// perform commit view operation

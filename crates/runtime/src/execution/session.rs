@@ -19,6 +19,7 @@ use super::catalog::IceBucketDFMetastore;
 use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::IceBucketTypePlanner;
+use super::dedicated_executor::DedicatedExecutor;
 use super::query::{IceBucketQuery, IceBucketQueryContext};
 use datafusion::common::error::Result as DFResult;
 use datafusion::execution::SessionStateBuilder;
@@ -41,6 +42,7 @@ pub struct IceBucketUserSession {
     pub metastore: Arc<dyn Metastore>,
     pub ctx: SessionContext,
     pub ident_normalizer: IdentNormalizer,
+    pub executor: DedicatedExecutor,
 }
 
 impl IceBucketUserSession {
@@ -76,6 +78,7 @@ impl IceBucketUserSession {
             metastore,
             ctx,
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
+            executor: DedicatedExecutor::builder().build(),
         })
     }
 

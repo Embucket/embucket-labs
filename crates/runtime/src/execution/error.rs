@@ -84,6 +84,11 @@ pub enum ExecutionError {
 
     #[snafu(display("Cannot refresh catalog list"))]
     RefreshCatalogList { message: String },
+
+    #[snafu(display("Threaded Job error: {source}"))]
+    JobError {
+        source: crate::execution::dedicated_executor::JobError,
+    },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;

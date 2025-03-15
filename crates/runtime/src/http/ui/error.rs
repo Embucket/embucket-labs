@@ -15,7 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use axum::response::IntoResponse;
+use crate::http::metastore::error::MetastoreAPIError;
+use axum::response::{IntoResponse, Response};
 use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
@@ -25,13 +26,18 @@ pub enum UIError {
     Execution {
         source: crate::execution::error::ExecutionError,
     },
+    #[snafu(transparent)]
+    Metastore {
+        source: icebucket_metastore::error::MetastoreError,
+    },
 }
 pub type UIResult<T> = Result<T, UIError>;
 
 impl IntoResponse for UIError {
-    fn into_response(self) -> axum::response::Response<axum::body::Body> {
+    fn into_response(self) -> Response<axum::body::Body> {
         match self {
             Self::Execution { source } => source.into_response(),
+            Self::Metastore { source } => MetastoreAPIError(source).into_response(),
         }
     }
 }

@@ -287,14 +287,7 @@ impl IceBucketQuery {
                 _ => {}
             }
         }
-        self.session
-            .ctx
-            .sql(&self.query)
-            .await
-            .context(super::error::DataFusionSnafu)?
-            .collect()
-            .await
-            .context(super::error::DataFusionSnafu)
+        self.execute_sql(&self.query).await
     }
 
     /// .
@@ -332,39 +325,31 @@ impl IceBucketQuery {
         &self,
         statement: Statement,
     ) -> ExecutionResult<Vec<RecordBatch>> {
-        if let Statement::CreateTable(create_table_statement) = statement {
-            let new_table_ident = self.resolve_table_ident(create_table_statement.name.0)?;
+        if let Statement::CreateTable(mut create_table_statement) = statement {
+            let new_table_ident =
+                self.resolve_table_ident(create_table_statement.name.0.clone())?;
+            create_table_statement.name = new_table_ident.clone().into();
 
             let table_location = create_table_statement
                 .location
                 .clone()
                 .or_else(|| create_table_statement.base_location.clone());
 
-            #[allow(clippy::unwrap_used)]
-            let table_name = new_table_ident.0.last().unwrap().clone();
-            // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
-            // And run the query - this will create an InMemory table
-            let mut modified_statement = CreateTableStatement {
-                name: ObjectName(vec![table_name.clone()]),
-                transient: false,
-                ..create_table_statement
-            };
-
-            // Replace qualify with nested select
-            if let Some(ref mut query) = modified_statement.query {
+            if let Some(ref mut query) = create_table_statement.query {
                 self.update_qualify_in_query(query);
             }
-            // Create InMemory table since external tables with "AS SELECT" are not supported
-            let updated_query = modified_statement.to_string();
 
-            let plan = self.get_custom_logical_plan(&updated_query).await?;
-            self.session
-                .ctx
-                .execute_logical_plan(plan.clone())
-                .await
-                .context(super::error::DataFusionSnafu)?
-                .collect()
-                .await
+            let session_context = HashMap::new();
+            let session_context_planner = SessionContextProvider {
+                state: &self.session.ctx.state(),
+                tables: session_context,
+            };
+            let planner = ExtendedSqlToRel::new(
+                &session_context_planner,
+                self.session.ctx.state().get_parser_options(),
+            );
+            let plan = planner
+                .sql_statement_to_plan(Statement::CreateTable(create_table_statement.clone()))
                 .context(super::error::DataFusionSnafu)?;
 
             let fields_with_ids = StructType::try_from(&new_fields_with_ids(
@@ -429,7 +414,7 @@ impl IceBucketQuery {
 
             // Insert data to new table
             // TODO: What is the point of this?
-            let insert_query = format!("INSERT INTO {ib_table_ident} SELECT * FROM {table_name}",);
+            /*let insert_query = format!("INSERT INTO {ib_table_ident} SELECT * FROM {table_name}",);
             self.execute_with_custom_plan(&insert_query).await?;
 
             // Drop InMemory table
@@ -441,7 +426,7 @@ impl IceBucketQuery {
                 .context(super::error::DataFusionSnafu)?
                 .collect()
                 .await
-                .context(super::error::DataFusionSnafu)?;
+                .context(super::error::DataFusionSnafu)?;*/
 
             created_entity_response()
         } else {
@@ -688,15 +673,7 @@ impl IceBucketQuery {
             .transform(iceberg_transform)
             .data()
             .context(ex_error::DataFusionSnafu)?;
-        let res = self
-            .session
-            .ctx
-            .execute_logical_plan(transformed)
-            .await
-            .context(ex_error::DataFusionSnafu)?
-            .collect()
-            .await
-            .context(ex_error::DataFusionSnafu)?;
+        let res = self.execute_logical_plan(transformed).await?;
         Ok(res)
     }
 
@@ -835,17 +812,67 @@ impl IceBucketQuery {
         }
     }
 
+    async fn execute_sql(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
+        let session = self.session.clone();
+        let query = query.to_string();
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                session
+                    .ctx
+                    .sql(&query)
+                    .await
+                    .context(super::error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(super::error::DataFusionSnafu)
+            })
+            .await
+            .context(super::error::JobSnafu)??;
+        Ok(stream)
+    }
+
+    async fn execute_logical_plan(&self, plan: LogicalPlan) -> ExecutionResult<Vec<RecordBatch>> {
+        let session = self.session.clone();
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                session
+                    .ctx
+                    .execute_logical_plan(plan)
+                    .await
+                    .context(super::error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(super::error::DataFusionSnafu)
+            })
+            .await
+            .context(super::error::JobSnafu)??;
+        Ok(stream)
+    }
+
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query).await?;
-        self.session
-            .ctx
-            .execute_logical_plan(plan)
+        let session = self.session.clone();
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                session
+                    .ctx
+                    .execute_logical_plan(plan)
+                    .await
+                    .context(super::error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(super::error::DataFusionSnafu)
+            })
             .await
-            .context(super::error::DataFusionSnafu)?
-            .collect()
-            .await
-            .context(super::error::DataFusionSnafu)
+            .context(super::error::JobSnafu)??;
+        Ok(stream)
     }
 
     #[allow(clippy::only_used_in_recursion)]

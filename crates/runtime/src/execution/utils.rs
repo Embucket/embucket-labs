@@ -353,6 +353,7 @@ fn convert_uint_to_int_datatypes(
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct NormalizedIdent(pub Vec<Ident>);
 
 impl From<&NormalizedIdent> for String {

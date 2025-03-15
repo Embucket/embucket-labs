@@ -16,7 +16,7 @@
 // under the License.
 
 use axum::{response::IntoResponse, response::Response};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
@@ -49,7 +49,7 @@ impl IntoResponse for RuntimeHttpError {
 //pub struct RuntimeHttpResult<T>(pub T);
 pub type RuntimeHttpResult<T> = Result<T, RuntimeHttpError>;
 
-#[derive(Debug, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ErrorResponse {
     pub message: String,
     pub status_code: u16,
