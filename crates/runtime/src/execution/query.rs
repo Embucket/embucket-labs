@@ -461,7 +461,8 @@ impl IceBucketQuery {
                 .map_err(|err| DataFusionError::External(Box::new(err)))
                 .context(ex_error::DataFusionSnafu)?;
 
-        let table_options = statement.options.clone();
+        // TODO: Use the options with the table format in the future
+        let _table_options = statement.options.clone();
         let table_ident: IceBucketTableIdent = self.resolve_table_ident(statement.name.0)?.into();
 
         let table_create_request = IceBucketTableCreateRequest {

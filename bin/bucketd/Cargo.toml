@@ -2,15 +2,15 @@
 name = "bucketd"
 version = "0.1.0"
 edition = "2021"
-license-file = {workspace = true}
+license-file = { workspace = true }
 
 [dependencies]
 clap = { version = "4.5.27", features = ["env", "derive"] }
 dotenv = { version = "0.15.0" }
 icebucket_runtime = { path = "../../crates/runtime" }
 object_store = { workspace = true }
-tokio = { workspace = true }
 snmalloc-rs = { workspace = true }
+tokio = { workspace = true }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 

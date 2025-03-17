@@ -7,23 +7,17 @@ license-file = { workspace = true }
 [dependencies]
 
 arrow = { version = "54.1.0" }
+arrow-array = { version = "54.1.0" }
 arrow-json = { version = "54.1.0" }
 arrow-schema = { version = "54.1.0", default-features = false }
-arrow-array = { version = "54.1.0" }
 async-trait = { workspace = true }
 axum = { workspace = true }
 axum-macros = { workspace = true }
 base64 = { version = "0.22.1" }
 bytes = { workspace = true }
 
-geoarrow = { version = "0.4.0-beta.4" }
-geodatafusion = { git = "https://github.com/geoarrow/geoarrow-rs.git", package = "geodatafusion" }
-geohash = { version = "0.13.1" }
-geo-traits = {version = "0.2.0"}
-geo-types = {version = "0.7.15" }
-geozero = { version = "0.14.0" }
-
 chrono = { workspace = true }
+dashmap = "6.1.0"
 
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }
@@ -36,6 +30,13 @@ datafusion_iceberg = { workspace = true }
 flate2 = { version = "1.0.34" }
 
 futures = { workspace = true }
+geo-traits = { version = "0.2.0" }
+geo-types = { version = "0.7.15" }
+
+geoarrow = { version = "0.4.0-beta.4" }
+geodatafusion = { git = "https://github.com/geoarrow/geoarrow-rs.git", package = "geodatafusion" }
+geohash = { version = "0.13.1" }
+geozero = { version = "0.14.0" }
 http = "1.2.0"
 http-body-util = "0.1.0"
 hyper = "1.5.0"
@@ -70,6 +71,8 @@ swagger = { version = "6.1", features = [
 ] }
 time = "0.3.37"
 tokio = { workspace = true }
+tokio-stream = "0.1.17"
+tower = { workspace = true }
 
 tower-http = { version = "0.6.1", features = [
   "catch-panic",
@@ -87,9 +90,6 @@ utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 uuid = { workspace = true }
 validator = { version = "0.20.0", features = ["derive"] }
-dashmap = "6.1.0"
-tokio-stream = "0.1.17"
-tower.workspace = true
 
 [lints]
 workspace = true
