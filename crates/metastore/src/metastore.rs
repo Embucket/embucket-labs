@@ -607,7 +607,7 @@ impl Metastore for SlateDBMetastore {
             let data = Bytes::from(
                 serde_json::to_vec(&table_metadata).context(metastore_error::SerdeSnafu)?,
             );
-            
+
             #[allow(clippy::unwrap_used)]
             let url = url::Url::parse(&table.metadata_location).unwrap();
 

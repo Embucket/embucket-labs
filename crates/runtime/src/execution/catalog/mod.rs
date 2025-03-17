@@ -399,10 +399,7 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
     fn table_exist(&self, name: &str) -> bool {
         self.mirror
             .get(&self.database)
-            .and_then(|db| {
-                db.get(&self.schema)
-                    .map(|schema| schema.contains_key(name))
-            })
+            .and_then(|db| db.get(&self.schema).map(|schema| schema.contains_key(name)))
             .unwrap_or_default()
     }
 }
