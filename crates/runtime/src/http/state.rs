@@ -21,6 +21,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::execution::service::ExecutionService;
+use crate::http::config::IceBucketWebConfig;
 
 // Define a State struct that contains shared services or repositories
 #[derive(Clone)]
@@ -28,6 +29,7 @@ pub struct AppState {
     pub metastore: Arc<dyn Metastore + Send + Sync>,
     pub execution_svc: Arc<ExecutionService>,
     pub dbt_sessions: Arc<Mutex<HashMap<String, String>>>,
+    pub config: Arc<IceBucketWebConfig>,
 }
 
 impl AppState {
@@ -35,11 +37,13 @@ impl AppState {
     pub fn new(
         metastore: Arc<dyn Metastore + Send + Sync>,
         execution_svc: Arc<ExecutionService>,
+        config: Arc<IceBucketWebConfig>,
     ) -> Self {
         Self {
             metastore,
             execution_svc,
             dbt_sessions: Arc::new(Mutex::default()),
+            config,
         }
     }
 }

@@ -23,6 +23,7 @@ use utoipa::openapi::{self};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::http::catalog::router::create_router as create_iceberg_router;
 use crate::http::dbt::router::create_router as create_dbt_router;
 use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
 use crate::http::ui::handlers::schemas::ApiDoc as SchemasApiDoc;
@@ -65,11 +66,13 @@ pub fn create_app(state: AppState) -> Router {
     let metastore_router = create_metastore_router();
     let ui_router = create_ui_router();
     let dbt_router = create_dbt_router();
+    let iceberg_catalog = create_iceberg_router();
 
     Router::new()
         .merge(dbt_router)
         .merge(metastore_router)
         .nest("/ui", ui_router)
+        .nest("/catalog", iceberg_catalog)
         .merge(
             SwaggerUi::new("/")
                 .url("/openapi.json", spec)

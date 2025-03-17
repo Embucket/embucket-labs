@@ -38,6 +38,7 @@ use crate::execution::{self, service::ExecutionService};
 
 pub mod error;
 
+pub mod catalog;
 pub mod dbt;
 pub mod metastore;
 pub mod ui;
@@ -75,7 +76,7 @@ pub fn make_icebucket_app(
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
     // Create the application state
-    let app_state = state::AppState::new(metastore, execution_svc);
+    let app_state = state::AppState::new(metastore, execution_svc, Arc::new(config.clone()));
 
     let mut app = router::create_app(app_state)
         .layer(session_layer)
