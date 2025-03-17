@@ -25,6 +25,7 @@ use serde_json::json;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum Entity {
     Volume(IceBucketVolume),
@@ -104,8 +105,8 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
 // op update require two entities: t_from ,t
 pub async fn ui_test_op(addr: SocketAddr, op: Op, t_from: Option<&Entity>, t: &Entity) -> Response {
     let ui_url = match t_from {
-        Some(t_from) => ui_op_endpoint(addr, &t_from, &op),
-        None => ui_op_endpoint(addr, &t, &op),
+        Some(t_from) => ui_op_endpoint(addr, t_from, &op),
+        None => ui_op_endpoint(addr, t, &op),
     };
     let client = reqwest::Client::new();
     let payload = match t {
@@ -113,18 +114,12 @@ pub async fn ui_test_op(addr: SocketAddr, op: Op, t_from: Option<&Entity>, t: &E
         Entity::Database(db) => json!(db).to_string(),
         Entity::Schema(sc) => json!(sc).to_string(),
     };
-    let res = match op {
+    match op {
         Op::Create => req(&client, Method::POST, &ui_url, payload).await.unwrap(),
-        Op::List => req(&client, Method::GET, &ui_url, payload).await.unwrap(),
         Op::Delete => req(&client, Method::DELETE, &ui_url, payload)
             .await
             .unwrap(),
-        Op::Get => req(&client, Method::GET, &ui_url, payload).await.unwrap(),
+        Op::Get | Op::List => req(&client, Method::GET, &ui_url, payload).await.unwrap(),
         Op::Update => req(&client, Method::PUT, &ui_url, payload).await.unwrap(),
-    };
-    println!(
-        "UI_TEST_OP ui_url: {ui_url}, op: {op:?}, t_from: {t_from:?}, t: {t:?}, body: {:?}",
-        res
-    );
-    res
+    }
 }

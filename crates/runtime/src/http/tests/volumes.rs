@@ -47,7 +47,7 @@ async fn test_ui_volumes_file() {
 
     // memory volume with empty ident create Ok
     let expected = IceBucketVolume {
-        ident: "".to_string(),
+        ident: String::new(),
         volume: IceBucketVolumeType::File(IceBucketFileVolume {
             path: "/tmp/data".to_string(),
         }),
@@ -66,7 +66,7 @@ async fn test_ui_volumes_s3() {
 
     // memory volume with empty ident create Ok
     let expected = IceBucketVolume {
-        ident: "".to_string(),
+        ident: String::new(),
         volume: IceBucketVolumeType::S3(IceBucketS3Volume {
             region: Some("us-west-1".to_string()),
             bucket: Some("icebucket".to_string()),
