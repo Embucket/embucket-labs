@@ -15,7 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use clap::{Parser, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
+use icebucket_runtime::config::{IceBucketDbConfig, IceBucketRuntimeConfig};
+use icebucket_runtime::execution::utils::DataSerializationFormat;
+use icebucket_runtime::http::config::IceBucketWebConfig;
 use object_store::{
     aws::AmazonS3Builder, aws::S3ConditionalPut, local::LocalFileSystem, memory::InMemory,
     ObjectStore, Result as ObjectStoreResult,
@@ -24,8 +27,15 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-#[derive(Parser)]
-#[command(version, about, long_about=None)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, ValueEnum, strum::Display)]
+#[strum(ascii_case_insensitive)]
+pub enum IceBucketOutputFormat {
+    Json,
+    Csv,
+    Arrow,
+}
+
+#[derive(Clone, Debug, Args)]
 pub struct IceBucketOpts {
     #[arg(
         short,
@@ -132,35 +142,68 @@ pub struct IceBucketOpts {
         long,
         default_value = "json",
         env = "DATA_FORMAT",
-        help = "Data serialization format in Snowflake v1 API"
+        help = "Data serialization format"
     )]
-    pub data_format: Option<String>,
+    pub data_format: Option<IceBucketOutputFormat>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum StoreBackend {
     S3,
     File,
     Memory,
 }
 
-impl IceBucketOpts {
+#[derive(Subcommand, Clone, Debug)]
+pub enum IceBucketSubcommand {
+    Sql {
+        #[arg(short, long, env = "SQL_QUERY")]
+        query: String,
+        #[arg(
+            short,
+            long,
+            env = "SQL_INIT",
+            help = "Path to initial SQL file to run"
+        )]
+        init_file: Option<PathBuf>,
+        // This is a duplicate so that the data_format parameter can be passed before or after the subcommand
+        #[arg(
+            short,
+            long,
+            default_value = "json",
+            env = "DATA_FORMAT",
+            help = "Data serialization format"
+        )]
+        data_format: Option<IceBucketOutputFormat>,
+    },
+}
+
+#[derive(Clone, Debug, Parser)]
+#[command(version, about, long_about=None)]
+pub struct IceBucketCli {
+    #[clap(flatten)]
+    pub opts: IceBucketOpts,
+    #[clap(subcommand)]
+    pub subcommand: Option<IceBucketSubcommand>,
+}
+
+impl IceBucketCli {
     #[allow(clippy::unwrap_used, clippy::as_conversions)]
-    pub fn object_store_backend(self) -> ObjectStoreResult<Arc<dyn ObjectStore>> {
-        match self.backend {
+    pub fn object_store_backend(&self) -> ObjectStoreResult<Arc<dyn ObjectStore>> {
+        match self.opts.backend {
             StoreBackend::S3 => {
-                let s3_allow_http = self.allow_http.unwrap_or(false);
+                let s3_allow_http = self.opts.allow_http.unwrap_or(false);
 
                 let s3_builder = AmazonS3Builder::new()
-                    .with_access_key_id(self.access_key_id.unwrap())
-                    .with_secret_access_key(self.secret_access_key.unwrap())
-                    .with_region(self.region.unwrap())
-                    .with_bucket_name(self.bucket.unwrap())
+                    .with_access_key_id(self.opts.access_key_id.as_ref().unwrap())
+                    .with_secret_access_key(self.opts.secret_access_key.as_ref().unwrap())
+                    .with_region(self.opts.region.as_ref().unwrap())
+                    .with_bucket_name(self.opts.bucket.as_ref().unwrap())
                     .with_conditional_put(S3ConditionalPut::ETagMatch);
 
-                if let Some(endpoint) = self.endpoint {
+                if let Some(endpoint) = &self.opts.endpoint {
                     s3_builder
-                        .with_endpoint(&endpoint)
+                        .with_endpoint(endpoint)
                         .with_allow_http(s3_allow_http)
                         .build()
                         .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
@@ -171,7 +214,7 @@ impl IceBucketOpts {
                 }
             }
             StoreBackend::File => {
-                let file_storage_path = self.file_storage_path.unwrap();
+                let file_storage_path = self.opts.file_storage_path.as_ref().unwrap();
                 let path = file_storage_path.as_path();
                 if !path.exists() || !path.is_dir() {
                     fs::create_dir(path).unwrap();
@@ -180,6 +223,50 @@ impl IceBucketOpts {
                     .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
             }
             StoreBackend::Memory => Ok(Arc::new(InMemory::new()) as Arc<dyn ObjectStore>),
+        }
+    }
+}
+
+impl AsRef<Self> for IceBucketCli {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
+#[allow(clippy::unwrap_used, clippy::fallible_impl_from)]
+impl From<&IceBucketCli> for IceBucketRuntimeConfig {
+    fn from(cli: &IceBucketCli) -> Self {
+        let slatedb_prefix = cli.opts.slatedb_prefix.clone();
+        let host = cli.opts.host.clone().unwrap();
+        let port = cli.opts.port.unwrap();
+        let allow_origin = if cli.opts.cors_enabled.unwrap_or(false) {
+            cli.opts.cors_allow_origin.clone()
+        } else {
+            None
+        };
+        let dbt_serialization_format = cli
+            .subcommand
+            .clone()
+            .and_then(|sc| {
+                let IceBucketSubcommand::Sql { data_format, .. } = sc;
+                data_format
+            })
+            .unwrap_or_else(|| cli.opts.data_format.clone().unwrap());
+
+        let dbt_serialization_format = match dbt_serialization_format {
+            IceBucketOutputFormat::Json => DataSerializationFormat::Json,
+            IceBucketOutputFormat::Csv => DataSerializationFormat::Csv,
+            IceBucketOutputFormat::Arrow => DataSerializationFormat::Arrow,
+        };
+
+        Self {
+            db: IceBucketDbConfig { slatedb_prefix },
+            web: IceBucketWebConfig {
+                host,
+                port,
+                allow_origin,
+                data_format: dbt_serialization_format,
+            },
         }
     }
 }

@@ -609,7 +609,7 @@ impl DedicatedExecutorBuilder {
                 // current thread RT)
                 DedicatedExecutor::register_io_runtime(io_handle.clone());
 
-                tracing::info!("Creating DedicatedExecutor",);
+                tracing::trace!("Creating DedicatedExecutor",);
 
                 let mut runtime_builder = runtime_builder;
                 let runtime = runtime_builder

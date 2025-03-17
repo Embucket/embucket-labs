@@ -17,39 +17,25 @@
 
 use super::error::{self as dbt_error, DbtError, DbtResult};
 use crate::execution::query::IceBucketQueryContext;
-use crate::execution::utils::DataSerializationFormat;
+use crate::execution::utils::{
+    records_to_arrow_string, records_to_json_string, DataSerializationFormat,
+};
 use crate::http::dbt::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
     QueryRequestBody, ResponseData,
 };
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
-use arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
-use arrow::ipc::MetadataVersion;
-use arrow::json::writer::JsonArray;
-use arrow::json::WriterBuilder;
-use arrow::record_batch::RecordBatch;
 use axum::body::Bytes;
 use axum::extract::{Query, State};
 use axum::http::HeaderMap;
 use axum::Json;
-use base64;
-use base64::engine::general_purpose::STANDARD as engine_base64;
-use base64::prelude::*;
 use flate2::read::GzDecoder;
 use regex::Regex;
 use snafu::ResultExt;
 use std::io::Read;
 use tracing::debug;
 use uuid::Uuid;
-
-// https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
-// Buffer Alignment and Padding: Implementations are recommended to allocate memory
-// on aligned addresses (multiple of 8- or 64-bytes) and pad (overallocate) to a
-// length that is a multiple of 8 or 64 bytes. When serializing Arrow data for interprocess
-// communication, these alignment and padding requirements are enforced.
-// For more info see issue #115
-const ARROW_IPC_ALIGNMENT: usize = 8;
 
 #[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
@@ -92,37 +78,6 @@ pub async fn login(
         success: true,
         message: Option::from("successfully executed".to_string()),
     }))
-}
-
-fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> Result<String, DbtError> {
-    let mut buf = Vec::new();
-    let options = IpcWriteOptions::try_new(ARROW_IPC_ALIGNMENT, false, MetadataVersion::V5)
-        .context(dbt_error::ArrowSnafu)?;
-    if !recs.is_empty() {
-        let mut writer =
-            StreamWriter::try_new_with_options(&mut buf, recs[0].schema_ref(), options)
-                .context(dbt_error::ArrowSnafu)?;
-        for rec in recs {
-            writer.write(rec).context(dbt_error::ArrowSnafu)?;
-        }
-        writer.finish().context(dbt_error::ArrowSnafu)?;
-        drop(writer);
-    };
-    Ok(engine_base64.encode(buf))
-}
-
-fn records_to_json_string(recs: &[RecordBatch]) -> Result<String, DbtError> {
-    let buf = Vec::new();
-    let write_builder = WriterBuilder::new().with_explicit_nulls(true);
-    let mut writer = write_builder.build::<_, JsonArray>(buf);
-    let record_refs: Vec<&RecordBatch> = recs.iter().collect();
-    writer
-        .write_batches(&record_refs)
-        .context(dbt_error::ArrowSnafu)?;
-    writer.finish().context(dbt_error::ArrowSnafu)?;
-
-    // Get the underlying buffer back,
-    String::from_utf8(writer.into_inner()).context(dbt_error::Utf8Snafu)
 }
 
 #[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]

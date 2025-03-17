@@ -10,6 +10,7 @@ dotenv = { version = "0.15.0" }
 icebucket_runtime = { path = "../../crates/runtime" }
 object_store = { workspace = true }
 snmalloc-rs = { workspace = true }
+strum = { version = "0.27.1", features = ["derive"] }
 tokio = { workspace = true }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

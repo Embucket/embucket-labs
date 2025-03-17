@@ -17,13 +17,12 @@
 
 pub(crate) mod cli;
 
+use std::error::Error;
+
 use clap::Parser;
+use cli::{IceBucketCli, IceBucketSubcommand};
 use dotenv::dotenv;
-use icebucket_runtime::{
-    config::{IceBucketDbConfig, IceBucketRuntimeConfig},
-    http::config::IceBucketWebConfig,
-    run_icebucket,
-};
+use icebucket_runtime::{run_icebucket, run_icebucket_sql};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[global_allocator]
@@ -33,54 +32,54 @@ static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 #[allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stdout)]
 async fn main() {
     dotenv().ok();
+    let opts = cli::IceBucketCli::parse();
 
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                "bucketd=debug,icebucket_runtime=debug,tower_http=debug".into()
+                if opts.subcommand.is_some() {
+                    "bucketd=error,icebucket_runtime=error".into()
+                } else {
+                    "bucketd=debug,icebucket_runtime=debug,tower_http=debug".into()
+                }
             }),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let opts = cli::IceBucketOpts::parse();
-    let slatedb_prefix = opts.slatedb_prefix.clone();
-    let host = opts.host.clone().unwrap();
-    let port = opts.port.unwrap();
-    let allow_origin = if opts.cors_enabled.unwrap_or(false) {
-        opts.cors_allow_origin.clone()
+    let result = if opts.subcommand.is_some() {
+        run_sql_main(opts).await
     } else {
-        None
+        run_icebucket_main(opts).await
     };
-    let dbt_serialization_format = opts
-        .data_format
-        .clone()
-        .unwrap_or_else(|| "json".to_string());
-    let object_store = opts.object_store_backend();
 
-    match object_store {
-        Err(e) => {
-            tracing::error!("Failed to create object store: {:?}", e);
-            return;
-        }
-        Ok(object_store) => {
-            tracing::info!("Starting 🧊🪣 IceBucket...");
-
-            let runtime_config = IceBucketRuntimeConfig {
-                db: IceBucketDbConfig {
-                    slatedb_prefix: slatedb_prefix.clone(),
-                },
-                web: IceBucketWebConfig {
-                    host: host.clone(),
-                    port,
-                    allow_origin: allow_origin.clone(),
-                    data_format: dbt_serialization_format.clone(),
-                },
-            };
-
-            if let Err(e) = run_icebucket(object_store, runtime_config).await {
-                tracing::error!("Error while running IceBucket: {:?}", e);
-            }
-        }
+    if let Err(e) = result {
+        tracing::error!("Error while running IceBucket: {:?}", e);
     }
+}
+
+#[allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stdout)]
+async fn run_icebucket_main(cli: IceBucketCli) -> Result<(), Box<dyn Error>> {
+    let object_store = cli.object_store_backend()?;
+    tracing::info!("Starting 🧊🪣 IceBucket...");
+    run_icebucket(object_store, cli.as_ref().into()).await
+}
+
+#[allow(clippy::unwrap_used)]
+async fn run_sql_main(cli: IceBucketCli) -> Result<(), Box<dyn Error>> {
+    let object_store = cli.object_store_backend()?;
+    let runtime_config = cli.as_ref().into();
+
+    if let Some(IceBucketSubcommand::Sql {
+        query, init_file, ..
+    }) = cli.subcommand
+    {
+        let init = init_file
+            .map(|path| std::fs::read_to_string(path).unwrap())
+            .unwrap_or_default();
+        let query = format!("{init};\n{query}");
+        run_icebucket_sql(object_store, runtime_config, query).await?;
+    }
+
+    Ok(())
 }

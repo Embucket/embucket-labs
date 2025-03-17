@@ -22,16 +22,29 @@ use arrow::array::{
     TimestampSecondArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array, UnionArray,
 };
 use arrow::datatypes::{Field, Schema, TimeUnit};
-use arrow::record_batch::RecordBatch;
+use arrow::{
+    csv::WriterBuilder as WriterBuilderCSV,
+    ipc::{
+        writer::{IpcWriteOptions, StreamWriter},
+        MetadataVersion,
+    },
+};
+use arrow_array::RecordBatch;
+use arrow_json::{writer::JsonArray, WriterBuilder as WriterBuilderJSON};
+use base64::{engine::general_purpose::STANDARD as engine_base64, Engine};
 use chrono::DateTime;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
 use icebucket_metastore::IceBucketTableIdent;
+use serde::{Deserialize, Serialize};
+use snafu::ResultExt;
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
 use std::sync::Arc;
 use strum::{Display, EnumString};
+
+use super::error::{self as ex_error, ExecutionResult};
 
 // This isn't the best way to do this, but it'll do for now
 // TODO: Revisit
@@ -39,18 +52,14 @@ pub struct Config {
     pub dbt_serialization_format: DataSerializationFormat,
 }
 
-impl Config {
-    pub fn new(data_format: &str) -> Result<Self, strum::ParseError> {
-        Ok(Self {
-            dbt_serialization_format: DataSerializationFormat::try_from(data_format)?,
-        })
-    }
-}
-#[derive(Copy, Clone, PartialEq, Eq, EnumString, Display)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq, EnumString, Display, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 #[strum(ascii_case_insensitive)]
 pub enum DataSerializationFormat {
     Arrow,
     Json,
+    // Only used for CLI output currently
+    Csv,
 }
 
 /*#[async_trait::async_trait]
@@ -231,7 +240,7 @@ fn convert_timestamp_to_struct(
             };
             Arc::new(Int64Array::from(timestamps)) as ArrayRef
         }
-        DataSerializationFormat::Json => {
+        DataSerializationFormat::Json | DataSerializationFormat::Csv => {
             let timestamps: Vec<_> = match unit {
                 TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray)
                     .map(|x| {
@@ -347,7 +356,7 @@ fn convert_uint_to_int_datatypes(
                 }
             }
         }
-        DataSerializationFormat::Json => {
+        DataSerializationFormat::Json | DataSerializationFormat::Csv => {
             fields.push(field.clone().with_metadata(metadata));
             Arc::clone(column)
         }
@@ -390,6 +399,56 @@ impl std::fmt::Display for NormalizedIdent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", String::from(self))
     }
+}
+
+pub fn records_to_json_string(recs: &[RecordBatch]) -> ExecutionResult<String> {
+    let buf = Vec::new();
+    let write_builder = WriterBuilderJSON::new().with_explicit_nulls(true);
+    let mut writer = write_builder.build::<_, JsonArray>(buf);
+    let record_refs: Vec<&RecordBatch> = recs.iter().collect();
+    writer
+        .write_batches(&record_refs)
+        .context(ex_error::ArrowSnafu)?;
+    writer.finish().context(ex_error::ArrowSnafu)?;
+
+    // Get the underlying buffer back,
+    String::from_utf8(writer.into_inner()).context(ex_error::Utf8Snafu)
+}
+
+pub fn records_to_csv_string(recs: &[RecordBatch]) -> ExecutionResult<String> {
+    let buf = Vec::new();
+    let write_builder = WriterBuilderCSV::new().with_header(true);
+    let mut writer = write_builder.build(buf);
+    for record in recs {
+        writer.write(record).context(ex_error::ArrowSnafu)?;
+    }
+
+    String::from_utf8(writer.into_inner()).context(ex_error::Utf8Snafu)
+}
+
+// https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
+// Buffer Alignment and Padding: Implementations are recommended to allocate memory
+// on aligned addresses (multiple of 8- or 64-bytes) and pad (overallocate) to a
+// length that is a multiple of 8 or 64 bytes. When serializing Arrow data for interprocess
+// communication, these alignment and padding requirements are enforced.
+// For more info see issue #115
+const ARROW_IPC_ALIGNMENT: usize = 8;
+
+pub fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> ExecutionResult<String> {
+    let mut buf = Vec::new();
+    let options = IpcWriteOptions::try_new(ARROW_IPC_ALIGNMENT, false, MetadataVersion::V5)
+        .context(ex_error::ArrowSnafu)?;
+    if !recs.is_empty() {
+        let mut writer =
+            StreamWriter::try_new_with_options(&mut buf, recs[0].schema_ref(), options)
+                .context(ex_error::ArrowSnafu)?;
+        for rec in recs {
+            writer.write(rec).context(ex_error::ArrowSnafu)?;
+        }
+        writer.finish().context(ex_error::ArrowSnafu)?;
+        drop(writer);
+    };
+    Ok(engine_base64.encode(buf))
 }
 
 #[cfg(test)]

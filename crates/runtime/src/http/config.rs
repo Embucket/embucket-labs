@@ -17,10 +17,12 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::execution::utils::DataSerializationFormat;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IceBucketWebConfig {
     pub host: String,
     pub port: u16,
     pub allow_origin: Option<String>,
-    pub data_format: String,
+    pub data_format: DataSerializationFormat,
 }

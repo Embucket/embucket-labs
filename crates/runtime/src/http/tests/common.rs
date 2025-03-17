@@ -53,7 +53,7 @@ pub async fn create_server() -> SocketAddr {
             port: 3000,
             host: "0.0.0.0".to_string(),
             allow_origin: None,
-            data_format: "json".to_string(),
+            data_format: crate::execution::utils::DataSerializationFormat::Json,
         },
     )
     .unwrap();

@@ -18,6 +18,11 @@
 use std::sync::Arc;
 
 use config::IceBucketRuntimeConfig;
+use execution::{
+    query::IceBucketQueryContext,
+    session::IceBucketUserSession,
+    utils::{records_to_csv_string, records_to_json_string, DataSerializationFormat},
+};
 use http::{make_icebucket_app, run_icebucket_app};
 use icebucket_metastore::SlateDBMetastore;
 use icebucket_utils::Db;
@@ -52,4 +57,38 @@ pub async fn run_icebucket(
     let metastore = Arc::new(SlateDBMetastore::new(db));
     let app = make_icebucket_app(metastore, &config.web)?;
     run_icebucket_app(app, &config.web).await
+}
+
+#[allow(clippy::print_stdout)]
+pub async fn run_icebucket_sql(
+    state_store: Arc<dyn ObjectStore>,
+    config: IceBucketRuntimeConfig,
+    query: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let db = {
+        let options = DbOptions::default();
+        Db::new(Arc::new(
+            SlateDb::open_with_opts(
+                Path::from(config.db.slatedb_prefix.clone()),
+                options,
+                state_store,
+            )
+            .await
+            .map_err(Box::new)?,
+        ))
+    };
+
+    let metastore = Arc::new(SlateDBMetastore::new(db));
+    let user_session = Arc::new(IceBucketUserSession::new(metastore.clone()).await?);
+    let query = user_session.query(query, IceBucketQueryContext::default());
+    let result = query.execute().await?;
+    let result_string = match config.web.data_format {
+        DataSerializationFormat::Json => records_to_json_string(&result)?,
+        DataSerializationFormat::Csv => records_to_csv_string(&result)?,
+        DataSerializationFormat::Arrow => {
+            unimplemented!()
+        }
+    };
+    println!("{result_string}");
+    Ok(())
 }
