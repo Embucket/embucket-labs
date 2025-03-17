@@ -33,8 +33,8 @@ use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use icebucket_metastore::{
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableIdent,
-    Metastore,
+    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableFormat,
+    IceBucketTableIdent, Metastore,
 };
 use object_store::aws::AmazonS3Builder;
 use serde::{Deserialize, Serialize};
@@ -133,10 +133,7 @@ impl IceBucketQuery {
             .as_any()
             .downcast_ref::<IceBucketDFMetastore>()
         {
-            catalog_list_impl
-                .refresh()
-                .await
-                .context(ex_error::MetastoreSnafu)
+            catalog_list_impl.refresh(&self.session.ctx).await
         } else {
             Err(ExecutionError::RefreshCatalogList {
                 message: "Catalog list implementation is not castable".to_string(),
@@ -232,6 +229,7 @@ impl IceBucketQuery {
                     self.refresh_catalog().await?;
                     return result;
                 }
+
                 Statement::CreateDatabase { .. } => {
                     // TODO: Databases are only able to be created through the
                     // metastore API. We need to add Snowflake volume syntax to CREATE DATABASE query
@@ -286,6 +284,8 @@ impl IceBucketQuery {
                 }
                 _ => {}
             }
+        } else if let DFStatement::CreateExternalTable(cetable) = statement {
+            return Box::pin(self.create_external_table_query(cetable)).await;
         }
         self.execute_sql(&self.query).await
     }
@@ -436,6 +436,60 @@ impl IceBucketQuery {
                 ),
             })
         }
+    }
+
+    pub async fn create_external_table_query(
+        &self,
+        statement: CreateExternalTable,
+    ) -> ExecutionResult<Vec<RecordBatch>> {
+        let table_location = statement.location.clone();
+        let table_format = IceBucketTableFormat::from(statement.file_type);
+        let session_context = HashMap::new();
+        let session_context_planner = SessionContextProvider {
+            state: &self.session.ctx.state(),
+            tables: session_context,
+        };
+        let planner = ExtendedSqlToRel::new(
+            &session_context_planner,
+            self.session.ctx.state().get_parser_options(),
+        );
+        let table_schema = planner
+            .build_schema(statement.columns)
+            .context(ex_error::DataFusionSnafu)?;
+        let fields_with_ids =
+            StructType::try_from(&new_fields_with_ids(table_schema.fields(), &mut 0))
+                .map_err(|err| DataFusionError::External(Box::new(err)))
+                .context(ex_error::DataFusionSnafu)?;
+
+        // TODO: Use the options with the table format in the future
+        let _table_options = statement.options.clone();
+        let table_ident: IceBucketTableIdent = self.resolve_table_ident(statement.name.0)?.into();
+
+        let table_create_request = IceBucketTableCreateRequest {
+            ident: table_ident.clone(),
+            schema: Schema::builder()
+                .with_schema_id(0)
+                .with_identifier_field_ids(vec![])
+                .with_fields(fields_with_ids)
+                .build()
+                .map_err(|err| DataFusionError::External(Box::new(err)))
+                .context(ex_error::DataFusionSnafu)?,
+            location: Some(table_location),
+            partition_spec: None,
+            sort_order: None,
+            stage_create: None,
+            volume_ident: None,
+            is_temporary: Some(false),
+            format: Some(table_format),
+            properties: None,
+        };
+
+        self.metastore
+            .create_table(&table_ident, table_create_request)
+            .await
+            .context(ex_error::MetastoreSnafu)?;
+
+        created_entity_response()
     }
 
     /// This is experimental CREATE STAGE support

@@ -48,6 +48,7 @@ impl IntoResponse for MetastoreAPIError {
             | MetastoreError::TableNotFound { .. }
             | MetastoreError::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
             MetastoreError::ObjectStore { .. }
+            | MetastoreError::ObjectStorePath { .. }
             | MetastoreError::CreateDirectory { .. }
             | MetastoreError::SlateDB { .. }
             | MetastoreError::UtilSlateDB { .. }

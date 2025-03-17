@@ -486,14 +486,14 @@ struct State {
 impl Drop for State {
     fn drop(&mut self) {
         if self.handle.is_some() {
-            tracing::warn!("DedicatedExecutor dropped without calling shutdown()");
+            tracing::trace!("DedicatedExecutor dropped without calling shutdown()");
             self.handle = None;
             self.start_shutdown.notify_one();
         }
 
         // do NOT poll the shared future if we are panicking due to https://github.com/rust-lang/futures-rs/issues/2575
         if !std::thread::panicking() && self.completed_shutdown.clone().now_or_never().is_none() {
-            tracing::warn!("DedicatedExecutor dropped without waiting for worker termination",);
+            tracing::trace!("DedicatedExecutor dropped without waiting for worker termination",);
         }
 
         // join thread but don't care about the results
