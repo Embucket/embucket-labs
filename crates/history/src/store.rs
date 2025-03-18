@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::{Project, ProjectId, QueryHistoryItem};
+use crate::{QueryHistoryItem, Worksheet, WorksheetId};
 use async_trait::async_trait;
 use bytes::Bytes;
 use icebucket_utils::iterable::{IterableCursor, IterableEntity};
@@ -27,17 +27,17 @@ use snafu::prelude::*;
 use std::sync::Arc;
 
 #[derive(Snafu, Debug)]
-pub enum ProjectsStoreError {
+pub enum WorksheetsStoreError {
     #[snafu(display("Error using key: {source}"))]
     BadKey { source: std::str::Utf8Error },
 
-    #[snafu(display("Error adding project: {source}"))]
+    #[snafu(display("Error adding worksheet: {source}"))]
     ProjectAdd { source: icebucket_utils::Error },
 
-    #[snafu(display("Error getting project: {source}"))]
+    #[snafu(display("Error getting worksheet: {source}"))]
     ProjectGet { source: icebucket_utils::Error },
 
-    #[snafu(display("Error deleting project: {source}"))]
+    #[snafu(display("Error deleting worksheet: {source}"))]
     ProjectDelete { source: icebucket_utils::Error },
 
     #[snafu(display("Error adding query history: {source}"))]
@@ -49,35 +49,35 @@ pub enum ProjectsStoreError {
     // Deserialize { source:: serde_json::error::Error },
 }
 
-pub type ProjectsStoreResult<T> = std::result::Result<T, ProjectsStoreError>;
+pub type WorksheetsStoreResult<T> = std::result::Result<T, WorksheetsStoreError>;
 
 #[async_trait]
-pub trait ProjectsStore: std::fmt::Debug + Send + Sync {
-    async fn add_project(&self, project: Project) -> ProjectsStoreResult<ProjectId>;
-    async fn get_project(&self, id: ProjectId) -> ProjectsStoreResult<Option<Project>>;
-    // async fn update_project(&self, id: ProjectId) -> ProjectsStoreResult<Project>;
-    async fn delete_project(&self, id: ProjectId) -> ProjectsStoreResult<()>;
-    async fn get_projects(&self) -> ProjectsStoreResult<Vec<Project>>;
+pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
+    async fn add_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<WorksheetId>;
+    async fn get_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Option<Worksheet>>;
+    // async fn update_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet>;
+    async fn delete_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<()>;
+    async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>>;
 
-    async fn add_history_item(&self, item: QueryHistoryItem) -> ProjectsStoreResult<()>;
+    async fn add_history_item(&self, item: QueryHistoryItem) -> WorksheetsStoreResult<()>;
     async fn query_history(
         &self,
         cursor: Option<String>,
         limit: Option<u16>,
-    ) -> ProjectsStoreResult<Vec<QueryHistoryItem>>;
+    ) -> WorksheetsStoreResult<Vec<QueryHistoryItem>>;
 }
 
-pub struct SlateDBProjectsStore {
+pub struct SlateDBWorksheetsStore {
     db: Db,
 }
 
-impl std::fmt::Debug for SlateDBProjectsStore {
+impl std::fmt::Debug for SlateDBWorksheetsStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SlateDBProjectsStore").finish()
+        f.debug_struct("SlateDBWorksheetsStore").finish()
     }
 }
 
-impl SlateDBProjectsStore {
+impl SlateDBWorksheetsStore {
     #[must_use]
     pub const fn new(db: Db) -> Self {
         Self { db }
@@ -94,21 +94,21 @@ impl SlateDBProjectsStore {
         &self.db
     }
 
-    // async fn patch_object<T, C>(&self, id: C, patch: String) -> ProjectsStoreResult<T>
+    // async fn patch_object<T, C>(&self, id: C, patch: String) -> WorksheetsStoreResult<T>
     //     where
     //         T: for<'de> serde::de::Deserialize<'de> + Serialize + IterableEntity,
     //         C: IterableCursor,
     // {
     //     // get object
     //     // convert from Bytes to &str, for .get method to convert it back to Bytes
-    //     let key_bytes= Project::key_from_cursor(id.as_bytes());
+    //     let key_bytes= Worksheet::key_from_cursor(id.as_bytes());
     //     let key_str = std::str::from_utf8(key_bytes.as_ref())
     //         .context(BadKeySnafu)?;
 
     //     let object: Option<T> = self.db.get(key_str).await.context(ProjectGetSnafu)?;
 
     //     // serialize to json should not fail
-    //     let mut json = serde_json::to_string(&project).unwrap();
+    //     let mut json = serde_json::to_string(&worksheet).unwrap();
     //     // patch using json patch
     //     patch(&mut json, &p).unwrap();
     //     // deserialize to object
@@ -118,47 +118,47 @@ impl SlateDBProjectsStore {
 }
 
 #[async_trait]
-impl ProjectsStore for SlateDBProjectsStore {
-    async fn add_project(&self, project: Project) -> ProjectsStoreResult<ProjectId> {
+impl WorksheetsStore for SlateDBWorksheetsStore {
+    async fn add_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<WorksheetId> {
         self.db
-            .put_iterable_entity(&project)
+            .put_iterable_entity(&worksheet)
             .await
             .context(ProjectAddSnafu)?;
-        Ok(project.id)
+        Ok(worksheet.id)
     }
 
-    async fn get_project(&self, id: ProjectId) -> ProjectsStoreResult<Option<Project>> {
+    async fn get_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Option<Worksheet>> {
         // convert from Bytes to &str, for .get method to convert it back to Bytes
-        let key_bytes = Project::key_from_cursor(id.as_bytes());
+        let key_bytes = Worksheet::key_from_cursor(id.as_bytes());
         let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
 
         Ok(self.db.get(key_str).await.context(ProjectGetSnafu)?)
     }
 
-    // async fn update_project(&self, id: ProjectId) -> ProjectsStoreResult<Project> {
+    // async fn update_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet> {
     //     self.patch_object(id)
 
     //     // get object
-    //     let project_by_id = self.get_project(id).await?;
+    //     let worksheet_by_id = self.get_worksheet(id).await?;
     //     // serialize to json should not fail
-    //     let mut prjson = serde_json::to_string(&project_by_id).unwrap();
+    //     let mut prjson = serde_json::to_string(&worksheet_by_id).unwrap();
     //     // patch using json patch
     //     patch(&mut doc, &p).unwrap();
     //     // deserialize to object
     //     // save back
     // }
 
-    async fn delete_project(&self, id: ProjectId) -> ProjectsStoreResult<()> {
+    async fn delete_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<()> {
         // convert from Bytes to &str, for .get method to convert it back to Bytes
-        let key_bytes = Project::key_from_cursor(id.as_bytes());
+        let key_bytes = Worksheet::key_from_cursor(id.as_bytes());
         let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
 
         Ok(self.db.delete(key_str).await.context(ProjectDeleteSnafu)?)
     }
 
-    async fn get_projects(&self) -> ProjectsStoreResult<Vec<Project>> {
-        let start_key = Project::min_key();
-        let end_key = Project::max_key();
+    async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>> {
+        let start_key = Worksheet::min_key();
+        let end_key = Worksheet::max_key();
         Ok(self
             .db
             .items_from_range(start_key..end_key, None)
@@ -166,7 +166,7 @@ impl ProjectsStore for SlateDBProjectsStore {
             .context(HistoryGetSnafu)?)
     }
 
-    async fn add_history_item(&self, item: QueryHistoryItem) -> ProjectsStoreResult<()> {
+    async fn add_history_item(&self, item: QueryHistoryItem) -> WorksheetsStoreResult<()> {
         Ok(self
             .db
             .put_iterable_entity(&item)
@@ -178,7 +178,7 @@ impl ProjectsStore for SlateDBProjectsStore {
         &self,
         cursor: Option<String>,
         limit: Option<u16>,
-    ) -> ProjectsStoreResult<Vec<QueryHistoryItem>> {
+    ) -> WorksheetsStoreResult<Vec<QueryHistoryItem>> {
         let start_key = if let Some(cursor) = cursor {
             QueryHistoryItem::key_from_cursor(Bytes::from(cursor))
         } else {
@@ -203,15 +203,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_history() {
-        let db = SlateDBProjectsStore::new_in_memory().await;
+        let db = SlateDBWorksheetsStore::new_in_memory().await;
+
+        // create worksheet first
+        let worksheet = Worksheet::new(None, Some("".to_string()));
+
         let n: u16 = 2;
         let mut created: Vec<QueryHistoryItem> = vec![];
         for i in 0..n {
             let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
                 + Duration::milliseconds(i.into());
             let mut item = QueryHistoryItem::query_start(
+                worksheet.id,
                 format!("select {i}").as_str(),
-                None,
                 Some(start_time),
             );
             if i == 0 {

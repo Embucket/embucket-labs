@@ -20,23 +20,52 @@ use icebucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-pub type ProjectId = i64;
+pub type WorksheetId = i64;
 
-// Project struct is used for storing Query History result and also used in http response
+// Worksheet struct is used for storing Query History result and also used in http response
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct Project {
-    pub id: ProjectId,
-    pub content: String,
+pub struct Worksheet {
+    pub id: WorksheetId,
+    pub content: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-impl IterableEntity for Project {
-    type Cursor = ProjectId;
+impl Worksheet {
+    #[must_use]
+    pub fn new(id: Option<WorksheetId>, content: Option<String>) -> Self {
+        let id = id.unwrap_or_else(|| Utc::now().timestamp_millis());
+        let created_at = DateTime::<Utc>::from_timestamp_nanos(id);
+        // id, start_time have the same value
+        Self {
+            id: created_at.timestamp_millis(),
+            content,
+            created_at,
+            updated_at: created_at,
+        }
+    }
+}
+
+impl IterableEntity for Worksheet {
+    type Cursor = WorksheetId;
     const PREFIX: &[u8] = b"pi.";
 
     fn cursor(&self) -> Self::Cursor {
         self.created_at.timestamp_nanos_opt().unwrap_or(0)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Worksheet;
+
+    #[test]
+    fn test_new_worksheet() {
+        let w1 = Worksheet::new(None, None);
+        assert_eq!(w1.id, w1.created_at.timestamp_millis());
+
+        let w1 = Worksheet::new(Some(436324634634), None);
+        assert_eq!(w1.id, w1.created_at.timestamp_millis());
     }
 }

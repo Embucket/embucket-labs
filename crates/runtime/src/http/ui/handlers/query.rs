@@ -25,6 +25,7 @@ use crate::{
     },
 };
 use axum::{extract::State, Json};
+use icebucket_history::WorksheetId;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, time::Instant};
 use utoipa::{OpenApi, ToSchema};
@@ -34,6 +35,7 @@ use validator::Validate;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryPayload {
+    pub worksheet_id: WorksheetId,
     pub query: String,
     pub context: Option<HashMap<String, String>>,
 }
@@ -41,8 +43,9 @@ pub struct QueryPayload {
 impl QueryPayload {
     #[allow(clippy::new_without_default)]
     #[must_use]
-    pub const fn new(query: String) -> Self {
+    pub const fn new(worksheet_id: WorksheetId, query: String) -> Self {
         Self {
+            worksheet_id,
             query,
             context: None,
         }
@@ -120,7 +123,12 @@ pub async fn query(
     let start = Instant::now();
     let result = state
         .execution_svc
-        .query_table(&session_id, &request.query, query_context)
+        .query_table(
+            &session_id,
+            request.worksheet_id,
+            &request.query,
+            query_context,
+        )
         .await
         .map_err(|e| UIError::Execution { source: e })?;
     let duration = start.elapsed();

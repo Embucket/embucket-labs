@@ -28,7 +28,7 @@ use std::time::Instant;
 use tracing;
 use utoipa::{OpenApi, ToSchema};
 
-pub struct HistoryHandlerError(store::ProjectsStoreError);
+pub struct HistoryHandlerError(store::WorksheetsStoreError);
 
 // for tracing logs
 impl Display for HistoryHandlerError {
@@ -40,13 +40,13 @@ impl Display for HistoryHandlerError {
 impl IntoResponse for HistoryHandlerError {
     fn into_response(self) -> axum::response::Response {
         let err_code = match self.0 {
-            store::ProjectsStoreError::ProjectDelete { .. }
-            | store::ProjectsStoreError::HistoryGet { .. }
-            | store::ProjectsStoreError::ProjectGet { .. }
-            | store::ProjectsStoreError::ProjectAdd { .. }
-            | store::ProjectsStoreError::BadKey { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            store::WorksheetsStoreError::ProjectDelete { .. }
+            | store::WorksheetsStoreError::HistoryGet { .. }
+            | store::WorksheetsStoreError::ProjectGet { .. }
+            | store::WorksheetsStoreError::ProjectAdd { .. }
+            | store::WorksheetsStoreError::BadKey { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             // OK is a stub for us, as this store function has no handler
-            store::ProjectsStoreError::HistoryAdd { .. } => StatusCode::OK,
+            store::WorksheetsStoreError::HistoryAdd { .. } => StatusCode::OK,
         };
         let er = ErrorResponse {
             message: self.0.to_string(),

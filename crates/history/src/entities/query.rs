@@ -15,11 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::WorksheetId;
 use chrono::{DateTime, Utc};
 use icebucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use uuid::Uuid;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
 pub enum QueryStatus {
@@ -27,11 +27,14 @@ pub enum QueryStatus {
     Error,
 }
 
+pub type QueryHistoryId = i64;
+
 // QueryHistoryItem struct is used for storing Query History result and also used in http response
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryHistoryItem {
-    pub id: Uuid,
+    pub id: QueryHistoryId,
+    pub worksheet_id: WorksheetId,
     pub query: String,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
@@ -43,10 +46,16 @@ pub struct QueryHistoryItem {
 
 impl QueryHistoryItem {
     #[must_use]
-    pub fn query_start(query: &str, id: Option<Uuid>, start_time: Option<DateTime<Utc>>) -> Self {
+    pub fn query_start(
+        worksheet_id: WorksheetId,
+        query: &str,
+        start_time: Option<DateTime<Utc>>,
+    ) -> Self {
         let start_time = start_time.unwrap_or_else(Utc::now);
+        // id, start_time have the same value
         Self {
-            id: id.unwrap_or_else(Uuid::new_v4),
+            id: start_time.timestamp_millis(),
+            worksheet_id,
             query: String::from(query),
             start_time,
             end_time: start_time,

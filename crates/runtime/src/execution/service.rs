@@ -21,7 +21,8 @@ use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
-use icebucket_history::{store::ProjectsStore, QueryHistoryItem};
+use icebucket_history::WorksheetId;
+use icebucket_history::{store::WorksheetsStore, QueryHistoryItem};
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -39,7 +40,7 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 pub struct ExecutionService {
     metastore: Arc<dyn Metastore>,
-    history: Arc<dyn ProjectsStore>,
+    history: Arc<dyn WorksheetsStore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<IceBucketUserSession>>>>,
     config: Config,
 }
@@ -47,7 +48,7 @@ pub struct ExecutionService {
 impl ExecutionService {
     pub fn new(
         metastore: Arc<dyn Metastore>,
-        history: Arc<dyn ProjectsStore>,
+        history: Arc<dyn WorksheetsStore>,
         config: Config,
     ) -> Self {
         Self {
@@ -109,10 +110,11 @@ impl ExecutionService {
     pub async fn query_table(
         &self,
         session_id: &str,
+        worksheet_id: WorksheetId,
         query: &str,
         query_context: IceBucketQueryContext,
     ) -> ExecutionResult<String> {
-        let mut history_item = QueryHistoryItem::query_start(query, None, None);
+        let mut history_item = QueryHistoryItem::query_start(worksheet_id, query, None);
 
         let (records, _) = self.query(session_id, query, query_context).await?;
         let buf = Vec::new();
