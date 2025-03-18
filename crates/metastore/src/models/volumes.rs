@@ -39,8 +39,8 @@ pub struct AwsAccessKeyCredentials {
     #[validate(length(min = 1))]
     #[serde(serialize_with = "hide_sensitive")]
     pub aws_access_key_id: String,
-    #[serde(serialize_with = "hide_sensitive")]
     #[validate(length(min = 1))]
+    #[serde(serialize_with = "hide_sensitive")]
     pub aws_secret_access_key: String,
 }
 
