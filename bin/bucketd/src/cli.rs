@@ -113,6 +113,14 @@ pub struct IceBucketOpts {
 
     #[arg(
         long,
+        env = "CATALOG_URL",
+        default_value = "http://127.0.0.1:3000",
+        help = "Iceberg catalog url"
+    )]
+    pub catalog_url: Option<String>,
+
+    #[arg(
+        long,
         env = "CORS_ENABLED",
         help = "Enable CORS",
         default_value = "false"
