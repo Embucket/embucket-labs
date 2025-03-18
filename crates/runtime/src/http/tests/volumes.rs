@@ -74,8 +74,8 @@ async fn test_ui_volumes_s3() {
             skip_signature: None,
             metadata_endpoint: None,
             credentials: Some(AwsCredentials::AccessKey(AwsAccessKeyCredentials {
-                aws_access_key_id: "kPYGGu34jF685erC7gst".to_string(),
-                aws_secret_access_key: "Q2ClWJgwIZLcX4IE2zO2GBl8qXz7g4knqwLwUpWL".to_string(),
+                aws_access_key_id: "********".to_string(),
+                aws_secret_access_key: "********".to_string(),
             })),
         }),
     };

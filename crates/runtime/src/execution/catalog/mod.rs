@@ -22,8 +22,13 @@ use std::{
 };
 
 use async_trait::async_trait;
-use dashmap::{DashMap, DashSet};
-use datafusion::catalog::{CatalogProvider, CatalogProviderList, SchemaProvider, TableProvider};
+use dashmap::DashMap;
+use datafusion::{
+    catalog::{CatalogProvider, CatalogProviderList, SchemaProvider, TableProvider},
+    datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl},
+    execution::{object_store::ObjectStoreRegistry, options::ReadOptions},
+    prelude::{ParquetReadOptions, SessionContext},
+};
 use datafusion_common::{exec_err, DataFusionError, Result as DFResult};
 use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
 use iceberg_rust::{
@@ -47,15 +52,22 @@ use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
 use icebucket_metastore::{
-    error::MetastoreResult, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent,
+    error::MetastoreError, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent,
     IceBucketTableUpdate, Metastore,
 };
 use object_store::ObjectStore;
+use snafu::ResultExt;
 
+use crate::execution::error::{self as ex_error, ExecutionResult};
+
+type TableProviderCache = DashMap<String, Arc<dyn TableProvider>>;
+type SchemaProviderCache = DashMap<String, TableProviderCache>;
+type CatalogProviderCache = DashMap<String, SchemaProviderCache>;
 #[derive(Clone)]
 pub struct IceBucketDFMetastore {
     pub metastore: Arc<dyn Metastore>,
-    pub mirror: Arc<DashMap<String, DashMap<String, DashSet<String>>>>,
+    pub mirror: Arc<CatalogProviderCache>,
+    pub table_object_store: Arc<DashMap<url::Url, Arc<dyn ObjectStore>>>,
 }
 
 impl IceBucketDFMetastore {
@@ -63,30 +75,110 @@ impl IceBucketDFMetastore {
         Self {
             metastore,
             mirror: Arc::new(DashMap::new()),
+            table_object_store: Arc::new(DashMap::new()),
         }
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
-    pub async fn refresh(&self) -> MetastoreResult<()> {
+    #[allow(clippy::as_conversions)]
+    #[tracing::instrument(level = "debug", skip(self, ctx))]
+    pub async fn refresh(&self, ctx: &SessionContext) -> ExecutionResult<()> {
         let mut seen: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::default();
 
-        let databases = self.metastore.list_databases().await?;
+        let databases = self
+            .metastore
+            .list_databases()
+            .await
+            .context(ex_error::MetastoreSnafu)?;
         for database in databases {
             let db_entry = self
                 .mirror
                 .entry(database.ident.clone())
-                .or_insert(DashMap::new());
-            let db_seen = seen.entry(database.ident.clone()).or_default();
-            let schemas = self.metastore.list_schemas(&database.ident).await?;
+                .or_insert(SchemaProviderCache::default());
+            let db_seen_entry = seen.entry(database.ident.clone()).or_default();
+            let schemas = self
+                .metastore
+                .list_schemas(&database.ident)
+                .await
+                .context(ex_error::MetastoreSnafu)?;
             for schema in schemas {
                 let schema_entry = db_entry
                     .entry(schema.ident.schema.clone())
-                    .or_insert(DashSet::default());
-                let schema_seen = db_seen.entry(schema.ident.schema.clone()).or_default();
-                let tables = self.metastore.list_tables(&schema.ident).await?;
+                    .insert(TableProviderCache::default());
+                let schema_seen_entry = db_seen_entry
+                    .entry(schema.ident.schema.clone())
+                    .or_default();
+                let tables = self
+                    .metastore
+                    .list_tables(&schema.ident)
+                    .await
+                    .context(ex_error::MetastoreSnafu)?;
                 for table in tables {
-                    schema_entry.insert(table.ident.table.clone());
-                    schema_seen.insert(table.ident.table.clone());
+                    let table_url = self
+                        .metastore
+                        .url_for_table(&table.ident)
+                        .await
+                        .context(ex_error::MetastoreSnafu)?;
+                    let table_object_store = self
+                        .metastore
+                        .table_object_store(&table.ident)
+                        .await
+                        .context(ex_error::MetastoreSnafu)?
+                        .ok_or(MetastoreError::TableObjectStoreNotFound {
+                            table: table.ident.table.clone(),
+                            schema: table.ident.schema.clone(),
+                            db: table.ident.database.clone(),
+                        })
+                        .context(ex_error::MetastoreSnafu)?;
+                    let url = url::Url::parse(&table_url).context(ex_error::UrlParseSnafu)?;
+                    self.table_object_store
+                        .insert(url, table_object_store.clone());
+
+                    let table_provider = match table.format {
+                        icebucket_metastore::IceBucketTableFormat::Parquet => {
+                            let parq_read_options = ParquetReadOptions::default();
+                            let listing_options = parq_read_options.to_listing_options(
+                                ctx.state().config(),
+                                ctx.state().default_table_options(),
+                            );
+
+                            let table_path = ListingTableUrl::parse(&table_url)
+                                .context(ex_error::DataFusionSnafu)?;
+
+                            // TODO: Switch Metastore to use arrow schema instead and just use that instead of scanning
+                            let schema = listing_options
+                                .infer_schema(&ctx.state(), &table_path)
+                                .await
+                                .context(ex_error::DataFusionSnafu)?;
+                            let config = ListingTableConfig::new(table_path)
+                                .with_listing_options(listing_options)
+                                .with_schema(schema);
+                            Arc::new(
+                                ListingTable::try_new(config).context(ex_error::DataFusionSnafu)?,
+                            ) as Arc<dyn TableProvider>
+                        }
+                        icebucket_metastore::IceBucketTableFormat::Iceberg => {
+                            let bridge = Arc::new(IceBucketIcebergBridge {
+                                metastore: self.metastore.clone(),
+                                ident: table.ident.clone(),
+                                object_store: table_object_store.clone(),
+                            });
+
+                            let ib_identifier = IcebergIdentifier::new(
+                                &[table.ident.database.clone(), table.ident.schema.clone()],
+                                &table.ident.table,
+                            );
+                            let tabular = bridge
+                                .load_tabular(&ib_identifier)
+                                .await
+                                .map_err(|e| DataFusionError::External(Box::new(e)))
+                                .context(ex_error::DataFusionSnafu)?;
+                            Arc::new(IcebergDataFusionTable::new(tabular, None, None, None))
+                                as Arc<dyn TableProvider>
+                        }
+                    };
+                    //mirror_entry.insert(table.ident.table.clone());
+                    schema_entry.insert(table.ident.table.clone(), table_provider.clone());
+                    schema_seen_entry.insert(table.ident.table.clone());
                 }
             }
         }
@@ -98,7 +190,7 @@ impl IceBucketDFMetastore {
                         let mut tables_to_remove = vec![];
                         for table in schema.iter() {
                             if !seen[db.key()][schema.key()].contains(table.key()) {
-                                tables_to_remove.push(table.clone());
+                                tables_to_remove.push(table.key().clone());
                             }
                         }
 
@@ -121,6 +213,29 @@ impl IceBucketDFMetastore {
 impl std::fmt::Debug for IceBucketDFMetastore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IceBucketDFMetastore").finish()
+    }
+}
+
+impl ObjectStoreRegistry for IceBucketDFMetastore {
+    fn register_store(
+        &self,
+        _url: &url::Url,
+        _store: Arc<dyn object_store::ObjectStore>,
+    ) -> Option<Arc<dyn object_store::ObjectStore>> {
+        None
+    }
+
+    fn get_store(
+        &self,
+        url: &url::Url,
+    ) -> datafusion_common::Result<Arc<dyn object_store::ObjectStore>> {
+        if let Some(object_store) = self.table_object_store.get(url) {
+            Ok(object_store.clone())
+        } else {
+            Err(DataFusionError::Execution(format!(
+                "Object store not found for url {url}"
+            )))
+        }
     }
 }
 
@@ -159,7 +274,7 @@ impl CatalogProviderList for IceBucketDFMetastore {
 pub struct IceBucketDFCatalog {
     pub ident: String,
     pub metastore: Arc<dyn Metastore>,
-    pub mirror: Arc<DashMap<String, DashMap<String, DashSet<String>>>>,
+    pub mirror: Arc<CatalogProviderCache>,
 }
 
 #[allow(clippy::missing_fields_in_debug)]
@@ -205,7 +320,7 @@ pub struct IceBucketDFSchema {
     pub database: String,
     pub schema: String,
     pub metastore: Arc<dyn Metastore>,
-    pub mirror: Arc<DashMap<String, DashMap<String, DashSet<String>>>>,
+    pub mirror: Arc<CatalogProviderCache>,
 }
 
 #[allow(clippy::missing_fields_in_debug)]
@@ -247,37 +362,14 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
     /// Retrieves a specific table from the schema by name, if it exists,
     /// otherwise returns `None`.
     async fn table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
-        let table_ident = IceBucketTableIdent {
-            schema: self.schema.clone(),
-            database: self.database.clone(),
-            table: name.to_string(),
-        };
-        let ident_clone = table_ident.clone();
-        let table_object_store = self
-            .metastore
-            .table_object_store(&table_ident)
-            .await
-            .map_err(|e| DataFusionError::External(Box::new(e)))?;
-
-        if let Some(object_store) = table_object_store {
-            let bridge = Arc::new(IceBucketIcebergBridge {
-                metastore: self.metastore.clone(),
-                ident: ident_clone,
-                object_store: object_store.clone(),
-            });
-
-            let ib_identifier =
-                IcebergIdentifier::new(&[self.database.clone(), self.schema.clone()], name);
-            let tabular = bridge
-                .load_tabular(&ib_identifier)
-                .await
-                .map_err(|e| DataFusionError::External(Box::new(e)))?;
-            let dftable: Arc<dyn TableProvider> =
-                Arc::new(IcebergDataFusionTable::new(tabular, None, None, None));
-            Ok(Some(dftable))
-        } else {
-            Ok(None)
+        if let Some(db) = self.mirror.get(&self.database) {
+            if let Some(schema) = db.get(&self.schema) {
+                if let Some(table) = schema.get(name) {
+                    return Ok(Some(table.clone()));
+                }
+            }
         }
+        Ok(None)
     }
 
     /// If supported by the implementation, adds a new table named `name` to
@@ -305,18 +397,10 @@ impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
 
     /// Returns true if table exist in the schema provider, false otherwise.
     fn table_exist(&self, name: &str) -> bool {
-        let table_ident = IceBucketTableIdent {
-            schema: self.schema.clone(),
-            database: self.database.clone(),
-            table: name.to_string(),
-        };
-        tokio::runtime::Handle::current().block_on(async {
-            self.metastore
-                .get_table(&table_ident)
-                .await
-                .unwrap_or_default()
-                .is_some()
-        })
+        self.mirror
+            .get(&self.database)
+            .and_then(|db| db.get(&self.schema).map(|schema| schema.contains_key(name)))
+            .unwrap_or_default()
     }
 }
 

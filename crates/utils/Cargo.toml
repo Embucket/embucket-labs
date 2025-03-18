@@ -2,7 +2,7 @@
 name = "icebucket_utils"
 version = "0.1.0"
 edition = "2021"
-license-file = {workspace = true}
+license-file = { workspace = true }
 
 [dependencies]
 async-trait = { workspace = true }

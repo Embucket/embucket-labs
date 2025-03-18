@@ -46,6 +46,7 @@ async fn main() {
     let opts = cli::IceBucketOpts::parse();
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let host = opts.host.clone().unwrap();
+    let iceberg_catalog_url = opts.catalog_url.clone().unwrap();
     let port = opts.port.unwrap();
     let allow_origin = if opts.cors_enabled.unwrap_or(false) {
         opts.cors_allow_origin.clone()
@@ -71,10 +72,11 @@ async fn main() {
                     slatedb_prefix: slatedb_prefix.clone(),
                 },
                 web: IceBucketWebConfig {
-                    host: host.clone(),
+                    host,
                     port,
-                    allow_origin: allow_origin.clone(),
+                    allow_origin,
                     data_format: dbt_serialization_format.clone(),
+                    iceberg_catalog_url,
                 },
             };
 

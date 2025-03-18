@@ -576,6 +576,8 @@ impl Metastore for SlateDBMetastore {
                 table_metadata.location(table_location.clone());
             }
 
+            let table_format = table.format.unwrap_or(IceBucketTableFormat::Iceberg);
+
             let table_metadata = table_metadata
                 .build()
                 .context(metastore_error::TableMetadataBuilderSnafu)?;
@@ -591,6 +593,7 @@ impl Metastore for SlateDBMetastore {
                 volume_ident: table.volume_ident,
                 volume_location: table.location,
                 is_temporary: table.is_temporary.unwrap_or_default(),
+                format: table_format,
             };
             let rwo_table = self.create_object(&key, "table", table.clone()).await?;
 
@@ -604,7 +607,11 @@ impl Metastore for SlateDBMetastore {
             let data = Bytes::from(
                 serde_json::to_vec(&table_metadata).context(metastore_error::SerdeSnafu)?,
             );
-            let path = Path::from(table.metadata_location.clone());
+
+            #[allow(clippy::unwrap_used)]
+            let url = url::Url::parse(&table.metadata_location).unwrap();
+
+            let path = Path::from(url.path());
             object_store
                 .put(&path, PutPayload::from(data))
                 .await

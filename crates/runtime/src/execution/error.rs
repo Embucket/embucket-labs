@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use std::backtrace::Backtrace;
+
 use crate::http::error::ErrorResponse;
 use axum::{response::IntoResponse, Json};
 use datafusion_common::DataFusionError;
@@ -82,12 +84,19 @@ pub enum ExecutionError {
     #[snafu(display("Object of type {type_name} with name {name} already exists"))]
     ObjectAlreadyExists { type_name: String, name: String },
 
+    #[snafu(display("Unsupported file format {format}"))]
+    UnsupportedFileFormat { format: String },
+
     #[snafu(display("Cannot refresh catalog list"))]
     RefreshCatalogList { message: String },
 
-    #[snafu(display("Threaded Job error: {source}"))]
+    #[snafu(display("URL Parsing error: {source}"))]
+    UrlParse { source: url::ParseError },
+
+    #[snafu(display("Threaded Job error: {source}: {backtrace}"))]
     JobError {
         source: crate::execution::dedicated_executor::JobError,
+        backtrace: Backtrace,
     },
 }
 

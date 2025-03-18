@@ -36,6 +36,7 @@ warehouse-prefix/
 crates/catalog/prefix/**
 embucket-warehouse-test/
 dummyprefix/
+tests/benchmark
 
 *.manifest
 *.sst
