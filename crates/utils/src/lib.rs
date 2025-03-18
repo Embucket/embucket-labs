@@ -146,7 +146,7 @@ impl Db {
     /// Returns a `DbError` if the underlying database operation fails.
     /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
     #[allow(clippy::unwrap_used)]
-    pub async fn list_objects<T: for<'de> serde::de::Deserialize<'de>>(
+    pub async fn list_objects<T: Send + for<'de> serde::de::Deserialize<'de>>(
         &self,
         key: &str,
     ) -> Result<Vec<T>> {
@@ -174,7 +174,7 @@ impl Db {
     ) -> Result<()> {
         let serialized = ser::to_vec(entity).context(SerializeValueSnafu)?;
         self.0
-            .put(entity.key().iter().as_slice(), serialized.as_ref())
+            .put(entity.key().as_ref(), serialized.as_ref())
             .await
             .context(DatabaseSnafu)
     }

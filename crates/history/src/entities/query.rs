@@ -83,8 +83,4 @@ impl IterableEntity for QueryHistoryItem {
     fn cursor(&self) -> Self::Cursor {
         self.start_time.timestamp_nanos_opt().unwrap_or(0)
     }
-
-    fn next_cursor(&self) -> Self::Cursor {
-        self.cursor() + 1
-    }
 }

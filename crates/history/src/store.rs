@@ -15,47 +15,69 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::QueryHistoryItem;
+use crate::{Project, ProjectId, QueryHistoryItem};
 use async_trait::async_trait;
 use bytes::Bytes;
-use icebucket_utils::iterable::IterableEntity;
+use icebucket_utils::iterable::{IterableCursor, IterableEntity};
 use icebucket_utils::Db;
 use snafu::prelude::*;
+// use serde::{Serialize, Deserialize};
+// use serde_json;
 #[cfg(test)]
 use std::sync::Arc;
 
 #[derive(Snafu, Debug)]
-pub enum HistoryStoreError {
+pub enum ProjectsStoreError {
+    #[snafu(display("Error using key: {source}"))]
+    BadKey { source: std::str::Utf8Error },
+
+    #[snafu(display("Error adding project: {source}"))]
+    ProjectAdd { source: icebucket_utils::Error },
+
+    #[snafu(display("Error getting project: {source}"))]
+    ProjectGet { source: icebucket_utils::Error },
+
+    #[snafu(display("Error deleting project: {source}"))]
+    ProjectDelete { source: icebucket_utils::Error },
+
     #[snafu(display("Error adding query history: {source}"))]
-    QHistoryAdd { source: icebucket_utils::Error },
+    HistoryAdd { source: icebucket_utils::Error },
 
     #[snafu(display("Error getting query history: {source}"))]
-    QHistoryGet { source: icebucket_utils::Error },
+    HistoryGet { source: icebucket_utils::Error },
+    // #[snafu(display("Error deserialising value: {source}"))]
+    // Deserialize { source:: serde_json::error::Error },
 }
 
-pub type HistoryStoreResult<T> = std::result::Result<T, HistoryStoreError>;
+pub type ProjectsStoreResult<T> = std::result::Result<T, ProjectsStoreError>;
 
 #[async_trait]
-pub trait HistoryStore: std::fmt::Debug + Send + Sync {
-    async fn add_history_item(&self, item: QueryHistoryItem) -> HistoryStoreResult<()>;
+pub trait ProjectsStore: std::fmt::Debug + Send + Sync {
+    async fn add_project(&self, project: Project) -> ProjectsStoreResult<ProjectId>;
+    async fn get_project(&self, id: ProjectId) -> ProjectsStoreResult<Option<Project>>;
+    // async fn update_project(&self, id: ProjectId) -> ProjectsStoreResult<Project>;
+    async fn delete_project(&self, id: ProjectId) -> ProjectsStoreResult<()>;
+    async fn get_projects(&self) -> ProjectsStoreResult<Vec<Project>>;
+
+    async fn add_history_item(&self, item: QueryHistoryItem) -> ProjectsStoreResult<()>;
     async fn query_history(
         &self,
         cursor: Option<String>,
         limit: Option<u16>,
-    ) -> HistoryStoreResult<Vec<QueryHistoryItem>>;
+    ) -> ProjectsStoreResult<Vec<QueryHistoryItem>>;
 }
 
-pub struct SlateDBHistoryStore {
+pub struct SlateDBProjectsStore {
     db: Db,
 }
 
-impl std::fmt::Debug for SlateDBHistoryStore {
+impl std::fmt::Debug for SlateDBProjectsStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SlateDBHistoryStore").finish()
+        f.debug_struct("SlateDBProjectsStore").finish()
     }
 }
 
-impl SlateDBHistoryStore {
+impl SlateDBProjectsStore {
     #[must_use]
     pub const fn new(db: Db) -> Self {
         Self { db }
@@ -71,23 +93,92 @@ impl SlateDBHistoryStore {
     pub const fn db(&self) -> &Db {
         &self.db
     }
+
+    // async fn patch_object<T, C>(&self, id: C, patch: String) -> ProjectsStoreResult<T>
+    //     where
+    //         T: for<'de> serde::de::Deserialize<'de> + Serialize + IterableEntity,
+    //         C: IterableCursor,
+    // {
+    //     // get object
+    //     // convert from Bytes to &str, for .get method to convert it back to Bytes
+    //     let key_bytes= Project::key_from_cursor(id.as_bytes());
+    //     let key_str = std::str::from_utf8(key_bytes.as_ref())
+    //         .context(BadKeySnafu)?;
+
+    //     let object: Option<T> = self.db.get(key_str).await.context(ProjectGetSnafu)?;
+
+    //     // serialize to json should not fail
+    //     let mut json = serde_json::to_string(&project).unwrap();
+    //     // patch using json patch
+    //     patch(&mut json, &p).unwrap();
+    //     // deserialize to object
+    //     serde_json::from_str(s)
+    //     // save back
+    // }
 }
 
 #[async_trait]
-impl HistoryStore for SlateDBHistoryStore {
-    async fn add_history_item(&self, item: QueryHistoryItem) -> HistoryStoreResult<()> {
+impl ProjectsStore for SlateDBProjectsStore {
+    async fn add_project(&self, project: Project) -> ProjectsStoreResult<ProjectId> {
+        self.db
+            .put_iterable_entity(&project)
+            .await
+            .context(ProjectAddSnafu)?;
+        Ok(project.id)
+    }
+
+    async fn get_project(&self, id: ProjectId) -> ProjectsStoreResult<Option<Project>> {
+        // convert from Bytes to &str, for .get method to convert it back to Bytes
+        let key_bytes = Project::key_from_cursor(id.as_bytes());
+        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
+
+        Ok(self.db.get(key_str).await.context(ProjectGetSnafu)?)
+    }
+
+    // async fn update_project(&self, id: ProjectId) -> ProjectsStoreResult<Project> {
+    //     self.patch_object(id)
+
+    //     // get object
+    //     let project_by_id = self.get_project(id).await?;
+    //     // serialize to json should not fail
+    //     let mut prjson = serde_json::to_string(&project_by_id).unwrap();
+    //     // patch using json patch
+    //     patch(&mut doc, &p).unwrap();
+    //     // deserialize to object
+    //     // save back
+    // }
+
+    async fn delete_project(&self, id: ProjectId) -> ProjectsStoreResult<()> {
+        // convert from Bytes to &str, for .get method to convert it back to Bytes
+        let key_bytes = Project::key_from_cursor(id.as_bytes());
+        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
+
+        Ok(self.db.delete(key_str).await.context(ProjectDeleteSnafu)?)
+    }
+
+    async fn get_projects(&self) -> ProjectsStoreResult<Vec<Project>> {
+        let start_key = Project::min_key();
+        let end_key = Project::max_key();
+        Ok(self
+            .db
+            .items_from_range(start_key..end_key, None)
+            .await
+            .context(HistoryGetSnafu)?)
+    }
+
+    async fn add_history_item(&self, item: QueryHistoryItem) -> ProjectsStoreResult<()> {
         Ok(self
             .db
             .put_iterable_entity(&item)
             .await
-            .context(QHistoryAddSnafu)?)
+            .context(HistoryAddSnafu)?)
     }
 
     async fn query_history(
         &self,
         cursor: Option<String>,
         limit: Option<u16>,
-    ) -> HistoryStoreResult<Vec<QueryHistoryItem>> {
+    ) -> ProjectsStoreResult<Vec<QueryHistoryItem>> {
         let start_key = if let Some(cursor) = cursor {
             QueryHistoryItem::key_from_cursor(Bytes::from(cursor))
         } else {
@@ -98,7 +189,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .db
             .items_from_range(start_key..end_key, limit)
             .await
-            .context(QHistoryGetSnafu)?)
+            .context(HistoryGetSnafu)?)
     }
 }
 
@@ -112,7 +203,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_history() {
-        let db = SlateDBHistoryStore::new_in_memory().await;
+        let db = SlateDBProjectsStore::new_in_memory().await;
         let n: u16 = 2;
         let mut created: Vec<QueryHistoryItem> = vec![];
         for i in 0..n {

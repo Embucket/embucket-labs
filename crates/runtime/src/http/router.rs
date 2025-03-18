@@ -24,10 +24,10 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::dbt::router::create_router as create_dbt_router;
+use crate::http::ui::handlers::history::ApiDoc as HistoryApiDoc;
 use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
 use crate::http::ui::handlers::schemas::ApiDoc as SchemasApiDoc;
 use crate::http::ui::handlers::volumes::ApiDoc as VolumesApiDoc;
-use crate::http::ui::handlers::history::ApiDoc as HistoryApiDoc;
 // use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
 use crate::http::state::AppState;
 use crate::http::ui::handlers::databases::ApiDoc as DatabasesApiDoc;

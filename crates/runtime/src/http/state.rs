@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_history::store::HistoryStore;
+use icebucket_history::store::ProjectsStore;
 use icebucket_metastore::metastore::Metastore;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ use crate::execution::service::ExecutionService;
 #[derive(Clone)]
 pub struct AppState {
     pub metastore: Arc<dyn Metastore + Send + Sync>,
-    pub history: Arc<dyn HistoryStore + Send + Sync>,
+    pub history: Arc<dyn ProjectsStore + Send + Sync>,
     pub execution_svc: Arc<ExecutionService>,
     pub dbt_sessions: Arc<Mutex<HashMap<String, String>>>,
 }
@@ -36,7 +36,7 @@ impl AppState {
     // You can add helper methods for state initialization if needed
     pub fn new(
         metastore: Arc<dyn Metastore + Send + Sync>,
-        history: Arc<dyn HistoryStore + Send + Sync>,
+        history: Arc<dyn ProjectsStore + Send + Sync>,
         execution_svc: Arc<ExecutionService>,
     ) -> Self {
         Self {

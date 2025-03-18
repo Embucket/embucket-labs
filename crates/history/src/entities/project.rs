@@ -15,8 +15,28 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod entities;
-pub mod store;
+use chrono::{DateTime, Utc};
+use icebucket_utils::iterable::IterableEntity;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-pub use entities::*;
-pub use store::*;
+pub type ProjectId = i64;
+
+// Project struct is used for storing Query History result and also used in http response
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Project {
+    pub id: ProjectId,
+    pub content: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl IterableEntity for Project {
+    type Cursor = ProjectId;
+    const PREFIX: &[u8] = b"pi.";
+
+    fn cursor(&self) -> Self::Cursor {
+        self.created_at.timestamp_nanos_opt().unwrap_or(0)
+    }
+}

@@ -21,7 +21,7 @@ use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
-use icebucket_history::{store::HistoryStore, QueryHistoryItem};
+use icebucket_history::{store::ProjectsStore, QueryHistoryItem};
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -39,7 +39,7 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 pub struct ExecutionService {
     metastore: Arc<dyn Metastore>,
-    history: Arc<dyn HistoryStore>,
+    history: Arc<dyn ProjectsStore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<IceBucketUserSession>>>>,
     config: Config,
 }
@@ -47,7 +47,7 @@ pub struct ExecutionService {
 impl ExecutionService {
     pub fn new(
         metastore: Arc<dyn Metastore>,
-        history: Arc<dyn HistoryStore>,
+        history: Arc<dyn ProjectsStore>,
         config: Config,
     ) -> Self {
         Self {
@@ -94,7 +94,6 @@ impl ExecutionService {
                 .ok_or(ExecutionError::MissingDataFusionSession {
                     id: session_id.to_string(),
                 })?;
-        let mut history_item = QueryHistoryItem::query_start(query, None, None);
 
         let query_obj = user_session.query(query, query_context);
 
@@ -102,26 +101,8 @@ impl ExecutionService {
 
         let data_format = self.config().dbt_serialization_format;
         // Add columns dbt metadata to each field
-        let res = convert_record_batches(records, data_format)
-            .context(ex_error::DataFusionQuerySnafu { query });
-
-        match &res {
-            Ok(recs) => {
-                let result_count = i64::try_from(recs.0.len()).unwrap_or(0);
-                history_item.query_finished(result_count, None);
-                // TODO: add result records, perhaps using records_to_json_string
-            }
-            Err(err) => {
-                history_item.query_finished_with_error(err.to_string());
-            }
-        }
-
-        if let Err(err) = self.history.add_history_item(history_item).await {
-            // do not raise error, just log ?
-            tracing::error!("{err}");
-        }
-
-        res
+        convert_record_batches(records, data_format)
+            .context(ex_error::DataFusionQuerySnafu { query })
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
@@ -131,6 +112,8 @@ impl ExecutionService {
         query: &str,
         query_context: IceBucketQueryContext,
     ) -> ExecutionResult<String> {
+        let mut history_item = QueryHistoryItem::query_start(query, None, None);
+
         let (records, _) = self.query(session_id, query, query_context).await?;
         let buf = Vec::new();
         let write_builder = WriterBuilder::new().with_explicit_nulls(true);
@@ -145,7 +128,25 @@ impl ExecutionService {
         // Get the underlying buffer back,
         let buf = writer.into_inner();
 
-        String::from_utf8(buf).context(ex_error::Utf8Snafu)
+        let res = String::from_utf8(buf).context(ex_error::Utf8Snafu);
+
+        match &res {
+            Ok(_recs) => {
+                let result_count = i64::try_from(records.len()).unwrap_or(0);
+                history_item.query_finished(result_count, None);
+                // TODO: add result records, perhaps using records_to_json_string
+            }
+            Err(err) => {
+                history_item.query_finished_with_error(err.to_string());
+            }
+        }
+
+        if let Err(err) = self.history.add_history_item(history_item).await {
+            // do not raise error, just log ?
+            tracing::error!("{err}");
+        }
+
+        res
     }
 
     #[tracing::instrument(level = "debug", skip(self))]

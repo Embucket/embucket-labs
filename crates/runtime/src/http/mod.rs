@@ -24,7 +24,7 @@ use axum::{
     Router,
 };
 use http_body_util::BodyExt;
-use icebucket_history::store::HistoryStore;
+use icebucket_history::store::ProjectsStore;
 use icebucket_metastore::Metastore;
 use std::sync::Arc;
 use time::Duration;
@@ -55,9 +55,10 @@ mod tests;
 
 use super::http::config::IceBucketWebConfig;
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn make_icebucket_app(
     metastore: Arc<dyn Metastore>,
-    history: Arc<dyn HistoryStore>,
+    history: Arc<dyn ProjectsStore>,
     config: &IceBucketWebConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format)?;

@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod entities;
-pub mod store;
+pub mod project;
+pub mod query;
 
-pub use entities::*;
-pub use store::*;
+pub use project::*;
+pub use query::*;

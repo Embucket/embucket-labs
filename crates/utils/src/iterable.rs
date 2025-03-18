@@ -22,8 +22,8 @@ pub trait IterableCursor {
     const CURSOR_MIN: Self;
     const CURSOR_MAX: Self;
 
-    fn cursor_from<T: ToString>(value: T) -> Bytes;
-    fn next_cursor(&self) -> Bytes;
+    #[must_use]
+    fn next_cursor(&self) -> Self;
     fn as_bytes(&self) -> Bytes;
 }
 
@@ -33,12 +33,12 @@ impl IterableCursor for i64 {
     const CURSOR_MIN: Self = 0;
     const CURSOR_MAX: Self = Self::MAX;
 
-    fn cursor_from<T: ToString>(value: T) -> Bytes {
-        Bytes::from(value.to_string())
-    }
-
-    fn next_cursor(&self) -> Bytes {
-        (self + 1).as_bytes()
+    fn next_cursor(&self) -> Self {
+        if self < &Self::CURSOR_MAX {
+            self + 1
+        } else {
+            Self::CURSOR_MIN
+        }
     }
 
     fn as_bytes(&self) -> Bytes {
@@ -51,7 +51,10 @@ pub trait IterableEntity {
     const PREFIX: &[u8];
 
     fn cursor(&self) -> Self::Cursor;
-    fn next_cursor(&self) -> Self::Cursor;
+
+    fn next_cursor(&self) -> Self::Cursor {
+        self.cursor().next_cursor()
+    }
 
     fn cursor_bytes(&self) -> Bytes {
         Bytes::from(self.cursor().to_string())

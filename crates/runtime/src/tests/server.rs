@@ -16,7 +16,7 @@
 // under the License.
 
 use crate::http::{config::IceBucketWebConfig, make_icebucket_app};
-use icebucket_history::store::SlateDBHistoryStore;
+use icebucket_history::store::SlateDBProjectsStore;
 use icebucket_metastore::SlateDBMetastore;
 use icebucket_utils::Db;
 use std::net::SocketAddr;
@@ -28,7 +28,7 @@ pub async fn run_icebucket_test_server() -> SocketAddr {
 
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history = Arc::new(SlateDBHistoryStore::new(db));
+    let history = Arc::new(SlateDBProjectsStore::new(db));
 
     let app = make_icebucket_app(
         metastore,
