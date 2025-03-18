@@ -38,6 +38,7 @@ pub async fn run_icebucket_test_server() -> SocketAddr {
             host: "0.0.0.0".to_string(),
             allow_origin: None,
             data_format: "json".to_string(),
+            iceberg_catalog_url: "http://127.0.0.1".to_string(),
         },
     )
     .unwrap();
