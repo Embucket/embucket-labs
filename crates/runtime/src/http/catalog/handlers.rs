@@ -242,10 +242,11 @@ pub async fn get_config(
     State(state): State<AppState>,
     Query(params): Query<GetConfigQuery>,
 ) -> MetastoreAPIResult<Json<CatalogConfig>> {
+    let catalog_url = state.config.iceberg_catalog_url.clone();
     let config = CatalogConfig {
         defaults: HashMap::new(),
         overrides: HashMap::from([
-            ("uri".into(), state.config.iceberg_catalog_url.clone()),
+            ("uri".into(), format!("{catalog_url}/catalog")),
             ("prefix".into(), params.warehouse.unwrap_or_default()),
         ]),
     };
