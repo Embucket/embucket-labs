@@ -47,7 +47,7 @@ async fn test_ui_volumes_file() {
 
     // memory volume with empty ident create Ok
     let expected = IceBucketVolume {
-        ident: "".to_string(),
+        ident: String::new(),
         volume: IceBucketVolumeType::File(IceBucketFileVolume {
             path: "/tmp/data".to_string(),
         }),
@@ -66,7 +66,7 @@ async fn test_ui_volumes_s3() {
 
     // memory volume with empty ident create Ok
     let expected = IceBucketVolume {
-        ident: "".to_string(),
+        ident: String::new(),
         volume: IceBucketVolumeType::S3(IceBucketS3Volume {
             region: Some("us-west-1".to_string()),
             bucket: Some("icebucket".to_string()),
@@ -74,8 +74,8 @@ async fn test_ui_volumes_s3() {
             skip_signature: None,
             metadata_endpoint: None,
             credentials: Some(AwsCredentials::AccessKey(AwsAccessKeyCredentials {
-                aws_access_key_id: "kPYGGu34jF685erC7gst".to_string(),
-                aws_secret_access_key: "Q2ClWJgwIZLcX4IE2zO2GBl8qXz7g4knqwLwUpWL".to_string(),
+                aws_access_key_id: "********".to_string(),
+                aws_secret_access_key: "********".to_string(),
             })),
         }),
     };
