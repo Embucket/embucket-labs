@@ -33,10 +33,11 @@ use crate::http::ui::handlers::volumes::{
 // };
 use crate::http::state::AppState;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::{delete, post};
+use axum::routing::{delete, get, post};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
+use crate::http::ui::handlers::databases_navigation::get_databases_navigation;
 
 #[derive(OpenApi)]
 #[openapi(info(
@@ -59,6 +60,7 @@ pub struct ApiDoc;
 pub fn create_router() -> Router<AppState> {
     Router::new()
         // .route("/navigation", get(navigation))
+        .route("/databases-navigation", get(get_databases_navigation))
         .route(
             "/databases/{databaseName}/schemas/{schemaName}",
             delete(delete_schema).get(get_schema).put(update_schema),

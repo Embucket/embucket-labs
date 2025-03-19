@@ -22,3 +22,5 @@
 //pub mod storage_profile;
 //pub mod table;
 //pub mod warehouse;
+
+pub mod databases_navigation;
