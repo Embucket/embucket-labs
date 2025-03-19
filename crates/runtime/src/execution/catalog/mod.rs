@@ -220,8 +220,8 @@ impl ObjectStoreRegistry for IceBucketDFMetastore {
     fn register_store(
         &self,
         _url: &url::Url,
-        _store: Arc<dyn object_store::ObjectStore>,
-    ) -> Option<Arc<dyn object_store::ObjectStore>> {
+        _store: Arc<dyn ObjectStore>,
+    ) -> Option<Arc<dyn ObjectStore>> {
         None
     }
 
@@ -335,7 +335,7 @@ impl std::fmt::Debug for IceBucketDFSchema {
 }
 
 #[async_trait]
-impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
+impl SchemaProvider for IceBucketDFSchema {
     /// Returns the owner of the Schema, default is None. This value is reported
     /// as part of `information_tables.schemata
     fn owner_name(&self) -> Option<&str> {

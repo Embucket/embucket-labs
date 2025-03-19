@@ -910,23 +910,7 @@ impl IceBucketQuery {
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query).await?;
-        let session = self.session.clone();
-        let stream = self
-            .session
-            .executor
-            .spawn(async move {
-                session
-                    .ctx
-                    .execute_logical_plan(plan)
-                    .await
-                    .context(super::error::DataFusionSnafu)?
-                    .collect()
-                    .await
-                    .context(super::error::DataFusionSnafu)
-            })
-            .await
-            .context(super::error::JobSnafu)??;
-        Ok(stream)
+        self.execute_logical_plan(plan).await
     }
 
     #[allow(clippy::only_used_in_recursion)]

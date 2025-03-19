@@ -16,15 +16,17 @@
 // under the License.
 
 use iceberg_rest_catalog::models::{
-    CommitTableRequest, CreateNamespaceRequest, CreateNamespaceResponse, CreateTableRequest,
-    GetNamespaceResponse, ListNamespacesResponse, ListTablesResponse,
+    CreateNamespaceRequest, CreateNamespaceResponse, CreateTableRequest, GetNamespaceResponse,
+    ListNamespacesResponse, ListTablesResponse,
 };
+use iceberg_rust::catalog::commit::{TableRequirement, TableUpdate};
 use iceberg_rust_spec::identifier::Identifier;
 use icebucket_metastore::{
     IceBucketSchema, IceBucketSchemaIdent, IceBucketTable, IceBucketTableCreateRequest,
     IceBucketTableFormat, IceBucketTableIdent, IceBucketTableUpdate, IceBucketVolumeIdent,
     RwObject,
 };
+use serde::{Deserialize, Serialize};
 
 #[must_use]
 pub fn to_schema(request: CreateNamespaceRequest, db: String) -> IceBucketSchema {
@@ -90,7 +92,7 @@ pub fn from_schemas_list(schemas: Vec<RwObject<IceBucketSchema>>) -> ListNamespa
 }
 
 #[must_use]
-pub fn to_table_commit(commit: CommitTableRequest) -> IceBucketTableUpdate {
+pub fn to_table_commit(commit: CommitTable) -> IceBucketTableUpdate {
     IceBucketTableUpdate {
         requirements: commit.requirements,
         updates: commit.updates,
@@ -112,4 +114,12 @@ pub fn from_tables_list(tables: Vec<RwObject<IceBucketTable>>) -> ListTablesResp
 #[derive(serde::Deserialize, Debug)]
 pub struct GetConfigQuery {
     pub warehouse: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CommitTable {
+    /// Assertions about the metadata that must be true to update the metadata
+    pub requirements: Vec<TableRequirement>,
+    /// Changes to the table metadata
+    pub updates: Vec<TableUpdate>,
 }

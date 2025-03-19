@@ -678,7 +678,11 @@ impl Metastore for SlateDBMetastore {
         let object_store = volume.get_object_store()?;
         let data =
             Bytes::from(serde_json::to_vec(&table.metadata).context(metastore_error::SerdeSnafu)?);
-        let path = Path::from(metadata_location);
+
+        #[allow(clippy::unwrap_used)]
+        let url = url::Url::parse(&metadata_location).unwrap();
+        let path = Path::from(url.path());
+
         object_store
             .put(&path, PutPayload::from(data))
             .await

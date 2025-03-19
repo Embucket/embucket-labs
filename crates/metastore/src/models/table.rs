@@ -382,14 +382,20 @@ impl TableRequirementExt {
                 }
             }
             TableRequirement::AssertRefSnapshotId { r#ref, snapshot_id } => {
-                let snapshot_ref = metadata.refs.get(r#ref).ok_or_else(|| {
-                    MetastoreError::TableRequirementFailed {
-                        message: "Table ref not found".to_string(),
+                if let Some(snapshot_id) = snapshot_id {
+                    let snapshot_ref = metadata.refs.get(r#ref).ok_or_else(|| {
+                        MetastoreError::TableRequirementFailed {
+                            message: "Table ref not found".to_string(),
+                        }
+                    })?;
+                    if snapshot_ref.snapshot_id != *snapshot_id {
+                        return Err(MetastoreError::TableRequirementFailed {
+                            message: "Table ref snapshot id does not match".to_string(),
+                        });
                     }
-                })?;
-                if snapshot_ref.snapshot_id != *snapshot_id {
+                } else if metadata.refs.contains_key(r#ref) {
                     return Err(MetastoreError::TableRequirementFailed {
-                        message: "Table ref snapshot id does not match".to_string(),
+                        message: "Table ref already exists".to_string(),
                     });
                 }
             }
