@@ -114,11 +114,14 @@ pub enum MetastoreError {
     #[snafu(display("TableMetadataBuilder error: {source}"))]
     TableMetadataBuilder { source: TableMetadataBuilderError },
 
-    #[snafu(display("Seriliazation error: {source}"))]
+    #[snafu(display("Serialization error: {source}"))]
     Serde { source: serde_json::Error },
 
     #[snafu(display("Validation Error: {source}"))]
     Validation { source: validator::ValidationErrors },
+
+    #[snafu(display("UrlParse Error: {source}"))]
+    UrlParse { source: url::ParseError },
 }
 
 pub type MetastoreResult<T> = std::result::Result<T, MetastoreError>;

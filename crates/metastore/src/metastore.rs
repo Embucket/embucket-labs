@@ -608,9 +608,8 @@ impl Metastore for SlateDBMetastore {
                 serde_json::to_vec(&table_metadata).context(metastore_error::SerdeSnafu)?,
             );
 
-            #[allow(clippy::unwrap_used)]
-            let url = url::Url::parse(&table.metadata_location).unwrap();
-
+            let url = url::Url::parse(&table.metadata_location)
+                .context(metastore_error::UrlParseSnafu)?;
             let path = Path::from(url.path());
             object_store
                 .put(&path, PutPayload::from(data))
@@ -679,8 +678,7 @@ impl Metastore for SlateDBMetastore {
         let data =
             Bytes::from(serde_json::to_vec(&table.metadata).context(metastore_error::SerdeSnafu)?);
 
-        #[allow(clippy::unwrap_used)]
-        let url = url::Url::parse(&metadata_location).unwrap();
+        let url = url::Url::parse(&metadata_location).context(metastore_error::UrlParseSnafu)?;
         let path = Path::from(url.path());
 
         object_store

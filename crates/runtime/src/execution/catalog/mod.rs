@@ -225,10 +225,7 @@ impl ObjectStoreRegistry for IceBucketDFMetastore {
         None
     }
 
-    fn get_store(
-        &self,
-        url: &url::Url,
-    ) -> datafusion_common::Result<Arc<dyn object_store::ObjectStore>> {
+    fn get_store(&self, url: &url::Url) -> datafusion_common::Result<Arc<dyn ObjectStore>> {
         if let Some(object_store) = self.table_object_store.get(url) {
             Ok(object_store.clone())
         } else {

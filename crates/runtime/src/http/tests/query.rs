@@ -39,6 +39,7 @@ async fn test_parallel_queries() {
             host: "0.0.0.0".to_string(),
             allow_origin: None,
             data_format: "json".to_string(),
+            iceberg_catalog_url: "http://127.0.0.1:3000".to_string(),
         },
     )
     .unwrap();
