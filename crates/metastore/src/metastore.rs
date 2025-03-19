@@ -619,7 +619,7 @@ impl Metastore for SlateDBMetastore {
         } else {
             Err(metastore_error::MetastoreError::SchemaNotFound {
                 schema: ident.schema.clone(),
-                db: ident.schema.clone(),
+                db: ident.database.clone(),
             })
         }
     }
