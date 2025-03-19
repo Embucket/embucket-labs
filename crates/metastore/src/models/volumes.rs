@@ -212,7 +212,7 @@ impl IceBucketVolume {
                 .bucket
                 .as_ref()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
-            IceBucketVolumeType::File(volume) => format!("file:///{}", volume.path),
+            IceBucketVolumeType::File(volume) => format!("file://{}", volume.path),
             IceBucketVolumeType::Memory => "memory://".to_string(),
         }
     }
