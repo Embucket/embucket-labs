@@ -15,12 +15,22 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//pub mod aws;
-//pub mod database;
-//pub mod error;
-//pub mod properties;
-//pub mod storage_profile;
-//pub mod table;
-//pub mod warehouse;
-pub mod history;
-pub mod worksheet;
+use icebucket_history::Worksheet;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
+#[serde(rename_all = "camelCase")]
+pub struct WorksheetResponse {
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<Worksheet>,
+    pub duration_seconds: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
+#[serde(rename_all = "camelCase")]
+pub struct WorksheetsResponse {
+    pub data: Vec<Worksheet>, // data without content
+    pub duration_seconds: f32,
+}

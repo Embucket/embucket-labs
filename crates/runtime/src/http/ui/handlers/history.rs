@@ -17,35 +17,43 @@
 
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
+use crate::http::ui::models::{
+    history::HistoryResponse,
+    worksheet::{WorksheetResponse, WorksheetsResponse},
+};
 use axum::response::IntoResponse;
-use axum::{extract::Query, extract::State, Json};
+use axum::{
+    extract::{Path, Query, State},
+    Json,
+};
 use http::status::StatusCode;
-use icebucket_history::{store, QueryHistoryItem};
+use icebucket_history::{store, Worksheet, WorksheetId};
 use icebucket_utils::iterable::IterableEntity;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::fmt::{Display, Error, Formatter};
 use std::time::Instant;
 use tracing;
-use utoipa::{OpenApi, ToSchema};
+use utoipa::OpenApi;
 
-pub struct HistoryHandlerError(store::WorksheetsStoreError);
+pub struct WorksheetHandlerError(store::WorksheetsStoreError);
 
 // for tracing logs
-impl Display for HistoryHandlerError {
+impl Display for WorksheetHandlerError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         self.0.fmt(f)
     }
 }
 
-impl IntoResponse for HistoryHandlerError {
+impl IntoResponse for WorksheetHandlerError {
     fn into_response(self) -> axum::response::Response {
         let err_code = match self.0 {
-            store::WorksheetsStoreError::ProjectDelete { .. }
+            store::WorksheetsStoreError::WorksheetDelete { .. }
             | store::WorksheetsStoreError::HistoryGet { .. }
-            | store::WorksheetsStoreError::ProjectGet { .. }
-            | store::WorksheetsStoreError::ProjectAdd { .. }
+            | store::WorksheetsStoreError::WorksheetGet { .. }
+            | store::WorksheetsStoreError::WorksheetAdd { .. }
             | store::WorksheetsStoreError::BadKey { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             // OK is a stub for us, as this store function has no handler
+            store::WorksheetsStoreError::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
             store::WorksheetsStoreError::HistoryAdd { .. } => StatusCode::OK,
         };
         let er = ErrorResponse {
@@ -56,42 +64,12 @@ impl IntoResponse for HistoryHandlerError {
     }
 }
 
-pub type HistoryResult<T> = Result<T, HistoryHandlerError>;
+pub type WorksheetHandlerResult<T> = Result<T, WorksheetHandlerError>;
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
 pub struct GetHistoryItemsParams {
     cursor: Option<String>,
     limit: Option<u16>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
-#[serde(rename_all = "camelCase")]
-pub struct HistoryResponse {
-    pub items: Vec<QueryHistoryItem>,
-    pub result: String,
-    pub duration_seconds: f32,
-    pub current_cursor: Option<String>,
-    pub next_cursor: String,
-}
-
-impl HistoryResponse {
-    #[allow(clippy::new_without_default)]
-    #[must_use]
-    pub const fn new(
-        items: Vec<QueryHistoryItem>,
-        result: String,
-        duration_seconds: f32,
-        current_cursor: Option<String>,
-        next_cursor: String,
-    ) -> Self {
-        Self {
-            items,
-            result,
-            duration_seconds,
-            current_cursor,
-            next_cursor,
-        }
-    }
 }
 
 #[derive(OpenApi)]
@@ -102,6 +80,7 @@ impl HistoryResponse {
     components(
         schemas(
             HistoryResponse,
+            WorksheetsResponse,
         )
     ),
     tags(
@@ -109,6 +88,163 @@ impl HistoryResponse {
     )
 )]
 pub struct ApiDoc;
+
+#[utoipa::path(
+    get,
+    path = "/ui/worksheets",
+    operation_id = "getWorksheets",
+    tags = ["worksheets"],
+    responses(
+        (status = 200, description = "Returns list of worksheets", body = WorksheetsResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+// Add time sql took
+pub async fn worksheets(
+    State(state): State<AppState>,
+) -> WorksheetHandlerResult<Json<WorksheetsResponse>> {
+    let start = Instant::now();
+    let items = state
+        .history
+        .get_worksheets()
+        .await
+        .map_err(WorksheetHandlerError)?;
+    let duration = start.elapsed();
+    Ok(Json(WorksheetsResponse {
+        data: items,
+        duration_seconds: duration.as_secs_f32(), // how much time query history request taken
+    }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/ui/worksheets",
+    operation_id = "createWorksheet",
+    tags = ["worksheets"],
+    responses(
+        (status = 200, description = "Created worksheet", body = WorksheetResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+// Add time sql took
+pub async fn create_worksheet(
+    State(state): State<AppState>,
+    Json(payload): Json<Worksheet>,
+) -> WorksheetHandlerResult<Json<WorksheetResponse>> {
+    let request = Worksheet::new(payload.id, payload.content);
+    let start = Instant::now();
+    let worksheet = state
+        .history
+        .add_worksheet(request)
+        .await
+        .map_err(WorksheetHandlerError)?;
+    let duration = start.elapsed();
+    Ok(Json(WorksheetResponse {
+        data: Some(worksheet),
+        duration_seconds: duration.as_secs_f32(), // how much time query history request taken
+    }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/ui/worksheets/{worksheet_id}",
+    operation_id = "getWorksheet",
+    tags = ["worksheets"],
+    params(
+        ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
+    ),
+    responses(
+        (status = 200, description = "Returns worksheet", body = WorksheetResponse),
+        (status = 404, description = "Worksheet not found", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+// Add time sql took
+pub async fn worksheet(
+    State(state): State<AppState>,
+    Path(worksheet_id): Path<WorksheetId>,
+) -> WorksheetHandlerResult<Json<WorksheetResponse>> {
+    let start = Instant::now();
+    let worksheet = state
+        .history
+        .get_worksheet(worksheet_id)
+        .await
+        .map_err(WorksheetHandlerError)?;
+    let duration = start.elapsed();
+    Ok(Json(WorksheetResponse {
+        data: Some(worksheet),
+        duration_seconds: duration.as_secs_f32(), // how much time query history request taken
+    }))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/ui/worksheets/{worksheet_id}",
+    operation_id = "delWorksheet",
+    tags = ["worksheets"],
+    params(
+        ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
+    ),
+    responses(
+        (status = 200, description = "Worksheet deleted", body = ()),
+        (status = 404, description = "Worksheet not found", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+// Add time sql took
+pub async fn delete_worksheet(
+    State(state): State<AppState>,
+    Path(worksheet_id): Path<WorksheetId>,
+) -> WorksheetHandlerResult<Json<WorksheetResponse>> {
+    let start = Instant::now();
+    state
+        .history
+        .delete_worksheet(worksheet_id)
+        .await
+        .map_err(WorksheetHandlerError)?;
+    let duration = start.elapsed();
+    Ok(Json(WorksheetResponse {
+        data: None,
+        duration_seconds: duration.as_secs_f32(), // how much time query history request taken
+    }))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/ui/worksheets/{worksheet_id}",
+    operation_id = "updateWorksheet",
+    tags = ["worksheets"],
+    params(
+        ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
+    ),
+    responses(
+        (status = 200, description = "Worksheet updated", body = WorksheetResponse),
+        (status = 404, description = "Worksheet not found", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+// Add time sql took
+pub async fn update_worksheet(
+    State(state): State<AppState>,
+    Path(worksheet_id): Path<WorksheetId>,
+) -> WorksheetHandlerResult<Json<WorksheetResponse>> {
+    let start = Instant::now();
+    state
+        .history
+        .delete_worksheet(worksheet_id) // TODO: replace by update
+        .await
+        .map_err(WorksheetHandlerError)?;
+    let duration = start.elapsed();
+    Ok(Json(WorksheetResponse {
+        data: None,
+        duration_seconds: duration.as_secs_f32(), // how much time query history request taken
+    }))
+}
 
 #[utoipa::path(
     get,
@@ -127,13 +263,13 @@ pub struct ApiDoc;
 pub async fn history(
     Query(params): Query<GetHistoryItemsParams>,
     State(state): State<AppState>,
-) -> HistoryResult<Json<HistoryResponse>> {
+) -> WorksheetHandlerResult<Json<HistoryResponse>> {
     let start = Instant::now();
     let items = state
         .history
         .query_history(params.cursor.clone(), params.limit)
         .await
-        .map_err(HistoryHandlerError)?;
+        .map_err(WorksheetHandlerError)?;
     let next_cursor = if let Some(last_item) = items.last() {
         last_item.next_cursor().to_string()
     } else {
@@ -142,7 +278,6 @@ pub async fn history(
     let duration = start.elapsed();
     Ok(Json(HistoryResponse {
         items,
-        result: String::new(),
         duration_seconds: duration.as_secs_f32(), // how much time query history request taken
         current_cursor: params.cursor,
         next_cursor,

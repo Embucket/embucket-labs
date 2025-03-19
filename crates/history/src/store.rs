@@ -20,7 +20,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use icebucket_utils::iterable::{IterableCursor, IterableEntity};
 use icebucket_utils::Db;
-use snafu::prelude::*;
+use snafu::{ResultExt, Snafu};
 // use serde::{Serialize, Deserialize};
 // use serde_json;
 #[cfg(test)]
@@ -32,19 +32,22 @@ pub enum WorksheetsStoreError {
     BadKey { source: std::str::Utf8Error },
 
     #[snafu(display("Error adding worksheet: {source}"))]
-    ProjectAdd { source: icebucket_utils::Error },
+    WorksheetAdd { source: icebucket_utils::Error },
 
     #[snafu(display("Error getting worksheet: {source}"))]
-    ProjectGet { source: icebucket_utils::Error },
+    WorksheetGet { source: icebucket_utils::Error },
 
     #[snafu(display("Error deleting worksheet: {source}"))]
-    ProjectDelete { source: icebucket_utils::Error },
+    WorksheetDelete { source: icebucket_utils::Error },
 
     #[snafu(display("Error adding query history: {source}"))]
     HistoryAdd { source: icebucket_utils::Error },
 
     #[snafu(display("Error getting query history: {source}"))]
     HistoryGet { source: icebucket_utils::Error },
+
+    #[snafu(display("Can't locate worksheet by key: {message}"))]
+    WorksheetNotFound { message: String },
     // #[snafu(display("Error deserialising value: {source}"))]
     // Deserialize { source:: serde_json::error::Error },
 }
@@ -53,8 +56,8 @@ pub type WorksheetsStoreResult<T> = std::result::Result<T, WorksheetsStoreError>
 
 #[async_trait]
 pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
-    async fn add_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<WorksheetId>;
-    async fn get_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Option<Worksheet>>;
+    async fn add_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<Worksheet>;
+    async fn get_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet>;
     // async fn update_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet>;
     async fn delete_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<()>;
     async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>>;
@@ -105,7 +108,7 @@ impl SlateDBWorksheetsStore {
     //     let key_str = std::str::from_utf8(key_bytes.as_ref())
     //         .context(BadKeySnafu)?;
 
-    //     let object: Option<T> = self.db.get(key_str).await.context(ProjectGetSnafu)?;
+    //     let object: Option<T> = self.db.get(key_str).await.context(WorksheetGetSnafu)?;
 
     //     // serialize to json should not fail
     //     let mut json = serde_json::to_string(&worksheet).unwrap();
@@ -119,20 +122,23 @@ impl SlateDBWorksheetsStore {
 
 #[async_trait]
 impl WorksheetsStore for SlateDBWorksheetsStore {
-    async fn add_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<WorksheetId> {
+    async fn add_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<Worksheet> {
         self.db
             .put_iterable_entity(&worksheet)
             .await
-            .context(ProjectAddSnafu)?;
-        Ok(worksheet.id)
+            .context(WorksheetAddSnafu)?;
+        Ok(worksheet)
     }
 
-    async fn get_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Option<Worksheet>> {
+    async fn get_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet> {
         // convert from Bytes to &str, for .get method to convert it back to Bytes
         let key_bytes = Worksheet::key_from_cursor(id.as_bytes());
         let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
 
-        Ok(self.db.get(key_str).await.context(ProjectGetSnafu)?)
+        let res: Option<Worksheet> = self.db.get(key_str).await.context(WorksheetGetSnafu)?;
+        res.ok_or_else(|| WorksheetsStoreError::WorksheetNotFound {
+            message: key_str.to_string(),
+        })
     }
 
     // async fn update_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet> {
@@ -153,7 +159,11 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
         let key_bytes = Worksheet::key_from_cursor(id.as_bytes());
         let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
 
-        Ok(self.db.delete(key_str).await.context(ProjectDeleteSnafu)?)
+        Ok(self
+            .db
+            .delete(key_str)
+            .await
+            .context(WorksheetDeleteSnafu)?)
     }
 
     async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>> {
@@ -214,7 +224,7 @@ mod tests {
             let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
                 + Duration::milliseconds(i.into());
             let mut item = QueryHistoryItem::query_start(
-                worksheet.id,
+                worksheet.id.unwrap(),
                 format!("select {i}").as_str(),
                 Some(start_time),
             );

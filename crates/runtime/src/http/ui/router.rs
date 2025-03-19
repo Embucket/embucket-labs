@@ -24,6 +24,9 @@ use crate::http::ui::handlers::schemas::{
 use crate::http::ui::handlers::databases::{
     create_database, delete_database, get_database, list_databases, update_database,
 };
+use crate::http::ui::handlers::history::{
+    create_worksheet, delete_worksheet, update_worksheet, worksheet, worksheets,
+};
 use crate::http::ui::handlers::query::query;
 use crate::http::ui::handlers::volumes::{
     create_volume, delete_volume, get_volume, list_volumes, update_volume,
@@ -87,6 +90,13 @@ pub fn create_router() -> Router<AppState> {
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
         //     get(get_table).delete(delete_table),
         // )
+        .route("/worksheets", get(worksheets).post(create_worksheet))
+        .route(
+            "/worksheets/{worksheet_id}",
+            get(worksheet)
+                .delete(delete_worksheet)
+                .patch(update_worksheet),
+        )
         .route("/query", post(query))
         .route("/history", get(history))
         // .route(

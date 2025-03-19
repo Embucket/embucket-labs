@@ -40,6 +40,7 @@ pub struct QueryHistoryItem {
     pub end_time: DateTime<Utc>,
     pub duration_ms: i64,
     pub result_count: i64,
+    // TODO: add result here
     pub status: QueryStatus,
     pub error: Option<String>,
 }

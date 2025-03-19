@@ -15,12 +15,33 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//pub mod aws;
-//pub mod database;
-//pub mod error;
-//pub mod properties;
-//pub mod storage_profile;
-//pub mod table;
-//pub mod warehouse;
-pub mod history;
-pub mod worksheet;
+use icebucket_history::QueryHistoryItem;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryResponse {
+    pub items: Vec<QueryHistoryItem>,
+    pub duration_seconds: f32,
+    pub current_cursor: Option<String>,
+    pub next_cursor: String,
+}
+
+impl HistoryResponse {
+    #[allow(clippy::new_without_default)]
+    #[must_use]
+    pub const fn new(
+        items: Vec<QueryHistoryItem>,
+        duration_seconds: f32,
+        current_cursor: Option<String>,
+        next_cursor: String,
+    ) -> Self {
+        Self {
+            items,
+            duration_seconds,
+            current_cursor,
+            next_cursor,
+        }
+    }
+}

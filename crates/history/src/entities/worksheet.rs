@@ -26,7 +26,8 @@ pub type WorksheetId = i64;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Worksheet {
-    pub id: WorksheetId,
+    pub id: Option<WorksheetId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -39,7 +40,7 @@ impl Worksheet {
         let created_at = DateTime::<Utc>::from_timestamp_nanos(id);
         // id, start_time have the same value
         Self {
-            id: created_at.timestamp_millis(),
+            id: Some(created_at.timestamp_millis()),
             content,
             created_at,
             updated_at: created_at,
@@ -63,9 +64,9 @@ mod test {
     #[test]
     fn test_new_worksheet() {
         let w1 = Worksheet::new(None, None);
-        assert_eq!(w1.id, w1.created_at.timestamp_millis());
+        assert_eq!(w1.id, Some(w1.created_at.timestamp_millis()));
 
         let w1 = Worksheet::new(Some(436324634634), None);
-        assert_eq!(w1.id, w1.created_at.timestamp_millis());
+        assert_eq!(w1.id, Some(w1.created_at.timestamp_millis()));
     }
 }
