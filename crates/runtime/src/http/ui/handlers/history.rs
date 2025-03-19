@@ -248,11 +248,14 @@ pub async fn update_worksheet(
 
 #[utoipa::path(
     get,
-    path = "/ui/history",
+    path = "/worksheets/{worksheet_id}/queries",
     params(("cursor" = String, description = "Cursor")),
     params(("limit" = u16, description = "Limit")),
     operation_id = "getHistory",
     tags = ["history"],
+    params(
+        ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
+    ),
     responses(
         (status = 200, description = "Returns result of the history", body = HistoryResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
@@ -263,11 +266,12 @@ pub async fn update_worksheet(
 pub async fn history(
     Query(params): Query<GetHistoryItemsParams>,
     State(state): State<AppState>,
+    Path(worksheet_id): Path<WorksheetId>,
 ) -> WorksheetHandlerResult<Json<HistoryResponse>> {
     let start = Instant::now();
     let items = state
         .history
-        .query_history(params.cursor.clone(), params.limit)
+        .query_history(worksheet_id, params.cursor.clone(), params.limit)
         .await
         .map_err(WorksheetHandlerError)?;
     let next_cursor = if let Some(last_item) = items.last() {

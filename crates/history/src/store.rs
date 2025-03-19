@@ -65,6 +65,7 @@ pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
     async fn add_history_item(&self, item: QueryHistoryItem) -> WorksheetsStoreResult<()>;
     async fn query_history(
         &self,
+        worksheet_id: WorksheetId,
         cursor: Option<String>,
         limit: Option<u16>,
     ) -> WorksheetsStoreResult<Vec<QueryHistoryItem>>;
@@ -186,9 +187,11 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 
     async fn query_history(
         &self,
+        worksheet_id: WorksheetId,
         cursor: Option<String>,
         limit: Option<u16>,
     ) -> WorksheetsStoreResult<Vec<QueryHistoryItem>> {
+        // TODO: add worksheet_id to key prefix 
         let start_key = if let Some(cursor) = cursor {
             QueryHistoryItem::key_from_cursor(Bytes::from(cursor))
         } else {
@@ -229,7 +232,11 @@ mod tests {
                 Some(start_time),
             );
             if i == 0 {
-                item.query_finished(1, Some(item.start_time))
+                item.query_finished(
+                    1,
+                    Some(String::from("pseudo result")),
+                    Some(item.start_time),
+                )
             } else {
                 item.query_finished_with_error("Test query pseudo error".to_string());
             }
@@ -240,7 +247,10 @@ mod tests {
 
         let cursor = <QueryHistoryItem as IterableEntity>::Cursor::CURSOR_MIN.to_string();
         println!("cursor: {cursor}");
-        let retrieved = db.query_history(Some(cursor), Some(10)).await.unwrap();
+        let retrieved = db
+            .query_history(worksheet.id.unwrap(), Some(cursor), Some(10))
+            .await
+            .unwrap();
         for i in 0..retrieved.len() {
             println!("retrieved: {:?}", retrieved[i].key());
         }

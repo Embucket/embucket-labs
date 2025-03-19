@@ -40,7 +40,7 @@ pub struct QueryHistoryItem {
     pub end_time: DateTime<Utc>,
     pub duration_ms: i64,
     pub result_count: i64,
-    // TODO: add result here
+    pub result: Option<String>,
     pub status: QueryStatus,
     pub error: Option<String>,
 }
@@ -62,13 +62,20 @@ impl QueryHistoryItem {
             end_time: start_time,
             duration_ms: 0,
             result_count: 0,
+            result: None,
             status: QueryStatus::Ok,
             error: None,
         }
     }
 
-    pub fn query_finished(&mut self, result_count: i64, end_time: Option<DateTime<Utc>>) {
+    pub fn query_finished(
+        &mut self,
+        result_count: i64,
+        result: Option<String>,
+        end_time: Option<DateTime<Utc>>,
+    ) {
         self.result_count = result_count;
+        self.result = result;
         self.end_time = Utc::now();
         self.duration_ms = self
             .end_time
@@ -80,7 +87,7 @@ impl QueryHistoryItem {
     }
 
     pub fn query_finished_with_error(&mut self, error: String) {
-        self.query_finished(0, None);
+        self.query_finished(0, None, None);
         self.status = QueryStatus::Error;
         self.error = Some(error);
     }

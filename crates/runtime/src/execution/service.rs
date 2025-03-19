@@ -22,7 +22,7 @@ use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
 use icebucket_history::WorksheetId;
-use icebucket_history::{store::WorksheetsStore, QueryHistoryItem};
+use icebucket_history::{store::WorksheetsStore, QueryHistoryId, QueryHistoryItem};
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -113,8 +113,9 @@ impl ExecutionService {
         worksheet_id: WorksheetId,
         query: &str,
         query_context: IceBucketQueryContext,
-    ) -> ExecutionResult<String> {
+    ) -> ExecutionResult<(QueryHistoryId, String)> {
         let mut history_item = QueryHistoryItem::query_start(worksheet_id, query, None);
+        let id: QueryHistoryId = history_item.id;
 
         let (records, _) = self.query(session_id, query, query_context).await?;
         let buf = Vec::new();
@@ -130,18 +131,19 @@ impl ExecutionService {
         // Get the underlying buffer back,
         let buf = writer.into_inner();
 
-        let res = String::from_utf8(buf).context(ex_error::Utf8Snafu);
+        let res = String::from_utf8(buf)
+            .map(|res| (id, res))
+            .context(ex_error::Utf8Snafu);
 
         match &res {
-            Ok(_recs) => {
-                let result_count = i64::try_from(records.len()).unwrap_or(0);
-                history_item.query_finished(result_count, None);
-                // TODO: add result records, perhaps using records_to_json_string
+            Ok(id_res_tuple) => {
+                let result_count = i64::try_from(records.len().clone()).unwrap_or(0);
+                history_item.query_finished(result_count, Some(id_res_tuple.1.clone()), None);
             }
             Err(err) => {
                 history_item.query_finished_with_error(err.to_string());
             }
-        }
+        };
 
         if let Err(err) = self.history.add_history_item(history_item).await {
             // do not raise error, just log ?
