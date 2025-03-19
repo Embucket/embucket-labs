@@ -35,11 +35,11 @@ async fn test_parallel_queries() {
     let app = make_icebucket_app(
         metastore,
         &IceBucketWebConfig {
-            port: 3000,
+            port: 4000,
             host: "0.0.0.0".to_string(),
             allow_origin: None,
             data_format: "json".to_string(),
-            iceberg_catalog_url: "http://127.0.0.1:3000".to_string(),
+            iceberg_catalog_url: "http://127.0.0.1:4000".to_string(),
         },
     )
     .unwrap();
@@ -156,9 +156,8 @@ async fn test_parallel_queries() {
         .await
         .expect("failed to run insert query");
 
-    query2
-        .error_for_status_ref()
-        .expect("Insert query wasn't 200");
+    let res = query2.error_for_status_ref();
+    res.expect("Insert query wasn't 200");
 
     let query2 = query2.text().await.expect("Failed to get query response");
 
