@@ -100,20 +100,7 @@ impl QueryResponse {
 }
 
 #[derive(OpenApi)]
-#[openapi(
-    paths(
-        query,
-    ),
-    components(
-        schemas(
-            QueryResponse,
-            QueryPayload,
-        )
-    ),
-    tags(
-        (name = "queries", description = "Queries endpoints")
-    )
-)]
+#[openapi(paths(query,), components(schemas(QueryResponse, QueryPayload,)))]
 pub struct ApiDoc;
 
 #[utoipa::path(

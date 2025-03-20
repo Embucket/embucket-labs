@@ -81,6 +81,40 @@ async fn test_ui_queries() {
         Method::POST,
         &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
         json!(QueryPayload {
+            query: "SELECT 2".to_string(),
+            context: None,
+        })
+        .to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    // println!("{:?}", res.bytes().await);
+    let query_run_resp2 = res.json::<QueryResponse>().await.unwrap();
+    assert_eq!(query_run_resp2.result, "[{\"Int64(2)\":2}]");
+
+    let res = req(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        json!(QueryPayload {
+            query: "SELECT foo".to_string(),
+            context: None,
+        })
+        .to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::INTERNAL_SERVER_ERROR, res.status());
+    let err = res.json::<ErrorResponse>().await.unwrap();
+    assert_eq!(err.status_code, http::StatusCode::INTERNAL_SERVER_ERROR);
+
+    // second fail
+    let res = req(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        json!(QueryPayload {
             query: "SELECT foo".to_string(),
             context: None,
         })
@@ -103,8 +137,11 @@ async fn test_ui_queries() {
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
     let history_resp = res.json::<HistoryResponse>().await.unwrap();
-    assert_eq!(history_resp.items.len(), 2);
     assert_eq!(history_resp.items[0].status, QueryStatus::Ok);
     assert_eq!(history_resp.items[0].result, Some(query_run_resp.result));
-    assert_eq!(history_resp.items[1].status, QueryStatus::Error);
+    assert_eq!(history_resp.items[1].status, QueryStatus::Ok);
+    assert_eq!(history_resp.items[1].result, Some(query_run_resp2.result));
+    assert_eq!(history_resp.items.len(), 4);
+    assert_eq!(history_resp.items[2].status, QueryStatus::Error);
+    assert_eq!(history_resp.items[3].status, QueryStatus::Error);
 }

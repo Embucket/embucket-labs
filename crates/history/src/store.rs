@@ -137,6 +137,9 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
         let key_bytes = Worksheet::get_key(id);
         let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
 
+        // raise error if can't locate
+        self.get_worksheet(id).await?;
+
         Ok(self
             .db
             .delete(key_str)

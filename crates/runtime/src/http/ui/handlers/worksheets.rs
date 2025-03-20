@@ -83,19 +83,13 @@ pub struct GetHistoryItemsParams {
         update_worksheet,
         history,
     ),
-    components(
-        schemas(
-            ErrorResponse,
-            HistoryResponse,
-            WorksheetPayload,
-            WorksheetResponse,
-            WorksheetsResponse,
-        )
-    ),
-    tags(
-        (name = "queries", description = "Queries endpoints"),
-        (name = "worksheets", description = "Worksheets endpoints"),
-    )
+    components(schemas(
+        ErrorResponse,
+        HistoryResponse,
+        WorksheetPayload,
+        WorksheetResponse,
+        WorksheetsResponse,
+    ))
 )]
 pub struct ApiDoc;
 

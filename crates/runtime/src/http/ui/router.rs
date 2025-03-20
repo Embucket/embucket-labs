@@ -57,6 +57,7 @@ use utoipa::OpenApi;
     (name = "databases", description = "Databases endpoints"),
     (name = "schemas", description = "Schemas endpoints"),
     (name = "worksheets", description = "Worksheets endpoints"),
+    (name = "queries", description = "Queries endpoints"),
 ))]
 pub struct ApiDoc;
 
