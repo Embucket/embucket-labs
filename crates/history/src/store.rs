@@ -15,14 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::{QueryHistoryItem, Worksheet, WorksheetId};
+use crate::{QueryHistoryId, QueryHistoryItem, Worksheet, WorksheetId};
 use async_trait::async_trait;
-use bytes::Bytes;
 use icebucket_utils::iterable::{IterableCursor, IterableEntity};
 use icebucket_utils::Db;
 use snafu::{ResultExt, Snafu};
-// use serde::{Serialize, Deserialize};
-// use serde_json;
 #[cfg(test)]
 use std::sync::Arc;
 
@@ -39,6 +36,9 @@ pub enum WorksheetsStoreError {
 
     #[snafu(display("Error deleting worksheet: {source}"))]
     WorksheetDelete { source: icebucket_utils::Error },
+
+    #[snafu(display("Error updating worksheet: {source}"))]
+    WorksheetUpdate { source: icebucket_utils::Error },
 
     #[snafu(display("Error adding query history: {source}"))]
     HistoryAdd { source: icebucket_utils::Error },
@@ -58,15 +58,15 @@ pub type WorksheetsStoreResult<T> = std::result::Result<T, WorksheetsStoreError>
 pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
     async fn add_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<Worksheet>;
     async fn get_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet>;
-    // async fn update_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet>;
     async fn delete_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<()>;
+    async fn update_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<()>;
     async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>>;
 
     async fn add_history_item(&self, item: QueryHistoryItem) -> WorksheetsStoreResult<()>;
     async fn query_history(
         &self,
         worksheet_id: WorksheetId,
-        cursor: Option<String>,
+        cursor: Option<i64>,
         limit: Option<u16>,
     ) -> WorksheetsStoreResult<Vec<QueryHistoryItem>>;
 }
@@ -97,28 +97,6 @@ impl SlateDBWorksheetsStore {
     pub const fn db(&self) -> &Db {
         &self.db
     }
-
-    // async fn patch_object<T, C>(&self, id: C, patch: String) -> WorksheetsStoreResult<T>
-    //     where
-    //         T: for<'de> serde::de::Deserialize<'de> + Serialize + IterableEntity,
-    //         C: IterableCursor,
-    // {
-    //     // get object
-    //     // convert from Bytes to &str, for .get method to convert it back to Bytes
-    //     let key_bytes= Worksheet::key_from_cursor(id.as_bytes());
-    //     let key_str = std::str::from_utf8(key_bytes.as_ref())
-    //         .context(BadKeySnafu)?;
-
-    //     let object: Option<T> = self.db.get(key_str).await.context(WorksheetGetSnafu)?;
-
-    //     // serialize to json should not fail
-    //     let mut json = serde_json::to_string(&worksheet).unwrap();
-    //     // patch using json patch
-    //     patch(&mut json, &p).unwrap();
-    //     // deserialize to object
-    //     serde_json::from_str(s)
-    //     // save back
-    // }
 }
 
 #[async_trait]
@@ -133,7 +111,7 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 
     async fn get_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet> {
         // convert from Bytes to &str, for .get method to convert it back to Bytes
-        let key_bytes = Worksheet::key_from_cursor(id.as_bytes());
+        let key_bytes = Worksheet::get_key(id);
         let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
 
         let res: Option<Worksheet> = self.db.get(key_str).await.context(WorksheetGetSnafu)?;
@@ -142,22 +120,21 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
         })
     }
 
-    // async fn update_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet> {
-    //     self.patch_object(id)
+    async fn update_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<()> {
+        // convert from Bytes to &str, for .get method to convert it back to Bytes
+        let key_bytes = worksheet.key();
+        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
 
-    //     // get object
-    //     let worksheet_by_id = self.get_worksheet(id).await?;
-    //     // serialize to json should not fail
-    //     let mut prjson = serde_json::to_string(&worksheet_by_id).unwrap();
-    //     // patch using json patch
-    //     patch(&mut doc, &p).unwrap();
-    //     // deserialize to object
-    //     // save back
-    // }
+        Ok(self
+            .db
+            .put(key_str, &worksheet)
+            .await
+            .context(WorksheetUpdateSnafu)?)
+    }
 
     async fn delete_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<()> {
         // convert from Bytes to &str, for .get method to convert it back to Bytes
-        let key_bytes = Worksheet::key_from_cursor(id.as_bytes());
+        let key_bytes = Worksheet::get_key(id);
         let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
 
         Ok(self
@@ -168,8 +145,8 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
     }
 
     async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>> {
-        let start_key = Worksheet::min_key();
-        let end_key = Worksheet::max_key();
+        let start_key = Worksheet::get_key(WorksheetId::CURSOR_MIN);
+        let end_key = Worksheet::get_key(WorksheetId::CURSOR_MAX);
         Ok(self
             .db
             .items_from_range(start_key..end_key, None)
@@ -188,16 +165,16 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
     async fn query_history(
         &self,
         worksheet_id: WorksheetId,
-        cursor: Option<String>,
+        cursor: Option<i64>,
         limit: Option<u16>,
     ) -> WorksheetsStoreResult<Vec<QueryHistoryItem>> {
-        // TODO: add worksheet_id to key prefix 
+        // TODO: add worksheet_id to key prefix
         let start_key = if let Some(cursor) = cursor {
-            QueryHistoryItem::key_from_cursor(Bytes::from(cursor))
+            QueryHistoryItem::get_key(worksheet_id, cursor)
         } else {
-            QueryHistoryItem::min_key()
+            QueryHistoryItem::get_key(worksheet_id, QueryHistoryId::CURSOR_MIN)
         };
-        let end_key = QueryHistoryItem::max_key();
+        let end_key = QueryHistoryItem::get_key(worksheet_id, QueryHistoryId::CURSOR_MAX);
         Ok(self
             .db
             .items_from_range(start_key..end_key, limit)
@@ -219,7 +196,7 @@ mod tests {
         let db = SlateDBWorksheetsStore::new_in_memory().await;
 
         // create worksheet first
-        let worksheet = Worksheet::new(None, Some("".to_string()));
+        let worksheet = Worksheet::new(Some("".to_string()));
 
         let n: u16 = 2;
         let mut created: Vec<QueryHistoryItem> = vec![];
@@ -227,7 +204,7 @@ mod tests {
             let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
                 + Duration::milliseconds(i.into());
             let mut item = QueryHistoryItem::query_start(
-                worksheet.id.unwrap(),
+                worksheet.id,
                 format!("select {i}").as_str(),
                 Some(start_time),
             );
@@ -245,10 +222,10 @@ mod tests {
             db.add_history_item(item).await.unwrap();
         }
 
-        let cursor = <QueryHistoryItem as IterableEntity>::Cursor::CURSOR_MIN.to_string();
+        let cursor = <QueryHistoryItem as IterableEntity>::Cursor::CURSOR_MIN;
         println!("cursor: {cursor}");
         let retrieved = db
-            .query_history(worksheet.id.unwrap(), Some(cursor), Some(10))
+            .query_history(worksheet.id, Some(cursor), Some(10))
             .await
             .unwrap();
         for i in 0..retrieved.len() {

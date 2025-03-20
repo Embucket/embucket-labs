@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use icebucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
@@ -26,7 +27,9 @@ pub type WorksheetId = i64;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Worksheet {
-    pub id: Option<WorksheetId>,
+    pub id: WorksheetId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
     pub created_at: DateTime<Utc>,
@@ -35,25 +38,42 @@ pub struct Worksheet {
 
 impl Worksheet {
     #[must_use]
-    pub fn new(id: Option<WorksheetId>, content: Option<String>) -> Self {
-        let id = id.unwrap_or_else(|| Utc::now().timestamp_millis());
-        let created_at = DateTime::<Utc>::from_timestamp_nanos(id);
+    pub fn get_key(id: WorksheetId) -> Bytes {
+        Bytes::from(format!("/ws/{id}"))
+    }
+
+    #[must_use]
+    pub fn new(content: Option<String>) -> Self {
+        let created_at = Utc::now();
+        let id = created_at.timestamp_millis();
         // id, start_time have the same value
         Self {
-            id: Some(created_at.timestamp_millis()),
+            id,
+            name: None,
             content,
             created_at,
             updated_at: created_at,
         }
     }
+
+    pub fn set_name(&mut self, name: String) {
+        self.name = Some(name);
+    }
+
+    pub fn set_content(&mut self, content: String) {
+        self.content = Some(content);
+    }
 }
 
 impl IterableEntity for Worksheet {
     type Cursor = WorksheetId;
-    const PREFIX: &[u8] = b"pi.";
 
     fn cursor(&self) -> Self::Cursor {
         self.created_at.timestamp_nanos_opt().unwrap_or(0)
+    }
+
+    fn key(&self) -> Bytes {
+        Self::get_key(self.id)
     }
 }
 
@@ -63,10 +83,7 @@ mod test {
 
     #[test]
     fn test_new_worksheet() {
-        let w1 = Worksheet::new(None, None);
-        assert_eq!(w1.id, Some(w1.created_at.timestamp_millis()));
-
-        let w1 = Worksheet::new(Some(436324634634), None);
-        assert_eq!(w1.id, Some(w1.created_at.timestamp_millis()));
+        let w1 = Worksheet::new(None);
+        assert_eq!(w1.id, w1.created_at.timestamp_millis());
     }
 }

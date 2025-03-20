@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_history::QueryHistoryItem;
+use icebucket_history::{QueryHistoryId, QueryHistoryItem};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -24,24 +24,24 @@ use utoipa::ToSchema;
 pub struct HistoryResponse {
     pub items: Vec<QueryHistoryItem>,
     pub duration_seconds: f32,
-    pub current_cursor: Option<String>,
-    pub next_cursor: String,
+    pub current_cursor: Option<QueryHistoryId>,
+    pub next_cursor: QueryHistoryId,
 }
 
-impl HistoryResponse {
-    #[allow(clippy::new_without_default)]
-    #[must_use]
-    pub const fn new(
-        items: Vec<QueryHistoryItem>,
-        duration_seconds: f32,
-        current_cursor: Option<String>,
-        next_cursor: String,
-    ) -> Self {
-        Self {
-            items,
-            duration_seconds,
-            current_cursor,
-            next_cursor,
-        }
-    }
-}
+// impl HistoryResponse {
+//     #[allow(clippy::new_without_default)]
+//     #[must_use]
+//     pub const fn new(
+//         items: Vec<QueryHistoryItem>,
+//         duration_seconds: f32,
+//         current_cursor: Option<QueryHistoryId>,
+//         next_cursor: QueryHistoryId,
+//     ) -> Self {
+//         Self {
+//             items,
+//             duration_seconds,
+//             current_cursor,
+//             next_cursor,
+//         }
+//     }
+// }

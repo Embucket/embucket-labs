@@ -19,7 +19,7 @@ use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use crate::http::ui::models::{
     history::HistoryResponse,
-    worksheet::{WorksheetResponse, WorksheetsResponse},
+    worksheet::{WorksheetPayload, WorksheetResponse, WorksheetsResponse},
 };
 use axum::response::IntoResponse;
 use axum::{
@@ -27,7 +27,7 @@ use axum::{
     Json,
 };
 use http::status::StatusCode;
-use icebucket_history::{store, Worksheet, WorksheetId};
+use icebucket_history::{store, QueryHistoryItem, Worksheet, WorksheetId};
 use icebucket_utils::iterable::IterableEntity;
 use serde::Deserialize;
 use std::fmt::{Display, Error, Formatter};
@@ -48,6 +48,7 @@ impl IntoResponse for WorksheetHandlerError {
     fn into_response(self) -> axum::response::Response {
         let err_code = match self.0 {
             store::WorksheetsStoreError::WorksheetDelete { .. }
+            | store::WorksheetsStoreError::WorksheetUpdate { .. }
             | store::WorksheetsStoreError::HistoryGet { .. }
             | store::WorksheetsStoreError::WorksheetGet { .. }
             | store::WorksheetsStoreError::WorksheetAdd { .. }
@@ -68,23 +69,32 @@ pub type WorksheetHandlerResult<T> = Result<T, WorksheetHandlerError>;
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
 pub struct GetHistoryItemsParams {
-    cursor: Option<String>,
+    cursor: Option<i64>,
     limit: Option<u16>,
 }
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        worksheets,
+        create_worksheet,
+        worksheet,
+        delete_worksheet,
+        update_worksheet,
         history,
     ),
     components(
         schemas(
+            ErrorResponse,
             HistoryResponse,
+            WorksheetPayload,
+            WorksheetResponse,
             WorksheetsResponse,
         )
     ),
     tags(
-        (name = "history", description = "History access endpoint.")
+        (name = "queries", description = "Queries endpoints"),
+        (name = "worksheets", description = "Worksheets endpoints"),
     )
 )]
 pub struct ApiDoc;
@@ -113,7 +123,7 @@ pub async fn worksheets(
     let duration = start.elapsed();
     Ok(Json(WorksheetsResponse {
         data: items,
-        duration_seconds: duration.as_secs_f32(), // how much time query history request taken
+        duration_seconds: duration.as_secs_f32(),
     }))
 }
 
@@ -131,9 +141,9 @@ pub async fn worksheets(
 // Add time sql took
 pub async fn create_worksheet(
     State(state): State<AppState>,
-    Json(payload): Json<Worksheet>,
+    Json(payload): Json<WorksheetPayload>,
 ) -> WorksheetHandlerResult<Json<WorksheetResponse>> {
-    let request = Worksheet::new(payload.id, payload.content);
+    let request = Worksheet::new(payload.content);
     let start = Instant::now();
     let worksheet = state
         .history
@@ -143,7 +153,7 @@ pub async fn create_worksheet(
     let duration = start.elapsed();
     Ok(Json(WorksheetResponse {
         data: Some(worksheet),
-        duration_seconds: duration.as_secs_f32(), // how much time query history request taken
+        duration_seconds: duration.as_secs_f32(),
     }))
 }
 
@@ -176,7 +186,7 @@ pub async fn worksheet(
     let duration = start.elapsed();
     Ok(Json(WorksheetResponse {
         data: Some(worksheet),
-        duration_seconds: duration.as_secs_f32(), // how much time query history request taken
+        duration_seconds: duration.as_secs_f32(),
     }))
 }
 
@@ -209,7 +219,7 @@ pub async fn delete_worksheet(
     let duration = start.elapsed();
     Ok(Json(WorksheetResponse {
         data: None,
-        duration_seconds: duration.as_secs_f32(), // how much time query history request taken
+        duration_seconds: duration.as_secs_f32(),
     }))
 }
 
@@ -232,11 +242,27 @@ pub async fn delete_worksheet(
 pub async fn update_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
+    Json(payload): Json<WorksheetPayload>,
 ) -> WorksheetHandlerResult<Json<WorksheetResponse>> {
     let start = Instant::now();
+
+    let mut worksheet = state
+        .history
+        .get_worksheet(worksheet_id)
+        .await
+        .map_err(WorksheetHandlerError)?;
+
+    if let Some(name) = payload.name {
+        worksheet.set_name(name);
+    }
+
+    if let Some(content) = payload.content {
+        worksheet.set_content(content);
+    }
+
     state
         .history
-        .delete_worksheet(worksheet_id) // TODO: replace by update
+        .update_worksheet(worksheet)
         .await
         .map_err(WorksheetHandlerError)?;
     let duration = start.elapsed();
@@ -251,8 +277,8 @@ pub async fn update_worksheet(
     path = "/worksheets/{worksheet_id}/queries",
     params(("cursor" = String, description = "Cursor")),
     params(("limit" = u16, description = "Limit")),
-    operation_id = "getHistory",
-    tags = ["history"],
+    operation_id = "getQueriesHistory",
+    tags = ["queries"],
     params(
         ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
     ),
@@ -271,18 +297,18 @@ pub async fn history(
     let start = Instant::now();
     let items = state
         .history
-        .query_history(worksheet_id, params.cursor.clone(), params.limit)
+        .query_history(worksheet_id, params.cursor, params.limit)
         .await
         .map_err(WorksheetHandlerError)?;
     let next_cursor = if let Some(last_item) = items.last() {
-        last_item.next_cursor().to_string()
+        last_item.next_cursor()
     } else {
-        String::new() // no items in range -> go to beginning
+        QueryHistoryItem::min_cursor() // no items in range -> go to beginning
     };
     let duration = start.elapsed();
     Ok(Json(HistoryResponse {
         items,
-        duration_seconds: duration.as_secs_f32(), // how much time query history request taken
+        duration_seconds: duration.as_secs_f32(),
         current_cursor: params.cursor,
         next_cursor,
     }))

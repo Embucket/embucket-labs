@@ -137,7 +137,7 @@ impl ExecutionService {
 
         match &res {
             Ok(id_res_tuple) => {
-                let result_count = i64::try_from(records.len().clone()).unwrap_or(0);
+                let result_count = i64::try_from(records.len()).unwrap_or(0);
                 history_item.query_finished(result_count, Some(id_res_tuple.1.clone()), None);
             }
             Err(err) => {

@@ -111,7 +111,7 @@ impl QueryResponse {
         )
     ),
     tags(
-        (name = "query", description = "Query management endpoints.")
+        (name = "queries", description = "Queries endpoints")
     )
 )]
 pub struct ApiDoc;
@@ -121,7 +121,7 @@ pub struct ApiDoc;
     path = "/worksheets/{worksheet_id}/queries",
     request_body = QueryPayload,
     operation_id = "runQuery",
-    tags = ["query"],
+    tags = ["queries"],
     params(
         ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
     ),
@@ -136,8 +136,8 @@ pub struct ApiDoc;
 pub async fn query(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
-    Json(payload): Json<QueryPayload>,
     Path(worksheet_id): Path<WorksheetId>,
+    Json(payload): Json<QueryPayload>,
 ) -> UIResult<Json<QueryResponse>> {
     let request: QueryPayload = payload;
     let query_context = IceBucketQueryContext {

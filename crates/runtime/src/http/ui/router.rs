@@ -16,7 +16,6 @@
 // under the License.
 
 use crate::http::layers::add_request_metadata;
-use crate::http::ui::handlers::history::history;
 use crate::http::ui::handlers::schemas::{
     create_schema, delete_schema, get_schema, list_schemas, update_schema,
 };
@@ -24,12 +23,12 @@ use crate::http::ui::handlers::schemas::{
 use crate::http::ui::handlers::databases::{
     create_database, delete_database, get_database, list_databases, update_database,
 };
-use crate::http::ui::handlers::history::{
-    create_worksheet, delete_worksheet, update_worksheet, worksheet, worksheets,
-};
 use crate::http::ui::handlers::query::query;
 use crate::http::ui::handlers::volumes::{
     create_volume, delete_volume, get_volume, list_volumes, update_volume,
+};
+use crate::http::ui::handlers::worksheets::{
+    create_worksheet, delete_worksheet, history, update_worksheet, worksheet, worksheets,
 };
 // use crate::http::ui::handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
@@ -57,6 +56,7 @@ use utoipa::OpenApi;
     (name = "volumes", description = "Volumes endpoints"),
     (name = "databases", description = "Databases endpoints"),
     (name = "schemas", description = "Schemas endpoints"),
+    (name = "worksheets", description = "Worksheets endpoints"),
 ))]
 pub struct ApiDoc;
 

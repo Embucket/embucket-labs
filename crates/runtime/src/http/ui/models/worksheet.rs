@@ -34,3 +34,10 @@ pub struct WorksheetsResponse {
     pub data: Vec<Worksheet>, // data without content
     pub duration_seconds: f32,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorksheetPayload {
+    pub name: Option<String>,
+    pub content: Option<String>,
+}

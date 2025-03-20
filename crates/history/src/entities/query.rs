@@ -16,6 +16,7 @@
 // under the License.
 
 use crate::WorksheetId;
+use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use icebucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
@@ -46,6 +47,11 @@ pub struct QueryHistoryItem {
 }
 
 impl QueryHistoryItem {
+    #[must_use]
+    pub fn get_key(worksheet_id: WorksheetId, id: QueryHistoryId) -> Bytes {
+        Bytes::from(format!("/qh/{worksheet_id}/{id}"))
+    }
+
     #[must_use]
     pub fn query_start(
         worksheet_id: WorksheetId,
@@ -95,9 +101,12 @@ impl QueryHistoryItem {
 
 impl IterableEntity for QueryHistoryItem {
     type Cursor = i64;
-    const PREFIX: &[u8] = b"hi.";
 
     fn cursor(&self) -> Self::Cursor {
         self.start_time.timestamp_nanos_opt().unwrap_or(0)
+    }
+
+    fn key(&self) -> Bytes {
+        Self::get_key(self.worksheet_id, self.id)
     }
 }

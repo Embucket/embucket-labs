@@ -319,16 +319,21 @@ mod test {
         pub start_time: DateTime<Utc>,
     }
 
+    impl PseudoItem {
+        pub fn get_key(id: i64) -> Bytes {
+            Bytes::from(format!("hi.{}", id))
+        }
+    }
+
     impl IterableEntity for PseudoItem {
         type Cursor = i64;
-        const PREFIX: &[u8] = b"hi.";
 
         fn cursor(&self) -> Self::Cursor {
             self.start_time.timestamp_nanos_opt().unwrap_or(0)
         }
 
-        fn next_cursor(&self) -> Self::Cursor {
-            self.cursor() + 1
+        fn key(&self) -> Bytes {
+            Self::get_key(self.cursor())
         }
     }
 
@@ -339,16 +344,21 @@ mod test {
         pub start_time: DateTime<Utc>,
     }
 
+    impl PseudoItem2 {
+        pub fn get_key(id: i64) -> Bytes {
+            Bytes::from(format!("si.{}", id))
+        }
+    }
+
     impl IterableEntity for PseudoItem2 {
         type Cursor = i64;
-        const PREFIX: &[u8] = b"si.";
 
         fn cursor(&self) -> Self::Cursor {
             self.start_time.timestamp_nanos_opt().unwrap_or(0)
         }
 
-        fn next_cursor(&self) -> Self::Cursor {
-            self.cursor() + 1
+        fn key(&self) -> Bytes {
+            Self::get_key(self.cursor())
         }
     }
 
@@ -481,12 +491,14 @@ mod test {
         let created_items = populate_with_items(&db).await;
         let created_more_items = populate_with_more_items(&db).await;
 
-        let range = PseudoItem::min_key()..PseudoItem::max_key();
+        let range = PseudoItem::get_key(PseudoItem::min_cursor())
+            ..PseudoItem::get_key(PseudoItem::max_cursor());
         println!("PseudoItem range {range:?}");
         let retrieved: Vec<PseudoItem> = db.items_from_range(range, None).await.unwrap();
         assert_check_items(created_items.iter().collect(), retrieved.iter().collect());
 
-        let range = PseudoItem2::min_key()..PseudoItem2::max_key();
+        let range = PseudoItem2::get_key(PseudoItem2::min_cursor())
+            ..PseudoItem2::get_key(PseudoItem2::max_cursor());
         println!("PseudoItem2 range {range:?}");
         let retrieved: Vec<PseudoItem2> = db.items_from_range(range, None).await.unwrap();
         assert_check_items(
@@ -519,7 +531,7 @@ mod test {
         let db = Db::memory().await;
         let created_items = populate_with_items(&db).await;
         let items: Vec<&PseudoItem> = created_items[5..].into_iter().collect();
-        let range = items.first().unwrap().key()..PseudoItem::max_key();
+        let range = items.first().unwrap().key()..PseudoItem::get_key(PseudoItem::max_cursor());
         let retrieved: Vec<PseudoItem> = db.items_from_range(range, None).await.unwrap();
         assert_check_items(items, retrieved.iter().collect());
     }
