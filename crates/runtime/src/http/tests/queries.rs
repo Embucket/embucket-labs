@@ -126,10 +126,14 @@ async fn test_ui_queries() {
     let err = res.json::<ErrorResponse>().await.unwrap();
     assert_eq!(err.status_code, http::StatusCode::INTERNAL_SERVER_ERROR);
 
+    // get 2
     let res = req(
         &client,
         Method::GET,
-        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        &format!(
+            "http://{addr}/ui/worksheets/{}/queries?limit=2",
+            worksheet.id
+        ),
         String::new(),
     )
     .await
@@ -137,11 +141,28 @@ async fn test_ui_queries() {
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
     let history_resp = res.json::<HistoryResponse>().await.unwrap();
+    assert_eq!(history_resp.items.len(), 2);
     assert_eq!(history_resp.items[0].status, QueryStatus::Ok);
     assert_eq!(history_resp.items[0].result, Some(query_run_resp.result));
     assert_eq!(history_resp.items[1].status, QueryStatus::Ok);
     assert_eq!(history_resp.items[1].result, Some(query_run_resp2.result));
-    assert_eq!(history_resp.items.len(), 4);
-    assert_eq!(history_resp.items[2].status, QueryStatus::Error);
-    assert_eq!(history_resp.items[3].status, QueryStatus::Error);
+
+    // get rest
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/worksheets/{}/queries?cursor={}",
+            worksheet.id, history_resp.next_cursor
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    // println!("{:?}", res.bytes().await);
+    let history_resp = res.json::<HistoryResponse>().await.unwrap();
+    assert_eq!(history_resp.items.len(), 2);
+    assert_eq!(history_resp.items[0].status, QueryStatus::Error);
+    assert_eq!(history_resp.items[1].status, QueryStatus::Error);
 }

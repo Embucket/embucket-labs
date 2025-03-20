@@ -117,40 +117,56 @@ impl ExecutionService {
         let mut history_item = QueryHistoryItem::query_start(worksheet_id, query, None);
         let id: QueryHistoryId = history_item.id;
 
-        let (records, _) = self.query(session_id, query, query_context).await?;
-        let buf = Vec::new();
-        let write_builder = WriterBuilder::new().with_explicit_nulls(true);
-        let mut writer = write_builder.build::<_, JsonArray>(buf);
+        // let (records, _) = self.query(session_id, query, query_context).await?;
+        let records_batch = self.query(session_id, query, query_context).await;
+        let res = match records_batch {
+            Ok((records, _)) => {
+                let buf = Vec::new();
+                let write_builder = WriterBuilder::new().with_explicit_nulls(true);
+                let mut writer = write_builder.build::<_, JsonArray>(buf);
 
-        let record_refs: Vec<&RecordBatch> = records.iter().collect();
-        writer
-            .write_batches(&record_refs)
-            .context(ex_error::ArrowSnafu)?;
-        writer.finish().context(ex_error::ArrowSnafu)?;
+                let record_refs: Vec<&RecordBatch> = records.iter().collect();
+                writer
+                    .write_batches(&record_refs)
+                    .context(ex_error::ArrowSnafu)?;
+                writer.finish().context(ex_error::ArrowSnafu)?;
 
-        // Get the underlying buffer back,
-        let buf = writer.into_inner();
+                // Get the underlying buffer back,
+                let buf = writer.into_inner();
 
-        let res = String::from_utf8(buf)
-            .map(|res| (id, res))
-            .context(ex_error::Utf8Snafu);
+                let res = String::from_utf8(buf)
+                    .map(|res| (id, res))
+                    .context(ex_error::Utf8Snafu);
 
-        match &res {
-            Ok(id_res_tuple) => {
-                let result_count = i64::try_from(records.len()).unwrap_or(0);
-                history_item.query_finished(result_count, Some(id_res_tuple.1.clone()), None);
+                match &res {
+                    Ok(id_res_tuple) => {
+                        let result_count = i64::try_from(records.len()).unwrap_or(0);
+                        history_item.query_finished(
+                            result_count,
+                            Some(id_res_tuple.1.clone()),
+                            None,
+                        );
+                    }
+                    Err(err) => {
+                        history_item.query_finished_with_error(err.to_string());
+                    }
+                };
+
+                Ok(res)
             }
             Err(err) => {
                 history_item.query_finished_with_error(err.to_string());
+
+                Err(err)
             }
         };
 
-        if let Err(err) = self.history.add_history_item(history_item).await {
+        if let Err(err) = self.history.add_history_item(history_item.clone()).await {
             // do not raise error, just log ?
             tracing::error!("{err}");
         }
 
-        res
+        res?
     }
 
     #[tracing::instrument(level = "debug", skip(self))]

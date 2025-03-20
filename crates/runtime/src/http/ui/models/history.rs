@@ -27,21 +27,3 @@ pub struct HistoryResponse {
     pub current_cursor: Option<QueryHistoryId>,
     pub next_cursor: QueryHistoryId,
 }
-
-// impl HistoryResponse {
-//     #[allow(clippy::new_without_default)]
-//     #[must_use]
-//     pub const fn new(
-//         items: Vec<QueryHistoryItem>,
-//         duration_seconds: f32,
-//         current_cursor: Option<QueryHistoryId>,
-//         next_cursor: QueryHistoryId,
-//     ) -> Self {
-//         Self {
-//             items,
-//             duration_seconds,
-//             current_cursor,
-//             next_cursor,
-//         }
-//     }
-// }
