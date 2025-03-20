@@ -276,7 +276,6 @@ mod test {
     use iterable::IterableEntity;
     use serde::{Deserialize, Serialize};
     use std::time::SystemTime;
-    use tokio;
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
     struct TestEntity {
@@ -321,7 +320,7 @@ mod test {
 
     impl PseudoItem {
         pub fn get_key(id: i64) -> Bytes {
-            Bytes::from(format!("hi.{}", id))
+            Bytes::from(format!("hi.{id}"))
         }
     }
 
@@ -346,7 +345,7 @@ mod test {
 
     impl PseudoItem2 {
         pub fn get_key(id: i64) -> Bytes {
-            Bytes::from(format!("si.{}", id))
+            Bytes::from(format!("si.{id}"))
         }
     }
 
@@ -369,16 +368,17 @@ mod test {
         };
         let start_time = start_time + Duration::days(1);
         PseudoItem {
-            query: String::from(format!("SELECT {start_time}")),
-            start_time: start_time,
+            query: format!("SELECT {start_time}"),
+            start_time,
         }
     }
 
+    #[allow(clippy::items_after_statements)]
     async fn populate_with_items(db: &Db) -> Vec<PseudoItem> {
         let mut item: Option<PseudoItem> = None;
 
         let started = SystemTime::now();
-        println!(
+        eprintln!(
             "Create items {:?}",
             SystemTime::now().duration_since(started)
         );
@@ -389,19 +389,19 @@ mod test {
             item = Some(new_pseudo_item(item));
             items.push(item.clone().unwrap());
         }
-        println!(
+        eprintln!(
             "{} items created {:?}",
             COUNT,
             SystemTime::now().duration_since(started)
         );
 
         let mut fut = Vec::new();
-        for item in items.iter() {
-            println!("Add item, key={:?}", item.key());
-            fut.push(db.put_iterable_entity(item))
+        for item in &items {
+            eprintln!("Add item, key={:?}", item.key());
+            fut.push(db.put_iterable_entity(item));
         }
         join_all(fut).await;
-        println!(
+        eprintln!(
             "Added items count={} in {:?}",
             COUNT,
             SystemTime::now().duration_since(started)
@@ -410,7 +410,7 @@ mod test {
         let mut iter = db.0.scan(..).await.unwrap();
         let mut i = 0;
         while let Ok(Some(item)) = iter.next().await {
-            assert_eq!(item.key, Bytes::from(items[i].key()));
+            assert_eq!(item.key, items[i].key());
             assert_eq!(
                 item.value,
                 Bytes::from(
@@ -437,15 +437,15 @@ mod test {
                 start_time: start_time + Duration::nanoseconds(1),
             },
         ];
-        for item in items.iter() {
+        for item in &items {
             let _res = db.put_iterable_entity(item).await;
         }
         items
     }
 
     fn assert_check_items<T: serde::Serialize + Sync + IterableEntity>(
-        created_items: Vec<&T>,
-        retrieved_items: Vec<&T>,
+        created_items: &[T],
+        retrieved_items: &[T],
     ) {
         assert_eq!(created_items.len(), retrieved_items.len());
         assert_eq!(
@@ -473,15 +473,15 @@ mod test {
 
         let created = created_items;
         let range = created.first().unwrap().key()..=created.last().unwrap().key();
-        println!("PseudoItem range {range:?}");
+        eprintln!("PseudoItem range {range:?}");
         let retrieved: Vec<PseudoItem> = db.items_from_range(range, None).await.unwrap();
-        assert_check_items(created.iter().collect(), retrieved.iter().collect());
+        assert_check_items(created.as_slice(), retrieved.as_slice());
 
         let created = created_more_items;
         let range = created.first().unwrap().key()..=created.last().unwrap().key();
-        println!("PseudoItem2 range {range:?}");
+        eprintln!("PseudoItem2 range {range:?}");
         let retrieved: Vec<PseudoItem2> = db.items_from_range(range, None).await.unwrap();
-        assert_check_items(created.iter().collect(), retrieved.iter().collect());
+        assert_check_items(created.as_slice(), retrieved.as_slice());
     }
 
     #[tokio::test]
@@ -493,18 +493,15 @@ mod test {
 
         let range = PseudoItem::get_key(PseudoItem::min_cursor())
             ..PseudoItem::get_key(PseudoItem::max_cursor());
-        println!("PseudoItem range {range:?}");
+        eprintln!("PseudoItem range {range:?}");
         let retrieved: Vec<PseudoItem> = db.items_from_range(range, None).await.unwrap();
-        assert_check_items(created_items.iter().collect(), retrieved.iter().collect());
+        assert_check_items(created_items.as_slice(), retrieved.as_slice());
 
         let range = PseudoItem2::get_key(PseudoItem2::min_cursor())
             ..PseudoItem2::get_key(PseudoItem2::max_cursor());
-        println!("PseudoItem2 range {range:?}");
+        eprintln!("PseudoItem2 range {range:?}");
         let retrieved: Vec<PseudoItem2> = db.items_from_range(range, None).await.unwrap();
-        assert_check_items(
-            created_more_items.iter().collect(),
-            retrieved.iter().collect(),
-        );
+        assert_check_items(created_more_items.as_slice(), retrieved.as_slice());
     }
 
     #[tokio::test]
@@ -514,15 +511,12 @@ mod test {
         let created_items = populate_with_items(&db).await;
         let created = created_items;
         let range = created.first().unwrap().key()..=created.last().unwrap().key();
-        let limit: usize = 10;
-        println!("PseudoItem range {range:?}, limit {limit}");
-        let retrieved: Vec<PseudoItem> = db
-            .items_from_range(range, Some(limit as u16))
-            .await
-            .unwrap();
+        let limit: u16 = 10;
+        eprintln!("PseudoItem range {range:?}, limit {limit}");
+        let retrieved: Vec<PseudoItem> = db.items_from_range(range, Some(limit)).await.unwrap();
         assert_check_items(
-            created[0..limit].iter().collect(),
-            retrieved.iter().collect(),
+            created[0..limit.into()].iter().as_slice(),
+            retrieved.as_slice(),
         );
     }
 
@@ -530,10 +524,10 @@ mod test {
     async fn test_slatedb_start_with_existing_key_end_with_max_key_range() {
         let db = Db::memory().await;
         let created_items = populate_with_items(&db).await;
-        let items: Vec<&PseudoItem> = created_items[5..].into_iter().collect();
+        let items = created_items[5..].iter().as_slice();
         let range = items.first().unwrap().key()..PseudoItem::get_key(PseudoItem::max_cursor());
         let retrieved: Vec<PseudoItem> = db.items_from_range(range, None).await.unwrap();
-        assert_check_items(items, retrieved.iter().collect());
+        assert_check_items(items, retrieved.as_slice());
     }
 
     #[tokio::test]

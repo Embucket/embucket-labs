@@ -616,6 +616,7 @@ impl DedicatedExecutorBuilder {
                     .on_thread_start(move || {
                         DedicatedExecutor::register_io_runtime(io_handle.clone());
                     })
+                    .enable_all()
                     .build()
                     .expect("Creating tokio runtime");
 

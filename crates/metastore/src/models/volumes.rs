@@ -196,16 +196,8 @@ impl IceBucketVolume {
                     .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
                     .context(metastore_error::ObjectStoreSnafu)
             }
-            IceBucketVolumeType::File(volume) => {
-                let path = std::path::Path::new(&volume.path);
-                if !path.exists() || !path.is_dir() {
-                    std::fs::create_dir(path).context(metastore_error::CreateDirectorySnafu {
-                        path: volume.path.clone(),
-                    })?;
-                }
-                object_store::local::LocalFileSystem::new_with_prefix(volume.path.clone())
-                    .context(metastore_error::ObjectStoreSnafu)
-                    .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
+            IceBucketVolumeType::File(_) => {
+                Ok(Arc::new(object_store::local::LocalFileSystem::new()) as Arc<dyn ObjectStore>)
             }
             IceBucketVolumeType::Memory => {
                 Ok(Arc::new(object_store::memory::InMemory::new()) as Arc<dyn ObjectStore>)
@@ -220,7 +212,6 @@ impl IceBucketVolume {
                 .bucket
                 .as_ref()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
-            //IceBucketVolumeType::File(..) | IceBucketVolumeType::Memory => "/".to_string(),
             IceBucketVolumeType::File(volume) => format!("file://{}", volume.path),
             IceBucketVolumeType::Memory => "memory://".to_string(),
         }

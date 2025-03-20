@@ -17,22 +17,22 @@
 
 use crate::http::catalog::schemas::{
     from_get_schema, from_schema, from_schemas_list, from_tables_list, to_create_table, to_schema,
-    to_table_commit, GetConfigQuery,
+    to_table_commit, CommitTable, GetConfigQuery,
 };
 use crate::http::metastore::error::{MetastoreAPIError, MetastoreAPIResult};
 use crate::http::state::AppState;
 use axum::http::StatusCode;
 use axum::{extract::Path, extract::Query, extract::State, Json};
 use iceberg_rest_catalog::models::{
-    CatalogConfig, CommitTableRequest, CommitTableResponse, CreateNamespaceRequest,
-    CreateNamespaceResponse, CreateTableRequest, GetNamespaceResponse, ListNamespacesResponse,
-    ListTablesResponse, LoadTableResult, RegisterTableRequest, ReportMetricsRequest,
+    CatalogConfig, CommitTableResponse, CreateNamespaceRequest, CreateNamespaceResponse,
+    CreateTableRequest, GetNamespaceResponse, ListNamespacesResponse, ListTablesResponse,
+    LoadTableResult, RegisterTableRequest,
 };
 use iceberg_rust_spec::table_metadata::TableMetadata;
 use icebucket_metastore::error::{self as metastore_error, MetastoreError};
 use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
 use object_store::ObjectStore;
-use serde_json::from_slice;
+use serde_json::{from_slice, Value};
 use snafu::ResultExt;
 use std::collections::HashMap;
 use validator::Validate;
@@ -160,7 +160,7 @@ pub async fn register_table(
 pub async fn commit_table(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-    Json(commit): Json<CommitTableRequest>,
+    Json(commit): Json<CommitTable>,
 ) -> MetastoreAPIResult<Json<CommitTableResponse>> {
     let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
     let table_updates = to_table_commit(commit);
@@ -228,7 +228,7 @@ pub async fn list_tables(
 pub async fn report_metrics(
     State(_state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-    Json(metrics): Json<ReportMetricsRequest>,
+    Json(metrics): Json<Value>,
 ) -> MetastoreAPIResult<StatusCode> {
     tracing::info!(
         "Received metrics for table {database_name}.{schema_name}.{table_name}: {:?}",

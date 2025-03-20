@@ -75,7 +75,7 @@ async fn test_ui_worksheets() {
     let worksheet2 = res.json::<WorksheetResponse>().await.unwrap().data.unwrap();
     assert!(worksheet2.id > 0);
     assert!(worksheet2.name.is_none());
-    assert!(!worksheet2.content.is_none());
+    assert!(worksheet2.content.is_some());
 
     let res = req(
         &client,

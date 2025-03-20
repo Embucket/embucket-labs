@@ -7,7 +7,7 @@ snapshot_kind: text
     Err(
         SchemaNotFound {
             schema: "testschema",
-            db: "testschema",
+            db: "testdb",
         },
     ),
     RwObject {

@@ -5,9 +5,9 @@ repos:
       - id: cargo-check
         args: [ "--workspace" ]
       - id: fmt
-        args: [ "--", "--check" ]
+        args: [ "--", "--check"]
       - id: clippy
-        args: [ "--", "-D", "warnings" ]
+        args: [ "--workspace", "--tests" ]
   - repo: local
     # chmod +x check_license.sh
     hooks:

@@ -20,4 +20,4 @@ pub mod server;
 mod session;
 pub mod utils;
 
-pub(crate) use server::*;
+pub use server::*;

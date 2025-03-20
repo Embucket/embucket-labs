@@ -55,9 +55,8 @@ impl IntoResponse for MetastoreAPIError {
             | MetastoreError::Iceberg { .. }
             | MetastoreError::Serde { .. }
             | MetastoreError::TableMetadataBuilder { .. }
-            | MetastoreError::TableObjectStoreNotFound { .. } => {
-                http::StatusCode::INTERNAL_SERVER_ERROR
-            }
+            | MetastoreError::TableObjectStoreNotFound { .. }
+            | MetastoreError::UrlParse { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let error = ErrorResponse {

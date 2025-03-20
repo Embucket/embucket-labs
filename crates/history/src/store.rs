@@ -187,7 +187,7 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
     use chrono::{Duration, TimeZone, Utc};
@@ -199,7 +199,7 @@ mod tests {
         let db = SlateDBWorksheetsStore::new_in_memory().await;
 
         // create worksheet first
-        let worksheet = Worksheet::new(Some("".to_string()));
+        let worksheet = Worksheet::new(Some(String::new()));
 
         let n: u16 = 2;
         let mut created: Vec<QueryHistoryItem> = vec![];
@@ -216,26 +216,26 @@ mod tests {
                     1,
                     Some(String::from("pseudo result")),
                     Some(item.start_time),
-                )
+                );
             } else {
                 item.query_finished_with_error("Test query pseudo error".to_string());
             }
             created.push(item.clone());
-            println!("added {:?}", item.key());
+            eprintln!("added {:?}", item.key());
             db.add_history_item(item).await.unwrap();
         }
 
         let cursor = <QueryHistoryItem as IterableEntity>::Cursor::CURSOR_MIN;
-        println!("cursor: {cursor}");
+        eprintln!("cursor: {cursor}");
         let retrieved = db
             .query_history(worksheet.id, Some(cursor), Some(10))
             .await
             .unwrap();
-        for i in 0..retrieved.len() {
-            println!("retrieved: {:?}", retrieved[i].key());
+        for item in &retrieved {
+            eprintln!("retrieved: {:?}", item.key());
         }
 
-        assert_eq!(n as usize, retrieved.len());
+        assert_eq!(usize::from(n), retrieved.len());
         assert_eq!(created, retrieved);
     }
 }

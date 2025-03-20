@@ -22,6 +22,7 @@ use icebucket_utils::Db;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+#[allow(clippy::unwrap_used)]
 pub async fn run_icebucket_test_server() -> SocketAddr {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

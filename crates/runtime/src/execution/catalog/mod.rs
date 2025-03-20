@@ -21,6 +21,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::execution::error::{self as ex_error, ExecutionResult};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use datafusion::{
@@ -55,10 +56,10 @@ use icebucket_metastore::{
     error::MetastoreError, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent,
     IceBucketTableUpdate, Metastore,
 };
+use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
 use snafu::ResultExt;
-
-use crate::execution::error::{self as ex_error, ExecutionResult};
+use url::Url;
 
 type TableProviderCache = DashMap<String, Arc<dyn TableProvider>>;
 type SchemaProviderCache = DashMap<String, TableProviderCache>;
@@ -67,15 +68,17 @@ type CatalogProviderCache = DashMap<String, SchemaProviderCache>;
 pub struct IceBucketDFMetastore {
     pub metastore: Arc<dyn Metastore>,
     pub mirror: Arc<CatalogProviderCache>,
-    pub table_object_store: Arc<DashMap<url::Url, Arc<dyn ObjectStore>>>,
+    pub table_object_store: Arc<DashMap<String, Arc<dyn ObjectStore>>>,
 }
 
 impl IceBucketDFMetastore {
     pub fn new(metastore: Arc<dyn Metastore>) -> Self {
+        let table_object_store: DashMap<String, Arc<dyn ObjectStore>> = DashMap::new();
+        table_object_store.insert("file://".to_string(), Arc::new(LocalFileSystem::new()));
         Self {
             metastore,
             mirror: Arc::new(DashMap::new()),
-            table_object_store: Arc::new(DashMap::new()),
+            table_object_store: Arc::new(table_object_store),
         }
     }
 
@@ -129,9 +132,9 @@ impl IceBucketDFMetastore {
                             db: table.ident.database.clone(),
                         })
                         .context(ex_error::MetastoreSnafu)?;
-                    let url = url::Url::parse(&table_url).context(ex_error::UrlParseSnafu)?;
+                    let url = Url::parse(&table_url).context(ex_error::UrlParseSnafu)?;
                     self.table_object_store
-                        .insert(url, table_object_store.clone());
+                        .insert(get_url_key(&url), table_object_store.clone());
 
                     let table_provider = match table.format {
                         icebucket_metastore::IceBucketTableFormat::Parquet => {
@@ -216,20 +219,30 @@ impl std::fmt::Debug for IceBucketDFMetastore {
     }
 }
 
+/// Get the key of a url for object store registration.
+/// The credential info will be removed
+#[must_use]
+fn get_url_key(url: &Url) -> String {
+    format!(
+        "{}://{}",
+        url.scheme(),
+        &url[url::Position::BeforeHost..url::Position::AfterPort],
+    )
+}
+
 impl ObjectStoreRegistry for IceBucketDFMetastore {
     fn register_store(
         &self,
-        _url: &url::Url,
-        _store: Arc<dyn object_store::ObjectStore>,
-    ) -> Option<Arc<dyn object_store::ObjectStore>> {
-        None
+        url: &Url,
+        store: Arc<dyn ObjectStore>,
+    ) -> Option<Arc<dyn ObjectStore>> {
+        let url = get_url_key(url);
+        self.table_object_store.insert(url, store)
     }
 
-    fn get_store(
-        &self,
-        url: &url::Url,
-    ) -> datafusion_common::Result<Arc<dyn object_store::ObjectStore>> {
-        if let Some(object_store) = self.table_object_store.get(url) {
+    fn get_store(&self, url: &Url) -> datafusion_common::Result<Arc<dyn ObjectStore>> {
+        let url = get_url_key(url);
+        if let Some(object_store) = self.table_object_store.get(&url) {
             Ok(object_store.clone())
         } else {
             Err(DataFusionError::Execution(format!(
@@ -335,7 +348,7 @@ impl std::fmt::Debug for IceBucketDFSchema {
 }
 
 #[async_trait]
-impl datafusion::catalog::SchemaProvider for IceBucketDFSchema {
+impl SchemaProvider for IceBucketDFSchema {
     /// Returns the owner of the Schema, default is None. This value is reported
     /// as part of `information_tables.schemata
     fn owner_name(&self) -> Option<&str> {
