@@ -38,12 +38,3 @@ pub struct NavigationSchema {
 pub struct NavigationTable {
     pub(crate) name: String,
 }
-
-impl NavigationDatabase {
-    pub fn new(name: String, schemas: Vec<NavigationSchema>) -> Self {
-        Self {
-            name,
-            schemas
-        }
-    }
-}
