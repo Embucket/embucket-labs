@@ -16,7 +16,7 @@
 // under the License.
 
 use serde::{Deserialize, Serialize};
-use utoipa::{PartialSchema, ToSchema};
+use utoipa::ToSchema;
 use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]

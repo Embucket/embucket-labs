@@ -24,7 +24,7 @@ use axum::{
     extract::State,
     Json,
 };
-use snafu::ResultExt;
+use sqlparser::test_utils::table;
 use utoipa::OpenApi;
 use crate::http::ui::models::databases_navigation::{NavigationDatabase, NavigationSchema, NavigationTable};
 
@@ -59,40 +59,44 @@ pub struct ApiDoc;
 pub async fn get_databases_navigation(
     State(state): State<AppState>,
 ) -> UIResult<Json<Vec<NavigationDatabase>>> {
-    Ok(Json(state
+    let rw_databases = state
         .metastore
         .list_databases()
         .await
-        .context(|e| UIError::Metastore { source: e })?
-        .iter()
-        .map(async |rw_database| {
-            NavigationDatabase {
-                name: rw_database.ident.clone(),
-                schemas: state
-                    .metastore
-                    .list_schemas(&rw_database.ident)
-                    .await
-                    .context(|e| UIError::Metastore { source: e })?
-                    .iter()
-                    .map(async |rw_schema| {
-                        NavigationSchema {
-                            name: rw_schema.ident.schema.clone(),
-                            tables: state
-                                .metastore
-                                .list_tables(&rw_schema.ident)
-                                .await
-                                .context(|e| UIError::Metastore { source: e })?
-                                .iter()
-                                .map(async |rw_table| {
-                                    NavigationTable {
-                                        name: rw_table.ident.table.clone(),
-                                    }
-                                })
-                                .collect(),
-                        }
-                    })
-                    .collect(),
-            }
-    })
-        .collect()))
+        .map_err(|e| UIError::Metastore { source: e })?;
+
+    let mut databases: Vec<NavigationDatabase> = vec![];
+    for rw_database in rw_databases {
+        let rw_schemas = state
+            .metastore
+            .list_schemas(&rw_database.ident)
+            .await
+            .map_err(|e| UIError::Metastore { source: e })?;
+
+        let mut schemas: Vec<NavigationSchema> = vec![];
+        for rw_schema in rw_schemas {
+            let rw_tables = state
+                .metastore
+                .list_tables(&rw_schema.ident)
+                .await
+                .map_err(|e| UIError::Metastore { source: e })?;
+
+            let mut tables: Vec<NavigationTable> = vec![];
+            for rw_table in rw_tables {
+                tables.push(NavigationTable {
+                    name: rw_table.ident.table.clone(),
+                });
+            };
+            schemas.push(NavigationSchema {
+                name: rw_schema.ident.schema.clone(),
+                tables,
+            });
+        };
+        databases.push(NavigationDatabase {
+            name: rw_database.ident.clone(),
+            schemas,
+        });
+    };
+
+    Ok(Json(databases))
 }
