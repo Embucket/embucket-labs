@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use std::collections::HashMap;
 use crate::http::state::AppState;
 use crate::http::{
     error::ErrorResponse,
@@ -25,9 +26,11 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use datafusion_expr::ident;
 use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
 use utoipa::OpenApi;
+use crate::http::ui::models::schemas::CreateSchemaPayload;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -56,7 +59,7 @@ pub struct ApiDoc;
     params(
         ("databaseName" = String, description = "Database Name")
     ),
-    request_body = IceBucketSchema,
+    request_body = CreateSchemaPayload,
     responses(
         (status = 200, description = "Successful Response", body = IceBucketSchema),
         (status = 400, description = "Bad request", body = ErrorResponse),
@@ -68,49 +71,19 @@ pub struct ApiDoc;
 pub async fn create_schema(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-    Json(schema): Json<IceBucketSchema>,
+    Json(payload): Json<CreateSchemaPayload>,
 ) -> UIResult<Json<IceBucketSchema>> {
+    let ident = IceBucketSchemaIdent::new(payload.name, database_name);
+    let schema = IceBucketSchema {
+        ident,
+        properties: Some(HashMap::new())
+    };
     state
         .metastore
-        .create_schema(&schema.ident.clone(), schema)
+        .create_schema(&ident, schema)
         .await
         .map_err(|e| UIError::Metastore { source: e })
         .map(|rw_object| Json(rw_object.data))
-}
-
-#[utoipa::path(
-    get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}",
-    params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name")
-    ),
-    operation_id = "getSchema",
-    tags = ["schemas"],
-    responses(
-        (status = 200, description = "Successful Response", body = IceBucketSchema),
-        (status = 404, description = "Schema not found", body = ErrorResponse),
-        (status = 422, description = "Unprocessable entity", body = ErrorResponse),
-    )
-)]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn get_schema(
-    State(state): State<AppState>,
-    Path((database_name, schema_name)): Path<(String, String)>,
-) -> UIResult<Json<IceBucketSchema>> {
-    let schema_ident = IceBucketSchemaIdent {
-        database: database_name.clone(),
-        schema: schema_name.clone(),
-    };
-    match state.metastore.get_schema(&schema_ident).await {
-        Ok(Some(schema)) => Ok(Json(schema.data)),
-        Ok(None) => Err(MetastoreError::SchemaNotFound {
-            db: database_name.clone(),
-            schema: schema_name.clone(),
-        }
-        .into()),
-        Err(e) => Err(e.into()),
-    }
 }
 
 #[utoipa::path(
@@ -142,67 +115,101 @@ pub async fn delete_schema(
         .map_err(|e| UIError::Metastore { source: e })
 }
 
-#[utoipa::path(
-    put,
-    operation_id = "updateSchema",
-    path="/ui/databases/{databaseName}/schemas/{schemaName}",
-    tags = ["schemas"],
-    params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name")
-    ),
-    request_body = IceBucketSchema,
-    responses(
-        (status = 200, body = IceBucketSchema),
-        (status = 404, description = "Schema not found"),
-        (status = 422, description = "Unprocessable entity", body = ErrorResponse),
-    )
-)]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn update_schema(
-    State(state): State<AppState>,
-    Path((database_name, schema_name)): Path<(String, String)>,
-    Json(schema): Json<IceBucketSchema>,
-) -> UIResult<Json<IceBucketSchema>> {
-    let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
-    // TODO: Implement schema renames
-    state
-        .metastore
-        .update_schema(&schema_ident, schema)
-        .await
-        .map_err(|e| UIError::Metastore { source: e })
-        .map(|rw_object| Json(rw_object.data))
-}
-
-#[utoipa::path(
-    get,
-    operation_id = "listSchemas",
-    path="/ui/databases/{databaseName}/schemas",
-    tags = ["schemas"],
-    params(
-        ("databaseName" = String, description = "Database Name")
-    ),
-    responses(
-        (status = 200, body = Vec<IceBucketSchema>),
-        (status = 500, description = "Internal server error", body = ErrorResponse)
-    )
-)]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn list_schemas(
-    State(state): State<AppState>,
-    Path(database_name): Path<String>,
-) -> UIResult<Json<Vec<IceBucketSchema>>> {
-    state
-        .metastore
-        .list_schemas(&database_name)
-        .await
-        .map_err(|e| UIError::Metastore { source: e })
-        .map(|rw_objects| {
-            Json(
-                rw_objects
-                    .iter()
-                    .map(|rw_object| rw_object.data.clone())
-                    .collect(),
-            )
-        })
-}
+// #[utoipa::path(
+//     get,
+//     path = "/ui/databases/{databaseName}/schemas/{schemaName}",
+//     params(
+//         ("databaseName" = String, description = "Database Name"),
+//         ("schemaName" = String, description = "Schema Name")
+//     ),
+//     operation_id = "getSchema",
+//     tags = ["schemas"],
+//     responses(
+//         (status = 200, description = "Successful Response", body = IceBucketSchema),
+//         (status = 404, description = "Schema not found", body = ErrorResponse),
+//         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
+//     )
+// )]
+// #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+// pub async fn get_schema(
+//     State(state): State<AppState>,
+//     Path((database_name, schema_name)): Path<(String, String)>,
+// ) -> UIResult<Json<IceBucketSchema>> {
+//     let schema_ident = IceBucketSchemaIdent {
+//         database: database_name.clone(),
+//         schema: schema_name.clone(),
+//     };
+//     match state.metastore.get_schema(&schema_ident).await {
+//         Ok(Some(schema)) => Ok(Json(schema.data)),
+//         Ok(None) => Err(MetastoreError::SchemaNotFound {
+//             db: database_name.clone(),
+//             schema: schema_name.clone(),
+//         }
+//         .into()),
+//         Err(e) => Err(e.into()),
+//     }
+// }
+// #[utoipa::path(
+//     put,
+//     operation_id = "updateSchema",
+//     path="/ui/databases/{databaseName}/schemas/{schemaName}",
+//     tags = ["schemas"],
+//     params(
+//         ("databaseName" = String, description = "Database Name"),
+//         ("schemaName" = String, description = "Schema Name")
+//     ),
+//     request_body = IceBucketSchema,
+//     responses(
+//         (status = 200, body = IceBucketSchema),
+//         (status = 404, description = "Schema not found"),
+//         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
+//     )
+// )]
+// #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+// pub async fn update_schema(
+//     State(state): State<AppState>,
+//     Path((database_name, schema_name)): Path<(String, String)>,
+//     Json(schema): Json<IceBucketSchema>,
+// ) -> UIResult<Json<IceBucketSchema>> {
+//     let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
+//     // TODO: Implement schema renames
+//     state
+//         .metastore
+//         .update_schema(&schema_ident, schema)
+//         .await
+//         .map_err(|e| UIError::Metastore { source: e })
+//         .map(|rw_object| Json(rw_object.data))
+// }
+//
+// #[utoipa::path(
+//     get,
+//     operation_id = "listSchemas",
+//     path="/ui/databases/{databaseName}/schemas",
+//     tags = ["schemas"],
+//     params(
+//         ("databaseName" = String, description = "Database Name")
+//     ),
+//     responses(
+//         (status = 200, body = Vec<IceBucketSchema>),
+//         (status = 500, description = "Internal server error", body = ErrorResponse)
+//     )
+// )]
+// #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+// pub async fn list_schemas(
+//     State(state): State<AppState>,
+//     Path(database_name): Path<String>,
+// ) -> UIResult<Json<Vec<IceBucketSchema>>> {
+//     state
+//         .metastore
+//         .list_schemas(&database_name)
+//         .await
+//         .map_err(|e| UIError::Metastore { source: e })
+//         .map(|rw_objects| {
+//             Json(
+//                 rw_objects
+//                     .iter()
+//                     .map(|rw_object| rw_object.data.clone())
+//                     .collect(),
+//             )
+//         })
+// }

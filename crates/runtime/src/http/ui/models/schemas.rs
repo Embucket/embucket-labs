@@ -15,13 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//pub mod aws;
-//pub mod database;
-//pub mod error;
-//pub mod properties;
-//pub mod storage_profile;
-//pub mod table;
-//pub mod warehouse;
-pub mod history;
-pub mod worksheet;
-pub mod schemas;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSchemaPayload {
+    pub(crate) name: String,
+}
