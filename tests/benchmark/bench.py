@@ -66,7 +66,16 @@ def compare_results():
 ### print("Preparing data...")
 ### create volume, catalog, schema, table, upload data
 ### local_volume=True for local volume, False for S3
-data_size = prepare_data(CATALOG, False, "/Users/artem/Downloads/partitioned")
+data_size = prepare_data(
+    CATALOG,
+    path_to_data="/Users/artem/Downloads/partitioned",
+    create_volume=True,
+    local_volume=True,
+    create_database=True,
+    create_schema=True,
+    create_table=True,
+    create_external=False,
+)
 # run_benchmark()
 # compare_results()
 

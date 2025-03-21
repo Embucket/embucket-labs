@@ -17,20 +17,18 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::http::{config::IceBucketWebConfig, make_icebucket_app};
 use http::Method;
-use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketVolume, SlateDBMetastore};
+use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
 use reqwest::Response;
 use serde_json::json;
 use std::net::SocketAddr;
-use tokio::net::TcpListener;
 
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum Entity {
     Volume(IceBucketVolume),
     Database(IceBucketDatabase),
-    Schema(IceBucketSchema),
+    // Schema(IceBucketSchema),
 }
 
 #[derive(Debug)]
@@ -40,30 +38,6 @@ pub enum Op {
     Delete,
     Get,
     Update,
-}
-
-pub async fn create_server() -> SocketAddr {
-    let listener = TcpListener::bind("0.0.0.0:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let app = make_icebucket_app(
-        metastore,
-        &IceBucketWebConfig {
-            port: 3000,
-            host: "0.0.0.0".to_string(),
-            allow_origin: None,
-            data_format: "json".to_string(),
-            iceberg_catalog_url: "http://127.0.0.1:3000".to_string(),
-        },
-    )
-    .unwrap();
-
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
-
-    addr
 }
 
 pub async fn req(
@@ -90,15 +64,15 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
             Op::Create | Op::List => format!("http://{addr}/ui/databases"),
             Op::Delete | Op::Get | Op::Update => format!("http://{addr}/ui/databases/{}", db.ident),
         },
-        Entity::Schema(sc) => match op {
-            Op::Create | Op::List => {
-                format!("http://{addr}/ui/databases/{}/schemas", sc.ident.database)
-            }
-            Op::Delete | Op::Get | Op::Update => format!(
-                "http://{addr}/ui/databases/{}/schemas/{}",
-                sc.ident.database, sc.ident.schema
-            ),
-        },
+        // Entity::Schema(sc) => match op {
+        //     Op::Create | Op::List => {
+        //         format!("http://{addr}/ui/databases/{}/schemas", sc.ident.database)
+        //     }
+        //     Op::Delete | Op::Get | Op::Update => format!(
+        //         "http://{addr}/ui/databases/{}/schemas/{}",
+        //         sc.ident.database, sc.ident.schema
+        //     ),
+        // }
     }
 }
 
@@ -113,7 +87,7 @@ pub async fn ui_test_op(addr: SocketAddr, op: Op, t_from: Option<&Entity>, t: &E
     let payload = match t {
         Entity::Volume(vol) => json!(vol).to_string(),
         Entity::Database(db) => json!(db).to_string(),
-        Entity::Schema(sc) => json!(sc).to_string(),
+        // Entity::Schema(sc) => json!(sc).to_string(),
     };
     match op {
         Op::Create => req(&client, Method::POST, &ui_url, payload).await.unwrap(),

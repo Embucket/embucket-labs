@@ -43,11 +43,13 @@ hyper = "1.5.0"
 iceberg-rest-catalog = { workspace = true }
 iceberg-rust = { workspace = true }
 iceberg-rust-spec = { workspace = true }
+icebucket_history = { workspace= true }
 icebucket_metastore = { version = "0.1.0", path = "../metastore" }
 icebucket_utils = { version = "0.1.0", path = "../utils" }
 indexmap = { version = "2.7.1" }
 itertools = "0.14.0"
 object_store = { workspace = true }
+
 
 paste = "1"
 regex = { version = "1.11.0" }

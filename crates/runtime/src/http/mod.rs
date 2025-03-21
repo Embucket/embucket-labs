@@ -24,6 +24,7 @@ use axum::{
     Router,
 };
 use http_body_util::BodyExt;
+use icebucket_history::store::WorksheetsStore;
 use icebucket_metastore::Metastore;
 use std::sync::Arc;
 use time::Duration;
@@ -55,12 +56,18 @@ mod tests;
 
 use super::http::config::IceBucketWebConfig;
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn make_icebucket_app(
     metastore: Arc<dyn Metastore>,
+    history: Arc<dyn WorksheetsStore>,
     config: &IceBucketWebConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format)?;
-    let execution_svc = Arc::new(ExecutionService::new(metastore.clone(), execution_cfg));
+    let execution_svc = Arc::new(ExecutionService::new(
+        metastore.clone(),
+        history.clone(),
+        execution_cfg,
+    ));
 
     let session_memory = RequestSessionMemory::default();
     let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
@@ -76,7 +83,8 @@ pub fn make_icebucket_app(
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
     // Create the application state
-    let app_state = state::AppState::new(metastore, execution_svc, Arc::new(config.clone()));
+    let app_state =
+        state::AppState::new(metastore, history, execution_svc, Arc::new(config.clone()));
 
     let mut app = router::create_app(app_state)
         .layer(session_layer)

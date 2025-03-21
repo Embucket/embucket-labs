@@ -24,7 +24,6 @@ use axum::{
     extract::State,
     Json,
 };
-use sqlparser::test_utils::table;
 use utoipa::OpenApi;
 use crate::http::ui::models::databases_navigation::{NavigationDatabase, NavigationSchema, NavigationTable};
 

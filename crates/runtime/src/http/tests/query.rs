@@ -17,37 +17,17 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::http::{config::IceBucketWebConfig, make_icebucket_app};
+use crate::tests::run_icebucket_test_server;
 // for `collect`
 use icebucket_metastore::{
-    IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume, SlateDBMetastore,
+    IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume,
 };
 use serde_json::json;
-use tokio::net::TcpListener;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_parallel_queries() {
-    let listener = TcpListener::bind("0.0.0.0:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let app = make_icebucket_app(
-        metastore,
-        &IceBucketWebConfig {
-            port: 3000,
-            host: "0.0.0.0".to_string(),
-            allow_origin: None,
-            data_format: "json".to_string(),
-            iceberg_catalog_url: "http://127.0.0.1:3000".to_string(),
-        },
-    )
-    .unwrap();
-
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
-
+    let addr = run_icebucket_test_server().await;
     let client = reqwest::Client::new();
     let client2 = reqwest::Client::new();
 

@@ -27,6 +27,9 @@ use crate::http::ui::handlers::query::query;
 use crate::http::ui::handlers::volumes::{
     create_volume, delete_volume, get_volume, list_volumes, update_volume,
 };
+use crate::http::ui::handlers::worksheets::{
+    create_worksheet, delete_worksheet, history, update_worksheet, worksheet, worksheets,
+};
 // use crate::http::ui::handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
 //     update_table_properties, upload_data_to_table,
@@ -54,6 +57,8 @@ use crate::http::ui::handlers::databases_navigation::get_databases_navigation;
     (name = "volumes", description = "Volumes endpoints"),
     (name = "databases", description = "Databases endpoints"),
     (name = "schemas", description = "Schemas endpoints"),
+    (name = "worksheets", description = "Worksheets endpoints"),
+    (name = "queries", description = "Queries endpoints"),
 ))]
 pub struct ApiDoc;
 
@@ -88,7 +93,17 @@ pub fn create_router() -> Router<AppState> {
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
         //     get(get_table).delete(delete_table),
         // )
-        .route("/query", post(query))
+        .route("/worksheets", get(worksheets).post(create_worksheet))
+        .route(
+            "/worksheets/{worksheet_id}",
+            get(worksheet)
+                .delete(delete_worksheet)
+                .patch(update_worksheet),
+        )
+        .route(
+            "/worksheets/{worksheet_id}/queries",
+            post(query).get(history),
+        )
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/settings",
         //     get(get_settings).post(update_table_properties),

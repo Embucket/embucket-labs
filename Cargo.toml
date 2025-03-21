@@ -3,6 +3,7 @@ default-members = ["bin/bucketd"]
 members = [
   "bin/bucketd",
   "crates/metastore",
+  "crates/history",
   "crates/runtime",
   "crates/utils",
 ]
@@ -34,6 +35,7 @@ utoipa-swagger-ui = { version = "9.0.0", features = ["axum"] }
 lazy_static = { version = "1.5" }
 snafu = { version = "0.8.5", features = ["futures"] }
 tracing = { version = "0.1" }
+icebucket_history = { version = "0.1.0", path = "crates/history" }
 
 datafusion = { version = "45.0.0" }
 datafusion-common = { version = "45.0.0" }
@@ -56,6 +58,7 @@ datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git",
 datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
 datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
 
+# issue #309
 chrono = { git = "https://github.com/chronotope/chrono.git", rev = "8b863490d88ba098038392c8aa930012ffd0c439" }
 
 [workspace.lints.clippy]

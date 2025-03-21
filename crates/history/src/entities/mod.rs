@@ -15,14 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//pub mod aws;
-//pub mod database;
-//pub mod error;
-//pub mod properties;
-//pub mod storage_profile;
-//pub mod table;
-//pub mod warehouse;
-pub mod history;
+pub mod query;
 pub mod worksheet;
 
-pub mod databases_navigation;
+pub use query::*;
+pub use worksheet::*;

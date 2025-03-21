@@ -15,14 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//pub mod aws;
-//pub mod database;
-//pub mod error;
-//pub mod properties;
-//pub mod storage_profile;
-//pub mod table;
-//pub mod warehouse;
-pub mod history;
-pub mod worksheet;
+use icebucket_history::{QueryHistoryId, QueryHistoryItem};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-pub mod databases_navigation;
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryResponse {
+    pub items: Vec<QueryHistoryItem>,
+    pub duration_seconds: f32,
+    pub current_cursor: Option<QueryHistoryId>,
+    pub next_cursor: QueryHistoryId,
+}

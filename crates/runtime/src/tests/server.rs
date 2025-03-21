@@ -15,43 +15,38 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use std::sync::Arc;
-
-use config::IceBucketRuntimeConfig;
-use http::{make_icebucket_app, run_icebucket_app};
+use crate::http::{config::IceBucketWebConfig, make_icebucket_app};
 use icebucket_history::store::SlateDBWorksheetsStore;
 use icebucket_metastore::SlateDBMetastore;
 use icebucket_utils::Db;
-use object_store::{path::Path, ObjectStore};
-use slatedb::{config::DbOptions, db::Db as SlateDb};
+use std::net::SocketAddr;
+use std::sync::Arc;
 
-pub mod config;
-pub mod execution;
-pub mod http;
+#[allow(clippy::unwrap_used)]
+pub async fn run_icebucket_test_server() -> SocketAddr {
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
 
-#[cfg(test)]
-pub(crate) mod tests;
-
-#[allow(clippy::unwrap_used, clippy::as_conversions)]
-pub async fn run_icebucket(
-    state_store: Arc<dyn ObjectStore>,
-    config: IceBucketRuntimeConfig,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let db = {
-        let options = DbOptions::default();
-        Db::new(Arc::new(
-            SlateDb::open_with_opts(
-                Path::from(config.db.slatedb_prefix.clone()),
-                options,
-                state_store.clone(),
-            )
-            .await
-            .map_err(Box::new)?,
-        ))
-    };
-
+    let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history = Arc::new(SlateDBWorksheetsStore::new(db));
-    let app = make_icebucket_app(metastore, history, &config.web)?;
-    run_icebucket_app(app, &config.web).await
+
+    let app = make_icebucket_app(
+        metastore,
+        history,
+        &IceBucketWebConfig {
+            port: 3000,
+            host: "0.0.0.0".to_string(),
+            allow_origin: None,
+            data_format: "json".to_string(),
+            iceberg_catalog_url: "http://127.0.0.1".to_string(),
+        },
+    )
+    .unwrap();
+
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    addr
 }
