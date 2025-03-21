@@ -20,7 +20,7 @@
 use crate::http::error::ErrorResponse;
 use crate::http::tests::common::req;
 use crate::http::ui::handlers::query::{QueryPayload, QueryResponse};
-use crate::http::ui::models::history::HistoryResponse;
+use crate::http::ui::models::history::QueriesResponse;
 use crate::http::ui::models::worksheet::{WorksheetPayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
@@ -140,7 +140,7 @@ async fn test_ui_queries() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
-    let history_resp = res.json::<HistoryResponse>().await.unwrap();
+    let history_resp = res.json::<QueriesResponse>().await.unwrap();
     assert_eq!(history_resp.items.len(), 2);
     assert_eq!(history_resp.items[0].status, QueryStatus::Ok);
     assert_eq!(history_resp.items[0].result, Some(query_run_resp.result));
@@ -161,7 +161,7 @@ async fn test_ui_queries() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
-    let history_resp = res.json::<HistoryResponse>().await.unwrap();
+    let history_resp = res.json::<QueriesResponse>().await.unwrap();
     assert_eq!(history_resp.items.len(), 2);
     assert_eq!(history_resp.items[0].status, QueryStatus::Error);
     assert_eq!(history_resp.items[1].status, QueryStatus::Error);

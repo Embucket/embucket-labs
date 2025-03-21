@@ -18,7 +18,7 @@
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use crate::http::ui::models::{
-    history::HistoryResponse,
+    history::QueriesResponse,
     worksheet::{WorksheetPayload, WorksheetResponse, WorksheetsResponse},
 };
 use axum::response::IntoResponse;
@@ -85,7 +85,7 @@ pub struct GetHistoryItemsParams {
     ),
     components(schemas(
         ErrorResponse,
-        HistoryResponse,
+        QueriesResponse,
         WorksheetPayload,
         WorksheetResponse,
         WorksheetsResponse,
@@ -187,7 +187,7 @@ pub async fn worksheet(
 #[utoipa::path(
     delete,
     path = "/ui/worksheets/{worksheet_id}",
-    operation_id = "delWorksheet",
+    operation_id = "deleteWorksheet",
     tags = ["worksheets"],
     params(
         ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
@@ -271,13 +271,13 @@ pub async fn update_worksheet(
     path = "/worksheets/{worksheet_id}/queries",
     params(("cursor" = String, description = "Cursor")),
     params(("limit" = u16, description = "Limit")),
-    operation_id = "getQueriesHistory",
+    operation_id = "getQueries",
     tags = ["queries"],
     params(
         ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
     ),
     responses(
-        (status = 200, description = "Returns result of the history", body = HistoryResponse),
+        (status = 200, description = "Returns result of the history", body = QueriesResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
@@ -287,7 +287,7 @@ pub async fn history(
     Query(params): Query<GetHistoryItemsParams>,
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
-) -> WorksheetHandlerResult<Json<HistoryResponse>> {
+) -> WorksheetHandlerResult<Json<QueriesResponse>> {
     let start = Instant::now();
     let items = state
         .history
@@ -300,7 +300,7 @@ pub async fn history(
         QueryHistoryItem::min_cursor() // no items in range -> go to beginning
     };
     let duration = start.elapsed();
-    Ok(Json(HistoryResponse {
+    Ok(Json(QueriesResponse {
         items,
         duration_seconds: duration.as_secs_f32(),
         current_cursor: params.cursor,

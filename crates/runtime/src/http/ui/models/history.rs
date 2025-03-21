@@ -21,7 +21,7 @@ use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
 #[serde(rename_all = "camelCase")]
-pub struct HistoryResponse {
+pub struct QueriesResponse {
     pub items: Vec<QueryHistoryItem>,
     pub duration_seconds: f32,
     pub current_cursor: Option<QueryHistoryId>,
