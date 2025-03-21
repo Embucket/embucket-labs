@@ -154,5 +154,5 @@ async fn test_ui_databases_navigation() {
             .unwrap()
             .tables
             .len()
-    )
+    );
 }
