@@ -71,7 +71,7 @@ pub async fn create_schema(
     Path(database_name): Path<String>,
     Json(payload): Json<CreateSchemaPayload>,
 ) -> UIResult<Json<IceBucketSchema>> {
-    let ident = IceBucketSchemaIdent::new(payload.name, database_name);
+    let ident = IceBucketSchemaIdent::new(database_name, payload.name);
     let schema = IceBucketSchema {
         ident: ident.clone(),
         properties: Some(HashMap::new()),

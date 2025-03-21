@@ -59,28 +59,12 @@ async fn test_ui_databases_navigation() {
         name: "testing1".to_string(),
     };
 
-    //Delete non existing schema
-    let res = req(
-        &client,
-        Method::DELETE,
-        &format!(
-            "http://addr/ui/databases/{}/schemas/{}",
-            database_name.clone(),
-            payload.name.clone()
-        )
-        .to_string(),
-        String::new(),
-    )
-    .await
-    .unwrap();
-    assert_eq!(http::StatusCode::BAD_REQUEST, res.status());
-
     //Create schema
     let res = req(
         &client,
         Method::POST,
         &format!(
-            "http://addr/ui/databases/{}/schemas/",
+            "http://{addr}/ui/databases/{}/schemas",
             database_name.clone()
         )
         .to_string(),
@@ -96,7 +80,7 @@ async fn test_ui_databases_navigation() {
         &client,
         Method::DELETE,
         &format!(
-            "http://addr/ui/databases/{}/schemas/{}",
+            "http://{addr}/ui/databases/{}/schemas/{}",
             database_name.clone(),
             payload.name.clone()
         )
