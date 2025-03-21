@@ -16,9 +16,7 @@
 // under the License.
 
 use crate::http::layers::add_request_metadata;
-use crate::http::ui::handlers::schemas::{
-    create_schema, delete_schema,
-};
+use crate::http::ui::handlers::schemas::{create_schema, delete_schema};
 
 use crate::http::ui::handlers::databases::{
     create_database, delete_database, get_database, list_databases, update_database,
@@ -68,10 +66,7 @@ pub fn create_router() -> Router<AppState> {
             "/databases/{databaseName}/schemas/{schemaName}",
             delete(delete_schema),
         )
-        .route(
-            "/databases/{databaseName}/schemas",
-            post(create_schema),
-        )
+        .route("/databases/{databaseName}/schemas", post(create_schema))
         .route("/databases", post(create_database).get(list_databases))
         .route(
             "/databases/{databaseName}",

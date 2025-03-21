@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use std::collections::HashMap;
 use crate::http::state::AppState;
+use crate::http::ui::models::schemas::CreateSchemaPayload;
 use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
@@ -27,8 +27,8 @@ use axum::{
     Json,
 };
 use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
+use std::collections::HashMap;
 use utoipa::OpenApi;
-use crate::http::ui::models::schemas::CreateSchemaPayload;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -74,7 +74,7 @@ pub async fn create_schema(
     let ident = IceBucketSchemaIdent::new(payload.name, database_name);
     let schema = IceBucketSchema {
         ident: ident.clone(),
-        properties: Some(HashMap::new())
+        properties: Some(HashMap::new()),
     };
     state
         .metastore

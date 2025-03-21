@@ -22,8 +22,10 @@ use crate::http::tests::common::{ui_test_op, Entity, Op};
 use crate::http::ui::models::schemas::CreateSchemaPayload;
 use crate::tests::run_icebucket_test_server;
 use http::Method;
+use icebucket_metastore::{
+    IceBucketDatabase, IceBucketSchema, IceBucketVolume, IceBucketVolumeType,
+};
 use serde_json::json;
-use icebucket_metastore::{IceBucketDatabase, IceBucketVolume, IceBucketSchema, IceBucketVolumeType};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -41,7 +43,7 @@ async fn test_ui_databases_navigation() {
             volume: IceBucketVolumeType::Memory,
         }),
     )
-        .await;
+    .await;
     let volume: IceBucketVolume = res.json().await.unwrap();
 
     let database_name = "test1".to_string();
@@ -61,22 +63,31 @@ async fn test_ui_databases_navigation() {
     let res = req(
         &client,
         Method::DELETE,
-        &format!("http://addr/ui/databases/{}/schemas/{}", database_name.clone(), payload.name.clone()).to_string(),
+        &format!(
+            "http://addr/ui/databases/{}/schemas/{}",
+            database_name.clone(),
+            payload.name.clone()
+        )
+        .to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::BAD_REQUEST, res.status());
 
     //Create schema
     let res = req(
         &client,
         Method::POST,
-        &format!("http://addr/ui/databases/{}/schemas/", database_name.clone()).to_string(),
+        &format!(
+            "http://addr/ui/databases/{}/schemas/",
+            database_name.clone()
+        )
+        .to_string(),
         json!(payload).to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let _schema: IceBucketSchema = res.json().await.unwrap();
 
@@ -84,11 +95,15 @@ async fn test_ui_databases_navigation() {
     let res = req(
         &client,
         Method::DELETE,
-        &format!("http://addr/ui/databases/{}/schemas/{}", database_name.clone(), payload.name.clone()).to_string(),
+        &format!(
+            "http://addr/ui/databases/{}/schemas/{}",
+            database_name.clone(),
+            payload.name.clone()
+        )
+        .to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 }
-
