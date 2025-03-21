@@ -19,14 +19,14 @@
 
 use crate::http::tests::common::req;
 use crate::http::tests::common::{ui_test_op, Entity, Op};
+use crate::http::ui::handlers::query::QueryPayload;
 use crate::http::ui::models::databases_navigation::NavigationDatabase;
+use crate::http::ui::models::worksheet::{WorksheetPayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
-use serde_json::json;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
 use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketVolumeType};
-use crate::http::ui::handlers::query::QueryPayload;
-use crate::http::ui::models::worksheet::{WorksheetPayload, WorksheetResponse};
+use serde_json::json;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -103,14 +103,15 @@ async fn test_ui_databases_navigation() {
             name: Some("test".to_string()),
             content: None,
         })
-            .to_string(),
+        .to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let worksheet = res.json::<WorksheetResponse>().await.unwrap().data.unwrap();
 
-    let query_payload = QueryPayload::new(format!("create or replace Iceberg TABLE {}.{}.{}
+    let query_payload = QueryPayload::new(format!(
+        "create or replace Iceberg TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''
@@ -121,17 +122,20 @@ async fn test_ui_databases_navigation() {
 	    COLLECTOR_TSTAMP TIMESTAMP_NTZ(9) NOT NULL,
 	    DVCE_CREATED_TSTAMP TIMESTAMP_NTZ(9),
 	    EVENT TEXT,
-	    EVENT_ID TEXT);", expected1.ident.database.clone(), expected1.ident.schema.clone(), "tested1"));
+	    EVENT_ID TEXT);",
+        expected1.ident.database.clone(),
+        expected1.ident.schema.clone(),
+        "tested1"
+    ));
 
     let res = req(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
-        json!(query_payload)
-            .to_string(),
+        json!(query_payload).to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
     let res = req(&client, Method::GET, &url, String::new())
@@ -140,5 +144,15 @@ async fn test_ui_databases_navigation() {
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_navigation: Vec<NavigationDatabase> = res.json().await.unwrap();
 
-    assert_eq!(1, databases_navigation.first().unwrap().schemas.first().unwrap().tables.len())
+    assert_eq!(
+        1,
+        databases_navigation
+            .first()
+            .unwrap()
+            .schemas
+            .first()
+            .unwrap()
+            .tables
+            .len()
+    )
 }
