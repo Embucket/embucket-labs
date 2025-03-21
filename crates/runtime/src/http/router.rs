@@ -63,8 +63,7 @@ pub fn create_app(state: AppState) -> Router {
         .merge_from(SchemasApiDoc::openapi())
         .merge_from(QueryApiDoc::openapi())
         .merge_from(DatabasesNavigationApiDoc::openapi())
-        .merge_from(WorksheetsApiDoc::openapi())
-        .merge_from(QueryApiDoc::openapi());
+        .merge_from(WorksheetsApiDoc::openapi());
     if let Some(extra_spec) = load_openapi_spec() {
         ui_spec = ui_spec.merge_from(extra_spec);
     }
