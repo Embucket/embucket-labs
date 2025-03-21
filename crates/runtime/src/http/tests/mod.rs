@@ -21,6 +21,6 @@ pub mod queries;
 pub mod query;
 pub mod volumes;
 pub mod worksheets;
-
+pub mod schemas;
 //#[cfg(test)]
 //pub mod router_tests;

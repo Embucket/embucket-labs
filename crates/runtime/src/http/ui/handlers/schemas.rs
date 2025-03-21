@@ -26,8 +26,6 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use datafusion_expr::ident;
-use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
 use utoipa::OpenApi;
 use crate::http::ui::models::schemas::CreateSchemaPayload;
@@ -37,10 +35,10 @@ use crate::http::ui::models::schemas::CreateSchemaPayload;
     paths(
         create_schema,
         delete_schema,
-        get_schema,
     ),
     components(
         schemas(
+            CreateSchemaPayload,
             IceBucketSchema,
             ErrorResponse,
         )
@@ -75,7 +73,7 @@ pub async fn create_schema(
 ) -> UIResult<Json<IceBucketSchema>> {
     let ident = IceBucketSchemaIdent::new(payload.name, database_name);
     let schema = IceBucketSchema {
-        ident,
+        ident: ident.clone(),
         properties: Some(HashMap::new())
     };
     state
