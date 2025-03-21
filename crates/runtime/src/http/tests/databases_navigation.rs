@@ -22,8 +22,11 @@ use crate::http::tests::common::{ui_test_op, Entity, Op};
 use crate::http::ui::models::databases_navigation::NavigationDatabase;
 use crate::tests::run_icebucket_test_server;
 use http::Method;
+use serde_json::json;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
 use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketVolumeType};
+use crate::http::ui::handlers::query::QueryPayload;
+use crate::http::ui::models::worksheet::{WorksheetPayload, WorksheetResponse};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -91,4 +94,51 @@ async fn test_ui_databases_navigation() {
     assert_eq!(2, databases_navigation.len());
     assert_eq!(1, databases_navigation.first().unwrap().schemas.len());
     assert_eq!(0, databases_navigation.last().unwrap().schemas.len());
+
+    let res = req(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/worksheets"),
+        json!(WorksheetPayload {
+            name: Some("test".to_string()),
+            content: None,
+        })
+            .to_string(),
+    )
+        .await
+        .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let worksheet = res.json::<WorksheetResponse>().await.unwrap().data.unwrap();
+
+    let query_payload = QueryPayload::new(format!("create or replace Iceberg TABLE {}.{}.{}
+        external_volume = ''
+	    catalog = ''
+	    base_location = ''
+        (
+	    APP_ID TEXT,
+	    PLATFORM TEXT,
+	    ETL_TSTAMP TIMESTAMP_NTZ(9),
+	    COLLECTOR_TSTAMP TIMESTAMP_NTZ(9) NOT NULL,
+	    DVCE_CREATED_TSTAMP TIMESTAMP_NTZ(9),
+	    EVENT TEXT,
+	    EVENT_ID TEXT);", expected1.ident.database.clone(), expected1.ident.schema.clone(), "tested1"));
+
+    let res = req(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        json!(query_payload)
+            .to_string(),
+    )
+        .await
+        .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    let res = req(&client, Method::GET, &url, String::new())
+        .await
+        .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let databases_navigation: Vec<NavigationDatabase> = res.json().await.unwrap();
+
+    assert_eq!(1, databases_navigation.first().unwrap().schemas.first().unwrap().tables.len())
 }
