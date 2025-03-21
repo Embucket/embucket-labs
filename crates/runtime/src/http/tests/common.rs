@@ -18,7 +18,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use http::Method;
-use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
+use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketVolume};
 use reqwest::Response;
 use serde_json::json;
 use std::net::SocketAddr;
@@ -28,7 +28,7 @@ use std::net::SocketAddr;
 pub enum Entity {
     Volume(IceBucketVolume),
     Database(IceBucketDatabase),
-    // Schema(IceBucketSchema),
+    Schema(IceBucketSchema),
 }
 
 #[derive(Debug)]
@@ -64,15 +64,15 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
             Op::Create | Op::List => format!("http://{addr}/ui/databases"),
             Op::Delete | Op::Get | Op::Update => format!("http://{addr}/ui/databases/{}", db.ident),
         },
-        // Entity::Schema(sc) => match op {
-        //     Op::Create | Op::List => {
-        //         format!("http://{addr}/ui/databases/{}/schemas", sc.ident.database)
-        //     }
-        //     Op::Delete | Op::Get | Op::Update => format!(
-        //         "http://{addr}/ui/databases/{}/schemas/{}",
-        //         sc.ident.database, sc.ident.schema
-        //     ),
-        // }
+        Entity::Schema(sc) => match op {
+            Op::Create | Op::List => {
+                format!("http://{addr}/ui/databases/{}/schemas", sc.ident.database)
+            }
+            Op::Delete | Op::Get | Op::Update => format!(
+                "http://{addr}/ui/databases/{}/schemas/{}",
+                sc.ident.database, sc.ident.schema
+            ),
+        }
     }
 }
 
@@ -87,7 +87,7 @@ pub async fn ui_test_op(addr: SocketAddr, op: Op, t_from: Option<&Entity>, t: &E
     let payload = match t {
         Entity::Volume(vol) => json!(vol).to_string(),
         Entity::Database(db) => json!(db).to_string(),
-        // Entity::Schema(sc) => json!(sc).to_string(),
+        Entity::Schema(sc) => json!(sc).to_string(),
     };
     match op {
         Op::Create => req(&client, Method::POST, &ui_url, payload).await.unwrap(),

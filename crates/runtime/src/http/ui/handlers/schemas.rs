@@ -35,6 +35,8 @@ use utoipa::OpenApi;
         create_schema,
         delete_schema,
         get_schema,
+        update_schema,
+        list_schemas,
     ),
     components(
         schemas(
