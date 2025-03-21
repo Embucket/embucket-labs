@@ -16,16 +16,15 @@
 // under the License.
 
 use crate::http::state::AppState;
+use crate::http::ui::models::databases_navigation::{
+    NavigationDatabase, NavigationSchema, NavigationTable,
+};
 use crate::http::{
     error::ErrorResponse,
     ui::error::{UIError, UIResult},
 };
-use axum::{
-    extract::State,
-    Json,
-};
+use axum::{extract::State, Json};
 use utoipa::OpenApi;
-use crate::http::ui::models::databases_navigation::{NavigationDatabase, NavigationSchema, NavigationTable};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -85,17 +84,17 @@ pub async fn get_databases_navigation(
                 tables.push(NavigationTable {
                     name: rw_table.ident.table.clone(),
                 });
-            };
+            }
             schemas.push(NavigationSchema {
                 name: rw_schema.ident.schema.clone(),
                 tables,
             });
-        };
+        }
         databases.push(NavigationDatabase {
             name: rw_database.ident.clone(),
             schemas,
         });
-    };
+    }
 
     Ok(Json(databases))
 }

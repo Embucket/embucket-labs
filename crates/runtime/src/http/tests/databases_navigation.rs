@@ -17,27 +17,21 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::http::error::ErrorResponse;
 use crate::http::tests::common::req;
-use crate::http::ui::models::databases_navigation::{NavigationDatabase, NavigationSchema, NavigationTable};
+use crate::http::tests::common::{ui_test_op, Entity, Op};
+use crate::http::ui::models::databases_navigation::NavigationDatabase;
 use crate::tests::run_icebucket_test_server;
 use http::Method;
-use crate::http::tests::common::{ui_test_op, Entity, Op};
-use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketVolumeType};
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
+use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketVolumeType};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_databases_navigation() {
     let addr = run_icebucket_test_server().await;
     let client = reqwest::Client::new();
-    let url = format!("http://{}/ui/databases-navigation", addr);
-    let res = req(
-            &client,
-            Method::GET,
-            &url,
-            String::new(),
-    )
+    let url = format!("http://{addr}/ui/databases-navigation");
+    let res = req(&client, Method::GET, &url, String::new())
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
@@ -53,7 +47,7 @@ async fn test_ui_databases_navigation() {
             volume: IceBucketVolumeType::Memory,
         }),
     )
-        .await;
+    .await;
     let volume = res.json::<IceBucketVolume>().await.unwrap();
 
     // Create database, Ok
@@ -71,12 +65,7 @@ async fn test_ui_databases_navigation() {
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected2.clone())).await;
 
-    let res = req(
-        &client,
-        Method::GET,
-        &url,
-        String::new(),
-    )
+    let res = req(&client, Method::GET, &url, String::new())
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
@@ -94,12 +83,7 @@ async fn test_ui_databases_navigation() {
     //1 SCHEMA
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Schema(expected1.clone())).await;
 
-    let res = req(
-        &client,
-        Method::GET,
-        &url,
-        String::new(),
-    )
+    let res = req(&client, Method::GET, &url, String::new())
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());

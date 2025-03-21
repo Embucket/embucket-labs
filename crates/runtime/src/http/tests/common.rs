@@ -72,7 +72,7 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
                 "http://{addr}/ui/databases/{}/schemas/{}",
                 sc.ident.database, sc.ident.schema
             ),
-        }
+        },
     }
 }
 
