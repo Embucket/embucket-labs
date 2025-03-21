@@ -132,7 +132,7 @@ impl ColumnInfo {
                 };
                 column_info.scale = Some(scale);
             }
-            DataType::Binary => {
+            DataType::Binary | DataType::BinaryView => {
                 column_info.r#type = "binary".to_string();
                 column_info.byte_length = Some(8_388_608);
                 column_info.length = Some(8_388_608);
