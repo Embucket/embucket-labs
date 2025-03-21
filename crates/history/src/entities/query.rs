@@ -103,7 +103,7 @@ impl IterableEntity for QueryHistoryItem {
     type Cursor = i64;
 
     fn cursor(&self) -> Self::Cursor {
-        self.start_time.timestamp_nanos_opt().unwrap_or(0)
+        self.start_time.timestamp_millis()
     }
 
     fn key(&self) -> Bytes {

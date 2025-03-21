@@ -69,7 +69,7 @@ impl IterableEntity for Worksheet {
     type Cursor = WorksheetId;
 
     fn cursor(&self) -> Self::Cursor {
-        self.created_at.timestamp_nanos_opt().unwrap_or(0)
+        self.created_at.timestamp_millis()
     }
 
     fn key(&self) -> Bytes {
