@@ -26,7 +26,7 @@ pub struct Response<T> {
 }
 
 impl<T> Response<T> {
-    pub fn from(data: T) -> Self<T> {
+    pub fn from(data: T) -> Response<T> {
         Self {
             data,
         }

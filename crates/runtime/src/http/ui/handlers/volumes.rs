@@ -26,7 +26,6 @@ use axum::{
     Json,
 };
 use icebucket_metastore::error::{self as metastore_error, MetastoreError};
-use icebucket_metastore::models::IceBucketVolume;
 use snafu::ResultExt;
 use utoipa::OpenApi;
 use validator::Validate;
@@ -43,7 +42,7 @@ use crate::http::ui::models::common::{Response, Volume};
     ),
     components(
         schemas(
-            Response,
+            Response<Volume>,
             Volume,
             ErrorResponse,
         )
@@ -186,11 +185,12 @@ pub async fn update_volume(
 pub async fn list_volumes(
     State(state): State<AppState>
 ) -> UIResult<Json<Response<Vec<Volume>>>> {
-    state
+    Ok(Json(Response::from(state
         .metastore
         .list_volumes()
         .await
         .map_err(|e| UIError::Metastore { source: e })?
         // TODO: use deref
-        .map(|o| Json(Response::from(o.iter().map(|x| x.data.clone()).collect())))?
+        .into_iter()
+        .map(|o| o.data.clone()).collect::<Vec<_>>())))
 }

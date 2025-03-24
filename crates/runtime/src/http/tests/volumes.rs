@@ -18,11 +18,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::http::tests::common::{ui_test_op, Entity, Op};
 use crate::tests::run_icebucket_test_server;
-use icebucket_metastore::IceBucketVolume;
 use icebucket_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, IceBucketFileVolume, IceBucketS3Volume,
     IceBucketVolumeType,
 };
+use crate::http::ui::models::common::{Response, Volume};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -30,13 +30,13 @@ async fn test_ui_volumes_memory() {
     let addr = run_icebucket_test_server().await;
 
     // memory volume with empty ident create Ok
-    let expected = IceBucketVolume {
+    let expected = Volume {
         ident: String::new(),
         volume: IceBucketVolumeType::Memory,
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     assert_eq!(200, res.status());
-    let created = res.json::<IceBucketVolume>().await.unwrap();
+    let created = res.json::<Response<Volume>>().await.unwrap().data;
     assert_eq!(expected, created);
 }
 
@@ -46,7 +46,7 @@ async fn test_ui_volumes_file() {
     let addr = run_icebucket_test_server().await;
 
     // memory volume with empty ident create Ok
-    let expected = IceBucketVolume {
+    let expected = Volume {
         ident: String::new(),
         volume: IceBucketVolumeType::File(IceBucketFileVolume {
             path: "/tmp/data".to_string(),
@@ -55,7 +55,7 @@ async fn test_ui_volumes_file() {
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     // let res = create_test_volume(addr, &expected).await;
     assert_eq!(200, res.status());
-    let created = res.json::<IceBucketVolume>().await.unwrap();
+    let created = res.json::<Response<Volume>>().await.unwrap().data;
     assert_eq!(expected, created);
 }
 
@@ -65,11 +65,11 @@ async fn test_ui_volumes_s3() {
     let addr = run_icebucket_test_server().await;
 
     // memory volume with empty ident create Ok
-    let expected = IceBucketVolume {
+    let expected = Volume {
         ident: String::new(),
         volume: IceBucketVolumeType::S3(IceBucketS3Volume {
             region: Some("us-west-1".to_string()),
-            bucket: Some("icebucket".to_string()),
+            bucket: Some("".to_string()),
             endpoint: Some("http://localhost:9000".to_string()),
             skip_signature: None,
             metadata_endpoint: None,
@@ -82,6 +82,6 @@ async fn test_ui_volumes_s3() {
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     // let res = create_test_volume(addr, &expected).await;
     assert_eq!(200, res.status());
-    let created = res.json::<IceBucketVolume>().await.unwrap();
+    let created = res.json::<Response<Volume>>().await.unwrap().data;
     assert_eq!(expected, created);
 }

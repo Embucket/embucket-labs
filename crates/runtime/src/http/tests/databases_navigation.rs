@@ -27,6 +27,7 @@ use http::Method;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
 use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketVolumeType};
 use serde_json::json;
+use crate::http::ui::models::common::{Response, Volume};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -38,8 +39,8 @@ async fn test_ui_databases_navigation() {
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: Vec<NavigationDatabase> = res.json().await.unwrap();
-    assert_eq!(0, databases_navigation.len());
+    let databases_navigation: Response<Vec<NavigationDatabase>> = res.json().await.unwrap();
+    assert_eq!(0, databases_navigation.data.len());
 
     let res = ui_test_op(
         addr,
@@ -51,7 +52,7 @@ async fn test_ui_databases_navigation() {
         }),
     )
     .await;
-    let volume = res.json::<IceBucketVolume>().await.unwrap();
+    let volume = res.json::<Response<Volume>>().await.unwrap().data;
 
     // Create database, Ok
     let expected1 = IceBucketDatabase {
@@ -72,8 +73,8 @@ async fn test_ui_databases_navigation() {
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: Vec<NavigationDatabase> = res.json().await.unwrap();
-    assert_eq!(2, databases_navigation.len());
+    let databases_navigation: Response<Vec<NavigationDatabase>> = res.json().await.unwrap();
+    assert_eq!(2, databases_navigation.data.len());
 
     // Create schema, Ok
     let expected1 = IceBucketSchema {
@@ -90,10 +91,10 @@ async fn test_ui_databases_navigation() {
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: Vec<NavigationDatabase> = res.json().await.unwrap();
-    assert_eq!(2, databases_navigation.len());
-    assert_eq!(1, databases_navigation.first().unwrap().schemas.len());
-    assert_eq!(0, databases_navigation.last().unwrap().schemas.len());
+    let databases_navigation: Response<Vec<NavigationDatabase>> = res.json().await.unwrap();
+    assert_eq!(2, databases_navigation.data.len());
+    assert_eq!(1, databases_navigation.data.first().unwrap().schemas.len());
+    assert_eq!(0, databases_navigation.data.last().unwrap().schemas.len());
 
     let res = req(
         &client,
@@ -142,11 +143,12 @@ async fn test_ui_databases_navigation() {
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: Vec<NavigationDatabase> = res.json().await.unwrap();
+    let databases_navigation: Response<Vec<NavigationDatabase>> = res.json().await.unwrap();
 
     assert_eq!(
         1,
         databases_navigation
+            .data
             .first()
             .unwrap()
             .schemas
