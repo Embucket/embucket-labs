@@ -15,15 +15,28 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//pub mod aws;
-//pub mod database;
-//pub mod error;
-//pub mod properties;
-//pub mod storage_profile;
-//pub mod table;
-//pub mod warehouse;
-pub mod history;
-pub mod worksheet;
-pub mod common;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketVolume};
 
-pub mod databases_navigation;
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Response<T> {
+    pub(crate) data: T,
+}
+
+impl<T> Response<T> {
+    pub fn from(data: T) -> Self<T> {
+        Self {
+            data,
+        }
+    }
+}
+
+pub type Volume = IceBucketVolume;
+
+pub type Database = IceBucketDatabase;
+
+pub type Schema = IceBucketSchema;
+
+pub type Table = IceBucketSchema;

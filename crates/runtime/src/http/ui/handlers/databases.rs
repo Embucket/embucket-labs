@@ -30,6 +30,7 @@ use icebucket_metastore::models::IceBucketDatabase;
 use snafu::ResultExt;
 use utoipa::OpenApi;
 use validator::Validate;
+use crate::http::ui::models::common::{Database, Response};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -42,7 +43,8 @@ use validator::Validate;
     ),
     components(
         schemas(
-            IceBucketDatabase,
+            Database,
+            Response,
             ErrorResponse,
         )
     ),
@@ -57,9 +59,9 @@ pub struct ApiDoc;
     operation_id = "createDatabase",
     tags = ["databases"],
     path = "/ui/databases",
-    request_body = IceBucketDatabase,
+    request_body = Database,
     responses(
-        (status = 200, description = "Successful Response", body = IceBucketDatabase),
+        (status = 200, description = "Successful Response", body = Response<Database>),
         (status = 400, description = "Bad request", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
@@ -68,8 +70,8 @@ pub struct ApiDoc;
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_database(
     State(state): State<AppState>,
-    Json(database): Json<IceBucketDatabase>,
-) -> UIResult<Json<IceBucketDatabase>> {
+    Json(database): Json<Database>,
+) -> UIResult<Json<Response<Database>>> {
     database
         .validate()
         .context(metastore_error::ValidationSnafu)?;
@@ -78,7 +80,7 @@ pub async fn create_database(
         .create_database(&database.ident.clone(), database)
         .await
         .map_err(|e| UIError::Metastore { source: e })
-        .map(|o| Json(o.data))
+        .map(|o| Json(Response::from(o.data)))
 }
 
 #[utoipa::path(
@@ -90,7 +92,7 @@ pub async fn create_database(
         ("databaseName" = String, Path, description = "Database name")
     ),
     responses(
-        (status = 200, description = "Successful Response", body = IceBucketDatabase),
+        (status = 200, description = "Successful Response", body = Response<Database>),
         (status = 404, description = "Not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -99,9 +101,9 @@ pub async fn create_database(
 pub async fn get_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-) -> UIResult<Json<IceBucketDatabase>> {
+) -> UIResult<Json<Response<Database>>> {
     match state.metastore.get_database(&database_name).await {
-        Ok(Some(db)) => Ok(Json(db.data)),
+        Ok(Some(db)) => Ok(Json(Response::from(db.data))),
         Ok(None) => Err(MetastoreError::DatabaseNotFound {
             db: database_name.clone(),
         }
@@ -146,7 +148,7 @@ pub async fn delete_database(
         ("databaseName" = String, Path, description = "Database name")
     ),
     responses(
-        (status = 200, description = "Successful Response", body = IceBucketDatabase),
+        (status = 200, description = "Successful Response", body = Response<Database>),
         (status = 404, description = "Not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -155,8 +157,8 @@ pub async fn delete_database(
 pub async fn update_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-    Json(database): Json<IceBucketDatabase>,
-) -> UIResult<Json<IceBucketDatabase>> {
+    Json(database): Json<Database>,
+) -> UIResult<Json<Response<Database>>> {
     database
         .validate()
         .context(metastore_error::ValidationSnafu)?;
@@ -166,7 +168,7 @@ pub async fn update_database(
         .update_database(&database_name, database)
         .await
         .map_err(|e| UIError::Metastore { source: e })
-        .map(|o| Json(o.data))
+        .map(|o| Json(Response::from(o.data)))
 }
 
 #[utoipa::path(
@@ -175,20 +177,19 @@ pub async fn update_database(
     tags = ["databases"],
     path = "/ui/databases",
     responses(
-        (status = 200, body = Vec<IceBucketDatabase>),
+        (status = 200, body = Response<Vec<IceBucketDatabase>>),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_databases(
     State(state): State<AppState>,
-) -> UIResult<Json<Vec<IceBucketDatabase>>> {
-    let res = state
+) -> UIResult<Json<Response<Vec<Database>>>> {
+    state
         .metastore
         .list_databases()
         .await
-        .map_err(|e| UIError::Metastore { source: e })
+        .map_err(|e| UIError::Metastore { source: e })?
         // TODO: use deref
-        .map(|o| Json(o.iter().map(|x| x.data.clone()).collect()))?;
-    Ok(res)
+        .map(|o| Json(Response::from(o.iter().map(|x| x.data.clone()).collect())))?
 }

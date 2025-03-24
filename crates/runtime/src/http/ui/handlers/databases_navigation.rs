@@ -19,6 +19,7 @@ use crate::http::state::AppState;
 use crate::http::ui::models::databases_navigation::{
     NavigationDatabase, NavigationSchema, NavigationTable,
 };
+use crate::http::ui::models::common::Response;
 use crate::http::{
     error::ErrorResponse,
     ui::error::{UIError, UIResult},
@@ -49,14 +50,14 @@ pub struct ApiDoc;
     tags = ["databases-navigation"],
     path = "/ui/databases-navigation",
     responses(
-        (status = 200, description = "Successful Response", body = Vec<NavigationDatabase>),
+        (status = 200, description = "Successful Response", body = Response<Vec<NavigationDatabase>>),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_databases_navigation(
     State(state): State<AppState>,
-) -> UIResult<Json<Vec<NavigationDatabase>>> {
+) -> UIResult<Json<Response<Vec<NavigationDatabase>>>> {
     let rw_databases = state
         .metastore
         .list_databases()
@@ -96,5 +97,5 @@ pub async fn get_databases_navigation(
         });
     }
 
-    Ok(Json(databases))
+    Ok(Json(Response::from(databases)))
 }
