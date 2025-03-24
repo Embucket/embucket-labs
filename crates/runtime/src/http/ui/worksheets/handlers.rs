@@ -157,7 +157,7 @@ pub async fn worksheet(
         ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
     ),
     responses(
-        (status = 200, description = "Worksheet deleted", body = ()),
+        (status = 200, description = "Worksheet deleted"),
         (status = 404, description = "Worksheet not found", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )

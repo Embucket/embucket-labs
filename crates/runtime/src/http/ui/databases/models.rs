@@ -22,12 +22,14 @@ use utoipa::ToSchema;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabasePayload {
+    #[serde(flatten)]
     pub data: IceBucketDatabase,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseResponse {
+    #[serde(flatten)]
     pub data: IceBucketDatabase,
 }
 

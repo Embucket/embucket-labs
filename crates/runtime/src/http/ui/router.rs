@@ -16,10 +16,9 @@
 // under the License.
 
 use crate::http::layers::add_request_metadata;
-use crate::http::ui::handlers::schemas::{
+use crate::http::ui::schemas::handlers::{
     create_schema, delete_schema, get_schema, list_schemas, update_schema,
 };
-
 use crate::http::ui::databases::handlers::{
     create_database, delete_database, get_database, list_databases, update_database,
 };
@@ -37,7 +36,7 @@ use crate::http::ui::queries::handlers::{history, query};
 // };
 
 use crate::http::ui::databases::handlers::ApiDoc as DatabasesApiDoc;
-use crate::http::ui::handlers::schemas::ApiDoc as SchemasApiDoc;
+use crate::http::ui::schemas::handlers::ApiDoc as SchemasApiDoc;
 use crate::http::ui::queries::handlers::ApiDoc as QueryApiDoc;
 use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;

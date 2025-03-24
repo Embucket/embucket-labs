@@ -18,25 +18,25 @@
 use crate::http::error::ErrorResponse;
 use axum::response::IntoResponse;
 use axum::Json;
-use http::status::StatusCode;
-use icebucket_history::store::WorksheetsStoreError;
+use http::StatusCode;
+use icebucket_metastore::error::MetastoreError;
 use snafu::prelude::*;
 
-pub type WorksheetsResult<T> = Result<T, WorksheetsAPIError>;
+pub type SchemasResult<T> = Result<T, SchemasAPIError>;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
-pub enum WorksheetsAPIError {
-    #[snafu(display("Create worksheet error: {source}"))]
-    Create { source: WorksheetsStoreError },
-    #[snafu(display("Get worksheet error: {source}"))]
-    Get { source: WorksheetsStoreError },
-    #[snafu(display("Delete worksheet error: {source}"))]
-    Delete { source: WorksheetsStoreError },
-    #[snafu(display("Update worksheet error: {source}"))]
-    Update { source: WorksheetsStoreError },
-    #[snafu(display("Get worksheets error: {source}"))]
-    List { source: WorksheetsStoreError },
+pub enum SchemasAPIError {
+    #[snafu(display("Create schema error: {source}"))]
+    Create { source: MetastoreError },
+    #[snafu(display("Get schema error: {source}"))]
+    Get { source: MetastoreError },
+    #[snafu(display("Delete schema error: {source}"))]
+    Delete { source: MetastoreError },
+    #[snafu(display("Update schema error: {source}"))]
+    Update { source: MetastoreError },
+    #[snafu(display("Get schemas error: {source}"))]
+    List { source: MetastoreError },
 }
 
 trait IntoStatusCode {
@@ -44,38 +44,33 @@ trait IntoStatusCode {
 }
 
 // Select which status code to return.
-impl IntoStatusCode for WorksheetsAPIError {
+impl IntoStatusCode for SchemasAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Create { source } => match &source {
-                WorksheetsStoreError::WorksheetAdd { .. } => StatusCode::CONFLICT,
+                MetastoreError::SchemaAlreadyExists { .. }
+                | MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
+                MetastoreError::DatabaseNotFound { .. } | MetastoreError::Validation { .. } => {
+                    StatusCode::BAD_REQUEST
+                }
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Get { source } => match &source {
-                WorksheetsStoreError::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
-                WorksheetsStoreError::BadKey { .. } => StatusCode::BAD_REQUEST,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
-            Self::Delete { source } => match &source {
-                WorksheetsStoreError::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
+            Self::Get { source } | Self::Delete { source } => match &source {
+                MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Update { source } => match &source {
-                WorksheetsStoreError::BadKey { .. }
-                | WorksheetsStoreError::WorksheetUpdate { .. } => StatusCode::BAD_REQUEST,
-                WorksheetsStoreError::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
+                MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
+                MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::List { source } => match &source {
-                WorksheetsStoreError::WorksheetsList { .. } => StatusCode::BAD_REQUEST,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
+            Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
 
 // generic
-impl IntoResponse for WorksheetsAPIError {
+impl IntoResponse for SchemasAPIError {
     fn into_response(self) -> axum::response::Response {
         let code = self.status_code();
         let error = ErrorResponse {

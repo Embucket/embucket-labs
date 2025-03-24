@@ -15,16 +15,26 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod error;
-pub mod handlers;
-pub mod models;
-pub mod router;
+use icebucket_metastore::models::IceBucketVolume;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-pub mod volumes;
-pub mod databases;
-pub mod schemas;
-pub mod queries;
-pub mod worksheets;
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VolumePayload {
+    #[serde(flatten)]
+    pub data: IceBucketVolume,
+}
 
-#[cfg(test)]
-pub mod tests;
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VolumeResponse {
+    #[serde(flatten)]
+    pub data: IceBucketVolume,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VolumesResponse {
+    pub items: Vec<IceBucketVolume>,
+}

@@ -27,7 +27,6 @@ use axum::{
     Json,
 };
 use icebucket_metastore::error::MetastoreError;
-use icebucket_metastore::models::IceBucketDatabase as Database;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -42,7 +41,9 @@ use validator::Validate;
     ),
     components(
         schemas(
-            Database,
+            DatabasePayload,
+            DatabaseResponse,
+            DatabasesResponse,
             ErrorResponse,
         )
     ),

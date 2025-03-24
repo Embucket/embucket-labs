@@ -181,6 +181,7 @@ async fn test_ui_worksheets_ops() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
+    // Shouldn't exist
     let res = req(
         &client,
         Method::DELETE,

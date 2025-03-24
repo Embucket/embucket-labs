@@ -29,6 +29,7 @@ pub struct WorksheetPayload {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WorksheetResponse {
+    #[serde(flatten)]
     pub data: Worksheet,
 }
 
