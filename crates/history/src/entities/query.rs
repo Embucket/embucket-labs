@@ -30,10 +30,10 @@ pub enum QueryStatus {
 
 pub type QueryHistoryId = i64;
 
-// QueryHistoryItem struct is used for storing Query History result and also used in http response
+// QueryItem struct is used for storing Query History result and also used in http response
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct QueryHistoryItem {
+pub struct QueryItem {
     pub id: QueryHistoryId,
     pub worksheet_id: WorksheetId,
     pub query: String,
@@ -46,7 +46,7 @@ pub struct QueryHistoryItem {
     pub error: Option<String>,
 }
 
-impl QueryHistoryItem {
+impl QueryItem {
     #[must_use]
     pub fn get_key(worksheet_id: WorksheetId, id: QueryHistoryId) -> Bytes {
         Bytes::from(format!("/qh/{worksheet_id}/{id}"))
@@ -99,7 +99,7 @@ impl QueryHistoryItem {
     }
 }
 
-impl IterableEntity for QueryHistoryItem {
+impl IterableEntity for QueryItem {
     type Cursor = i64;
 
     fn cursor(&self) -> Self::Cursor {

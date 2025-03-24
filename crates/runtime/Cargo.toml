@@ -99,3 +99,5 @@ workspace = true
 [dev-dependencies]
 insta = { version = "1.42.0", features = ["yaml"] }
 reqwest = "0.12.14"
+oas3 = { version = "0.15.0" }
+rand = { version = "0.8.5" }

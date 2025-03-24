@@ -18,10 +18,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::error::ErrorResponse;
-use crate::http::tests::common::req;
-use crate::http::ui::handlers::query::{QueryPayload, QueryResponse};
-use crate::http::ui::models::history::QueriesResponse;
-use crate::http::ui::models::worksheet::{WorksheetPayload, WorksheetResponse};
+use crate::http::ui::queries::models::{QueriesResponse, QueryPayload, QueryResponse};
+use crate::http::ui::tests::common::req;
+use crate::http::ui::worksheets::models::{WorksheetPayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
 use icebucket_history::QueryStatus;
@@ -46,7 +45,7 @@ async fn test_ui_queries() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let worksheet = res.json::<WorksheetResponse>().await.unwrap().data.unwrap();
+    let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
     assert!(worksheet.id > 0);
 
     let res = req(
@@ -58,6 +57,17 @@ async fn test_ui_queries() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::METHOD_NOT_ALLOWED, res.status());
+
+    // Bad key - not found
+    let res = req(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/worksheets/{}/queries", 0),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::BAD_REQUEST, res.status());
 
     let res = req(
         &client,
@@ -105,9 +115,9 @@ async fn test_ui_queries() {
     )
     .await
     .unwrap();
-    assert_eq!(http::StatusCode::INTERNAL_SERVER_ERROR, res.status());
+    assert_eq!(http::StatusCode::UNPROCESSABLE_ENTITY, res.status());
     let err = res.json::<ErrorResponse>().await.unwrap();
-    assert_eq!(err.status_code, http::StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(err.status_code, http::StatusCode::UNPROCESSABLE_ENTITY);
 
     // second fail
     let res = req(
@@ -122,9 +132,9 @@ async fn test_ui_queries() {
     )
     .await
     .unwrap();
-    assert_eq!(http::StatusCode::INTERNAL_SERVER_ERROR, res.status());
+    assert_eq!(http::StatusCode::UNPROCESSABLE_ENTITY, res.status());
     let err = res.json::<ErrorResponse>().await.unwrap();
-    assert_eq!(err.status_code, http::StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(err.status_code, http::StatusCode::UNPROCESSABLE_ENTITY);
 
     // get 2
     let res = req(

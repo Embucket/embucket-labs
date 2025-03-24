@@ -26,7 +26,7 @@ use axum::{
     Json,
 };
 use icebucket_metastore::error::{self as metastore_error, MetastoreError};
-use icebucket_metastore::models::IceBucketDatabase;
+use icebucket_metastore::models::IceBucketVolume;
 use snafu::ResultExt;
 use utoipa::OpenApi;
 use validator::Validate;
@@ -34,48 +34,48 @@ use validator::Validate;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        create_database,
-        get_database,
-        delete_database,
-        list_databases,
-        update_database,
+        create_volume,
+        get_volume,
+        delete_volume,
+        list_volumes,
+        update_volume,
     ),
     components(
         schemas(
-            IceBucketDatabase,
+            IceBucketVolume,
             ErrorResponse,
         )
     ),
     tags(
-        (name = "databases", description = "Databases management endpoints.")
+        (name = "volumes", description = "Volumes management endpoints.")
     )
 )]
 pub struct ApiDoc;
 
 #[utoipa::path(
     post,
-    operation_id = "createDatabase",
-    tags = ["databases"],
-    path = "/ui/databases",
-    request_body = IceBucketDatabase,
+    operation_id = "createVolume",
+    tags = ["volumes"],
+    path = "/ui/volumes",
+    request_body = IceBucketVolume,
     responses(
-        (status = 200, description = "Successful Response", body = IceBucketDatabase),
+        (status = 200, description = "Successful Response", body = IceBucketVolume),
         (status = 400, description = "Bad request", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn create_database(
+pub async fn create_volume(
     State(state): State<AppState>,
-    Json(database): Json<IceBucketDatabase>,
-) -> UIResult<Json<IceBucketDatabase>> {
-    database
+    Json(volume): Json<IceBucketVolume>,
+) -> UIResult<Json<IceBucketVolume>> {
+    volume
         .validate()
         .context(metastore_error::ValidationSnafu)?;
     state
         .metastore
-        .create_database(&database.ident.clone(), database)
+        .create_volume(&volume.ident.clone(), volume)
         .await
         .map_err(|e| UIError::Metastore { source: e })
         .map(|o| Json(o.data))
@@ -83,40 +83,41 @@ pub async fn create_database(
 
 #[utoipa::path(
     get,
-    operation_id = "getDatabase",
-    tags = ["databases"],
-    path = "/ui/databases/{databaseName}",
+    operation_id = "getVolume",
+    tags = ["volumes"],
+    path = "/ui/volumes/{volumeName}",
     params(
-        ("databaseName" = String, Path, description = "Database name")
+        ("volumeName" = String, Path, description = "Volume name")
     ),
     responses(
-        (status = 200, description = "Successful Response", body = IceBucketDatabase),
+        (status = 200, description = "Successful Response", body = IceBucketVolume),
         (status = 404, description = "Not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn get_database(
+pub async fn get_volume(
     State(state): State<AppState>,
-    Path(database_name): Path<String>,
-) -> UIResult<Json<IceBucketDatabase>> {
-    match state.metastore.get_database(&database_name).await {
-        Ok(Some(db)) => Ok(Json(db.data)),
-        Ok(None) => Err(MetastoreError::DatabaseNotFound {
-            db: database_name.clone(),
-        }
-        .into()),
+    Path(volume_name): Path<String>,
+) -> UIResult<Json<IceBucketVolume>> {
+    match state.metastore.get_volume(&volume_name).await {
+        Ok(Some(volume)) => Ok(Json(volume.data)),
+        Ok(None) => Err(UIError::Metastore {
+            source: MetastoreError::VolumeNotFound {
+                volume: volume_name.clone(),
+            },
+        }),
         Err(e) => Err(e.into()),
     }
 }
 
 #[utoipa::path(
     delete,
-    operation_id = "deleteDatabase",
-    tags = ["databases"],
-    path = "/ui/databases/{databaseName}",
+    operation_id = "deleteVolume",
+    tags = ["volumes"],
+    path = "/ui/volumes/{volumeName}",
     params(
-        ("databaseName" = String, Path, description = "Database name")
+        ("volumeName" = String, Path, description = "Volume name")
     ),
     responses(
         (status = 200, description = "Successful Response"),
@@ -125,45 +126,45 @@ pub async fn get_database(
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn delete_database(
+pub async fn delete_volume(
     State(state): State<AppState>,
     Query(query): Query<QueryParameters>,
-    Path(database_name): Path<String>,
+    Path(volume_name): Path<String>,
 ) -> UIResult<()> {
     state
         .metastore
-        .delete_database(&database_name, query.cascade.unwrap_or_default())
+        .delete_volume(&volume_name, query.cascade.unwrap_or_default())
         .await
         .map_err(|e| UIError::Metastore { source: e })
 }
 
 #[utoipa::path(
     put,
-    operation_id = "updateDatabase",
-    tags = ["databases"],
-    path = "/ui/databases/{databaseName}",
+    operation_id = "updateVolume",
+    tags = ["volumes"],
+    path = "/ui/volumes/{volumeName}",
     params(
-        ("databaseName" = String, Path, description = "Database name")
+        ("volumeName" = String, Path, description = "Volume name")
     ),
+    request_body = IceBucketVolume,
     responses(
-        (status = 200, description = "Successful Response", body = IceBucketDatabase),
+        (status = 200, description = "Successful Response", body = IceBucketVolume),
         (status = 404, description = "Not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn update_database(
+pub async fn update_volume(
     State(state): State<AppState>,
-    Path(database_name): Path<String>,
-    Json(database): Json<IceBucketDatabase>,
-) -> UIResult<Json<IceBucketDatabase>> {
-    database
+    Path(volume_name): Path<String>,
+    Json(volume): Json<IceBucketVolume>,
+) -> UIResult<Json<IceBucketVolume>> {
+    volume
         .validate()
         .context(metastore_error::ValidationSnafu)?;
-    //TODO: Implement database renames
     state
         .metastore
-        .update_database(&database_name, database)
+        .update_volume(&volume_name, volume)
         .await
         .map_err(|e| UIError::Metastore { source: e })
         .map(|o| Json(o.data))
@@ -171,24 +172,21 @@ pub async fn update_database(
 
 #[utoipa::path(
     get,
-    operation_id = "listDatabases",
-    tags = ["databases"],
-    path = "/ui/databases",
+    operation_id = "getVolumes",
+    tags = ["volumes"],
+    path = "/ui/volumes",
     responses(
-        (status = 200, body = Vec<IceBucketDatabase>),
+        (status = 200, body = Vec<IceBucketVolume>),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn list_databases(
-    State(state): State<AppState>,
-) -> UIResult<Json<Vec<IceBucketDatabase>>> {
-    let res = state
+pub async fn list_volumes(State(state): State<AppState>) -> UIResult<Json<Vec<IceBucketVolume>>> {
+    state
         .metastore
-        .list_databases()
+        .list_volumes()
         .await
         .map_err(|e| UIError::Metastore { source: e })
         // TODO: use deref
-        .map(|o| Json(o.iter().map(|x| x.data.clone()).collect()))?;
-    Ok(res)
+        .map(|o| Json(o.iter().map(|x| x.data.clone()).collect()))
 }

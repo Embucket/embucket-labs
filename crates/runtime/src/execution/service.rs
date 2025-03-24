@@ -21,8 +21,8 @@ use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
-use icebucket_history::WorksheetId;
-use icebucket_history::{store::WorksheetsStore, QueryHistoryId, QueryHistoryItem};
+use icebucket_history::Worksheet;
+use icebucket_history::{store::WorksheetsStore, QueryHistoryId, QueryItem};
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -110,11 +110,11 @@ impl ExecutionService {
     pub async fn query_table(
         &self,
         session_id: &str,
-        worksheet_id: WorksheetId,
+        worksheet: Worksheet,
         query: &str,
         query_context: IceBucketQueryContext,
     ) -> ExecutionResult<(QueryHistoryId, String)> {
-        let mut history_item = QueryHistoryItem::query_start(worksheet_id, query, None);
+        let mut history_item = QueryItem::query_start(worksheet.id, query, None);
         let id: QueryHistoryId = history_item.id;
 
         // let (records, _) = self.query(session_id, query, query_context).await?;

@@ -16,7 +16,7 @@
 // under the License.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-use crate::http::tests::common::{ui_test_op, Entity, Op};
+use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
 use crate::tests::run_icebucket_test_server;
 use icebucket_metastore::IceBucketVolume;
 use icebucket_metastore::{

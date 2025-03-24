@@ -25,28 +25,16 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::catalog::router::create_router as create_iceberg_router;
 use crate::http::dbt::router::create_router as create_dbt_router;
-use crate::http::ui::handlers::query::ApiDoc as QueryApiDoc;
-use crate::http::ui::handlers::schemas::ApiDoc as SchemasApiDoc;
-use crate::http::ui::handlers::volumes::ApiDoc as VolumesApiDoc;
-use crate::http::ui::handlers::worksheets::ApiDoc as WorksheetsApiDoc;
 // use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
 use crate::http::state::AppState;
-use crate::http::ui::handlers::databases::ApiDoc as DatabasesApiDoc;
-use crate::http::ui::router::{create_router as create_ui_router, ApiDoc as UiApiDoc};
+use crate::http::ui::router::{create_router as create_ui_router, ui_open_api_spec};
 use tower_http::timeout::TimeoutLayer;
 
 use super::metastore::router::create_router as create_metastore_router;
 
 // TODO: Fix OpenAPI spec generation
 #[derive(OpenApi)]
-#[openapi(
-    nest(
-        (path = "/ui", api = UiApiDoc, tags = ["volumes", "databases", "schemas", "worksheets", "queries"])
-    ),
-    tags(
-        (name = "ui", description = "Web UI API"),
-    )
-)]
+#[openapi()]
 pub struct ApiDoc;
 
 pub fn create_app(state: AppState) -> Router {
@@ -55,16 +43,10 @@ pub fn create_app(state: AppState) -> Router {
         spec = spec.merge_from(extra_spec);
     }
 
-    let mut ui_spec = UiApiDoc::openapi()
-        .merge_from(VolumesApiDoc::openapi())
-        .merge_from(DatabasesApiDoc::openapi())
-        // .merge_from(TableApiDoc::openapi())
-        .merge_from(SchemasApiDoc::openapi())
-        .merge_from(WorksheetsApiDoc::openapi())
-        .merge_from(QueryApiDoc::openapi());
-    if let Some(extra_spec) = load_openapi_spec() {
-        ui_spec = ui_spec.merge_from(extra_spec);
-    }
+    let ui_spec = ui_open_api_spec();
+    // if let Some(extra_spec) = load_openapi_spec() {
+    //     ui_spec = ui_spec.merge_from(extra_spec);
+    // }
     let metastore_router = create_metastore_router();
     let ui_router = create_ui_router();
     let dbt_router = create_dbt_router();

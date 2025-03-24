@@ -176,7 +176,7 @@ pub async fn update_schema(
 
 #[utoipa::path(
     get,
-    operation_id = "listSchemas",
+    operation_id = "getSchemas",
     path="/ui/databases/{databaseName}/schemas",
     tags = ["schemas"],
     params(

@@ -18,8 +18,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::error::ErrorResponse;
-use crate::http::tests::common::req;
-use crate::http::ui::models::worksheet::{WorksheetPayload, WorksheetResponse, WorksheetsResponse};
+use crate::http::ui::tests::common::req;
+use crate::http::ui::worksheets::{WorksheetPayload, WorksheetResponse, WorksheetsResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
 use serde_json::json;
@@ -53,7 +53,7 @@ async fn test_ui_worksheets() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let worksheet1 = res.json::<WorksheetResponse>().await.unwrap().data.unwrap();
+    let worksheet1 = res.json::<WorksheetResponse>().await.unwrap().data;
     assert!(worksheet1.id > 0);
     assert!(worksheet1.name.is_none());
     assert!(worksheet1.content.is_none());
@@ -72,7 +72,7 @@ async fn test_ui_worksheets() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
-    let worksheet2 = res.json::<WorksheetResponse>().await.unwrap().data.unwrap();
+    let worksheet2 = res.json::<WorksheetResponse>().await.unwrap().data;
     assert!(worksheet2.id > 0);
     assert!(worksheet2.name.is_none());
     assert!(worksheet2.content.is_some());
@@ -87,7 +87,7 @@ async fn test_ui_worksheets() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
-    let worksheets = res.json::<WorksheetsResponse>().await.unwrap().data;
+    let worksheets = res.json::<WorksheetsResponse>().await.unwrap().items;
     assert_eq!(worksheets.len(), 2);
 }
 
@@ -110,7 +110,7 @@ async fn test_ui_worksheets_ops() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let worksheet = res.json::<WorksheetResponse>().await.unwrap().data.unwrap();
+    let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
 
     let res = req(
         &client,
@@ -167,7 +167,7 @@ async fn test_ui_worksheets_ops() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let worksheet_2 = res.json::<WorksheetResponse>().await.unwrap().data.unwrap();
+    let worksheet_2 = res.json::<WorksheetResponse>().await.unwrap().data;
     assert_eq!(worksheet_2.name, patch_payload.name);
     assert_eq!(worksheet_2.content, patch_payload.content);
 

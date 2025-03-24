@@ -15,29 +15,24 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_history::Worksheet;
+use icebucket_metastore::models::IceBucketDatabase;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct WorksheetResponse {
-    #[serde(flatten)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Worksheet>,
-    pub duration_seconds: f32,
+pub struct DatabasePayload {
+    pub data: IceBucketDatabase,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct WorksheetsResponse {
-    pub data: Vec<Worksheet>, // data without content
-    pub duration_seconds: f32,
+pub struct DatabaseResponse {
+    pub data: IceBucketDatabase,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct WorksheetPayload {
-    pub name: Option<String>,
-    pub content: Option<String>,
+pub struct DatabasesResponse {
+    pub items: Vec<IceBucketDatabase>,
 }

@@ -19,3 +19,11 @@ pub mod error;
 pub mod handlers;
 pub mod models;
 pub mod router;
+
+pub mod databases;
+pub mod queries;
+pub mod volumes;
+pub mod worksheets;
+
+#[cfg(test)]
+pub mod tests;

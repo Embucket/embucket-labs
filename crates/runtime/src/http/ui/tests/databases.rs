@@ -18,7 +18,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::error::ErrorResponse;
-use crate::http::tests::common::{ui_test_op, Entity, Op};
+use crate::http::ui::databases::models::{DatabasePayload, DatabaseResponse, DatabasesResponse};
+use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
 use crate::tests::run_icebucket_test_server;
 use icebucket_metastore::IceBucketVolumeType;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
@@ -42,32 +43,38 @@ async fn test_ui_databases_metastore_update_bug() {
     let volume = res.json::<IceBucketVolume>().await.unwrap();
 
     // Create database, Ok
-    let expected = IceBucketDatabase {
-        ident: "test".to_string(),
-        properties: None,
-        volume: volume.ident.clone(),
+    let expected = DatabasePayload {
+        data: IceBucketDatabase {
+            ident: "test".to_string(),
+            properties: None,
+            volume: volume.ident.clone(),
+        },
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;
     assert_eq!(http::StatusCode::OK, res.status());
-    let created_database = res.json::<IceBucketDatabase>().await.unwrap();
-    assert_eq!(expected, created_database);
+    let created_database = res.json::<DatabaseResponse>().await.unwrap();
+    assert_eq!(expected.data, created_database.data);
 
     // Update database test -> new-test, Ok
-    let new_database = IceBucketDatabase {
-        ident: "new-test".to_string(),
-        properties: None,
-        volume: volume.ident.clone(),
+    let new_database = DatabasePayload {
+        data: IceBucketDatabase {
+            ident: "new-test".to_string(),
+            properties: None,
+            volume: volume.ident.clone(),
+        },
     };
     let res = ui_test_op(
         addr,
         Op::Update,
-        Some(&Entity::Database(created_database.clone())),
+        Some(&Entity::Database(DatabasePayload {
+            data: created_database.data.clone(),
+        })),
         &Entity::Database(new_database.clone()),
     )
     .await;
     assert_eq!(http::StatusCode::OK, res.status());
-    let renamed_database = res.json::<IceBucketDatabase>().await.unwrap();
-    assert_eq!(new_database, renamed_database); // server confirmed it's renamed
+    let renamed_database = res.json::<DatabaseResponse>().await.unwrap();
+    assert_eq!(new_database.data, renamed_database.data); // server confirmed it's renamed
 
     // Bug discovered: Database not updated as old name is still accessable
 
@@ -76,7 +83,9 @@ async fn test_ui_databases_metastore_update_bug() {
         addr,
         Op::Get,
         None,
-        &Entity::Database(created_database.clone()),
+        &Entity::Database(DatabasePayload {
+            data: created_database.data.clone(),
+        }),
     )
     .await;
     assert_eq!(http::StatusCode::NOT_FOUND, res.status());
@@ -88,7 +97,9 @@ async fn test_ui_databases_metastore_update_bug() {
         addr,
         Op::Get,
         None,
-        &Entity::Database(renamed_database.clone()),
+        &Entity::Database(DatabasePayload {
+            data: renamed_database.data.clone(),
+        }),
     )
     .await;
     assert_eq!(http::StatusCode::OK, res.status());
@@ -115,55 +126,60 @@ async fn test_ui_databases() {
     let volume = res.json::<IceBucketVolume>().await.unwrap();
 
     // Create database with empty name, error 400
-    let expected = IceBucketDatabase {
-        ident: String::new(),
-        properties: None,
-        volume: volume.ident.clone(),
+    let expected = DatabasePayload {
+        data: IceBucketDatabase {
+            ident: String::new(),
+            properties: None,
+            volume: volume.ident.clone(),
+        },
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;
     assert_eq!(http::StatusCode::BAD_REQUEST, res.status());
     let error = res.json::<ErrorResponse>().await.unwrap();
     assert_eq!(http::StatusCode::BAD_REQUEST, error.status_code);
 
-    // List databases count = 0, Ok
     let stub = Entity::Database(expected);
-    let res = ui_test_op(addr, Op::List, None, &stub).await;
+
+    // List databases count = 0, Ok
+    let res = ui_test_op(addr, Op::List, None, &stub.clone()).await;
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_list = res.json::<Vec<IceBucketDatabase>>().await.unwrap();
-    assert_eq!(0, databases_list.len());
+    let databases = res.json::<DatabasesResponse>().await.unwrap();
+    assert_eq!(0, databases.items.len());
 
     // Create database, Ok
-    let expected = IceBucketDatabase {
-        ident: "test".to_string(),
-        properties: None,
-        volume: volume.ident.clone(),
+    let expected = DatabasePayload {
+        data: IceBucketDatabase {
+            ident: "test".to_string(),
+            properties: None,
+            volume: volume.ident.clone(),
+        },
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;
     assert_eq!(http::StatusCode::OK, res.status());
-    let created_database = res.json::<IceBucketDatabase>().await.unwrap();
-    assert_eq!(expected, created_database);
+    let created_database = res.json::<DatabaseResponse>().await.unwrap();
+    assert_eq!(expected.data, created_database.data);
 
     // List databases, Ok
-    let stub = Entity::Database(expected.clone());
-    let res = ui_test_op(addr, Op::List, None, &stub).await;
+    let res = ui_test_op(addr, Op::List, None, &stub.clone()).await;
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_list = res.json::<Vec<IceBucketDatabase>>().await.unwrap();
-    assert_eq!(1, databases_list.len());
+    let databases = res.json::<DatabasesResponse>().await.unwrap();
+    assert_eq!(1, databases.items.len());
 
     // Delete database, Ok
     let res = ui_test_op(
         addr,
         Op::Delete,
-        Some(&Entity::Database(created_database)),
+        Some(&Entity::Database(DatabasePayload {
+            data: created_database.data.clone(),
+        })),
         &stub,
     )
     .await;
     assert_eq!(http::StatusCode::OK, res.status());
 
     // List databases, Ok
-    let stub = Entity::Database(expected);
-    let res = ui_test_op(addr, Op::List, None, &stub).await;
+    let res = ui_test_op(addr, Op::List, None, &stub.clone()).await;
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_list = res.json::<Vec<IceBucketDatabase>>().await.unwrap();
-    assert_eq!(0, databases_list.len());
+    let databases = res.json::<DatabasesResponse>().await.unwrap();
+    assert_eq!(0, databases.items.len());
 }

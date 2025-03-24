@@ -20,20 +20,28 @@ use crate::http::ui::handlers::schemas::{
     create_schema, delete_schema, get_schema, list_schemas, update_schema,
 };
 
-use crate::http::ui::handlers::databases::{
+use crate::http::ui::databases::handlers::{
     create_database, delete_database, get_database, list_databases, update_database,
 };
-use crate::http::ui::handlers::query::query;
-use crate::http::ui::handlers::volumes::{
+use crate::http::ui::volumes::handlers::{
     create_volume, delete_volume, get_volume, list_volumes, update_volume,
 };
-use crate::http::ui::handlers::worksheets::{
-    create_worksheet, delete_worksheet, history, update_worksheet, worksheet, worksheets,
+use crate::http::ui::worksheets::handlers::{
+    create_worksheet, delete_worksheet, update_worksheet, worksheet, worksheets,
 };
+
+use crate::http::ui::queries::handlers::{history, query};
 // use crate::http::ui::handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
 //     update_table_properties, upload_data_to_table,
 // };
+
+use crate::http::ui::databases::handlers::ApiDoc as DatabasesApiDoc;
+use crate::http::ui::handlers::schemas::ApiDoc as SchemasApiDoc;
+use crate::http::ui::queries::handlers::ApiDoc as QueryApiDoc;
+use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
+use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
+
 use crate::http::state::AppState;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
@@ -60,6 +68,17 @@ use utoipa::OpenApi;
     (name = "queries", description = "Queries endpoints"),
 ))]
 pub struct ApiDoc;
+
+#[must_use]
+pub fn ui_open_api_spec() -> utoipa::openapi::OpenApi {
+    ApiDoc::openapi()
+        .merge_from(VolumesApiDoc::openapi())
+        .merge_from(DatabasesApiDoc::openapi())
+        // .merge_from(TableApiDoc::openapi())
+        .merge_from(SchemasApiDoc::openapi())
+        .merge_from(WorksheetsApiDoc::openapi())
+        .merge_from(QueryApiDoc::openapi())
+}
 
 pub fn create_router() -> Router<AppState> {
     Router::new()

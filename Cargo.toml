@@ -77,3 +77,4 @@ missing_panics_doc = { level = "allow", priority = 2 }
 significant_drop_tightening = { level = "allow", priority = 2 }
 module_name_repetitions = { level = "allow", priority = 2 }
 option_if_let_else = { level = "allow", priority = 2 }
+

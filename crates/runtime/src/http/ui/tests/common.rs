@@ -17,17 +17,18 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use crate::http::ui::databases::models::DatabasePayload;
 use http::Method;
-use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
+use icebucket_metastore::IceBucketVolume;
 use reqwest::Response;
 use serde_json::json;
 use std::net::SocketAddr;
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Entity {
     Volume(IceBucketVolume),
-    Database(IceBucketDatabase),
+    Database(DatabasePayload),
     // Schema(IceBucketSchema),
 }
 
@@ -46,12 +47,27 @@ pub async fn req(
     url: &String,
     payload: String,
 ) -> Result<reqwest::Response, reqwest::Error> {
-    client
-        .request(method, url)
+    let res = client
+        .request(method.clone(), url)
         .header("Content-Type", "application/json")
         .body(payload)
         .send()
-        .await
+        .await;
+
+    if let Ok(res) = &res {
+        match res.error_for_status_ref() {
+            Ok(res) => {
+                eprintln!("res: {res:?}");
+            }
+            Err(err) => {
+                eprintln!("err: {err:?}");
+            }
+        }
+    } else if let Err(err) = &res {
+        eprintln!("req: {method} {url}, error: {err:?}");
+    }
+
+    res
 }
 
 fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
@@ -62,7 +78,9 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
         },
         Entity::Database(db) => match op {
             Op::Create | Op::List => format!("http://{addr}/ui/databases"),
-            Op::Delete | Op::Get | Op::Update => format!("http://{addr}/ui/databases/{}", db.ident),
+            Op::Delete | Op::Get | Op::Update => {
+                format!("http://{addr}/ui/databases/{}", db.data.ident)
+            }
         },
         // Entity::Schema(sc) => match op {
         //     Op::Create | Op::List => {

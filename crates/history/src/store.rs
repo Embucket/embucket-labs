@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::{QueryHistoryId, QueryHistoryItem, Worksheet, WorksheetId};
+use crate::{QueryHistoryId, QueryItem, Worksheet, WorksheetId};
 use async_trait::async_trait;
 use icebucket_utils::iterable::{IterableCursor, IterableEntity};
 use icebucket_utils::Db;
@@ -34,6 +34,9 @@ pub enum WorksheetsStoreError {
     #[snafu(display("Error getting worksheet: {source}"))]
     WorksheetGet { source: icebucket_utils::Error },
 
+    #[snafu(display("Error getting worksheets: {source}"))]
+    WorksheetsList { source: icebucket_utils::Error },
+
     #[snafu(display("Error deleting worksheet: {source}"))]
     WorksheetDelete { source: icebucket_utils::Error },
 
@@ -48,8 +51,6 @@ pub enum WorksheetsStoreError {
 
     #[snafu(display("Can't locate worksheet by key: {message}"))]
     WorksheetNotFound { message: String },
-    // #[snafu(display("Error deserialising value: {source}"))]
-    // Deserialize { source:: serde_json::error::Error },
 }
 
 pub type WorksheetsStoreResult<T> = std::result::Result<T, WorksheetsStoreError>;
@@ -62,13 +63,13 @@ pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
     async fn update_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<()>;
     async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>>;
 
-    async fn add_history_item(&self, item: QueryHistoryItem) -> WorksheetsStoreResult<()>;
+    async fn add_history_item(&self, item: QueryItem) -> WorksheetsStoreResult<()>;
     async fn query_history(
         &self,
         worksheet_id: WorksheetId,
         cursor: Option<i64>,
         limit: Option<u16>,
-    ) -> WorksheetsStoreResult<Vec<QueryHistoryItem>>;
+    ) -> WorksheetsStoreResult<Vec<QueryItem>>;
 }
 
 pub struct SlateDBWorksheetsStore {
@@ -154,10 +155,10 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
             .db
             .items_from_range(start_key..end_key, None)
             .await
-            .context(HistoryGetSnafu)?)
+            .context(WorksheetsListSnafu)?)
     }
 
-    async fn add_history_item(&self, item: QueryHistoryItem) -> WorksheetsStoreResult<()> {
+    async fn add_history_item(&self, item: QueryItem) -> WorksheetsStoreResult<()> {
         Ok(self
             .db
             .put_iterable_entity(&item)
@@ -170,14 +171,14 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
         worksheet_id: WorksheetId,
         cursor: Option<i64>,
         limit: Option<u16>,
-    ) -> WorksheetsStoreResult<Vec<QueryHistoryItem>> {
+    ) -> WorksheetsStoreResult<Vec<QueryItem>> {
         // TODO: add worksheet_id to key prefix
         let start_key = if let Some(cursor) = cursor {
-            QueryHistoryItem::get_key(worksheet_id, cursor)
+            QueryItem::get_key(worksheet_id, cursor)
         } else {
-            QueryHistoryItem::get_key(worksheet_id, QueryHistoryId::CURSOR_MIN)
+            QueryItem::get_key(worksheet_id, QueryHistoryId::CURSOR_MIN)
         };
-        let end_key = QueryHistoryItem::get_key(worksheet_id, QueryHistoryId::CURSOR_MAX);
+        let end_key = QueryItem::get_key(worksheet_id, QueryHistoryId::CURSOR_MAX);
         Ok(self
             .db
             .items_from_range(start_key..end_key, limit)
@@ -202,11 +203,11 @@ mod tests {
         let worksheet = Worksheet::new(Some(String::new()));
 
         let n: u16 = 2;
-        let mut created: Vec<QueryHistoryItem> = vec![];
+        let mut created: Vec<QueryItem> = vec![];
         for i in 0..n {
             let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
                 + Duration::milliseconds(i.into());
-            let mut item = QueryHistoryItem::query_start(
+            let mut item = QueryItem::query_start(
                 worksheet.id,
                 format!("select {i}").as_str(),
                 Some(start_time),
@@ -225,7 +226,7 @@ mod tests {
             db.add_history_item(item).await.unwrap();
         }
 
-        let cursor = <QueryHistoryItem as IterableEntity>::Cursor::CURSOR_MIN;
+        let cursor = <QueryItem as IterableEntity>::Cursor::CURSOR_MIN;
         eprintln!("cursor: {cursor}");
         let retrieved = db
             .query_history(worksheet.id, Some(cursor), Some(10))
