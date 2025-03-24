@@ -210,7 +210,7 @@ impl Db {
         while let Ok(Some(item)) = iter.next().await {
             let item = de::from_slice(&item.value).context(DeserializeValueSnafu)?;
             items.push(item);
-            if items.len() >= limit.unwrap_or(u16::MAX).into() {
+            if items.len() >= usize::from(limit.unwrap_or(u16::MAX)) {
                 break;
             }
         }
