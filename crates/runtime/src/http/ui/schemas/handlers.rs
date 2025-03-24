@@ -78,7 +78,11 @@ pub async fn create_schema(
         .create_schema(&schema.data.ident.clone(), schema.data)
         .await
         .map_err(|e| SchemasAPIError::Create { source: e })
-        .map(|rw_object| Json(SchemaResponse { data: rw_object.data }))
+        .map(|rw_object| {
+            Json(SchemaResponse {
+                data: rw_object.data,
+            })
+        })
 }
 
 #[utoipa::path(
@@ -107,13 +111,13 @@ pub async fn get_schema(
     };
     match state.metastore.get_schema(&schema_ident).await {
         Ok(Some(schema)) => Ok(Json(SchemaResponse { data: schema.data })),
-        Ok(None) => Err(SchemasAPIError::Get { 
+        Ok(None) => Err(SchemasAPIError::Get {
             source: MetastoreError::SchemaNotFound {
                 db: database_name.clone(),
                 schema: schema_name.clone(),
-            }
+            },
         }),
-        Err(e) => Err(SchemasAPIError::Get{ source: e }),
+        Err(e) => Err(SchemasAPIError::Get { source: e }),
     }
 }
 
@@ -175,7 +179,11 @@ pub async fn update_schema(
         .update_schema(&schema_ident, schema.data)
         .await
         .map_err(|e| SchemasAPIError::Update { source: e })
-        .map(|rw_object| Json(SchemaResponse { data: rw_object.data }))
+        .map(|rw_object| {
+            Json(SchemaResponse {
+                data: rw_object.data,
+            })
+        })
 }
 
 #[utoipa::path(
@@ -202,12 +210,11 @@ pub async fn list_schemas(
         .await
         .map_err(|e| SchemasAPIError::List { source: e })
         .map(|rw_objects| {
-            Json(SchemasResponse { 
+            Json(SchemasResponse {
                 items: rw_objects
                     .iter()
                     .map(|rw_object| rw_object.data.clone())
-                    .collect() 
-                }
-            )
+                    .collect(),
+            })
         })
 }
