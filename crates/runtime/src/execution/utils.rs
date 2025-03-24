@@ -21,6 +21,7 @@ use arrow::array::{
     TimestampMicrosecondArray, TimestampMillisecondArray, TimestampNanosecondArray,
     TimestampSecondArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array, UnionArray,
 };
+use arrow::compute::cast;
 use arrow::datatypes::{Field, Schema, TimeUnit};
 use arrow::record_batch::RecordBatch;
 use chrono::DateTime;
@@ -179,6 +180,18 @@ pub fn convert_record_batches(
                             column_info.scale.unwrap_or(0),
                         ),
                     )
+                }
+                DataType::BinaryView => {
+                    let converted_column = cast(&column, &DataType::Utf8View)?;
+                    fields.push(
+                        Field::new(
+                            field.name(),
+                            converted_column.data_type().clone(),
+                            field.is_nullable(),
+                        )
+                        .with_metadata(metadata),
+                    );
+                    Arc::clone(&converted_column)
                 }
                 _ => {
                     fields.push(field.clone().with_metadata(metadata));
@@ -402,6 +415,7 @@ mod tests {
     use arrow::buffer::ScalarBuffer;
     use arrow::datatypes::{DataType, Field};
     use arrow::record_batch::RecordBatch;
+    use arrow_array::{BinaryViewArray, StringViewArray};
     use std::sync::Arc;
 
     #[test]
@@ -480,6 +494,7 @@ mod tests {
                 DataType::Timestamp(TimeUnit::Second, None),
                 true,
             ),
+            Field::new("binary_view", DataType::BinaryView, true),
         ]));
         let int_array = Arc::new(Int32Array::from(vec![1, 2, 3])) as ArrayRef;
         let timestamp_array = Arc::new(TimestampSecondArray::from(vec![
@@ -487,14 +502,21 @@ mod tests {
             None,
             Some(1_627_846_262),
         ])) as ArrayRef;
-        let batch = RecordBatch::try_new(schema, vec![int_array, timestamp_array]).unwrap();
+        let binary_view_array = Arc::new(BinaryViewArray::from_iter_values(vec![
+            b"hello" as &[u8],
+            b"world",
+            b"lulu",
+        ]));
+        let batch =
+            RecordBatch::try_new(schema, vec![int_array, timestamp_array, binary_view_array])
+                .unwrap();
         let records = vec![batch];
         let (converted_batches, column_infos) =
             convert_record_batches(records.clone(), DataSerializationFormat::Json).unwrap();
 
         let converted_batch = &converted_batches[0];
         assert_eq!(converted_batches.len(), 1);
-        assert_eq!(converted_batch.num_columns(), 2);
+        assert_eq!(converted_batch.num_columns(), 3);
         assert_eq!(converted_batch.num_rows(), 3);
 
         let converted_timestamp_array = converted_batch
@@ -506,10 +528,21 @@ mod tests {
         assert!(converted_timestamp_array.is_null(1));
         assert_eq!(converted_timestamp_array.value(2), "1627846262");
 
+        let converted_timestamp_array = converted_batch
+            .column(2)
+            .as_any()
+            .downcast_ref::<StringViewArray>()
+            .unwrap();
+        assert_eq!(converted_timestamp_array.value(0), "hello");
+        assert_eq!(converted_timestamp_array.value(1), "world");
+        assert_eq!(converted_timestamp_array.value(2), "lulu");
+
         assert_eq!(column_infos[0].name, "int_col");
         assert_eq!(column_infos[0].r#type, "fixed");
         assert_eq!(column_infos[1].name, "timestamp_col");
         assert_eq!(column_infos[1].r#type, "timestamp_ntz");
+        assert_eq!(column_infos[2].name, "binary_view");
+        assert_eq!(column_infos[2].r#type, "binary");
 
         let (converted_batches, _) =
             convert_record_batches(records, DataSerializationFormat::Arrow).unwrap();

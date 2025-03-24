@@ -16,5 +16,5 @@
 // under the License.
 
 //pub mod common;
-//pub mod schemas;
+pub mod databases_navigation;
 //pub mod tables;

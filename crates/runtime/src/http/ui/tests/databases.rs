@@ -20,6 +20,7 @@
 use crate::http::error::ErrorResponse;
 use crate::http::ui::databases::models::{DatabasePayload, DatabaseResponse, DatabasesResponse};
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
+use crate::http::ui::volumes::models::{VolumePayload, VolumeResponse};
 use crate::tests::run_icebucket_test_server;
 use icebucket_metastore::IceBucketVolumeType;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
@@ -34,20 +35,22 @@ async fn test_ui_databases_metastore_update_bug() {
         addr,
         Op::Create,
         None,
-        &Entity::Volume(IceBucketVolume {
-            ident: String::new(),
-            volume: IceBucketVolumeType::Memory,
+        &Entity::Volume(VolumePayload {
+            data: IceBucketVolume {
+                ident: String::new(),
+                volume: IceBucketVolumeType::Memory,
+            },
         }),
     )
     .await;
-    let volume = res.json::<IceBucketVolume>().await.unwrap();
+    let volume = res.json::<DatabaseResponse>().await.unwrap();
 
     // Create database, Ok
     let expected = DatabasePayload {
         data: IceBucketDatabase {
             ident: "test".to_string(),
             properties: None,
-            volume: volume.ident.clone(),
+            volume: volume.data.ident.clone(),
         },
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;
@@ -60,7 +63,7 @@ async fn test_ui_databases_metastore_update_bug() {
         data: IceBucketDatabase {
             ident: "new-test".to_string(),
             properties: None,
-            volume: volume.ident.clone(),
+            volume: volume.data.ident.clone(),
         },
     };
     let res = ui_test_op(
@@ -117,20 +120,22 @@ async fn test_ui_databases() {
         addr,
         Op::Create,
         None,
-        &Entity::Volume(IceBucketVolume {
-            ident: String::new(),
-            volume: IceBucketVolumeType::Memory,
+        &Entity::Volume(VolumePayload {
+            data: IceBucketVolume {
+                ident: String::new(),
+                volume: IceBucketVolumeType::Memory,
+            },
         }),
     )
     .await;
-    let volume = res.json::<IceBucketVolume>().await.unwrap();
+    let volume = res.json::<VolumeResponse>().await.unwrap();
 
     // Create database with empty name, error 400
     let expected = DatabasePayload {
         data: IceBucketDatabase {
             ident: String::new(),
             properties: None,
-            volume: volume.ident.clone(),
+            volume: volume.data.ident.clone(),
         },
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;
@@ -151,7 +156,7 @@ async fn test_ui_databases() {
         data: IceBucketDatabase {
             ident: "test".to_string(),
             properties: None,
-            volume: volume.ident.clone(),
+            volume: volume.data.ident.clone(),
         },
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;

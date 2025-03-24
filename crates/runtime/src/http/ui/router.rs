@@ -36,12 +36,14 @@ use crate::http::ui::queries::handlers::{history, query};
 // };
 
 use crate::http::ui::databases::handlers::ApiDoc as DatabasesApiDoc;
+use crate::http::ui::handlers::databases_navigation::ApiDoc as DatabasesNavigationApiDoc;
 use crate::http::ui::queries::handlers::ApiDoc as QueryApiDoc;
 use crate::http::ui::schemas::handlers::ApiDoc as SchemasApiDoc;
 use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
 
 use crate::http::state::AppState;
+use crate::http::ui::handlers::databases_navigation::get_databases_navigation;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
 use axum::Router;
@@ -77,11 +79,13 @@ pub fn ui_open_api_spec() -> utoipa::openapi::OpenApi {
         .merge_from(SchemasApiDoc::openapi())
         .merge_from(WorksheetsApiDoc::openapi())
         .merge_from(QueryApiDoc::openapi())
+        .merge_from(DatabasesNavigationApiDoc::openapi())
 }
 
 pub fn create_router() -> Router<AppState> {
     Router::new()
         // .route("/navigation", get(navigation))
+        .route("/databases-navigation", get(get_databases_navigation))
         .route(
             "/databases/{databaseName}/schemas/{schemaName}",
             delete(delete_schema).get(get_schema).put(update_schema),

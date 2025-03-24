@@ -15,11 +15,26 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//pub mod aws;
-//pub mod database;
-//pub mod error;
-//pub mod properties;
-//pub mod storage_profile;
-//pub mod table;
-//pub mod warehouse;
-pub mod databases_navigation;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use validator::Validate;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NavigationDatabase {
+    pub(crate) name: String,
+    pub(crate) schemas: Vec<NavigationSchema>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NavigationSchema {
+    pub(crate) name: String,
+    pub(crate) tables: Vec<NavigationTable>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NavigationTable {
+    pub(crate) name: String,
+}
