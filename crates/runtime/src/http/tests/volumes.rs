@@ -69,7 +69,7 @@ async fn test_ui_volumes_s3() {
         ident: String::new(),
         volume: IceBucketVolumeType::S3(IceBucketS3Volume {
             region: Some("us-west-1".to_string()),
-            bucket: Some(String::new()),
+            bucket: Some("icebucket".to_string()),
             endpoint: Some("http://localhost:9000".to_string()),
             skip_signature: None,
             metadata_endpoint: None,
