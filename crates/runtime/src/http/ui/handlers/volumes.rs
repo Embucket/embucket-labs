@@ -16,6 +16,7 @@
 // under the License.
 
 use crate::http::state::AppState;
+use crate::http::ui::models::common::{Response, Volume};
 use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
@@ -29,7 +30,6 @@ use icebucket_metastore::error::{self as metastore_error, MetastoreError};
 use snafu::ResultExt;
 use utoipa::OpenApi;
 use validator::Validate;
-use crate::http::ui::models::common::{Response, Volume};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -182,15 +182,16 @@ pub async fn update_volume(
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn list_volumes(
-    State(state): State<AppState>
-) -> UIResult<Json<Response<Vec<Volume>>>> {
-    Ok(Json(Response::from(state
-        .metastore
-        .list_volumes()
-        .await
-        .map_err(|e| UIError::Metastore { source: e })?
-        // TODO: use deref
-        .into_iter()
-        .map(|o| o.data.clone()).collect::<Vec<_>>())))
+pub async fn list_volumes(State(state): State<AppState>) -> UIResult<Json<Response<Vec<Volume>>>> {
+    Ok(Json(Response::from(
+        state
+            .metastore
+            .list_volumes()
+            .await
+            .map_err(|e| UIError::Metastore { source: e })?
+            // TODO: use deref
+            .into_iter()
+            .map(|o| o.data)
+            .collect::<Vec<_>>(),
+    )))
 }

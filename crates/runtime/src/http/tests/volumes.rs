@@ -17,12 +17,12 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::http::tests::common::{ui_test_op, Entity, Op};
+use crate::http::ui::models::common::{Response, Volume};
 use crate::tests::run_icebucket_test_server;
 use icebucket_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, IceBucketFileVolume, IceBucketS3Volume,
     IceBucketVolumeType,
 };
-use crate::http::ui::models::common::{Response, Volume};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -69,7 +69,7 @@ async fn test_ui_volumes_s3() {
         ident: String::new(),
         volume: IceBucketVolumeType::S3(IceBucketS3Volume {
             region: Some("us-west-1".to_string()),
-            bucket: Some("".to_string()),
+            bucket: Some(String::new()),
             endpoint: Some("http://localhost:9000".to_string()),
             skip_signature: None,
             metadata_endpoint: None,

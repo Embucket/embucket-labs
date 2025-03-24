@@ -19,9 +19,9 @@
 
 use crate::http::error::ErrorResponse;
 use crate::http::tests::common::{ui_test_op, Entity, Op};
+use crate::http::ui::models::common::{Database, Response, Volume};
 use crate::tests::run_icebucket_test_server;
 use icebucket_metastore::IceBucketVolumeType;
-use crate::http::ui::models::common::{Database, Response, Volume};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]

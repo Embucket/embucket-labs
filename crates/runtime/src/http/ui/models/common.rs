@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketVolume};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketVolume};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -26,10 +26,8 @@ pub struct Response<T> {
 }
 
 impl<T> Response<T> {
-    pub fn from(data: T) -> Response<T> {
-        Self {
-            data,
-        }
+    pub const fn from(data: T) -> Self {
+        Self { data }
     }
 }
 

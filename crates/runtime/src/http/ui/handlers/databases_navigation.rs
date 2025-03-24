@@ -16,10 +16,10 @@
 // under the License.
 
 use crate::http::state::AppState;
+use crate::http::ui::models::common::Response;
 use crate::http::ui::models::databases_navigation::{
     NavigationDatabase, NavigationSchema, NavigationTable,
 };
-use crate::http::ui::models::common::Response;
 use crate::http::{
     error::ErrorResponse,
     ui::error::{UIError, UIResult},
