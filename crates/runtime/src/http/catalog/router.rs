@@ -15,15 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::state::AppState;
+use crate::http::state::AppState;
 use axum::routing::{delete, get, post};
 use axum::Router;
 
-use crate::http::catalog::handlers::{
-    commit_table, create_namespace, create_table, delete_namespace, delete_table, get_config,
-    get_namespace, get_table, list_namespaces, list_tables, list_views, register_table,
-    report_metrics,
-};
+#[allow(clippy::wildcard_imports)]
+use crate::http::catalog::handlers::*;
 
 pub fn create_router() -> Router<AppState> {
     let table_router: Router<AppState> = Router::new()

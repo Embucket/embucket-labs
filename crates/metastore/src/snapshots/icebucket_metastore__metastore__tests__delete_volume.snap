@@ -1,0 +1,28 @@
+---
+source: crates/metastore/src/metastore.rs
+expression: "(all_volumes, get_volume, all_volumes_after)"
+snapshot_kind: text
+---
+(
+    [
+        RwObject {
+            data: IceBucketVolume {
+                ident: "test",
+                volume: Memory,
+            },
+            created_at: "TIMESTAMP",
+            updated_at: "TIMESTAMP",
+        },
+    ],
+    Some(
+        RwObject {
+            data: IceBucketVolume {
+                ident: "test",
+                volume: Memory,
+            },
+            created_at: "TIMESTAMP",
+            updated_at: "TIMESTAMP",
+        },
+    ),
+    [],
+)

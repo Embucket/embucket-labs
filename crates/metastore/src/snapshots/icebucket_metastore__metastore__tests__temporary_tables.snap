@@ -1,0 +1,27 @@
+---
+source: crates/metastore/src/metastore.rs
+expression: "(create_table.volume_ident.as_ref(), paths)"
+snapshot_kind: text
+---
+(
+    Some(
+        "UUID",
+    ),
+    Ok(
+        [
+            Ok(
+                ObjectMeta {
+                    location: Path {
+                        raw: "metadata/UUID.metadata.json",
+                    },
+                    last_modified: "TIMESTAMP",
+                    size: "INTEGER",
+                    e_tag: Some(
+                        "0",
+                    ),
+                    version: None,
+                },
+            ),
+        ],
+    ),
+)

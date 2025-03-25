@@ -22,6 +22,7 @@ use iceberg_rust::{
 use iceberg_rust_spec::{partition::PartitionSpec, schema::Schema, sort::SortOrder};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display};
+use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::error::{MetastoreError, MetastoreResult};
@@ -68,16 +69,28 @@ impl Display for IceBucketTableIdent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema, strum::EnumString,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum IceBucketTableFormat {
-    /*Parquet,
+    /*
     Avro,
     Orc,
     Delta,
     Json,
     Csv,*/
+    Parquet,
     Iceberg,
+}
+
+impl From<String> for IceBucketTableFormat {
+    fn from(value: String) -> Self {
+        match value.to_lowercase().as_str() {
+            "parquet" => Self::Parquet,
+            _ => Self::Iceberg,
+        }
+    }
 }
 
 /*#[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -110,6 +123,7 @@ pub struct IceBucketTable {
     pub volume_ident: Option<IceBucketVolumeIdent>,
     pub volume_location: Option<String>,
     pub is_temporary: bool,
+    pub format: IceBucketTableFormat,
 }
 
 /*impl PartialSchema for IceBucketTable {
@@ -164,6 +178,116 @@ pub struct IceBucketTableCreateRequest {
     pub is_temporary: Option<bool>,
 }
 
+/*fn type_schema() -> (String, openapi::RefOr<openapi::schema::Schema>) {
+    let primitive_type = openapi::OneOfBuilder::new()
+        .item(openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::String))
+            .enum_values(Some(vec!["boolean", "int", "long", "float", "double", "date", "time", "timestamp", "timestamptz", "string", "uuid", "binary"]))
+        )
+        .item(openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Object))
+            .property("precision", openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
+            .build())
+            .property("scale", openapi::schema::Type::Integer)
+        )
+        .item(openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer)))
+        .build();
+    let struct_type = openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("StructType".to_string()).build());
+    let list_type = openapi::ObjectBuilder::new()
+        .property("element_id", openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
+            .build()
+        )
+        .property("element_required", openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Boolean))
+            .build()
+        )
+        .property("element", openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("Type".to_string()).build()))
+        .build();
+    let map_type = openapi::ObjectBuilder::new()
+        .property("key_id", openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
+            .build()
+        )
+        .property("key", openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("Type".to_string()).build()))
+        .property("value_id", openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
+            .build()
+        )
+        .property("value", openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("Type".to_string()).build()))
+        .property("value_required", openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Boolean))
+            .build()
+        )
+        .build();
+    let one_of = openapi::OneOf::builder()
+        .item(primitive_type.into())
+        .item(struct_type)
+        .item(list_type)
+        .item(map_type);
+    ("Type".to_string(), one_of.into())
+}
+
+impl ToSchema for IceBucketTableCreateRequest {}
+impl PartialSchema for IceBucketTableCreateRequest {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+
+        let
+        let mut type_schema = openapi::OneOfBuilder::new()
+            .item(primitive_type)
+
+
+        let mut struct_field_type = openapi::OneOfBuilder::new()
+            .item(primitive_type)
+        let struct_field = openapi::ObjectBuilder::new()
+            .property("id", )
+    }
+}*/
+
+#[derive(ToSchema, Deserialize, Serialize)]
+enum MyPrimitive {
+    Int,
+    Str,
+    Decimal { precision: u32, scale: u32 },
+}
+
+#[derive(ToSchema, Deserialize, Serialize)]
+struct MyMap {
+    key: Box<TypeEnum>,
+    value: Box<TypeEnum>,
+}
+
+#[derive(ToSchema, Deserialize, Serialize)]
+struct MyList {
+    element: Box<TypeEnum>,
+}
+
+#[derive(ToSchema, Deserialize, Serialize)]
+struct MyStruct {
+    fields: Vec<MyStructField>,
+}
+
+#[derive(ToSchema, Deserialize, Serialize)]
+struct MyStructField {
+    #[serde(rename = "type")]
+    field_type: TypeEnum,
+}
+
+#[derive(ToSchema, Deserialize, Serialize)]
+enum TypeEnum {
+    Struct(MyStruct),
+    List(MyList),
+    Map(MyMap),
+    Primitive(MyPrimitive),
+}
+
+#[derive(ToSchema, Deserialize, Serialize)]
+struct MySchema {
+    #[serde(flatten)]
+    fields: MyStruct,
+}
 /*impl TryFrom<IceBucketTableCreateRequest> for iceberg::TableCreation {
     type Error = MetastoreError;
 
@@ -258,14 +382,20 @@ impl TableRequirementExt {
                 }
             }
             TableRequirement::AssertRefSnapshotId { r#ref, snapshot_id } => {
-                let snapshot_ref = metadata.refs.get(r#ref).ok_or_else(|| {
-                    MetastoreError::TableRequirementFailed {
-                        message: "Table ref not found".to_string(),
+                if let Some(snapshot_id) = snapshot_id {
+                    let snapshot_ref = metadata.refs.get(r#ref).ok_or_else(|| {
+                        MetastoreError::TableRequirementFailed {
+                            message: "Table ref not found".to_string(),
+                        }
+                    })?;
+                    if snapshot_ref.snapshot_id != *snapshot_id {
+                        return Err(MetastoreError::TableRequirementFailed {
+                            message: "Table ref snapshot id does not match".to_string(),
+                        });
                     }
-                })?;
-                if snapshot_ref.snapshot_id != *snapshot_id {
+                } else if metadata.refs.contains_key(r#ref) {
                     return Err(MetastoreError::TableRequirementFailed {
-                        message: "Table ref snapshot id does not match".to_string(),
+                        message: "Table ref already exists".to_string(),
                     });
                 }
             }

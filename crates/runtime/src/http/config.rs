@@ -23,4 +23,5 @@ pub struct IceBucketWebConfig {
     pub port: u16,
     pub allow_origin: Option<String>,
     pub data_format: String,
+    pub iceberg_catalog_url: String,
 }

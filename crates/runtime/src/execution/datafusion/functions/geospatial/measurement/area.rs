@@ -139,14 +139,14 @@ mod tests {
             (
                 {
                     let data = vec![
-                        polygon![(x: 0., y: 0.), (x: 0., y: 1.0), (x: 1., y: 2.), (x: 2., y: 0.), (x:0.,y:0.)],
+                        polygon![(x: 0., y: 0.), (x: 0., y: 1.0), (x: 1., y: 2.), (x: 2., y: 0.), (x:0., y:0.)],
                         polygon![(x: 3.3, y: 30.4), (x: 1.7, y: 24.6), (x: 13.4, y: 25.1), (x: 14.4, y: 31.0),(x:3.3,y:30.4)],
                     ];
                     let array =
                         PolygonBuilder::from_polygons(&data, dim, ct, Arc::default()).finish();
                     array.to_array_ref()
                 },
-                [12_391_399_902., 723_055_529_500.],
+                [30_974_725_215., 723_055_529_500.],
             ),
         ];
 

@@ -19,6 +19,7 @@ use std::sync::Arc;
 
 use config::IceBucketRuntimeConfig;
 use http::{make_icebucket_app, run_icebucket_app};
+use icebucket_history::store::SlateDBWorksheetsStore;
 use icebucket_metastore::SlateDBMetastore;
 use icebucket_utils::Db;
 use object_store::{path::Path, ObjectStore};
@@ -42,14 +43,15 @@ pub async fn run_icebucket(
             SlateDb::open_with_opts(
                 Path::from(config.db.slatedb_prefix.clone()),
                 options,
-                state_store,
+                state_store.clone(),
             )
             .await
             .map_err(Box::new)?,
         ))
     };
 
-    let metastore = Arc::new(SlateDBMetastore::new(db));
-    let app = make_icebucket_app(metastore, &config.web)?;
+    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let history = Arc::new(SlateDBWorksheetsStore::new(db));
+    let app = make_icebucket_app(metastore, history, &config.web)?;
     run_icebucket_app(app, &config.web).await
 }

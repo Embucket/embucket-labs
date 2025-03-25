@@ -17,7 +17,7 @@
 
 use crate::error::{self as metastore_error, MetastoreResult};
 use object_store::{aws::AmazonS3Builder, path::Path, ObjectStore};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use snafu::ResultExt;
 use std::sync::Arc;
 use validator::{Validate, ValidationError, ValidationErrors};
@@ -37,9 +37,18 @@ pub enum CloudProvider {
 #[serde(rename_all = "kebab-case")]
 pub struct AwsAccessKeyCredentials {
     #[validate(length(min = 1))]
+    #[serde(serialize_with = "hide_sensitive")]
     pub aws_access_key_id: String,
     #[validate(length(min = 1))]
+    #[serde(serialize_with = "hide_sensitive")]
     pub aws_secret_access_key: String,
+}
+
+fn hide_sensitive<S>(_: &str, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str("********")
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, utoipa::ToSchema)]
@@ -147,7 +156,7 @@ impl IceBucketVolume {
         Self { ident, volume }
     }
 
-    pub(crate) fn get_object_store(&self) -> MetastoreResult<Arc<dyn ObjectStore>> {
+    pub fn get_object_store(&self) -> MetastoreResult<Arc<dyn ObjectStore>> {
         match &self.volume {
             IceBucketVolumeType::S3(volume) => {
                 let mut s3_builder = AmazonS3Builder::new()
@@ -187,16 +196,8 @@ impl IceBucketVolume {
                     .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
                     .context(metastore_error::ObjectStoreSnafu)
             }
-            IceBucketVolumeType::File(volume) => {
-                let path = std::path::Path::new(&volume.path);
-                if !path.exists() || !path.is_dir() {
-                    std::fs::create_dir(path).context(metastore_error::CreateDirectorySnafu {
-                        path: volume.path.clone(),
-                    })?;
-                }
-                object_store::local::LocalFileSystem::new_with_prefix(volume.path.clone())
-                    .context(metastore_error::ObjectStoreSnafu)
-                    .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
+            IceBucketVolumeType::File(_) => {
+                Ok(Arc::new(object_store::local::LocalFileSystem::new()) as Arc<dyn ObjectStore>)
             }
             IceBucketVolumeType::Memory => {
                 Ok(Arc::new(object_store::memory::InMemory::new()) as Arc<dyn ObjectStore>)
@@ -211,7 +212,8 @@ impl IceBucketVolume {
                 .bucket
                 .as_ref()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
-            IceBucketVolumeType::File(..) | IceBucketVolumeType::Memory => "/".to_string(),
+            IceBucketVolumeType::File(volume) => format!("file://{}", volume.path),
+            IceBucketVolumeType::Memory => "memory://".to_string(),
         }
     }
 

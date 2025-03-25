@@ -33,8 +33,8 @@ use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use icebucket_metastore::{
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableIdent,
-    Metastore,
+    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableFormat,
+    IceBucketTableIdent, Metastore,
 };
 use object_store::aws::AmazonS3Builder;
 use serde::{Deserialize, Serialize};
@@ -51,6 +51,7 @@ use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
 
+use super::catalog::IceBucketDFMetastore;
 use super::datafusion::functions::visit_functions_expressions;
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
@@ -121,6 +122,23 @@ impl IceBucketQuery {
             .clone()
             .or_else(|| self.session.get_session_variable("schema"))
             .or_else(|| Some("public".to_string()))
+    }
+
+    async fn refresh_catalog(&self) -> ExecutionResult<()> {
+        if let Some(catalog_list_impl) = self
+            .session
+            .ctx
+            .state()
+            .catalog_list()
+            .as_any()
+            .downcast_ref::<IceBucketDFMetastore>()
+        {
+            catalog_list_impl.refresh(&self.session.ctx).await
+        } else {
+            Err(ExecutionError::RefreshCatalogList {
+                message: "Catalog list implementation is not castable".to_string(),
+            })
+        }
     }
 
     #[allow(clippy::unwrap_used)]
@@ -207,8 +225,11 @@ impl IceBucketQuery {
                     return Ok(vec![]);
                 }
                 Statement::CreateTable { .. } => {
-                    return Box::pin(self.create_table_query(*s)).await;
+                    let result = Box::pin(self.create_table_query(*s)).await;
+                    self.refresh_catalog().await?;
+                    return result;
                 }
+
                 Statement::CreateDatabase { .. } => {
                     // TODO: Databases are only able to be created through the
                     // metastore API. We need to add Snowflake volume syntax to CREATE DATABASE query
@@ -225,11 +246,15 @@ impl IceBucketQuery {
                     schema_name,
                     if_not_exists,
                 } => {
-                    return self.create_schema(schema_name, if_not_exists).await;
+                    let result = self.create_schema(schema_name, if_not_exists).await;
+                    self.refresh_catalog().await?;
+                    return result;
                 }
                 Statement::CreateStage { .. } => {
                     // We support only CSV uploads for now
-                    return Box::pin(self.create_stage_query(*s)).await;
+                    let result = Box::pin(self.create_stage_query(*s)).await;
+                    self.refresh_catalog().await?;
+                    return result;
                 }
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s)).await;
@@ -250,22 +275,19 @@ impl IceBucketQuery {
                     return Box::pin(self.execute_with_custom_plan(&subquery.to_string())).await;
                 }
                 Statement::Drop { .. } => {
-                    return Box::pin(self.drop_query(&self.query)).await;
+                    let result = Box::pin(self.drop_query(&self.query)).await;
+                    self.refresh_catalog().await?;
+                    return result;
                 }
                 Statement::Merge { .. } => {
                     return Box::pin(self.merge_query(*s)).await;
                 }
                 _ => {}
             }
+        } else if let DFStatement::CreateExternalTable(cetable) = statement {
+            return Box::pin(self.create_external_table_query(cetable)).await;
         }
-        self.session
-            .ctx
-            .sql(&self.query)
-            .await
-            .context(super::error::DataFusionSnafu)?
-            .collect()
-            .await
-            .context(super::error::DataFusionSnafu)
+        self.execute_sql(&self.query).await
     }
 
     /// .
@@ -303,39 +325,31 @@ impl IceBucketQuery {
         &self,
         statement: Statement,
     ) -> ExecutionResult<Vec<RecordBatch>> {
-        if let Statement::CreateTable(create_table_statement) = statement {
-            let new_table_ident = self.resolve_table_ident(create_table_statement.name.0)?;
+        if let Statement::CreateTable(mut create_table_statement) = statement {
+            let new_table_ident =
+                self.resolve_table_ident(create_table_statement.name.0.clone())?;
+            create_table_statement.name = new_table_ident.clone().into();
 
             let table_location = create_table_statement
                 .location
                 .clone()
                 .or_else(|| create_table_statement.base_location.clone());
 
-            #[allow(clippy::unwrap_used)]
-            let table_name = new_table_ident.0.last().unwrap().clone();
-            // Replace the name of table that needs creation (for ex. "warehouse"."database"."table" -> "table")
-            // And run the query - this will create an InMemory table
-            let mut modified_statement = CreateTableStatement {
-                name: ObjectName(vec![table_name.clone()]),
-                transient: false,
-                ..create_table_statement
-            };
-
-            // Replace qualify with nested select
-            if let Some(ref mut query) = modified_statement.query {
+            if let Some(ref mut query) = create_table_statement.query {
                 self.update_qualify_in_query(query);
             }
-            // Create InMemory table since external tables with "AS SELECT" are not supported
-            let updated_query = modified_statement.to_string();
 
-            let plan = self.get_custom_logical_plan(&updated_query).await?;
-            self.session
-                .ctx
-                .execute_logical_plan(plan.clone())
-                .await
-                .context(super::error::DataFusionSnafu)?
-                .collect()
-                .await
+            let session_context = HashMap::new();
+            let session_context_planner = SessionContextProvider {
+                state: &self.session.ctx.state(),
+                tables: session_context,
+            };
+            let planner = ExtendedSqlToRel::new(
+                &session_context_planner,
+                self.session.ctx.state().get_parser_options(),
+            );
+            let plan = planner
+                .sql_statement_to_plan(Statement::CreateTable(create_table_statement.clone()))
                 .context(super::error::DataFusionSnafu)?;
 
             let fields_with_ids = StructType::try_from(&new_fields_with_ids(
@@ -400,7 +414,7 @@ impl IceBucketQuery {
 
             // Insert data to new table
             // TODO: What is the point of this?
-            let insert_query = format!("INSERT INTO {ib_table_ident} SELECT * FROM {table_name}",);
+            /*let insert_query = format!("INSERT INTO {ib_table_ident} SELECT * FROM {table_name}",);
             self.execute_with_custom_plan(&insert_query).await?;
 
             // Drop InMemory table
@@ -412,7 +426,7 @@ impl IceBucketQuery {
                 .context(super::error::DataFusionSnafu)?
                 .collect()
                 .await
-                .context(super::error::DataFusionSnafu)?;
+                .context(super::error::DataFusionSnafu)?;*/
 
             created_entity_response()
         } else {
@@ -422,6 +436,60 @@ impl IceBucketQuery {
                 ),
             })
         }
+    }
+
+    pub async fn create_external_table_query(
+        &self,
+        statement: CreateExternalTable,
+    ) -> ExecutionResult<Vec<RecordBatch>> {
+        let table_location = statement.location.clone();
+        let table_format = IceBucketTableFormat::from(statement.file_type);
+        let session_context = HashMap::new();
+        let session_context_planner = SessionContextProvider {
+            state: &self.session.ctx.state(),
+            tables: session_context,
+        };
+        let planner = ExtendedSqlToRel::new(
+            &session_context_planner,
+            self.session.ctx.state().get_parser_options(),
+        );
+        let table_schema = planner
+            .build_schema(statement.columns)
+            .context(ex_error::DataFusionSnafu)?;
+        let fields_with_ids =
+            StructType::try_from(&new_fields_with_ids(table_schema.fields(), &mut 0))
+                .map_err(|err| DataFusionError::External(Box::new(err)))
+                .context(ex_error::DataFusionSnafu)?;
+
+        // TODO: Use the options with the table format in the future
+        let _table_options = statement.options.clone();
+        let table_ident: IceBucketTableIdent = self.resolve_table_ident(statement.name.0)?.into();
+
+        let table_create_request = IceBucketTableCreateRequest {
+            ident: table_ident.clone(),
+            schema: Schema::builder()
+                .with_schema_id(0)
+                .with_identifier_field_ids(vec![])
+                .with_fields(fields_with_ids)
+                .build()
+                .map_err(|err| DataFusionError::External(Box::new(err)))
+                .context(ex_error::DataFusionSnafu)?,
+            location: Some(table_location),
+            partition_spec: None,
+            sort_order: None,
+            stage_create: None,
+            volume_ident: None,
+            is_temporary: Some(false),
+            format: Some(table_format),
+            properties: None,
+        };
+
+        self.metastore
+            .create_table(&table_ident, table_create_request)
+            .await
+            .context(ex_error::MetastoreSnafu)?;
+
+        created_entity_response()
     }
 
     /// This is experimental CREATE STAGE support
@@ -659,15 +727,7 @@ impl IceBucketQuery {
             .transform(iceberg_transform)
             .data()
             .context(ex_error::DataFusionSnafu)?;
-        let res = self
-            .session
-            .ctx
-            .execute_logical_plan(transformed)
-            .await
-            .context(ex_error::DataFusionSnafu)?
-            .collect()
-            .await
-            .context(ex_error::DataFusionSnafu)?;
+        let res = self.execute_logical_plan(transformed).await?;
         Ok(res)
     }
 
@@ -806,17 +866,51 @@ impl IceBucketQuery {
         }
     }
 
+    async fn execute_sql(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
+        let session = self.session.clone();
+        let query = query.to_string();
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                session
+                    .ctx
+                    .sql(&query)
+                    .await
+                    .context(super::error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(super::error::DataFusionSnafu)
+            })
+            .await
+            .context(super::error::JobSnafu)??;
+        Ok(stream)
+    }
+
+    async fn execute_logical_plan(&self, plan: LogicalPlan) -> ExecutionResult<Vec<RecordBatch>> {
+        let session = self.session.clone();
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                session
+                    .ctx
+                    .execute_logical_plan(plan)
+                    .await
+                    .context(super::error::DataFusionSnafu)?
+                    .collect()
+                    .await
+                    .context(super::error::DataFusionSnafu)
+            })
+            .await
+            .context(super::error::JobSnafu)??;
+        Ok(stream)
+    }
+
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query).await?;
-        self.session
-            .ctx
-            .execute_logical_plan(plan)
-            .await
-            .context(super::error::DataFusionSnafu)?
-            .collect()
-            .await
-            .context(super::error::DataFusionSnafu)
+        self.execute_logical_plan(plan).await
     }
 
     #[allow(clippy::only_used_in_recursion)]

@@ -19,8 +19,10 @@ use super::catalog::IceBucketDFMetastore;
 use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::IceBucketTypePlanner;
+use super::dedicated_executor::DedicatedExecutor;
 use super::query::{IceBucketQuery, IceBucketQueryContext};
 use datafusion::common::error::Result as DFResult;
+use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::execution::SessionStateBuilder;
 use datafusion::functions::register_all;
 use datafusion::prelude::{SessionConfig, SessionContext};
@@ -41,23 +43,32 @@ pub struct IceBucketUserSession {
     pub metastore: Arc<dyn Metastore>,
     pub ctx: SessionContext,
     pub ident_normalizer: IdentNormalizer,
+    pub executor: DedicatedExecutor,
 }
 
 impl IceBucketUserSession {
-    pub fn new(metastore: Arc<dyn Metastore>) -> ExecutionResult<Self> {
+    pub async fn new(metastore: Arc<dyn Metastore>) -> ExecutionResult<Self> {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
 
         let catalog_list_impl = Arc::new(IceBucketDFMetastore::new(metastore.clone()));
+
+        let runtime_config = RuntimeEnvBuilder::new()
+            .with_object_store_registry(catalog_list_impl.clone())
+            .build()
+            .context(ex_error::DataFusionSnafu)?;
+
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::new()
                     .with_option_extension(IceBucketSessionParams::default())
                     .with_information_schema(true)
-                    .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect),
+                    .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect)
+                    .set_str("datafusion.catalog.default_catalog", "icebucket"),
             )
             .with_default_features()
-            .with_catalog_list(catalog_list_impl)
+            .with_runtime_env(Arc::new(runtime_config))
+            .with_catalog_list(catalog_list_impl.clone())
             .with_query_planner(Arc::new(IcebergQueryPlanner {}))
             .with_type_planner(Arc::new(IceBucketTypePlanner {}))
             .build();
@@ -67,11 +78,14 @@ impl IceBucketUserSession {
         register_geo_native(&ctx);
         register_geo_udfs(&ctx);
 
+        catalog_list_impl.refresh(&ctx).await?;
+
         let enable_ident_normalization = ctx.enable_ident_normalization();
         Ok(Self {
             metastore,
             ctx,
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
+            executor: DedicatedExecutor::builder().build(),
         })
     }
 

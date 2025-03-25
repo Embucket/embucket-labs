@@ -16,8 +16,5 @@
 // under the License.
 
 //pub mod common;
-//pub mod databases;
-//pub mod profiles;
-pub mod query;
+pub mod databases_navigation;
 //pub mod tables;
-//pub mod warehouses;

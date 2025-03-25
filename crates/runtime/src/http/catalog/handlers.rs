@@ -15,312 +15,253 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#![allow(clippy::unwrap_used)]
-
-use crate::error::AppError;
-use crate::http::catalog::schemas;
-use crate::http::utils::{get_default_properties, update_properties_timestamps};
-use crate::state::AppState;
+use crate::http::catalog::schemas::{
+    from_get_schema, from_schema, from_schemas_list, from_tables_list, to_create_table, to_schema,
+    to_table_commit, CommitTable, GetConfigQuery,
+};
+use crate::http::metastore::error::{MetastoreAPIError, MetastoreAPIResult};
+use crate::http::state::AppState;
 use axum::http::StatusCode;
 use axum::{extract::Path, extract::Query, extract::State, Json};
-use catalog::models::{DatabaseIdent, NamespaceIdent, TableCommit, TableIdent, WarehouseIdent};
-use std::result::Result;
-use uuid::Uuid;
+use iceberg_rest_catalog::models::{
+    CatalogConfig, CommitTableResponse, CreateNamespaceRequest, CreateNamespaceResponse,
+    CreateTableRequest, GetNamespaceResponse, ListNamespacesResponse, ListTablesResponse,
+    LoadTableResult, RegisterTableRequest,
+};
+use iceberg_rust_spec::table_metadata::TableMetadata;
+use icebucket_metastore::error::{self as metastore_error, MetastoreError};
+use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
+use object_store::ObjectStore;
+use serde_json::{from_slice, Value};
+use snafu::ResultExt;
+use std::collections::HashMap;
+use validator::Validate;
 
-use control_plane::models::StorageProfile;
-
-#[tracing::instrument(level = "debug", err, skip(state))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_namespace(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-    Json(payload): Json<schemas::Namespace>,
-) -> Result<Json<schemas::Namespace>, AppError> {
-    let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = state.catalog_svc;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(wh.id),
-        namespace: payload.namespace.clone(),
-    };
-    let mut properties = payload.properties.unwrap_or_default();
-    update_properties_timestamps(&mut properties);
-
-    let res = catalog.create_namespace(&ident, properties).await?;
-
-    Ok(Json(res.into()))
+    Path(database_name): Path<String>,
+    Json(schema): Json<CreateNamespaceRequest>,
+) -> MetastoreAPIResult<Json<CreateNamespaceResponse>> {
+    let ib_schema = to_schema(schema, database_name);
+    let schema = state
+        .metastore
+        .create_schema(&ib_schema.ident.clone(), ib_schema)
+        .await?;
+    Ok(Json(from_schema(schema.data)))
 }
 
-#[tracing::instrument(level = "debug", err, skip(state))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_namespace(
     State(state): State<AppState>,
-    Path((id, namespace_id)): Path<(Uuid, String)>,
-) -> Result<Json<schemas::Namespace>, AppError> {
-    let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = state.catalog_svc;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::from_vec(
-            namespace_id
-                .split('.')
-                .map(String::from)
-                .collect::<Vec<String>>(),
-        )
-        .unwrap(),
+    Path((database_name, schema_name)): Path<(String, String)>,
+) -> MetastoreAPIResult<Json<GetNamespaceResponse>> {
+    let schema_ident = IceBucketSchemaIdent {
+        database: database_name.clone(),
+        schema: schema_name.clone(),
     };
-    let namespace = catalog.get_namespace(&ident).await?;
-
-    Ok(Json(namespace.into()))
+    let schema = state
+        .metastore
+        .get_schema(&schema_ident)
+        .await
+        .map_err(|e: MetastoreError| MetastoreAPIError::from(e))?
+        .ok_or_else(|| {
+            MetastoreAPIError::from(MetastoreError::SchemaNotFound {
+                db: database_name.clone(),
+                schema: schema_name.clone(),
+            })
+        })?;
+    Ok(Json(from_get_schema(schema.data)))
 }
 
-#[tracing::instrument(level = "debug", err, skip(state))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_namespace(
     State(state): State<AppState>,
-    Path((id, namespace_id)): Path<(Uuid, String)>,
-) -> Result<StatusCode, AppError> {
-    let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = state.catalog_svc;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::from_vec(
-            namespace_id
-                .split('.')
-                .map(String::from)
-                .collect::<Vec<String>>(),
-        )
-        .unwrap(),
-    };
-    catalog.drop_namespace(&ident).await?;
-
+    Path((database_name, schema_name)): Path<(String, String)>,
+) -> MetastoreAPIResult<StatusCode> {
+    let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
+    state
+        .metastore
+        .delete_schema(&schema_ident, true)
+        .await
+        .map_err(MetastoreAPIError)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[tracing::instrument(level = "debug", err, skip(state))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_namespaces(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-) -> Result<Json<schemas::NamespaceListResponse>, AppError> {
-    let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = state.catalog_svc;
-    let ident = WarehouseIdent::new(wh.id);
-    // TODO: Extract parent_id from request
-    let parent_id = None;
-    let databases = catalog.list_namespaces(&ident, parent_id).await?;
-
-    // TODO: Implement From/Into
-    Ok(Json(schemas::NamespaceListResponse {
-        namespaces: databases.into_iter().map(Into::into).collect(),
-    }))
+    Path(database_name): Path<String>,
+) -> MetastoreAPIResult<Json<ListNamespacesResponse>> {
+    let schemas = state
+        .metastore
+        .list_schemas(&database_name)
+        .await
+        .map_err(MetastoreAPIError)?;
+    Ok(Json(from_schemas_list(schemas)))
 }
 
-#[tracing::instrument(level = "debug", err, skip(state))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_table(
     State(state): State<AppState>,
-    Path((id, namespace_id)): Path<(Uuid, String)>,
-    Json(payload): Json<schemas::TableCreateRequest>,
-) -> Result<Json<schemas::TableResult>, AppError> {
-    let wh = state.control_svc.get_warehouse(id).await?;
-    let sp = state.control_svc.get_profile(wh.storage_profile_id).await?;
-    let catalog = state.catalog_svc;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::from_vec(
-            namespace_id
-                .split('.')
-                .map(String::from)
-                .collect::<Vec<String>>(),
-        )
-        .unwrap(),
-    };
-    let table = catalog
-        .create_table(
-            &ident,
-            &sp,
-            &wh,
-            payload.into(),
-            Option::from(get_default_properties()),
-        )
-        .await?;
+    Path((database_name, schema_name)): Path<(String, String)>,
+    Json(table): Json<CreateTableRequest>,
+) -> MetastoreAPIResult<Json<LoadTableResult>> {
+    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table.name);
+    let volume_ident = state
+        .metastore
+        .volume_for_table(&table_ident.clone())
+        .await?
+        .map(|v| v.data.ident);
+    let ib_create_table = to_create_table(table, table_ident.clone(), volume_ident);
 
-    Ok(Json(table.into()))
+    ib_create_table
+        .validate()
+        .context(metastore_error::ValidationSnafu)?;
+    let table = state
+        .metastore
+        .create_table(&table_ident, ib_create_table)
+        .await
+        .map_err(MetastoreAPIError)?;
+    Ok(Json(LoadTableResult::new(table.data.metadata)))
 }
 
-#[tracing::instrument(level = "debug", err, skip(state))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn register_table(
     State(state): State<AppState>,
-    Path((id, namespace_id)): Path<(Uuid, String)>,
-    Json(payload): Json<schemas::TableRegisterRequest>,
-) -> Result<Json<schemas::TableResult>, AppError> {
-    let wh = state.control_svc.get_warehouse(id).await?;
-    let sp = state.control_svc.get_profile(wh.storage_profile_id).await?;
-    let catalog = state.catalog_svc;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::from_vec(
-            namespace_id
-                .split('.')
-                .map(String::from)
-                .collect::<Vec<String>>(),
-        )
-        .unwrap(),
-    };
-    let table = catalog
-        .register_table(
-            &ident,
-            &sp,
-            payload.name,
-            payload.metadata_location,
-            Option::from(get_default_properties()),
-        )
-        .await?;
-    Ok(Json(table.into()))
+    Path((database_name, schema_name)): Path<(String, String)>,
+    Json(register): Json<RegisterTableRequest>,
+) -> MetastoreAPIResult<Json<LoadTableResult>> {
+    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &register.name);
+    let metadata_raw = state
+        .metastore
+        .volume_for_table(&table_ident)
+        .await?
+        .map(|v| v.data)
+        .ok_or(MetastoreError::VolumeNotFound {
+            volume: format!(
+                "Volume not found for database {database_name} and schema {schema_name}"
+            ),
+        })?
+        .get_object_store()?
+        .get(&object_store::path::Path::from(register.metadata_location))
+        .await
+        .context(metastore_error::ObjectStoreSnafu)?;
+    let metadata_bytes = metadata_raw
+        .bytes()
+        .await
+        .context(metastore_error::ObjectStoreSnafu)?;
+    let table_metadata: TableMetadata =
+        from_slice(&metadata_bytes).context(metastore_error::SerdeSnafu)?;
+    Ok(Json(LoadTableResult::new(table_metadata)))
 }
 
-#[tracing::instrument(level = "debug", err, skip(state))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn commit_table(
     State(state): State<AppState>,
-    Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
-    Json(payload): Json<schemas::TableCommitRequest>,
-) -> Result<Json<schemas::TableResult>, AppError> {
-    let wh = state.control_svc.get_warehouse(id).await?;
-    let sp = state.control_svc.get_profile(wh.storage_profile_id).await?;
-    let catalog = state.catalog_svc;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::from_vec(
-            namespace_id
-                .split('.')
-                .map(String::from)
-                .collect::<Vec<String>>(),
-        )
-        .unwrap(),
-    };
-    // FIXME: Iceberg REST has table ident in the body request
-    let ident = TableIdent {
-        database: ident,
-        table: table_id,
-    };
-    let commit = TableCommit {
-        ident,
-        requirements: payload.requirements,
-        updates: payload.updates,
-    };
-    let table = catalog.update_table(&sp, &wh, commit).await?;
-
-    Ok(Json(table.into()))
+    Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
+    Json(commit): Json<CommitTable>,
+) -> MetastoreAPIResult<Json<CommitTableResponse>> {
+    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    let table_updates = to_table_commit(commit);
+    let ib_table = state
+        .metastore
+        .update_table(&table_ident, table_updates)
+        .await
+        .map_err(MetastoreAPIError)?;
+    Ok(Json(CommitTableResponse::new(
+        ib_table.data.metadata_location,
+        ib_table.data.metadata,
+    )))
 }
 
-#[tracing::instrument(level = "debug", err, skip(state))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_table(
     State(state): State<AppState>,
-    Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
-) -> Result<Json<schemas::TableResult>, AppError> {
-    let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = state.catalog_svc;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::from_vec(
-            namespace_id
-                .split('.')
-                .map(String::from)
-                .collect::<Vec<String>>(),
-        )
-        .unwrap(),
-    };
-    let ident = TableIdent {
-        database: ident,
-        table: table_id,
-    };
-    let table = catalog.load_table(&ident).await?;
-
-    Ok(Json(table.into()))
+    Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
+) -> MetastoreAPIResult<Json<LoadTableResult>> {
+    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    let table = state
+        .metastore
+        .get_table(&table_ident)
+        .await
+        .map_err(|e: MetastoreError| MetastoreAPIError::from(e))?
+        .ok_or_else(|| {
+            MetastoreAPIError::from(MetastoreError::TableNotFound {
+                db: database_name.clone(),
+                schema: schema_name.clone(),
+                table: table_name.clone(),
+            })
+        })?;
+    Ok(Json(LoadTableResult::new(table.data.metadata)))
 }
 
-#[tracing::instrument(level = "debug", err, skip(state))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_table(
     State(state): State<AppState>,
-    Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
-) -> Result<StatusCode, AppError> {
-    let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = state.catalog_svc;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::from_vec(
-            namespace_id
-                .split('.')
-                .map(String::from)
-                .collect::<Vec<String>>(),
-        )
-        .unwrap(),
-    };
-    let ident = TableIdent {
-        database: ident,
-        table: table_id,
-    };
-    catalog.drop_table(&ident).await?;
-
+    Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
+) -> MetastoreAPIResult<StatusCode> {
+    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    state
+        .metastore
+        .delete_table(&table_ident, true)
+        .await
+        .map_err(MetastoreAPIError)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[tracing::instrument(level = "debug", err, skip(state))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_tables(
     State(state): State<AppState>,
-    Path((id, namespace_id)): Path<(Uuid, String)>,
-) -> Result<Json<schemas::TableListResponse>, AppError> {
-    let wh = state.control_svc.get_warehouse(id).await?;
-    let catalog = state.catalog_svc;
-    let ident = DatabaseIdent {
-        warehouse: WarehouseIdent::new(wh.id),
-        namespace: NamespaceIdent::from_vec(
-            namespace_id
-                .split('.')
-                .map(String::from)
-                .collect::<Vec<String>>(),
-        )
-        .unwrap(),
-    };
-    let tables = catalog.list_tables(&ident).await?;
-
-    Ok(Json(schemas::TableListResponse {
-        identifiers: tables.into_iter().map(Into::into).collect(),
-    }))
+    Path((database_name, schema_name)): Path<(String, String)>,
+) -> MetastoreAPIResult<Json<ListTablesResponse>> {
+    let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
+    let tables = state
+        .metastore
+        .list_tables(&schema_ident)
+        .await
+        .map_err(MetastoreAPIError)?;
+    Ok(Json(from_tables_list(tables)))
 }
 
-#[tracing::instrument(level = "debug", err, skip(_state))]
+#[tracing::instrument(level = "debug", skip(_state), err, ret(level = tracing::Level::TRACE))]
 pub async fn report_metrics(
     State(_state): State<AppState>,
-    Path((id, namespace_id, table_id)): Path<(Uuid, String, String)>,
-    Json(payload): Json<()>,
-) -> Result<(), AppError> {
-    //println!("add_table_metrics: {:?}", payload);
-    Ok(())
+    Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
+    Json(metrics): Json<Value>,
+) -> MetastoreAPIResult<StatusCode> {
+    tracing::info!(
+        "Received metrics for table {database_name}.{schema_name}.{table_name}: {:?}",
+        metrics
+    );
+    Ok(StatusCode::NO_CONTENT)
 }
 
-#[tracing::instrument(level = "debug", err, skip(state))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_config(
     State(state): State<AppState>,
-    Query(params): Query<schemas::GetConfigQueryParams>,
-) -> Result<Json<schemas::Config>, AppError> {
-    let wh_id = params.warehouse;
-    let mut ident: Option<WarehouseIdent> = None;
-    let mut sp: Option<StorageProfile> = None;
-    if let Some(value) = wh_id {
-        let wh = state.control_svc.get_warehouse(value).await?;
-        sp = Some(state.control_svc.get_profile(wh.storage_profile_id).await?);
-        ident = Some(WarehouseIdent::new(wh.id));
-    }
-
-    let config = state.catalog_svc.get_config(ident, sp).await?;
-
+    Query(params): Query<GetConfigQuery>,
+) -> MetastoreAPIResult<Json<CatalogConfig>> {
+    let catalog_url = state.config.iceberg_catalog_url.clone();
+    let config = CatalogConfig {
+        defaults: HashMap::new(),
+        overrides: HashMap::from([
+            ("uri".into(), format!("{catalog_url}/catalog")),
+            ("prefix".into(), params.warehouse.unwrap_or_default()),
+        ]),
+    };
     Ok(Json(config))
 }
 
 // only one endpoint is defined for the catalog implementation to work
 // we don't actually have functionality for views yet
-#[tracing::instrument(level = "debug", err, skip(_state))]
+#[tracing::instrument(level = "debug", skip(_state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_views(
     State(_state): State<AppState>,
-    Path((id, namespace_id)): Path<(Uuid, String)>,
-) -> Result<Json<schemas::TableListResponse>, AppError> {
-    Ok(Json(schemas::TableListResponse {
-        identifiers: vec![],
+    Path((database_name, schema_name)): Path<(String, String)>,
+) -> MetastoreAPIResult<Json<ListTablesResponse>> {
+    Ok(Json(ListTablesResponse {
+        next_page_token: None,
+        identifiers: None,
     }))
 }
