@@ -51,9 +51,9 @@ use uuid::Uuid;
 // For more info see issue #115
 const ARROW_IPC_ALIGNMENT: usize = 8;
 
-#[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(level = "debug", skip(_state, body), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
     body: Bytes,
 ) -> DbtResult<Json<LoginResponse>> {
@@ -70,23 +70,6 @@ pub async fn login(
 
     let token = Uuid::new_v4().to_string();
 
-    let warehouses = state
-        .metastore
-        .list_databases()
-        .await
-        .map_err(|e| DbtError::Metastore { source: e.into() })?;
-
-    debug!("login request query: {query:?}, databases: {warehouses:?}");
-    for warehouse in warehouses
-        .into_iter()
-        .filter(|w| w.ident == query.database_name)
-    {
-        // Save warehouse id and db name in state
-        state.dbt_sessions.lock().await.insert(
-            token.clone(),
-            format!("{}.{}", warehouse.ident, query.database_name),
-        );
-    }
     Ok(Json(LoginResponse {
         data: Option::from(LoginData { token }),
         success: true,
@@ -143,16 +126,9 @@ pub async fn query(
     let body_json: QueryRequestBody =
         serde_json::from_str(&s).context(dbt_error::QueryBodyParseSnafu)?;
 
-    let Some(token) = extract_token(&headers) else {
+    let Some(_token) = extract_token(&headers) else {
         return Err(DbtError::MissingAuthToken);
     };
-
-    let sessions = state.dbt_sessions.lock().await;
-    let Some(_auth_data) = sessions.get(token.as_str()) else {
-        return Err(DbtError::MissingDbtSession);
-    };
-
-    // let _ = log_query(&body_json.sql_text).await;
 
     let (records, columns) = state
         .execution_svc
