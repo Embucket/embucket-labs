@@ -33,8 +33,8 @@ futures = { workspace = true }
 geo-traits = { version = "0.2.0" }
 geo-types = { version = "0.7.15" }
 
-geoarrow = { version = "0.4.0-beta.4" }
-geodatafusion = { git = "https://github.com/geoarrow/geoarrow-rs.git", package = "geodatafusion" }
+geoarrow = { version = "0.4.0-beta.4"}
+geodatafusion = { git = "https://github.com/geoarrow/geoarrow-rs.git", package = "geodatafusion", rev = "rust-v0.4.0-beta.4" }
 geohash = { version = "0.13.1" }
 geozero = { version = "0.14.0" }
 http = "1.2.0"
