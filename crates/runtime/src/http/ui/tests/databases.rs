@@ -20,7 +20,7 @@
 use crate::http::error::ErrorResponse;
 use crate::http::ui::databases::models::{DatabasePayload, DatabaseResponse, DatabasesResponse};
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
-use crate::http::ui::volumes::models::{VolumePayload, VolumeResponse};
+use crate::http::ui::volumes::models::{Volume, VolumePayload, VolumeResponse};
 use crate::tests::run_icebucket_test_server;
 use icebucket_metastore::IceBucketVolumeType;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
@@ -36,10 +36,10 @@ async fn test_ui_databases_metastore_update_bug() {
         Op::Create,
         None,
         &Entity::Volume(VolumePayload {
-            data: IceBucketVolume {
+            data: Volume::from(IceBucketVolume {
                 ident: String::new(),
                 volume: IceBucketVolumeType::Memory,
-            },
+            }),
         }),
     )
     .await;
@@ -121,10 +121,10 @@ async fn test_ui_databases() {
         Op::Create,
         None,
         &Entity::Volume(VolumePayload {
-            data: IceBucketVolume {
+            data: Volume::from(IceBucketVolume {
                 ident: String::new(),
                 volume: IceBucketVolumeType::Memory,
-            },
+            }),
         }),
     )
     .await;
@@ -135,7 +135,7 @@ async fn test_ui_databases() {
         data: IceBucketDatabase {
             ident: String::new(),
             properties: None,
-            volume: volume.data.ident.clone(),
+            volume: volume.data.name.clone(),
         },
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;
@@ -156,7 +156,7 @@ async fn test_ui_databases() {
         data: IceBucketDatabase {
             ident: "test".to_string(),
             properties: None,
-            volume: volume.data.ident.clone(),
+            volume: volume.data.name.clone(),
         },
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;

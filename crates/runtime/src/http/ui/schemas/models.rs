@@ -15,26 +15,54 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_metastore::models::IceBucketSchema;
+use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
 use serde::{Deserialize, Serialize};
+use std::convert::From;
 use utoipa::ToSchema;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct Schema {
+    pub database: String,
+    pub schema: String,
+}
+
+impl From<IceBucketSchema> for Schema {
+    fn from(schema: IceBucketSchema) -> Self {
+        Schema {
+            schema: schema.ident.schema,
+            database: schema.ident.database,
+        }
+    }
+}
+
+impl Into<IceBucketSchema> for Schema {
+    fn into(self) -> IceBucketSchema {
+        IceBucketSchema {
+            ident: IceBucketSchemaIdent {
+                schema: self.schema,
+                database: self.database,
+            },
+            properties: None,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaPayload {
     #[serde(flatten)]
-    pub data: IceBucketSchema,
+    pub data: Schema,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaResponse {
     #[serde(flatten)]
-    pub data: IceBucketSchema,
+    pub data: Schema,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemasResponse {
-    pub items: Vec<IceBucketSchema>,
+    pub items: Vec<Schema>,
 }

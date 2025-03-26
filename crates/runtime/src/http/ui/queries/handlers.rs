@@ -18,7 +18,7 @@
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::queries::models::{
-    GetHistoryItemsParams, QueriesResponse, QueryPayload, QueryResponse,
+    ExecutionContext, GetHistoryItemsParams, QueriesResponse, QueryPayload, QueryResponse,
 };
 use crate::{
     execution::query::IceBucketQueryContext,
@@ -72,9 +72,11 @@ pub async fn query(
         .history
         .get_worksheet(worksheet_id)
         .await
-        .map_err(|e| QueriesAPIError::Query {  source: QueryError::Store { source: e } })?;
+        .map_err(|e| QueriesAPIError::Query {
+            source: QueryError::Store { source: e },
+        })?;
 
-    let query_context = IceBucketQueryContext {
+    let query_context = ExecutionContext {
         database: request
             .context
             .as_ref()
@@ -90,7 +92,9 @@ pub async fn query(
         .execution_svc
         .query_table(&session_id, worksheet, &request.query, query_context)
         .await
-        .map_err(|e| QueriesAPIError::Query { source: QueryError::Execution { source:e } })?;
+        .map_err(|e| QueriesAPIError::Query {
+            source: QueryError::Execution { source: e },
+        })?;
     let duration = start.elapsed();
     Ok(Json(QueryResponse {
         id,

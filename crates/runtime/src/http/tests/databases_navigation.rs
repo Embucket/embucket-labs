@@ -23,7 +23,7 @@ use crate::http::ui::queries::models::QueryPayload;
 use crate::http::ui::schemas::models::SchemaPayload;
 use crate::http::ui::tests::common::req;
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
-use crate::http::ui::volumes::models::{VolumePayload, VolumeResponse};
+use crate::http::ui::volumes::models::{Volume, VolumePayload, VolumeResponse};
 use crate::http::ui::worksheets::models::{WorksheetPayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
@@ -49,10 +49,10 @@ async fn test_ui_databases_navigation() {
         Op::Create,
         None,
         &Entity::Volume(VolumePayload {
-            data: IceBucketVolume {
+            data: Volume::from(IceBucketVolume {
                 ident: String::new(),
                 volume: IceBucketVolumeType::Memory,
-            },
+            }),
         }),
     )
     .await;
@@ -63,14 +63,14 @@ async fn test_ui_databases_navigation() {
         data: IceBucketDatabase {
             ident: "test1".to_string(),
             properties: None,
-            volume: volume.data.ident.clone(),
+            volume: volume.data.name.clone(),
         },
     };
     let expected2 = DatabasePayload {
         data: IceBucketDatabase {
             ident: "test2".to_string(),
             properties: None,
-            volume: volume.data.ident.clone(),
+            volume: volume.data.name.clone(),
         },
     };
     //2 DBs
@@ -92,7 +92,8 @@ async fn test_ui_databases_navigation() {
                 database: expected1.data.ident.clone(),
             },
             properties: None,
-        },
+        }
+        .into(),
     };
     //1 SCHEMA
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Schema(expected1.clone())).await;
@@ -134,8 +135,8 @@ async fn test_ui_databases_navigation() {
 	    DVCE_CREATED_TSTAMP TIMESTAMP_NTZ(9),
 	    EVENT TEXT,
 	    EVENT_ID TEXT);",
-        expected1.data.ident.database.clone(),
-        expected1.data.ident.schema.clone(),
+        expected1.data.database.clone(),
+        expected1.data.schema.clone(),
         "tested1"
     ));
 

@@ -17,7 +17,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
-use crate::http::ui::volumes::models::{VolumePayload, VolumeResponse};
+use crate::http::ui::volumes::models::{Volume, VolumePayload, VolumeResponse};
 use crate::tests::run_icebucket_test_server;
 use icebucket_metastore::IceBucketVolume;
 use icebucket_metastore::{
@@ -32,10 +32,10 @@ async fn test_ui_volumes_memory() {
 
     // memory volume with empty ident create Ok
     let expected = VolumePayload {
-        data: IceBucketVolume {
+        data: Volume::from(IceBucketVolume {
             ident: String::new(),
             volume: IceBucketVolumeType::Memory,
-        },
+        }),
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     assert_eq!(200, res.status());
@@ -50,12 +50,12 @@ async fn test_ui_volumes_file() {
 
     // memory volume with empty ident create Ok
     let expected = VolumePayload {
-        data: IceBucketVolume {
+        data: Volume::from(IceBucketVolume {
             ident: String::new(),
             volume: IceBucketVolumeType::File(IceBucketFileVolume {
                 path: "/tmp/data".to_string(),
             }),
-        },
+        }),
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     // let res = create_test_volume(addr, &expected).await;
@@ -71,7 +71,7 @@ async fn test_ui_volumes_s3() {
 
     // memory volume with empty ident create Ok
     let expected = VolumePayload {
-        data: IceBucketVolume {
+        data: Volume::from(IceBucketVolume {
             ident: String::new(),
             volume: IceBucketVolumeType::S3(IceBucketS3Volume {
                 region: Some("us-west-1".to_string()),
@@ -84,7 +84,7 @@ async fn test_ui_volumes_s3() {
                     aws_secret_access_key: "********".to_string(),
                 })),
             }),
-        },
+        }),
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     // let res = create_test_volume(addr, &expected).await;

@@ -30,7 +30,9 @@ pub type QueriesResult<T> = Result<T, QueriesAPIError>;
 #[snafu(visibility(pub(crate)))]
 pub enum QueryError {
     #[snafu(transparent)]
-    Execution { source: crate::execution::error::ExecutionError },
+    Execution {
+        source: crate::execution::error::ExecutionError,
+    },
     #[snafu(transparent)]
     Store { source: WorksheetsStoreError },
 }
@@ -48,19 +50,19 @@ pub enum QueriesAPIError {
 impl IntoStatusCode for QueriesAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::Query{ source } => match &source {
+            Self::Query { source } => match &source {
                 QueryError::Execution { .. } => StatusCode::UNPROCESSABLE_ENTITY,
                 QueryError::Store { source } => match &source {
                     WorksheetsStoreError::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
-                    _ => StatusCode::BAD_REQUEST,    
-                }
-            } ,
+                    _ => StatusCode::BAD_REQUEST,
+                },
+            },
             Self::Queries { source } => match &source {
                 WorksheetsStoreError::HistoryGet { .. }
                 | WorksheetsStoreError::WorksheetNotFound { .. }
                 | WorksheetsStoreError::BadKey { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
-            }
+            },
         }
     }
 }

@@ -76,7 +76,7 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
         Entity::Volume(vol) => match op {
             Op::Create | Op::List => format!("http://{addr}/ui/volumes"),
             Op::Delete | Op::Get | Op::Update => {
-                format!("http://{addr}/ui/volumes/{}", vol.data.ident)
+                format!("http://{addr}/ui/volumes/{}", vol.data.name)
             }
         },
         Entity::Database(db) => match op {
@@ -87,14 +87,11 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
         },
         Entity::Schema(sc) => match op {
             Op::Create | Op::List => {
-                format!(
-                    "http://{addr}/ui/databases/{}/schemas",
-                    sc.data.ident.database
-                )
+                format!("http://{addr}/ui/databases/{}/schemas", sc.data.database)
             }
             Op::Delete | Op::Get | Op::Update => format!(
                 "http://{addr}/ui/databases/{}/schemas/{}",
-                sc.data.ident.database, sc.data.ident.schema
+                sc.data.database, sc.data.schema
             ),
         },
     }

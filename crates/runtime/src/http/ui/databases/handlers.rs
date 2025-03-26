@@ -37,7 +37,7 @@ use validator::Validate;
         get_database,
         delete_database,
         list_databases,
-        update_database,
+        // update_database,
     ),
     components(
         schemas(

@@ -27,17 +27,18 @@ use axum::{
     Json,
 };
 use icebucket_metastore::error::MetastoreError;
+use icebucket_metastore::models::IceBucketVolume;
 use utoipa::OpenApi;
 use validator::Validate;
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        create_volume,
+        // create_volume,
         get_volume,
-        delete_volume,
+        // delete_volume,
         list_volumes,
-        update_volume,
+        // update_volume,
     ),
     components(
         schemas(
@@ -71,18 +72,22 @@ pub async fn create_volume(
     State(state): State<AppState>,
     Json(volume): Json<VolumePayload>,
 ) -> VolumesResult<Json<VolumeResponse>> {
-    volume
-        .data
+    let icebucket_volume: IceBucketVolume = volume.data.into();
+    icebucket_volume
         .validate()
         .map_err(|e| VolumesAPIError::Create {
             source: MetastoreError::Validation { source: e },
         })?;
     state
         .metastore
-        .create_volume(&volume.data.ident.clone(), volume.data)
+        .create_volume(&icebucket_volume.ident.clone(), icebucket_volume)
         .await
         .map_err(|e| VolumesAPIError::Create { source: e })
-        .map(|o| Json(VolumeResponse { data: o.data }))
+        .map(|o| {
+            Json(VolumeResponse {
+                data: o.data.into(),
+            })
+        })
 }
 
 #[utoipa::path(
@@ -105,7 +110,9 @@ pub async fn get_volume(
     Path(volume_name): Path<String>,
 ) -> VolumesResult<Json<VolumeResponse>> {
     match state.metastore.get_volume(&volume_name).await {
-        Ok(Some(volume)) => Ok(Json(VolumeResponse { data: volume.data })),
+        Ok(Some(volume)) => Ok(Json(VolumeResponse {
+            data: volume.data.into(),
+        })),
         Ok(None) => Err(VolumesAPIError::Get {
             source: MetastoreError::VolumeNotFound {
                 volume: volume_name.clone(),
@@ -163,18 +170,20 @@ pub async fn update_volume(
     Path(volume_name): Path<String>,
     Json(volume): Json<VolumePayload>,
 ) -> VolumesResult<Json<VolumeResponse>> {
-    volume
-        .data
-        .validate()
-        .map_err(|e| VolumesAPIError::Update {
-            source: MetastoreError::Validation { source: e },
-        })?;
+    let volume: IceBucketVolume = volume.data.into();
+    volume.validate().map_err(|e| VolumesAPIError::Update {
+        source: MetastoreError::Validation { source: e },
+    })?;
     state
         .metastore
-        .update_volume(&volume_name, volume.data)
+        .update_volume(&volume_name, volume)
         .await
         .map_err(|e| VolumesAPIError::Update { source: e })
-        .map(|o| Json(VolumeResponse { data: o.data }))
+        .map(|o| {
+            Json(VolumeResponse {
+                data: o.data.into(),
+            })
+        })
 }
 
 #[utoipa::path(
@@ -194,10 +203,9 @@ pub async fn list_volumes(State(state): State<AppState>) -> VolumesResult<Json<V
         .list_volumes()
         .await
         .map_err(|e| VolumesAPIError::List { source: e })
-        // TODO: use deref
         .map(|o| {
             Json(VolumesResponse {
-                items: o.iter().map(|x| x.data.clone()).collect(),
+                items: o.into_iter().map(|x| x.data.into()).collect(),
             })
         })
 }

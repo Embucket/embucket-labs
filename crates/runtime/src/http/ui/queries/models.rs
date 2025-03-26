@@ -21,6 +21,8 @@ use std::collections::HashMap;
 use utoipa::ToSchema;
 use validator::Validate;
 
+pub type ExecutionContext = crate::execution::query::IceBucketQueryContext;
+
 // Temporarily copied here
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
