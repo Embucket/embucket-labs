@@ -206,11 +206,11 @@ pub async fn delete_worksheet(
                             name: None,
                             content: Some("SELECT * from test;".into()),
                         })
-                    )),                    
+                    )),
                 )
             ),
         )
-    ),    
+    ),
     responses(
         (status = 200, description = "Worksheet updated", body = WorksheetResponse),
         (status = 400, description = "Bad request", body = ErrorResponse),

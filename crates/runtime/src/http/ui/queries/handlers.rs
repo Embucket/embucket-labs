@@ -30,9 +30,9 @@ use axum::{
 };
 use icebucket_history::{QueryHistoryId, QueryItem, WorksheetId};
 use icebucket_utils::iterable::IterableEntity;
+use std::collections::HashMap;
 use std::time::Instant;
 use utoipa::OpenApi;
-use std::collections::HashMap;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -66,7 +66,7 @@ pub struct ApiDoc;
                 )
             ),
         )
-    ),        
+    ),
     responses(
         (status = 200, description = "Returns result of the query", body = QueryResponse),
         (status = 404, description = "Worksheet not found", body = ErrorResponse),
