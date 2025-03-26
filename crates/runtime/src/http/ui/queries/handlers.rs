@@ -24,7 +24,7 @@ use crate::{
     execution::query::IceBucketQueryContext,
     http::{
         error::ErrorResponse,
-        ui::queries::error::{QueriesAPIError, QueriesResult},
+        ui::queries::error::{QueryError, QueriesAPIError, QueriesResult},
     },
 };
 use axum::{
@@ -72,7 +72,7 @@ pub async fn query(
         .history
         .get_worksheet(worksheet_id)
         .await
-        .map_err(|e| QueriesAPIError::QueryWorksheet { source: e })?;
+        .map_err(|e| QueriesAPIError::Query {  source: QueryError::Store { source: e } })?;
 
     let query_context = IceBucketQueryContext {
         database: request
@@ -90,7 +90,7 @@ pub async fn query(
         .execution_svc
         .query_table(&session_id, worksheet, &request.query, query_context)
         .await
-        .map_err(|e| QueriesAPIError::QueryExecution { source: e })?;
+        .map_err(|e| QueriesAPIError::Query { source: QueryError::Execution { source:e } })?;
     let duration = start.elapsed();
     Ok(Json(QueryResponse {
         id,
