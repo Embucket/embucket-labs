@@ -142,14 +142,21 @@ pub async fn get_table(
             });
         }
     }
-    let sql_string = format!("SELECT COUNT(*) AS total_rows FROM {database_name}.{schema_name}.{}", table_name.clone());
+    let sql_string = format!(
+        "SELECT COUNT(*) AS total_rows FROM {database_name}.{schema_name}.{}",
+        table_name.clone()
+    );
     let result = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
         .map_err(|e| TablesAPIError::Get { source: e })?;
     let total_rows = if let Some(batch) = result.0.first() {
-        if let Some(array) = batch.column(0).as_any().downcast_ref::<arrow::array::Int64Array>() {
+        if let Some(array) = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<arrow::array::Int64Array>()
+        {
             array.value(0)
         } else {
             0

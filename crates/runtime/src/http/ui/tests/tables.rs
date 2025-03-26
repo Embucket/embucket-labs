@@ -154,8 +154,8 @@ async fn test_ui_tables() {
         &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
         json!(query_payload).to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
     let res = req(
