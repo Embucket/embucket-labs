@@ -61,6 +61,10 @@ datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = 
 # issue #309
 chrono = { git = "https://github.com/chronotope/chrono.git", rev = "8b863490d88ba098038392c8aa930012ffd0c439" }
 
+# https://github.com/juhaku/utoipa/issues/1345
+utoipa = { git = "https://github.com/juhaku/utoipa.git", rev = "1d32f0524a8680d79537ae92aa9ced6ba9d2b630" }
+utoipa-swagger-ui = { git = "https://github.com/juhaku/utoipa.git", rev = "1d32f0524a8680d79537ae92aa9ced6ba9d2b630" }
+
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
 pedantic = { level = "warn", priority = 1 }

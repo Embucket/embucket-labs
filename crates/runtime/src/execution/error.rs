@@ -101,13 +101,3 @@ pub enum ExecutionError {
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
-
-impl IntoResponse for ExecutionError {
-    fn into_response(self) -> axum::response::Response {
-        let er = ErrorResponse {
-            message: self.to_string(),
-            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-        };
-        (http::StatusCode::INTERNAL_SERVER_ERROR, Json(er)).into_response()
-    }
-}
