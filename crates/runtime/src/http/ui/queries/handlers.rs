@@ -20,12 +20,9 @@ use crate::http::state::AppState;
 use crate::http::ui::queries::models::{
     ExecutionContext, GetHistoryItemsParams, QueriesResponse, QueryPayload, QueryResponse,
 };
-use crate::{
-    execution::query::IceBucketQueryContext,
-    http::{
-        error::ErrorResponse,
-        ui::queries::error::{QueryError, QueriesAPIError, QueriesResult},
-    },
+use crate::http::{
+    error::ErrorResponse,
+    ui::queries::error::{QueriesAPIError, QueriesResult, QueryError},
 };
 use axum::{
     extract::{Path, Query, State},

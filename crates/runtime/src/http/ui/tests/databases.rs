@@ -37,20 +37,20 @@ async fn test_ui_databases_metastore_update_bug() {
         None,
         &Entity::Volume(VolumePayload {
             data: Volume::from(IceBucketVolume {
-                ident: String::new(),
+                ident: String::from("t"),
                 volume: IceBucketVolumeType::Memory,
             }),
         }),
     )
     .await;
-    let volume = res.json::<DatabaseResponse>().await.unwrap();
+    let volume = res.json::<VolumeResponse>().await.unwrap();
 
     // Create database, Ok
     let expected = DatabasePayload {
         data: IceBucketDatabase {
             ident: "test".to_string(),
             properties: None,
-            volume: volume.data.ident.clone(),
+            volume: volume.data.name.clone(),
         },
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;
@@ -63,7 +63,7 @@ async fn test_ui_databases_metastore_update_bug() {
         data: IceBucketDatabase {
             ident: "new-test".to_string(),
             properties: None,
-            volume: volume.data.ident.clone(),
+            volume: volume.data.name.clone(),
         },
     };
     let res = ui_test_op(

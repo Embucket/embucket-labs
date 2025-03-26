@@ -72,9 +72,8 @@ impl IntoStatusCode for WorksheetsAPIError {
                     WorksheetsStoreError::BadKey { .. }
                     | WorksheetsStoreError::WorksheetUpdate { .. } => StatusCode::BAD_REQUEST,
                     WorksheetsStoreError::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
-                    _ => StatusCode::INTERNAL_SERVER_ERROR,                    
-                }
-
+                    _ => StatusCode::INTERNAL_SERVER_ERROR,
+                },
             },
             Self::List { source } => match &source {
                 WorksheetsStoreError::WorksheetsList { .. } => StatusCode::BAD_REQUEST,

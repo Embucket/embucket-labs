@@ -16,7 +16,7 @@
 // under the License.
 
 use icebucket_metastore::models::{
-    IceBucketFileVolume, IceBucketS3Volume, IceBucketVolume, IceBucketVolumeType, AwsCredentials,
+    AwsCredentials, IceBucketFileVolume, IceBucketS3Volume, IceBucketVolume, IceBucketVolumeType,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -28,7 +28,7 @@ pub struct S3Volume {
     pub endpoint: Option<String>,
     pub skip_signature: Option<bool>,
     pub metadata_endpoint: Option<String>,
-    pub credentials: Option<AwsCredentials>,    
+    pub credentials: Option<AwsCredentials>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
@@ -55,7 +55,7 @@ impl From<IceBucketVolume> for Volume {
         Self {
             name: volume.ident,
             volume: match volume.volume {
-                IceBucketVolumeType::S3(volume) => VolumeType::S3(S3Volume { 
+                IceBucketVolumeType::S3(volume) => VolumeType::S3(S3Volume {
                     region: volume.region,
                     bucket: volume.bucket,
                     endpoint: volume.endpoint,

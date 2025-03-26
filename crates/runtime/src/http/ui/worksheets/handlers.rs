@@ -18,17 +18,17 @@
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use crate::http::ui::worksheets::{
-    error::{WorksheetsAPIError, WorksheetUpdateError, WorksheetsResult},
-    WorksheetCreatePayload, WorksheetUpdatePayload, WorksheetResponse, WorksheetsResponse,
+    error::{WorksheetUpdateError, WorksheetsAPIError, WorksheetsResult},
+    WorksheetCreatePayload, WorksheetResponse, WorksheetUpdatePayload, WorksheetsResponse,
 };
 use axum::{
     extract::{Path, State},
     Json,
 };
+use chrono::Utc;
 use icebucket_history::{Worksheet, WorksheetId};
 use tracing;
 use utoipa::OpenApi;
-use chrono::Utc;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -39,7 +39,13 @@ use chrono::Utc;
         delete_worksheet,
         update_worksheet,
     ),
-    components(schemas(ErrorResponse, WorksheetCreatePayload, WorksheetUpdatePayload, WorksheetResponse, WorksheetsResponse,))
+    components(schemas(
+        ErrorResponse,
+        WorksheetCreatePayload,
+        WorksheetUpdatePayload,
+        WorksheetResponse,
+        WorksheetsResponse,
+    ))
 )]
 pub struct ApiDoc;
 
@@ -117,7 +123,7 @@ pub async fn create_worksheet(
         .add_worksheet(request)
         .await
         .map_err(|e| WorksheetsAPIError::Create { source: e })?;
-    Ok(Json(WorksheetResponse { data: worksheet } ))
+    Ok(Json(WorksheetResponse { data: worksheet }))
 }
 
 #[utoipa::path(
@@ -199,7 +205,9 @@ pub async fn update_worksheet(
     Json(payload): Json<WorksheetUpdatePayload>,
 ) -> WorksheetsResult<()> {
     if payload.name.is_none() && payload.content.is_none() {
-        return Err(WorksheetsAPIError::Update { source: WorksheetUpdateError::NothingToUpdate })
+        return Err(WorksheetsAPIError::Update {
+            source: WorksheetUpdateError::NothingToUpdate,
+        });
     }
 
     let mut worksheet = state
@@ -207,7 +215,7 @@ pub async fn update_worksheet(
         .get_worksheet(worksheet_id)
         .await
         .map_err(|e| WorksheetsAPIError::Update {
-            source: WorksheetUpdateError::Store { source: e }
+            source: WorksheetUpdateError::Store { source: e },
         })?;
 
     if let Some(name) = payload.name {
@@ -223,6 +231,6 @@ pub async fn update_worksheet(
         .update_worksheet(worksheet)
         .await
         .map_err(|e| WorksheetsAPIError::Update {
-            source: WorksheetUpdateError::Store { source: e }
+            source: WorksheetUpdateError::Store { source: e },
         })
 }

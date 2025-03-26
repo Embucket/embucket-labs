@@ -19,7 +19,9 @@
 
 use crate::http::error::ErrorResponse;
 use crate::http::ui::tests::common::req;
-use crate::http::ui::worksheets::{WorksheetCreatePayload, WorksheetUpdatePayload, WorksheetResponse, WorksheetsResponse};
+use crate::http::ui::worksheets::{
+    WorksheetCreatePayload, WorksheetResponse, WorksheetUpdatePayload, WorksheetsResponse,
+};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
 use serde_json::json;
@@ -55,7 +57,7 @@ async fn test_ui_worksheets() {
     assert_eq!(http::StatusCode::OK, res.status());
     let worksheet1 = res.json::<WorksheetResponse>().await.unwrap().data;
     assert!(worksheet1.id > 0);
-    assert!(!worksheet.name.is_empty()); // test behavior: name based on time
+    assert!(!worksheet1.name.is_empty()); // test behavior: name based on time
 
     let create_payload = WorksheetCreatePayload {
         name: "test".to_string(),
@@ -66,8 +68,7 @@ async fn test_ui_worksheets() {
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets"),
-        json!(create_payload)
-        .to_string(),
+        json!(create_payload).to_string(),
     )
     .await
     .unwrap();
