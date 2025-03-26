@@ -70,6 +70,8 @@ impl From<IceBucketVolume> for Volume {
     }
 }
 
+// TODO: Remove it when found why it can't locate .into() if only From trait implemeted
+#[allow(clippy::from_over_into)]
 impl Into<IceBucketVolume> for Volume {
     fn into(self) -> IceBucketVolume {
         IceBucketVolume {

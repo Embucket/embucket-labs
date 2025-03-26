@@ -32,6 +32,7 @@ use icebucket_history::{QueryHistoryId, QueryItem, WorksheetId};
 use icebucket_utils::iterable::IterableEntity;
 use std::time::Instant;
 use utoipa::OpenApi;
+use std::collections::HashMap;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -43,12 +44,29 @@ pub struct ApiDoc;
 #[utoipa::path(
     post,
     path = "/worksheets/{worksheet_id}/queries",
-    request_body = QueryPayload,
     operation_id = "createQuery",
     tags = ["queries"],
     params(
         ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
     ),
+    request_body(
+        content(
+            (
+                QueryPayload = "application/json", 
+                examples (
+                    ("with context" = (
+                        value = json!(QueryPayload {
+                            query: "CREATE TABLE test(a INT);".to_string(),
+                            context: Some(HashMap::from([
+                                ("database".to_string(), "my_database".to_string()),
+                                ("schema".to_string(), "public".to_string()),
+                            ])),
+                        })
+                    )),
+                )
+            ),
+        )
+    ),        
     responses(
         (status = 200, description = "Returns result of the query", body = QueryResponse),
         (status = 404, description = "Worksheet not found", body = ErrorResponse),

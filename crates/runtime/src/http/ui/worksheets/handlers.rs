@@ -190,6 +190,27 @@ pub async fn delete_worksheet(
     params(
         ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
     ),
+    request_body(
+        content(
+            (
+                WorksheetUpdatePayload = "application/json", 
+                examples (
+                    ("rename" = (
+                        value = json!(WorksheetUpdatePayload {
+                            name: Some("new-worksheet".into()),
+                            content: None,
+                        })
+                    )),
+                    ("update content" = (
+                        value = json!(WorksheetUpdatePayload {
+                            name: None,
+                            content: Some("SELECT * from test;".into()),
+                        })
+                    )),                    
+                )
+            ),
+        )
+    ),    
     responses(
         (status = 200, description = "Worksheet updated", body = WorksheetResponse),
         (status = 400, description = "Bad request", body = ErrorResponse),

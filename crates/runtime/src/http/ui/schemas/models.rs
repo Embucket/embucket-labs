@@ -35,6 +35,8 @@ impl From<IceBucketSchema> for Schema {
     }
 }
 
+// TODO: Remove it when found why it can't locate .into() if only From trait implemeted
+#[allow(clippy::from_over_into)]
 impl Into<IceBucketSchema> for Schema {
     fn into(self) -> IceBucketSchema {
         IceBucketSchema {
