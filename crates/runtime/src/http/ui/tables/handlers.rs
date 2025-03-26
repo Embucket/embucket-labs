@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use arrow_array::Array;
 use crate::http::state::AppState;
 use crate::http::error::ErrorResponse;
 use axum::{
@@ -124,21 +125,34 @@ pub async fn get_table(
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
     };
-    let sql_string = format!("SELECT * FROM {}.{}.{} LIMIT 1", database_name, schema_name, table_name);
+    let sql_string = format!("SELECT column_name, data_type FROM datafusion.information_schema.columns WHERE table_name = '{}'", table_name);
     let result = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
         .map_err(|e| TablesAPIError::Get { source: e})?;
     let mut columns: Vec<TableColumn> = vec![];
-    for rb in result.0 {
-        for field in rb.schema().fields() {
+    for batch in result.0 {
+        let column_name_array = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<arrow::array::StringArray>()
+            .unwrap();
+        let data_type_array = batch
+            .column(1)
+            .as_any()
+            .downcast_ref::<arrow::array::StringArray>()
+            .unwrap();
+
+        // Iterate over each record
+        for i in 0..batch.num_rows() {
             columns.push(TableColumn {
-                name: field.name().to_string(),
-                r#type: field.data_type().to_string(),
-            })
+                name: column_name_array.value(i).to_string(),
+                r#type: data_type_array.value(i).to_string(),
+            });
         }
     }
+
     Ok(Json(GetTableResponse {
         data: columns,
     }))

@@ -20,4 +20,4 @@ pub mod databases;
 pub mod queries;
 pub mod volumes;
 pub mod worksheets;
-mod tables;
+pub mod tables;
