@@ -25,6 +25,7 @@ pub mod queries;
 pub mod schemas;
 pub mod volumes;
 pub mod worksheets;
+pub mod tables;
 
 #[cfg(test)]
 pub mod tests;

@@ -19,7 +19,7 @@ use crate::http::state::AppState;
 use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
-    ui::volumes::errors::{VolumesAPIError, VolumesResult},
+    ui::volumes::error::{VolumesAPIError, VolumesResult},
     ui::volumes::models::{VolumePayload, VolumeResponse, VolumesResponse},
 };
 use axum::{

@@ -21,48 +21,43 @@ use axum::Json;
 use http::StatusCode;
 use icebucket_metastore::error::MetastoreError;
 use snafu::prelude::*;
+use crate::http::ui::error::IntoStatusCode;
 
-pub type VolumesResult<T> = Result<T, VolumesAPIError>;
+pub type SchemasResult<T> = Result<T, SchemasAPIError>;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
-pub enum VolumesAPIError {
-    #[snafu(display("Create volumes error: {source}"))]
+pub enum SchemasAPIError {
+    #[snafu(display("Create schema error: {source}"))]
     Create { source: MetastoreError },
-    #[snafu(display("Get volume error: {source}"))]
+    #[snafu(display("Get schema error: {source}"))]
     Get { source: MetastoreError },
-    #[snafu(display("Delete volume error: {source}"))]
+    #[snafu(display("Delete schema error: {source}"))]
     Delete { source: MetastoreError },
-    #[snafu(display("Update volume error: {source}"))]
+    #[snafu(display("Update schema error: {source}"))]
     Update { source: MetastoreError },
-    #[snafu(display("Get volume error: {source}"))]
+    #[snafu(display("Get schemas error: {source}"))]
     List { source: MetastoreError },
 }
 
-trait IntoStatusCode {
-    fn status_code(&self) -> StatusCode;
-}
-
 // Select which status code to return.
-impl IntoStatusCode for VolumesAPIError {
+impl IntoStatusCode for SchemasAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Create { source } => match &source {
-                MetastoreError::VolumeAlreadyExists { .. }
+                MetastoreError::SchemaAlreadyExists { .. }
                 | MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
-                MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
+                MetastoreError::DatabaseNotFound { .. } | MetastoreError::Validation { .. } => {
+                    StatusCode::BAD_REQUEST
+                }
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Get { source } | Self::Delete { source } => match &source {
-                MetastoreError::UtilSlateDB { .. } | MetastoreError::ObjectNotFound { .. } => {
-                    StatusCode::NOT_FOUND
-                }
+                MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Update { source } => match &source {
-                MetastoreError::ObjectNotFound { .. } | MetastoreError::VolumeNotFound { .. } => {
-                    StatusCode::NOT_FOUND
-                }
+                MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
                 MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
@@ -72,7 +67,7 @@ impl IntoStatusCode for VolumesAPIError {
 }
 
 // generic
-impl IntoResponse for VolumesAPIError {
+impl IntoResponse for SchemasAPIError {
     fn into_response(self) -> axum::response::Response {
         let code = self.status_code();
         let error = ErrorResponse {

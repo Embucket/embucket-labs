@@ -18,7 +18,7 @@
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use crate::http::ui::worksheets::{
-    errors::{WorksheetsAPIError, WorksheetsResult},
+    error::{WorksheetsAPIError, WorksheetsResult},
     WorksheetPayload, WorksheetResponse, WorksheetsResponse,
 };
 use axum::{

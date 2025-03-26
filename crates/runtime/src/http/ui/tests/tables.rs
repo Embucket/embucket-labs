@@ -15,6 +15,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod error;
-pub mod handlers;
-pub mod models;
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
+use crate::http::error::ErrorResponse;
+use crate::http::ui::databases::models::{DatabasePayload, DatabaseResponse, DatabasesResponse};
+use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
+use crate::http::ui::volumes::models::{VolumePayload, VolumeResponse};
+use crate::http::ui::tables::models::{TableColumn, GetTableResponse};
+use crate::tests::run_icebucket_test_server;
+use icebucket_metastore::IceBucketVolumeType;
+use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)]
+async fn test_ui_tables() {
+
+}

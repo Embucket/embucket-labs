@@ -41,6 +41,7 @@ use crate::http::ui::queries::handlers::ApiDoc as QueryApiDoc;
 use crate::http::ui::schemas::handlers::ApiDoc as SchemasApiDoc;
 use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
+use crate::http::ui::tables::handlers::ApiDoc as TableApiDoc;
 
 use crate::http::state::AppState;
 use crate::http::ui::handlers::databases_navigation::get_databases_navigation;
@@ -49,6 +50,7 @@ use axum::routing::{delete, get, post};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
+use crate::http::ui::tables::handlers::get_table;
 
 #[derive(OpenApi)]
 #[openapi(info(
@@ -75,8 +77,8 @@ pub fn ui_open_api_spec() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
         .merge_from(VolumesApiDoc::openapi())
         .merge_from(DatabasesApiDoc::openapi())
-        // .merge_from(TableApiDoc::openapi())
         .merge_from(SchemasApiDoc::openapi())
+        .merge_from(TableApiDoc::openapi())
         .merge_from(WorksheetsApiDoc::openapi())
         .merge_from(QueryApiDoc::openapi())
         .merge_from(DatabasesNavigationApiDoc::openapi())
@@ -109,10 +111,7 @@ pub fn create_router() -> Router<AppState> {
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables",
         //     post(create_table),
         // )
-        // .route(
-        //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}",
-        //     get(get_table).delete(delete_table),
-        // )
+        .route("/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}", get(get_table))
         .route("/worksheets", get(worksheets).post(create_worksheet))
         .route(
             "/worksheets/{worksheet_id}",

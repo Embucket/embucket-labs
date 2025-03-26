@@ -17,6 +17,7 @@
 
 use crate::http::metastore::error::MetastoreAPIError;
 use axum::response::{IntoResponse, Response};
+use http::StatusCode;
 use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
@@ -32,6 +33,10 @@ pub enum UIError {
     },
 }
 pub type UIResult<T> = Result<T, UIError>;
+
+pub(crate) trait IntoStatusCode {
+    fn status_code(&self) -> StatusCode;
+}
 
 impl IntoResponse for UIError {
     fn into_response(self) -> Response<axum::body::Body> {

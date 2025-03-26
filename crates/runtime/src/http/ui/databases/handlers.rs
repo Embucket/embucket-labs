@@ -19,7 +19,7 @@ use crate::http::state::AppState;
 use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
-    ui::databases::errors::{DatabasesAPIError, DatabasesResult},
+    ui::databases::error::{DatabasesAPIError, DatabasesResult},
     ui::databases::models::{DatabasePayload, DatabaseResponse, DatabasesResponse},
 };
 use axum::{

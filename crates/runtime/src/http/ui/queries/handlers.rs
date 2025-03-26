@@ -24,7 +24,7 @@ use crate::{
     execution::query::IceBucketQueryContext,
     http::{
         error::ErrorResponse,
-        ui::queries::errors::{QueriesAPIError, QueriesResult},
+        ui::queries::error::{QueriesAPIError, QueriesResult},
     },
 };
 use axum::{
