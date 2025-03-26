@@ -18,9 +18,10 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::ui::databases::models::DatabasePayload;
+use crate::http::ui::error::UIResponse;
 use crate::http::ui::queries::models::QueryPayload;
 use crate::http::ui::schemas::models::SchemaPayload;
-use crate::http::ui::tables::models::GetTableResponse;
+use crate::http::ui::tables::models::GetTable;
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::VolumePayload;
 use crate::http::ui::worksheets::{WorksheetPayload, WorksheetResponse};
@@ -154,6 +155,6 @@ async fn test_ui_tables() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let table: GetTableResponse = res.json().await.unwrap();
-    assert_eq!(7, table.data.len());
+    let table: UIResponse<GetTable> = res.json().await.unwrap();
+    assert_eq!(7, table.data.columns.len());
 }

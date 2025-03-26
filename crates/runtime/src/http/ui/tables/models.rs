@@ -28,8 +28,9 @@ use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct GetTableResponse {
-    pub(crate) data: Vec<TableColumn>,
+pub struct GetTable {
+    pub(crate) name: String,
+    pub(crate) columns: Vec<TableColumn>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

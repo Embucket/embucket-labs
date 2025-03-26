@@ -19,8 +19,9 @@ use crate::execution::query::IceBucketQueryContext;
 use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
+use crate::http::ui::error::UIResponse;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
-use crate::http::ui::tables::models::{GetTableResponse, TableColumn};
+use crate::http::ui::tables::models::{GetTable, TableColumn};
 use arrow_array::Array;
 use axum::{
     extract::{Path, State},
@@ -35,7 +36,7 @@ use utoipa::OpenApi;
     ),
     components(
         schemas(
-            GetTableResponse,
+            GetTable,
             ErrorResponse,
         )
     ),
@@ -97,7 +98,7 @@ pub struct ApiDoc;
     operation_id = "getTable",
     tags = ["tables"],
     responses(
-        (status = 200, description = "Successful Response", body = GetTableResponse),
+        (status = 200, description = "Successful Response", body = UIResponse<GetTable>),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -108,7 +109,7 @@ pub async fn get_table(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> TablesResult<Json<GetTableResponse>> {
+) -> TablesResult<Json<UIResponse<GetTable>>> {
     let context = IceBucketQueryContext {
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
@@ -141,7 +142,10 @@ pub async fn get_table(
         }
     }
 
-    Ok(Json(GetTableResponse { data: columns }))
+    Ok(UIResponse::from(GetTable {
+        name: table_name,
+        columns,
+    }))
 }
 
 // #[utoipa::path(
