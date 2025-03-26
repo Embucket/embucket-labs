@@ -24,7 +24,7 @@ use crate::http::ui::schemas::models::SchemaPayload;
 use crate::http::ui::tests::common::req;
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumePayload, VolumeResponse};
-use crate::http::ui::worksheets::models::{WorksheetPayload, WorksheetResponse};
+use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
@@ -111,9 +111,9 @@ async fn test_ui_databases_navigation() {
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets"),
-        json!(WorksheetPayload {
-            name: Some("test".to_string()),
-            content: None,
+        json!(WorksheetCreatePayload {
+            name: "test".to_string(),
+            content: String::new(),
         })
         .to_string(),
     )

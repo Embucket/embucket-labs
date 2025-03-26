@@ -27,7 +27,7 @@ pub struct Database {
 
 impl From<IceBucketDatabase> for Database {
     fn from(db: IceBucketDatabase) -> Self {
-        Database {
+        Self {
             database: db.ident,
             volume: db.volume,
         }

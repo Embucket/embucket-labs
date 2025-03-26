@@ -55,18 +55,7 @@ pub async fn req(
         .send()
         .await;
 
-    if let Ok(res) = &res {
-        match res.error_for_status_ref() {
-            Ok(res) => {
-                eprintln!("res: {res:?}");
-            }
-            Err(err) => {
-                eprintln!("err: {err:?}");
-            }
-        }
-    } else if let Err(err) = &res {
-        eprintln!("req: {method} {url}, error: {err:?}");
-    }
+    eprintln!("req: {method} {url}, {res:?}");
 
     res
 }

@@ -108,8 +108,6 @@ pub async fn query(
 #[utoipa::path(
     get,
     path = "/worksheets/{worksheet_id}/queries",
-    // params(("cursor" = String, description = "Cursor")),
-    // params(("limit" = u16, description = "Limit")),
     operation_id = "getQueries",
     tags = ["queries"],
     params(

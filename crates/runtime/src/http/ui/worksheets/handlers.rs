@@ -18,8 +18,8 @@
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use crate::http::ui::worksheets::{
-    error::{WorksheetsAPIError, WorksheetsResult},
-    WorksheetPayload, WorksheetResponse, WorksheetsResponse,
+    error::{WorksheetsAPIError, WorksheetUpdateError, WorksheetsResult},
+    WorksheetCreatePayload, WorksheetUpdatePayload, WorksheetResponse, WorksheetsResponse,
 };
 use axum::{
     extract::{Path, State},
@@ -28,6 +28,7 @@ use axum::{
 use icebucket_history::{Worksheet, WorksheetId};
 use tracing;
 use utoipa::OpenApi;
+use chrono::Utc;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -38,7 +39,7 @@ use utoipa::OpenApi;
         delete_worksheet,
         update_worksheet,
     ),
-    components(schemas(ErrorResponse, WorksheetPayload, WorksheetResponse, WorksheetsResponse,))
+    components(schemas(ErrorResponse, WorksheetCreatePayload, WorksheetUpdatePayload, WorksheetResponse, WorksheetsResponse,))
 )]
 pub struct ApiDoc;
 
@@ -74,24 +75,18 @@ pub async fn worksheets(
     request_body(
         content(
             (
-                WorksheetPayload = "application/json", 
+                WorksheetCreatePayload = "application/json", 
                 examples (
                     ("with name" = (
-                        value = json!(WorksheetPayload {
-                            name: Some("worksheet1".to_string()), 
-                            content: Some("select 1".to_string()),
+                        value = json!(WorksheetCreatePayload {
+                            name: "worksheet1".to_string(), 
+                            content: "select 1".to_string(),
                         })
                     )),
-                    ("content only" = (
-                        value = json!(WorksheetPayload {
-                            name: None,
-                            content: Some("select 1".to_string()),
-                        })
-                    )),
-                    ("empty" = (
-                        value = json!(WorksheetPayload {
-                            name: None,
-                            content: None,
+                    ("empty name" = (
+                        value = json!(WorksheetCreatePayload {
+                            name: String::new(),
+                            content: "select 1".to_string(),
                         })
                     )),
                 )
@@ -101,6 +96,7 @@ pub async fn worksheets(
     responses(
         (status = 200, description = "Created worksheet", body = WorksheetResponse),
         (status = 409, description = "Already Exists", body = ErrorResponse),
+        (status = 422, description = "Unprocessable Entity"), // Failed to deserialize payload
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
@@ -108,15 +104,20 @@ pub async fn worksheets(
 // Add time sql took
 pub async fn create_worksheet(
     State(state): State<AppState>,
-    Json(payload): Json<WorksheetPayload>,
+    Json(payload): Json<WorksheetCreatePayload>,
 ) -> WorksheetsResult<Json<WorksheetResponse>> {
-    let request = Worksheet::new(payload.content);
+    let name = if payload.name.is_empty() {
+        Utc::now().to_string()
+    } else {
+        payload.name
+    };
+    let request = Worksheet::new(name, payload.content);
     let worksheet = state
         .history
         .add_worksheet(request)
         .await
         .map_err(|e| WorksheetsAPIError::Create { source: e })?;
-    Ok(Json(WorksheetResponse { data: worksheet }))
+    Ok(Json(WorksheetResponse { data: worksheet } ))
 }
 
 #[utoipa::path(
@@ -195,13 +196,19 @@ pub async fn delete_worksheet(
 pub async fn update_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
-    Json(payload): Json<WorksheetPayload>,
+    Json(payload): Json<WorksheetUpdatePayload>,
 ) -> WorksheetsResult<()> {
+    if payload.name.is_none() && payload.content.is_none() {
+        return Err(WorksheetsAPIError::Update { source: WorksheetUpdateError::NothingToUpdate })
+    }
+
     let mut worksheet = state
         .history
         .get_worksheet(worksheet_id)
         .await
-        .map_err(|e| WorksheetsAPIError::Update { source: e })?;
+        .map_err(|e| WorksheetsAPIError::Update {
+            source: WorksheetUpdateError::Store { source: e }
+        })?;
 
     if let Some(name) = payload.name {
         worksheet.set_name(name);
@@ -215,5 +222,7 @@ pub async fn update_worksheet(
         .history
         .update_worksheet(worksheet)
         .await
-        .map_err(|e| WorksheetsAPIError::Update { source: e })
+        .map_err(|e| WorksheetsAPIError::Update {
+            source: WorksheetUpdateError::Store { source: e }
+        })
 }

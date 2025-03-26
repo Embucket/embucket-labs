@@ -200,7 +200,7 @@ mod tests {
         let db = SlateDBWorksheetsStore::new_in_memory().await;
 
         // create worksheet first
-        let worksheet = Worksheet::new(Some(String::new()));
+        let worksheet = Worksheet::new(String::new(), String::new());
 
         let n: u16 = 2;
         let mut created: Vec<QueryItem> = vec![];

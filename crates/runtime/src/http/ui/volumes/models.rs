@@ -52,7 +52,7 @@ pub struct Volume {
 
 impl From<IceBucketVolume> for Volume {
     fn from(volume: IceBucketVolume) -> Self {
-        Volume {
+        Self {
             name: volume.ident,
             volume: match volume.volume {
                 IceBucketVolumeType::S3(volume) => VolumeType::S3(S3Volume { 

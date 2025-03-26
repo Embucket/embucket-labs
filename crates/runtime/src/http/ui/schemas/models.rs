@@ -28,7 +28,7 @@ pub struct Schema {
 
 impl From<IceBucketSchema> for Schema {
     fn from(schema: IceBucketSchema) -> Self {
-        Schema {
+        Self {
             schema: schema.ident.schema,
             database: schema.ident.database,
         }

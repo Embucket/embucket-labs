@@ -20,7 +20,7 @@
 use crate::http::error::ErrorResponse;
 use crate::http::ui::queries::models::{QueriesResponse, QueryPayload, QueryResponse};
 use crate::http::ui::tests::common::req;
-use crate::http::ui::worksheets::models::{WorksheetPayload, WorksheetResponse};
+use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
 use icebucket_history::QueryStatus;
@@ -36,9 +36,9 @@ async fn test_ui_queries() {
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets"),
-        json!(WorksheetPayload {
-            name: None,
-            content: None,
+        json!(WorksheetCreatePayload {
+            name: String::new(),
+            content: String::new(),
         })
         .to_string(),
     )
