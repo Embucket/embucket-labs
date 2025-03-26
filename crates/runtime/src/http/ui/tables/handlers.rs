@@ -121,8 +121,8 @@ pub async fn get_table(
     //     Err(e) => Err(e.into()),
     // }
     let context = IceBucketQueryContext {
-        database: Some(database_name),
-        schema: Some(schema_name),
+        database: Some(database_name.clone()),
+        schema: Some(schema_name.clone()),
     };
     let sql_string = format!("SELECT * FROM {}.{}.{} LIMIT 1", database_name, schema_name, table_name);
     let result = state
