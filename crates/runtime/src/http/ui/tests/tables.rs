@@ -17,19 +17,19 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::collections::HashMap;
-use http::Method;
-use serde_json::json;
-use crate::http::ui::databases::models::{DatabasePayload};
-use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
-use crate::http::ui::volumes::models::{VolumePayload};
-use crate::http::ui::tables::models::{GetTableResponse};
-use crate::tests::run_icebucket_test_server;
-use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketVolumeType};
-use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
+use crate::http::ui::databases::models::DatabasePayload;
 use crate::http::ui::queries::models::QueryPayload;
 use crate::http::ui::schemas::models::SchemaPayload;
+use crate::http::ui::tables::models::GetTableResponse;
+use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
+use crate::http::ui::volumes::models::VolumePayload;
 use crate::http::ui::worksheets::{WorksheetPayload, WorksheetResponse};
+use crate::tests::run_icebucket_test_server;
+use http::Method;
+use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
+use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketVolumeType};
+use serde_json::json;
+use std::collections::HashMap;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -46,10 +46,10 @@ async fn test_ui_tables() {
             data: IceBucketVolume {
                 ident: String::new(),
                 volume: IceBucketVolumeType::Memory,
-            }
+            },
         }),
     )
-        .await;
+    .await;
     let volume: IceBucketVolume = res.json().await.unwrap();
 
     let database_name = "test1".to_string();
@@ -59,14 +59,23 @@ async fn test_ui_tables() {
         properties: None,
         volume: volume.ident.clone(),
     };
-    let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(DatabasePayload {
-        data: expected1.clone(),
-    })).await;
+    let _res = ui_test_op(
+        addr,
+        Op::Create,
+        None,
+        &Entity::Database(DatabasePayload {
+            data: expected1.clone(),
+        }),
+    )
+    .await;
 
     let schema_name = "testing1".to_string();
 
     let schema_expected1 = IceBucketSchema {
-        ident: IceBucketSchemaIdent { schema: schema_name.clone(), database: database_name.clone() },
+        ident: IceBucketSchemaIdent {
+            schema: schema_name.clone(),
+            database: database_name.clone(),
+        },
         properties: Some(HashMap::new()),
     };
 
@@ -82,11 +91,11 @@ async fn test_ui_tables() {
             "http://{addr}/ui/databases/{}/schemas",
             database_name.clone()
         )
-            .to_string(),
+        .to_string(),
         json!(payload).to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
     let res = req(
@@ -97,10 +106,10 @@ async fn test_ui_tables() {
             name: Some("test".to_string()),
             content: None,
         })
-            .to_string(),
+        .to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
 
@@ -128,13 +137,22 @@ async fn test_ui_tables() {
         &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
         json!(query_payload).to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
-    let res = req(&client, Method::GET, &format!("http://{addr}/ui/databases/{}/schemas/{}/tables/tested1", database_name.clone(), schema_name.clone()), String::new())
-        .await
-        .unwrap();
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1",
+            database_name.clone(),
+            schema_name.clone()
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let table: GetTableResponse = res.json().await.unwrap();
     assert_eq!(7, table.data.len());

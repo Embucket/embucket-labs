@@ -18,6 +18,6 @@
 pub mod common;
 pub mod databases;
 pub mod queries;
+pub mod tables;
 pub mod volumes;
 pub mod worksheets;
-pub mod tables;

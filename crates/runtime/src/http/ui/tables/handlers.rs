@@ -15,18 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use arrow_array::Array;
-use crate::http::state::AppState;
+use crate::execution::query::IceBucketQueryContext;
 use crate::http::error::ErrorResponse;
+use crate::http::session::DFSessionId;
+use crate::http::state::AppState;
+use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
+use crate::http::ui::tables::models::{GetTableResponse, TableColumn};
+use arrow_array::Array;
 use axum::{
     extract::{Path, State},
     Json,
 };
 use utoipa::OpenApi;
-use crate::execution::query::IceBucketQueryContext;
-use crate::http::session::DFSessionId;
-use crate::http::ui::tables::error::{TablesResult, TablesAPIError};
-use crate::http::ui::tables::models::{TableColumn, GetTableResponse};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -103,34 +103,22 @@ pub struct ApiDoc;
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[allow(clippy::unwrap_used)]
 pub async fn get_table(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> TablesResult<Json<GetTableResponse>> {
-    // let schema_ident = IceBucketSchemaIdent {
-    //     database: database_name.clone(),
-    //     schema: schema_name.clone(),
-    // };
-    // match state.metastore.get_schema(&schema_ident).await {
-    //     Ok(Some(schema)) => Ok(Json(schema.data)),
-    //     Ok(None) => Err(MetastoreError::SchemaNotFound {
-    //         db: database_name.clone(),
-    //         schema: schema_name.clone(),
-    //     }
-    //         .into()),
-    //     Err(e) => Err(e.into()),
-    // }
     let context = IceBucketQueryContext {
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
     };
-    let sql_string = format!("SELECT column_name, data_type FROM datafusion.information_schema.columns WHERE table_name = '{}'", table_name);
+    let sql_string = format!("SELECT column_name, data_type FROM datafusion.information_schema.columns WHERE table_name = '{table_name}'");
     let result = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| TablesAPIError::Get { source: e})?;
+        .map_err(|e| TablesAPIError::Get { source: e })?;
     let mut columns: Vec<TableColumn> = vec![];
     for batch in result.0 {
         let column_name_array = batch
@@ -153,9 +141,7 @@ pub async fn get_table(
         }
     }
 
-    Ok(Json(GetTableResponse {
-        data: columns,
-    }))
+    Ok(Json(GetTableResponse { data: columns }))
 }
 
 // #[utoipa::path(

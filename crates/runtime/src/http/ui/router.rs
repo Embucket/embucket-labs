@@ -39,18 +39,18 @@ use crate::http::ui::databases::handlers::ApiDoc as DatabasesApiDoc;
 use crate::http::ui::handlers::databases_navigation::ApiDoc as DatabasesNavigationApiDoc;
 use crate::http::ui::queries::handlers::ApiDoc as QueryApiDoc;
 use crate::http::ui::schemas::handlers::ApiDoc as SchemasApiDoc;
+use crate::http::ui::tables::handlers::ApiDoc as TableApiDoc;
 use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
-use crate::http::ui::tables::handlers::ApiDoc as TableApiDoc;
 
 use crate::http::state::AppState;
 use crate::http::ui::handlers::databases_navigation::get_databases_navigation;
+use crate::http::ui::tables::handlers::get_table;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
-use crate::http::ui::tables::handlers::get_table;
 
 #[derive(OpenApi)]
 #[openapi(info(
@@ -111,7 +111,10 @@ pub fn create_router() -> Router<AppState> {
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables",
         //     post(create_table),
         // )
-        .route("/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}", get(get_table))
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}",
+            get(get_table),
+        )
         .route("/worksheets", get(worksheets).post(create_worksheet))
         .route(
             "/worksheets/{worksheet_id}",

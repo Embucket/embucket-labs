@@ -32,13 +32,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::execution::error::ExecutionError;
 use crate::http::error::ErrorResponse;
+use crate::http::ui::error::IntoStatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use http::StatusCode;
 use snafu::prelude::*;
-use crate::execution::error::ExecutionError;
-use crate::http::ui::error::IntoStatusCode;
 
 pub type TablesResult<T> = Result<T, TablesAPIError>;
 

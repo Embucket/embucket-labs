@@ -15,5 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 pub mod error;
-pub mod models;
 pub mod handlers;
+pub mod models;

@@ -16,12 +16,12 @@
 // under the License.
 
 use crate::http::error::ErrorResponse;
+use crate::http::ui::error::IntoStatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use http::status::StatusCode;
 use icebucket_history::store::WorksheetsStoreError;
 use snafu::prelude::*;
-use crate::http::ui::error::IntoStatusCode;
 
 pub type WorksheetsResult<T> = Result<T, WorksheetsAPIError>;
 

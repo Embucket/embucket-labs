@@ -37,4 +37,3 @@ pub struct TableColumn {
     pub(crate) name: String,
     pub(crate) r#type: String,
 }
-

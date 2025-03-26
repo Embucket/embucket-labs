@@ -23,9 +23,9 @@ pub mod router;
 pub mod databases;
 pub mod queries;
 pub mod schemas;
+pub mod tables;
 pub mod volumes;
 pub mod worksheets;
-pub mod tables;
 
 #[cfg(test)]
 pub mod tests;

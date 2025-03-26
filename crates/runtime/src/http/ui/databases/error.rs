@@ -16,12 +16,12 @@
 // under the License.
 
 use crate::http::error::ErrorResponse;
+use crate::http::ui::error::IntoStatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use http::StatusCode;
 use icebucket_metastore::error::MetastoreError;
 use snafu::prelude::*;
-use crate::http::ui::error::IntoStatusCode;
 
 pub type DatabasesResult<T> = Result<T, DatabasesAPIError>;
 
