@@ -197,11 +197,7 @@ impl IceBucketVolume {
                     .context(metastore_error::ObjectStoreSnafu)
             }
             IceBucketVolumeType::File(_) => {
-                let prefix = self.prefix();
-                // Return error if path is invalid
-                object_store::local::LocalFileSystem::new_with_prefix(prefix)
-                    .map(|local| Arc::new(local) as Arc<dyn ObjectStore>)
-                    .context(metastore_error::ObjectStoreSnafu)
+                Ok(Arc::new(object_store::local::LocalFileSystem::new()) as Arc<dyn ObjectStore>)
             }
             IceBucketVolumeType::Memory => {
                 Ok(Arc::new(object_store::memory::InMemory::new()) as Arc<dyn ObjectStore>)
@@ -216,7 +212,7 @@ impl IceBucketVolume {
                 .bucket
                 .as_ref()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
-            IceBucketVolumeType::File(volume) => volume.path.clone(),
+            IceBucketVolumeType::File(volume) => format!("file://{}", volume.path),
             IceBucketVolumeType::Memory => "memory://".to_string(),
         }
     }
