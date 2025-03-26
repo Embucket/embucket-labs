@@ -44,6 +44,7 @@ pub(crate) trait IntoStatusCode {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct UIResponse<T> {
+    #[serde(flatten)]
     pub(crate) data: T,
 }
 

@@ -21,7 +21,7 @@ use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::error::UIResponse;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
-use crate::http::ui::tables::models::{GetTable, TableColumn};
+use crate::http::ui::tables::models::{TableColumn, TableResponse};
 use arrow_array::Array;
 use axum::{
     extract::{Path, State},
@@ -36,7 +36,8 @@ use utoipa::OpenApi;
     ),
     components(
         schemas(
-            GetTable,
+            TableResponse,
+            TableColumn,
             ErrorResponse,
         )
     ),
@@ -98,7 +99,7 @@ pub struct ApiDoc;
     operation_id = "getTable",
     tags = ["tables"],
     responses(
-        (status = 200, description = "Successful Response", body = UIResponse<GetTable>),
+        (status = 200, description = "Successful Response", body = UIResponse<TableResponse>),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -109,7 +110,7 @@ pub async fn get_table(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> TablesResult<Json<UIResponse<GetTable>>> {
+) -> TablesResult<Json<UIResponse<TableResponse>>> {
     let context = IceBucketQueryContext {
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
@@ -117,7 +118,7 @@ pub async fn get_table(
     let sql_string = format!("SELECT column_name, data_type FROM datafusion.information_schema.columns WHERE table_name = '{table_name}'");
     let result = state
         .execution_svc
-        .query(&session_id, sql_string.as_str(), context)
+        .query(&session_id, sql_string.as_str(), context.clone())
         .await
         .map_err(|e| TablesAPIError::Get { source: e })?;
     let mut columns: Vec<TableColumn> = vec![];
@@ -141,10 +142,25 @@ pub async fn get_table(
             });
         }
     }
-
-    Ok(UIResponse::from(GetTable {
+    let sql_string = format!("SELECT COUNT(*) AS total_rows FROM {database_name}.{schema_name}.{}", table_name.clone());
+    let result = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
+        .await
+        .map_err(|e| TablesAPIError::Get { source: e })?;
+    let total_rows = if let Some(batch) = result.0.first() {
+        if let Some(array) = batch.column(0).as_any().downcast_ref::<arrow::array::Int64Array>() {
+            array.value(0)
+        } else {
+            0
+        }
+    } else {
+        0
+    };
+    Ok(UIResponse::from(TableResponse {
         name: table_name,
         columns,
+        total_rows,
     }))
 }
 
