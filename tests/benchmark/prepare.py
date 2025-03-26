@@ -1,5 +1,6 @@
 import json
 import os
+from pyspark.sql.types import StructType, StructField, IntegerType, StringType, DecimalType, DateType
 
 import requests
 from pyspark.sql import SparkSession
@@ -17,6 +18,7 @@ def prepare_data(
         path_to_data=None,
         create_volume=False,
         local_volume=True,
+        minio_volume=False,
         create_database=False,
         create_schema=False,
         create_worksheet=False,
@@ -30,8 +32,20 @@ def prepare_data(
         if local_volume:
             payload = json.dumps({
                 "type": "file",
-                "path": "/Users/artem/work/reps/github.com/Embucket/control-plane-v2",
+                "path": "/Users/artem/work/reps/github.com/Embucket/icebucket",
                 "ident": volume_ident,
+            })
+        elif minio_volume:
+            payload=json.dumps({
+                "ident": volume_ident,
+                "bucket": "embucket-lakehouse",
+                "credentials": {
+                    "aws-access-key-id": "minioadmin",
+                    "aws-secret-access-key": "minioadmin",
+                    "credential_type": "access_key",
+                },
+                "endpoint": "http://localhost:9000",
+                "type": "s3",
             })
         else:
             payload = json.dumps({
@@ -42,8 +56,8 @@ def prepare_data(
                 "endpoint": "https://s3.us-east-2.amazonaws.com",
                 "credentials": {
                     "credential_type": "access_key",
-                    "aws-access-key-id": "AKIA3FLDXOZOTTBXNUPI",
-                    "aws-secret-access-key": "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"
+                    "aws-access-key-id": "access_key",
+                    "aws-secret-access-key": "secret_key"
                 },
             })
         requests.request("POST", f'{catalog_url}/v1/metastore/volumes', headers=headers, data=payload).json()
@@ -73,7 +87,7 @@ def prepare_data(
         ).json()['id']
     else:
         worksheet_id = 1
-
+    print(worksheet_id)
     if create_table:
         if create_external:
             ## CREATE HITS TABLE
@@ -125,14 +139,15 @@ def prepare_data(
                 # check the state here http://localhost:4040/jobs/
                 spark.sql("""INSERT INTO rest.public.hits select * from hits""")
                 return size
-# data_size = prepare_data(
-#     "http://127.0.0.1:3000",
-#     path_to_data="/Users/artem/Downloads/partitioned",
-#     create_volume=True,
-#     local_volume=True,
-#     create_database=True,
-#     create_schema=True,
-#     create_worksheet=True,
-#     create_table=True,
-#     create_external=True,
-# )
+data_size = prepare_data(
+    "http://127.0.0.1:3000",
+    path_to_data="/Users/artem/Downloads/partitioned",
+    create_volume=True,
+    local_volume=True,
+    minio_volume=False,
+    create_database=True,
+    create_schema=True,
+    create_worksheet=True,
+    create_table=False,
+    create_external=False,
+)
