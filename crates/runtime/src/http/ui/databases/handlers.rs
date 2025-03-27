@@ -53,7 +53,7 @@ use validator::Validate;
         )
     ),
     tags(
-        (name = "databases", description = "Databases management endpoints.")
+        (name = "databases", description = "Databases endpoints")
     )
 )]
 pub struct ApiDoc;

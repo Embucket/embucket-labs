@@ -47,7 +47,10 @@ use utoipa::OpenApi;
         WorksheetCreateResponse,
         WorksheetResponse,
         WorksheetsResponse,
-    ))
+    )),
+    tags(
+        (name = "worksheets", description = "Worksheets endpoints"),
+    )
 )]
 pub struct ApiDoc;
 

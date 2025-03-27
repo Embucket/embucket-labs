@@ -37,8 +37,11 @@ use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(query, history,),
-    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload,))
+    paths(query, history),
+    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload,)),
+    tags(
+      (name = "queries", description = "Queries endpoints"),
+    )
 )]
 pub struct ApiDoc;
 

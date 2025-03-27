@@ -54,7 +54,7 @@ use utoipa::OpenApi;
         )
     ),
     tags(
-        (name = "schemas", description = "Schemas management endpoints.")
+        (name = "schemas", description = "Schemas endpoints")
     )
 )]
 pub struct ApiDoc;

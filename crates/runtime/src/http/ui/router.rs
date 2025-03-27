@@ -63,11 +63,6 @@ use utoipa::OpenApi;
     contact(name = "Embucket, Inc.", url = "https://embucket.com"),
     description = "Defines the specification for the UI Catalog API",
 ), tags(
-    (name = "volumes", description = "Volumes endpoints"),
-    (name = "databases", description = "Databases endpoints"),
-    (name = "schemas", description = "Schemas endpoints"),
-    (name = "worksheets", description = "Worksheets endpoints"),
-    (name = "queries", description = "Queries endpoints"),
 ))]
 pub struct ApiDoc;
 
