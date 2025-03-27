@@ -15,15 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use std::collections::HashMap;
 use crate::http::state::AppState;
 use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
     ui::schemas::error::{SchemasAPIError, SchemasResult},
-    ui::schemas::models::{
-        Schema, SchemaCreatePayload, SchemaCreateResponse
-    },
+    ui::schemas::models::{Schema, SchemaCreatePayload, SchemaCreateResponse},
 };
 use axum::{
     extract::{Path, Query, State},
@@ -31,6 +28,7 @@ use axum::{
 };
 use icebucket_metastore::models::IceBucketSchemaIdent;
 use icebucket_metastore::IceBucketSchema;
+use std::collections::HashMap;
 use std::convert::From;
 use std::convert::Into;
 use utoipa::OpenApi;
@@ -121,7 +119,6 @@ pub async fn delete_schema(
         .await
         .map_err(|e| SchemasAPIError::Delete { source: e })
 }
-
 
 // #[utoipa::path(
 //     get,

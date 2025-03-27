@@ -19,7 +19,6 @@ use crate::execution::query::IceBucketQueryContext;
 use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
-use crate::http::ui::error::UIResponse;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
 use crate::http::ui::tables::models::{TableColumn, TableInfo, TableResponse};
 use arrow_array::Array;
@@ -170,7 +169,7 @@ pub async fn get_table(
             name: table_name,
             columns,
             total_rows,
-        }
+        },
     }))
 }
 

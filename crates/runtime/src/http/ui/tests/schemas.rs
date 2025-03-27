@@ -17,15 +17,14 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::collections::HashMap;
-use crate::tests::run_icebucket_test_server;
-use http::Method;
-use icebucket_metastore::{IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume, IceBucketVolumeType};
-use serde_json::json;
 use crate::http::ui::databases::models::{Database, DatabaseCreatePayload};
 use crate::http::ui::schemas::models::SchemaCreatePayload;
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
+use crate::tests::run_icebucket_test_server;
+use http::Method;
+use icebucket_metastore::{IceBucketDatabase, IceBucketVolume, IceBucketVolumeType};
+use serde_json::json;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -45,7 +44,7 @@ async fn test_ui_schemas() {
             }),
         }),
     )
-        .await;
+    .await;
     let volume: VolumeCreateResponse = res.json().await.unwrap();
 
     let database_name = "test1".to_string();
@@ -63,22 +62,12 @@ async fn test_ui_schemas() {
             data: Database::from(expected1.clone()),
         }),
     )
-        .await;
+    .await;
 
     let schema_name = "testing1".to_string();
-
-    let schema_expected1 = IceBucketSchema {
-        ident: IceBucketSchemaIdent {
-            schema: schema_name.clone(),
-            database: database_name.clone(),
-        },
-        properties: Some(HashMap::new()),
-    };
-
     let payload = SchemaCreatePayload {
         name: schema_name.clone(),
     };
-
     //Create schema
     let res = req(
         &client,
@@ -87,11 +76,11 @@ async fn test_ui_schemas() {
             "http://{addr}/ui/databases/{}/schemas",
             database_name.clone()
         )
-            .to_string(),
+        .to_string(),
         json!(payload).to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
     //Delete existing schema
@@ -103,10 +92,10 @@ async fn test_ui_schemas() {
             database_name.clone(),
             payload.name.clone()
         )
-            .to_string(),
+        .to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 }

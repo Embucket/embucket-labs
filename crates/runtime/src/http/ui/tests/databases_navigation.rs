@@ -17,9 +17,8 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::collections::HashMap;
 use crate::http::ui::databases::models::DatabaseCreatePayload;
-use crate::http::ui::navigation::models::{NavigationDatabase, NavigationDatabasesResponse};
+use crate::http::ui::navigation::models::NavigationDatabasesResponse;
 use crate::http::ui::queries::models::QueryCreatePayload;
 use crate::http::ui::schemas::models::SchemaCreatePayload;
 use crate::http::ui::tests::common::req;
@@ -28,8 +27,8 @@ use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreate
 use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
+use icebucket_metastore::IceBucketVolumeType;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
-use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketVolumeType};
 use serde_json::json;
 
 #[tokio::test]
@@ -99,11 +98,11 @@ async fn test_ui_databases_navigation() {
             "http://{addr}/ui/databases/{}/schemas",
             expected1.data.name.clone()
         )
-            .to_string(),
+        .to_string(),
         json!(payload).to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
     let res = req(&client, Method::GET, &url, String::new())

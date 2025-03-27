@@ -17,9 +17,9 @@
 
 pub mod common;
 pub mod databases;
+pub mod databases_navigation;
 pub mod queries;
+pub mod schemas;
 pub mod tables;
 pub mod volumes;
 pub mod worksheets;
-pub mod databases_navigation;
-pub mod schemas;

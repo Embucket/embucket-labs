@@ -37,9 +37,8 @@ use crate::http::ui::error::IntoStatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use http::StatusCode;
-use snafu::prelude::*;
 use icebucket_metastore::error::MetastoreError;
-use crate::http::ui::navigation::models::NavigationDatabase;
+use snafu::prelude::*;
 
 pub type NavigationDatabasesResult<T> = Result<T, NavigationDatabasesAPIError>;
 

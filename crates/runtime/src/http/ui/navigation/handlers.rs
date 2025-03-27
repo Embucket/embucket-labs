@@ -15,17 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
+use crate::http::ui::navigation::error::{NavigationDatabasesAPIError, NavigationDatabasesResult};
 use crate::http::ui::navigation::models::{
-    NavigationDatabase, NavigationSchema, NavigationTable, NavigationDatabasesResponse,
-};
-use crate::http::{
-    error::ErrorResponse,
-    ui::error::{UIError, UIResult},
+    NavigationDatabase, NavigationDatabasesResponse, NavigationSchema, NavigationTable,
 };
 use axum::{extract::State, Json};
 use utoipa::OpenApi;
-use crate::http::ui::navigation::error::{NavigationDatabasesAPIError, NavigationDatabasesResult};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -100,7 +97,5 @@ pub async fn get_databases_navigation(
         });
     }
 
-    Ok(Json(NavigationDatabasesResponse {
-        items: databases,
-    }))
+    Ok(Json(NavigationDatabasesResponse { items: databases }))
 }
