@@ -68,13 +68,15 @@ pub struct QueryParameters {
 pub async fn list_volumes(
     State(state): State<AppState>,
 ) -> MetastoreAPIResult<Json<RwObjectVec<IceBucketVolume>>> {
-    let res = state
+    let volumes = state
         .metastore
         .list_volumes()
         .await
-        .map_err(MetastoreAPIError)
-        .map(Json)?;
-    Ok(res)
+        .map_err(MetastoreAPIError)?
+        .iter()
+        .map(|v| hide_sensitive(v.clone()))
+        .collect();
+    Ok(Json(volumes))
 }
 
 /*#[utoipa::path(
@@ -96,7 +98,7 @@ pub async fn get_volume(
     Path(volume_name): Path<String>,
 ) -> MetastoreAPIResult<Json<RwObject<IceBucketVolume>>> {
     match state.metastore.get_volume(&volume_name).await {
-        Ok(Some(volume)) => Ok(Json(volume)),
+        Ok(Some(volume)) => Ok(Json(hide_sensitive(volume))),
         Ok(None) => Err(MetastoreError::VolumeNotFound {
             volume: volume_name.clone(),
         }
@@ -128,7 +130,7 @@ pub async fn create_volume(
         .create_volume(&volume.ident.clone(), volume)
         .await
         .map_err(MetastoreAPIError)
-        .map(Json)
+        .map(|v| Json(hide_sensitive(v)))
 }
 
 /*#[utoipa::path(
@@ -155,7 +157,7 @@ pub async fn update_volume(
         .update_volume(&volume_name, volume)
         .await
         .map_err(MetastoreAPIError)
-        .map(Json)
+        .map(|v| Json(hide_sensitive(v)))
 }
 
 /*#[utoipa::path(
@@ -503,4 +505,16 @@ pub async fn delete_table(
         .delete_table(&table_ident, query.cascade.unwrap_or_default())
         .await
         .map_err(MetastoreAPIError)
+}
+
+#[allow(clippy::needless_pass_by_value)]
+pub fn hide_sensitive(volume: RwObject<IceBucketVolume>) -> RwObject<IceBucketVolume> {
+    let mut new_volume = volume;
+    if let IceBucketVolumeType::S3(ref mut s3_volume) = new_volume.data.volume {
+        if let Some(AwsCredentials::AccessKey(ref mut access_key)) = s3_volume.credentials {
+            access_key.aws_access_key_id = "******".to_string();
+            access_key.aws_secret_access_key = "******".to_string();
+        }
+    }
+    new_volume
 }
