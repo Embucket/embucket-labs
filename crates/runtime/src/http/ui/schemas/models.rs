@@ -52,16 +52,29 @@ impl Into<IceBucketSchema> for Schema {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaCreatePayload {
-    #[serde(flatten)]
-    pub data: Schema,
+    pub name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct SchemaUpdatePayload {
-    #[serde(flatten)]
-    pub data: Schema,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+// #[serde(rename_all = "camelCase")]
+// pub struct SchemaUpdatePayload {
+//     #[serde(flatten)]
+//     pub data: Schema,
+// }
+
+// #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+// #[serde(rename_all = "camelCase")]
+// pub struct SchemaCreateResponse {
+//     #[serde(flatten)]
+//     pub data: Schema,
+// }
+//
+// #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+// #[serde(rename_all = "camelCase")]
+// pub struct SchemaUpdateResponse {
+//     #[serde(flatten)]
+//     pub data: Schema,
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -70,22 +83,8 @@ pub struct SchemaCreateResponse {
     pub data: Schema,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct SchemaUpdateResponse {
-    #[serde(flatten)]
-    pub data: Schema,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct SchemaResponse {
-    #[serde(flatten)]
-    pub data: Schema,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct SchemasResponse {
-    pub items: Vec<Schema>,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+// #[serde(rename_all = "camelCase")]
+// pub struct SchemasResponse {
+//     pub items: Vec<Schema>,
+// }
