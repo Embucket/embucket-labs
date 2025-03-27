@@ -97,6 +97,6 @@ validator = { version = "0.20.0", features = ["derive"] }
 workspace = true
 
 [dev-dependencies]
-insta = { version = "1.42.0", features = ["yaml"] }
+insta = { version = "1.42.0", features = ["yaml", "filters"] }
 reqwest = "0.12.14"
 
