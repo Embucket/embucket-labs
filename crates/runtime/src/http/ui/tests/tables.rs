@@ -82,7 +82,7 @@ async fn test_ui_tables() {
     };
 
     let payload = SchemaCreatePayload {
-        data: schema_expected1.clone().into(),
+        name: schema_name.clone(),
     };
 
     //Create schema

@@ -20,7 +20,7 @@ use crate::http::ui::databases::handlers::{
     create_database, delete_database, get_database, list_databases, update_database,
 };
 use crate::http::ui::schemas::handlers::{
-    create_schema, delete_schema, get_schema, list_schemas, update_schema,
+    create_schema, delete_schema,
 };
 use crate::http::ui::volumes::handlers::{
     create_volume, delete_volume, get_volume, list_volumes, update_volume,
@@ -30,13 +30,13 @@ use crate::http::ui::worksheets::handlers::{
 };
 
 use crate::http::ui::queries::handlers::{history, query};
-// use crate::http::ui::handlers::tables::{
+// use crate::http::ui::old_handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
 //     update_table_properties, upload_data_to_table,
 // };
 
 use crate::http::ui::databases::handlers::ApiDoc as DatabasesApiDoc;
-use crate::http::ui::handlers::databases_navigation::ApiDoc as DatabasesNavigationApiDoc;
+use crate::http::ui::navigation::handlers::ApiDoc as DatabasesNavigationApiDoc;
 use crate::http::ui::queries::handlers::ApiDoc as QueryApiDoc;
 use crate::http::ui::schemas::handlers::ApiDoc as SchemasApiDoc;
 use crate::http::ui::tables::handlers::ApiDoc as TableApiDoc;
@@ -44,7 +44,7 @@ use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
 
 use crate::http::state::AppState;
-use crate::http::ui::handlers::databases_navigation::get_databases_navigation;
+use crate::http::ui::navigation::handlers::get_databases_navigation;
 use crate::http::ui::tables::handlers::get_table;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
@@ -90,11 +90,11 @@ pub fn create_router() -> Router<AppState> {
         .route("/databases-navigation", get(get_databases_navigation))
         .route(
             "/databases/{databaseName}/schemas/{schemaName}",
-            delete(delete_schema).get(get_schema).put(update_schema),
+            delete(delete_schema),
         )
         .route(
             "/databases/{databaseName}/schemas",
-            post(create_schema).get(list_schemas),
+            post(create_schema),
         )
         .route("/databases", post(create_database).get(list_databases))
         .route(

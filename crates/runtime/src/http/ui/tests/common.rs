@@ -18,7 +18,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::ui::databases::models::DatabaseCreatePayload;
-use crate::http::ui::schemas::models::SchemaCreatePayload;
 use crate::http::ui::volumes::models::VolumeCreatePayload;
 use http::Method;
 use reqwest::Response;
@@ -30,7 +29,7 @@ use std::net::SocketAddr;
 pub enum Entity {
     Volume(VolumeCreatePayload),
     Database(DatabaseCreatePayload),
-    Schema(SchemaCreatePayload),
+    //Schema(SchemaCreatePayload),
 }
 
 #[derive(Debug)]
@@ -74,15 +73,15 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
                 format!("http://{addr}/ui/databases/{}", db.data.name)
             }
         },
-        Entity::Schema(sc) => match op {
-            Op::Create | Op::List => {
-                format!("http://{addr}/ui/databases/{}/schemas", sc.data.database)
-            }
-            Op::Delete | Op::Get | Op::Update => format!(
-                "http://{addr}/ui/databases/{}/schemas/{}",
-                sc.data.database, sc.data.name
-            ),
-        },
+        // Entity::Schema(sc) => match op {
+        //     Op::Create | Op::List => {
+        //         format!("http://{addr}/ui/databases/{}/schemas", sc.data.database)
+        //     }
+        //     Op::Delete | Op::Get | Op::Update => format!(
+        //         "http://{addr}/ui/databases/{}/schemas/{}",
+        //         sc.data.database, sc.data.name
+        //     ),
+        // },
     }
 }
 
@@ -97,7 +96,7 @@ pub async fn ui_test_op(addr: SocketAddr, op: Op, t_from: Option<&Entity>, t: &E
     let payload = match t {
         Entity::Volume(vol) => json!(vol).to_string(),
         Entity::Database(db) => json!(db).to_string(),
-        Entity::Schema(sc) => json!(sc).to_string(),
+        //Entity::Schema(sc) => json!(sc).to_string(),
     };
     match op {
         Op::Create => req(&client, Method::POST, &ui_url, payload).await.unwrap(),

@@ -25,7 +25,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::catalog::router::create_router as create_iceberg_router;
 use crate::http::dbt::router::create_router as create_dbt_router;
-// use crate::http::ui::handlers::tables::ApiDoc as TableApiDoc;
+// use crate::http::ui::old_handlers::tables::ApiDoc as TableApiDoc;
 use crate::http::state::AppState;
 use crate::http::ui::router::{create_router as create_ui_router, ui_open_api_spec};
 use tower_http::timeout::TimeoutLayer;

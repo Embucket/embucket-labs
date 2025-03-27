@@ -16,8 +16,8 @@
 // under the License.
 
 pub mod error;
-pub mod handlers;
-pub mod models;
+pub mod old_handlers;
+pub mod old_models;
 pub mod router;
 
 pub mod databases;
@@ -27,5 +27,6 @@ pub mod tables;
 pub mod volumes;
 pub mod worksheets;
 
+pub mod navigation;
 #[cfg(test)]
 pub mod tests;

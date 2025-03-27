@@ -16,7 +16,7 @@
 // under the License.
 
 use crate::http::state::AppState;
-use crate::http::ui::models::databases_navigation::{
+use crate::http::ui::navigation::models::{
     NavigationDatabase, NavigationSchema, NavigationTable,
 };
 use crate::http::{

@@ -14,12 +14,6 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-
-//pub mod aws;
-//pub mod database;
-//pub mod error;
-//pub mod properties;
-//pub mod storage_profile;
-//pub mod table;
-//pub mod warehouse;
-pub mod databases_navigation;
+pub mod error;
+pub mod handlers;
+pub mod models;
