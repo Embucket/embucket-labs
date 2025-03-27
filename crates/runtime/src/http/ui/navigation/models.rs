@@ -21,6 +21,12 @@ use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct NavigationDatabasesResponse {
+    pub items: Vec<NavigationDatabase>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct NavigationDatabase {
     pub(crate) name: String,
     pub(crate) schemas: Vec<NavigationSchema>,

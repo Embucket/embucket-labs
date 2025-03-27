@@ -19,7 +19,7 @@
 
 use std::collections::HashMap;
 use crate::http::ui::databases::models::DatabaseCreatePayload;
-use crate::http::ui::navigation::models::NavigationDatabase;
+use crate::http::ui::navigation::models::{NavigationDatabase, NavigationDatabasesResponse};
 use crate::http::ui::queries::models::QueryCreatePayload;
 use crate::http::ui::schemas::models::SchemaCreatePayload;
 use crate::http::ui::tests::common::req;
@@ -42,8 +42,8 @@ async fn test_ui_databases_navigation() {
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: Vec<NavigationDatabase> = res.json().await.unwrap();
-    assert_eq!(0, databases_navigation.len());
+    let databases_navigation: NavigationDatabasesResponse = res.json().await.unwrap();
+    assert_eq!(0, databases_navigation.items.len());
 
     let res = ui_test_op(
         addr,
@@ -84,24 +84,13 @@ async fn test_ui_databases_navigation() {
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: Vec<NavigationDatabase> = res.json().await.unwrap();
-    assert_eq!(2, databases_navigation.len());
-
+    let databases_navigation: NavigationDatabasesResponse = res.json().await.unwrap();
+    assert_eq!(2, databases_navigation.items.len());
 
     let schema_name = "testing1".to_string();
-
-    let schema_expected1 = IceBucketSchema {
-        ident: IceBucketSchemaIdent {
-            schema: schema_name.clone(),
-            database: expected1.data.name.clone(),
-        },
-        properties: Some(HashMap::new()),
-    };
-
     let payload = SchemaCreatePayload {
         name: schema_name.clone(),
     };
-
     //Create schema
     let res = req(
         &client,
@@ -121,10 +110,10 @@ async fn test_ui_databases_navigation() {
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: Vec<NavigationDatabase> = res.json().await.unwrap();
-    assert_eq!(2, databases_navigation.len());
-    assert_eq!(1, databases_navigation.first().unwrap().schemas.len());
-    assert_eq!(0, databases_navigation.last().unwrap().schemas.len());
+    let databases_navigation: NavigationDatabasesResponse = res.json().await.unwrap();
+    assert_eq!(2, databases_navigation.items.len());
+    assert_eq!(1, databases_navigation.items.first().unwrap().schemas.len());
+    assert_eq!(0, databases_navigation.items.last().unwrap().schemas.len());
 
     let res = req(
         &client,
@@ -176,11 +165,12 @@ async fn test_ui_databases_navigation() {
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: Vec<NavigationDatabase> = res.json().await.unwrap();
+    let databases_navigation: NavigationDatabasesResponse = res.json().await.unwrap();
 
     assert_eq!(
         1,
         databases_navigation
+            .items
             .first()
             .unwrap()
             .schemas

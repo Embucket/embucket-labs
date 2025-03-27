@@ -17,7 +17,7 @@
 
 use crate::http::state::AppState;
 use crate::http::ui::navigation::models::{
-    NavigationDatabase, NavigationSchema, NavigationTable,
+    NavigationDatabase, NavigationSchema, NavigationTable, NavigationDatabasesResponse,
 };
 use crate::http::{
     error::ErrorResponse,
@@ -25,6 +25,7 @@ use crate::http::{
 };
 use axum::{extract::State, Json};
 use utoipa::OpenApi;
+use crate::http::ui::navigation::error::{NavigationDatabasesAPIError, NavigationDatabasesResult};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -33,7 +34,10 @@ use utoipa::OpenApi;
     ),
     components(
         schemas(
+            NavigationDatabasesResponse,
             NavigationDatabase,
+            NavigationSchema,
+            NavigationTable,
             ErrorResponse,
         )
     ),
@@ -49,19 +53,19 @@ pub struct ApiDoc;
     tags = ["databases-navigation"],
     path = "/ui/databases-navigation",
     responses(
-        (status = 200, description = "Successful Response", body = Vec<NavigationDatabase>),
+        (status = 200, description = "Successful Response", body = NavigationDatabasesResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_databases_navigation(
     State(state): State<AppState>,
-) -> UIResult<Json<Vec<NavigationDatabase>>> {
+) -> NavigationDatabasesResult<Json<NavigationDatabasesResponse>> {
     let rw_databases = state
         .metastore
         .list_databases()
         .await
-        .map_err(|e| UIError::Metastore { source: e })?;
+        .map_err(|e| NavigationDatabasesAPIError::Get { source: e })?;
 
     let mut databases: Vec<NavigationDatabase> = vec![];
     for rw_database in rw_databases {
@@ -69,7 +73,7 @@ pub async fn get_databases_navigation(
             .metastore
             .list_schemas(&rw_database.ident)
             .await
-            .map_err(|e| UIError::Metastore { source: e })?;
+            .map_err(|e| NavigationDatabasesAPIError::Get { source: e })?;
 
         let mut schemas: Vec<NavigationSchema> = vec![];
         for rw_schema in rw_schemas {
@@ -77,7 +81,7 @@ pub async fn get_databases_navigation(
                 .metastore
                 .list_tables(&rw_schema.ident)
                 .await
-                .map_err(|e| UIError::Metastore { source: e })?;
+                .map_err(|e| NavigationDatabasesAPIError::Get { source: e })?;
 
             let mut tables: Vec<NavigationTable> = vec![];
             for rw_table in rw_tables {
@@ -96,5 +100,7 @@ pub async fn get_databases_navigation(
         });
     }
 
-    Ok(Json(databases))
+    Ok(Json(NavigationDatabasesResponse {
+        items: databases,
+    }))
 }
