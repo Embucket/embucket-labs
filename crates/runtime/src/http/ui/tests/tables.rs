@@ -18,7 +18,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::ui::databases::models::DatabaseCreatePayload;
-use crate::http::ui::error::UIResponse;
 use crate::http::ui::queries::models::QueryCreatePayload;
 use crate::http::ui::schemas::models::SchemaCreatePayload;
 use crate::http::ui::tables::models::TableResponse;
@@ -28,9 +27,8 @@ use crate::http::ui::worksheets::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
-use icebucket_metastore::{IceBucketSchema, IceBucketSchemaIdent, IceBucketVolumeType};
+use icebucket_metastore::IceBucketVolumeType;
 use serde_json::json;
-use std::collections::HashMap;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -72,19 +70,9 @@ async fn test_ui_tables() {
     .await;
 
     let schema_name = "testing1".to_string();
-
-    let schema_expected1 = IceBucketSchema {
-        ident: IceBucketSchemaIdent {
-            schema: schema_name.clone(),
-            database: database_name.clone(),
-        },
-        properties: Some(HashMap::new()),
-    };
-
     let payload = SchemaCreatePayload {
         name: schema_name.clone(),
     };
-
     //Create schema
     let res = req(
         &client,
@@ -178,7 +166,7 @@ async fn test_ui_tables() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let table: UIResponse<TableResponse> = res.json().await.unwrap();
+    let table: TableResponse = res.json().await.unwrap();
     assert_eq!(3, table.data.columns.len());
     assert_eq!(2, table.data.total_rows);
 }

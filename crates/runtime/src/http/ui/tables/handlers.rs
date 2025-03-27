@@ -21,7 +21,7 @@ use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::error::UIResponse;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
-use crate::http::ui::tables::models::{TableColumn, TableResponse};
+use crate::http::ui::tables::models::{TableColumn, TableInfo, TableResponse};
 use arrow_array::Array;
 use axum::{
     extract::{Path, State},
@@ -37,6 +37,7 @@ use utoipa::OpenApi;
     components(
         schemas(
             TableResponse,
+            TableInfo,
             TableColumn,
             ErrorResponse,
         )
@@ -99,7 +100,7 @@ pub struct ApiDoc;
     operation_id = "getTable",
     tags = ["tables"],
     responses(
-        (status = 200, description = "Successful Response", body = UIResponse<TableResponse>),
+        (status = 200, description = "Successful Response", body = TableResponse),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -110,7 +111,7 @@ pub async fn get_table(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> TablesResult<Json<UIResponse<TableResponse>>> {
+) -> TablesResult<Json<TableResponse>> {
     let context = IceBucketQueryContext {
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
@@ -164,10 +165,12 @@ pub async fn get_table(
     } else {
         0
     };
-    Ok(UIResponse::from(TableResponse {
-        name: table_name,
-        columns,
-        total_rows,
+    Ok(Json(TableResponse {
+        data: TableInfo {
+            name: table_name,
+            columns,
+            total_rows,
+        }
     }))
 }
 
