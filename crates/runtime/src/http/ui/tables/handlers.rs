@@ -20,7 +20,7 @@ use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
-use crate::http::ui::tables::models::{TableInfoColumn, TableInfo, TableInfoResponse};
+use crate::http::ui::tables::models::{TableInfo, TableInfoColumn, TableInfoResponse};
 use arrow_array::Array;
 use axum::{
     extract::{Path, State},

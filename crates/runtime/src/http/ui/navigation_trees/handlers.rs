@@ -17,9 +17,11 @@
 
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
-use crate::http::ui::navigation_trees::error::{NavigationDatabasesAPIError, NavigationDatabasesResult};
+use crate::http::ui::navigation_trees::error::{
+    NavigationDatabasesAPIError, NavigationDatabasesResult,
+};
 use crate::http::ui::navigation_trees::models::{
-    NavigationTreesResponse, NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable
+    NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable, NavigationTreesResponse,
 };
 use axum::{extract::State, Json};
 use utoipa::OpenApi;
