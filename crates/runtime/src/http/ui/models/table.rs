@@ -363,12 +363,12 @@ impl Statistics {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct QueryPayload {
+pub struct QueryCreatePayload {
     pub query: String,
     pub context: Option<HashMap<String, String>>,
 }
 
-impl QueryPayload {
+impl QueryCreatePayload {
     #[allow(clippy::new_without_default)]
     #[must_use]
     pub const fn new(query: String) -> Self {

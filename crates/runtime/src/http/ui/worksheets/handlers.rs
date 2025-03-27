@@ -19,7 +19,8 @@ use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use crate::http::ui::worksheets::{
     error::{WorksheetUpdateError, WorksheetsAPIError, WorksheetsResult},
-    WorksheetCreatePayload, WorksheetResponse, WorksheetUpdatePayload, WorksheetsResponse,
+    WorksheetCreatePayload, WorksheetCreateResponse, WorksheetResponse, WorksheetUpdatePayload,
+    WorksheetsResponse,
 };
 use axum::{
     extract::{Path, State},
@@ -43,6 +44,7 @@ use utoipa::OpenApi;
         ErrorResponse,
         WorksheetCreatePayload,
         WorksheetUpdatePayload,
+        WorksheetCreateResponse,
         WorksheetResponse,
         WorksheetsResponse,
     ))
@@ -61,7 +63,6 @@ pub struct ApiDoc;
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-// Add time sql took
 pub async fn worksheets(
     State(state): State<AppState>,
 ) -> WorksheetsResult<Json<WorksheetsResponse>> {
@@ -100,18 +101,17 @@ pub async fn worksheets(
         )
     ),
     responses(
-        (status = 200, description = "Created worksheet", body = WorksheetResponse),
+        (status = 200, description = "Created worksheet", body = WorksheetCreateResponse),
         (status = 409, description = "Already Exists", body = ErrorResponse),
         (status = 422, description = "Unprocessable Entity"), // Failed to deserialize payload
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-// Add time sql took
 pub async fn create_worksheet(
     State(state): State<AppState>,
     Json(payload): Json<WorksheetCreatePayload>,
-) -> WorksheetsResult<Json<WorksheetResponse>> {
+) -> WorksheetsResult<Json<WorksheetCreateResponse>> {
     let name = if payload.name.is_empty() {
         Utc::now().to_string()
     } else {
@@ -123,7 +123,7 @@ pub async fn create_worksheet(
         .add_worksheet(request)
         .await
         .map_err(|e| WorksheetsAPIError::Create { source: e })?;
-    Ok(Json(WorksheetResponse { data: worksheet }))
+    Ok(Json(WorksheetCreateResponse { data: worksheet }))
 }
 
 #[utoipa::path(
@@ -142,7 +142,6 @@ pub async fn create_worksheet(
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-// Add time sql took
 pub async fn worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
@@ -170,7 +169,6 @@ pub async fn worksheet(
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-// Add time sql took
 pub async fn delete_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
@@ -212,14 +210,13 @@ pub async fn delete_worksheet(
         )
     ),
     responses(
-        (status = 200, description = "Worksheet updated", body = WorksheetResponse),
+        (status = 200, description = "Worksheet updated"),
         (status = 400, description = "Bad request", body = ErrorResponse),
         (status = 404, description = "Worksheet not found", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-// Add time sql took
 pub async fn update_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,

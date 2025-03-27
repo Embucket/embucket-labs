@@ -23,13 +23,13 @@ use utoipa::ToSchema;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Schema {
     pub database: String,
-    pub schema: String,
+    pub name: String,
 }
 
 impl From<IceBucketSchema> for Schema {
     fn from(schema: IceBucketSchema) -> Self {
         Self {
-            schema: schema.ident.schema,
+            name: schema.ident.schema,
             database: schema.ident.database,
         }
     }
@@ -41,7 +41,7 @@ impl Into<IceBucketSchema> for Schema {
     fn into(self) -> IceBucketSchema {
         IceBucketSchema {
             ident: IceBucketSchemaIdent {
-                schema: self.schema,
+                schema: self.name,
                 database: self.database,
             },
             properties: None,
@@ -51,7 +51,28 @@ impl Into<IceBucketSchema> for Schema {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct SchemaPayload {
+pub struct SchemaCreatePayload {
+    #[serde(flatten)]
+    pub data: Schema,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaUpdatePayload {
+    #[serde(flatten)]
+    pub data: Schema,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaCreateResponse {
+    #[serde(flatten)]
+    pub data: Schema,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaUpdateResponse {
     #[serde(flatten)]
     pub data: Schema,
 }

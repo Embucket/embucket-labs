@@ -20,7 +20,10 @@ use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
     ui::schemas::error::{SchemasAPIError, SchemasResult},
-    ui::schemas::models::{Schema, SchemaPayload, SchemaResponse, SchemasResponse},
+    ui::schemas::models::{
+        Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaResponse, SchemaUpdatePayload,
+        SchemaUpdateResponse, SchemasResponse,
+    },
 };
 use axum::{
     extract::{Path, Query, State},
@@ -44,7 +47,8 @@ use utoipa::OpenApi;
     ),
     components(
         schemas(
-            SchemaPayload,
+            SchemaCreatePayload,
+            SchemaCreateResponse,
             SchemaResponse,
             SchemasResponse,
             ErrorResponse,
@@ -64,9 +68,9 @@ pub struct ApiDoc;
     params(
         ("databaseName" = String, description = "Database Name")
     ),
-    request_body = SchemaPayload,
+    request_body = SchemaCreatePayload,
     responses(
-        (status = 200, description = "Successful Response", body = SchemaResponse),
+        (status = 200, description = "Successful Response", body = SchemaCreateResponse),
         (status = 400, description = "Bad request", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
@@ -76,8 +80,8 @@ pub struct ApiDoc;
 pub async fn create_schema(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-    Json(schema): Json<SchemaPayload>,
-) -> SchemasResult<Json<SchemaResponse>> {
+    Json(schema): Json<SchemaCreatePayload>,
+) -> SchemasResult<Json<SchemaCreateResponse>> {
     let schema: IceBucketSchema = schema.data.into();
     state
         .metastore
@@ -85,7 +89,7 @@ pub async fn create_schema(
         .await
         .map_err(|e| SchemasAPIError::Create { source: e })
         .map(|rw_object| {
-            Json(SchemaResponse {
+            Json(SchemaCreateResponse {
                 data: Schema::from(rw_object.data),
             })
         })
@@ -167,9 +171,9 @@ pub async fn delete_schema(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name")
     ),
-    request_body = SchemaPayload,
+    request_body = SchemaUpdatePayload,
     responses(
-        (status = 200, body = SchemaResponse),
+        (status = 200, body = SchemaUpdateResponse),
         (status = 404, description = "Schema not found"),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -178,8 +182,8 @@ pub async fn delete_schema(
 pub async fn update_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-    Json(schema): Json<SchemaPayload>,
-) -> SchemasResult<Json<SchemaResponse>> {
+    Json(schema): Json<SchemaUpdatePayload>,
+) -> SchemasResult<Json<SchemaUpdateResponse>> {
     let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
     // TODO: Implement schema renames
     state
@@ -188,7 +192,7 @@ pub async fn update_schema(
         .await
         .map_err(|e| SchemasAPIError::Update { source: e })
         .map(|rw_object| {
-            Json(SchemaResponse {
+            Json(SchemaUpdateResponse {
                 data: Schema::from(rw_object.data),
             })
         })

@@ -17,7 +17,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
-use crate::http::ui::volumes::models::{Volume, VolumePayload, VolumeResponse};
+use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use crate::tests::run_icebucket_test_server;
 use icebucket_metastore::IceBucketVolume;
 use icebucket_metastore::{
@@ -31,7 +31,7 @@ async fn test_ui_volumes_memory() {
     let addr = run_icebucket_test_server().await;
 
     // memory volume with empty ident create Ok
-    let expected = VolumePayload {
+    let expected = VolumeCreatePayload {
         data: Volume::from(IceBucketVolume {
             ident: String::new(),
             volume: IceBucketVolumeType::Memory,
@@ -39,7 +39,7 @@ async fn test_ui_volumes_memory() {
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     assert_eq!(200, res.status());
-    let created = res.json::<VolumeResponse>().await.unwrap();
+    let created = res.json::<VolumeCreateResponse>().await.unwrap();
     assert_eq!(expected.data, created.data);
 }
 
@@ -49,7 +49,7 @@ async fn test_ui_volumes_file() {
     let addr = run_icebucket_test_server().await;
 
     // memory volume with empty ident create Ok
-    let expected = VolumePayload {
+    let expected = VolumeCreatePayload {
         data: Volume::from(IceBucketVolume {
             ident: String::new(),
             volume: IceBucketVolumeType::File(IceBucketFileVolume {
@@ -60,7 +60,7 @@ async fn test_ui_volumes_file() {
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     // let res = create_test_volume(addr, &expected).await;
     assert_eq!(200, res.status());
-    let created = res.json::<VolumeResponse>().await.unwrap();
+    let created = res.json::<VolumeCreateResponse>().await.unwrap();
     assert_eq!(expected.data, created.data);
 }
 
@@ -70,7 +70,7 @@ async fn test_ui_volumes_s3() {
     let addr = run_icebucket_test_server().await;
 
     // memory volume with empty ident create Ok
-    let expected = VolumePayload {
+    let expected = VolumeCreatePayload {
         data: Volume::from(IceBucketVolume {
             ident: String::new(),
             volume: IceBucketVolumeType::S3(IceBucketS3Volume {
@@ -89,6 +89,6 @@ async fn test_ui_volumes_s3() {
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     // let res = create_test_volume(addr, &expected).await;
     assert_eq!(200, res.status());
-    let created = res.json::<VolumeResponse>().await.unwrap();
+    let created = res.json::<VolumeCreateResponse>().await.unwrap();
     assert_eq!(expected.data, created.data);
 }

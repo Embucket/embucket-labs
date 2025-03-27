@@ -18,7 +18,8 @@
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::queries::models::{
-    ExecutionContext, GetHistoryItemsParams, QueriesResponse, QueryPayload, QueryResponse,
+    ExecutionContext, GetHistoryItemsParams, QueriesResponse, QueryCreatePayload,
+    QueryCreateResponse,
 };
 use crate::http::{
     error::ErrorResponse,
@@ -28,7 +29,7 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use icebucket_history::{QueryHistoryId, QueryItem, WorksheetId};
+use icebucket_history::{QueryRecord, QueryRecordId, WorksheetId};
 use icebucket_utils::iterable::IterableEntity;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -37,7 +38,7 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     paths(query, history,),
-    components(schemas(QueriesResponse, QueryResponse, QueryPayload,))
+    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload,))
 )]
 pub struct ApiDoc;
 
@@ -52,10 +53,10 @@ pub struct ApiDoc;
     request_body(
         content(
             (
-                QueryPayload = "application/json", 
+                QueryCreatePayload = "application/json", 
                 examples (
                     ("with context" = (
-                        value = json!(QueryPayload {
+                        value = json!(QueryCreatePayload {
                             query: "CREATE TABLE test(a INT);".to_string(),
                             context: Some(HashMap::from([
                                 ("database".to_string(), "my_database".to_string()),
@@ -68,7 +69,7 @@ pub struct ApiDoc;
         )
     ),
     responses(
-        (status = 200, description = "Returns result of the query", body = QueryResponse),
+        (status = 200, description = "Returns result of the query", body = QueryCreateResponse),
         (status = 404, description = "Worksheet not found", body = ErrorResponse),
         (status = 409, description = "Bad request", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
@@ -76,13 +77,12 @@ pub struct ApiDoc;
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-// Add time sql took
 pub async fn query(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
-    Json(request): Json<QueryPayload>,
-) -> QueriesResult<Json<QueryResponse>> {
+    Json(request): Json<QueryCreatePayload>,
+) -> QueriesResult<Json<QueryCreateResponse>> {
     let worksheet = state
         .history
         .get_worksheet(worksheet_id)
@@ -111,7 +111,7 @@ pub async fn query(
             source: QueryError::Execution { source: e },
         })?;
     let duration = start.elapsed();
-    Ok(Json(QueryResponse {
+    Ok(Json(QueryCreateResponse {
         id,
         worksheet_id,
         query: request.query.clone(),
@@ -127,7 +127,7 @@ pub async fn query(
     tags = ["queries"],
     params(
         ("worksheet_id" = WorksheetId, Path, description = "Worksheet id"),
-        ("cursor" = Option<QueryHistoryId>, Query, description = "Cursor"),
+        ("cursor" = Option<QueryRecordId>, Query, description = "Cursor"),
         ("limit" = Option<u16>, Query, description = "History items limit"),
     ),
     responses(
@@ -138,7 +138,6 @@ pub async fn query(
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-// Add time sql took
 pub async fn history(
     Query(params): Query<GetHistoryItemsParams>,
     State(state): State<AppState>,
@@ -159,7 +158,7 @@ pub async fn history(
     let next_cursor = if let Some(last_item) = items.last() {
         last_item.next_cursor()
     } else {
-        QueryItem::min_cursor() // no items in range -> go to beginning
+        QueryRecord::min_cursor() // no items in range -> go to beginning
     };
     Ok(Json(QueriesResponse {
         items,

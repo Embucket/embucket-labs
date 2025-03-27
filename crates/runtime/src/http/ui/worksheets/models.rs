@@ -37,6 +37,13 @@ pub struct WorksheetUpdatePayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct WorksheetCreateResponse {
+    #[serde(flatten)]
+    pub data: Worksheet,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct WorksheetResponse {
     #[serde(flatten)]
     pub data: Worksheet,

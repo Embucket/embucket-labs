@@ -20,7 +20,10 @@ use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
     ui::volumes::error::{VolumesAPIError, VolumesResult},
-    ui::volumes::models::{VolumePayload, VolumeResponse, VolumesResponse},
+    ui::volumes::models::{
+        VolumeCreatePayload, VolumeCreateResponse, VolumeResponse, VolumeUpdatePayload,
+        VolumeUpdateResponse, VolumesResponse,
+    },
 };
 use axum::{
     extract::{Path, Query, State},
@@ -42,7 +45,7 @@ use validator::Validate;
     ),
     components(
         schemas(
-            VolumePayload,
+            // VolumePayload,
             VolumeResponse,
             VolumesResponse,
             ErrorResponse,
@@ -59,9 +62,9 @@ pub struct ApiDoc;
     operation_id = "createVolume",
     tags = ["volumes"],
     path = "/ui/volumes",
-    request_body = VolumePayload,
+    request_body = VolumeCreatePayload,
     responses(
-        (status = 200, description = "Successful Response", body = VolumeResponse),
+        (status = 200, description = "Successful Response", body = VolumeCreateResponse),
         (status = 400, description = "Bad request", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
@@ -70,8 +73,8 @@ pub struct ApiDoc;
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_volume(
     State(state): State<AppState>,
-    Json(volume): Json<VolumePayload>,
-) -> VolumesResult<Json<VolumeResponse>> {
+    Json(volume): Json<VolumeCreatePayload>,
+) -> VolumesResult<Json<VolumeCreateResponse>> {
     let icebucket_volume: IceBucketVolume = volume.data.into();
     icebucket_volume
         .validate()
@@ -84,7 +87,7 @@ pub async fn create_volume(
         .await
         .map_err(|e| VolumesAPIError::Create { source: e })
         .map(|o| {
-            Json(VolumeResponse {
+            Json(VolumeCreateResponse {
                 data: o.data.into(),
             })
         })
@@ -157,9 +160,9 @@ pub async fn delete_volume(
     params(
         ("volumeName" = String, Path, description = "Volume name")
     ),
-    request_body = VolumePayload,
+    request_body = VolumeUpdatePayload,
     responses(
-        (status = 200, description = "Successful Response", body = VolumeResponse),
+        (status = 200, description = "Successful Response", body = VolumeUpdateResponse),
         (status = 404, description = "Not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -168,8 +171,8 @@ pub async fn delete_volume(
 pub async fn update_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
-    Json(volume): Json<VolumePayload>,
-) -> VolumesResult<Json<VolumeResponse>> {
+    Json(volume): Json<VolumeUpdatePayload>,
+) -> VolumesResult<Json<VolumeUpdateResponse>> {
     let volume: IceBucketVolume = volume.data.into();
     volume.validate().map_err(|e| VolumesAPIError::Update {
         source: MetastoreError::Validation { source: e },
@@ -180,7 +183,7 @@ pub async fn update_volume(
         .await
         .map_err(|e| VolumesAPIError::Update { source: e })
         .map(|o| {
-            Json(VolumeResponse {
+            Json(VolumeUpdateResponse {
                 data: o.data.into(),
             })
         })

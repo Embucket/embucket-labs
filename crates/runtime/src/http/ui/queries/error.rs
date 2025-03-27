@@ -58,7 +58,7 @@ impl IntoStatusCode for QueriesAPIError {
                 },
             },
             Self::Queries { source } => match &source {
-                WorksheetsStoreError::HistoryGet { .. }
+                WorksheetsStoreError::QueryGet { .. }
                 | WorksheetsStoreError::WorksheetNotFound { .. }
                 | WorksheetsStoreError::BadKey { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,

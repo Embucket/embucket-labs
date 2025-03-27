@@ -17,13 +17,13 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::http::ui::databases::models::DatabasePayload;
+use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::error::UIResponse;
-use crate::http::ui::queries::models::QueryPayload;
-use crate::http::ui::schemas::models::SchemaPayload;
+use crate::http::ui::queries::models::QueryCreatePayload;
+use crate::http::ui::schemas::models::SchemaCreatePayload;
 use crate::http::ui::tables::models::TableResponse;
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
-use crate::http::ui::volumes::models::{VolumePayload, VolumeResponse};
+use crate::http::ui::volumes::models::{VolumeCreatePayload, VolumeCreateResponse};
 use crate::http::ui::worksheets::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
@@ -43,7 +43,7 @@ async fn test_ui_tables() {
         addr,
         Op::Create,
         None,
-        &Entity::Volume(VolumePayload {
+        &Entity::Volume(VolumeCreatePayload {
             data: IceBucketVolume {
                 ident: String::new(),
                 volume: IceBucketVolumeType::Memory,
@@ -52,7 +52,7 @@ async fn test_ui_tables() {
         }),
     )
     .await;
-    let volume: VolumeResponse = res.json().await.unwrap();
+    let volume: VolumeCreateResponse = res.json().await.unwrap();
 
     let database_name = "test1".to_string();
     // Create database, Ok
@@ -65,8 +65,8 @@ async fn test_ui_tables() {
         addr,
         Op::Create,
         None,
-        &Entity::Database(DatabasePayload {
-            data: expected1.clone(),
+        &Entity::Database(DatabaseCreatePayload {
+            data: expected1.clone().into(),
         }),
     )
     .await;
@@ -81,7 +81,7 @@ async fn test_ui_tables() {
         properties: Some(HashMap::new()),
     };
 
-    let payload = SchemaPayload {
+    let payload = SchemaCreatePayload {
         data: schema_expected1.clone().into(),
     };
 
@@ -115,8 +115,9 @@ async fn test_ui_tables() {
     assert_eq!(http::StatusCode::OK, res.status());
     let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
 
-    let query_payload = QueryPayload::new(format!(
-        "create or replace Iceberg TABLE {}.{}.{}
+    let query_payload = QueryCreatePayload {
+        query: format!(
+            "create or replace Iceberg TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''
@@ -125,10 +126,12 @@ async fn test_ui_tables() {
 	    PLATFORM TEXT,
 	    EVENT TEXT
 	    );",
-        database_name.clone(),
-        schema_name.clone(),
-        "tested1"
-    ));
+            database_name.clone(),
+            schema_name.clone(),
+            "tested1"
+        ),
+        context: None,
+    };
 
     let res = req(
         &client,
@@ -140,14 +143,17 @@ async fn test_ui_tables() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
-    let query_payload = QueryPayload::new(format!(
-        "INSERT INTO {}.{}.{} (APP_ID, PLATFORM, EVENT)
+    let query_payload = QueryCreatePayload {
+        query: format!(
+            "INSERT INTO {}.{}.{} (APP_ID, PLATFORM, EVENT)
         VALUES ('12345', 'iOS', 'login'),
                ('67890', 'Android', 'purchase')",
-        database_name.clone(),
-        schema_name.clone(),
-        "tested1"
-    ));
+            database_name.clone(),
+            schema_name.clone(),
+            "tested1"
+        ),
+        context: None,
+    };
 
     let res = req(
         &client,

@@ -96,7 +96,28 @@ impl Into<IceBucketVolume> for Volume {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct VolumePayload {
+pub struct VolumeCreatePayload {
+    #[serde(flatten)]
+    pub data: Volume,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VolumeUpdatePayload {
+    #[serde(flatten)]
+    pub data: Volume,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VolumeCreateResponse {
+    #[serde(flatten)]
+    pub data: Volume,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VolumeUpdateResponse {
     #[serde(flatten)]
     pub data: Volume,
 }

@@ -22,7 +22,7 @@ use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
 use icebucket_history::Worksheet;
-use icebucket_history::{store::WorksheetsStore, QueryHistoryId, QueryItem};
+use icebucket_history::{store::WorksheetsStore, QueryRecord, QueryRecordId};
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -113,9 +113,9 @@ impl ExecutionService {
         worksheet: Worksheet,
         query: &str,
         query_context: IceBucketQueryContext,
-    ) -> ExecutionResult<(QueryHistoryId, String)> {
-        let mut history_item = QueryItem::query_start(worksheet.id, query, None);
-        let id: QueryHistoryId = history_item.id;
+    ) -> ExecutionResult<(QueryRecordId, String)> {
+        let mut query_record = QueryRecord::query_start(worksheet.id, query, None);
+        let id: QueryRecordId = query_record.id;
 
         // let (records, _) = self.query(session_id, query, query_context).await?;
         let records_batch = self.query(session_id, query, query_context).await;
@@ -141,27 +141,27 @@ impl ExecutionService {
                 match &res {
                     Ok(id_res_tuple) => {
                         let result_count = i64::try_from(records.len()).unwrap_or(0);
-                        history_item.query_finished(
+                        query_record.query_finished(
                             result_count,
                             Some(id_res_tuple.1.clone()),
                             None,
                         );
                     }
                     Err(err) => {
-                        history_item.query_finished_with_error(err.to_string());
+                        query_record.query_finished_with_error(err.to_string());
                     }
                 };
 
                 Ok(res)
             }
             Err(err) => {
-                history_item.query_finished_with_error(err.to_string());
+                query_record.query_finished_with_error(err.to_string());
 
                 Err(err)
             }
         };
 
-        if let Err(err) = self.history.add_history_item(history_item.clone()).await {
+        if let Err(err) = self.history.add_history_item(query_record.clone()).await {
             // do not raise error, just log ?
             tracing::error!("{err}");
         }
