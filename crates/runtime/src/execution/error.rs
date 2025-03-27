@@ -17,8 +17,6 @@
 
 use std::backtrace::Backtrace;
 
-use crate::http::error::ErrorResponse;
-use axum::{response::IntoResponse, Json};
 use datafusion_common::DataFusionError;
 use snafu::prelude::*;
 

@@ -508,6 +508,7 @@ pub async fn delete_table(
 }
 
 #[allow(clippy::needless_pass_by_value)]
+#[must_use]
 pub fn hide_sensitive(volume: RwObject<IceBucketVolume>) -> RwObject<IceBucketVolume> {
     let mut new_volume = volume;
     if let IceBucketVolumeType::S3(ref mut s3_volume) = new_volume.data.volume {
