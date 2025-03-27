@@ -17,6 +17,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use std::collections::HashMap;
 use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::navigation::models::NavigationDatabase;
 use crate::http::ui::queries::models::QueryCreatePayload;
@@ -88,12 +89,33 @@ async fn test_ui_databases_navigation() {
 
 
     let schema_name = "testing1".to_string();
-    // Create schema, Ok
-    let expected1 = SchemaCreatePayload {
+
+    let schema_expected1 = IceBucketSchema {
+        ident: IceBucketSchemaIdent {
+            schema: schema_name.clone(),
+            database: expected1.data.name.clone(),
+        },
+        properties: Some(HashMap::new()),
+    };
+
+    let payload = SchemaCreatePayload {
         name: schema_name.clone(),
     };
-    //1 SCHEMA
-    let _res = ui_test_op(addr, Op::Create, None, &Entity::Schema(expected1.clone())).await;
+
+    //Create schema
+    let res = req(
+        &client,
+        Method::POST,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas",
+            expected1.data.name.clone()
+        )
+            .to_string(),
+        json!(payload).to_string(),
+    )
+        .await
+        .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
 
     let res = req(&client, Method::GET, &url, String::new())
         .await
@@ -133,7 +155,7 @@ async fn test_ui_databases_navigation() {
 	    DVCE_CREATED_TSTAMP TIMESTAMP_NTZ(9),
 	    EVENT TEXT,
 	    EVENT_ID TEXT);",
-            expected1.name.clone(),
+            expected1.data.name.clone(),
             schema_name.clone(),
             "tested1"
         ),

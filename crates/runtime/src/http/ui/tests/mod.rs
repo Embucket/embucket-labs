@@ -22,3 +22,4 @@ pub mod tables;
 pub mod volumes;
 pub mod worksheets;
 pub mod databases_navigation;
+pub mod schemas;
