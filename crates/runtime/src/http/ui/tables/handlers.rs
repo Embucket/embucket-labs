@@ -20,7 +20,7 @@ use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
-use crate::http::ui::tables::models::{TableColumn, TableInfo, TableResponse};
+use crate::http::ui::tables::models::{TableInfoColumn, TableInfo, TableInfoResponse};
 use arrow_array::Array;
 use axum::{
     extract::{Path, State},
@@ -31,18 +31,18 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        get_table,
+        get_table_info,
     ),
     components(
         schemas(
-            TableResponse,
+            TableInfoResponse,
             TableInfo,
-            TableColumn,
+            TableInfoColumn,
             ErrorResponse,
         )
     ),
     tags(
-        (name = "tables", description = "Tables management endpoints.")
+        (name = "tables", description = "Tables endpoints.")
     )
 )]
 pub struct ApiDoc;
@@ -90,27 +90,27 @@ pub struct ApiDoc;
 
 #[utoipa::path(
     get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}",
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/info",
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
         ("tableName" = String, description = "Table Name")
     ),
-    operation_id = "getTable",
+    operation_id = "getTableInfo",
     tags = ["tables"],
     responses(
-        (status = 200, description = "Successful Response", body = TableResponse),
+        (status = 200, description = "Successful Response", body = TableInfoResponse),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
-pub async fn get_table(
+pub async fn get_table_info(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> TablesResult<Json<TableResponse>> {
+) -> TablesResult<Json<TableInfoResponse>> {
     let context = IceBucketQueryContext {
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
@@ -121,7 +121,7 @@ pub async fn get_table(
         .query(&session_id, sql_string.as_str(), context.clone())
         .await
         .map_err(|e| TablesAPIError::Get { source: e })?;
-    let mut columns: Vec<TableColumn> = vec![];
+    let mut columns: Vec<TableInfoColumn> = vec![];
     for batch in result.0 {
         let column_name_array = batch
             .column(0)
@@ -136,7 +136,7 @@ pub async fn get_table(
 
         // Iterate over each record
         for i in 0..batch.num_rows() {
-            columns.push(TableColumn {
+            columns.push(TableInfoColumn {
                 name: column_name_array.value(i).to_string(),
                 r#type: data_type_array.value(i).to_string(),
             });
@@ -164,7 +164,7 @@ pub async fn get_table(
     } else {
         0
     };
-    Ok(Json(TableResponse {
+    Ok(Json(TableInfoResponse {
         data: TableInfo {
             name: table_name,
             columns,

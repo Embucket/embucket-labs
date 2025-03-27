@@ -21,26 +21,26 @@ use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct NavigationDatabasesResponse {
-    pub items: Vec<NavigationDatabase>,
+pub struct NavigationTreesResponse {
+    pub items: Vec<NavigationTreeDatabase>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct NavigationDatabase {
+pub struct NavigationTreeDatabase {
     pub(crate) name: String,
-    pub(crate) schemas: Vec<NavigationSchema>,
+    pub(crate) schemas: Vec<NavigationTreeSchema>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct NavigationSchema {
+pub struct NavigationTreeSchema {
     pub(crate) name: String,
-    pub(crate) tables: Vec<NavigationTable>,
+    pub(crate) tables: Vec<NavigationTreeTable>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct NavigationTable {
+pub struct NavigationTreeTable {
     pub(crate) name: String,
 }

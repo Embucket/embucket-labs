@@ -27,6 +27,6 @@ pub mod tables;
 pub mod volumes;
 pub mod worksheets;
 
-pub mod navigation;
+pub mod navigation_trees;
 #[cfg(test)]
 pub mod tests;

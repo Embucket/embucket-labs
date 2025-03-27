@@ -52,11 +52,11 @@ pub struct ApiDoc;
 
 #[utoipa::path(
     get,
-    path = "/ui/navigation",
+    path = "/ui/navigation_trees",
     tags = ["warehouses"],
     operation_id = "warehousesNavigation",
     responses(
-        (status = 200, description = "List all warehouses fot navigation", body = Navigation),
+        (status = 200, description = "List all warehouses fot navigation_trees", body = Navigation),
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]

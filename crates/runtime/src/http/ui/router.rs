@@ -34,7 +34,7 @@ use crate::http::ui::queries::handlers::{history, query};
 // };
 
 use crate::http::ui::databases::handlers::ApiDoc as DatabasesApiDoc;
-use crate::http::ui::navigation::handlers::ApiDoc as DatabasesNavigationApiDoc;
+use crate::http::ui::navigation_trees::handlers::{get_navigation_trees, ApiDoc as DatabasesNavigationApiDoc};
 use crate::http::ui::queries::handlers::ApiDoc as QueryApiDoc;
 use crate::http::ui::schemas::handlers::ApiDoc as SchemasApiDoc;
 use crate::http::ui::tables::handlers::ApiDoc as TableApiDoc;
@@ -42,8 +42,7 @@ use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
 
 use crate::http::state::AppState;
-use crate::http::ui::navigation::handlers::get_databases_navigation;
-use crate::http::ui::tables::handlers::get_table;
+use crate::http::ui::tables::handlers::get_table_info;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
 use axum::Router;
@@ -84,8 +83,8 @@ pub fn ui_open_api_spec() -> utoipa::openapi::OpenApi {
 
 pub fn create_router() -> Router<AppState> {
     Router::new()
-        // .route("/navigation", get(navigation))
-        .route("/databases-navigation", get(get_databases_navigation))
+        // .route("/navigation_trees", get(navigation_trees))
+        .route("/navigation-trees", get(get_navigation_trees))
         .route(
             "/databases/{databaseName}/schemas/{schemaName}",
             delete(delete_schema),
@@ -107,8 +106,8 @@ pub fn create_router() -> Router<AppState> {
         //     post(create_table),
         // )
         .route(
-            "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}",
-            get(get_table),
+            "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/info",
+            get(get_table_info),
         )
         .route("/worksheets", get(worksheets).post(create_worksheet))
         .route(

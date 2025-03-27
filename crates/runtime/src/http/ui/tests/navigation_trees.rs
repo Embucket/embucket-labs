@@ -18,7 +18,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::ui::databases::models::DatabaseCreatePayload;
-use crate::http::ui::navigation::models::NavigationDatabasesResponse;
+use crate::http::ui::navigation_trees::models::NavigationTreesResponse;
 use crate::http::ui::queries::models::QueryCreatePayload;
 use crate::http::ui::schemas::models::SchemaCreatePayload;
 use crate::http::ui::tests::common::req;
@@ -36,12 +36,12 @@ use serde_json::json;
 async fn test_ui_databases_navigation() {
     let addr = run_icebucket_test_server().await;
     let client = reqwest::Client::new();
-    let url = format!("http://{addr}/ui/databases-navigation");
+    let url = format!("http://{addr}/ui/navigation-trees");
     let res = req(&client, Method::GET, &url, String::new())
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: NavigationDatabasesResponse = res.json().await.unwrap();
+    let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
     assert_eq!(0, databases_navigation.items.len());
 
     let res = ui_test_op(
@@ -83,7 +83,7 @@ async fn test_ui_databases_navigation() {
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: NavigationDatabasesResponse = res.json().await.unwrap();
+    let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_navigation.items.len());
 
     let schema_name = "testing1".to_string();
@@ -109,7 +109,7 @@ async fn test_ui_databases_navigation() {
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: NavigationDatabasesResponse = res.json().await.unwrap();
+    let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_navigation.items.len());
     assert_eq!(1, databases_navigation.items.first().unwrap().schemas.len());
     assert_eq!(0, databases_navigation.items.last().unwrap().schemas.len());
@@ -164,7 +164,7 @@ async fn test_ui_databases_navigation() {
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let databases_navigation: NavigationDatabasesResponse = res.json().await.unwrap();
+    let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
 
     assert_eq!(
         1,

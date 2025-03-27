@@ -17,9 +17,9 @@
 
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
-use crate::http::ui::navigation::error::{NavigationDatabasesAPIError, NavigationDatabasesResult};
-use crate::http::ui::navigation::models::{
-    NavigationDatabase, NavigationDatabasesResponse, NavigationSchema, NavigationTable,
+use crate::http::ui::navigation_trees::error::{NavigationDatabasesAPIError, NavigationDatabasesResult};
+use crate::http::ui::navigation_trees::models::{
+    NavigationTreesResponse, NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable
 };
 use axum::{extract::State, Json};
 use utoipa::OpenApi;
@@ -27,44 +27,44 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        get_databases_navigation,
+        get_navigation_trees,
     ),
     components(
         schemas(
-            NavigationDatabasesResponse,
-            NavigationDatabase,
-            NavigationSchema,
-            NavigationTable,
+            NavigationTreesResponse,
+            NavigationTreeDatabase,
+            NavigationTreeSchema,
+            NavigationTreeTable,
             ErrorResponse,
         )
     ),
     tags(
-        (name = "databases-navigation", description = "Databases navigation endpoints.")
+        (name = "navigation_trees-trees", description = "Navigation trees endpoints.")
     )
 )]
 pub struct ApiDoc;
 
 #[utoipa::path(
     get,
-    operation_id = "getDatabasesNavigation",
-    tags = ["databases-navigation"],
-    path = "/ui/databases-navigation",
+    operation_id = "getNavigationTrees",
+    tags = ["navigation_trees-trees"],
+    path = "/ui/navigation_trees-trees",
     responses(
-        (status = 200, description = "Successful Response", body = NavigationDatabasesResponse),
+        (status = 200, description = "Successful Response", body = NavigationTreesResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn get_databases_navigation(
+pub async fn get_navigation_trees(
     State(state): State<AppState>,
-) -> NavigationDatabasesResult<Json<NavigationDatabasesResponse>> {
+) -> NavigationDatabasesResult<Json<NavigationTreesResponse>> {
     let rw_databases = state
         .metastore
         .list_databases()
         .await
         .map_err(|e| NavigationDatabasesAPIError::Get { source: e })?;
 
-    let mut databases: Vec<NavigationDatabase> = vec![];
+    let mut databases: Vec<NavigationTreeDatabase> = vec![];
     for rw_database in rw_databases {
         let rw_schemas = state
             .metastore
@@ -72,7 +72,7 @@ pub async fn get_databases_navigation(
             .await
             .map_err(|e| NavigationDatabasesAPIError::Get { source: e })?;
 
-        let mut schemas: Vec<NavigationSchema> = vec![];
+        let mut schemas: Vec<NavigationTreeSchema> = vec![];
         for rw_schema in rw_schemas {
             let rw_tables = state
                 .metastore
@@ -80,22 +80,22 @@ pub async fn get_databases_navigation(
                 .await
                 .map_err(|e| NavigationDatabasesAPIError::Get { source: e })?;
 
-            let mut tables: Vec<NavigationTable> = vec![];
+            let mut tables: Vec<NavigationTreeTable> = vec![];
             for rw_table in rw_tables {
-                tables.push(NavigationTable {
+                tables.push(NavigationTreeTable {
                     name: rw_table.ident.table.clone(),
                 });
             }
-            schemas.push(NavigationSchema {
+            schemas.push(NavigationTreeSchema {
                 name: rw_schema.ident.schema.clone(),
                 tables,
             });
         }
-        databases.push(NavigationDatabase {
+        databases.push(NavigationTreeDatabase {
             name: rw_database.ident.clone(),
             schemas,
         });
     }
 
-    Ok(Json(NavigationDatabasesResponse { items: databases }))
+    Ok(Json(NavigationTreesResponse { items: databases }))
 }

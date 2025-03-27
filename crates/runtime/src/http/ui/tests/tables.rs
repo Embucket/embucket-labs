@@ -20,7 +20,7 @@
 use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::queries::models::QueryCreatePayload;
 use crate::http::ui::schemas::models::SchemaCreatePayload;
-use crate::http::ui::tables::models::TableResponse;
+use crate::http::ui::tables::models::TableInfoResponse;
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{VolumeCreatePayload, VolumeCreateResponse};
 use crate::http::ui::worksheets::{WorksheetCreatePayload, WorksheetResponse};
@@ -157,7 +157,7 @@ async fn test_ui_tables() {
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1",
+            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1/info",
             database_name.clone(),
             schema_name.clone()
         ),
@@ -166,7 +166,7 @@ async fn test_ui_tables() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let table: TableResponse = res.json().await.unwrap();
+    let table: TableInfoResponse = res.json().await.unwrap();
     assert_eq!(3, table.data.columns.len());
     assert_eq!(2, table.data.total_rows);
 }

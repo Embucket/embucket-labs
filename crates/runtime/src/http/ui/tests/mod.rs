@@ -17,7 +17,7 @@
 
 pub mod common;
 pub mod databases;
-pub mod databases_navigation;
+pub mod navigation_trees;
 pub mod queries;
 pub mod schemas;
 pub mod tables;
