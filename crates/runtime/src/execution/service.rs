@@ -22,7 +22,7 @@ use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
 use icebucket_history::Worksheet;
-use icebucket_history::{store::WorksheetsStore, QueryRecord, QueryRecordId};
+use icebucket_history::QueryRecord;
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -40,20 +40,34 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 pub struct ExecutionService {
     metastore: Arc<dyn Metastore>,
-    history: Arc<dyn WorksheetsStore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<IceBucketUserSession>>>>,
     config: Config,
+}
+
+fn batches_into_str (records: Vec<RecordBatch>, columns: Vec<ColumnInfo>) -> ExecutionResult<String> {
+    let buf = Vec::new();
+    let write_builder = WriterBuilder::new().with_explicit_nulls(true);
+    let mut writer = write_builder.build::<_, JsonArray>(buf);
+
+    let record_refs: Vec<&RecordBatch> = records.iter().collect();
+    writer
+        .write_batches(&record_refs)
+        .context(ex_error::ArrowSnafu)?;
+    writer.finish().context(ex_error::ArrowSnafu)?;
+
+    // Get the underlying buffer back,
+    let buf = writer.into_inner();
+
+    String::from_utf8(buf).context(ex_error::Utf8Snafu)
 }
 
 impl ExecutionService {
     pub fn new(
         metastore: Arc<dyn Metastore>,
-        history: Arc<dyn WorksheetsStore>,
         config: Config,
     ) -> Self {
         Self {
             metastore,
-            history,
             df_sessions: Arc::new(RwLock::new(HashMap::new())),
             config,
         }
@@ -106,6 +120,8 @@ impl ExecutionService {
             .context(ex_error::DataFusionQuerySnafu { query })
     }
 
+    // return tuple: query_record, err instead of Result<T, Err>
+    // as we still need query_record even if error is occured
     #[tracing::instrument(level = "debug", skip(self))]
     pub async fn query_table(
         &self,
@@ -113,47 +129,33 @@ impl ExecutionService {
         worksheet: Worksheet,
         query: &str,
         query_context: IceBucketQueryContext,
-    ) -> ExecutionResult<QueryRecord> {
+    ) -> (QueryRecord, Option<ExecutionError>) {
         let mut query_record = QueryRecord::query_start(worksheet.id, query, None);
 
-        // let (records, _) = self.query(session_id, query, query_context).await?;
         let records_batch = self.query(session_id, query, query_context).await;
-        match records_batch {
-            Ok((records, _)) => {
-                let buf = Vec::new();
-                let write_builder = WriterBuilder::new().with_explicit_nulls(true);
-                let mut writer = write_builder.build::<_, JsonArray>(buf);
-
-                let record_refs: Vec<&RecordBatch> = records.iter().collect();
-                writer
-                    .write_batches(&record_refs)
-                    .context(ex_error::ArrowSnafu)?;
-                writer.finish().context(ex_error::ArrowSnafu)?;
-
-                // Get the underlying buffer back,
-                let buf = writer.into_inner();
-
-                let res = String::from_utf8(buf).context(ex_error::Utf8Snafu);
-
+        let err: Option<ExecutionError> = match records_batch {
+            Ok((records, columns)) => {
+                let result_count = i64::try_from(records.len()).unwrap_or(0);
+                let res = batches_into_str(records, columns);
                 match res {
                     Ok(encoded_res) => {
-                        let result_count = i64::try_from(records.len()).unwrap_or(0);
                         query_record.query_finished(result_count, Some(encoded_res), None);
+                        None // error: None
                     }
+                    // utf8 convert error
                     Err(err) => {
-                        // utf8 convert error
                         query_record.query_finished_with_error(err.to_string());
+                        Some(err)
                     }
-                };
-                Ok(query_record)
+                }
             }
             Err(err) => {
                 // query execution error
                 query_record.query_finished_with_error(err.to_string());
-
-                Err(err)
+                Some(err)
             }
-        }
+        };
+        (query_record, err)
     }
 
     #[tracing::instrument(level = "debug", skip(self))]

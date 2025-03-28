@@ -20,11 +20,10 @@ use chrono::{DateTime, Utc};
 use icebucket_history::{QueryRecord as QueryRecordItem, QueryRecordId, QueryStatus, WorksheetId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use serde_json::{Error, Value};
+use serde_json::Value;
 use snafu::ResultExt;
 use std::collections::HashMap;
 use utoipa::ToSchema;
-use validator::Validate;
 
 pub type ExecutionContext = crate::execution::query::IceBucketQueryContext;
 
@@ -35,7 +34,7 @@ pub struct QueryCreatePayload {
     pub context: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryCreateResponse {
     pub id: QueryRecordId,
@@ -53,7 +52,7 @@ impl TryFrom<QueryRecordItem> for QueryCreateResponse {
     type Error = QueryError;
 
     fn try_from(query: QueryRecordItem) -> QueryRecordResult<Self> {
-        match str_to_result(query.result.unwrap_or(String::new()).as_str()) {
+        match str_to_result(query.result.unwrap_or_default().as_str()) {
             Ok(result) => Ok(Self {
                 id: query.id,
                 worksheet_id: query.worksheet_id,
@@ -74,11 +73,11 @@ pub(crate) fn str_to_result(result_str: &str) -> QueryRecordResult<Vec<Vec<Value
     let json_array: Vec<IndexMap<String, Value>> = serde_json::from_str(result_str).context(ResultParseSnafu)?;
     Ok(json_array
         .into_iter()
-        .map(|obj| obj.values().cloned().collect())
+        .map(|obj| { println!("keys: {:?}", obj.keys()); obj.values().cloned().collect() })
         .collect())
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryRecord {
     #[serde(flatten)]

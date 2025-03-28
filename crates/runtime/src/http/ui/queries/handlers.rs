@@ -23,7 +23,7 @@ use crate::http::ui::queries::models::{
 };
 use crate::http::{
     error::ErrorResponse,
-    ui::queries::error::{QueriesAPIError, QueriesResult, QueryError, ResultParseSnafu},
+    ui::queries::error::{QueriesAPIError, QueriesResult, QueryError},
 };
 use axum::{
     extract::{Path, Query, State},
@@ -31,9 +31,7 @@ use axum::{
 };
 use icebucket_history::{QueryRecord as QueryRecordItem, QueryRecordId, WorksheetId};
 use icebucket_utils::iterable::IterableEntity;
-use itertools::Itertools;
 use std::collections::HashMap;
-use std::time::Instant;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -106,23 +104,27 @@ pub async fn query(
             .and_then(|c| c.get("schema").cloned()),
     };
 
-    let query_record = state
+    let (query_record, err) = state
         .execution_svc
         .query_table(&session_id, worksheet, &request.query, query_context)
-        .await
-        .map_err(|e| QueriesAPIError::Query {
-            source: QueryError::Execution { source: e },
-        })?;
+        .await;
 
+    // save query record even if error occured
     if let Err(err) = state.history.add_query(query_record.clone()).await {
         // do not raise error, just log ?
         tracing::error!("{err}");
     }
 
-    Ok(Json(
-        QueryCreateResponse::try_from(query_record)
-            .map_err(|e| QueriesAPIError::Query { source: e })?,
-    ))
+    if let Some(err) = err {
+        Err(QueriesAPIError::Query {
+            source: QueryError::Execution { source: err },
+        })
+    } else {
+        Ok(Json(
+            QueryCreateResponse::try_from(query_record)
+                .map_err(|e| QueriesAPIError::Query { source: e })?,
+        ))   
+    }
 }
 
 #[utoipa::path(

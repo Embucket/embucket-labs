@@ -24,6 +24,7 @@ use icebucket_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, IceBucketFileVolume, IceBucketS3Volume,
     IceBucketVolumeType,
 };
+use serde_json;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -49,6 +50,14 @@ async fn test_ui_volumes_file() {
     let addr = run_icebucket_test_server().await;
 
     // memory volume with empty ident create Ok
+    let payload = r#"{"name":"","file":{"path":"/tmp/data"}}"#;
+    let expected: VolumeCreatePayload = serde_json::from_str(payload).unwrap();
+    let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
+    // let res = create_test_volume(addr, &expected).await;
+    assert_eq!(200, res.status());
+    let created = res.json::<VolumeCreateResponse>().await.unwrap();
+    assert_eq!(expected.data, created.data);
+
     let expected = VolumeCreatePayload {
         data: Volume::from(IceBucketVolume {
             ident: String::new(),
@@ -59,9 +68,7 @@ async fn test_ui_volumes_file() {
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     // let res = create_test_volume(addr, &expected).await;
-    assert_eq!(200, res.status());
-    let created = res.json::<VolumeCreateResponse>().await.unwrap();
-    assert_eq!(expected.data, created.data);
+    assert_eq!(409, res.status());
 }
 
 #[tokio::test]

@@ -84,7 +84,7 @@ async fn test_ui_queries() {
     //println!("{:?}", res.bytes().await);
 
     let query_run_resp = res.json::<QueryCreateResponse>().await.unwrap();
-    println!("query_run_resp: {query_run_resp:?}");
+    // println!("query_run_resp: {query_run_resp:?}");
     assert_eq!(query_run_resp.result, [[i64::from(1)]]);
     // assert_eq!(query_run_resp.result, "[{\"Int64(1)\":1}]");
 
@@ -178,5 +178,4 @@ async fn test_ui_queries() {
     assert_eq!(history_resp.items.len(), 2);
     assert_eq!(history_resp.items[0].data.status, QueryStatus::Error);
     assert_eq!(history_resp.items[1].data.status, QueryStatus::Error);
-    assert!(false);
 }

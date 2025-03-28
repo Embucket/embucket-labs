@@ -52,6 +52,8 @@ pub enum QueriesAPIError {
 
 // Select which status code to return.
 impl IntoStatusCode for QueriesAPIError {
+    #[allow(clippy::match_wildcard_for_single_variants)]
+    #[allow(clippy::collapsible_match)]
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Query { source } => match &source {
