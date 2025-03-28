@@ -322,7 +322,11 @@ impl Metastore for SlateDBMetastore {
         volume: IceBucketVolume,
     ) -> MetastoreResult<RwObject<IceBucketVolume>> {
         let key = format!("{KEY_VOLUME}/{name}");
-        self.update_object(&key, volume).await
+        let updated_volume = self.update_object(&key, volume.clone()).await?;
+        let object_store = updated_volume.get_object_store()?;
+        self.object_store_cache
+            .alter(name, |_, _store| object_store.clone());
+        Ok(updated_volume)
     }
 
     async fn delete_volume(
