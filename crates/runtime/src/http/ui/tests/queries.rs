@@ -18,9 +18,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::error::ErrorResponse;
-use crate::http::ui::queries::models::{QueriesResponse, QueryPayload, QueryResponse};
+use crate::http::ui::queries::models::{QueriesResponse, QueryCreatePayload, QueryCreateResponse};
 use crate::http::ui::tests::common::req;
-use crate::http::ui::worksheets::models::{WorksheetPayload, WorksheetResponse};
+use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
 use icebucket_history::QueryStatus;
@@ -36,9 +36,9 @@ async fn test_ui_queries() {
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets"),
-        json!(WorksheetPayload {
-            name: None,
-            content: None,
+        json!(WorksheetCreatePayload {
+            name: String::new(),
+            content: String::new(),
         })
         .to_string(),
     )
@@ -73,7 +73,7 @@ async fn test_ui_queries() {
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
-        json!(QueryPayload {
+        json!(QueryCreatePayload {
             query: "SELECT 1".to_string(),
             context: None,
         })
@@ -83,14 +83,14 @@ async fn test_ui_queries() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
-    let query_run_resp = res.json::<QueryResponse>().await.unwrap();
+    let query_run_resp = res.json::<QueryCreateResponse>().await.unwrap();
     assert_eq!(query_run_resp.result, "[{\"Int64(1)\":1}]");
 
     let res = req(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
-        json!(QueryPayload {
+        json!(QueryCreatePayload {
             query: "SELECT 2".to_string(),
             context: None,
         })
@@ -100,14 +100,14 @@ async fn test_ui_queries() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
-    let query_run_resp2 = res.json::<QueryResponse>().await.unwrap();
+    let query_run_resp2 = res.json::<QueryCreateResponse>().await.unwrap();
     assert_eq!(query_run_resp2.result, "[{\"Int64(2)\":2}]");
 
     let res = req(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
-        json!(QueryPayload {
+        json!(QueryCreatePayload {
             query: "SELECT foo".to_string(),
             context: None,
         })
@@ -124,7 +124,7 @@ async fn test_ui_queries() {
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
-        json!(QueryPayload {
+        json!(QueryCreatePayload {
             query: "SELECT foo".to_string(),
             context: None,
         })

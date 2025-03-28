@@ -19,22 +19,71 @@ use icebucket_metastore::models::IceBucketDatabase;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
+pub struct Database {
+    pub name: String,
+    pub volume: String,
+}
+
+impl From<IceBucketDatabase> for Database {
+    fn from(db: IceBucketDatabase) -> Self {
+        Self {
+            name: db.ident,
+            volume: db.volume,
+        }
+    }
+}
+
+// TODO: Remove it when found why it can't locate .into() if only From trait implemeted
+#[allow(clippy::from_over_into)]
+impl Into<IceBucketDatabase> for Database {
+    fn into(self) -> IceBucketDatabase {
+        IceBucketDatabase {
+            ident: self.name,
+            volume: self.volume,
+            properties: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct DatabasePayload {
+pub struct DatabaseCreatePayload {
     #[serde(flatten)]
-    pub data: IceBucketDatabase,
+    pub data: Database,
+}
+
+// TODO: make Database fields optional in update payload, not used currently
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DatabaseUpdatePayload {
+    #[serde(flatten)]
+    pub data: Database,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DatabaseCreateResponse {
+    #[serde(flatten)]
+    pub data: Database,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DatabaseUpdateResponse {
+    #[serde(flatten)]
+    pub data: Database,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseResponse {
     #[serde(flatten)]
-    pub data: IceBucketDatabase,
+    pub data: Database,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabasesResponse {
-    pub items: Vec<IceBucketDatabase>,
+    pub items: Vec<Database>,
 }
