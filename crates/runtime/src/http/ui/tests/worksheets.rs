@@ -19,7 +19,9 @@
 
 use crate::http::error::ErrorResponse;
 use crate::http::ui::tests::common::req;
-use crate::http::ui::worksheets::{WorksheetPayload, WorksheetResponse, WorksheetsResponse};
+use crate::http::ui::worksheets::{
+    WorksheetCreatePayload, WorksheetResponse, WorksheetUpdatePayload, WorksheetsResponse,
+};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
 use serde_json::json;
@@ -44,9 +46,9 @@ async fn test_ui_worksheets() {
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets"),
-        json!(WorksheetPayload {
-            name: None,
-            content: None,
+        json!(WorksheetCreatePayload {
+            name: String::new(),
+            content: String::new(),
         })
         .to_string(),
     )
@@ -55,18 +57,18 @@ async fn test_ui_worksheets() {
     assert_eq!(http::StatusCode::OK, res.status());
     let worksheet1 = res.json::<WorksheetResponse>().await.unwrap().data;
     assert!(worksheet1.id > 0);
-    assert!(worksheet1.name.is_none());
-    assert!(worksheet1.content.is_none());
+    assert!(!worksheet1.name.is_empty()); // test behavior: name based on time
+
+    let create_payload = WorksheetCreatePayload {
+        name: "test".to_string(),
+        content: "select 1;".to_string(),
+    };
 
     let res = req(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets"),
-        json!(WorksheetPayload {
-            name: None,
-            content: Some("select 1;".to_string()),
-        })
-        .to_string(),
+        json!(create_payload).to_string(),
     )
     .await
     .unwrap();
@@ -74,8 +76,8 @@ async fn test_ui_worksheets() {
     // println!("{:?}", res.bytes().await);
     let worksheet2 = res.json::<WorksheetResponse>().await.unwrap().data;
     assert!(worksheet2.id > 0);
-    assert!(worksheet2.name.is_none());
-    assert!(worksheet2.content.is_some());
+    assert_eq!(worksheet2.name, create_payload.name);
+    assert_eq!(worksheet2.content, create_payload.content);
 
     let res = req(
         &client,
@@ -97,11 +99,12 @@ async fn test_ui_worksheets_ops() {
     let addr = run_icebucket_test_server().await;
     let client = reqwest::Client::new();
 
+    // bad payload, None instead of string
     let res = req(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets"),
-        json!(WorksheetPayload {
+        json!(WorksheetUpdatePayload {
             name: None,
             content: None,
         })
@@ -109,8 +112,23 @@ async fn test_ui_worksheets_ops() {
     )
     .await
     .unwrap();
+    assert_eq!(http::StatusCode::UNPROCESSABLE_ENTITY, res.status());
+
+    let res = req(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/worksheets"),
+        json!(WorksheetCreatePayload {
+            name: String::new(),
+            content: String::new(),
+        })
+        .to_string(),
+    )
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
+    assert!(!worksheet.name.is_empty());
 
     let res = req(
         &client,
@@ -134,7 +152,7 @@ async fn test_ui_worksheets_ops() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
-    let patch_payload = WorksheetPayload {
+    let patch_payload = WorksheetUpdatePayload {
         name: Some("test".to_string()),
         content: Some("select 1".to_string()),
     };
@@ -168,8 +186,8 @@ async fn test_ui_worksheets_ops() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let worksheet_2 = res.json::<WorksheetResponse>().await.unwrap().data;
-    assert_eq!(worksheet_2.name, patch_payload.name);
-    assert_eq!(worksheet_2.content, patch_payload.content);
+    assert_eq!(Some(worksheet_2.name), patch_payload.name);
+    assert_eq!(Some(worksheet_2.content), patch_payload.content);
 
     let res = req(
         &client,

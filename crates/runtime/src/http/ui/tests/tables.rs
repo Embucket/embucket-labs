@@ -17,14 +17,14 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::http::ui::databases::models::DatabasePayload;
+use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::error::UIResponse;
-use crate::http::ui::queries::models::QueryPayload;
-use crate::http::ui::schemas::models::SchemaPayload;
+use crate::http::ui::queries::models::QueryCreatePayload;
+use crate::http::ui::schemas::models::SchemaCreatePayload;
 use crate::http::ui::tables::models::TableResponse;
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
-use crate::http::ui::volumes::models::VolumePayload;
-use crate::http::ui::worksheets::{WorksheetPayload, WorksheetResponse};
+use crate::http::ui::volumes::models::{VolumeCreatePayload, VolumeCreateResponse};
+use crate::http::ui::worksheets::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
 use http::Method;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
@@ -43,29 +43,30 @@ async fn test_ui_tables() {
         addr,
         Op::Create,
         None,
-        &Entity::Volume(VolumePayload {
+        &Entity::Volume(VolumeCreatePayload {
             data: IceBucketVolume {
                 ident: String::new(),
                 volume: IceBucketVolumeType::Memory,
-            },
+            }
+            .into(),
         }),
     )
     .await;
-    let volume: IceBucketVolume = res.json().await.unwrap();
+    let volume: VolumeCreateResponse = res.json().await.unwrap();
 
     let database_name = "test1".to_string();
     // Create database, Ok
     let expected1 = IceBucketDatabase {
         ident: database_name.clone(),
         properties: None,
-        volume: volume.ident.clone(),
+        volume: volume.data.name.clone(),
     };
     let _res = ui_test_op(
         addr,
         Op::Create,
         None,
-        &Entity::Database(DatabasePayload {
-            data: expected1.clone(),
+        &Entity::Database(DatabaseCreatePayload {
+            data: expected1.clone().into(),
         }),
     )
     .await;
@@ -80,8 +81,8 @@ async fn test_ui_tables() {
         properties: Some(HashMap::new()),
     };
 
-    let payload = SchemaPayload {
-        data: schema_expected1.clone(),
+    let payload = SchemaCreatePayload {
+        data: schema_expected1.clone().into(),
     };
 
     //Create schema
@@ -103,9 +104,9 @@ async fn test_ui_tables() {
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets"),
-        json!(WorksheetPayload {
-            name: Some("test".to_string()),
-            content: None,
+        json!(WorksheetCreatePayload {
+            name: "test".to_string(),
+            content: String::new(),
         })
         .to_string(),
     )
@@ -114,8 +115,9 @@ async fn test_ui_tables() {
     assert_eq!(http::StatusCode::OK, res.status());
     let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
 
-    let query_payload = QueryPayload::new(format!(
-        "create or replace Iceberg TABLE {}.{}.{}
+    let query_payload = QueryCreatePayload {
+        query: format!(
+            "create or replace Iceberg TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''
@@ -124,10 +126,12 @@ async fn test_ui_tables() {
 	    PLATFORM TEXT,
 	    EVENT TEXT
 	    );",
-        database_name.clone(),
-        schema_name.clone(),
-        "tested1"
-    ));
+            database_name.clone(),
+            schema_name.clone(),
+            "tested1"
+        ),
+        context: None,
+    };
 
     let res = req(
         &client,
@@ -139,14 +143,17 @@ async fn test_ui_tables() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
-    let query_payload = QueryPayload::new(format!(
-        "INSERT INTO {}.{}.{} (APP_ID, PLATFORM, EVENT)
+    let query_payload = QueryCreatePayload {
+        query: format!(
+            "INSERT INTO {}.{}.{} (APP_ID, PLATFORM, EVENT)
         VALUES ('12345', 'iOS', 'login'),
                ('67890', 'Android', 'purchase')",
-        database_name.clone(),
-        schema_name.clone(),
-        "tested1"
-    ));
+            database_name.clone(),
+            schema_name.clone(),
+            "tested1"
+        ),
+        context: None,
+    };
 
     let res = req(
         &client,

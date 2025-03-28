@@ -28,13 +28,13 @@ pub enum QueryStatus {
     Error,
 }
 
-pub type QueryHistoryId = i64;
+pub type QueryRecordId = i64;
 
-// QueryItem struct is used for storing Query History result and also used in http response
+// QueryRecord struct is used for storing QueryRecord History result and also used in http response
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct QueryItem {
-    pub id: QueryHistoryId,
+pub struct QueryRecord {
+    pub id: QueryRecordId,
     pub worksheet_id: WorksheetId,
     pub query: String,
     pub start_time: DateTime<Utc>,
@@ -46,9 +46,9 @@ pub struct QueryItem {
     pub error: Option<String>,
 }
 
-impl QueryItem {
+impl QueryRecord {
     #[must_use]
-    pub fn get_key(worksheet_id: WorksheetId, id: QueryHistoryId) -> Bytes {
+    pub fn get_key(worksheet_id: WorksheetId, id: QueryRecordId) -> Bytes {
         Bytes::from(format!("/qh/{worksheet_id}/{id}"))
     }
 
@@ -99,7 +99,7 @@ impl QueryItem {
     }
 }
 
-impl IterableEntity for QueryItem {
+impl IterableEntity for QueryRecord {
     type Cursor = i64;
 
     fn cursor(&self) -> Self::Cursor {

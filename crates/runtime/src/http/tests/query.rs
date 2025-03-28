@@ -19,6 +19,7 @@
 
 use crate::tests::run_icebucket_test_server;
 // for `collect`
+use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetCreateResponse};
 use icebucket_metastore::{
     IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume,
 };
@@ -97,8 +98,30 @@ async fn test_parallel_queries() {
         );
     ";
 
+    // Create worksheet before running queries
+    let create_worksheet = client
+        .post(format!("http://{addr}/ui/worksheets"))
+        .header("Content-Type", "application/json")
+        .body(
+            json!(WorksheetCreatePayload {
+                name: String::new(),
+                content: String::new(),
+            })
+            .to_string(),
+        )
+        .send()
+        .await
+        .expect("failed to create worksheet");
+
+    let wid = create_worksheet
+        .json::<WorksheetCreateResponse>()
+        .await
+        .unwrap()
+        .data
+        .id;
+
     let query1 = client
-        .post(format!("http://{addr}/ui/query"))
+        .post(format!("http://{addr}/ui/worksheets/{wid}/queries"))
         .header("Content-Type", "application/json")
         .body(
             json!({
@@ -121,9 +144,10 @@ async fn test_parallel_queries() {
     for i in 0..100 {
         insert_query.push_str(&format!("({i}, 1, 'test', 1, 1, 1, 1, 1),"));
     }
+    insert_query.push_str("(200, 1, 'test', 1, 1, 1, 1, 1);");
 
     let query2 = client2
-        .post(format!("http://{addr}/ui/query"))
+        .post(format!("http://{addr}/ui/worksheets/{wid}/queries"))
         .header("Content-Type", "application/json")
         .body(
             json!({
@@ -139,8 +163,12 @@ async fn test_parallel_queries() {
     query2
         .error_for_status_ref()
         .expect("Insert query wasn't 200");
-
     let query2 = query2.text().await.expect("Failed to get query response");
 
-    insta::assert_debug_snapshot!((query1, query2,));
+    insta::with_settings!({
+    filters => vec![
+        (r"\d+{5,}", "99999"),
+    ]}, {
+        insta::assert_debug_snapshot!((query1, query2,));
+    });
 }
