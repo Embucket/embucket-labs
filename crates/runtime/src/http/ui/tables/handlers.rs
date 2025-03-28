@@ -20,8 +20,9 @@ use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
-use crate::http::ui::tables::models::{TableInfo, TableInfoColumn, TableInfoResponse};
-use arrow_array::Array;
+use crate::http::ui::tables::models::{TableInfo, TableInfoColumn, TableInfoResponse, TablePreviewDataColumn, TablePreviewDataResponse, TablePreviewDataRow};
+use arrow_array::{Array, Datum};
+use arrow_schema::DataType;
 use axum::{
     extract::{Path, State},
     Json,
@@ -170,6 +171,90 @@ pub async fn get_table_info(
             columns,
             total_rows,
         },
+    }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/preview",
+    params(
+        ("databaseName" = String, description = "Database Name"),
+        ("schemaName" = String, description = "Schema Name"),
+        ("tableName" = String, description = "Table Name")
+    ),
+    operation_id = "getTableInfo",
+    tags = ["tables"],
+    responses(
+        (status = 200, description = "Successful Response", body = TableInfoResponse),
+        (status = 404, description = "Table not found", body = ErrorResponse),
+        (status = 422, description = "Unprocessable entity", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[allow(clippy::unwrap_used)]
+pub async fn get_table_preview_data(
+    DFSessionId(session_id): DFSessionId,
+    State(state): State<AppState>,
+    Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
+) -> TablesResult<Json<TablePreviewDataResponse>> {
+    let context = IceBucketQueryContext {
+        database: Some(database_name.clone()),
+        schema: Some(schema_name.clone()),
+    };
+    let sql_string = format!("SELECT * FROM {database_name}.{schema_name}.{table_name}");
+    let result = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context.clone())
+        .await
+        .map_err(|e| TablesAPIError::Get { source: e })?;
+    let mut preview_data_columns: Vec<TablePreviewDataColumn> = vec![];
+    for batch in result.0 {
+        for column in batch.columns() {
+            match column.data_type() {
+                DataType::Null => {}
+                DataType::Boolean => {}
+                DataType::Int8 => {}
+                DataType::Int16 => {}
+                DataType::Int32 => {}
+                DataType::Int64 => {}
+                DataType::UInt8 => {}
+                DataType::UInt16 => {}
+                DataType::UInt32 => {}
+                DataType::UInt64 => {}
+                DataType::Float16 => {}
+                DataType::Float32 => {}
+                DataType::Float64 => {}
+                DataType::Timestamp(_, _) => {}
+                DataType::Date32 => {}
+                DataType::Date64 => {}
+                DataType::Time32(_) => {}
+                DataType::Time64(_) => {}
+                DataType::Duration(_) => {}
+                DataType::Interval(_) => {}
+                DataType::Binary => {}
+                DataType::FixedSizeBinary(_) => {}
+                DataType::LargeBinary => {}
+                DataType::BinaryView => {}
+                DataType::Utf8 => {}
+                DataType::LargeUtf8 => {}
+                DataType::Utf8View => {}
+                DataType::List(_) => {}
+                DataType::ListView(_) => {}
+                DataType::FixedSizeList(_, _) => {}
+                DataType::LargeList(_) => {}
+                DataType::LargeListView(_) => {}
+                DataType::Struct(_) => {}
+                DataType::Union(_, _) => {}
+                DataType::Dictionary(_, _) => {}
+                DataType::Decimal128(_, _) => {}
+                DataType::Decimal256(_, _) => {}
+                DataType::Map(_, _) => {}
+                DataType::RunEndEncoded(_, _) => {}
+            }
+        }
+    }
+    Ok(Json(TablePreviewDataResponse {
+        items:
     }))
 }
 

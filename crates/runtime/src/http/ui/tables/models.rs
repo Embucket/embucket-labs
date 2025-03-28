@@ -38,3 +38,22 @@ pub(crate) struct TableInfoColumn {
     pub(crate) name: String,
     pub(crate) r#type: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TablePreviewDataResponse {
+    pub(crate) items: Vec<TablePreviewDataColumn>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TablePreviewDataColumn {
+    pub(crate) name: String,
+    pub(crate) rows: Vec<TablePreviewDataRow>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TablePreviewDataRow {
+    data: String,
+}
