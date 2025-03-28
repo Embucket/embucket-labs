@@ -104,8 +104,8 @@ async fn test_parallel_queries() {
         .header("Content-Type", "application/json")
         .body(
             json!(WorksheetCreatePayload {
-                name: "".to_string(),
-                content: "".to_string(),
+                name: String::new(),
+                content: String::new(),
             })
             .to_string(),
         )
