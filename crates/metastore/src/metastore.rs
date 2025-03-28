@@ -22,6 +22,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::Utc;
 use dashmap::DashMap;
+use futures::{StreamExt, TryStreamExt};
 use iceberg_rust::catalog::commit::apply_table_updates;
 use iceberg_rust_spec::table_metadata::{FormatVersion, TableMetadataBuilder};
 use icebucket_utils::Db;
@@ -703,9 +704,19 @@ impl Metastore for SlateDBMetastore {
                         db: ident.database.clone(),
                     },
                 )?;
-                let metadata_path = Path::from(self.url_for_table(ident).await?);
+                let url = url::Url::parse(&self.url_for_table(ident).await?)
+                    .context(metastore_error::UrlParseSnafu)?;
+                let metadata_path = Path::from(url.path());
+
+                // List object
+                let locations = object_store
+                    .list(Some(&metadata_path))
+                    .map_ok(|m| m.location)
+                    .boxed();
+                // Delete them
                 object_store
-                    .delete(&metadata_path)
+                    .delete_stream(locations)
+                    .try_collect::<Vec<Path>>()
                     .await
                     .context(metastore_error::ObjectStoreSnafu)?;
             }
