@@ -66,7 +66,7 @@ impl IntoStatusCode for SchemasAPIError {
     }
 }
 
-// generic
+// TODO: make it reusable by other *APIError
 impl IntoResponse for SchemasAPIError {
     fn into_response(self) -> axum::response::Response {
         let code = self.status_code();

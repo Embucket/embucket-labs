@@ -81,10 +81,12 @@ async fn test_ui_queries() {
     )
     .await
     .unwrap();
-    assert_eq!(http::StatusCode::OK, res.status());
-    // println!("{:?}", res.bytes().await);
+    //println!("{:?}", res.bytes().await);
+
     let query_run_resp = res.json::<QueryCreateResponse>().await.unwrap();
-    assert_eq!(query_run_resp.result, "[{\"Int64(1)\":1}]");
+    println!("query_run_resp: {query_run_resp:?}");
+    assert_eq!(query_run_resp.result, [[i64::from(1)]]);
+    // assert_eq!(query_run_resp.result, "[{\"Int64(1)\":1}]");
 
     let res = req(
         &client,
@@ -101,7 +103,8 @@ async fn test_ui_queries() {
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
     let query_run_resp2 = res.json::<QueryCreateResponse>().await.unwrap();
-    assert_eq!(query_run_resp2.result, "[{\"Int64(2)\":2}]");
+    assert_eq!(query_run_resp2.result, [[i64::from(2)]] );
+    // assert_eq!(query_run_resp2.result, "[{\"Int64(2)\":2}]");
 
     let res = req(
         &client,
@@ -152,10 +155,10 @@ async fn test_ui_queries() {
     // println!("{:?}", res.bytes().await);
     let history_resp = res.json::<QueriesResponse>().await.unwrap();
     assert_eq!(history_resp.items.len(), 2);
-    assert_eq!(history_resp.items[0].status, QueryStatus::Ok);
-    assert_eq!(history_resp.items[0].result, Some(query_run_resp.result));
-    assert_eq!(history_resp.items[1].status, QueryStatus::Ok);
-    assert_eq!(history_resp.items[1].result, Some(query_run_resp2.result));
+    assert_eq!(history_resp.items[0].data.status, QueryStatus::Ok);
+    assert_eq!(history_resp.items[0].data.result, query_run_resp.result);
+    assert_eq!(history_resp.items[1].data.status, QueryStatus::Ok);
+    assert_eq!(history_resp.items[1].data.result, query_run_resp2.result);
 
     // get rest
     let res = req(
@@ -173,6 +176,7 @@ async fn test_ui_queries() {
     // println!("{:?}", res.bytes().await);
     let history_resp = res.json::<QueriesResponse>().await.unwrap();
     assert_eq!(history_resp.items.len(), 2);
-    assert_eq!(history_resp.items[0].status, QueryStatus::Error);
-    assert_eq!(history_resp.items[1].status, QueryStatus::Error);
+    assert_eq!(history_resp.items[0].data.status, QueryStatus::Error);
+    assert_eq!(history_resp.items[1].data.status, QueryStatus::Error);
+    assert!(false);
 }

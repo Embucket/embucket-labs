@@ -19,25 +19,26 @@ use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::queries::models::{
     ExecutionContext, GetHistoryItemsParams, QueriesResponse, QueryCreatePayload,
-    QueryCreateResponse,
+    QueryCreateResponse, QueryRecord,
 };
 use crate::http::{
     error::ErrorResponse,
-    ui::queries::error::{QueriesAPIError, QueriesResult, QueryError},
+    ui::queries::error::{QueriesAPIError, QueriesResult, QueryError, ResultParseSnafu},
 };
 use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use icebucket_history::{QueryRecord, QueryRecordId, WorksheetId};
+use icebucket_history::{QueryRecord as QueryRecordItem, QueryRecordId, WorksheetId};
 use icebucket_utils::iterable::IterableEntity;
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::time::Instant;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(query, history),
+    paths(query, queries),
     components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload,)),
     tags(
       (name = "queries", description = "Queries endpoints"),
@@ -105,22 +106,23 @@ pub async fn query(
             .and_then(|c| c.get("schema").cloned()),
     };
 
-    let start = Instant::now();
-    let (id, result) = state
+    let query_record = state
         .execution_svc
         .query_table(&session_id, worksheet, &request.query, query_context)
         .await
         .map_err(|e| QueriesAPIError::Query {
             source: QueryError::Execution { source: e },
         })?;
-    let duration = start.elapsed();
-    Ok(Json(QueryCreateResponse {
-        id,
-        worksheet_id,
-        query: request.query.clone(),
-        result,
-        duration_seconds: duration.as_secs_f32(),
-    }))
+
+    if let Err(err) = state.history.add_query(query_record.clone()).await {
+        // do not raise error, just log ?
+        tracing::error!("{err}");
+    }
+
+    Ok(Json(
+        QueryCreateResponse::try_from(query_record)
+            .map_err(|e| QueriesAPIError::Query { source: e })?,
+    ))
 }
 
 #[utoipa::path(
@@ -141,7 +143,7 @@ pub async fn query(
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn history(
+pub async fn queries(
     Query(params): Query<GetHistoryItemsParams>,
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
@@ -151,21 +153,35 @@ pub async fn history(
         .history
         .get_worksheet(worksheet_id)
         .await
-        .map_err(|e| QueriesAPIError::Queries { source: e })?;
+        .map_err(|e| QueriesAPIError::Queries {
+            source: QueryError::Store { source: e },
+        })?;
 
-    let items = state
+    let result = state
         .history
-        .query_history(worksheet_id, params.cursor, params.limit)
-        .await
-        .map_err(|e| QueriesAPIError::Queries { source: e })?;
-    let next_cursor = if let Some(last_item) = items.last() {
-        last_item.next_cursor()
-    } else {
-        QueryRecord::min_cursor() // no items in range -> go to beginning
-    };
-    Ok(Json(QueriesResponse {
-        items,
-        current_cursor: params.cursor,
-        next_cursor,
-    }))
+        .get_queries(worksheet_id, params.cursor, params.limit)
+        .await;
+
+    match result {
+        Ok(recs) => {
+            let next_cursor = if let Some(last_item) = recs.last() {
+                last_item.next_cursor()
+            } else {
+                QueryRecordItem::min_cursor() // no items in range -> go to beginning
+            };
+            let queries: Vec<QueryRecord> = recs
+                .into_iter()
+                .map(QueryRecord::try_from)
+                .filter_map(Result::ok)
+                .collect();
+            Ok(Json(QueriesResponse {
+                items: queries,
+                current_cursor: params.cursor,
+                next_cursor,
+            }))
+        }
+        Err(e) => Err(QueriesAPIError::Queries {
+            source: QueryError::Store { source: e },
+        }),
+    }
 }

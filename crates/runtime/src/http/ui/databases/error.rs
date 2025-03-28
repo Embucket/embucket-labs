@@ -66,7 +66,7 @@ impl IntoStatusCode for DatabasesAPIError {
     }
 }
 
-// generic
+// TODO: make it reusable by other *APIError
 impl IntoResponse for DatabasesAPIError {
     fn into_response(self) -> axum::response::Response {
         let code = self.status_code();

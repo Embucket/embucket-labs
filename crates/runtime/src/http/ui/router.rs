@@ -27,7 +27,7 @@ use crate::http::ui::worksheets::handlers::{
     create_worksheet, delete_worksheet, update_worksheet, worksheet, worksheets,
 };
 
-use crate::http::ui::queries::handlers::{history, query};
+use crate::http::ui::queries::handlers::{queries, query};
 // use crate::http::ui::old_handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
 //     update_table_properties, upload_data_to_table,
@@ -52,18 +52,20 @@ use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
-#[openapi(info(
-    title = "UI Router API",
-    description = "API documentation for the UI endpoints.",
-    version = "1.0.2",
-    license(
-        name = "Apache 2.0",
-        url = "https://www.apache.org/licenses/LICENSE-2.0.html"
+#[openapi(
+    info(
+        title = "UI Router API",
+        description = "API documentation for the UI endpoints.",
+        version = "1.0.2",
+        license(
+            name = "Apache 2.0",
+            url = "https://www.apache.org/licenses/LICENSE-2.0.html"
+        ),
+        contact(name = "Embucket, Inc.", url = "https://embucket.com"),
+        description = "Defines the specification for the UI Catalog API",
     ),
-    contact(name = "Embucket, Inc.", url = "https://embucket.com"),
-    description = "Defines the specification for the UI Catalog API",
-), tags(
-))]
+    tags()
+)]
 pub struct ApiDoc;
 
 #[must_use]
@@ -115,7 +117,7 @@ pub fn create_router() -> Router<AppState> {
         )
         .route(
             "/worksheets/{worksheet_id}/queries",
-            post(query).get(history),
+            post(query).get(queries),
         )
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/settings",
