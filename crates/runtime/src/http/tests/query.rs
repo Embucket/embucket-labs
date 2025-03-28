@@ -19,7 +19,7 @@
 
 use crate::tests::run_icebucket_test_server;
 // for `collect`
-use crate::http::ui::worksheets::models::{WorksheetPayload, WorksheetResponse};
+use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetCreateResponse};
 use icebucket_metastore::{
     IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume,
 };
@@ -103,9 +103,9 @@ async fn test_parallel_queries() {
         .post(format!("http://{addr}/ui/worksheets"))
         .header("Content-Type", "application/json")
         .body(
-            json!(WorksheetPayload {
-                name: None,
-                content: None,
+            json!(WorksheetCreatePayload {
+                name: "".to_string(),
+                content: "".to_string(),
             })
             .to_string(),
         )
@@ -114,7 +114,7 @@ async fn test_parallel_queries() {
         .expect("failed to create worksheet");
 
     let wid = create_worksheet
-        .json::<WorksheetResponse>()
+        .json::<WorksheetCreateResponse>()
         .await
         .unwrap()
         .data
