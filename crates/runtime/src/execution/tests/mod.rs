@@ -16,3 +16,4 @@
 // under the License.
 
 mod query;
+mod service;

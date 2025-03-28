@@ -40,6 +40,7 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 pub struct ExecutionService {
     metastore: Arc<dyn Metastore>,
+    // TODO: Execution service shouldn't be responsible for history
     history: Arc<dyn WorksheetsStore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<IceBucketUserSession>>>>,
     config: Config,
@@ -102,8 +103,30 @@ impl ExecutionService {
 
         let data_format = self.config().dbt_serialization_format;
         // Add columns dbt metadata to each field
-        convert_record_batches(records, data_format)
-            .context(ex_error::DataFusionQuerySnafu { query })
+        // TODO: RecordBatch conversion should happen somewhere outside ExecutionService
+        // Perhaps this can be moved closer to Snowflake API layer
+        let (records, columns) = convert_record_batches(records, data_format)
+            .context(ex_error::DataFusionQuerySnafu { query })?;
+
+        // TODO: Perhaps it's better to return a schema as a result of `execute` method
+        let columns = if columns.is_empty() {
+            query_obj
+                .plan()
+                .await
+                .map_err(|e| ExecutionError::DataFusionQuery {
+                    query: query.to_string(),
+                    source: e,
+                })?
+                .schema()
+                .fields()
+                .iter()
+                .map(|field| ColumnInfo::from_field(field))
+                .collect::<Vec<_>>()
+        } else {
+            columns
+        };
+
+        Ok((records, columns))
     }
 
     #[tracing::instrument(level = "debug", skip(self))]

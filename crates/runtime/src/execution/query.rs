@@ -157,9 +157,9 @@ impl IceBucketQuery {
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn execute(&self) -> ExecutionResult<Vec<RecordBatch>> {
         let mut statement = self.parse_query().context(super::error::DataFusionSnafu)?;
+        // TODO: Check if this can be removed since it's called already
+        // in `parse_query`
         Self::postprocess_query_statement(&mut statement);
-        // statement = self.update_statement_references(statement, warehouse_name);
-        // query = statement.to_string();
 
         // TODO: Code should be organized in a better way
         // 1. Single place to parse SQL strings into AST

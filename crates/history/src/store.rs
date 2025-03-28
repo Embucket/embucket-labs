@@ -20,7 +20,6 @@ use async_trait::async_trait;
 use icebucket_utils::iterable::{IterableCursor, IterableEntity};
 use icebucket_utils::Db;
 use snafu::{ResultExt, Snafu};
-#[cfg(test)]
 use std::sync::Arc;
 
 #[derive(Snafu, Debug)]
@@ -89,7 +88,6 @@ impl SlateDBWorksheetsStore {
     }
 
     // Create a new store with a new in-memory database
-    #[cfg(test)]
     pub async fn new_in_memory() -> Arc<Self> {
         Arc::new(Self::new(Db::memory().await))
     }
