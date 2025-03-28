@@ -16,8 +16,8 @@
 // under the License.
 
 pub mod error;
-pub mod old_handlers;
-pub mod old_models;
+// pub mod old_handlers;
+// pub mod old_models;
 pub mod router;
 
 pub mod databases;

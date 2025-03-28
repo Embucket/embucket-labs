@@ -17,5 +17,4 @@
 
 pub mod error;
 pub mod handlers;
-//pub mod old_models;
 pub mod router;

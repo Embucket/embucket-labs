@@ -27,7 +27,6 @@ use icebucket_metastore::{
     error::{self as metastore_error, MetastoreError},
     *,
 };
-//use super::old_models::*;
 
 use validator::Validate;
 

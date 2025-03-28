@@ -15,23 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use crate::http::error::ErrorResponse;
 use crate::http::ui::error::IntoStatusCode;
 use axum::response::IntoResponse;
@@ -40,11 +23,11 @@ use http::StatusCode;
 use icebucket_metastore::error::MetastoreError;
 use snafu::prelude::*;
 
-pub type NavigationDatabasesResult<T> = Result<T, NavigationDatabasesAPIError>;
+pub type NavigationTreesResult<T> = Result<T, NavigationTreesAPIError>;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
-pub enum NavigationDatabasesAPIError {
+pub enum NavigationTreesAPIError {
     // #[snafu(display("Create table error: {source}"))]
     // Create { source: MetastoreError },
     #[snafu(display("Get table error: {source}"))]
@@ -58,7 +41,7 @@ pub enum NavigationDatabasesAPIError {
 }
 
 // Select which status code to return.
-impl IntoStatusCode for NavigationDatabasesAPIError {
+impl IntoStatusCode for NavigationTreesAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
             // Self::Create { source } => match &source {
@@ -85,7 +68,7 @@ impl IntoStatusCode for NavigationDatabasesAPIError {
 }
 
 // generic
-impl IntoResponse for NavigationDatabasesAPIError {
+impl IntoResponse for NavigationTreesAPIError {
     fn into_response(self) -> axum::response::Response {
         let code = self.status_code();
         let error = ErrorResponse {

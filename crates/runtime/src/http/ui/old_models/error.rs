@@ -42,7 +42,7 @@ pub enum NexusError {
     #[snafu(display("Failed to list warehouses"))]
     WarehouseList { source: ControlPlaneError },
 
-    #[snafu(display("Failed to list database old_models for warehouse with id {id}"))]
+    #[snafu(display("Failed to list database models for warehouse with id {id}"))]
     DatabaseModelList { id: Uuid, source: CatalogError },
 
     #[snafu(display("Failed to list namespaces for warehouse with id {id}"))]

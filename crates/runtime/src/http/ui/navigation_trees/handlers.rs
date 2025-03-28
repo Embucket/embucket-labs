@@ -17,9 +17,7 @@
 
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
-use crate::http::ui::navigation_trees::error::{
-    NavigationDatabasesAPIError, NavigationDatabasesResult,
-};
+use crate::http::ui::navigation_trees::error::{NavigationTreesAPIError, NavigationTreesResult};
 use crate::http::ui::navigation_trees::models::{
     NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable, NavigationTreesResponse,
 };
@@ -49,8 +47,8 @@ pub struct ApiDoc;
 #[utoipa::path(
     get,
     operation_id = "getNavigationTrees",
-    tags = ["navigation_trees-trees"],
-    path = "/ui/navigation_trees-trees",
+    tags = ["navigation-trees"],
+    path = "/ui/navigation-trees",
     responses(
         (status = 200, description = "Successful Response", body = NavigationTreesResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
@@ -59,12 +57,12 @@ pub struct ApiDoc;
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_navigation_trees(
     State(state): State<AppState>,
-) -> NavigationDatabasesResult<Json<NavigationTreesResponse>> {
+) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
     let rw_databases = state
         .metastore
         .list_databases()
         .await
-        .map_err(|e| NavigationDatabasesAPIError::Get { source: e })?;
+        .map_err(|e| NavigationTreesAPIError::Get { source: e })?;
 
     let mut databases: Vec<NavigationTreeDatabase> = vec![];
     for rw_database in rw_databases {
@@ -72,7 +70,7 @@ pub async fn get_navigation_trees(
             .metastore
             .list_schemas(&rw_database.ident)
             .await
-            .map_err(|e| NavigationDatabasesAPIError::Get { source: e })?;
+            .map_err(|e| NavigationTreesAPIError::Get { source: e })?;
 
         let mut schemas: Vec<NavigationTreeSchema> = vec![];
         for rw_schema in rw_schemas {
@@ -80,7 +78,7 @@ pub async fn get_navigation_trees(
                 .metastore
                 .list_tables(&rw_schema.ident)
                 .await
-                .map_err(|e| NavigationDatabasesAPIError::Get { source: e })?;
+                .map_err(|e| NavigationTreesAPIError::Get { source: e })?;
 
             let mut tables: Vec<NavigationTreeTable> = vec![];
             for rw_table in rw_tables {

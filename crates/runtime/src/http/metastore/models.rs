@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// These are API wrappers for the metastore old_models
+// These are API wrappers for the metastore models
 
 use icebucket_metastore::models::*;
 use serde::{Deserialize, Serialize};
