@@ -15,26 +15,77 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_metastore::models::IceBucketSchema;
+use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
 use serde::{Deserialize, Serialize};
+use std::convert::From;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct Schema {
+    pub database: String,
+    pub name: String,
+}
+
+impl From<IceBucketSchema> for Schema {
+    fn from(schema: IceBucketSchema) -> Self {
+        Self {
+            name: schema.ident.schema,
+            database: schema.ident.database,
+        }
+    }
+}
+
+// TODO: Remove it when found why it can't locate .into() if only From trait implemeted
+#[allow(clippy::from_over_into)]
+impl Into<IceBucketSchema> for Schema {
+    fn into(self) -> IceBucketSchema {
+        IceBucketSchema {
+            ident: IceBucketSchemaIdent {
+                schema: self.name,
+                database: self.database,
+            },
+            properties: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct SchemaPayload {
+pub struct SchemaCreatePayload {
     #[serde(flatten)]
-    pub data: IceBucketSchema,
+    pub data: Schema,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaUpdatePayload {
+    #[serde(flatten)]
+    pub data: Schema,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaCreateResponse {
+    #[serde(flatten)]
+    pub data: Schema,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaUpdateResponse {
+    #[serde(flatten)]
+    pub data: Schema,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaResponse {
     #[serde(flatten)]
-    pub data: IceBucketSchema,
+    pub data: Schema,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemasResponse {
-    pub items: Vec<IceBucketSchema>,
+    pub items: Vec<Schema>,
 }

@@ -27,6 +27,15 @@ pub type WorksheetsResult<T> = Result<T, WorksheetsAPIError>;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
+pub enum WorksheetUpdateError {
+    #[snafu(transparent)]
+    Store { source: WorksheetsStoreError },
+    #[snafu(display("No fields to update"))]
+    NothingToUpdate,
+}
+
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
 pub enum WorksheetsAPIError {
     #[snafu(display("Create worksheet error: {source}"))]
     Create { source: WorksheetsStoreError },
@@ -35,7 +44,7 @@ pub enum WorksheetsAPIError {
     #[snafu(display("Delete worksheet error: {source}"))]
     Delete { source: WorksheetsStoreError },
     #[snafu(display("Update worksheet error: {source}"))]
-    Update { source: WorksheetsStoreError },
+    Update { source: WorksheetUpdateError },
     #[snafu(display("Get worksheets error: {source}"))]
     List { source: WorksheetsStoreError },
 }
@@ -58,10 +67,13 @@ impl IntoStatusCode for WorksheetsAPIError {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Update { source } => match &source {
-                WorksheetsStoreError::BadKey { .. }
-                | WorksheetsStoreError::WorksheetUpdate { .. } => StatusCode::BAD_REQUEST,
-                WorksheetsStoreError::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
+                WorksheetUpdateError::NothingToUpdate => StatusCode::BAD_REQUEST,
+                WorksheetUpdateError::Store { source } => match &source {
+                    WorksheetsStoreError::BadKey { .. }
+                    | WorksheetsStoreError::WorksheetUpdate { .. } => StatusCode::BAD_REQUEST,
+                    WorksheetsStoreError::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
+                    _ => StatusCode::INTERNAL_SERVER_ERROR,
+                },
             },
             Self::List { source } => match &source {
                 WorksheetsStoreError::WorksheetsList { .. } => StatusCode::BAD_REQUEST,

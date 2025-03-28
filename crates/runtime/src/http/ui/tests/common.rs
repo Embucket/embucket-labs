@@ -17,9 +17,9 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::http::ui::databases::models::DatabasePayload;
-use crate::http::ui::schemas::models::SchemaPayload;
-use crate::http::ui::volumes::models::VolumePayload;
+use crate::http::ui::databases::models::DatabaseCreatePayload;
+use crate::http::ui::schemas::models::SchemaCreatePayload;
+use crate::http::ui::volumes::models::VolumeCreatePayload;
 use http::Method;
 use reqwest::Response;
 use serde_json::json;
@@ -28,9 +28,9 @@ use std::net::SocketAddr;
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Entity {
-    Volume(VolumePayload),
-    Database(DatabasePayload),
-    Schema(SchemaPayload),
+    Volume(VolumeCreatePayload),
+    Database(DatabaseCreatePayload),
+    Schema(SchemaCreatePayload),
 }
 
 #[derive(Debug)]
@@ -55,18 +55,7 @@ pub async fn req(
         .send()
         .await;
 
-    if let Ok(res) = &res {
-        match res.error_for_status_ref() {
-            Ok(res) => {
-                eprintln!("res: {res:?}");
-            }
-            Err(err) => {
-                eprintln!("err: {err:?}");
-            }
-        }
-    } else if let Err(err) = &res {
-        eprintln!("req: {method} {url}, error: {err:?}");
-    }
+    eprintln!("req: {method} {url}, {res:?}");
 
     res
 }
@@ -76,25 +65,22 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
         Entity::Volume(vol) => match op {
             Op::Create | Op::List => format!("http://{addr}/ui/volumes"),
             Op::Delete | Op::Get | Op::Update => {
-                format!("http://{addr}/ui/volumes/{}", vol.data.ident)
+                format!("http://{addr}/ui/volumes/{}", vol.data.name)
             }
         },
         Entity::Database(db) => match op {
             Op::Create | Op::List => format!("http://{addr}/ui/databases"),
             Op::Delete | Op::Get | Op::Update => {
-                format!("http://{addr}/ui/databases/{}", db.data.ident)
+                format!("http://{addr}/ui/databases/{}", db.data.name)
             }
         },
         Entity::Schema(sc) => match op {
             Op::Create | Op::List => {
-                format!(
-                    "http://{addr}/ui/databases/{}/schemas",
-                    sc.data.ident.database
-                )
+                format!("http://{addr}/ui/databases/{}/schemas", sc.data.database)
             }
             Op::Delete | Op::Get | Op::Update => format!(
                 "http://{addr}/ui/databases/{}/schemas/{}",
-                sc.data.ident.database, sc.data.ident.schema
+                sc.data.database, sc.data.name
             ),
         },
     }

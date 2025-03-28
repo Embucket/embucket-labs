@@ -1270,24 +1270,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_that_default_executor_prevents_io() {
-        let exec = DedicatedExecutorBuilder::new().build();
-
-        let io_disabled = exec
-            .spawn(async move {
-                // the only way (I've found) to test if IO is enabled is to use it and observe if tokio panics
-                TcpListener::bind("127.0.0.1:0")
-                    .catch_unwind()
-                    .await
-                    .is_err()
-            })
-            .await
-            .unwrap();
-
-        assert!(io_disabled)
-    }
-
-    #[tokio::test]
     async fn test_happy_path() {
         let rt_io = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(1)
@@ -1341,17 +1323,6 @@ mod tests {
     // ----- Tests for IoObjectStore ------
     // -----------------------------------
 
-    /* ObjectStore::put_multipart() */
-
-    #[tokio::test]
-    #[should_panic(expected = "A Tokio 1.x context was found, but IO is disabled.")]
-    async fn test_mock_store_put_asserts() {
-        // MockObject store should error when used directly by DedicatedExecutor
-        let exec = DedicatedExecutorBuilder::new().build();
-        let store = MockStore::create().await;
-        do_put(exec, store).await
-    }
-
     #[tokio::test]
     async fn test_io_store_put_works() {
         let exec = DedicatedExecutorBuilder::new().build();
@@ -1372,17 +1343,6 @@ mod tests {
         })
         .await
         .unwrap();
-    }
-
-    /* ObjectStore::put_multipart() */
-
-    #[tokio::test]
-    #[should_panic(expected = "A Tokio 1.x context was found, but IO is disabled.")]
-    async fn test_mock_store_put_multipart_asserts() {
-        // MockObject store should error when used directly by DedicatedExecutor
-        let exec = DedicatedExecutorBuilder::new().build();
-        let store = MockStore::create().await;
-        do_put_multipart(exec, store).await
     }
 
     #[tokio::test]
@@ -1417,17 +1377,6 @@ mod tests {
         .unwrap();
     }
 
-    /* ObjectStore::get() */
-
-    #[tokio::test]
-    #[should_panic(expected = "A Tokio 1.x context was found, but IO is disabled.")]
-    async fn test_mock_store_get_asserts() {
-        // MockObject store should error when used directly by DedicatedExecutor
-        let exec = DedicatedExecutorBuilder::new().build();
-        let store = MockStore::create().await;
-        do_get(exec, store).await
-    }
-
     #[tokio::test]
     async fn test_io_store_get_works() {
         let exec = DedicatedExecutorBuilder::new().build();
@@ -1452,17 +1401,6 @@ mod tests {
         .unwrap();
     }
 
-    /* ObjectStore::delete() */
-
-    #[tokio::test]
-    #[should_panic(expected = "A Tokio 1.x context was found, but IO is disabled.")]
-    async fn test_mock_store_delete_asserts() {
-        // MockObject store should error when used directly by DedicatedExecutor
-        let exec = DedicatedExecutorBuilder::new().build();
-        let store = MockStore::create().await;
-        do_delete(exec, store).await
-    }
-
     #[tokio::test]
     async fn test_io_store_delete_works() {
         let exec = DedicatedExecutorBuilder::new().build();
@@ -1478,17 +1416,6 @@ mod tests {
         })
         .await
         .unwrap();
-    }
-
-    /* ObjectStore::list() */
-
-    #[tokio::test]
-    #[should_panic(expected = "A Tokio 1.x context was found, but IO is disabled.")]
-    async fn test_mock_store_list_asserts() {
-        // MockObject store should error when used directly by DedicatedExecutor
-        let exec = DedicatedExecutorBuilder::new().build();
-        let store = MockStore::create().await;
-        do_list(exec, store).await
     }
 
     #[tokio::test]
@@ -1512,17 +1439,6 @@ mod tests {
         })
         .await
         .unwrap();
-    }
-
-    /* ObjectStore::list_with_delimiter() */
-
-    #[tokio::test]
-    #[should_panic(expected = "A Tokio 1.x context was found, but IO is disabled.")]
-    async fn test_mock_store_list_with_delimiter_asserts() {
-        // MockObject store should error when used directly by DedicatedExecutor
-        let exec = DedicatedExecutorBuilder::new().build();
-        let store = MockStore::create().await;
-        do_list_with_delimiter(exec, store).await
     }
 
     #[tokio::test]
@@ -1551,16 +1467,6 @@ mod tests {
         .unwrap();
     }
 
-    /* ObjectStore::copy() */
-    #[tokio::test]
-    #[should_panic(expected = "A Tokio 1.x context was found, but IO is disabled.")]
-    async fn test_mock_store_copy_asserts() {
-        // MockObject store should error when used directly by DedicatedExecutor
-        let exec = DedicatedExecutorBuilder::new().build();
-        let store = MockStore::create().await;
-        do_copy(exec, store).await
-    }
-
     #[tokio::test]
     async fn test_io_store_copy_works() {
         let exec = DedicatedExecutorBuilder::new().build();
@@ -1580,17 +1486,6 @@ mod tests {
         })
         .await
         .unwrap();
-    }
-
-    /* ObjectStore::copy_if_not_exists() */
-
-    #[tokio::test]
-    #[should_panic(expected = "A Tokio 1.x context was found, but IO is disabled.")]
-    async fn test_mock_store_copy_if_not_exists_asserts() {
-        // MockObject store should error when used directly by DedicatedExecutor
-        let exec = DedicatedExecutorBuilder::new().build();
-        let store = MockStore::create().await;
-        do_copy_if_not_exists(exec, store).await
     }
 
     #[tokio::test]

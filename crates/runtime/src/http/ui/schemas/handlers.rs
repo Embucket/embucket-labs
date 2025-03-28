@@ -20,7 +20,10 @@ use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
     ui::schemas::error::{SchemasAPIError, SchemasResult},
-    ui::schemas::models::{SchemaPayload, SchemaResponse, SchemasResponse},
+    ui::schemas::models::{
+        Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaResponse, SchemaUpdatePayload,
+        SchemaUpdateResponse, SchemasResponse,
+    },
 };
 use axum::{
     extract::{Path, Query, State},
@@ -28,6 +31,9 @@ use axum::{
 };
 use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::models::IceBucketSchemaIdent;
+use icebucket_metastore::IceBucketSchema;
+use std::convert::From;
+use std::convert::Into;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -36,12 +42,13 @@ use utoipa::OpenApi;
         create_schema,
         delete_schema,
         get_schema,
-        update_schema,
+        // update_schema,
         list_schemas,
     ),
     components(
         schemas(
-            SchemaPayload,
+            SchemaCreatePayload,
+            SchemaCreateResponse,
             SchemaResponse,
             SchemasResponse,
             ErrorResponse,
@@ -61,9 +68,9 @@ pub struct ApiDoc;
     params(
         ("databaseName" = String, description = "Database Name")
     ),
-    request_body = SchemaPayload,
+    request_body = SchemaCreatePayload,
     responses(
-        (status = 200, description = "Successful Response", body = SchemaResponse),
+        (status = 200, description = "Successful Response", body = SchemaCreateResponse),
         (status = 400, description = "Bad request", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
@@ -73,16 +80,17 @@ pub struct ApiDoc;
 pub async fn create_schema(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-    Json(schema): Json<SchemaPayload>,
-) -> SchemasResult<Json<SchemaResponse>> {
+    Json(schema): Json<SchemaCreatePayload>,
+) -> SchemasResult<Json<SchemaCreateResponse>> {
+    let schema: IceBucketSchema = schema.data.into();
     state
         .metastore
-        .create_schema(&schema.data.ident.clone(), schema.data)
+        .create_schema(&schema.ident.clone(), schema)
         .await
         .map_err(|e| SchemasAPIError::Create { source: e })
         .map(|rw_object| {
-            Json(SchemaResponse {
-                data: rw_object.data,
+            Json(SchemaCreateResponse {
+                data: Schema::from(rw_object.data),
             })
         })
 }
@@ -112,7 +120,9 @@ pub async fn get_schema(
         schema: schema_name.clone(),
     };
     match state.metastore.get_schema(&schema_ident).await {
-        Ok(Some(schema)) => Ok(Json(SchemaResponse { data: schema.data })),
+        Ok(Some(schema)) => Ok(Json(SchemaResponse {
+            data: Schema::from(schema.data),
+        })),
         Ok(None) => Err(SchemasAPIError::Get {
             source: MetastoreError::SchemaNotFound {
                 db: database_name.clone(),
@@ -161,9 +171,9 @@ pub async fn delete_schema(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name")
     ),
-    request_body = SchemaPayload,
+    request_body = SchemaUpdatePayload,
     responses(
-        (status = 200, body = SchemaResponse),
+        (status = 200, body = SchemaUpdateResponse),
         (status = 404, description = "Schema not found"),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -172,18 +182,18 @@ pub async fn delete_schema(
 pub async fn update_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-    Json(schema): Json<SchemaPayload>,
-) -> SchemasResult<Json<SchemaResponse>> {
+    Json(schema): Json<SchemaUpdatePayload>,
+) -> SchemasResult<Json<SchemaUpdateResponse>> {
     let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
     // TODO: Implement schema renames
     state
         .metastore
-        .update_schema(&schema_ident, schema.data)
+        .update_schema(&schema_ident, schema.data.into())
         .await
         .map_err(|e| SchemasAPIError::Update { source: e })
         .map(|rw_object| {
-            Json(SchemaResponse {
-                data: rw_object.data,
+            Json(SchemaUpdateResponse {
+                data: Schema::from(rw_object.data),
             })
         })
 }
@@ -214,8 +224,8 @@ pub async fn list_schemas(
         .map(|rw_objects| {
             Json(SchemasResponse {
                 items: rw_objects
-                    .iter()
-                    .map(|rw_object| rw_object.data.clone())
+                    .into_iter()
+                    .map(|rw_object| Schema::from(rw_object.data))
                     .collect(),
             })
         })

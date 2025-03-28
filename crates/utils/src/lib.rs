@@ -434,7 +434,7 @@ mod test {
             },
             PseudoItem2 {
                 query: "SELECT 2".to_string(),
-                start_time: start_time + Duration::nanoseconds(1),
+                start_time: start_time + Duration::milliseconds(1),
             },
         ];
         for item in &items {

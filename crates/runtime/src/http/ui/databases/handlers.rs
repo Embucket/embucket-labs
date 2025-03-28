@@ -20,13 +20,17 @@ use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
     ui::databases::error::{DatabasesAPIError, DatabasesResult},
-    ui::databases::models::{DatabasePayload, DatabaseResponse, DatabasesResponse},
+    ui::databases::models::{
+        DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse, DatabaseUpdatePayload,
+        DatabaseUpdateResponse, DatabasesResponse,
+    },
 };
 use axum::{
     extract::{Path, Query, State},
     Json,
 };
 use icebucket_metastore::error::MetastoreError;
+use icebucket_metastore::IceBucketDatabase;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -37,11 +41,12 @@ use validator::Validate;
         get_database,
         delete_database,
         list_databases,
-        update_database,
+        // update_database,
     ),
     components(
         schemas(
-            DatabasePayload,
+            DatabaseCreatePayload,
+            DatabaseCreateResponse,
             DatabaseResponse,
             DatabasesResponse,
             ErrorResponse,
@@ -58,9 +63,9 @@ pub struct ApiDoc;
     operation_id = "createDatabase",
     tags = ["databases"],
     path = "/ui/databases",
-    request_body = DatabasePayload,
+    request_body = DatabaseCreatePayload,
     responses(
-        (status = 200, description = "Successful Response", body = inline(DatabaseResponse)),
+        (status = 200, description = "Successful Response", body = DatabaseCreateResponse),
         (status = 409, description = "Already Exists", body = ErrorResponse),
         (status = 400, description = "Bad request", body = ErrorResponse),
     )
@@ -68,20 +73,22 @@ pub struct ApiDoc;
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_database(
     State(state): State<AppState>,
-    Json(database): Json<DatabasePayload>,
-) -> DatabasesResult<Json<DatabaseResponse>> {
-    database
-        .data
-        .validate()
-        .map_err(|e| DatabasesAPIError::Create {
-            source: MetastoreError::Validation { source: e },
-        })?;
+    Json(database): Json<DatabaseCreatePayload>,
+) -> DatabasesResult<Json<DatabaseCreateResponse>> {
+    let database: IceBucketDatabase = database.data.into();
+    database.validate().map_err(|e| DatabasesAPIError::Create {
+        source: MetastoreError::Validation { source: e },
+    })?;
     state
         .metastore
-        .create_database(&database.data.ident.clone(), database.data)
+        .create_database(&database.ident.clone(), database)
         .await
         .map_err(|e| DatabasesAPIError::Create { source: e })
-        .map(|o| Json(DatabaseResponse { data: o.data }))
+        .map(|o| {
+            Json(DatabaseCreateResponse {
+                data: o.data.into(),
+            })
+        })
 }
 
 #[utoipa::path(
@@ -103,7 +110,9 @@ pub async fn get_database(
     Path(database_name): Path<String>,
 ) -> DatabasesResult<Json<DatabaseResponse>> {
     match state.metastore.get_database(&database_name).await {
-        Ok(Some(db)) => Ok(Json(DatabaseResponse { data: db.data })),
+        Ok(Some(db)) => Ok(Json(DatabaseResponse {
+            data: db.data.into(),
+        })),
         Ok(None) => Err(DatabasesAPIError::Get {
             source: MetastoreError::DatabaseNotFound {
                 db: database_name.clone(),
@@ -144,12 +153,12 @@ pub async fn delete_database(
     operation_id = "updateDatabase",
     tags = ["databases"],
     path = "/ui/databases/{databaseName}",
-    request_body = DatabasePayload,
+    request_body = DatabaseUpdatePayload,
     params(
         ("databaseName" = String, Path, description = "Database name")
     ),
     responses(
-        (status = 200, description = "Successful Response", body = DatabaseResponse),
+        (status = 200, description = "Successful Response", body = DatabaseUpdateResponse),
         (status = 404, description = "Not found", body = ErrorResponse),
         (status = 400, description = "Invalid data", body = ErrorResponse)
     )
@@ -158,21 +167,23 @@ pub async fn delete_database(
 pub async fn update_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-    Json(database): Json<DatabasePayload>,
-) -> DatabasesResult<Json<DatabaseResponse>> {
-    database
-        .data
-        .validate()
-        .map_err(|e| DatabasesAPIError::Update {
-            source: MetastoreError::Validation { source: e },
-        })?;
+    Json(database): Json<DatabaseUpdatePayload>,
+) -> DatabasesResult<Json<DatabaseUpdateResponse>> {
+    let database: IceBucketDatabase = database.data.into();
+    database.validate().map_err(|e| DatabasesAPIError::Update {
+        source: MetastoreError::Validation { source: e },
+    })?;
     //TODO: Implement database renames
     state
         .metastore
-        .update_database(&database_name, database.data)
+        .update_database(&database_name, database)
         .await
         .map_err(|e| DatabasesAPIError::Update { source: e })
-        .map(|o| Json(DatabaseResponse { data: o.data }))
+        .map(|o| {
+            Json(DatabaseUpdateResponse {
+                data: o.data.into(),
+            })
+        })
 }
 
 #[utoipa::path(
@@ -196,7 +207,7 @@ pub async fn list_databases(
         .map_err(|e| DatabasesAPIError::List { source: e })
         .map(|o| {
             Json(DatabasesResponse {
-                items: o.into_iter().map(|x| x.data).collect(),
+                items: o.into_iter().map(|x| x.data.into()).collect(),
             })
         })
 }

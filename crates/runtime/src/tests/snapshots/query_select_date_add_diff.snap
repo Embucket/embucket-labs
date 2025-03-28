@@ -31,7 +31,7 @@ description: "\"SELECT dateadd(day, 5, '2025-06-01')\""
                                                 Ident {
                                                     value: "dateadd",
                                                     quote_style: None,
-                                                    span: Span(Location(1,8)..Location(1,15)),
+                                                    span: Span(Location(0,0)..Location(0,0)),
                                                 },
                                             ],
                                         ),
