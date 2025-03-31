@@ -50,7 +50,7 @@ async fn test_ui_volumes_file() {
     let addr = run_icebucket_test_server().await;
 
     // memory volume with empty ident create Ok
-    let payload = r#"{"name":"","file":{"path":"/tmp/data"}}"#;
+    let payload = r#"{"name":"","type": "file", "path":"/tmp/data"}"#;
     let expected: VolumeCreatePayload = serde_json::from_str(payload).unwrap();
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     // let res = create_test_volume(addr, &expected).await;

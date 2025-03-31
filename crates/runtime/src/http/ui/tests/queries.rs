@@ -18,7 +18,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::error::ErrorResponse;
-use crate::http::ui::queries::models::{QueriesResponse, QueryCreatePayload, QueryCreateResponse};
+use crate::http::ui::queries::models::{
+    Column, QueriesResponse, QueryCreatePayload, QueryCreateResponse, ResultSet,
+};
 use crate::http::ui::tests::common::req;
 use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
@@ -74,7 +76,7 @@ async fn test_ui_queries() {
         Method::POST,
         &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
         json!(QueryCreatePayload {
-            query: "SELECT 1".to_string(),
+            query: "SELECT 1, 2".to_string(),
             context: None,
         })
         .to_string(),
@@ -85,7 +87,22 @@ async fn test_ui_queries() {
 
     let query_run_resp = res.json::<QueryCreateResponse>().await.unwrap();
     // println!("query_run_resp: {query_run_resp:?}");
-    assert_eq!(query_run_resp.result, [[i64::from(1)]]);
+    assert_eq!(
+        query_run_resp.data.result,
+        ResultSet {
+            columns: vec![
+                Column {
+                    name: "Int64(1)".to_string(),
+                    r#type: "fixed".to_string(),
+                },
+                Column {
+                    name: "Int64(2)".to_string(),
+                    r#type: "fixed".to_string(),
+                }
+            ],
+            rows: serde_json::from_str("[[1,2]]").unwrap()
+        }
+    );
     // assert_eq!(query_run_resp.result, "[{\"Int64(1)\":1}]");
 
     let res = req(
@@ -103,7 +120,17 @@ async fn test_ui_queries() {
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
     let query_run_resp2 = res.json::<QueryCreateResponse>().await.unwrap();
-    assert_eq!(query_run_resp2.result, [[i64::from(2)]] );
+    // println!("query_run_resp2: {query_run_resp2:?}");
+    assert_eq!(
+        query_run_resp2.data.result,
+        ResultSet {
+            columns: vec![Column {
+                name: "Int64(2)".to_string(),
+                r#type: "fixed".to_string(),
+            }],
+            rows: serde_json::from_str("[[2]]").unwrap()
+        }
+    );
     // assert_eq!(query_run_resp2.result, "[{\"Int64(2)\":2}]");
 
     let res = req(
@@ -135,9 +162,24 @@ async fn test_ui_queries() {
     )
     .await
     .unwrap();
+    // println!("err resp: {:?}", res.text().await.expect("Can't get response text"));
     assert_eq!(http::StatusCode::UNPROCESSABLE_ENTITY, res.status());
     let err = res.json::<ErrorResponse>().await.unwrap();
     assert_eq!(err.status_code, http::StatusCode::UNPROCESSABLE_ENTITY);
+
+    // get all=4
+    let res = req(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    // println!("{:?}", res.bytes().await);
+    let history_resp = res.json::<QueriesResponse>().await.unwrap();
+    assert_eq!(history_resp.items.len(), 4);
 
     // get 2
     let res = req(
@@ -155,10 +197,10 @@ async fn test_ui_queries() {
     // println!("{:?}", res.bytes().await);
     let history_resp = res.json::<QueriesResponse>().await.unwrap();
     assert_eq!(history_resp.items.len(), 2);
-    assert_eq!(history_resp.items[0].data.status, QueryStatus::Ok);
-    assert_eq!(history_resp.items[0].data.result, query_run_resp.result);
-    assert_eq!(history_resp.items[1].data.status, QueryStatus::Ok);
-    assert_eq!(history_resp.items[1].data.result, query_run_resp2.result);
+    assert_eq!(history_resp.items[0].status, QueryStatus::Ok);
+    assert_eq!(history_resp.items[0].result, query_run_resp.data.result);
+    assert_eq!(history_resp.items[1].status, QueryStatus::Ok);
+    assert_eq!(history_resp.items[1].result, query_run_resp2.data.result);
 
     // get rest
     let res = req(
@@ -176,6 +218,6 @@ async fn test_ui_queries() {
     // println!("{:?}", res.bytes().await);
     let history_resp = res.json::<QueriesResponse>().await.unwrap();
     assert_eq!(history_resp.items.len(), 2);
-    assert_eq!(history_resp.items[0].data.status, QueryStatus::Error);
-    assert_eq!(history_resp.items[1].data.status, QueryStatus::Error);
+    assert_eq!(history_resp.items[0].status, QueryStatus::Error);
+    assert_eq!(history_resp.items[1].status, QueryStatus::Error);
 }

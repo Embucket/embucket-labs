@@ -63,7 +63,7 @@ pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
     async fn update_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<()>;
     async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>>;
 
-    async fn add_query(&self, item: QueryRecord) -> WorksheetsStoreResult<()>;
+    async fn add_query(&self, item: &QueryRecord) -> WorksheetsStoreResult<()>;
     async fn get_queries(
         &self,
         worksheet_id: WorksheetId,
@@ -158,10 +158,10 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
             .context(WorksheetsListSnafu)?)
     }
 
-    async fn add_query(&self, item: QueryRecord) -> WorksheetsStoreResult<()> {
+    async fn add_query(&self, item: &QueryRecord) -> WorksheetsStoreResult<()> {
         Ok(self
             .db
-            .put_iterable_entity(&item)
+            .put_iterable_entity(item)
             .await
             .context(QueryAddSnafu)?)
     }
@@ -223,7 +223,7 @@ mod tests {
             }
             created.push(item.clone());
             eprintln!("added {:?}", item.key());
-            db.add_query(item).await.unwrap();
+            db.add_query(&item).await.unwrap();
         }
 
         let cursor = <QueryRecord as IterableEntity>::Cursor::CURSOR_MIN;

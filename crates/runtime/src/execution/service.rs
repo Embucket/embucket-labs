@@ -18,11 +18,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use arrow::array::RecordBatch;
-use arrow_json::{writer::JsonArray, WriterBuilder};
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
-use icebucket_history::Worksheet;
-use icebucket_history::QueryRecord;
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -44,28 +41,8 @@ pub struct ExecutionService {
     config: Config,
 }
 
-fn batches_into_str (records: Vec<RecordBatch>, columns: Vec<ColumnInfo>) -> ExecutionResult<String> {
-    let buf = Vec::new();
-    let write_builder = WriterBuilder::new().with_explicit_nulls(true);
-    let mut writer = write_builder.build::<_, JsonArray>(buf);
-
-    let record_refs: Vec<&RecordBatch> = records.iter().collect();
-    writer
-        .write_batches(&record_refs)
-        .context(ex_error::ArrowSnafu)?;
-    writer.finish().context(ex_error::ArrowSnafu)?;
-
-    // Get the underlying buffer back,
-    let buf = writer.into_inner();
-
-    String::from_utf8(buf).context(ex_error::Utf8Snafu)
-}
-
 impl ExecutionService {
-    pub fn new(
-        metastore: Arc<dyn Metastore>,
-        config: Config,
-    ) -> Self {
+    pub fn new(metastore: Arc<dyn Metastore>, config: Config) -> Self {
         Self {
             metastore,
             df_sessions: Arc::new(RwLock::new(HashMap::new())),
@@ -118,44 +95,6 @@ impl ExecutionService {
         // Add columns dbt metadata to each field
         convert_record_batches(records, data_format)
             .context(ex_error::DataFusionQuerySnafu { query })
-    }
-
-    // return tuple: query_record, err instead of Result<T, Err>
-    // as we still need query_record even if error is occured
-    #[tracing::instrument(level = "debug", skip(self))]
-    pub async fn query_table(
-        &self,
-        session_id: &str,
-        worksheet: Worksheet,
-        query: &str,
-        query_context: IceBucketQueryContext,
-    ) -> (QueryRecord, Option<ExecutionError>) {
-        let mut query_record = QueryRecord::query_start(worksheet.id, query, None);
-
-        let records_batch = self.query(session_id, query, query_context).await;
-        let err: Option<ExecutionError> = match records_batch {
-            Ok((records, columns)) => {
-                let result_count = i64::try_from(records.len()).unwrap_or(0);
-                let res = batches_into_str(records, columns);
-                match res {
-                    Ok(encoded_res) => {
-                        query_record.query_finished(result_count, Some(encoded_res), None);
-                        None // error: None
-                    }
-                    // utf8 convert error
-                    Err(err) => {
-                        query_record.query_finished_with_error(err.to_string());
-                        Some(err)
-                    }
-                }
-            }
-            Err(err) => {
-                // query execution error
-                query_record.query_finished_with_error(err.to_string());
-                Some(err)
-            }
-        };
-        (query_record, err)
     }
 
     #[tracing::instrument(level = "debug", skip(self))]

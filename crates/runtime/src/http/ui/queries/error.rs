@@ -39,6 +39,10 @@ pub enum QueryError {
     Store { source: WorksheetsStoreError },
     #[snafu(display("Failed to parse row JSON: {source}"))]
     ResultParse { source: serde_json::Error },
+    #[snafu(display("ResultSet create error: {source}"))]
+    CreateResultSet { source: arrow::error::ArrowError },
+    #[snafu(display("Error encoding UTF8 string: {source}"))]
+    Utf8 { source: std::string::FromUtf8Error },
 }
 
 #[derive(Debug, Snafu)]
@@ -62,7 +66,9 @@ impl IntoStatusCode for QueriesAPIError {
                     WorksheetsStoreError::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
                     _ => StatusCode::BAD_REQUEST,
                 },
-                QueryError::ResultParse { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+                QueryError::ResultParse { .. }
+                | QueryError::Utf8 { .. }
+                | QueryError::CreateResultSet { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Queries { source } => match &source {
                 QueryError::Store { source } => match &source {

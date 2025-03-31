@@ -37,7 +37,7 @@ pub struct FileVolume {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub enum VolumeType {
     S3(S3Volume),
     File(FileVolume),
