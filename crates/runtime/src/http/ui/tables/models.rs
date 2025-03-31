@@ -55,5 +55,5 @@ pub(crate) struct TablePreviewDataColumn {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct TablePreviewDataRow {
-    data: String,
+    pub(crate) data: String,
 }

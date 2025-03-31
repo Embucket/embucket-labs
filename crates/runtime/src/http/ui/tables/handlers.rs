@@ -21,7 +21,7 @@ use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
 use crate::http::ui::tables::models::{TableInfo, TableInfoColumn, TableInfoResponse, TablePreviewDataColumn, TablePreviewDataResponse, TablePreviewDataRow};
-use arrow_array::{Array, Datum};
+use arrow_array::{Array, Datum, StringArray, StringArrayType};
 use arrow_schema::DataType;
 use axum::{
     extract::{Path, State},
@@ -33,12 +33,16 @@ use utoipa::OpenApi;
 #[openapi(
     paths(
         get_table_info,
+        get_table_preview_data,
     ),
     components(
         schemas(
             TableInfoResponse,
             TableInfo,
             TableInfoColumn,
+            TablePreviewDataResponse,
+            TablePreviewDataColumn,
+            TablePreviewDataRow,
             ErrorResponse,
         )
     ),
@@ -182,10 +186,10 @@ pub async fn get_table_info(
         ("schemaName" = String, description = "Schema Name"),
         ("tableName" = String, description = "Table Name")
     ),
-    operation_id = "getTableInfo",
+    operation_id = "getTablePreviewData",
     tags = ["tables"],
     responses(
-        (status = 200, description = "Successful Response", body = TableInfoResponse),
+        (status = 200, description = "Successful Response", body = TablePreviewDataResponse),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -204,57 +208,28 @@ pub async fn get_table_preview_data(
     let sql_string = format!("SELECT * FROM {database_name}.{schema_name}.{table_name}");
     let result = state
         .execution_svc
-        .query(&session_id, sql_string.as_str(), context.clone())
+        .query(&session_id, sql_string.as_str(), context)
         .await
         .map_err(|e| TablesAPIError::Get { source: e })?;
     let mut preview_data_columns: Vec<TablePreviewDataColumn> = vec![];
     for batch in result.0 {
-        for column in batch.columns() {
-            match column.data_type() {
-                DataType::Null => {}
-                DataType::Boolean => {}
-                DataType::Int8 => {}
-                DataType::Int16 => {}
-                DataType::Int32 => {}
-                DataType::Int64 => {}
-                DataType::UInt8 => {}
-                DataType::UInt16 => {}
-                DataType::UInt32 => {}
-                DataType::UInt64 => {}
-                DataType::Float16 => {}
-                DataType::Float32 => {}
-                DataType::Float64 => {}
-                DataType::Timestamp(_, _) => {}
-                DataType::Date32 => {}
-                DataType::Date64 => {}
-                DataType::Time32(_) => {}
-                DataType::Time64(_) => {}
-                DataType::Duration(_) => {}
-                DataType::Interval(_) => {}
-                DataType::Binary => {}
-                DataType::FixedSizeBinary(_) => {}
-                DataType::LargeBinary => {}
-                DataType::BinaryView => {}
-                DataType::Utf8 => {}
-                DataType::LargeUtf8 => {}
-                DataType::Utf8View => {}
-                DataType::List(_) => {}
-                DataType::ListView(_) => {}
-                DataType::FixedSizeList(_, _) => {}
-                DataType::LargeList(_) => {}
-                DataType::LargeListView(_) => {}
-                DataType::Struct(_) => {}
-                DataType::Union(_, _) => {}
-                DataType::Dictionary(_, _) => {}
-                DataType::Decimal128(_, _) => {}
-                DataType::Decimal256(_, _) => {}
-                DataType::Map(_, _) => {}
-                DataType::RunEndEncoded(_, _) => {}
+        for (i, column) in batch.columns().iter().enumerate() {
+            let mut preview_data_rows: Vec<TablePreviewDataRow> = vec![];
+            for row in column.as_any().downcast_ref::<StringArray>().unwrap() {
+                preview_data_rows.push(
+                    TablePreviewDataRow {
+                        data: row.unwrap().to_string(),
+                    }
+                )
             }
+            preview_data_columns.push(TablePreviewDataColumn {
+                name: batch.schema().fields[i].name().to_string(),
+                rows: preview_data_rows,
+            })
         }
     }
     Ok(Json(TablePreviewDataResponse {
-        items:
+        items: preview_data_columns,
     }))
 }
 
