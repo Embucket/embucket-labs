@@ -115,10 +115,7 @@ pub fn create_router() -> Router<AppState> {
                 .delete(delete_worksheet)
                 .patch(update_worksheet),
         )
-        .route(
-            "/worksheets/{worksheet_id}/queries",
-            post(query).get(queries),
-        )
+        .route("/queries", post(query).get(queries))
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/settings",
         //     get(get_settings).post(update_table_properties),

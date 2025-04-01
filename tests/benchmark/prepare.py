@@ -98,7 +98,7 @@ def prepare_data(
                 OPTIONS ('binary_as_string' 'true');
             """
             requests.request(
-                "POST", f"{catalog_url}/ui/worksheets/{worksheet_id}/queries",
+                "POST", f"{catalog_url}/ui/queries?worksheet_id={worksheet_id}",
                 headers=headers,
                 data=json.dumps({"query": query})
             )

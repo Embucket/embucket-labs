@@ -19,11 +19,27 @@
 
 use crate::tests::run_icebucket_test_server;
 // for `collect`
-use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetCreateResponse};
+use crate::http::ui::{
+    queries::models::QueryCreateResponse,
+    worksheets::models::{WorksheetCreatePayload, WorksheetCreateResponse},
+};
+use chrono::{TimeZone, Utc};
 use icebucket_metastore::{
     IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume,
 };
 use serde_json::json;
+
+// Replace dynamic time data by some stub data
+fn get_patched_query_response(query_resp: &str) -> String {
+    let stub_time = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
+    let mut query_resp: QueryCreateResponse =
+        serde_json::from_str(query_resp).expect("Failed to parse QueryCreateResponse");
+    query_resp.data.start_time = stub_time;
+    query_resp.data.end_time = stub_time;
+    query_resp.data.duration_ms = 100;
+    serde_json::to_string(&query_resp)
+        .expect("Failed to serialize QueryCreateResponse back to string")
+}
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -121,7 +137,7 @@ async fn test_parallel_queries() {
         .id;
 
     let query1 = client
-        .post(format!("http://{addr}/ui/worksheets/{wid}/queries"))
+        .post(format!("http://{addr}/ui/queries?worksheet_id={wid}"))
         .header("Content-Type", "application/json")
         .body(
             json!({
@@ -147,7 +163,7 @@ async fn test_parallel_queries() {
     insert_query.push_str("(200, 1, 'test', 1, 1, 1, 1, 1);");
 
     let query2 = client2
-        .post(format!("http://{addr}/ui/worksheets/{wid}/queries"))
+        .post(format!("http://{addr}/ui/queries?worksheet_id={wid}"))
         .header("Content-Type", "application/json")
         .body(
             json!({
@@ -169,6 +185,9 @@ async fn test_parallel_queries() {
     filters => vec![
         (r"\d+{5,}", "99999"),
     ]}, {
-        insta::assert_debug_snapshot!((query1, query2,));
+        insta::assert_debug_snapshot!((
+            get_patched_query_response(query1.as_str()),
+            get_patched_query_response(query2.as_str()),
+        ));
     });
 }

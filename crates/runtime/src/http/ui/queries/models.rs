@@ -161,7 +161,13 @@ pub struct QueriesResponse {
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema, utoipa::IntoParams)]
-pub struct GetHistoryItemsParams {
+pub struct GetQueriesParams {
+    pub worksheet_id: Option<WorksheetId>,
     pub cursor: Option<QueryRecordId>,
     pub limit: Option<u16>,
+}
+
+#[derive(Debug, Deserialize, utoipa::ToSchema, utoipa::IntoParams)]
+pub struct PostQueriesParams {
+    pub worksheet_id: Option<WorksheetId>,
 }

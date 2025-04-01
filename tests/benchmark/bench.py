@@ -37,7 +37,7 @@ def run_benchmark(external_table=False, comment="", file_name="result", external
             duration = []
             for i in range(TRIES):
                 response = requests.post(
-                    f"{CATALOG}/ui/worksheets/1/queries",
+                    f"{CATALOG}/ui/queries?worksheet_id=1",
                     json={"query": query.format(table_path)},
                 )
                 if response.status_code == 200:

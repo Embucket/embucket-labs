@@ -30,6 +30,40 @@ use serde_json::json;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
+async fn test_ui_queries_no_worksheet() {
+    let addr = run_icebucket_test_server().await;
+    let client = reqwest::Client::new();
+
+    let res = req(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/queries?worksheet_id={}", 0),
+        json!(QueryCreatePayload {
+            query: "SELECT 1".to_string(),
+            context: None,
+        })
+        .to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    let res = req(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries?worksheet_id={}", 0),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    // println!("{:?}", res.bytes().await);
+    let history_resp = res.json::<QueriesResponse>().await.unwrap();
+    assert_eq!(history_resp.items.len(), 1);
+}
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)]
 async fn test_ui_queries() {
     let addr = run_icebucket_test_server().await;
     let client = reqwest::Client::new();
@@ -53,7 +87,7 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::DELETE,
-        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
         String::new(),
     )
     .await
@@ -64,7 +98,7 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/worksheets/{}/queries", 0),
+        &format!("http://{addr}/ui/queries?worksheet_id={}", 0),
         String::new(),
     )
     .await
@@ -74,7 +108,7 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
         json!(QueryCreatePayload {
             query: "SELECT 1, 2".to_string(),
             context: None,
@@ -108,7 +142,7 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
         json!(QueryCreatePayload {
             query: "SELECT 2".to_string(),
             context: None,
@@ -136,7 +170,7 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
         json!(QueryCreatePayload {
             query: "SELECT foo".to_string(),
             context: None,
@@ -153,7 +187,7 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
         json!(QueryCreatePayload {
             query: "SELECT foo".to_string(),
             context: None,
@@ -171,7 +205,7 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::GET,
-        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
         String::new(),
     )
     .await
@@ -186,7 +220,7 @@ async fn test_ui_queries() {
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/worksheets/{}/queries?limit=2",
+            "http://{addr}/ui/queries?worksheet_id={}&limit=2",
             worksheet.id
         ),
         String::new(),
@@ -207,7 +241,7 @@ async fn test_ui_queries() {
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/worksheets/{}/queries?cursor={}",
+            "http://{addr}/ui/queries?worksheet_id={}&cursor={}",
             worksheet.id, history_resp.next_cursor
         ),
         String::new(),

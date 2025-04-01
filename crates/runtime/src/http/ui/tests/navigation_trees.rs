@@ -153,7 +153,7 @@ async fn test_ui_databases_navigation() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/worksheets/{}/queries", worksheet.id),
+        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
         json!(query_payload).to_string(),
     )
     .await

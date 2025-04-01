@@ -62,19 +62,16 @@ impl IntoStatusCode for QueriesAPIError {
         match self {
             Self::Query { source } => match &source {
                 QueryError::Execution { .. } => StatusCode::UNPROCESSABLE_ENTITY,
-                QueryError::Store { source } => match &source {
-                    WorksheetsStoreError::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
-                    _ => StatusCode::BAD_REQUEST,
-                },
+                QueryError::Store { .. } => StatusCode::BAD_REQUEST,
                 QueryError::ResultParse { .. }
                 | QueryError::Utf8 { .. }
                 | QueryError::CreateResultSet { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Queries { source } => match &source {
                 QueryError::Store { source } => match &source {
-                    WorksheetsStoreError::QueryGet { .. }
-                    | WorksheetsStoreError::WorksheetNotFound { .. }
-                    | WorksheetsStoreError::BadKey { .. } => StatusCode::NOT_FOUND,
+                    WorksheetsStoreError::QueryGet { .. } | WorksheetsStoreError::BadKey { .. } => {
+                        StatusCode::NOT_FOUND
+                    }
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 },
                 QueryError::ResultParse { .. } => StatusCode::UNPROCESSABLE_ENTITY,

@@ -18,7 +18,7 @@
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::queries::models::{
-    ExecutionContext, GetHistoryItemsParams, QueriesResponse, QueryCreatePayload,
+    ExecutionContext, GetQueriesParams, PostQueriesParams, QueriesResponse, QueryCreatePayload,
     QueryCreateResponse, QueryRecord, ResultSet,
 };
 use crate::http::{
@@ -26,7 +26,7 @@ use crate::http::{
     ui::queries::error::{QueriesAPIError, QueriesResult, QueryError},
 };
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Query, State},
     Json,
 };
 use icebucket_history::{QueryRecord as QueryRecordItem, QueryRecordId, WorksheetId};
@@ -46,7 +46,7 @@ pub struct ApiDoc;
 
 #[utoipa::path(
     post,
-    path = "/worksheets/{worksheet_id}/queries",
+    path = "/queries",
     operation_id = "createQuery",
     tags = ["queries"],
     params(
@@ -82,21 +82,16 @@ pub struct ApiDoc;
 pub async fn query(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
-    Path(worksheet_id): Path<WorksheetId>,
+    Query(params): Query<PostQueriesParams>,
     Json(request): Json<QueryCreatePayload>,
 ) -> QueriesResult<Json<QueryCreateResponse>> {
     //
     // Note: This handler allowed to return error from a designated place only,
     // after query record successfull saved result or error.
-    //
-    // TODO: make worksheet optional and if it's not defined it should run query anyway
-    let worksheet = state
-        .history
-        .get_worksheet(worksheet_id)
-        .await
-        .map_err(|e| QueriesAPIError::Query {
-            source: QueryError::Store { source: e },
-        })?;
+
+    // Here we use worksheet_id = 0 if worksheet_id is not defined,
+    // we still can get queries records for non existing worksheet
+    let worksheet_id = params.worksheet_id.unwrap_or_default();
 
     let query_context = ExecutionContext {
         database: request
@@ -110,7 +105,7 @@ pub async fn query(
     };
 
     // TODO: save query record even if no related worksheet
-    let mut query_record = QueryRecordItem::query_start(worksheet.id, &request.query, None);
+    let mut query_record = QueryRecordItem::query_start(worksheet_id, &request.query, None);
 
     let query_res = state
         .execution_svc
@@ -166,7 +161,7 @@ pub async fn query(
 
 #[utoipa::path(
     get,
-    path = "/worksheets/{worksheet_id}/queries",
+    path = "/queries",
     operation_id = "getQueries",
     tags = ["queries"],
     params(
@@ -183,18 +178,12 @@ pub async fn query(
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn queries(
-    Query(params): Query<GetHistoryItemsParams>,
+    Query(params): Query<GetQueriesParams>,
     State(state): State<AppState>,
-    Path(worksheet_id): Path<WorksheetId>,
 ) -> QueriesResult<Json<QueriesResponse>> {
-    // check if worksheet is exists (get and waste entire worksheet)
-    state
-        .history
-        .get_worksheet(worksheet_id)
-        .await
-        .map_err(|e| QueriesAPIError::Queries {
-            source: QueryError::Store { source: e },
-        })?;
+    // Here we use worksheet_id = 0 if worksheet_id is not defined,
+    // we still can get queries records for non existing worksheet
+    let worksheet_id = params.worksheet_id.unwrap_or_default();
 
     let result = state
         .history
