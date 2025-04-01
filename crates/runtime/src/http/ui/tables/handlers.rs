@@ -24,7 +24,7 @@ use crate::http::ui::tables::models::{
     TableInfo, TableInfoColumn, TableInfoResponse, TablePreviewDataColumn,
     TablePreviewDataResponse, TablePreviewDataRow,
 };
-use arrow_array::{Array, StringArray, StringArrayType};
+use arrow_array::{Array, StringArray};
 use axum::{
     extract::{Path, State},
     Json,
