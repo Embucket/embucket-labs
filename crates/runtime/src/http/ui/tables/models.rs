@@ -16,7 +16,7 @@
 // under the License.
 
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -56,4 +56,10 @@ pub(crate) struct TablePreviewDataColumn {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct TablePreviewDataRow {
     pub(crate) data: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
+pub(crate) struct TablePreviewDataParameters {
+    pub(crate) offset: Option<u32>,
+    pub(crate) limit: Option<u16>,
 }

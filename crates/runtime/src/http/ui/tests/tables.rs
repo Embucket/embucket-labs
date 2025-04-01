@@ -194,4 +194,25 @@ async fn test_ui_tables() {
         "2021-01-01T00:00:00",
         table.items.last().unwrap().rows.first().unwrap().data
     );
+
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1/preview?offset=1&limit=1",
+            database_name.clone(),
+            schema_name.clone()
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let table: TablePreviewDataResponse = res.json().await.unwrap();
+    assert_eq!(5, table.items.len());
+    assert_eq!(1, table.items.first().unwrap().rows.len());
+    assert_eq!(
+        "2021-01-01T00:02:00",
+        table.items.last().unwrap().rows.first().unwrap().data
+    );
 }

@@ -22,9 +22,10 @@ use crate::http::state::AppState;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
 use crate::http::ui::tables::models::{
     TableInfo, TableInfoColumn, TableInfoResponse, TablePreviewDataColumn,
-    TablePreviewDataResponse, TablePreviewDataRow,
+    TablePreviewDataParameters, TablePreviewDataResponse, TablePreviewDataRow,
 };
 use arrow_array::{Array, StringArray};
+use axum::extract::Query;
 use axum::{
     extract::{Path, State},
     Json,
@@ -133,12 +134,12 @@ pub async fn get_table_info(
         let column_name_array = batch
             .column(0)
             .as_any()
-            .downcast_ref::<arrow::array::StringArray>()
+            .downcast_ref::<StringArray>()
             .unwrap();
         let data_type_array = batch
             .column(1)
             .as_any()
-            .downcast_ref::<arrow::array::StringArray>()
+            .downcast_ref::<StringArray>()
             .unwrap();
 
         // Iterate over each record
@@ -200,6 +201,7 @@ pub async fn get_table_info(
 #[allow(clippy::unwrap_used)]
 pub async fn get_table_preview_data(
     DFSessionId(session_id): DFSessionId,
+    Query(parameters): Query<TablePreviewDataParameters>,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> TablesResult<Json<TablePreviewDataResponse>> {
@@ -235,6 +237,12 @@ pub async fn get_table_preview_data(
         "SELECT {} FROM {database_name}.{schema_name}.{table_name}",
         column_names.join(", ")
     );
+    let sql_string = parameters.offset.map_or(sql_string.clone(), |offset| {
+        format!("{sql_string} OFFSET {offset}")
+    });
+    let sql_string = parameters.limit.map_or(sql_string.clone(), |limit| {
+        format!("{sql_string} LIMIT {limit}")
+    });
     let result = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
