@@ -15,13 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use std::fmt::Debug;
 use crate::execution::query::IceBucketQueryContext;
 use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
 use crate::http::ui::tables::models::{TableInfo, TableInfoColumn, TableInfoResponse, TablePreviewDataColumn, TablePreviewDataResponse, TablePreviewDataRow};
-use arrow_array::{Array, Datum, StringArray, StringArrayType};
+use arrow_array::{Array, BooleanArray, Datum, Int64Array, Int8Array, NullArray, StringArray, StringArrayType};
+use arrow_json::WriterBuilder;
 use arrow_schema::DataType;
 use axum::{
     extract::{Path, State},
@@ -205,7 +207,28 @@ pub async fn get_table_preview_data(
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
     };
-    let sql_string = format!("SELECT * FROM {database_name}.{schema_name}.{table_name}");
+    let sql_string = format!("SELECT column_name FROM datafusion.information_schema.columns WHERE table_name = '{}'", table_name.clone());
+    let result = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context.clone())
+        .await
+        .map_err(|e| TablesAPIError::Get { source: e })?;
+    let mut column_names: Vec<String> = vec![];
+    for batch in result.0 {
+        let column_name_array = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+        for column_name in column_name_array {
+            column_names.push(column_name.unwrap().to_string());
+        }
+    }
+    let column_names = column_names
+        .iter()
+        .map(|column_name| format!("COALESCE(CAST({} AS STRING), 'Unsupported')", column_name))
+        .collect::<Vec<_>>();
+    let sql_string = format!("SELECT {} FROM {database_name}.{schema_name}.{table_name}", column_names.join(", "));
     let result = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
