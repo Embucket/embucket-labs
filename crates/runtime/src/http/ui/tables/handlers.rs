@@ -124,13 +124,13 @@ pub async fn get_table_info(
         schema: Some(schema_name.clone()),
     };
     let sql_string = format!("SELECT column_name, data_type FROM datafusion.information_schema.columns WHERE table_name = '{table_name}'");
-    let result = state
+    let (batches, _) = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context.clone())
         .await
         .map_err(|e| TablesAPIError::Get { source: e })?;
     let mut columns: Vec<TableInfoColumn> = vec![];
-    for batch in result.0 {
+    for batch in batches {
         let column_name_array = batch
             .column(0)
             .as_any()
@@ -154,24 +154,18 @@ pub async fn get_table_info(
         "SELECT COUNT(*) AS total_rows FROM {database_name}.{schema_name}.{}",
         table_name.clone()
     );
-    let result = state
+    let (batches, _) = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
         .map_err(|e| TablesAPIError::Get { source: e })?;
-    let total_rows = if let Some(batch) = result.0.first() {
-        if let Some(array) = batch
+    let total_rows = batches.first().map_or(0, |batch| {
+        batch
             .column(0)
             .as_any()
             .downcast_ref::<arrow::array::Int64Array>()
-        {
-            array.value(0)
-        } else {
-            0
-        }
-    } else {
-        0
-    };
+            .map_or(0, |array| array.value(0))
+    });
     Ok(Json(TableInfoResponse {
         data: TableInfo {
             name: table_name,
@@ -215,13 +209,13 @@ pub async fn get_table_preview_data(
         "SELECT column_name FROM datafusion.information_schema.columns WHERE table_name = '{}'",
         table_name.clone()
     );
-    let result = state
+    let (batches, _) = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context.clone())
         .await
         .map_err(|e| TablesAPIError::Get { source: e })?;
     let mut column_names: Vec<String> = vec![];
-    for batch in result.0 {
+    for batch in batches {
         let column_name_array = batch
             .column(0)
             .as_any()
@@ -233,6 +227,7 @@ pub async fn get_table_preview_data(
     }
     let column_names = column_names
         .iter()
+        //UNSUPPORTED TYPES: ListArray, StructArray, Binary (Arrow Cast for Datafusion)
         .map(|column_name| format!("COALESCE(CAST({column_name} AS STRING), 'Unsupported')"))
         .collect::<Vec<_>>();
     let sql_string = format!(
@@ -245,13 +240,13 @@ pub async fn get_table_preview_data(
     let sql_string = parameters.limit.map_or(sql_string.clone(), |limit| {
         format!("{sql_string} LIMIT {limit}")
     });
-    let result = state
+    let (batches, _) = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
         .map_err(|e| TablesAPIError::Get { source: e })?;
     let mut preview_data_columns: Vec<TablePreviewDataColumn> = vec![];
-    for batch in result.0 {
+    for batch in batches {
         for (i, column) in batch.columns().iter().enumerate() {
             let mut preview_data_rows: Vec<TablePreviewDataRow> = vec![];
             for row in column.as_any().downcast_ref::<StringArray>().unwrap() {
