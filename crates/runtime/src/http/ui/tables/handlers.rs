@@ -187,7 +187,9 @@ pub async fn get_table_info(
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
-        ("tableName" = String, description = "Table Name")
+        ("tableName" = String, description = "Table Name"),
+        ("offset" = Option<u32>, Query, description = "Table preview offset"),
+        ("limit" = Option<u16>, Query, description = "Table preview limit")
     ),
     operation_id = "getTablePreviewData",
     tags = ["tables"],
