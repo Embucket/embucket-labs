@@ -15,16 +15,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use std::fmt::Debug;
 use crate::execution::query::IceBucketQueryContext;
 use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
-use crate::http::ui::tables::models::{TableInfo, TableInfoColumn, TableInfoResponse, TablePreviewDataColumn, TablePreviewDataResponse, TablePreviewDataRow};
-use arrow_array::{Array, BooleanArray, Datum, Int64Array, Int8Array, NullArray, StringArray, StringArrayType};
-use arrow_json::WriterBuilder;
-use arrow_schema::DataType;
+use crate::http::ui::tables::models::{
+    TableInfo, TableInfoColumn, TableInfoResponse, TablePreviewDataColumn,
+    TablePreviewDataResponse, TablePreviewDataRow,
+};
+use arrow_array::{Array, StringArray, StringArrayType};
 use axum::{
     extract::{Path, State},
     Json,
@@ -207,7 +207,10 @@ pub async fn get_table_preview_data(
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
     };
-    let sql_string = format!("SELECT column_name FROM datafusion.information_schema.columns WHERE table_name = '{}'", table_name.clone());
+    let sql_string = format!(
+        "SELECT column_name FROM datafusion.information_schema.columns WHERE table_name = '{}'",
+        table_name.clone()
+    );
     let result = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context.clone())
@@ -226,9 +229,12 @@ pub async fn get_table_preview_data(
     }
     let column_names = column_names
         .iter()
-        .map(|column_name| format!("COALESCE(CAST({} AS STRING), 'Unsupported')", column_name))
+        .map(|column_name| format!("COALESCE(CAST({column_name} AS STRING), 'Unsupported')"))
         .collect::<Vec<_>>();
-    let sql_string = format!("SELECT {} FROM {database_name}.{schema_name}.{table_name}", column_names.join(", "));
+    let sql_string = format!(
+        "SELECT {} FROM {database_name}.{schema_name}.{table_name}",
+        column_names.join(", ")
+    );
     let result = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
@@ -239,16 +245,14 @@ pub async fn get_table_preview_data(
         for (i, column) in batch.columns().iter().enumerate() {
             let mut preview_data_rows: Vec<TablePreviewDataRow> = vec![];
             for row in column.as_any().downcast_ref::<StringArray>().unwrap() {
-                preview_data_rows.push(
-                    TablePreviewDataRow {
-                        data: row.unwrap().to_string(),
-                    }
-                )
+                preview_data_rows.push(TablePreviewDataRow {
+                    data: row.unwrap().to_string(),
+                });
             }
             preview_data_columns.push(TablePreviewDataColumn {
                 name: batch.schema().fields[i].name().to_string(),
                 rows: preview_data_rows,
-            })
+            });
         }
     }
     Ok(Json(TablePreviewDataResponse {

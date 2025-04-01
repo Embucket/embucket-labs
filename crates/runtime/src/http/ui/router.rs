@@ -39,7 +39,9 @@ use crate::http::ui::navigation_trees::handlers::{
 };
 use crate::http::ui::queries::handlers::ApiDoc as QueryApiDoc;
 use crate::http::ui::schemas::handlers::ApiDoc as SchemasApiDoc;
-use crate::http::ui::tables::handlers::{ApiDoc as TableApiDoc, get_table_preview_data, get_table_info};
+use crate::http::ui::tables::handlers::{
+    get_table_info, get_table_preview_data, ApiDoc as TableApiDoc,
+};
 use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
 

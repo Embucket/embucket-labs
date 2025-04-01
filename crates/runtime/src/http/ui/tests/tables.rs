@@ -184,11 +184,14 @@ async fn test_ui_tables() {
         ),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let table: TablePreviewDataResponse = res.json().await.unwrap();
     assert_eq!(5, table.items.len());
     assert_eq!(2, table.items.first().unwrap().rows.len());
-    assert_eq!("2021-01-01T00:00:00", table.items.last().unwrap().rows.first().unwrap().data)
+    assert_eq!(
+        "2021-01-01T00:00:00",
+        table.items.last().unwrap().rows.first().unwrap().data
+    );
 }
