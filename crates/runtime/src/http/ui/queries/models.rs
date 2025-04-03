@@ -40,10 +40,14 @@ pub struct Column {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[schema(as = Row, value_type = Vec<Value>)]
+pub struct Row(Vec<Value>);
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ResultSet {
     pub columns: Vec<Column>,
-    pub rows: Vec<Vec<Value>>,
+    pub rows: Vec<Row>,
 }
 
 impl ResultSet {
@@ -69,9 +73,9 @@ impl ResultSet {
         // convert to array, leaving only values
         let rows: Vec<IndexMap<String, Value>> =
             serde_json::from_str(record_batch_str.as_str()).context(ResultParseSnafu)?;
-        let rows: Vec<Vec<Value>> = rows
+        let rows: Vec<Row> = rows
             .into_iter()
-            .map(|obj| obj.values().cloned().collect())
+            .map(|obj| Row(obj.values().cloned().collect()))
             .collect();
 
         let columns = columns

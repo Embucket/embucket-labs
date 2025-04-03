@@ -20,6 +20,7 @@ use std::{collections::HashMap, sync::Arc};
 use arrow::array::RecordBatch;
 use bytes::Bytes;
 use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
+use datafusion_common::{TableReference};
 use object_store::{path::Path, PutPayload};
 use snafu::ResultExt;
 use uuid::Uuid;
@@ -30,7 +31,7 @@ use super::{
     session::IceBucketUserSession,
     utils::{convert_record_batches, Config},
 };
-use icebucket_metastore::{IceBucketTableIdent, Metastore};
+use icebucket_metastore::{IceBucketTableIdent, Metastore, IceBucketVolumeType};
 use tokio::sync::RwLock;
 
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
@@ -144,6 +145,75 @@ impl ExecutionService {
                 db: table_ident.database.clone(),
             })?;
 
+        let metastore_volume = self.metastore
+            .get_volume(&metastore_db.volume)
+            .await
+            .context(ex_error::MetastoreSnafu)?
+            .ok_or(ExecutionError::VolumeNotFound {
+                volume: metastore_db.volume.clone(),
+            })?;
+
+
+
+        for catalog in user_session.ctx.state().catalog_list().catalog_names() {
+            let provider = user_session
+                .ctx
+                .state()
+                .catalog_list()
+                .catalog(&catalog)
+                .unwrap();
+            println!("catalog: {catalog}");
+            for schema in provider.schema_names() {
+                println!("schema: {schema}");
+                for table in provider.schema(&schema).unwrap().table_names() {
+                    let table_source = provider
+                        .schema(&schema)
+                        .unwrap()
+                        .table(&table)
+                        .await
+                        .context(super::error::DataFusionSnafu)?
+                        .ok_or(ExecutionError::TableProviderNotFound {
+                            table_name: table.clone(),
+                        })?;
+                    let resolved = user_session.ctx.state().resolve_table_ref(TableReference::full(
+                        catalog.to_string(),
+                        schema.to_string(),
+                        table,
+                    ));
+                    println!("resolved: {resolved:?}");
+                }
+            }
+        }
+
+        // construct URL, so it can be used to put csv file, which can be registered as a table
+
+        // this path also computes inside catalog service (create_table)
+        // TODO need to refactor the code so this path calculation is in one place
+        // let table_path = self
+        //     .metastore
+        //     .url_for_table(table_ident)
+        //     .await
+        //     .context(ex_error::MetastoreSnafu)?;
+
+        let volume_path = if let IceBucketVolumeType::File(ref file_volume)  = metastore_volume.volume {
+            file_volume.path.clone()
+        }
+        else {
+            String::new()
+        };
+
+        let IceBucketTableIdent { database, schema, table } = table_ident;
+        // let table_path = format!("{database}_{schema}_{table}_csv_{unique_file_id}_{file_name}");
+        let table_path = format!("{volume_path}/{database}_{schema}_{table}_{unique_file_id}_{file_name}");
+        let data_location = Path::from_absolute_path(table_path.clone()).unwrap();
+        let table_path = data_location.as_ref().to_string(); // get rid of leading '/'
+
+        // metastore_volume.prefix(), table_ident.database, table_ident.schema, table_ident.table
+        // let object_url = format!("{table_path}/csv/{}/{file_name}", unique_file_id.clone());
+        // let object_store_url = metastore_volume.prefix();
+        let object_store_url = "file://".to_string();
+        let upload_uri = format!("{object_store_url}/{table_path}");
+
         let object_store = self
             .metastore
             .volume_object_store(&metastore_db.volume)
@@ -153,58 +223,41 @@ impl ExecutionService {
                 volume: metastore_db.volume.clone(),
             })?;
 
-        // this path also computes inside catalog service (create_table)
-        // TODO need to refactor the code so this path calculation is in one place
-        let table_path = self
-            .metastore
-            .url_for_table(table_ident)
-            .await
-            .context(ex_error::MetastoreSnafu)?;
-        let upload_path = format!("{table_path}/tmp/{}/{file_name}", unique_file_id.clone());
+        
+        println!("table_path: {table_path}, \ndata_location: {data_location}, \nobject_store_url: {object_store_url}, \nupload_uri: {upload_uri}");
 
-        let path = Path::from(upload_path.clone());
         object_store
-            .put(&path, PutPayload::from(data))
+            .put(&data_location, PutPayload::from_bytes(data))
             .await
             .context(ex_error::ObjectStoreSnafu)?;
 
-        let temp_table_ident = IceBucketTableIdent {
-            database: "datafusion".to_string(),
-            schema: "tmp".to_string(),
-            table: unique_file_id.clone(),
-        };
-
+        println!("register_object_store");
         // We construct this URL so we can unwrap it
         #[allow(clippy::unwrap_used)]
         user_session.ctx.register_object_store(
-            ObjectStoreUrl::parse(&upload_path).unwrap().as_ref(),
+            ObjectStoreUrl::parse(&object_store_url).unwrap().as_ref(),
             object_store.clone(),
         );
+        println!("register_csv");
         user_session
             .ctx
             .register_csv(
-                temp_table_ident.to_string(),
-                upload_path,
+                table_ident.to_string(),
+                // IceBucketTableIdent {
+                //     table: table.clone(),
+                //     schema: "public".to_string(),
+                //     database: "datafusion".to_string(),
+                // }.to_string(),
+                upload_uri,
                 CsvReadOptions::new(),
             )
             .await
             .context(ex_error::DataFusionSnafu)?;
 
-        let insert_query = format!("INSERT INTO {table_ident} SELECT * FROM {temp_table_ident}",);
-
-        let query = user_session.query(&insert_query, IceBucketQueryContext::default());
-
-        query.execute().await?;
-
-        user_session
-            .ctx
-            .deregister_table(temp_table_ident.to_string())
-            .context(ex_error::DataFusionSnafu)?;
-
-        object_store
-            .delete(&path)
-            .await
-            .context(ex_error::ObjectStoreSnafu)?;
+        // object_store
+        //     .delete(&path)
+        //     .await
+        //     .context(ex_error::ObjectStoreSnafu)?;
         Ok(())
     }
 

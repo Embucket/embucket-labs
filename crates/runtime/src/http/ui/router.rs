@@ -40,7 +40,8 @@ use crate::http::ui::navigation_trees::handlers::{
 use crate::http::ui::queries::handlers::ApiDoc as QueryApiDoc;
 use crate::http::ui::schemas::handlers::ApiDoc as SchemasApiDoc;
 use crate::http::ui::tables::handlers::{
-    get_table_info, get_table_preview_data, ApiDoc as TableApiDoc,
+    get_table_info, get_table_preview_data, upload_file,
+    ApiDoc as TableApiDoc,
 };
 use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
@@ -128,10 +129,10 @@ pub fn create_router() -> Router<AppState> {
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/settings",
         //     get(get_settings).post(update_table_properties),
         // )
-        // .route(
-        //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/upload",
-        //     post(upload_data_to_table),
-        // )
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows",
+            post(upload_file),
+        )
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/snapshots",
         //     get(get_snapshots),

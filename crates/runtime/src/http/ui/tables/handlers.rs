@@ -19,18 +19,23 @@ use crate::execution::query::IceBucketQueryContext;
 use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
-use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
+use crate::http::ui::tables::error::{TableError, TablesAPIError, TablesResult, CreateUploadSnafu, 
+    MalformedMultipartSnafu, MalformedMultipartFileDataSnafu
+};
 use crate::http::ui::tables::models::{
     TableInfo, TableInfoColumn, TableInfoResponse, TablePreviewDataColumn,
     TablePreviewDataParameters, TablePreviewDataResponse, TablePreviewDataRow,
+    TableUploadPayload,
 };
 use arrow_array::{Array, StringArray};
 use axum::extract::Query;
 use axum::{
-    extract::{Path, State},
+    extract::{Path, State, Multipart},
     Json,
 };
+use snafu::ResultExt;
 use utoipa::OpenApi;
+use icebucket_metastore::IceBucketTableIdent;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -265,31 +270,71 @@ pub async fn get_table_preview_data(
     }))
 }
 
-// #[utoipa::path(
-//     delete,
-//     path = "/ui/databases/{databaseName}/schemas/{schemaName}",
-//     operation_id = "deleteSchema",
-//     tags = ["schemas"],
-//     params(
-//         ("databaseName" = String, description = "Database Name"),
-//         ("schemaName" = String, description = "Schema Name")
-//     ),
-//     responses(
-//         (status = 204, description = "Successful Response"),
-//         (status = 404, description = "Schema not found", body = ErrorResponse),
-//         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
-//     )
-// )]
-// #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-// pub async fn delete_schema(
-//     State(state): State<AppState>,
-//     Query(query): Query<QueryParameters>,
-//     Path((database_name, schema_name)): Path<(String, String)>,
-// ) -> UIResult<()> {
-//     let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
-//     state
-//         .metastore
-//         .delete_schema(&schema_ident, query.cascade.unwrap_or_default())
-//         .await
-//         .map_err(|e| UIError::Metastore { source: e })
-// }
+#[utoipa::path(
+    post,
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows",
+    operation_id = "uploadFile",
+    tags = ["tables"],
+    params(
+        ("databaseName" = String, description = "Database Name"),
+        ("schemaName" = String, description = "Schema Name"),
+        ("tableName" = String, description = "Table Name"),        
+    ),
+    request_body(
+        content = TableUploadPayload,
+        content_type = "multipart/form-data",
+        description = "Upload data to the table in multipart/form-data format"
+    ),
+    responses(
+        (status = 200, description = "Successful Response"),
+        (status = 500, description = "Internal server error", body = ErrorResponse)
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state, multipart), err, ret(level = tracing::Level::TRACE))]
+pub async fn upload_file(
+    DFSessionId(session_id): DFSessionId,
+    State(state): State<AppState>,
+    Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
+    mut multipart: Multipart,
+) -> TablesResult<()> {
+    let mut uploaded = false;
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .context(MalformedMultipartSnafu)
+        .context(CreateUploadSnafu) ? {
+        if let Some(file_name) = field.file_name() {
+            let file_name = String::from(file_name);         
+
+            let data = field
+                .bytes()
+                .await
+                .context(MalformedMultipartFileDataSnafu)
+                .context(CreateUploadSnafu)?;
+
+            state
+                .execution_svc
+                .upload_data_to_table(
+                    &session_id,
+                    &IceBucketTableIdent {
+                        table: table_name.clone(),
+                        schema: schema_name.clone(),
+                        database: database_name.clone(),
+                    },
+                    data,
+                    file_name,
+                )
+                .await
+                .map_err(|e| TablesAPIError::CreateUpload { 
+                    source: TableError::Execution { source: e },
+                })?;
+            uploaded = true;
+        }
+    }
+    if !uploaded {
+        Err(TablesAPIError::CreateUpload{ source: TableError::FileField })
+    }
+    else {
+        Ok(())
+    }
+}

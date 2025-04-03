@@ -63,3 +63,26 @@ pub(crate) struct TablePreviewDataParameters {
     pub(crate) offset: Option<u32>,
     pub(crate) limit: Option<u16>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TableUploadPayload {
+    #[schema(format = "binary")]
+    pub upload_file: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CsvParameters {
+
+}
+
+// path – Path to the CSV file
+// schema – An optional schema representing the CSV files. If None, the CSV reader will try to infer it based on data in file.
+// has_header – Whether the CSV file have a header. If schema inference is run on a file with no headers, default column names are created.
+// delimiter – An optional column delimiter.
+// schema_infer_max_records – Maximum number of rows to read from CSV files for schema inference if needed.
+// file_extension – File extension; only files with this extension are selected for data input.
+// table_partition_cols – Partition columns.
+// file_compression_type – File compression type.
+

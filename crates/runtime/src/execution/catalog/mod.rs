@@ -28,7 +28,7 @@ use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList, SchemaProvider, TableProvider},
     datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl},
     execution::{object_store::ObjectStoreRegistry, options::ReadOptions},
-    prelude::{ParquetReadOptions, SessionContext},
+    prelude::{ParquetReadOptions, CsvReadOptions, SessionContext},
 };
 use datafusion_common::{exec_err, DataFusionError, Result as DFResult};
 use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
@@ -137,13 +137,21 @@ impl IceBucketDFMetastore {
                         .insert(get_url_key(&url), table_object_store.clone());
 
                     let table_provider = match table.format {
+                        icebucket_metastore::IceBucketTableFormat::Csv |
                         icebucket_metastore::IceBucketTableFormat::Parquet => {
-                            let parq_read_options = ParquetReadOptions::default();
-                            let listing_options = parq_read_options.to_listing_options(
-                                ctx.state().config(),
-                                ctx.state().default_table_options(),
-                            );
-
+                            let listing_options = if let icebucket_metastore::IceBucketTableFormat::Csv = table.format {
+                                let csv_read_options = CsvReadOptions::default();
+                                csv_read_options.to_listing_options(
+                                    ctx.state().config(),
+                                    ctx.state().default_table_options(),
+                                )
+                            } else {
+                                let parq_read_options = ParquetReadOptions::default();
+                                parq_read_options.to_listing_options(
+                                    ctx.state().config(),
+                                    ctx.state().default_table_options(),
+                                )
+                            };
                             let table_path = ListingTableUrl::parse(&table_url)
                                 .context(ex_error::DataFusionSnafu)?;
 
@@ -158,7 +166,7 @@ impl IceBucketDFMetastore {
                             Arc::new(
                                 ListingTable::try_new(config).context(ex_error::DataFusionSnafu)?,
                             ) as Arc<dyn TableProvider>
-                        }
+                        }                    
                         icebucket_metastore::IceBucketTableFormat::Iceberg => {
                             let bridge = Arc::new(IceBucketIcebergBridge {
                                 metastore: self.metastore.clone(),

@@ -78,8 +78,8 @@ pub enum IceBucketTableFormat {
     Avro,
     Orc,
     Delta,
-    Json,
-    Csv,*/
+    Json,*/
+    Csv,
     Parquet,
     Iceberg,
 }
@@ -88,6 +88,7 @@ impl From<String> for IceBucketTableFormat {
     fn from(value: String) -> Self {
         match value.to_lowercase().as_str() {
             "parquet" => Self::Parquet,
+            "csv" => Self::Csv,
             _ => Self::Iceberg,
         }
     }
