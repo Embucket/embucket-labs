@@ -16,6 +16,7 @@
 // under the License.
 
 use crate::http::state::AppState;
+use crate::http::ui::schemas::models::SchemasParameters;
 use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
@@ -44,12 +45,14 @@ use utoipa::OpenApi;
         delete_schema,
         // update_schema,
         // get_schema,
-        // list_schemas,
+        list_schemas,
     ),
     components(
         schemas(
             SchemaCreatePayload,
             SchemaCreateResponse,
+            SchemasResponse,
+            Schema,
             ErrorResponse,
         )
     ),
@@ -93,7 +96,7 @@ pub async fn create_schema(
         .map_err(|e| SchemasAPIError::Create { source: e })
         .map(|rw_object| {
             Json(SchemaCreateResponse {
-                data: Schema::from(rw_object.data),
+                data: Schema::from(rw_object),
             })
         })
 }
@@ -152,8 +155,8 @@ pub async fn get_schema(
         schema: schema_name.clone(),
     };
     match state.metastore.get_schema(&schema_ident).await {
-        Ok(Some(schema)) => Ok(Json(SchemaResponse {
-            data: Schema::from(schema.data),
+        Ok(Some(rw_object)) => Ok(Json(SchemaResponse {
+            data: Schema::from(rw_object),
         })),
         Ok(None) => Err(SchemasAPIError::Get {
             source: MetastoreError::SchemaNotFound {
@@ -196,7 +199,7 @@ pub async fn update_schema(
         .map_err(|e| SchemasAPIError::Update { source: e })
         .map(|rw_object| {
             Json(SchemaUpdateResponse {
-                data: Schema::from(rw_object.data),
+                data: Schema::from(rw_object),
             })
         })
 }
@@ -207,7 +210,7 @@ pub async fn update_schema(
     path="/ui/databases/{databaseName}/schemas",
     tags = ["schemas"],
     params(
-        ("databaseName" = String, description = "Database Name")
+        ("databaseName" = String, description = "Database Name"),
     ),
     responses(
         (status = 200, body = SchemasResponse),
@@ -216,6 +219,7 @@ pub async fn update_schema(
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_schemas(
+    Query(parameters): Query<SchemasParameters>,
     State(state): State<AppState>,
     Path(database_name): Path<String>,
 ) -> SchemasResult<Json<SchemasResponse>> {
@@ -225,11 +229,15 @@ pub async fn list_schemas(
         .await
         .map_err(|e| SchemasAPIError::List { source: e })
         .map(|rw_objects| {
+            let cursor = parameters.cursor.unwrap_or(0);
+            let limit = parameters.limit.unwrap_or(rw_objects.len());
             Json(SchemasResponse {
                 items: rw_objects
                     .into_iter()
-                    .map(|rw_object| Schema::from(rw_object.data))
-                    .collect(),
+                    .skip(cursor)
+                    .take(limit)
+                    .map(Schema::from)
+                    .collect::<Vec<Schema>>(),
             })
         })
 }

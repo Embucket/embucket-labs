@@ -15,22 +15,28 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use chrono::NaiveDateTime;
 use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
+use icebucket_metastore::RwObject;
 use serde::{Deserialize, Serialize};
 use std::convert::From;
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct Schema {
-    pub database: String,
     pub name: String,
+    pub database: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
-impl From<IceBucketSchema> for Schema {
-    fn from(schema: IceBucketSchema) -> Self {
+impl From<RwObject<IceBucketSchema>> for Schema {
+    fn from(rw_schema: RwObject<IceBucketSchema>) -> Self {
         Self {
-            name: schema.ident.schema,
-            database: schema.ident.database,
+            name: rw_schema.data.ident.schema,
+            database: rw_schema.data.ident.database,
+            created_at: rw_schema.created_at,
+            updated_at: rw_schema.updated_at,
         }
     }
 }
@@ -49,42 +55,48 @@ impl Into<IceBucketSchema> for Schema {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaCreatePayload {
     pub name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaUpdatePayload {
     #[serde(flatten)]
     pub data: Schema,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaUpdateResponse {
     #[serde(flatten)]
     pub data: Schema,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaCreateResponse {
     #[serde(flatten)]
     pub data: Schema,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaResponse {
     #[serde(flatten)]
     pub data: Schema,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemasResponse {
     pub items: Vec<Schema>,
+}
+
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
+pub struct SchemasParameters {
+    pub cursor: Option<usize>,
+    pub limit: Option<usize>,
 }

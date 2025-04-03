@@ -19,7 +19,7 @@ use crate::http::layers::add_request_metadata;
 use crate::http::ui::databases::handlers::{
     create_database, delete_database, get_database, list_databases, update_database,
 };
-use crate::http::ui::schemas::handlers::{create_schema, delete_schema};
+use crate::http::ui::schemas::handlers::{create_schema, delete_schema, list_schemas};
 use crate::http::ui::volumes::handlers::{
     create_volume, delete_volume, get_volume, list_volumes, update_volume,
 };
@@ -89,7 +89,10 @@ pub fn create_router() -> Router<AppState> {
             "/databases/{databaseName}/schemas/{schemaName}",
             delete(delete_schema),
         )
-        .route("/databases/{databaseName}/schemas", post(create_schema))
+        .route(
+            "/databases/{databaseName}/schemas",
+            post(create_schema).get(list_schemas),
+        )
         .route("/databases", post(create_database).get(list_databases))
         .route(
             "/databases/{databaseName}",

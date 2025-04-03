@@ -18,7 +18,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::http::ui::databases::models::{Database, DatabaseCreatePayload};
-use crate::http::ui::schemas::models::SchemaCreatePayload;
+use crate::http::ui::schemas::models::{SchemaCreatePayload, SchemasResponse};
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use crate::tests::run_icebucket_test_server;
@@ -65,7 +65,7 @@ async fn test_ui_schemas() {
     .await;
 
     let schema_name = "testing1".to_string();
-    let payload = SchemaCreatePayload {
+    let payload1 = SchemaCreatePayload {
         name: schema_name.clone(),
     };
     //Create schema
@@ -77,7 +77,99 @@ async fn test_ui_schemas() {
             database_name.clone()
         )
         .to_string(),
-        json!(payload).to_string(),
+        json!(payload1).to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    let schema_name = "testing2".to_string();
+    let payload2 = SchemaCreatePayload {
+        name: schema_name.clone(),
+    };
+    //Create schema
+    let res = req(
+        &client,
+        Method::POST,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas",
+            database_name.clone()
+        )
+        .to_string(),
+        json!(payload2).to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    let schema_name = "testing3".to_string();
+    let payload3 = SchemaCreatePayload {
+        name: schema_name.clone(),
+    };
+    //Create schema
+    let res = req(
+        &client,
+        Method::POST,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas",
+            database_name.clone()
+        )
+        .to_string(),
+        json!(payload3).to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    //Get list schemas
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas",
+            database_name.clone()
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let schemas_response: SchemasResponse = res.json().await.unwrap();
+    assert_eq!(3, schemas_response.items.len());
+
+    //Get list schemas with parameters
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas?cursor=1&limit=1",
+            database_name.clone()
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let schemas_response: SchemasResponse = res.json().await.unwrap();
+    assert_eq!(1, schemas_response.items.len());
+    assert_eq!(
+        "testing2".to_string(),
+        schemas_response.items.first().unwrap().name
+    );
+
+    //Delete existing schema
+    let res = req(
+        &client,
+        Method::DELETE,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}",
+            database_name.clone(),
+            payload1.name.clone()
+        )
+        .to_string(),
+        String::new(),
     )
     .await
     .unwrap();
@@ -90,7 +182,23 @@ async fn test_ui_schemas() {
         &format!(
             "http://{addr}/ui/databases/{}/schemas/{}",
             database_name.clone(),
-            payload.name.clone()
+            payload2.name.clone()
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    //Delete existing schema
+    let res = req(
+        &client,
+        Method::DELETE,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}",
+            database_name.clone(),
+            payload3.name.clone()
         )
         .to_string(),
         String::new(),

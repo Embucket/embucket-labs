@@ -21,8 +21,8 @@ use crate::http::{
     metastore::handlers::QueryParameters,
     ui::databases::error::{DatabasesAPIError, DatabasesResult},
     ui::databases::models::{
-        DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse, DatabaseUpdatePayload,
-        DatabaseUpdateResponse, DatabasesResponse,
+        Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
+        DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
     },
 };
 use axum::{
@@ -49,6 +49,7 @@ use validator::Validate;
             DatabaseCreateResponse,
             DatabaseResponse,
             DatabasesResponse,
+            Database,
             ErrorResponse,
         )
     ),
