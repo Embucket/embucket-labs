@@ -16,6 +16,7 @@
 // under the License.
 
 use crate::http::state::AppState;
+use crate::http::ui::volumes::models::VolumesParameters;
 use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
@@ -33,7 +34,6 @@ use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::models::IceBucketVolume;
 use utoipa::OpenApi;
 use validator::Validate;
-use crate::http::ui::volumes::models::VolumesParameters;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -207,7 +207,7 @@ pub async fn update_volume(
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_volumes(
     Query(parameters): Query<VolumesParameters>,
-    State(state): State<AppState>
+    State(state): State<AppState>,
 ) -> VolumesResult<Json<VolumesResponse>> {
     state
         .metastore
@@ -215,7 +215,10 @@ pub async fn list_volumes(
         .await
         .map_err(|e| VolumesAPIError::List { source: e })
         .map(|o| {
-            let next_cursor = o.iter().last().map_or(String::new(), |rw_object| rw_object.ident.clone());
+            let next_cursor = o
+                .iter()
+                .last()
+                .map_or(String::new(), |rw_object| rw_object.ident.clone());
             Json(VolumesResponse {
                 items: o.into_iter().map(|x| x.data.into()).collect(),
                 current_cursor: parameters.cursor,

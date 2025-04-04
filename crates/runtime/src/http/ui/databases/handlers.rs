@@ -16,6 +16,7 @@
 // under the License.
 
 use crate::http::state::AppState;
+use crate::http::ui::databases::models::DatabasesParameters;
 use crate::http::{
     error::ErrorResponse,
     metastore::handlers::QueryParameters,
@@ -33,7 +34,6 @@ use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::IceBucketDatabase;
 use utoipa::OpenApi;
 use validator::Validate;
-use crate::http::ui::databases::models::DatabasesParameters;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -213,7 +213,10 @@ pub async fn list_databases(
         .await
         .map_err(|e| DatabasesAPIError::List { source: e })
         .map(|o| {
-            let next_cursor = o.iter().last().map_or(String::new(), |rw_object| rw_object.ident.clone());
+            let next_cursor = o
+                .iter()
+                .last()
+                .map_or(String::new(), |rw_object| rw_object.ident.clone());
             Json(DatabasesResponse {
                 items: o.into_iter().map(|x| x.data.into()).collect(),
                 current_cursor: parameters.cursor,

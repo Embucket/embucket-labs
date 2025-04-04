@@ -75,16 +75,34 @@ async fn test_ui_databases_navigation() {
         }
         .into(),
     };
-    //2 DBs
+    let expected3 = DatabaseCreatePayload {
+        data: IceBucketDatabase {
+            ident: "test3".to_string(),
+            properties: None,
+            volume: volume.data.name.clone(),
+        }
+        .into(),
+    };
+    let expected4 = DatabaseCreatePayload {
+        data: IceBucketDatabase {
+            ident: "test4".to_string(),
+            properties: None,
+            volume: volume.data.name.clone(),
+        }
+        .into(),
+    };
+    //4 DBs
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected2.clone())).await;
+    let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected3.clone())).await;
+    let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected4.clone())).await;
 
     let res = req(&client, Method::GET, &url, String::new())
         .await
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
-    assert_eq!(2, databases_navigation.items.len());
+    assert_eq!(4, databases_navigation.items.len());
 
     let schema_name = "testing1".to_string();
     let payload = SchemaCreatePayload {
@@ -110,7 +128,7 @@ async fn test_ui_databases_navigation() {
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
-    assert_eq!(2, databases_navigation.items.len());
+    assert_eq!(4, databases_navigation.items.len());
     assert_eq!(1, databases_navigation.items.first().unwrap().schemas.len());
     assert_eq!(0, databases_navigation.items.last().unwrap().schemas.len());
 
@@ -178,4 +196,30 @@ async fn test_ui_databases_navigation() {
             .tables
             .len()
     );
+
+    let res = req(
+        &client,
+        Method::GET,
+        &format!("{url}?limit=2"),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
+    assert_eq!(2, databases_navigation.items.len());
+    assert_eq!("test1", databases_navigation.items.first().unwrap().name);
+    let cursor = databases_navigation.next_cursor;
+    let res = req(
+        &client,
+        Method::GET,
+        &format!("{url}?cursor={cursor}"),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
+    assert_eq!(2, databases_navigation.items.len());
+    assert_eq!("test3", databases_navigation.items.first().unwrap().name);
 }

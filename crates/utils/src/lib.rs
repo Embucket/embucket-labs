@@ -30,7 +30,6 @@ use snafu::prelude::*;
 use std::ops::RangeBounds;
 use std::string::ToString;
 use std::sync::Arc;
-use futures::stream_select;
 use uuid::Uuid;
 
 #[derive(Snafu, Debug)]
@@ -153,7 +152,8 @@ impl Db {
         cursor: Option<String>,
         limit: Option<usize>,
     ) -> Result<Vec<T>> {
-        let start = cursor.map_or(format!("{key}/"), |cursor| format!("{key}/{cursor}\x00"));
+        let start =
+            cursor.map_or_else(|| format!("{key}/"), |cursor| format!("{key}/{cursor}\x00"));
         let end = format!("{key}/\x7F");
         let range = Bytes::from(start)..Bytes::from(end);
         let limit = limit.unwrap_or(usize::MAX);
@@ -264,7 +264,10 @@ pub trait Repository {
     }
 
     async fn _list(&self) -> Result<Vec<Self::Entity>> {
-        let entities = self.db().list_objects(Self::collection_key(), None, None).await?;
+        let entities = self
+            .db()
+            .list_objects(Self::collection_key(), None, None)
+            .await?;
         Ok(entities)
     }
 

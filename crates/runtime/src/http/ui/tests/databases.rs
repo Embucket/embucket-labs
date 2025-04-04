@@ -21,9 +21,10 @@ use crate::http::error::ErrorResponse;
 use crate::http::ui::databases::models::{
     DatabaseCreatePayload, DatabaseResponse, DatabasesResponse,
 };
-use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
+use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use crate::tests::run_icebucket_test_server;
+use http::Method;
 use icebucket_metastore::IceBucketVolumeType;
 use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
 
@@ -135,6 +136,7 @@ async fn test_ui_databases_metastore_update_bug() {
 #[allow(clippy::too_many_lines)]
 async fn test_ui_databases() {
     let addr = run_icebucket_test_server().await;
+    let client = reqwest::Client::new();
 
     // Create volume with empty name
     let res = ui_test_op(
@@ -174,7 +176,7 @@ async fn test_ui_databases() {
     assert_eq!(0, databases.items.len());
 
     // Create database, Ok
-    let expected = DatabaseCreatePayload {
+    let expected1 = DatabaseCreatePayload {
         data: IceBucketDatabase {
             ident: "test".to_string(),
             properties: None,
@@ -182,16 +184,45 @@ async fn test_ui_databases() {
         }
         .into(),
     };
-    let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;
+    let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
     assert_eq!(http::StatusCode::OK, res.status());
     let created_database = res.json::<DatabaseResponse>().await.unwrap();
-    assert_eq!(expected.data, created_database.data);
+    assert_eq!(expected1.data, created_database.data);
+
+    let expected2 = DatabaseCreatePayload {
+        data: IceBucketDatabase {
+            ident: "test2".to_string(),
+            properties: None,
+            volume: volume.data.name.clone(),
+        }
+        .into(),
+    };
+    let expected3 = DatabaseCreatePayload {
+        data: IceBucketDatabase {
+            ident: "test3".to_string(),
+            properties: None,
+            volume: volume.data.name.clone(),
+        }
+        .into(),
+    };
+    let expected4 = DatabaseCreatePayload {
+        data: IceBucketDatabase {
+            ident: "test4".to_string(),
+            properties: None,
+            volume: volume.data.name.clone(),
+        }
+        .into(),
+    };
+    //4 DBs
+    let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected2.clone())).await;
+    let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected3.clone())).await;
+    let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected4.clone())).await;
 
     // List databases, Ok
     let res = ui_test_op(addr, Op::List, None, &stub.clone()).await;
     assert_eq!(http::StatusCode::OK, res.status());
     let databases = res.json::<DatabasesResponse>().await.unwrap();
-    assert_eq!(1, databases.items.len());
+    assert_eq!(4, databases.items.len());
 
     // Delete database, Ok
     let res = ui_test_op(
@@ -209,5 +240,41 @@ async fn test_ui_databases() {
     let res = ui_test_op(addr, Op::List, None, &stub.clone()).await;
     assert_eq!(http::StatusCode::OK, res.status());
     let databases = res.json::<DatabasesResponse>().await.unwrap();
-    assert_eq!(0, databases.items.len());
+    assert_eq!(3, databases.items.len());
+
+    let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
+
+    //Get list schemas with parameters
+    let res = req(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/databases?limit=2",).to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let databases_response: DatabasesResponse = res.json().await.unwrap();
+    assert_eq!(2, databases_response.items.len());
+    assert_eq!(
+        "test".to_string(),
+        databases_response.items.first().unwrap().name
+    );
+    let cursor = databases_response.next_cursor;
+    //Get list schemas with parameters
+    let res = req(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/databases?cursor={cursor}",).to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let databases_response: DatabasesResponse = res.json().await.unwrap();
+    assert_eq!(2, databases_response.items.len());
+    assert_eq!(
+        "test3".to_string(),
+        databases_response.items.first().unwrap().name
+    );
 }

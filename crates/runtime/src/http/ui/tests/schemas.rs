@@ -158,20 +158,20 @@ async fn test_ui_schemas() {
         "testing1".to_string(),
         schemas_response.items.first().unwrap().name
     );
-
+    let cursor = schemas_response.next_cursor;
     //Get list schemas with parameters
     let res = req(
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas?cursor=testing1",
+            "http://{addr}/ui/databases/{}/schemas?cursor={cursor}",
             database_name.clone()
         )
-            .to_string(),
+        .to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(2, schemas_response.items.len());

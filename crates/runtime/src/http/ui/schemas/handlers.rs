@@ -37,7 +37,6 @@ use std::collections::HashMap;
 use std::convert::From;
 use std::convert::Into;
 use utoipa::OpenApi;
-use crate::http::ui::databases::models::DatabasesResponse;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -232,12 +231,12 @@ pub async fn list_schemas(
         .await
         .map_err(|e| SchemasAPIError::List { source: e })
         .map(|rw_objects| {
-            let next_cursor = rw_objects.iter().last().map_or(String::new(), |rw_object| rw_object.ident.schema.clone());
+            let next_cursor = rw_objects
+                .iter()
+                .last()
+                .map_or(String::new(), |rw_object| rw_object.ident.schema.clone());
             Json(SchemasResponse {
-                items: rw_objects
-                    .into_iter()
-                    .map(|rw_object| Schema::from(rw_object))
-                    .collect(),
+                items: rw_objects.into_iter().map(Schema::from).collect(),
                 current_cursor: parameters.cursor,
                 next_cursor,
             })

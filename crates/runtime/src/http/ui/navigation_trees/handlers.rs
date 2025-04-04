@@ -18,9 +18,12 @@
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use crate::http::ui::navigation_trees::error::{NavigationTreesAPIError, NavigationTreesResult};
-use crate::http::ui::navigation_trees::models::{NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable, NavigationTreesParameters, NavigationTreesResponse};
-use axum::{extract::State, Json};
+use crate::http::ui::navigation_trees::models::{
+    NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable, NavigationTreesParameters,
+    NavigationTreesResponse,
+};
 use axum::extract::Query;
+use axum::{extract::State, Json};
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -68,7 +71,10 @@ pub async fn get_navigation_trees(
         .await
         .map_err(|e| NavigationTreesAPIError::Get { source: e })?;
 
-    let next_cursor = rw_databases.iter().last().map_or(String::new(), |rw_object| rw_object.ident.clone());
+    let next_cursor = rw_databases
+        .iter()
+        .last()
+        .map_or(String::new(), |rw_object| rw_object.ident.clone());
 
     let mut databases: Vec<NavigationTreeDatabase> = vec![];
     for rw_database in rw_databases {
