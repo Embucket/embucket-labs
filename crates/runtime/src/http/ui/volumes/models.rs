@@ -19,7 +19,7 @@ use icebucket_metastore::models::{
     AwsCredentials, IceBucketFileVolume, IceBucketS3Volume, IceBucketVolume, IceBucketVolumeType,
 };
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 pub struct S3Volume {
@@ -134,4 +134,12 @@ pub struct VolumeResponse {
 #[serde(rename_all = "camelCase")]
 pub struct VolumesResponse {
     pub items: Vec<Volume>,
+    pub current_cursor: Option<String>,
+    pub next_cursor: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
+pub struct VolumesParameters {
+    pub cursor: Option<String>,
+    pub limit: Option<usize>,
 }

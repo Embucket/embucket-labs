@@ -17,7 +17,7 @@
 
 use icebucket_metastore::models::IceBucketDatabase;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 pub struct Database {
@@ -86,4 +86,12 @@ pub struct DatabaseResponse {
 #[serde(rename_all = "camelCase")]
 pub struct DatabasesResponse {
     pub items: Vec<Database>,
+    pub current_cursor: Option<String>,
+    pub next_cursor: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
+pub(crate) struct DatabasesParameters {
+    pub(crate) cursor: Option<String>,
+    pub(crate) limit: Option<usize>,
 }

@@ -37,6 +37,7 @@ use std::collections::HashMap;
 use std::convert::From;
 use std::convert::Into;
 use utoipa::OpenApi;
+use crate::http::ui::databases::models::DatabasesResponse;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -211,6 +212,8 @@ pub async fn update_schema(
     tags = ["schemas"],
     params(
         ("databaseName" = String, description = "Database Name"),
+        ("cursor" = Option<String>, Query, description = "Schemas cursor"),
+        ("limit" = Option<usize>, Query, description = "Schemas limit"),
     ),
     responses(
         (status = 200, body = SchemasResponse),
@@ -225,19 +228,18 @@ pub async fn list_schemas(
 ) -> SchemasResult<Json<SchemasResponse>> {
     state
         .metastore
-        .list_schemas(&database_name)
+        .list_schemas(&database_name, parameters.cursor.clone(), parameters.limit)
         .await
         .map_err(|e| SchemasAPIError::List { source: e })
         .map(|rw_objects| {
-            let cursor = parameters.cursor.unwrap_or(0);
-            let limit = parameters.limit.unwrap_or(rw_objects.len());
+            let next_cursor = rw_objects.iter().last().map_or(String::new(), |rw_object| rw_object.ident.schema.clone());
             Json(SchemasResponse {
                 items: rw_objects
                     .into_iter()
-                    .skip(cursor)
-                    .take(limit)
-                    .map(Schema::from)
-                    .collect::<Vec<Schema>>(),
+                    .map(|rw_object| Schema::from(rw_object))
+                    .collect(),
+                current_cursor: parameters.cursor,
+                next_cursor,
             })
         })
 }

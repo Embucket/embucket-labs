@@ -30,6 +30,7 @@ use snafu::prelude::*;
 use std::ops::RangeBounds;
 use std::string::ToString;
 use std::sync::Arc;
+use futures::stream_select;
 use uuid::Uuid;
 
 #[derive(Snafu, Debug)]
@@ -149,15 +150,21 @@ impl Db {
     pub async fn list_objects<T: Send + for<'de> serde::de::Deserialize<'de>>(
         &self,
         key: &str,
+        cursor: Option<String>,
+        limit: Option<usize>,
     ) -> Result<Vec<T>> {
-        let start = format!("{key}/");
+        let start = cursor.map_or(format!("{key}/"), |cursor| format!("{key}/{cursor}\x00"));
         let end = format!("{key}/\x7F");
         let range = Bytes::from(start)..Bytes::from(end);
+        let limit = limit.unwrap_or(usize::MAX);
         let mut iter = self.0.scan(range).await.context(ScanFailedSnafu)?;
         let mut objects: Vec<T> = vec![];
         while let Ok(Some(value)) = iter.next().await {
             let value = de::from_slice(&value.value).context(DeserializeValueSnafu)?;
             objects.push(value);
+            if objects.len() >= limit {
+                break;
+            }
         }
         Ok(objects)
     }
@@ -257,7 +264,7 @@ pub trait Repository {
     }
 
     async fn _list(&self) -> Result<Vec<Self::Entity>> {
-        let entities = self.db().list_objects(Self::collection_key()).await?;
+        let entities = self.db().list_objects(Self::collection_key(), None, None).await?;
         Ok(entities)
     }
 
@@ -295,12 +302,12 @@ mod test {
             .await
             .expect("Failed to put entity");
         let get_after_put = db.get::<TestEntity>("test/abc").await;
-        let list_after_append = db.list_objects::<TestEntity>("test").await;
+        let list_after_append = db.list_objects::<TestEntity>("test", None, None).await;
         db.delete("test/abc")
             .await
             .expect("Failed to delete entity");
         let get_after_delete = db.get::<TestEntity>("test/abc").await;
-        let list_after_remove = db.list_objects::<TestEntity>("test").await;
+        let list_after_remove = db.list_objects::<TestEntity>("test", None, None).await;
 
         insta::assert_debug_snapshot!((
             get_empty,

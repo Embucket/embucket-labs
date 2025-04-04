@@ -16,13 +16,15 @@
 // under the License.
 
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NavigationTreesResponse {
     pub items: Vec<NavigationTreeDatabase>,
+    pub current_cursor: Option<String>,
+    pub next_cursor: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
@@ -43,4 +45,10 @@ pub struct NavigationTreeSchema {
 #[serde(rename_all = "camelCase")]
 pub struct NavigationTreeTable {
     pub(crate) name: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
+pub(crate) struct NavigationTreesParameters {
+    pub(crate) cursor: Option<String>,
+    pub(crate) limit: Option<usize>,
 }

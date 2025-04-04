@@ -69,7 +69,7 @@ pub async fn list_volumes(
 ) -> MetastoreAPIResult<Json<RwObjectVec<IceBucketVolume>>> {
     let volumes = state
         .metastore
-        .list_volumes()
+        .list_volumes(None, None)
         .await
         .map_err(MetastoreAPIError)?
         .iter()
@@ -191,7 +191,7 @@ pub async fn list_databases(
 ) -> MetastoreAPIResult<Json<Vec<RwObject<IceBucketDatabase>>>> {
     state
         .metastore
-        .list_databases()
+        .list_databases(None, None)
         .await
         .map_err(MetastoreAPIError)
         .map(Json)
@@ -308,7 +308,7 @@ pub async fn list_schemas(
 ) -> MetastoreAPIResult<Json<Vec<RwObject<IceBucketSchema>>>> {
     state
         .metastore
-        .list_schemas(&database_name)
+        .list_schemas(&database_name, None, None)
         .await
         .map_err(MetastoreAPIError)
         .map(Json)
@@ -437,7 +437,7 @@ pub async fn list_tables(
     let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
     state
         .metastore
-        .list_tables(&schema_ident)
+        .list_tables(&schema_ident, None, None)
         .await
         .map_err(MetastoreAPIError)
         .map(Json)

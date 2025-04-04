@@ -36,7 +36,7 @@ use crate::models::*;
 
 #[async_trait]
 pub trait Metastore: std::fmt::Debug + Send + Sync {
-    async fn list_volumes(&self) -> MetastoreResult<Vec<RwObject<IceBucketVolume>>>;
+    async fn list_volumes(&self, cursor: Option<String>, limit: Option<usize>) -> MetastoreResult<Vec<RwObject<IceBucketVolume>>>;
     async fn create_volume(
         &self,
         name: &IceBucketVolumeIdent,
@@ -61,7 +61,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
         name: &IceBucketVolumeIdent,
     ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>>;
 
-    async fn list_databases(&self) -> MetastoreResult<Vec<RwObject<IceBucketDatabase>>>;
+    async fn list_databases(&self, cursor: Option<String>, limit: Option<usize>) -> MetastoreResult<Vec<RwObject<IceBucketDatabase>>>;
     async fn create_database(
         &self,
         name: &IceBucketDatabaseIdent,
@@ -85,6 +85,8 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn list_schemas(
         &self,
         database: &IceBucketDatabaseIdent,
+        cursor: Option<String>,
+        limit: Option<usize>
     ) -> MetastoreResult<Vec<RwObject<IceBucketSchema>>>;
     async fn create_schema(
         &self,
@@ -109,6 +111,8 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn list_tables(
         &self,
         schema: &IceBucketSchemaIdent,
+        cursor: Option<String>,
+        limit: Option<usize>
     ) -> MetastoreResult<Vec<RwObject<IceBucketTable>>>;
     async fn create_table(
         &self,
@@ -185,13 +189,13 @@ impl SlateDBMetastore {
         &self.db
     }
 
-    async fn list_objects<T>(&self, list_key: &str) -> MetastoreResult<Vec<RwObject<T>>>
+    async fn list_objects<T>(&self, list_key: &str, cursor: Option<String>, limit: Option<usize>) -> MetastoreResult<Vec<RwObject<T>>>
     where
         T: serde::Serialize + DeserializeOwned + Eq + PartialEq + Send + Sync,
     {
         let entities = self
             .db
-            .list_objects(list_key)
+            .list_objects(list_key, cursor, limit)
             .await
             .context(metastore_error::UtilSlateDBSnafu)?;
         Ok(entities)
@@ -275,8 +279,8 @@ impl SlateDBMetastore {
 
 #[async_trait]
 impl Metastore for SlateDBMetastore {
-    async fn list_volumes(&self) -> MetastoreResult<Vec<RwObject<IceBucketVolume>>> {
-        self.list_objects(KEY_VOLUME).await
+    async fn list_volumes(&self, cursor: Option<String>, limit: Option<usize>) -> MetastoreResult<Vec<RwObject<IceBucketVolume>>> {
+        self.list_objects(KEY_VOLUME, cursor, limit).await
     }
 
     async fn create_volume(
@@ -336,7 +340,7 @@ impl Metastore for SlateDBMetastore {
     ) -> MetastoreResult<()> {
         let key = format!("{KEY_VOLUME}/{name}");
         let databases_using = self
-            .list_databases()
+            .list_databases(None, None)
             .await?
             .into_iter()
             .filter(|db| db.volume == *name)
@@ -379,8 +383,8 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    async fn list_databases(&self) -> MetastoreResult<Vec<RwObject<IceBucketDatabase>>> {
-        self.list_objects(KEY_DATABASE).await
+    async fn list_databases(&self, cursor: Option<String>, limit: Option<usize>) -> MetastoreResult<Vec<RwObject<IceBucketDatabase>>> {
+        self.list_objects(KEY_DATABASE, cursor, limit).await
     }
 
     async fn create_database(
@@ -422,7 +426,7 @@ impl Metastore for SlateDBMetastore {
         name: &IceBucketDatabaseIdent,
         cascade: bool,
     ) -> MetastoreResult<()> {
-        let schemas = self.list_schemas(name).await?;
+        let schemas = self.list_schemas(name, None, None).await?;
         if cascade {
             let futures = schemas
                 .iter()
@@ -437,9 +441,11 @@ impl Metastore for SlateDBMetastore {
     async fn list_schemas(
         &self,
         database: &IceBucketDatabaseIdent,
+        cursor: Option<String>,
+        limit: Option<usize>
     ) -> MetastoreResult<Vec<RwObject<IceBucketSchema>>> {
         let key = format!("{KEY_SCHEMA}/{database}");
-        self.list_objects(&key).await
+        self.list_objects(&key, cursor, limit).await
     }
 
     async fn create_schema(
@@ -482,7 +488,7 @@ impl Metastore for SlateDBMetastore {
         ident: &IceBucketSchemaIdent,
         cascade: bool,
     ) -> MetastoreResult<()> {
-        let tables = self.list_tables(ident).await?;
+        let tables = self.list_tables(ident, None, None).await?;
 
         if cascade {
             let futures = tables
@@ -498,9 +504,11 @@ impl Metastore for SlateDBMetastore {
     async fn list_tables(
         &self,
         schema: &IceBucketSchemaIdent,
+        cursor: Option<String>,
+        limit: Option<usize>
     ) -> MetastoreResult<Vec<RwObject<IceBucketTable>>> {
         let key = format!("{KEY_TABLE}/{}/{}", schema.database, schema.schema);
-        self.list_objects(&key).await
+        self.list_objects(&key, cursor, limit).await
     }
 
     #[allow(clippy::too_many_lines)]
@@ -894,7 +902,7 @@ mod tests {
         ms.create_volume(&"test".to_string(), volume)
             .await
             .expect("create volume failed");
-        let all_volumes = ms.list_volumes().await.expect("list volumes failed");
+        let all_volumes = ms.list_volumes(None, None).await.expect("list volumes failed");
 
         let test_volume = ms
             .db()
@@ -935,7 +943,7 @@ mod tests {
         ms.create_volume(&"test".to_string(), volume)
             .await
             .expect("create volume failed");
-        let all_volumes = ms.list_volumes().await.expect("list volumes failed");
+        let all_volumes = ms.list_volumes(None, None).await.expect("list volumes failed");
         let get_volume = ms
             .get_volume(&"test".to_owned())
             .await
@@ -943,7 +951,7 @@ mod tests {
         ms.delete_volume(&"test".to_string(), false)
             .await
             .expect("delete volume failed");
-        let all_volumes_after = ms.list_volumes().await.expect("list volumes failed");
+        let all_volumes_after = ms.list_volumes(None, None).await.expect("list volumes failed");
 
         insta::with_settings!({
             filters => insta_filters(),
@@ -1006,7 +1014,7 @@ mod tests {
         ms.create_database(&"testdb".to_owned(), database.clone())
             .await
             .expect("create database failed");
-        let all_databases = ms.list_databases().await.expect("list databases failed");
+        let all_databases = ms.list_databases(None, None).await.expect("list databases failed");
 
         database.volume = "testv2".to_owned();
         ms.update_database(&"testdb".to_owned(), database)
@@ -1020,7 +1028,7 @@ mod tests {
         ms.delete_database(&"testdb".to_string(), false)
             .await
             .expect("delete database failed");
-        let all_dbs_after = ms.list_databases().await.expect("list databases failed");
+        let all_dbs_after = ms.list_databases(None, None).await.expect("list databases failed");
 
         insta::with_settings!({
             filters => insta_filters(),
@@ -1064,7 +1072,7 @@ mod tests {
             .expect("create schema failed");
 
         let schema_list = ms
-            .list_schemas(&schema.ident.database)
+            .list_schemas(&schema.ident.database, None, None)
             .await
             .expect("list schemas failed");
         let schema_get = ms
@@ -1075,7 +1083,7 @@ mod tests {
             .await
             .expect("delete schema failed");
         let schema_list_after = ms
-            .list_schemas(&schema.ident.database)
+            .list_schemas(&schema.ident.database, None, None)
             .await
             .expect("list schemas failed");
 
@@ -1182,7 +1190,7 @@ mod tests {
             .collect();
 
         let table_list = ms
-            .list_tables(&table.ident.clone().into())
+            .list_tables(&table.ident.clone().into(), None, None)
             .await
             .expect("list tables failed");
         let table_get = ms.get_table(&table.ident).await.expect("get table failed");
@@ -1190,7 +1198,7 @@ mod tests {
             .await
             .expect("delete table failed");
         let table_list_after = ms
-            .list_tables(&table.ident.into())
+            .list_tables(&table.ident.into(), None, None)
             .await
             .expect("list tables failed");
 

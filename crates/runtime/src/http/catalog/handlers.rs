@@ -95,7 +95,7 @@ pub async fn list_namespaces(
 ) -> MetastoreAPIResult<Json<ListNamespacesResponse>> {
     let schemas = state
         .metastore
-        .list_schemas(&database_name)
+        .list_schemas(&database_name, None, None)
         .await
         .map_err(MetastoreAPIError)?;
     Ok(Json(from_schemas_list(schemas)))
@@ -218,7 +218,7 @@ pub async fn list_tables(
     let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
     let tables = state
         .metastore
-        .list_tables(&schema_ident)
+        .list_tables(&schema_ident, None, None)
         .await
         .map_err(MetastoreAPIError)?;
     Ok(Json(from_tables_list(tables)))

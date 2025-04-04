@@ -89,7 +89,7 @@ impl IceBucketDFMetastore {
 
         let databases = self
             .metastore
-            .list_databases()
+            .list_databases(None, None)
             .await
             .context(ex_error::MetastoreSnafu)?;
         for database in databases {
@@ -100,7 +100,7 @@ impl IceBucketDFMetastore {
             let db_seen_entry = seen.entry(database.ident.clone()).or_default();
             let schemas = self
                 .metastore
-                .list_schemas(&database.ident)
+                .list_schemas(&database.ident, None, None)
                 .await
                 .context(ex_error::MetastoreSnafu)?;
             for schema in schemas {
@@ -112,7 +112,7 @@ impl IceBucketDFMetastore {
                     .or_default();
                 let tables = self
                     .metastore
-                    .list_tables(&schema.ident)
+                    .list_tables(&schema.ident, None, None)
                     .await
                     .context(ex_error::MetastoreSnafu)?;
                 for table in tables {
@@ -586,7 +586,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         };
         Ok(self
             .metastore
-            .list_tables(&schema_ident)
+            .list_tables(&schema_ident, None, None)
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?
             .iter()
@@ -607,13 +607,13 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         let mut namespaces = Vec::new();
         let databases = self
             .metastore
-            .list_databases()
+            .list_databases(None, None)
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         for database in databases {
             let schemas = self
                 .metastore
-                .list_schemas(&database.ident)
+                .list_schemas(&database.ident, None, None)
                 .await
                 .map_err(|e| IcebergError::External(Box::new(e)))?;
             for schema in schemas {

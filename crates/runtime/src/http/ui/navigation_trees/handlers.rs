@@ -18,10 +18,9 @@
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use crate::http::ui::navigation_trees::error::{NavigationTreesAPIError, NavigationTreesResult};
-use crate::http::ui::navigation_trees::models::{
-    NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable, NavigationTreesResponse,
-};
+use crate::http::ui::navigation_trees::models::{NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable, NavigationTreesParameters, NavigationTreesResponse};
 use axum::{extract::State, Json};
+use axum::extract::Query;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -39,7 +38,7 @@ use utoipa::OpenApi;
         )
     ),
     tags(
-        (name = "navigation_trees-trees", description = "Navigation trees endpoints.")
+        (name = "navigation-trees", description = "Navigation trees endpoints.")
     )
 )]
 pub struct ApiDoc;
@@ -47,6 +46,10 @@ pub struct ApiDoc;
 #[utoipa::path(
     get,
     operation_id = "getNavigationTrees",
+    params(
+        ("cursor" = Option<String>, Query, description = "Navigation trees cursor"),
+        ("limit" = Option<usize>, Query, description = "Navigation trees limit"),
+    ),
     tags = ["navigation-trees"],
     path = "/ui/navigation-trees",
     responses(
@@ -56,19 +59,22 @@ pub struct ApiDoc;
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_navigation_trees(
+    Query(parameters): Query<NavigationTreesParameters>,
     State(state): State<AppState>,
 ) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
     let rw_databases = state
         .metastore
-        .list_databases()
+        .list_databases(parameters.cursor.clone(), parameters.limit)
         .await
         .map_err(|e| NavigationTreesAPIError::Get { source: e })?;
+
+    let next_cursor = rw_databases.iter().last().map_or(String::new(), |rw_object| rw_object.ident.clone());
 
     let mut databases: Vec<NavigationTreeDatabase> = vec![];
     for rw_database in rw_databases {
         let rw_schemas = state
             .metastore
-            .list_schemas(&rw_database.ident)
+            .list_schemas(&rw_database.ident.clone(), None, None)
             .await
             .map_err(|e| NavigationTreesAPIError::Get { source: e })?;
 
@@ -76,7 +82,7 @@ pub async fn get_navigation_trees(
         for rw_schema in rw_schemas {
             let rw_tables = state
                 .metastore
-                .list_tables(&rw_schema.ident)
+                .list_tables(&rw_schema.ident, None, None)
                 .await
                 .map_err(|e| NavigationTreesAPIError::Get { source: e })?;
 
@@ -97,5 +103,9 @@ pub async fn get_navigation_trees(
         });
     }
 
-    Ok(Json(NavigationTreesResponse { items: databases }))
+    Ok(Json(NavigationTreesResponse {
+        items: databases,
+        current_cursor: parameters.cursor,
+        next_cursor,
+    }))
 }

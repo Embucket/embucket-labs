@@ -143,7 +143,7 @@ async fn test_ui_schemas() {
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas?cursor=1&limit=1",
+            "http://{addr}/ui/databases/{}/schemas?limit=1",
             database_name.clone()
         )
         .to_string(),
@@ -154,6 +154,27 @@ async fn test_ui_schemas() {
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(1, schemas_response.items.len());
+    assert_eq!(
+        "testing1".to_string(),
+        schemas_response.items.first().unwrap().name
+    );
+
+    //Get list schemas with parameters
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas?cursor=testing1",
+            database_name.clone()
+        )
+            .to_string(),
+        String::new(),
+    )
+        .await
+        .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let schemas_response: SchemasResponse = res.json().await.unwrap();
+    assert_eq!(2, schemas_response.items.len());
     assert_eq!(
         "testing2".to_string(),
         schemas_response.items.first().unwrap().name

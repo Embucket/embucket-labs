@@ -93,10 +93,12 @@ pub struct SchemaResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SchemasResponse {
     pub items: Vec<Schema>,
+    pub current_cursor: Option<String>,
+    pub next_cursor: String,
 }
 
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct SchemasParameters {
-    pub cursor: Option<usize>,
+    pub cursor: Option<String>,
     pub limit: Option<usize>,
 }

@@ -33,6 +33,7 @@ use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::IceBucketDatabase;
 use utoipa::OpenApi;
 use validator::Validate;
+use crate::http::ui::databases::models::DatabasesParameters;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -190,6 +191,10 @@ pub async fn update_database(
 #[utoipa::path(
     get,
     operation_id = "getDatabases",
+    params(
+        ("cursor" = Option<String>, Query, description = "Databases cursor"),
+        ("limit" = Option<usize>, Query, description = "Databases limit"),
+    ),
     tags = ["databases"],
     path = "/ui/databases",
     responses(
@@ -199,16 +204,20 @@ pub async fn update_database(
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_databases(
+    Query(parameters): Query<DatabasesParameters>,
     State(state): State<AppState>,
 ) -> DatabasesResult<Json<DatabasesResponse>> {
     state
         .metastore
-        .list_databases()
+        .list_databases(parameters.cursor.clone(), parameters.limit)
         .await
         .map_err(|e| DatabasesAPIError::List { source: e })
         .map(|o| {
+            let next_cursor = o.iter().last().map_or(String::new(), |rw_object| rw_object.ident.clone());
             Json(DatabasesResponse {
                 items: o.into_iter().map(|x| x.data.into()).collect(),
+                current_cursor: parameters.cursor,
+                next_cursor,
             })
         })
 }
