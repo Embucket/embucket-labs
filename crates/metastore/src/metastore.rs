@@ -36,7 +36,11 @@ use crate::models::*;
 
 #[async_trait]
 pub trait Metastore: std::fmt::Debug + Send + Sync {
-    async fn list_volumes(&self, cursor: Option<String>, limit: Option<usize>) -> MetastoreResult<Vec<RwObject<IceBucketVolume>>>;
+    async fn list_volumes(
+        &self,
+        cursor: Option<String>,
+        limit: Option<usize>,
+    ) -> MetastoreResult<Vec<RwObject<IceBucketVolume>>>;
     async fn create_volume(
         &self,
         name: &IceBucketVolumeIdent,
@@ -61,7 +65,11 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
         name: &IceBucketVolumeIdent,
     ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>>;
 
-    async fn list_databases(&self, cursor: Option<String>, limit: Option<usize>) -> MetastoreResult<Vec<RwObject<IceBucketDatabase>>>;
+    async fn list_databases(
+        &self,
+        cursor: Option<String>,
+        limit: Option<usize>,
+    ) -> MetastoreResult<Vec<RwObject<IceBucketDatabase>>>;
     async fn create_database(
         &self,
         name: &IceBucketDatabaseIdent,
@@ -86,7 +94,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
         &self,
         database: &IceBucketDatabaseIdent,
         cursor: Option<String>,
-        limit: Option<usize>
+        limit: Option<usize>,
     ) -> MetastoreResult<Vec<RwObject<IceBucketSchema>>>;
     async fn create_schema(
         &self,
@@ -112,7 +120,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
         &self,
         schema: &IceBucketSchemaIdent,
         cursor: Option<String>,
-        limit: Option<usize>
+        limit: Option<usize>,
     ) -> MetastoreResult<Vec<RwObject<IceBucketTable>>>;
     async fn create_table(
         &self,
@@ -189,7 +197,12 @@ impl SlateDBMetastore {
         &self.db
     }
 
-    async fn list_objects<T>(&self, list_key: &str, cursor: Option<String>, limit: Option<usize>) -> MetastoreResult<Vec<RwObject<T>>>
+    async fn list_objects<T>(
+        &self,
+        list_key: &str,
+        cursor: Option<String>,
+        limit: Option<usize>,
+    ) -> MetastoreResult<Vec<RwObject<T>>>
     where
         T: serde::Serialize + DeserializeOwned + Eq + PartialEq + Send + Sync,
     {
@@ -279,7 +292,11 @@ impl SlateDBMetastore {
 
 #[async_trait]
 impl Metastore for SlateDBMetastore {
-    async fn list_volumes(&self, cursor: Option<String>, limit: Option<usize>) -> MetastoreResult<Vec<RwObject<IceBucketVolume>>> {
+    async fn list_volumes(
+        &self,
+        cursor: Option<String>,
+        limit: Option<usize>,
+    ) -> MetastoreResult<Vec<RwObject<IceBucketVolume>>> {
         self.list_objects(KEY_VOLUME, cursor, limit).await
     }
 
@@ -383,7 +400,11 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    async fn list_databases(&self, cursor: Option<String>, limit: Option<usize>) -> MetastoreResult<Vec<RwObject<IceBucketDatabase>>> {
+    async fn list_databases(
+        &self,
+        cursor: Option<String>,
+        limit: Option<usize>,
+    ) -> MetastoreResult<Vec<RwObject<IceBucketDatabase>>> {
         self.list_objects(KEY_DATABASE, cursor, limit).await
     }
 
@@ -442,7 +463,7 @@ impl Metastore for SlateDBMetastore {
         &self,
         database: &IceBucketDatabaseIdent,
         cursor: Option<String>,
-        limit: Option<usize>
+        limit: Option<usize>,
     ) -> MetastoreResult<Vec<RwObject<IceBucketSchema>>> {
         let key = format!("{KEY_SCHEMA}/{database}");
         self.list_objects(&key, cursor, limit).await
@@ -505,7 +526,7 @@ impl Metastore for SlateDBMetastore {
         &self,
         schema: &IceBucketSchemaIdent,
         cursor: Option<String>,
-        limit: Option<usize>
+        limit: Option<usize>,
     ) -> MetastoreResult<Vec<RwObject<IceBucketTable>>> {
         let key = format!("{KEY_TABLE}/{}/{}", schema.database, schema.schema);
         self.list_objects(&key, cursor, limit).await
@@ -902,7 +923,10 @@ mod tests {
         ms.create_volume(&"test".to_string(), volume)
             .await
             .expect("create volume failed");
-        let all_volumes = ms.list_volumes(None, None).await.expect("list volumes failed");
+        let all_volumes = ms
+            .list_volumes(None, None)
+            .await
+            .expect("list volumes failed");
 
         let test_volume = ms
             .db()
@@ -943,7 +967,10 @@ mod tests {
         ms.create_volume(&"test".to_string(), volume)
             .await
             .expect("create volume failed");
-        let all_volumes = ms.list_volumes(None, None).await.expect("list volumes failed");
+        let all_volumes = ms
+            .list_volumes(None, None)
+            .await
+            .expect("list volumes failed");
         let get_volume = ms
             .get_volume(&"test".to_owned())
             .await
@@ -951,7 +978,10 @@ mod tests {
         ms.delete_volume(&"test".to_string(), false)
             .await
             .expect("delete volume failed");
-        let all_volumes_after = ms.list_volumes(None, None).await.expect("list volumes failed");
+        let all_volumes_after = ms
+            .list_volumes(None, None)
+            .await
+            .expect("list volumes failed");
 
         insta::with_settings!({
             filters => insta_filters(),
@@ -1014,7 +1044,10 @@ mod tests {
         ms.create_database(&"testdb".to_owned(), database.clone())
             .await
             .expect("create database failed");
-        let all_databases = ms.list_databases(None, None).await.expect("list databases failed");
+        let all_databases = ms
+            .list_databases(None, None)
+            .await
+            .expect("list databases failed");
 
         database.volume = "testv2".to_owned();
         ms.update_database(&"testdb".to_owned(), database)
@@ -1028,7 +1061,10 @@ mod tests {
         ms.delete_database(&"testdb".to_string(), false)
             .await
             .expect("delete database failed");
-        let all_dbs_after = ms.list_databases(None, None).await.expect("list databases failed");
+        let all_dbs_after = ms
+            .list_databases(None, None)
+            .await
+            .expect("list databases failed");
 
         insta::with_settings!({
             filters => insta_filters(),
