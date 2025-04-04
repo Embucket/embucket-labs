@@ -120,7 +120,7 @@ impl ExecutionService {
         Ok((records, columns))
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(level = "debug", skip(self, data))]
     pub async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -152,38 +152,6 @@ impl ExecutionService {
             .ok_or(ExecutionError::VolumeNotFound {
                 volume: metastore_db.volume.clone(),
             })?;
-
-
-
-        for catalog in user_session.ctx.state().catalog_list().catalog_names() {
-            let provider = user_session
-                .ctx
-                .state()
-                .catalog_list()
-                .catalog(&catalog)
-                .unwrap();
-            println!("catalog: {catalog}");
-            for schema in provider.schema_names() {
-                println!("schema: {schema}");
-                for table in provider.schema(&schema).unwrap().table_names() {
-                    let table_source = provider
-                        .schema(&schema)
-                        .unwrap()
-                        .table(&table)
-                        .await
-                        .context(super::error::DataFusionSnafu)?
-                        .ok_or(ExecutionError::TableProviderNotFound {
-                            table_name: table.clone(),
-                        })?;
-                    let resolved = user_session.ctx.state().resolve_table_ref(TableReference::full(
-                        catalog.to_string(),
-                        schema.to_string(),
-                        table,
-                    ));
-                    println!("resolved: {resolved:?}");
-                }
-            }
-        }
 
         // construct URL, so it can be used to put csv file, which can be registered as a table
 
@@ -238,26 +206,127 @@ impl ExecutionService {
             ObjectStoreUrl::parse(&object_store_url).unwrap().as_ref(),
             object_store.clone(),
         );
-        println!("register_csv");
-        user_session
+
+        println!("read_csv");
+        let df = user_session
             .ctx
-            .register_csv(
-                table_ident.to_string(),
-                // IceBucketTableIdent {
-                //     table: table.clone(),
-                //     schema: "public".to_string(),
-                //     database: "datafusion".to_string(),
-                // }.to_string(),
-                upload_uri,
-                CsvReadOptions::new(),
-            )
+            .read_csv(upload_uri, CsvReadOptions::new())
             .await
             .context(ex_error::DataFusionSnafu)?;
+        
+        let schema = df.schema().clone();
+        println!("Inferred Schema: {:?}", schema);
 
-        // object_store
-        //     .delete(&path)
+        let results = df.collect().await.context(ex_error::DataFusionSnafu)?;
+
+        let arrow_schema = arrow_schema::Schema::from(schema);
+
+    
+        let temp_table_ident = IceBucketTableIdent {
+            database: "icebucket".to_string(),
+            schema: table_ident.schema.clone(),
+            table: unique_file_id.clone(),
+        };
+
+        use datafusion_catalog::CatalogProvider;
+        use crate::execution::catalog::IceBucketDFSchema;
+        let catalog = datafusion_catalog::MemoryCatalogProvider::new();
+        let schema_res = catalog.register_schema(
+            temp_table_ident.schema.as_str(), 
+            Arc::new(IceBucketDFSchema {
+                database: temp_table_ident.database.clone(),
+                schema: temp_table_ident.schema.clone(),
+                metastore: self.metastore.clone(),
+                mirror: Arc::new(dashmap::DashMap::new()),
+            })
+        );
+
+        user_session.ctx.register_catalog(
+            "icebucket", 
+            Arc::new(catalog)
+        );
+        // Create a Memory Table from the RecordBatch
+        let mem_table = datafusion::datasource::MemTable::try_new(
+            arrow_schema.into(), vec![results]
+        ).context(ex_error::DataFusionSnafu)?;
+    
+        let tbl_proviser = user_session.ctx
+            .register_table(temp_table_ident.to_string(), Arc::new(mem_table))
+            .context(ex_error::DataFusionSnafu);
+
+
+        // println!("register_csv");
+        // user_session
+        //     .ctx
+        //     .register_csv(
+        //         // table_ident.to_string(),
+        //         temp_table_ident.to_string(),
+        //         upload_uri,
+        //         CsvReadOptions::new(),
+        //     )
         //     .await
-        //     .context(ex_error::ObjectStoreSnafu)?;
+        //     .context(ex_error::DataFusionSnafu)?;
+
+
+
+        for catalog in user_session.ctx.state().catalog_list().catalog_names() {
+            let provider = user_session
+                .ctx
+                .state()
+                .catalog_list()
+                .catalog(&catalog)
+                .unwrap();
+            println!("catalog: {catalog}");
+            for schema in provider.schema_names() {
+                println!("schema: {schema}");
+                for table in provider.schema(&schema).unwrap().table_names() {
+                    let table_source = provider
+                        .schema(&schema)
+                        .unwrap()
+                        .table(&table)
+                        .await
+                        .context(super::error::DataFusionSnafu)?
+                        .ok_or(ExecutionError::TableProviderNotFound {
+                            table_name: table.clone(),
+                        })?;
+                    let resolved = user_session.ctx.state().resolve_table_ref(TableReference::full(
+                        catalog.to_string(),
+                        schema.to_string(),
+                        table,
+                    ));
+                    println!("resolved: {resolved:?}");
+                }
+            }
+        }
+
+
+        let create_as_select_query = format!("CREATE TABLE {table_ident} AS SELECT * FROM '{temp_table_ident}'");
+        // let create_as_select_query = format!("CREATE TABLE {table_ident} AS SELECT * FROM memory_table");
+
+        println!("run query: {create_as_select_query}");
+
+        let query = user_session.query(&create_as_select_query, IceBucketQueryContext::default());
+
+        // let insert_query = format!("INSERT INTO {table_ident} SELECT * FROM {temp_table_ident}",);
+        //let query = user_session.query(&insert_query, IceBucketQueryContext::default());
+
+        println!("query.execute");
+
+        query.execute().await?;
+
+        println!("deregister");
+
+        user_session
+            .ctx
+            .deregister_table(temp_table_ident.to_string())
+            .context(ex_error::DataFusionSnafu)?;
+
+        println!("delete");
+
+        object_store
+            .delete(&data_location)
+            .await
+            .context(ex_error::ObjectStoreSnafu)?;
         Ok(())
     }
 

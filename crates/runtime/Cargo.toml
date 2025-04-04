@@ -27,6 +27,7 @@ datafusion-functions-json = { workspace = true }
 datafusion-macros = { workspace = true }
 datafusion-physical-plan = { workspace = true }
 datafusion_iceberg = { workspace = true }
+datafusion-catalog = { workspace = true }
 flate2 = { version = "1.0.34" }
 
 futures = { workspace = true }

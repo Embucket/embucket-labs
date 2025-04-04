@@ -272,7 +272,8 @@ impl CatalogProviderList for IceBucketDFMetastore {
         _catalog: Arc<dyn CatalogProvider>,
     ) -> Option<Arc<dyn CatalogProvider>> {
         // This is currently a NOOP because we don't support registering new catalogs yet
-        None
+        // None
+        Some(_catalog)
     }
 
     fn catalog_names(&self) -> Vec<String> {
