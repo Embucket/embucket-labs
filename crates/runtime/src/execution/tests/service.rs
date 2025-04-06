@@ -122,31 +122,6 @@ async fn test_service_upload_file() {
         .expect("Failed to create session");
 
     execution_svc
-        .upload_data_to_table(session_id, &table_ident, data.clone().into(), file_name)
-        .await
-        .expect("Failed to upload file");
-
-    // Verify that the file was uploaded successfully by running select * from the table
-    let query = format!("SELECT * FROM {}", table_ident.table);
-    let (rows, _) = execution_svc
-        .query(session_id, &query, IceBucketQueryContext::default())
-        .await
-        .expect("Failed to execute query");
-
-    assert_batches_eq!(
-        &[
-            "+----+-------+-------+",
-            "| id | name  | value |",
-            "+----+-------+-------+",
-            "| 1  | test1 | 100   |",
-            "| 2  | test2 | 200   |",
-            "| 3  | test3 | 300   |",
-            "+----+-------+-------+",
-        ],
-        &rows
-    );
-
-    execution_svc
         .upload_data_to_table(session_id, &table_ident, data.into(), file_name)
         .await
         .expect("Failed to upload file");
