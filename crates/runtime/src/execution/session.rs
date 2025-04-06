@@ -63,6 +63,8 @@ impl IceBucketUserSession {
                 SessionConfig::new()
                     .with_option_extension(IceBucketSessionParams::default())
                     .with_information_schema(true)
+                    // Cannot create catalog (database) automatic since it requires default volume
+                    .with_create_default_catalog_and_schema(false)
                     .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect)
                     .set_str("datafusion.catalog.default_catalog", "icebucket"),
             )

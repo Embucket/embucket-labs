@@ -19,14 +19,17 @@ use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
+use datafusion::execution::session_state::SessionState;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::LogicalPlan;
+use datafusion::logical_expr::TableSource;
 use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableWithJoins,
 };
+use datafusion_common::ResolvedTableReference;
 use datafusion_common::{DataFusionError, TableReference};
 use datafusion_iceberg::planner::iceberg_transform;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
@@ -339,15 +342,20 @@ impl IceBucketQuery {
                 self.update_qualify_in_query(query);
             }
 
-            let session_context = HashMap::new();
-            let session_context_planner = SessionContextProvider {
+            let tables = self
+                .table_references_for_statement(
+                    &DFStatement::Statement(Box::new(Statement::CreateTable(
+                        create_table_statement.clone(),
+                    ))),
+                    &self.session.ctx.state(),
+                )
+                .await?;
+            let ctx_provider = SessionContextProvider {
                 state: &self.session.ctx.state(),
-                tables: session_context,
+                tables,
             };
-            let planner = ExtendedSqlToRel::new(
-                &session_context_planner,
-                self.session.ctx.state().get_parser_options(),
-            );
+            let planner =
+                ExtendedSqlToRel::new(&ctx_provider, self.session.ctx.state().get_parser_options());
             let plan = planner
                 .sql_statement_to_plan(Statement::CreateTable(create_table_statement.clone()))
                 .context(super::error::DataFusionSnafu)?;
@@ -796,61 +804,13 @@ impl IceBucketQuery {
         statement = self.update_statement_references(statement)?;
 
         if let DFStatement::Statement(s) = statement.clone() {
-            let mut ctx_provider = SessionContextProvider {
-                state: &state,
-                tables: HashMap::new(),
+            let tables = self
+                .table_references_for_statement(&statement, &self.session.ctx.state())
+                .await?;
+            let ctx_provider = SessionContextProvider {
+                state: &self.session.ctx.state(),
+                tables,
             };
-
-            let references = state
-                .resolve_table_references(&statement)
-                .context(super::error::DataFusionSnafu)?;
-            //println!("References: {:?}", references);
-            for reference in references {
-                let resolved = state.resolve_table_ref(reference);
-                if let Entry::Vacant(v) = ctx_provider.tables.entry(resolved.clone()) {
-                    if let Ok(schema) = state.schema_for_ref(resolved.clone()) {
-                        if let Some(table) = schema
-                            .table(&resolved.table)
-                            .await
-                            .context(super::error::DataFusionSnafu)?
-                        {
-                            v.insert(provider_as_source(table));
-                        }
-                    }
-                }
-            }
-            #[allow(clippy::unwrap_used)]
-            // Unwraps are allowed here because we are sure that objects exists
-            for catalog in self.session.ctx.state().catalog_list().catalog_names() {
-                let provider = self
-                    .session
-                    .ctx
-                    .state()
-                    .catalog_list()
-                    .catalog(&catalog)
-                    .unwrap();
-                for schema in provider.schema_names() {
-                    for table in provider.schema(&schema).unwrap().table_names() {
-                        let table_source = provider
-                            .schema(&schema)
-                            .unwrap()
-                            .table(&table)
-                            .await
-                            .context(super::error::DataFusionSnafu)?
-                            .ok_or(ExecutionError::TableProviderNotFound {
-                                table_name: table.clone(),
-                            })?;
-                        let resolved = state.resolve_table_ref(TableReference::full(
-                            catalog.to_string(),
-                            schema.to_string(),
-                            table,
-                        ));
-                        ctx_provider
-                            .tables
-                            .insert(resolved, provider_as_source(table_source));
-                    }
-                }
-            }
 
             let planner =
                 ExtendedSqlToRel::new(&ctx_provider, self.session.ctx.state().get_parser_options());
@@ -1004,6 +964,63 @@ impl IceBucketQuery {
         }
     }
 
+    async fn table_references_for_statement(
+        &self,
+        statement: &DFStatement,
+        state: &SessionState,
+    ) -> ExecutionResult<HashMap<ResolvedTableReference, Arc<dyn TableSource>>> {
+        let mut tables = HashMap::new();
+
+        let references = state
+            .resolve_table_references(statement)
+            .context(super::error::DataFusionSnafu)?;
+        //println!("References: {:?}", references);
+        for reference in references {
+            let resolved = state.resolve_table_ref(reference);
+            if let Entry::Vacant(v) = tables.entry(resolved.clone()) {
+                if let Ok(schema) = state.schema_for_ref(resolved.clone()) {
+                    if let Some(table) = schema
+                        .table(&resolved.table)
+                        .await
+                        .context(super::error::DataFusionSnafu)?
+                    {
+                        v.insert(provider_as_source(table));
+                    }
+                }
+            }
+        }
+        #[allow(clippy::unwrap_used)]
+        // Unwraps are allowed here because we are sure that objects exists
+        for catalog in self.session.ctx.state().catalog_list().catalog_names() {
+            let provider = self
+                .session
+                .ctx
+                .state()
+                .catalog_list()
+                .catalog(&catalog)
+                .unwrap();
+            for schema in provider.schema_names() {
+                for table in provider.schema(&schema).unwrap().table_names() {
+                    let table_source = provider
+                        .schema(&schema)
+                        .unwrap()
+                        .table(&table)
+                        .await
+                        .context(super::error::DataFusionSnafu)?
+                        .ok_or(ExecutionError::TableProviderNotFound {
+                            table_name: table.clone(),
+                        })?;
+                    let resolved = state.resolve_table_ref(TableReference::full(
+                        catalog.to_string(),
+                        schema.to_string(),
+                        table,
+                    ));
+                    tables.insert(resolved, provider_as_source(table_source));
+                }
+            }
+        }
+        Ok(tables)
+    }
     // TODO: We need to recursively fix any missing table references with the default
     // database and schema from the session
     /*fn update_statement_table_references(

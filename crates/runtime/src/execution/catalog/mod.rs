@@ -69,6 +69,7 @@ pub struct IceBucketDFMetastore {
     pub metastore: Arc<dyn Metastore>,
     pub mirror: Arc<CatalogProviderCache>,
     pub table_object_store: Arc<DashMap<String, Arc<dyn ObjectStore>>>,
+    pub catalogs: DashMap<String, Arc<dyn CatalogProvider>>,
 }
 
 impl IceBucketDFMetastore {
@@ -79,6 +80,7 @@ impl IceBucketDFMetastore {
             metastore,
             mirror: Arc::new(DashMap::new()),
             table_object_store: Arc::new(table_object_store),
+            catalogs: DashMap::default(),
         }
     }
 
@@ -260,18 +262,26 @@ impl CatalogProviderList for IceBucketDFMetastore {
 
     fn register_catalog(
         &self,
-        _name: String,
-        _catalog: Arc<dyn CatalogProvider>,
+        name: String,
+        catalog: Arc<dyn CatalogProvider>,
     ) -> Option<Arc<dyn CatalogProvider>> {
-        // This is currently a NOOP because we don't support registering new catalogs yet
-        None
+        self.catalogs.insert(name, catalog)
     }
 
     fn catalog_names(&self) -> Vec<String> {
-        self.mirror.iter().map(|e| e.key().clone()).collect()
+        let mut catalog_names = self
+            .catalogs
+            .iter()
+            .map(|c| c.key().clone())
+            .collect::<Vec<String>>();
+        catalog_names.extend(self.mirror.iter().map(|e| e.key().clone()));
+        catalog_names
     }
 
     fn catalog(&self, name: &str) -> Option<Arc<dyn CatalogProvider>> {
+        if let Some(catalog) = self.catalogs.get(name) {
+            return Some(catalog.value().clone());
+        }
         if !self.mirror.contains_key(name) {
             return None;
         }

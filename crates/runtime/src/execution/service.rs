@@ -18,11 +18,14 @@
 use std::{collections::HashMap, sync::Arc};
 
 use arrow::array::RecordBatch;
+use arrow::array::{Float64Array, Int32Array, StringArray};
+use arrow::datatypes::{DataType, Field, Schema};
 use bytes::Bytes;
-use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
-use object_store::{path::Path, PutPayload};
+use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
+use datafusion::catalog_common::CatalogProvider;
+use datafusion::datasource::memory::MemTable;
+use datafusion_common::TableReference;
 use snafu::ResultExt;
-use uuid::Uuid;
 
 use super::{
     models::ColumnInfo,
@@ -124,8 +127,8 @@ impl ExecutionService {
         &self,
         session_id: &str,
         table_ident: &IceBucketTableIdent,
-        data: Bytes,
-        file_name: String,
+        _data: Bytes,
+        file_name: &str,
     ) -> ExecutionResult<()> {
         let sessions = self.df_sessions.read().await;
         let user_session =
@@ -134,77 +137,73 @@ impl ExecutionService {
                 .ok_or(ExecutionError::MissingDataFusionSession {
                     id: session_id.to_string(),
                 })?;
-        let unique_file_id = Uuid::new_v4().to_string();
-        let metastore_db = self
-            .metastore
-            .get_database(&table_ident.database)
-            .await
-            .context(ex_error::MetastoreSnafu)?
-            .ok_or(ExecutionError::DatabaseNotFound {
-                db: table_ident.database.clone(),
-            })?;
 
-        let object_store = self
-            .metastore
-            .volume_object_store(&metastore_db.volume)
-            .await
-            .context(ex_error::MetastoreSnafu)?
-            .ok_or(ExecutionError::VolumeNotFound {
-                volume: metastore_db.volume.clone(),
-            })?;
-
-        // this path also computes inside catalog service (create_table)
-        // TODO need to refactor the code so this path calculation is in one place
-        let table_path = self
-            .metastore
-            .url_for_table(table_ident)
-            .await
-            .context(ex_error::MetastoreSnafu)?;
-        let upload_path = format!("{table_path}/tmp/{}/{file_name}", unique_file_id.clone());
-
-        let path = Path::from(upload_path.clone());
-        object_store
-            .put(&path, PutPayload::from(data))
-            .await
-            .context(ex_error::ObjectStoreSnafu)?;
-
-        let temp_table_ident = IceBucketTableIdent {
-            database: "datafusion".to_string(),
-            schema: "tmp".to_string(),
-            table: unique_file_id.clone(),
-        };
-
-        // We construct this URL so we can unwrap it
-        #[allow(clippy::unwrap_used)]
-        user_session.ctx.register_object_store(
-            ObjectStoreUrl::parse(&upload_path).unwrap().as_ref(),
-            object_store.clone(),
-        );
+        let src_table_ref = "tmp_db.tmp_schema.tmp_table";
+        let inmem_catalog = MemoryCatalogProvider::new();
+        inmem_catalog
+            .register_schema("tmp_schema", Arc::new(MemorySchemaProvider::new()))
+            .context(ex_error::DataFusionSnafu)?;
         user_session
             .ctx
-            .register_csv(
-                temp_table_ident.to_string(),
-                upload_path,
-                CsvReadOptions::new(),
+            .register_catalog("tmp_db", Arc::new(inmem_catalog));
+
+        let id_array = Int32Array::from(vec![1, 2, 3]);
+        let name_array = StringArray::from(vec!["Alice", "Bob", "Charlie"]);
+        let value_array = Float64Array::from(vec![10.5, 20.7, 30.2]);
+        // Define the schema
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("id", DataType::Int32, false),
+            Field::new("name", DataType::Utf8, false),
+            Field::new("value", DataType::Float64, false),
+        ]));
+        // Create the record batch
+        #[allow(clippy::expect_used)]
+        let batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(id_array),
+                Arc::new(name_array),
+                Arc::new(value_array),
+            ],
+        )
+        .expect("Failed to create record batch");
+
+        #[allow(clippy::expect_used)]
+        let table =
+            MemTable::try_new(batch.schema(), vec![vec![batch]]).expect("Failed to create table");
+        user_session
+            .ctx
+            .register_table(
+                TableReference::full("tmp_db", "tmp_schema", "tmp_table"),
+                Arc::new(table),
             )
-            .await
             .context(ex_error::DataFusionSnafu)?;
 
-        let insert_query = format!("INSERT INTO {table_ident} SELECT * FROM {temp_table_ident}",);
+        // If target table already exists, we need to insert into it
+        // otherwise, we need to create it
+        let exists = user_session
+            .ctx
+            .table_exist(TableReference::full(
+                table_ident.database.clone(),
+                table_ident.schema.clone(),
+                table_ident.table.clone(),
+            ))
+            .context(ex_error::DataFusionSnafu)?;
 
-        let query = user_session.query(&insert_query, IceBucketQueryContext::default());
+        let query = if exists {
+            format!("INSERT INTO {table_ident} SELECT * FROM {src_table_ref}")
+        } else {
+            format!("CREATE TABLE {table_ident} AS SELECT * FROM {src_table_ref}")
+        };
 
+        let query = user_session.query(&query, IceBucketQueryContext::default());
         query.execute().await?;
 
         user_session
             .ctx
-            .deregister_table(temp_table_ident.to_string())
+            .deregister_table(TableReference::full("tmp_db", "tmp_schema", "tmp_table"))
             .context(ex_error::DataFusionSnafu)?;
 
-        object_store
-            .delete(&path)
-            .await
-            .context(ex_error::ObjectStoreSnafu)?;
         Ok(())
     }
 
