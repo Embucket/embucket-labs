@@ -73,6 +73,13 @@ pub struct TableUploadPayload {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct TableUploadResponse {
+    pub(crate) count: usize,
+    pub(crate) duration_ms: u128,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct CsvParameters {
 
 }

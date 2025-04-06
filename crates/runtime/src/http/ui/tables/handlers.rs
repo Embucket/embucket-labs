@@ -25,7 +25,7 @@ use crate::http::ui::tables::error::{TableError, TablesAPIError, TablesResult, C
 use crate::http::ui::tables::models::{
     TableInfo, TableInfoColumn, TableInfoResponse, TablePreviewDataColumn,
     TablePreviewDataParameters, TablePreviewDataResponse, TablePreviewDataRow,
-    TableUploadPayload,
+    TableUploadPayload, TableUploadResponse,
 };
 use arrow_array::{Array, StringArray};
 use axum::extract::Query;
@@ -36,6 +36,7 @@ use axum::{
 use snafu::ResultExt;
 use utoipa::OpenApi;
 use icebucket_metastore::IceBucketTableIdent;
+use std::time::Instant;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -286,7 +287,7 @@ pub async fn get_table_preview_data(
         description = "Upload data to the table in multipart/form-data format"
     ),
     responses(
-        (status = 200, description = "Successful Response"),
+        (status = 200, description = "Successful Response", body = TableUploadResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
@@ -296,8 +297,10 @@ pub async fn upload_file(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
     mut multipart: Multipart,
-) -> TablesResult<()> {
+) -> TablesResult<Json<TableUploadResponse>> {
     let mut uploaded = false;
+    let mut rows_loaded: usize = 0;
+    let start = Instant::now();
     while let Some(field) = multipart
         .next_field()
         .await
@@ -312,7 +315,7 @@ pub async fn upload_file(
                 .context(MalformedMultipartFileDataSnafu)
                 .context(CreateUploadSnafu)?;
 
-            state
+            rows_loaded += state
                 .execution_svc
                 .upload_data_to_table(
                     &session_id,
@@ -331,10 +334,14 @@ pub async fn upload_file(
             uploaded = true;
         }
     }
+    let duration = start.elapsed();
     if !uploaded {
         Err(TablesAPIError::CreateUpload{ source: TableError::FileField })
     }
     else {
-        Ok(())
+        Ok(Json(TableUploadResponse {
+            count: rows_loaded,
+            duration_ms: duration.as_millis(),
+        }))
     }
 }
