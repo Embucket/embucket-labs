@@ -38,8 +38,8 @@ use crate::http::ui::error::IntoStatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use http::StatusCode;
-use snafu::prelude::*;
 use icebucket_metastore::error::MetastoreError;
+use snafu::prelude::*;
 
 pub type TablesResult<T> = Result<T, TablesAPIError>;
 
@@ -79,17 +79,16 @@ impl IntoStatusCode for TablesAPIError {
             Self::GetMetastore { source } => match &source {
                 MetastoreError::TableNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
-            }
-            // Self::Delete { source } => match &source {
-            //     MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
-            //     _ => StatusCode::INTERNAL_SERVER_ERROR,
-            // },
-            // Self::Update { source } => match &source {
-            //     MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
-            //     MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
-            //     _ => StatusCode::INTERNAL_SERVER_ERROR,
-            // },
-            // Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            }, // Self::Delete { source } => match &source {
+               //     MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
+               //     _ => StatusCode::INTERNAL_SERVER_ERROR,
+               // },
+               // Self::Update { source } => match &source {
+               //     MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
+               //     MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
+               //     _ => StatusCode::INTERNAL_SERVER_ERROR,
+               // },
+               // Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

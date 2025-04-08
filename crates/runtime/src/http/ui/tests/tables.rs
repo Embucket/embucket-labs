@@ -20,7 +20,9 @@
 use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::queries::models::QueryCreatePayload;
 use crate::http::ui::schemas::models::SchemaCreatePayload;
-use crate::http::ui::tables::models::{TableColumnsInfoResponse, TableInfoResponse, TablePreviewDataResponse};
+use crate::http::ui::tables::models::{
+    TableColumnsInfoResponse, TablePreviewDataResponse, TableStatisticsResponse,
+};
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{VolumeCreatePayload, VolumeCreateResponse};
 use crate::http::ui::worksheets::{WorksheetCreatePayload, WorksheetResponse};
@@ -137,40 +139,7 @@ async fn test_ui_tables() {
         query: format!(
             "INSERT INTO {}.{}.{} (APP_ID, PLATFORM, EVENT, TXN_ID, EVENT_TIME)
         VALUES ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('67890', 'Android', 'purchase', '456789', '2021-01-01T00:02:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
-               ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00')",
+               ('67890', 'Android', 'purchase', '456789', '2021-01-01T00:02:00')",
             database_name.clone(),
             schema_name.clone(),
             "tested1"
@@ -199,8 +168,8 @@ async fn test_ui_tables() {
         ),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let table: TableColumnsInfoResponse = res.json().await.unwrap();
     assert_eq!(5, table.items.len());
@@ -221,7 +190,7 @@ async fn test_ui_tables() {
     assert_eq!(http::StatusCode::OK, res.status());
     let table: TablePreviewDataResponse = res.json().await.unwrap();
     assert_eq!(5, table.items.len());
-    assert_eq!(35, table.items.first().unwrap().rows.len());
+    assert_eq!(2, table.items.first().unwrap().rows.len());
     assert_eq!(
         "2021-01-01T00:00:00",
         table.items.last().unwrap().rows.first().unwrap().data
@@ -253,16 +222,16 @@ async fn test_ui_tables() {
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1/info",
+            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1/statistics",
             database_name.clone(),
             schema_name.clone()
         ),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let table: TableInfoResponse = res.json().await.unwrap();
+    let table: TableStatisticsResponse = res.json().await.unwrap();
     assert_eq!(0, table.data.total_bytes);
-    assert_eq!(35, table.data.total_rows);
+    assert_eq!(0, table.data.total_rows);
 }

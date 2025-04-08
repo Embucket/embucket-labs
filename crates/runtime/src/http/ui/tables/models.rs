@@ -21,13 +21,13 @@ use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TableInfoResponse {
+pub(crate) struct TableStatisticsResponse {
     #[serde(flatten)]
-    pub(crate) data: TableInfo,
+    pub(crate) data: TableStatistics,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TableInfo {
+pub(crate) struct TableStatistics {
     pub(crate) name: String,
     pub(crate) total_rows: i64,
     pub(crate) total_bytes: i64,
