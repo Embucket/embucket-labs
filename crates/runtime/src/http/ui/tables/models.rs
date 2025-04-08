@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -24,17 +25,23 @@ pub(crate) struct TableInfoResponse {
     #[serde(flatten)]
     pub(crate) data: TableInfo,
 }
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct TableInfo {
     pub(crate) name: String,
-    pub(crate) columns: Vec<TableInfoColumn>,
     pub(crate) total_rows: i64,
+    pub(crate) total_bytes: i64,
+    pub(crate) created_at: NaiveDateTime,
+    pub(crate) updated_at: NaiveDateTime,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TableInfoColumn {
+pub(crate) struct TableColumnsInfoResponse {
+    pub(crate) items: Vec<TableColumnInfo>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TableColumnInfo {
     pub(crate) name: String,
     pub(crate) r#type: String,
 }
