@@ -31,7 +31,7 @@ iceberg = { git = "https://github.com/hansetag/iceberg-rust.git", branch = "ct/b
 tempfile = { version = "3" }
 utoipa = { version = "5.3.1", features = ["uuid", "chrono"] }
 utoipa-axum = { version = "0.2.0" }
-utoipa-swagger-ui = { version = "9.0.1", features = ["axum"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
 lazy_static = { version = "1.5" }
 snafu = { version = "0.8.5", features = ["futures"] }
 tracing = { version = "0.1" }
@@ -60,10 +60,6 @@ datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = 
 
 # issue #309
 chrono = { git = "https://github.com/chronotope/chrono.git", rev = "8b863490d88ba098038392c8aa930012ffd0c439" }
-
-# https://github.com/juhaku/utoipa/issues/1345
-# utoipa = { git = "https://github.com/juhaku/utoipa.git", rev = "1d32f0524a8680d79537ae92aa9ced6ba9d2b630" }
-# utoipa-swagger-ui = { git = "https://github.com/juhaku/utoipa.git", rev = "1d32f0524a8680d79537ae92aa9ced6ba9d2b630" }
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
