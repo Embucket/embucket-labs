@@ -147,9 +147,7 @@ pub async fn get_table_columns_info(
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
     };
-    let sql_string = format!(
-        "SELECT * FROM {database_name}.{schema_name}.{table_name} LIMIT 0"
-    );
+    let sql_string = format!("SELECT * FROM {database_name}.{schema_name}.{table_name} LIMIT 0");
     let (_, column_infos) = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
@@ -160,14 +158,20 @@ pub async fn get_table_columns_info(
         items.push(TableColumnInfo {
             name: column_info.name.clone(),
             r#type: column_info.r#type.clone(),
-            description: "".to_string(),
-            nullable: if column_info.nullable { "Y".to_string() } else { "N".to_string() },
-            default: if column_info.nullable { "NULL".to_string() } else { "".to_string() },
-        })
+            description: String::new(),
+            nullable: if column_info.nullable {
+                "Y".to_string()
+            } else {
+                "N".to_string()
+            },
+            default: if column_info.nullable {
+                "NULL".to_string()
+            } else {
+                String::new()
+            },
+        });
     }
-    Ok(Json(TableColumnsInfoResponse {
-        items,
-    }))
+    Ok(Json(TableColumnsInfoResponse { items }))
 }
 #[utoipa::path(
     get,
