@@ -29,6 +29,7 @@ pub struct S3Volume {
     pub skip_signature: Option<bool>,
     pub metadata_endpoint: Option<String>,
     pub credentials: Option<AwsCredentials>,
+    pub arn: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
@@ -56,14 +57,17 @@ impl From<IceBucketVolume> for Volume {
         Self {
             name: volume.ident,
             volume: match volume.volume {
-                IceBucketVolumeType::S3(volume) => VolumeType::S3(S3Volume {
-                    region: volume.region,
-                    bucket: volume.bucket,
-                    endpoint: volume.endpoint,
-                    skip_signature: volume.skip_signature,
-                    metadata_endpoint: volume.metadata_endpoint,
-                    credentials: volume.credentials,
-                }),
+                IceBucketVolumeType::S3(volume) | IceBucketVolumeType::S3Tables(volume) => {
+                    VolumeType::S3(S3Volume {
+                        region: volume.region,
+                        bucket: volume.bucket,
+                        endpoint: volume.endpoint,
+                        skip_signature: volume.skip_signature,
+                        metadata_endpoint: volume.metadata_endpoint,
+                        credentials: volume.credentials,
+                        arn: volume.arn,
+                    })
+                }
                 IceBucketVolumeType::File(file) => VolumeType::File(FileVolume { path: file.path }),
                 IceBucketVolumeType::Memory => VolumeType::Memory,
             },
@@ -85,6 +89,7 @@ impl Into<IceBucketVolume> for Volume {
                     skip_signature: volume.skip_signature,
                     metadata_endpoint: volume.metadata_endpoint,
                     credentials: volume.credentials,
+                    arn: volume.arn,
                 }),
                 VolumeType::File(volume) => {
                     IceBucketVolumeType::File(IceBucketFileVolume { path: volume.path })

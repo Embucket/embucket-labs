@@ -33,6 +33,8 @@ futures = { workspace = true }
 geo-traits = { version = "0.2.0" }
 geo-types = { version = "0.7.15" }
 
+aws-config = { version = "1.5.17" }
+aws-credential-types = { version = "1.2.1",  features = ["hardcoded-credentials"]}
 geoarrow = { version = "0.4.0-beta.4"}
 geodatafusion = { git = "https://github.com/geoarrow/geoarrow-rs.git", package = "geodatafusion", rev = "rust-v0.4.0-beta.4" }
 geohash = { version = "0.13.1" }
@@ -43,6 +45,7 @@ hyper = "1.5.0"
 iceberg-rest-catalog = { workspace = true }
 iceberg-rust = { workspace = true }
 iceberg-rust-spec = { workspace = true }
+iceberg-s3tables-catalog = { workspace = true }
 icebucket_history = { workspace= true }
 icebucket_metastore = { version = "0.1.0", path = "../metastore" }
 icebucket_utils = { version = "0.1.0", path = "../utils" }

@@ -81,6 +81,8 @@ pub struct IceBucketS3Volume {
     pub metadata_endpoint: Option<String>,
     #[validate(required, nested)]
     pub credentials: Option<AwsCredentials>,
+    #[validate(length(min = 1))]
+    pub arn: Option<String>,
 }
 
 fn validate_bucket_name(bucket_name: &str) -> Result<(), ValidationError> {
@@ -115,6 +117,7 @@ pub struct IceBucketFileVolume {
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum IceBucketVolumeType {
     S3(IceBucketS3Volume),
+    S3Tables(IceBucketS3Volume),
     File(IceBucketFileVolume),
     Memory,
 }
@@ -122,7 +125,7 @@ pub enum IceBucketVolumeType {
 impl Validate for IceBucketVolumeType {
     fn validate(&self) -> Result<(), ValidationErrors> {
         match self {
-            Self::S3(volume) => volume.validate(),
+            Self::S3(volume) | Self::S3Tables(volume) => volume.validate(),
             Self::File(volume) => volume.validate(),
             Self::Memory => Ok(()),
         }
@@ -149,39 +152,8 @@ impl IceBucketVolume {
 
     pub fn get_object_store(&self) -> MetastoreResult<Arc<dyn ObjectStore>> {
         match &self.volume {
-            IceBucketVolumeType::S3(volume) => {
-                let mut s3_builder = AmazonS3Builder::new()
-                    .with_conditional_put(object_store::aws::S3ConditionalPut::ETagMatch);
-
-                if let Some(region) = &volume.region {
-                    s3_builder = s3_builder.with_region(region);
-                }
-                if let Some(bucket) = &volume.bucket {
-                    s3_builder = s3_builder.with_bucket_name(bucket.clone());
-                }
-                if let Some(endpoint) = &volume.endpoint {
-                    s3_builder = s3_builder.with_endpoint(endpoint);
-                    s3_builder = s3_builder.with_allow_http(endpoint.starts_with("http:"));
-                }
-                if let Some(metadata_endpoint) = &volume.metadata_endpoint {
-                    s3_builder = s3_builder.with_metadata_endpoint(metadata_endpoint);
-                }
-                if let Some(skip_signature) = volume.skip_signature {
-                    s3_builder = s3_builder.with_skip_signature(skip_signature);
-                }
-                if let Some(credentials) = &volume.credentials {
-                    match credentials {
-                        AwsCredentials::AccessKey(creds) => {
-                            s3_builder =
-                                s3_builder.with_access_key_id(creds.aws_access_key_id.clone());
-                            s3_builder = s3_builder
-                                .with_secret_access_key(creds.aws_secret_access_key.clone());
-                        }
-                        AwsCredentials::Token(token) => {
-                            s3_builder = s3_builder.with_token(token.clone());
-                        }
-                    }
-                }
+            IceBucketVolumeType::S3(volume) | IceBucketVolumeType::S3Tables(volume) => {
+                let s3_builder = Self::get_s3_builder(volume);
                 s3_builder
                     .build()
                     .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
@@ -197,9 +169,45 @@ impl IceBucketVolume {
     }
 
     #[must_use]
+    pub fn get_s3_builder(volume: &IceBucketS3Volume) -> AmazonS3Builder {
+        let mut s3_builder = AmazonS3Builder::new()
+            .with_conditional_put(object_store::aws::S3ConditionalPut::ETagMatch);
+
+        if let Some(region) = &volume.region {
+            s3_builder = s3_builder.with_region(region);
+        }
+        if let Some(bucket) = &volume.bucket {
+            s3_builder = s3_builder.with_bucket_name(bucket.clone());
+        }
+        if let Some(endpoint) = &volume.endpoint {
+            s3_builder = s3_builder.with_endpoint(endpoint);
+            s3_builder = s3_builder.with_allow_http(endpoint.starts_with("http:"));
+        }
+        if let Some(metadata_endpoint) = &volume.metadata_endpoint {
+            s3_builder = s3_builder.with_metadata_endpoint(metadata_endpoint);
+        }
+        if let Some(skip_signature) = volume.skip_signature {
+            s3_builder = s3_builder.with_skip_signature(skip_signature);
+        }
+        if let Some(credentials) = &volume.credentials {
+            match credentials {
+                AwsCredentials::AccessKey(creds) => {
+                    s3_builder = s3_builder.with_access_key_id(creds.aws_access_key_id.clone());
+                    s3_builder =
+                        s3_builder.with_secret_access_key(creds.aws_secret_access_key.clone());
+                }
+                AwsCredentials::Token(token) => {
+                    s3_builder = s3_builder.with_token(token.clone());
+                }
+            }
+        }
+        s3_builder
+    }
+
+    #[must_use]
     pub fn prefix(&self) -> String {
         match &self.volume {
-            IceBucketVolumeType::S3(volume) => volume
+            IceBucketVolumeType::S3(volume) | IceBucketVolumeType::S3Tables(volume) => volume
                 .bucket
                 .as_ref()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),

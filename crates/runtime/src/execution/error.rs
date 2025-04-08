@@ -18,6 +18,8 @@
 use std::backtrace::Backtrace;
 
 use datafusion_common::DataFusionError;
+use iceberg_rust::error::Error as IcebergError;
+use iceberg_s3tables_catalog::error::Error as S3tablesError;
 use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
@@ -87,6 +89,12 @@ pub enum ExecutionError {
 
     #[snafu(display("Cannot refresh catalog list"))]
     RefreshCatalogList { message: String },
+
+    #[snafu(display("S3Tables error: {source}"))]
+    S3Tables { source: S3tablesError },
+
+    #[snafu(display("Iceberg error: {source}"))]
+    Iceberg { source: IcebergError },
 
     #[snafu(display("URL Parsing error: {source}"))]
     UrlParse { source: url::ParseError },

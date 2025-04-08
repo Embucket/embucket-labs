@@ -48,6 +48,7 @@ datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-func
 iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "8b57339b0df82a5dddc7d489bd6ab3ea2a7d6d1d" }
 iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "8b57339b0df82a5dddc7d489bd6ab3ea2a7d6d1d" }
 iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "8b57339b0df82a5dddc7d489bd6ab3ea2a7d6d1d" }
+iceberg-s3tables-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "8b57339b0df82a5dddc7d489bd6ab3ea2a7d6d1d" }
 datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "8b57339b0df82a5dddc7d489bd6ab3ea2a7d6d1d" }
 
 [patch.crates-io]

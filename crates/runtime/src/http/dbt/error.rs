@@ -149,7 +149,9 @@ impl IntoResponse for ExecutionError {
             | Self::UrlParse { .. }
             | Self::JobError { .. }
             | Self::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
-            Self::Arrow { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Arrow { .. } | Self::S3Tables { .. } | Self::Iceberg { .. } => {
+                http::StatusCode::INTERNAL_SERVER_ERROR
+            }
             Self::DatabaseNotFound { .. }
             | Self::TableNotFound { .. }
             | Self::SchemaNotFound { .. }
