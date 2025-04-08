@@ -31,6 +31,10 @@ use datafusion::sql::sqlparser::ast::{
 };
 use datafusion_common::ResolvedTableReference;
 use datafusion_common::{DataFusionError, TableReference};
+use datafusion_expr::logical_plan::dml::DmlStatement;
+use datafusion_expr::logical_plan::dml::InsertOp;
+use datafusion_expr::logical_plan::dml::WriteOp;
+use datafusion_expr::CreateMemoryTable;
 use datafusion_expr::DdlStatement;
 use datafusion_iceberg::planner::iceberg_transform;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
@@ -432,10 +436,6 @@ impl IceBucketQuery {
         // Insert data to new table
         // Since we don't execute logical plan, and we don't transform it to physical plan and
         // also don't execute it as well, we need somehow to support CTAS
-        use datafusion_expr::logical_plan::dml::DmlStatement;
-        use datafusion_expr::logical_plan::dml::InsertOp;
-        use datafusion_expr::logical_plan::dml::WriteOp;
-        use datafusion_expr::CreateMemoryTable;
 
         let schema = plan.schema().clone();
         if let LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(CreateMemoryTable {
