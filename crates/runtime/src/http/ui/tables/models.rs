@@ -44,6 +44,9 @@ pub(crate) struct TableColumnsInfoResponse {
 pub(crate) struct TableColumnInfo {
     pub(crate) name: String,
     pub(crate) r#type: String,
+    pub(crate) description: String,
+    pub(crate) nullable: String,
+    pub(crate) default: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]

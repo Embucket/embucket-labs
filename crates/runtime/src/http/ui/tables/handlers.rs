@@ -139,32 +139,35 @@ pub async fn get_table_statistics(
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
 pub async fn get_table_columns_info(
+    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> TablesResult<Json<TableColumnsInfoResponse>> {
-    let ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
-    match state.metastore.get_table(&ident).await {
-        Ok(Some(rw_object)) => {
-            let mut items: Vec<TableColumnInfo> = vec![];
-            if let Ok(schema) = rw_object.metadata.current_schema(None) {
-                for field in schema.iter() {
-                    items.push(TableColumnInfo {
-                        name: field.name.clone(),
-                        r#type: field.field_type.to_string(),
-                    });
-                }
-            }
-            Ok(Json(TableColumnsInfoResponse { items }))
-        }
-        Ok(None) => Err(TablesAPIError::GetMetastore {
-            source: MetastoreError::TableNotFound {
-                table: database_name,
-                schema: schema_name,
-                db: table_name,
-            },
-        }),
-        Err(e) => Err(TablesAPIError::GetMetastore { source: e }),
+    let context = IceBucketQueryContext {
+        database: Some(database_name.clone()),
+        schema: Some(schema_name.clone()),
+    };
+    let sql_string = format!(
+        "SELECT * FROM {database_name}.{schema_name}.{table_name} LIMIT 0"
+    );
+    let (_, column_infos) = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
+        .await
+        .map_err(|e| TablesAPIError::GetExecution { source: e })?;
+    let mut items: Vec<TableColumnInfo> = vec![];
+    for column_info in column_infos {
+        items.push(TableColumnInfo {
+            name: column_info.name.clone(),
+            r#type: column_info.r#type.clone(),
+            description: "".to_string(),
+            nullable: if column_info.nullable { "Y".to_string() } else { "N".to_string() },
+            default: if column_info.nullable { "NULL".to_string() } else { "".to_string() },
+        })
     }
+    Ok(Json(TableColumnsInfoResponse {
+        items,
+    }))
 }
 #[utoipa::path(
     get,
