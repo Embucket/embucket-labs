@@ -96,6 +96,9 @@ pub enum ExecutionError {
         source: crate::execution::dedicated_executor::JobError,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("Failed to upload file: {message}"))]
+    UploadFailed { message: String },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;

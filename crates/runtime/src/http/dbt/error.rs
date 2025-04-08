@@ -147,7 +147,8 @@ impl IntoResponse for ExecutionError {
             | Self::UnsupportedFileFormat { .. }
             | Self::RefreshCatalogList { .. }
             | Self::UrlParse { .. }
-            | Self::JobError { .. } => http::StatusCode::BAD_REQUEST,
+            | Self::JobError { .. }
+            | Self::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
             Self::Arrow { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             Self::DatabaseNotFound { .. }
             | Self::TableNotFound { .. }

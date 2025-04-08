@@ -15,12 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use std::vec;
 use std::{collections::HashMap, sync::Arc};
 
-use arrow::array::RecordBatch;
-use arrow::array::{Float64Array, Int32Array, StringArray};
-use arrow::datatypes::{DataType, Field, Schema};
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
+use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::csv::reader::Format;
+use datafusion::arrow::csv::ReaderBuilder;
 use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
 use datafusion::catalog_common::CatalogProvider;
 use datafusion::datasource::memory::MemTable;
@@ -127,9 +128,15 @@ impl ExecutionService {
         &self,
         session_id: &str,
         table_ident: &IceBucketTableIdent,
-        _data: Bytes,
+        data: Bytes,
         file_name: &str,
     ) -> ExecutionResult<()> {
+        // TODO: is there a way to avoid temp table approach altogether?
+        // File upload works as follows:
+        // 1. Convert incoming data to a record batch
+        // 2. Create a temporary table in memory
+        // 3. Use Execution service to insert data into the target table from the temporary table
+        // 4. Drop the temporary table
         let sessions = self.df_sessions.read().await;
         let user_session =
             sessions
@@ -138,45 +145,46 @@ impl ExecutionService {
                     id: session_id.to_string(),
                 })?;
 
-        let src_table_ref = "tmp_db.tmp_schema.tmp_table";
+        let source_table = TableReference::full("tmp_db", "tmp_schema", "tmp_table");
         let inmem_catalog = MemoryCatalogProvider::new();
         inmem_catalog
-            .register_schema("tmp_schema", Arc::new(MemorySchemaProvider::new()))
-            .context(ex_error::DataFusionSnafu)?;
-        user_session
-            .ctx
-            .register_catalog("tmp_db", Arc::new(inmem_catalog));
-
-        let id_array = Int32Array::from(vec![1, 2, 3]);
-        let name_array = StringArray::from(vec!["Alice", "Bob", "Charlie"]);
-        let value_array = Float64Array::from(vec![10.5, 20.7, 30.2]);
-        // Define the schema
-        let schema = Arc::new(Schema::new(vec![
-            Field::new("id", DataType::Int32, false),
-            Field::new("name", DataType::Utf8, false),
-            Field::new("value", DataType::Float64, false),
-        ]));
-        // Create the record batch
-        #[allow(clippy::expect_used)]
-        let batch = RecordBatch::try_new(
-            schema.clone(),
-            vec![
-                Arc::new(id_array),
-                Arc::new(name_array),
-                Arc::new(value_array),
-            ],
-        )
-        .expect("Failed to create record batch");
-
-        #[allow(clippy::expect_used)]
-        let table =
-            MemTable::try_new(batch.schema(), vec![vec![batch]]).expect("Failed to create table");
-        user_session
-            .ctx
-            .register_table(
-                TableReference::full("tmp_db", "tmp_schema", "tmp_table"),
-                Arc::new(table),
+            .register_schema(
+                source_table.schema().unwrap_or_default(),
+                Arc::new(MemorySchemaProvider::new()),
             )
+            .context(ex_error::DataFusionSnafu)?;
+        user_session.ctx.register_catalog(
+            source_table.catalog().unwrap_or_default(),
+            Arc::new(inmem_catalog),
+        );
+
+        // Here we create an arrow csv reader that infers the schema from first 10 rows
+        // and then builds a record batch
+        // TODO: This partially duplicates what Datafusion does with `CsvFormat::infer_schema`
+        let (schema, _) = Format::default()
+            .with_header(true)
+            .infer_schema(data.clone().reader(), Some(100))
+            .map_err(|e| ExecutionError::DataFusion { source: e.into() })?;
+        let schema = Arc::new(schema);
+        let mut csv = ReaderBuilder::new(schema.clone())
+            .with_header(true)
+            .build_buffered(data.reader())
+            .map_err(|e| ExecutionError::DataFusion { source: e.into() })?;
+        let batches = match csv.next() {
+            Some(Ok(batch)) => batch,
+            Some(Err(e)) => return Err(ExecutionError::DataFusion { source: e.into() }),
+            None => {
+                return Err(ExecutionError::UploadFailed {
+                    message: "No data found".to_string(),
+                })
+            }
+        };
+
+        let table = MemTable::try_new(schema, vec![vec![batches]])
+            .map_err(|e| ExecutionError::DataFusion { source: e })?;
+        user_session
+            .ctx
+            .register_table(source_table.clone(), Arc::new(table))
             .context(ex_error::DataFusionSnafu)?;
 
         // If target table already exists, we need to insert into it
@@ -190,10 +198,11 @@ impl ExecutionService {
             ))
             .context(ex_error::DataFusionSnafu)?;
 
+        let table = source_table.clone();
         let query = if exists {
-            format!("INSERT INTO {table_ident} SELECT * FROM {src_table_ref}")
+            format!("INSERT INTO {table_ident} SELECT * FROM {table}")
         } else {
-            format!("CREATE TABLE {table_ident} AS SELECT * FROM {src_table_ref}")
+            format!("CREATE TABLE {table_ident} AS SELECT * FROM {table}")
         };
 
         let query = user_session.query(&query, IceBucketQueryContext::default());
@@ -201,7 +210,7 @@ impl ExecutionService {
 
         user_session
             .ctx
-            .deregister_table(TableReference::full("tmp_db", "tmp_schema", "tmp_table"))
+            .deregister_table(source_table)
             .context(ex_error::DataFusionSnafu)?;
 
         Ok(())
