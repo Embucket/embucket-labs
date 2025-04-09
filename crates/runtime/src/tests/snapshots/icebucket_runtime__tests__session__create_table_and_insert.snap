@@ -255,7 +255,7 @@ snapshot_kind: text
                 fields: [
                     Field {
                         name: "count",
-                        data_type: Int64,
+                        data_type: UInt64,
                         nullable: false,
                         dict_id: 0,
                         dict_is_ordered: false,
@@ -265,7 +265,7 @@ snapshot_kind: text
                 metadata: {},
             },
             columns: [
-                PrimitiveArray<Int64>
+                PrimitiveArray<UInt64>
                 [
                   0,
                 ],

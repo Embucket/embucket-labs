@@ -116,7 +116,7 @@ async fn test_ui_tables() {
 	    PLATFORM TEXT,
 	    EVENT TEXT,
         TXN_ID NUMBER(38,0),
-        EVENT_TIME TIMESTAMP_NTZ(9)
+        EVENT_TIME TEXT
 	    );",
             database_name.clone(),
             schema_name.clone(),
