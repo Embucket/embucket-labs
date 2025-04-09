@@ -18,11 +18,18 @@
 use crate::execution::query::{IceBucketQuery, IceBucketQueryContext};
 use crate::execution::session::IceBucketUserSession;
 
+use crate::execution::service::ExecutionService;
+use crate::execution::utils::{Config, DataSerializationFormat};
+use crate::SlateDBMetastore;
+use datafusion::assert_batches_eq;
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::visit_expressions;
 use datafusion::sql::sqlparser::ast::Statement as SQLStatement;
 use datafusion::sql::sqlparser::ast::{Expr, ObjectName};
-use icebucket_metastore::SlateDBMetastore;
+use icebucket_metastore::Metastore;
+use icebucket_metastore::{
+    IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent, IceBucketVolume,
+};
 use sqlparser::ast::{
     Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments,
 };
@@ -291,4 +298,85 @@ async fn test_context_name_injection() {
     };
     let from4 = select_statement4.from;
     insta::assert_debug_snapshot!((from1, from2, from3, from4));
+}
+
+#[tokio::test]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
+#[should_panic(
+    expected = r#"Failed to execute query: DataFusion { source: Plan("Inserting query must have the same schema with the table.") }"#
+)]
+async fn test_create_table_with_timestamp() {
+    let metastore = SlateDBMetastore::new_in_memory().await;
+
+    metastore
+        .create_volume(
+            &"test_volume".to_string(),
+            IceBucketVolume::new(
+                "test_volume".to_string(),
+                icebucket_metastore::IceBucketVolumeType::Memory,
+            ),
+        )
+        .await
+        .expect("Failed to create volume");
+    metastore
+        .create_database(
+            &"icebucket".to_string(),
+            IceBucketDatabase {
+                ident: "icebucket".to_string(),
+                properties: None,
+                volume: "test_volume".to_string(),
+            },
+        )
+        .await
+        .expect("Failed to create database");
+    let schema_ident = IceBucketSchemaIdent {
+        database: "icebucket".to_string(),
+        schema: "public".to_string(),
+    };
+    metastore
+        .create_schema(
+            &schema_ident.clone(),
+            IceBucketSchema {
+                ident: schema_ident,
+                properties: None,
+            },
+        )
+        .await
+        .expect("Failed to create schema");
+
+    let execution_svc = ExecutionService::new(
+        metastore.clone(),
+        Config {
+            dbt_serialization_format: DataSerializationFormat::Json,
+        },
+    );
+
+    let session_id = "test_session_id";
+    execution_svc
+        .create_session(session_id.to_string())
+        .await
+        .expect("Failed to create session");
+
+    let table_ident = IceBucketTableIdent {
+        database: "icebucket".to_string(),
+        schema: "public".to_string(),
+        table: "target_table".to_string(),
+    };
+    // Verify that the file was uploaded successfully by running select * from the table
+    let query = format!("CREATE TABLE {table_ident} (id INT, ts TIMESTAMP);");
+    let (rows, _) = execution_svc
+        .query(session_id, &query, IceBucketQueryContext::default())
+        .await
+        .expect("Failed to execute query");
+
+    assert_batches_eq!(
+        &[
+            "+-------+",
+            "| count |",
+            "+-------+",
+            "| 0     |",
+            "+-------+",
+        ],
+        &rows
+    );
 }
