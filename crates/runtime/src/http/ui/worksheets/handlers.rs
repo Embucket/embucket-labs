@@ -176,6 +176,9 @@ pub async fn delete_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
 ) -> WorksheetsResult<()> {
+    //
+    // TODO: Decide what to do with queries records related to deleting worksheet, delete it too?
+    //
     state
         .history
         .delete_worksheet(worksheet_id)
