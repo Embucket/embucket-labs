@@ -302,10 +302,7 @@ async fn test_context_name_injection() {
 
 #[tokio::test]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-#[should_panic(
-    expected = r#"Failed to execute query: DataFusion { source: Plan("Inserting query must have the same schema with the table.") }"#
-)]
-async fn test_create_table_with_timestamp() {
+async fn test_create_table_with_timestamp_nanosecond() {
     let metastore = SlateDBMetastore::new_in_memory().await;
 
     metastore
@@ -363,7 +360,7 @@ async fn test_create_table_with_timestamp() {
         table: "target_table".to_string(),
     };
     // Verify that the file was uploaded successfully by running select * from the table
-    let query = format!("CREATE TABLE {table_ident} (id INT, ts TIMESTAMP);");
+    let query = format!("CREATE TABLE {table_ident} (id INT, ts TIMESTAMP_NTZ(9)) as VALUES (1, '2025-04-09T21:11:23'), (2, '2025-04-09T21:11:00');");
     let (rows, _) = execution_svc
         .query(session_id, &query, IceBucketQueryContext::default())
         .await
@@ -374,7 +371,7 @@ async fn test_create_table_with_timestamp() {
             "+-------+",
             "| count |",
             "+-------+",
-            "| 0     |",
+            "| 2     |",
             "+-------+",
         ],
         &rows
