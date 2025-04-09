@@ -153,9 +153,9 @@ pub async fn get_table_columns_info(
         .query(&session_id, sql_string.as_str(), context)
         .await
         .map_err(|e| TablesAPIError::GetExecution { source: e })?;
-    let mut items: Vec<TableColumnInfo> = vec![];
-    for column_info in column_infos {
-        items.push(TableColumnInfo {
+    let items: Vec<TableColumnInfo> = column_infos
+        .iter()
+        .map(|column_info| TableColumnInfo {
             name: column_info.name.clone(),
             r#type: column_info.r#type.clone(),
             description: String::new(),
@@ -169,8 +169,8 @@ pub async fn get_table_columns_info(
             } else {
                 String::new()
             },
-        });
-    }
+        })
+        .collect();
     Ok(Json(TableColumnsInfoResponse { items }))
 }
 #[utoipa::path(
@@ -206,13 +206,12 @@ pub async fn get_table_preview_data(
     let ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
     let column_names = match state.metastore.get_table(&ident).await {
         Ok(Some(rw_object)) => {
-            let mut items: Vec<String> = vec![];
             if let Ok(schema) = rw_object.metadata.current_schema(None) {
-                for field in schema.iter() {
-                    items.push(field.name.clone());
-                }
+                let items: Vec<String> = schema.iter().map(|field| field.name.clone()).collect();
+                Ok(items)
+            } else {
+                Ok(vec![])
             }
-            Ok(items)
         }
         Ok(None) => Err(TablesAPIError::GetMetastore {
             source: MetastoreError::TableNotFound {
@@ -244,14 +243,17 @@ pub async fn get_table_preview_data(
         .await
         .map_err(|e| TablesAPIError::GetExecution { source: e })?;
     let mut preview_data_columns: Vec<TablePreviewDataColumn> = vec![];
-    for batch in batches {
+    for batch in &batches {
         for (i, column) in batch.columns().iter().enumerate() {
-            let mut preview_data_rows: Vec<TablePreviewDataRow> = vec![];
-            for row in column.as_any().downcast_ref::<StringArray>().unwrap() {
-                preview_data_rows.push(TablePreviewDataRow {
+            let preview_data_rows: Vec<TablePreviewDataRow> = column
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .unwrap()
+                .iter()
+                .map(|row| TablePreviewDataRow {
                     data: row.unwrap().to_string(),
-                });
-            }
+                })
+                .collect();
             preview_data_columns.push(TablePreviewDataColumn {
                 name: batch.schema().fields[i].name().to_string(),
                 rows: preview_data_rows,
