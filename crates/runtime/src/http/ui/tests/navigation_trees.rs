@@ -156,9 +156,9 @@ async fn test_ui_databases_navigation() {
         (
 	    APP_ID TEXT,
 	    PLATFORM TEXT,
-	    ETL_TSTAMP TIMESTAMP_NTZ(9),
-	    COLLECTOR_TSTAMP TIMESTAMP_NTZ(9) NOT NULL,
-	    DVCE_CREATED_TSTAMP TIMESTAMP_NTZ(9),
+	    ETL_TSTAMP TEXT,
+	    COLLECTOR_TSTAMP TEXT NOT NULL,
+	    DVCE_CREATED_TSTAMP TEXT,
 	    EVENT TEXT,
 	    EVENT_ID TEXT);",
             expected1.data.name.clone(),

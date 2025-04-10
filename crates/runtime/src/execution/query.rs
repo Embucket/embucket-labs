@@ -19,15 +19,23 @@ use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::common::tree_node::{TransformedResult, TreeNode};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
+use datafusion::execution::session_state::SessionState;
 use datafusion::logical_expr::sqlparser::ast::Insert;
 use datafusion::logical_expr::LogicalPlan;
+use datafusion::logical_expr::TableSource;
 use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableWithJoins,
 };
+use datafusion_common::ResolvedTableReference;
 use datafusion_common::{DataFusionError, TableReference};
+use datafusion_expr::logical_plan::dml::DmlStatement;
+use datafusion_expr::logical_plan::dml::InsertOp;
+use datafusion_expr::logical_plan::dml::WriteOp;
+use datafusion_expr::CreateMemoryTable;
+use datafusion_expr::DdlStatement;
 use datafusion_iceberg::planner::iceberg_transform;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::schema::Schema;
@@ -226,7 +234,6 @@ impl IceBucketQuery {
                 }
                 Statement::CreateTable { .. } => {
                     let result = Box::pin(self.create_table_query(*s)).await;
-                    self.refresh_catalog().await?;
                     return result;
                 }
 
@@ -325,117 +332,128 @@ impl IceBucketQuery {
         &self,
         statement: Statement,
     ) -> ExecutionResult<Vec<RecordBatch>> {
-        if let Statement::CreateTable(mut create_table_statement) = statement {
-            let new_table_ident =
-                self.resolve_table_ident(create_table_statement.name.0.clone())?;
-            create_table_statement.name = new_table_ident.clone().into();
-
-            let table_location = create_table_statement
-                .location
-                .clone()
-                .or_else(|| create_table_statement.base_location.clone());
-
-            if let Some(ref mut query) = create_table_statement.query {
-                self.update_qualify_in_query(query);
-            }
-
-            let session_context = HashMap::new();
-            let session_context_planner = SessionContextProvider {
-                state: &self.session.ctx.state(),
-                tables: session_context,
-            };
-            let planner = ExtendedSqlToRel::new(
-                &session_context_planner,
-                self.session.ctx.state().get_parser_options(),
-            );
-            let plan = planner
-                .sql_statement_to_plan(Statement::CreateTable(create_table_statement.clone()))
-                .context(super::error::DataFusionSnafu)?;
-
-            let fields_with_ids = StructType::try_from(&new_fields_with_ids(
-                plan.schema().as_arrow().fields(),
-                &mut 0,
-            ))
-            .map_err(|err| DataFusionError::External(Box::new(err)))
-            .context(super::error::DataFusionSnafu)?;
-            let schema = Schema::builder()
-                .with_schema_id(0)
-                .with_identifier_field_ids(vec![])
-                .with_fields(fields_with_ids)
-                .build()
-                .map_err(|err| DataFusionError::External(Box::new(err)))
-                .context(super::error::DataFusionSnafu)?;
-
-            // Check if it already exists, if it is - drop it
-            // For now we behave as CREATE OR REPLACE
-            // TODO support CREATE without REPLACE
-            let ib_table_ident = IceBucketTableIdent {
-                database: new_table_ident.0[0].to_string(),
-                schema: new_table_ident.0[1].to_string(),
-                table: new_table_ident.0[2].to_string(),
-            };
-
-            let table_exists = self
-                .metastore
-                .table_exists(&ib_table_ident)
-                .await
-                .context(ex_error::MetastoreSnafu)?;
-
-            if table_exists && create_table_statement.or_replace {
-                self.metastore
-                    .delete_table(&ib_table_ident, true)
-                    .await
-                    .context(ex_error::MetastoreSnafu)?;
-            } else if table_exists && create_table_statement.if_not_exists {
-                return Err(ExecutionError::ObjectAlreadyExists {
-                    type_name: "table".to_string(),
-                    name: ib_table_ident.to_string(),
-                });
-            }
-
-            // TODO: Gather volume properties from the .options field
-            let table_create_request = IceBucketTableCreateRequest {
-                ident: ib_table_ident.clone(),
-                schema,
-                location: table_location,
-                partition_spec: None,
-                sort_order: None,
-                stage_create: None,
-                volume_ident: None,
-                is_temporary: Some(create_table_statement.temporary),
-                format: None,
-                properties: None,
-            };
-
-            self.metastore
-                .create_table(&ib_table_ident, table_create_request)
-                .await
-                .context(ex_error::MetastoreSnafu)?;
-
-            // Insert data to new table
-            // TODO: What is the point of this?
-            /*let insert_query = format!("INSERT INTO {ib_table_ident} SELECT * FROM {table_name}",);
-            self.execute_with_custom_plan(&insert_query).await?;
-
-            // Drop InMemory table
-            let drop_query = format!("DROP TABLE {table_name}");
-            self.session
-                .ctx
-                .sql(&drop_query)
-                .await
-                .context(super::error::DataFusionSnafu)?
-                .collect()
-                .await
-                .context(super::error::DataFusionSnafu)?;*/
-
-            created_entity_response()
-        } else {
-            Err(ExecutionError::DataFusion {
+        let Statement::CreateTable(mut create_table_statement) = statement.clone() else {
+            return Err(ExecutionError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only CREATE TABLE statements are supported".to_string(),
                 ),
-            })
+            });
+        };
+
+        let new_table_ident = self.resolve_table_ident(create_table_statement.name.0.clone())?;
+        create_table_statement.name = new_table_ident.clone().into();
+
+        let table_location = create_table_statement
+            .location
+            .clone()
+            .or_else(|| create_table_statement.base_location.clone());
+
+        if let Some(ref mut query) = create_table_statement.query {
+            self.update_qualify_in_query(query);
         }
+
+        let tables = self
+            .table_references_for_statement(
+                &DFStatement::Statement(Box::new(Statement::CreateTable(
+                    create_table_statement.clone(),
+                ))),
+                &self.session.ctx.state(),
+            )
+            .await?;
+        let ctx_provider = SessionContextProvider {
+            state: &self.session.ctx.state(),
+            tables,
+        };
+        let planner =
+            ExtendedSqlToRel::new(&ctx_provider, self.session.ctx.state().get_parser_options());
+        let plan = planner
+            .sql_statement_to_plan(Statement::CreateTable(create_table_statement.clone()))
+            .context(super::error::DataFusionSnafu)?;
+
+        let fields_with_ids = StructType::try_from(&new_fields_with_ids(
+            plan.schema().as_arrow().fields(),
+            &mut 0,
+        ))
+        .map_err(|err| DataFusionError::External(Box::new(err)))
+        .context(super::error::DataFusionSnafu)?;
+        let schema = Schema::builder()
+            .with_schema_id(0)
+            .with_identifier_field_ids(vec![])
+            .with_fields(fields_with_ids)
+            .build()
+            .map_err(|err| DataFusionError::External(Box::new(err)))
+            .context(super::error::DataFusionSnafu)?;
+
+        // Check if it already exists, if it is - drop it
+        // For now we behave as CREATE OR REPLACE
+        // TODO support CREATE without REPLACE
+        let ib_table_ident = IceBucketTableIdent {
+            database: new_table_ident.0[0].to_string(),
+            schema: new_table_ident.0[1].to_string(),
+            table: new_table_ident.0[2].to_string(),
+        };
+
+        let table_exists = self
+            .metastore
+            .table_exists(&ib_table_ident)
+            .await
+            .context(ex_error::MetastoreSnafu)?;
+
+        if table_exists && create_table_statement.or_replace {
+            self.metastore
+                .delete_table(&ib_table_ident, true)
+                .await
+                .context(ex_error::MetastoreSnafu)?;
+        } else if table_exists && create_table_statement.if_not_exists {
+            return Err(ExecutionError::ObjectAlreadyExists {
+                type_name: "table".to_string(),
+                name: ib_table_ident.to_string(),
+            });
+        }
+
+        // TODO: Gather volume properties from the .options field
+        let table_create_request = IceBucketTableCreateRequest {
+            ident: ib_table_ident.clone(),
+            schema,
+            location: table_location,
+            partition_spec: None,
+            sort_order: None,
+            stage_create: None,
+            volume_ident: None,
+            is_temporary: Some(create_table_statement.temporary),
+            format: None,
+            properties: None,
+        };
+
+        self.metastore
+            .create_table(&ib_table_ident, table_create_request)
+            .await
+            .context(ex_error::MetastoreSnafu)?;
+
+        // Now we have created table in the metastore, we need to register it in the catalog
+        self.refresh_catalog().await?;
+
+        // Insert data to new table
+        // Since we don't execute logical plan, and we don't transform it to physical plan and
+        // also don't execute it as well, we need somehow to support CTAS
+
+        let schema = plan.schema().clone();
+        if let LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(CreateMemoryTable {
+            name,
+            input,
+            ..
+        })) = plan
+        {
+            let insert_plan = LogicalPlan::Dml(DmlStatement::new(
+                name,
+                schema,
+                WriteOp::Insert(InsertOp::Append),
+                input,
+            ));
+            return self.execute_logical_plan(insert_plan).await;
+        }
+
+        created_entity_response()
     }
 
     pub async fn create_external_table_query(
@@ -796,61 +814,13 @@ impl IceBucketQuery {
         statement = self.update_statement_references(statement)?;
 
         if let DFStatement::Statement(s) = statement.clone() {
-            let mut ctx_provider = SessionContextProvider {
-                state: &state,
-                tables: HashMap::new(),
+            let tables = self
+                .table_references_for_statement(&statement, &self.session.ctx.state())
+                .await?;
+            let ctx_provider = SessionContextProvider {
+                state: &self.session.ctx.state(),
+                tables,
             };
-
-            let references = state
-                .resolve_table_references(&statement)
-                .context(super::error::DataFusionSnafu)?;
-            //println!("References: {:?}", references);
-            for reference in references {
-                let resolved = state.resolve_table_ref(reference);
-                if let Entry::Vacant(v) = ctx_provider.tables.entry(resolved.clone()) {
-                    if let Ok(schema) = state.schema_for_ref(resolved.clone()) {
-                        if let Some(table) = schema
-                            .table(&resolved.table)
-                            .await
-                            .context(super::error::DataFusionSnafu)?
-                        {
-                            v.insert(provider_as_source(table));
-                        }
-                    }
-                }
-            }
-            #[allow(clippy::unwrap_used)]
-            // Unwraps are allowed here because we are sure that objects exists
-            for catalog in self.session.ctx.state().catalog_list().catalog_names() {
-                let provider = self
-                    .session
-                    .ctx
-                    .state()
-                    .catalog_list()
-                    .catalog(&catalog)
-                    .unwrap();
-                for schema in provider.schema_names() {
-                    for table in provider.schema(&schema).unwrap().table_names() {
-                        let table_source = provider
-                            .schema(&schema)
-                            .unwrap()
-                            .table(&table)
-                            .await
-                            .context(super::error::DataFusionSnafu)?
-                            .ok_or(ExecutionError::TableProviderNotFound {
-                                table_name: table.clone(),
-                            })?;
-                        let resolved = state.resolve_table_ref(TableReference::full(
-                            catalog.to_string(),
-                            schema.to_string(),
-                            table,
-                        ));
-                        ctx_provider
-                            .tables
-                            .insert(resolved, provider_as_source(table_source));
-                    }
-                }
-            }
 
             let planner =
                 ExtendedSqlToRel::new(&ctx_provider, self.session.ctx.state().get_parser_options());
@@ -1004,6 +974,63 @@ impl IceBucketQuery {
         }
     }
 
+    async fn table_references_for_statement(
+        &self,
+        statement: &DFStatement,
+        state: &SessionState,
+    ) -> ExecutionResult<HashMap<ResolvedTableReference, Arc<dyn TableSource>>> {
+        let mut tables = HashMap::new();
+
+        let references = state
+            .resolve_table_references(statement)
+            .context(super::error::DataFusionSnafu)?;
+        //println!("References: {:?}", references);
+        for reference in references {
+            let resolved = state.resolve_table_ref(reference);
+            if let Entry::Vacant(v) = tables.entry(resolved.clone()) {
+                if let Ok(schema) = state.schema_for_ref(resolved.clone()) {
+                    if let Some(table) = schema
+                        .table(&resolved.table)
+                        .await
+                        .context(super::error::DataFusionSnafu)?
+                    {
+                        v.insert(provider_as_source(table));
+                    }
+                }
+            }
+        }
+        #[allow(clippy::unwrap_used)]
+        // Unwraps are allowed here because we are sure that objects exists
+        for catalog in self.session.ctx.state().catalog_list().catalog_names() {
+            let provider = self
+                .session
+                .ctx
+                .state()
+                .catalog_list()
+                .catalog(&catalog)
+                .unwrap();
+            for schema in provider.schema_names() {
+                for table in provider.schema(&schema).unwrap().table_names() {
+                    let table_source = provider
+                        .schema(&schema)
+                        .unwrap()
+                        .table(&table)
+                        .await
+                        .context(super::error::DataFusionSnafu)?
+                        .ok_or(ExecutionError::TableProviderNotFound {
+                            table_name: table.clone(),
+                        })?;
+                    let resolved = state.resolve_table_ref(TableReference::full(
+                        catalog.to_string(),
+                        schema.to_string(),
+                        table,
+                    ));
+                    tables.insert(resolved, provider_as_source(table_source));
+                }
+            }
+        }
+        Ok(tables)
+    }
     // TODO: We need to recursively fix any missing table references with the default
     // database and schema from the session
     /*fn update_statement_table_references(

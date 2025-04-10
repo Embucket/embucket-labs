@@ -45,9 +45,9 @@ impl TypePlanner for IceBucketTypePlanner {
                     match parsed_b {
                         Some(0) => Ok(Some(DataType::Timestamp(TimeUnit::Second, None))),
                         Some(3) => Ok(Some(DataType::Timestamp(TimeUnit::Millisecond, None))),
-                        Some(6) => Ok(Some(DataType::Timestamp(TimeUnit::Microsecond, None))),
-                        Some(9) => Ok(Some(DataType::Timestamp(TimeUnit::Nanosecond, None))),
-                        _ => not_impl_err!("Unsupported SQL TIMESTAMP_NZT precision {parsed_b:?}"),
+                        // We coerce nanoseconds to microseconds as Apache Iceberg v2 doesn't support nanosecond precision
+                        Some(6 | 9) => Ok(Some(DataType::Timestamp(TimeUnit::Microsecond, None))),
+                        _ => not_impl_err!("Unsupported SQL TIMESTAMP_NTZ precision {parsed_b:?}"),
                     }
                 }
                 "NUMBER" => {

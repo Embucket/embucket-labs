@@ -23,9 +23,9 @@ use crate::http::ui::tables::error::{TableError, TablesAPIError, TablesResult, C
     MalformedMultipartSnafu, MalformedMultipartFileDataSnafu
 };
 use crate::http::ui::tables::models::{
-    TableInfo, TableInfoColumn, TableInfoResponse, TablePreviewDataColumn,
-    TablePreviewDataParameters, TablePreviewDataResponse, TablePreviewDataRow,
-    TableUploadPayload, TableUploadResponse,
+    TableColumnInfo, TableColumnsInfoResponse, TablePreviewDataColumn, TablePreviewDataParameters,
+    TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
+    TableUploadPayload, TableUploadResponse,	
 };
 use arrow_array::{Array, StringArray};
 use axum::extract::Query;
@@ -34,21 +34,24 @@ use axum::{
     Json,
 };
 use snafu::ResultExt;
-use utoipa::OpenApi;
+use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::IceBucketTableIdent;
+use utoipa::OpenApi;
 use std::time::Instant;
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        get_table_info,
+        get_table_statistics,
+        get_table_columns_info,
         get_table_preview_data,
     ),
     components(
         schemas(
-            TableInfoResponse,
-            TableInfo,
-            TableInfoColumn,
+            TableStatisticsResponse,
+            TableStatistics,
+            TableColumnsInfoResponse,
+            TableColumnInfo,
             TablePreviewDataResponse,
             TablePreviewDataColumn,
             TablePreviewDataRow,
@@ -61,126 +64,120 @@ use std::time::Instant;
 )]
 pub struct ApiDoc;
 
-// #[utoipa::path(
-//     post,
-//     path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables",
-//     operation_id = "createTable",
-//     tags = ["tables"],
-//     params(
-//         ("databaseName" = String, description = "Database Name"),
-//         ("schemaName" = String, description = "Schema Name")
-//     ),
-//     request_body = CreateTablePayload,
-//     responses(
-//         (status = 200, description = "Successful Response"),
-//         (status = 400, description = "Bad request", body = ErrorResponse),
-//         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
-//         (status = 500, description = "Internal server error", body = ErrorResponse)
-//     )
-// )]
-// #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-// pub async fn create_table(
-//     DFSessionId(session_id): DFSessionId,
-//     State(state): State<AppState>,
-//     Path((database_name, schema_name)): Path<(String, String)>,
-//     Json(payload): Json<CreateTablePayload>,
-// ) -> UIResult<()> {
-//     let context = IceBucketQueryContext {
-//         database: Some(database_name),
-//         schema: Some(schema_name),
-//     };
-//
-//
-//
-//     let _ = state
-//         .execution_svc
-//         .query(&session_id, "", context)
-//         .await
-//         .map_err(|e| UIError::Execution { source: e })?;
-//
-//     Ok(())
-//
-// }
-
 #[utoipa::path(
     get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/info",
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/statistics",
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
         ("tableName" = String, description = "Table Name")
     ),
-    operation_id = "getTableInfo",
+    operation_id = "getTableStatistics",
     tags = ["tables"],
     responses(
-        (status = 200, description = "Successful Response", body = TableInfoResponse),
+        (status = 200, description = "Successful Response", body = TableStatisticsResponse),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
-pub async fn get_table_info(
+pub async fn get_table_statistics(
+    State(state): State<AppState>,
+    Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
+) -> TablesResult<Json<TableStatisticsResponse>> {
+    let ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    match state.metastore.get_table(&ident).await {
+        Ok(Some(rw_object)) => {
+            let mut total_bytes = 0;
+            let mut total_rows = 0;
+            if let Ok(Some(latest_snapshot)) = rw_object.metadata.current_snapshot(None) {
+                total_bytes = latest_snapshot
+                    .summary()
+                    .other
+                    .get("total-files-size")
+                    .and_then(|value| value.parse::<i64>().ok())
+                    .unwrap_or(0);
+                total_rows = latest_snapshot
+                    .summary()
+                    .other
+                    .get("total-records")
+                    .and_then(|value| value.parse::<i64>().ok())
+                    .unwrap_or(0);
+            }
+            Ok(Json(TableStatisticsResponse {
+                data: TableStatistics {
+                    name: rw_object.ident.table.clone(),
+                    total_rows,
+                    total_bytes,
+                    created_at: rw_object.created_at,
+                    updated_at: rw_object.updated_at,
+                },
+            }))
+        }
+        Ok(None) => Err(TablesAPIError::GetMetastore {
+            source: MetastoreError::TableNotFound {
+                table: database_name,
+                schema: schema_name,
+                db: table_name,
+            },
+        }),
+        Err(e) => Err(TablesAPIError::GetMetastore { source: e }),
+    }
+}
+#[utoipa::path(
+    get,
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/columns",
+    params(
+        ("databaseName" = String, description = "Database Name"),
+        ("schemaName" = String, description = "Schema Name"),
+        ("tableName" = String, description = "Table Name")
+    ),
+    operation_id = "getTableColumnsInfo",
+    tags = ["tables"],
+    responses(
+        (status = 200, description = "Successful Response", body = TableColumnsInfoResponse),
+        (status = 404, description = "Table not found", body = ErrorResponse),
+        (status = 422, description = "Unprocessable entity", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[allow(clippy::unwrap_used)]
+pub async fn get_table_columns_info(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> TablesResult<Json<TableInfoResponse>> {
+) -> TablesResult<Json<TableColumnsInfoResponse>> {
     let context = IceBucketQueryContext {
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
     };
-    let sql_string = format!("SELECT column_name, data_type FROM datafusion.information_schema.columns WHERE table_name = '{table_name}'");
-    let (batches, _) = state
-        .execution_svc
-        .query(&session_id, sql_string.as_str(), context.clone())
-        .await
-        .map_err(|e| TablesAPIError::Get { source: e })?;
-    let mut columns: Vec<TableInfoColumn> = vec![];
-    for batch in batches {
-        let column_name_array = batch
-            .column(0)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap();
-        let data_type_array = batch
-            .column(1)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap();
-
-        // Iterate over each record
-        for i in 0..batch.num_rows() {
-            columns.push(TableInfoColumn {
-                name: column_name_array.value(i).to_string(),
-                r#type: data_type_array.value(i).to_string(),
-            });
-        }
-    }
-    let sql_string = format!(
-        "SELECT COUNT(*) AS total_rows FROM {database_name}.{schema_name}.{}",
-        table_name.clone()
-    );
-    let (batches, _) = state
+    let sql_string = format!("SELECT * FROM {database_name}.{schema_name}.{table_name} LIMIT 0");
+    let (_, column_infos) = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| TablesAPIError::Get { source: e })?;
-    let total_rows = batches.first().map_or(0, |batch| {
-        batch
-            .column(0)
-            .as_any()
-            .downcast_ref::<arrow::array::Int64Array>()
-            .map_or(0, |array| array.value(0))
-    });
-    Ok(Json(TableInfoResponse {
-        data: TableInfo {
-            name: table_name,
-            columns,
-            total_rows,
-        },
-    }))
+        .map_err(|e| TablesAPIError::GetExecution { source: e })?;
+    let items: Vec<TableColumnInfo> = column_infos
+        .iter()
+        .map(|column_info| TableColumnInfo {
+            name: column_info.name.clone(),
+            r#type: column_info.r#type.clone(),
+            description: String::new(),
+            nullable: if column_info.nullable {
+                "Y".to_string()
+            } else {
+                "N".to_string()
+            },
+            default: if column_info.nullable {
+                "NULL".to_string()
+            } else {
+                String::new()
+            },
+        })
+        .collect();
+    Ok(Json(TableColumnsInfoResponse { items }))
 }
-
 #[utoipa::path(
     get,
     path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/preview",
@@ -211,26 +208,25 @@ pub async fn get_table_preview_data(
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
     };
-    let sql_string = format!(
-        "SELECT column_name FROM datafusion.information_schema.columns WHERE table_name = '{}'",
-        table_name.clone()
-    );
-    let (batches, _) = state
-        .execution_svc
-        .query(&session_id, sql_string.as_str(), context.clone())
-        .await
-        .map_err(|e| TablesAPIError::Get { source: e })?;
-    let mut column_names: Vec<String> = vec![];
-    for batch in batches {
-        let column_name_array = batch
-            .column(0)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap();
-        for column_name in column_name_array {
-            column_names.push(column_name.unwrap().to_string());
+    let ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    let column_names = match state.metastore.get_table(&ident).await {
+        Ok(Some(rw_object)) => {
+            if let Ok(schema) = rw_object.metadata.current_schema(None) {
+                let items: Vec<String> = schema.iter().map(|field| field.name.clone()).collect();
+                Ok(items)
+            } else {
+                Ok(vec![])
+            }
         }
-    }
+        Ok(None) => Err(TablesAPIError::GetMetastore {
+            source: MetastoreError::TableNotFound {
+                table: database_name.clone(),
+                schema: schema_name.clone(),
+                db: table_name.clone(),
+            },
+        }),
+        Err(e) => Err(TablesAPIError::GetMetastore { source: e }),
+    }?;
     let column_names = column_names
         .iter()
         //UNSUPPORTED TYPES: ListArray, StructArray, Binary (Arrow Cast for Datafusion)
@@ -250,16 +246,19 @@ pub async fn get_table_preview_data(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| TablesAPIError::Get { source: e })?;
+        .map_err(|e| TablesAPIError::GetExecution { source: e })?;
     let mut preview_data_columns: Vec<TablePreviewDataColumn> = vec![];
-    for batch in batches {
+    for batch in &batches {
         for (i, column) in batch.columns().iter().enumerate() {
-            let mut preview_data_rows: Vec<TablePreviewDataRow> = vec![];
-            for row in column.as_any().downcast_ref::<StringArray>().unwrap() {
-                preview_data_rows.push(TablePreviewDataRow {
+            let preview_data_rows: Vec<TablePreviewDataRow> = column
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .unwrap()
+                .iter()
+                .map(|row| TablePreviewDataRow {
                     data: row.unwrap().to_string(),
-                });
-            }
+                })
+                .collect();
             preview_data_columns.push(TablePreviewDataColumn {
                 name: batch.schema().fields[i].name().to_string(),
                 rows: preview_data_rows,
@@ -307,8 +306,7 @@ pub async fn upload_file(
         .context(MalformedMultipartSnafu)
         .context(CreateUploadSnafu) ? {
         if let Some(file_name) = field.file_name() {
-            let file_name = String::from(file_name);         
-
+            let file_name = String::from(file_name);
             let data = field
                 .bytes()
                 .await
@@ -325,7 +323,7 @@ pub async fn upload_file(
                         database: database_name.clone(),
                     },
                     data,
-                    file_name,
+                    file_name.as_str(),
                 )
                 .await
                 .map_err(|e| TablesAPIError::CreateUpload { 

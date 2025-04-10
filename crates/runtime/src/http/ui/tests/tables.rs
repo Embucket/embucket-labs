@@ -20,7 +20,9 @@
 use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::queries::models::QueryCreatePayload;
 use crate::http::ui::schemas::models::SchemaCreatePayload;
-use crate::http::ui::tables::models::{TableInfoResponse, TablePreviewDataResponse};
+use crate::http::ui::tables::models::{
+    TableColumnsInfoResponse, TablePreviewDataResponse, TableStatisticsResponse,
+};
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{VolumeCreatePayload, VolumeCreateResponse};
 use crate::http::ui::worksheets::{WorksheetCreatePayload, WorksheetResponse};
@@ -114,7 +116,7 @@ async fn test_ui_tables() {
 	    PLATFORM TEXT,
 	    EVENT TEXT,
         TXN_ID NUMBER(38,0),
-        EVENT_TIME TIMESTAMP_NTZ(9)
+        EVENT_TIME TEXT
 	    );",
             database_name.clone(),
             schema_name.clone(),
@@ -155,12 +157,12 @@ async fn test_ui_tables() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
-    //table info
+    //table columns info
     let res = req(
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1/info",
+            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1/columns",
             database_name.clone(),
             schema_name.clone()
         ),
@@ -169,9 +171,8 @@ async fn test_ui_tables() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let table: TableInfoResponse = res.json().await.unwrap();
-    assert_eq!(5, table.data.columns.len());
-    assert_eq!(2, table.data.total_rows);
+    let table: TableColumnsInfoResponse = res.json().await.unwrap();
+    assert_eq!(5, table.items.len());
 
     //table preview data
     let res = req(
@@ -215,4 +216,22 @@ async fn test_ui_tables() {
         "2021-01-01T00:02:00",
         table.items.last().unwrap().rows.first().unwrap().data
     );
+
+    //table info
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1/statistics",
+            database_name.clone(),
+            schema_name.clone()
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let table: TableStatisticsResponse = res.json().await.unwrap();
+    assert_eq!(0, table.data.total_bytes);
+    assert_eq!(0, table.data.total_rows);
 }

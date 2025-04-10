@@ -51,7 +51,9 @@ pub enum TablesAPIError {
     #[snafu(display("Create table error: {source}"))]
     CreateUpload { source: TableError },
     #[snafu(display("Get table error: {source}"))]
-    Get { source: ExecutionError },
+    GetExecution { source: ExecutionError },
+    #[snafu(display("Get table error: {source}"))]
+    GetMetastore { source: MetastoreError },
 }
 
 // Select which status code to return.
@@ -71,9 +73,13 @@ impl IntoStatusCode for TablesAPIError {
                 | TableError::MalformedMultipartFileData { .. } => StatusCode::BAD_REQUEST,
                 TableError::Execution { .. } => StatusCode::INTERNAL_SERVER_ERROR,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
-            Self::Get { source } => match &source {
+            },	
+            Self::GetExecution { source } => match &source {
                 ExecutionError::TableNotFound { .. } => StatusCode::NOT_FOUND,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            },
+            Self::GetMetastore { source } => match &source {
+                MetastoreError::TableNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
         }

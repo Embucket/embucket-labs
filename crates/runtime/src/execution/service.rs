@@ -15,15 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use std::vec;
 use std::{collections::HashMap, sync::Arc};
 
-use arrow::array::RecordBatch;
-use bytes::Bytes;
-use datafusion::{execution::object_store::ObjectStoreUrl, prelude::CsvReadOptions};
-use datafusion_common::{TableReference};
-use object_store::{path::Path, PutPayload};
+use bytes::{Buf, Bytes};
+use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::csv::reader::Format;
+use datafusion::arrow::csv::ReaderBuilder;
+use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
+use datafusion::catalog_common::CatalogProvider;
+use datafusion::datasource::memory::MemTable;
+use datafusion_common::TableReference;
 use snafu::ResultExt;
-use uuid::Uuid;
 
 use super::{
     models::ColumnInfo,
@@ -31,8 +34,9 @@ use super::{
     session::IceBucketUserSession,
     utils::{convert_record_batches, Config},
 };
-use icebucket_metastore::{IceBucketTableIdent, Metastore, IceBucketVolumeType};
+use icebucket_metastore::{IceBucketTableIdent, Metastore};
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
@@ -126,8 +130,17 @@ impl ExecutionService {
         session_id: &str,
         table_ident: &IceBucketTableIdent,
         data: Bytes,
-        file_name: String,
+        file_name: &str,
     ) -> ExecutionResult<usize> {
+        // TODO: is there a way to avoid temp table approach altogether?
+        // File upload works as follows:
+        // 1. Convert incoming data to a record batch
+        // 2. Create a temporary table in memory
+        // 3. Use Execution service to insert data into the target table from the temporary table
+        // 4. Drop the temporary table
+
+	let unique_file_id = Uuid::new_v4().to_string().replace("-", "_");
+        let mut rows_loaded: usize = 0;	
         let sessions = self.df_sessions.read().await;
         let user_session =
             sessions
@@ -135,311 +148,78 @@ impl ExecutionService {
                 .ok_or(ExecutionError::MissingDataFusionSession {
                     id: session_id.to_string(),
                 })?;
-        let unique_file_id = Uuid::new_v4().to_string();
-        let mut rows_loaded: usize = 0;
-        let metastore_db = self
-            .metastore
-            .get_database(&table_ident.database)
-            .await
-            .context(ex_error::MetastoreSnafu)?
-            .ok_or(ExecutionError::DatabaseNotFound {
-                db: table_ident.database.clone(),
-            })?;
 
-        let metastore_volume = self.metastore
-            .get_volume(&metastore_db.volume)
-            .await
-            .context(ex_error::MetastoreSnafu)?
-            .ok_or(ExecutionError::VolumeNotFound {
-                volume: metastore_db.volume.clone(),
-            })?;
-
-        // let object_store = self
-        //     .metastore
-        //     .volume_object_store(&metastore_db.volume)
-        //     .await
-        //     .context(ex_error::MetastoreSnafu)?
-        //     .ok_or(ExecutionError::VolumeNotFound {
-        //         volume: metastore_db.volume.clone(),
-        //     })?;
-
-        // construct URL, so it can be used to put csv file, which can be registered as a table
-
-        // this path also computes inside catalog service (create_table)
-        // TODO need to refactor the code so this path calculation is in one place
-        // let table_path = self
-        //     .metastore
-        //     .url_for_table(table_ident)
-        //     .await
-        //     .context(ex_error::MetastoreSnafu)?;
-
-        let volume_path = if let IceBucketVolumeType::File(ref file_volume)  = metastore_volume.volume {
-            file_volume.path.clone()
-        }
-        else {
-            String::new()
-        };
-
-        let IceBucketTableIdent { database, schema, table } = table_ident;
-        // let table_path = format!("{database}_{schema}_{table}_csv_{unique_file_id}_{file_name}");
-        let table_path = format!("{volume_path}/{database}/{schema}/{table}/{unique_file_id}/{file_name}");
-        let data_location = Path::from_absolute_path(table_path.clone()).unwrap();
-        let table_path = data_location.as_ref().to_string(); // get rid of leading '/'
-
-        // metastore_volume.prefix(), table_ident.database, table_ident.schema, table_ident.table
-        // let object_url = format!("{table_path}/csv/{}/{file_name}", unique_file_id.clone());
-        // let object_store_url = metastore_volume.prefix();
-
-        let object_store_url = "memory://".to_string();
-        let upload_uri = format!("{object_store_url}/{table_path}");
-        
-        println!("table_path: {table_path}, \ndata_location: {data_location}, \nobject_store_url: {object_store_url}, \nupload_uri: {upload_uri}");
-
-        use object_store::{memory::InMemory, ObjectStore};
-        let object_store = Arc::new(InMemory::new()) as Arc<dyn ObjectStore>;
-
-        object_store
-            .put(&data_location, PutPayload::from_bytes(data))
-            .await
-            .context(ex_error::ObjectStoreSnafu)?;
-
-        println!("register_object_store");
-        // We construct this URL so we can unwrap it
-        #[allow(clippy::unwrap_used)]
-        user_session.ctx.register_object_store(
-            ObjectStoreUrl::parse(&object_store_url).unwrap().as_ref(),
-            object_store.clone(),
-        );
-
-        let temp_table_ident = IceBucketTableIdent {
-            database: "icebucket".to_string(),
-            schema: "public".to_string(),
-            table: unique_file_id.clone(),
-        };
-
-        let temp_table_ref = TableReference::full(
-            temp_table_ident.database.clone(),
-            temp_table_ident.schema.clone(),
-            temp_table_ident.table.clone(),
-        );
-
-
-        use datafusion::logical_expr::{LogicalPlanBuilder, LogicalTableSource};
-        use datafusion_catalog::CatalogProvider;
-        use crate::execution::catalog::IceBucketDFSchema;
-        use datafusion::physical_plan::display::DisplayableExecutionPlan;
-        use icebucket_metastore::{
-            IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableFormat,
-            IceBucketTableIdent, Metastore,
-        };
-        use datafusion_expr::logical_plan::dml::InsertOp;
-
-        const WITH_REGISTER: bool = false;
-        const CREATE_TABLE: bool = false;
-
-        /////////////////// Load from mem table to target
-        if WITH_REGISTER == false {
-            println!("read_csv");
-            let df = user_session
-                .ctx
-                .read_csv(upload_uri.clone(), CsvReadOptions::new())
-                .await
-                .context(ex_error::DataFusionSnafu)?;
-            
-            let schema = df.schema().clone();
-            println!("Inferred Schema: {:?}", schema);
-
-            let arrow_schema = Arc::new(arrow_schema::Schema::from(schema));
-
-            if CREATE_TABLE == true {
-                use iceberg_rust_spec::types::StructType;
-                use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
-                use datafusion_common::DataFusionError;
-                use iceberg_rust::spec::schema::Schema;
-
-                let fields_with_ids =
-                StructType::try_from(&new_fields_with_ids(arrow_schema.fields(), &mut 0))
-                    .map_err(|err| DataFusionError::External(Box::new(err)))
-                    .context(ex_error::DataFusionSnafu)?;
-                
-                let table_create_request = IceBucketTableCreateRequest {
-                    ident: table_ident.clone(),
-                    schema: Schema::builder()
-                        .with_schema_id(0)
-                        .with_identifier_field_ids(vec![])
-                        .with_fields(fields_with_ids)
-                        .build()
-                        .map_err(|err| DataFusionError::External(Box::new(err)))
-                        .context(ex_error::DataFusionSnafu)?,
-                    location: None,
-                    partition_spec: None,
-                    sort_order: None,
-                    stage_create: None,
-                    volume_ident: None,
-                    is_temporary: Some(false),
-                    format: None,
-                    properties: None,
-                };
-
-                println!("Create table Schema: {:?}", table_create_request.schema);
-
-                self.metastore
-                    .create_table(&table_ident, table_create_request)
-                    .await
-                    .context(ex_error::MetastoreSnafu)?;
-            }
-
-            let results = df.collect().await.context(ex_error::DataFusionSnafu)?;
-
-            // Create a Memory Table from the RecordBatch
-            let mem_table = datafusion::datasource::MemTable::try_new(
-                arrow_schema.clone(), vec![results]
-            ).context(ex_error::DataFusionSnafu)?;
-
-            println!("Created mem table");
-
-            // // Use the provider_as_source function to convert the TableProvider to a table source
-            let table_source = datafusion::datasource::provider_as_source(Arc::new(mem_table));
-
-            println!("Created table source");
-            
-            // create a LogicalPlanBuilder for a table scan without projection or filters
-            let scan_plan = LogicalPlanBuilder::scan(
-                temp_table_ident.table.clone(), 
-                table_source,
-                None
-            ).context(ex_error::DataFusionSnafu)?
-            .build()
-            .context(ex_error::DataFusionSnafu)?;
-
-            let res = user_session.ctx
-                .execute_logical_plan(scan_plan.clone())
-                .await
-                .context(ex_error::DataFusionSnafu)?;
-
-            rows_loaded = res.count().await.context(ex_error::DataFusionSnafu)?;
-            println!("Created scan plan, schema: {:?}, source count: {:?}",
-                scan_plan.schema().fields().iter().map(|field| field.data_type()).collect::<Vec<_>>(),
-                rows_loaded,
-            );
-
-            // let table_ref = TableReference::full(
-            //     table_ident.database.clone(),
-            //     table_ident.schema.clone(),
-            //     table_ident.table.clone(),
-            // );
-            // let resolved = user_session.ctx.state().resolve_table_ref();
-
-            let insert_plan = LogicalPlanBuilder::insert_into(
-                scan_plan,
-                // table_ref,
-                table_ident.to_string(),
-                &arrow_schema.clone(),
-                InsertOp::Append,
+        let source_table = TableReference::full("tmp_db", "tmp_schema", format!("tmp_table_{unique_file_id}"));
+        let inmem_catalog = MemoryCatalogProvider::new();
+        inmem_catalog
+            .register_schema(
+                source_table.schema().unwrap_or_default(),
+                Arc::new(MemorySchemaProvider::new()),
             )
-            .context(ex_error::DataFusionSnafu)?
-            .build()
+            .context(ex_error::DataFusionSnafu)?;
+        user_session.ctx.register_catalog(
+            source_table.catalog().unwrap_or_default(),
+            Arc::new(inmem_catalog),
+        );
+
+        // Here we create an arrow csv reader that infers the schema from first 10 rows
+        // and then builds a record batch
+        // TODO: This partially duplicates what Datafusion does with `CsvFormat::infer_schema`
+        let (schema, _) = Format::default()
+            .with_header(true)
+            .infer_schema(data.clone().reader(), Some(100))
+            .map_err(|e| ExecutionError::DataFusion { source: e.into() })?;
+        let schema = Arc::new(schema);
+        let mut csv = ReaderBuilder::new(schema.clone())
+            .with_header(true)
+            .build_buffered(data.reader())
+            .map_err(|e| ExecutionError::DataFusion { source: e.into() })?;
+        let batches = match csv.next() {
+            Some(Ok(batch)) => {
+                rows_loaded += batch.num_rows();
+                batch
+            },
+            Some(Err(e)) => return Err(ExecutionError::DataFusion { source: e.into() }),
+            None => {
+                return Err(ExecutionError::UploadFailed {
+                    message: "No data found".to_string(),
+                })
+            }
+        };
+
+        let table = MemTable::try_new(schema, vec![vec![batches]])
+            .map_err(|e| ExecutionError::DataFusion { source: e })?;
+        user_session
+            .ctx
+            .register_table(source_table.clone(), Arc::new(table))
             .context(ex_error::DataFusionSnafu)?;
 
-            println!(
-                "Created insert plan {insert_plan:?}, schema: {:?}", 
-                insert_plan.schema().fields().iter().map(|field| field.data_type()).collect::<Vec<_>>()
-            );
+        // If target table already exists, we need to insert into it
+        // otherwise, we need to create it
+        let exists = user_session
+            .ctx
+            .table_exist(TableReference::full(
+                table_ident.database.clone(),
+                table_ident.schema.clone(),
+                table_ident.table.clone(),
+            ))
+            .context(ex_error::DataFusionSnafu)?;
 
-            let res = user_session.ctx
-                .execute_logical_plan(insert_plan.clone())
-                .await
-                .context(ex_error::DataFusionSnafu)?;
+        let table = source_table.clone();
+        let query = if exists {
+            format!("INSERT INTO {table_ident} SELECT * FROM {table}")
+        } else {
+            format!("CREATE TABLE {table_ident} AS SELECT * FROM {table}")
+        };
 
-            println!("executed logical plan");
+        let query = user_session.query(&query, IceBucketQueryContext::default());
+        query.execute().await?;
 
-            println!("executed logical plan {res:?}");
+        user_session
+            .ctx
+            .deregister_table(source_table)
+            .context(ex_error::DataFusionSnafu)?;
 
-            // Following gives an error:
-            // DataFusion error: Error during planning: Inserting query must have the same schema with the table.
-            // println!("executed logical plan: count:{:?}", res.count().await.context(ex_error::DataFusionSnafu)?);
-
-            // Before creating physical plan target table should exist
-            
-            // let physical_plan = user_session.ctx.state()
-            //     .create_physical_plan(&insert_plan)
-            //     .await
-            //     .context(ex_error::DataFusionSnafu)?;
-
-            // // print the plan
-            // println!("physical_plan {}", DisplayableExecutionPlan::new(physical_plan.as_ref()).indent(true));
-            // user_session.ctx.collect(physical_plan).await.context(ex_error::DataFusionSnafu)?;
-            // physical_plan.execute(partition, context)
-
-        }
-        else if WITH_REGISTER == true {
-            // ///////////////// registering catalog 
-            // let catalog = datafusion_catalog::MemoryCatalogProvider::new();
-            // let schema_res = catalog.register_schema(
-            //     temp_table_ident.schema.clone().as_str(), 
-            //     Arc::new(IceBucketDFSchema {
-            //         database: temp_table_ident.database.clone(),
-            //         schema: temp_table_ident.schema.clone(),
-            //         metastore: self.metastore.clone(),
-            //         mirror: Arc::new(dashmap::DashMap::new()),
-            //     })
-            // );
-    
-            // user_session.ctx.register_catalog(
-            //     "icebucket", 
-            //     Arc::new(catalog)
-            // );
-            // user_session.ctx.refresh_catalogs().await.context(ex_error::DataFusionSnafu)?;
-    
-            // let tbl_provider = user_session.ctx
-            //     .register_table(
-            //     temp_table_ref,
-            //     // temp_table_ident.table.to_string(), 
-            //     Arc::new(mem_table)
-            // ).context(ex_error::DataFusionSnafu);
-    
-            println!("register_csv");
-            user_session
-                .ctx
-                .register_csv(
-                    temp_table_ref.clone(),
-                    upload_uri,
-                    CsvReadOptions::new(),
-                )
-                .await
-                .context(ex_error::DataFusionSnafu)?;
-    
-            let create_as_select_query = format!(
-                "CREATE TABLE {table_ident} AS SELECT * FROM '{}'.'{}'.'{}'", 
-                temp_table_ident.database.clone(), temp_table_ident.schema.clone(), temp_table_ident.table.clone(),
-            );
-            // let create_as_select_query = format!("CREATE TABLE {table_ident} AS SELECT * FROM memory_table");
-    
-            println!("run query: {create_as_select_query}");
-    
-            let query = user_session.query(&create_as_select_query, IceBucketQueryContext::default());
-    
-            // let insert_query = format!("INSERT INTO {table_ident} SELECT * FROM {temp_table_ident}",);
-            //let query = user_session.query(&insert_query, IceBucketQueryContext::default());
-    
-            println!("query.execute");
-    
-            query.execute().await?;
-    
-            println!("deregister");
-
-            user_session
-                .ctx
-                .deregister_table(temp_table_ident.to_string())
-                .context(ex_error::DataFusionSnafu)?;
-        }   
-
-        println!("delete");
-
-        object_store
-            .delete(&data_location)
-            .await
-            .context(ex_error::ObjectStoreSnafu)?;
         Ok(rows_loaded)
     }
 
