@@ -23,9 +23,6 @@ use std::{
 
 use crate::execution::error::{self as ex_error, ExecutionResult};
 use async_trait::async_trait;
-use aws_config::{BehaviorVersion, Region, SdkConfig};
-use aws_credential_types::provider::SharedCredentialsProvider;
-use aws_credential_types::Credentials;
 use dashmap::DashMap;
 use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList, SchemaProvider, TableProvider},
@@ -34,11 +31,7 @@ use datafusion::{
     prelude::{ParquetReadOptions, SessionContext},
 };
 use datafusion_common::{exec_err, DataFusionError, Result as DFResult};
-use datafusion_iceberg::{
-    catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog,
-    DataFusionTable as IcebergDataFusionTable,
-};
-use iceberg_rust::object_store::ObjectStoreBuilder;
+use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
 use iceberg_rust::{
     catalog::{
         commit::{CommitTable as IcebergCommitTable, CommitView as IcebergCommitView},
@@ -59,10 +52,9 @@ use iceberg_rust::{
 use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
-use iceberg_s3tables_catalog::S3TablesCatalog;
 use icebucket_metastore::{
-    error::MetastoreError, AwsCredentials, IceBucketSchema, IceBucketSchemaIdent,
-    IceBucketTableIdent, IceBucketTableUpdate, IceBucketVolume, IceBucketVolumeType, Metastore,
+    error::MetastoreError, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent,
+    IceBucketTableUpdate, Metastore,
 };
 use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
@@ -96,11 +88,6 @@ impl IceBucketDFMetastore {
     #[tracing::instrument(level = "debug", skip(self, ctx))]
     pub async fn refresh(&self, ctx: &SessionContext) -> ExecutionResult<()> {
         let mut seen: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::default();
-
-        // Refresh S3 tables first
-        if let Err(e) = self.refresh_s3_tables(&mut seen).await {
-            eprintln!("Error refreshing S3 tables: {e:?}");
-        }
 
         let databases = self
             .metastore
@@ -221,97 +208,6 @@ impl IceBucketDFMetastore {
                 }
             } else {
                 self.mirror.remove(db.key());
-            }
-        }
-        Ok(())
-    }
-
-    #[allow(clippy::as_conversions)]
-    // #[tracing::instrument(level = "debug", skip(self, ctx))]
-    pub async fn refresh_s3_tables(
-        &self,
-        seen: &mut HashMap<String, HashMap<String, HashSet<String>>>,
-    ) -> ExecutionResult<()> {
-        let volumes = self
-            .metastore
-            .list_volumes()
-            .await
-            .context(ex_error::MetastoreSnafu)?
-            .into_iter()
-            .filter_map(|volume| {
-                if let IceBucketVolumeType::S3Tables(s3_volume) = volume.volume.clone() {
-                    Some(s3_volume)
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        if volumes.is_empty() {
-            return Ok(());
-        }
-        let db_entry = self
-            .mirror
-            .entry("s3_tables".to_string())
-            .or_insert(SchemaProviderCache::default());
-        let db_seen_entry = seen.entry("s3_tables".to_string()).or_default();
-
-        for volume in volumes {
-            let (ak, sk, token) = match volume.credentials {
-                Some(AwsCredentials::AccessKey(ref creds)) => (
-                    Some(creds.aws_access_key_id.clone()),
-                    Some(creds.aws_secret_access_key.clone()),
-                    None,
-                ),
-                Some(AwsCredentials::Token(ref token)) => (None, None, Some(token.clone())),
-                _ => (None, None, None),
-            };
-            let creds =
-                Credentials::from_keys(ak.unwrap_or_default(), sk.unwrap_or_default(), token);
-            let config = SdkConfig::builder()
-                .behavior_version(BehaviorVersion::latest())
-                .credentials_provider(SharedCredentialsProvider::new(creds))
-                .region(Region::new(volume.region.clone().unwrap_or_default()))
-                .build();
-            let catalog = S3TablesCatalog::new(
-                &config,
-                volume.arn.clone().unwrap_or_default().as_str(),
-                ObjectStoreBuilder::S3(IceBucketVolume::get_s3_builder(&volume)),
-            )
-            .context(ex_error::S3TablesSnafu)?;
-
-            let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
-                .await
-                .context(ex_error::DataFusionSnafu)?
-                .catalog();
-
-            let namespaces = catalog.list_namespaces(None).await;
-            let namespaces = namespaces.context(ex_error::IcebergSnafu)?;
-
-            for namespace in namespaces {
-                let schema_entry = db_entry
-                    .entry(namespace.to_string())
-                    .insert(TableProviderCache::default());
-                let schema_seen_entry = db_seen_entry.entry(namespace.to_string()).or_default();
-
-                let tables = catalog
-                    .list_tabulars(&namespace)
-                    .await
-                    .context(ex_error::IcebergSnafu)?;
-
-                for table in tables {
-                    let tabular = catalog
-                        .clone()
-                        .load_tabular(&table)
-                        .await
-                        .context(ex_error::IcebergSnafu)?;
-
-                    let table_provider =
-                        Arc::new(IcebergDataFusionTable::new(tabular, None, None, None))
-                            as Arc<dyn TableProvider>;
-                    schema_entry.insert(table.name().to_string(), table_provider);
-                    schema_seen_entry.insert(table.name().to_string());
-                }
             }
         }
         Ok(())

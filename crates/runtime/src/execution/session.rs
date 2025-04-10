@@ -20,7 +20,12 @@ use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::IceBucketTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
+use super::error::{self as ex_error, ExecutionResult};
 use super::query::{IceBucketQuery, IceBucketQueryContext};
+use aws_config::{BehaviorVersion, Region, SdkConfig};
+use aws_credential_types::provider::SharedCredentialsProvider;
+use aws_credential_types::Credentials;
+use datafusion::catalog_common::CatalogProvider;
 use datafusion::common::error::Result as DFResult;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::execution::SessionStateBuilder;
@@ -28,16 +33,17 @@ use datafusion::functions::register_all;
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
+use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use geodatafusion::udf::native::register_native as register_geo_native;
-use icebucket_metastore::Metastore;
+use iceberg_rust::object_store::ObjectStoreBuilder;
+use iceberg_s3tables_catalog::S3TablesCatalog;
+use icebucket_metastore::{AwsCredentials, IceBucketVolume, IceBucketVolumeType, Metastore};
 use snafu::ResultExt;
 use std::any::Any;
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
-
-use super::error::{self as ex_error, ExecutionResult};
 
 pub struct IceBucketUserSession {
     pub metastore: Arc<dyn Metastore>,
@@ -82,6 +88,8 @@ impl IceBucketUserSession {
 
         catalog_list_impl.refresh(&ctx).await?;
 
+        Self::register_external_catalogs(metastore.clone(), &ctx).await?;
+
         let enable_ident_normalization = ctx.enable_ident_normalization();
         Ok(Self {
             metastore,
@@ -89,6 +97,65 @@ impl IceBucketUserSession {
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
             executor: DedicatedExecutor::builder().build(),
         })
+    }
+
+    #[allow(clippy::as_conversions)]
+    pub async fn register_external_catalogs(
+        metastore: Arc<dyn Metastore>,
+        ctx: &SessionContext,
+    ) -> ExecutionResult<()> {
+        let volumes = metastore
+            .list_volumes(None, None)
+            .await
+            .context(ex_error::MetastoreSnafu)?
+            .into_iter()
+            .filter_map(|volume| {
+                if let IceBucketVolumeType::S3Tables(s3_volume) = volume.volume.clone() {
+                    Some(s3_volume)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        if volumes.is_empty() {
+            return Ok(());
+        }
+        for volume in volumes {
+            let (ak, sk, token) = match volume.credentials {
+                Some(AwsCredentials::AccessKey(ref creds)) => (
+                    Some(creds.aws_access_key_id.clone()),
+                    Some(creds.aws_secret_access_key.clone()),
+                    None,
+                ),
+                Some(AwsCredentials::Token(ref token)) => (None, None, Some(token.clone())),
+                _ => (None, None, None),
+            };
+            let creds =
+                Credentials::from_keys(ak.unwrap_or_default(), sk.unwrap_or_default(), token);
+            let config = SdkConfig::builder()
+                .behavior_version(BehaviorVersion::latest())
+                .credentials_provider(SharedCredentialsProvider::new(creds))
+                .region(Region::new(volume.region.clone().unwrap_or_default()))
+                .build();
+            let catalog = S3TablesCatalog::new(
+                &config,
+                volume.arn.clone().unwrap_or_default().as_str(),
+                ObjectStoreBuilder::S3(IceBucketVolume::get_s3_builder(&volume)),
+            )
+            .context(ex_error::S3TablesSnafu)?;
+
+            let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
+                .await
+                .context(ex_error::DataFusionSnafu)?;
+            let catalog_provider = Arc::new(catalog) as Arc<dyn CatalogProvider>;
+
+            let catalog_name = volume.bucket.clone().unwrap_or_default().to_string();
+
+            // TODO set correct catalog name (s3 tables bucket contains "_" which is not supported by datafusion)
+            ctx.register_catalog("s3_tables", catalog_provider);
+        }
+        Ok(())
     }
 
     pub fn query<S>(

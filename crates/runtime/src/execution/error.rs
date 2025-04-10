@@ -107,6 +107,12 @@ pub enum ExecutionError {
 
     #[snafu(display("Failed to upload file: {message}"))]
     UploadFailed { message: String },
+
+    #[snafu(display("CatalogList failed"))]
+    CatalogListDowncast,
+
+    #[snafu(display("Failed to register catalog {catalog}"))]
+    RegisterCatalog { catalog: String },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
