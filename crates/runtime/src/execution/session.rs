@@ -150,7 +150,7 @@ impl IceBucketUserSession {
                 .context(ex_error::DataFusionSnafu)?;
             let catalog_provider = Arc::new(catalog) as Arc<dyn CatalogProvider>;
 
-            let catalog_name = volume.bucket.clone().unwrap_or_default().to_string();
+            let _catalog_name = volume.bucket.clone().unwrap_or_default().to_string();
 
             // TODO set correct catalog name (s3 tables bucket contains "_" which is not supported by datafusion)
             ctx.register_catalog("s3_tables", catalog_provider);
