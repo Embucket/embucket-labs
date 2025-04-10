@@ -271,8 +271,7 @@ pub async fn get_table_preview_data(
     path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables",
     params(
         ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name"),
-        ("tableName" = String, description = "Table Name")
+        ("schemaName" = String, description = "Schema Name")
     ),
     operation_id = "getTables",
     tags = ["tables"],
