@@ -43,7 +43,6 @@ datafusion-expr = { version = "45.0.0" }
 datafusion-physical-plan = { version = "45.0.0" }
 datafusion-doc = { version = "45.0.0" }
 datafusion-macros = { version = "45.0.0" }
-datafusion-catalog = { version = "45.0.0" }
 
 datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "f2b9b88cd9b4282bc0286a970333e8c01cec177b" }
 iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "8b57339b0df82a5dddc7d489bd6ab3ea2a7d6d1d" }
@@ -58,7 +57,6 @@ datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "e
 datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
 datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
 datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
-datafusion-catalog = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
 
 # issue #309
 chrono = { git = "https://github.com/chronotope/chrono.git", rev = "8b863490d88ba098038392c8aa930012ffd0c439" }
