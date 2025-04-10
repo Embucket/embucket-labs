@@ -26,7 +26,7 @@ use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
 use datafusion::catalog_common::CatalogProvider;
 use datafusion::datasource::memory::MemTable;
 use datafusion_common::TableReference;
-use snafu::ResultExt;
+use snafu::{IntoError, ResultExt};
 
 use super::{
     models::ColumnInfo,
@@ -131,6 +131,7 @@ impl ExecutionService {
         table_ident: &IceBucketTableIdent,
         data: Bytes,
         file_name: &str,
+        format: Format,
     ) -> ExecutionResult<usize> {
         // TODO: is there a way to avoid temp table approach altogether?
         // File upload works as follows:
@@ -139,7 +140,8 @@ impl ExecutionService {
         // 3. Use Execution service to insert data into the target table from the temporary table
         // 4. Drop the temporary table
 
-        let unique_file_id = Uuid::new_v4().to_string().replace('-', "_");
+        // use unique name to support simultaneous uploads
+        let unique_id = Uuid::new_v4().to_string().replace('-', "_");
         let mut rows_loaded: usize = 0;
         let sessions = self.df_sessions.read().await;
         let user_session =
@@ -149,11 +151,8 @@ impl ExecutionService {
                     id: session_id.to_string(),
                 })?;
 
-        let source_table = TableReference::full(
-            "tmp_db",
-            "tmp_schema",
-            format!("tmp_table_{unique_file_id}"),
-        );
+        let source_table =
+            TableReference::full("tmp_db", "tmp_schema", format!("tmp_table_{unique_id}"));
         let inmem_catalog = MemoryCatalogProvider::new();
         inmem_catalog
             .register_schema(
@@ -169,21 +168,20 @@ impl ExecutionService {
         // Here we create an arrow csv reader that infers the schema from first 10 rows
         // and then builds a record batch
         // TODO: This partially duplicates what Datafusion does with `CsvFormat::infer_schema`
-        let (schema, _) = Format::default()
-            .with_header(true)
+        let (schema, _) = format
             .infer_schema(data.clone().reader(), Some(100))
             .map_err(|e| ExecutionError::DataFusion { source: e.into() })?;
         let schema = Arc::new(schema);
         let mut csv = ReaderBuilder::new(schema.clone())
-            .with_header(true)
+            .with_format(format)
             .build_buffered(data.reader())
-            .map_err(|e| ExecutionError::DataFusion { source: e.into() })?;
+            .context(ex_error::ArrowSnafu)?;
         let batches = match csv.next() {
             Some(Ok(batch)) => {
                 rows_loaded += batch.num_rows();
                 batch
             }
-            Some(Err(e)) => return Err(ExecutionError::DataFusion { source: e.into() }),
+            Some(Err(e)) => return Err(ex_error::ArrowSnafu.into_error(e)),
             None => {
                 return Err(ExecutionError::UploadFailed {
                     message: "No data found".to_string(),

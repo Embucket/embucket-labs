@@ -72,6 +72,9 @@ impl IntoStatusCode for TablesAPIError {
                 },
                 TableError::MalformedMultipart { .. }
                 | TableError::MalformedMultipartFileData { .. } => StatusCode::BAD_REQUEST,
+                TableError::Execution {
+                    source: ExecutionError::DataFusion { .. },
+                } => StatusCode::UNPROCESSABLE_ENTITY,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::GetExecution { source } => match &source {

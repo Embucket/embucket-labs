@@ -16,6 +16,7 @@
 // under the License.
 
 use chrono::NaiveDateTime;
+use datafusion::arrow::csv::reader::Format;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -88,15 +89,63 @@ pub(crate) struct TableUploadResponse {
     pub(crate) duration_ms: u128,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+// header – Whether the CSV file have a header, defaults to `false`
+// delimiter – An optional column delimiter, defaults to comma `','`
+// escape - escape character, defaults to `None`
+// quote - a custom quote character, defaults to double quote `'"'`
+// terminator - a custom terminator character, defaults to CRLF
+// comment - a comment character, defaults to `None`
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
 #[serde(rename_all = "camelCase")]
-pub struct CsvParameters {}
+pub struct UploadParameters {
+    pub header: Option<bool>,
+    pub delimiter: Option<u8>,
+    pub escape: Option<u8>,
+    pub quote: Option<u8>,
+    pub terminator: Option<u8>,
+    pub comment: Option<u8>,
+}
 
-// path – Path to the CSV file
-// schema – An optional schema representing the CSV files. If None, the CSV reader will try to infer it based on data in file.
-// has_header – Whether the CSV file have a header. If schema inference is run on a file with no headers, default column names are created.
-// delimiter – An optional column delimiter.
-// schema_infer_max_records – Maximum number of rows to read from CSV files for schema inference if needed.
-// file_extension – File extension; only files with this extension are selected for data input.
-// table_partition_cols – Partition columns.
-// file_compression_type – File compression type.
+// TODO: Remove it when found why it can't locate .into() if only From trait implemeted
+#[allow(clippy::from_over_into)]
+impl Into<Format> for UploadParameters {
+    fn into(self) -> Format {
+        let format = Format::default();
+
+        let format = if let Some(header) = self.header {
+            format.with_header(header)
+        } else {
+            format
+        };
+
+        let format = if let Some(delimiter) = self.delimiter {
+            format.with_delimiter(delimiter)
+        } else {
+            format
+        };
+
+        let format = if let Some(escape) = self.escape {
+            format.with_escape(escape)
+        } else {
+            format
+        };
+
+        let format = if let Some(quote) = self.quote {
+            format.with_quote(quote)
+        } else {
+            format
+        };
+
+        let format = if let Some(terminator) = self.terminator {
+            format.with_terminator(terminator)
+        } else {
+            format
+        };
+
+        if let Some(comment) = self.comment {
+            format.with_comment(comment)
+        } else {
+            format
+        }
+    }
+}

@@ -26,7 +26,7 @@ use crate::http::ui::tables::error::{
 use crate::http::ui::tables::models::{
     TableColumnInfo, TableColumnsInfoResponse, TablePreviewDataColumn, TablePreviewDataParameters,
     TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
-    TableUploadPayload, TableUploadResponse,
+    TableUploadPayload, TableUploadResponse, UploadParameters,
 };
 use arrow_array::{Array, StringArray};
 use axum::extract::Query;
@@ -34,6 +34,7 @@ use axum::{
     extract::{Multipart, Path, State},
     Json,
 };
+use datafusion::arrow::csv::reader::Format;
 use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::IceBucketTableIdent;
 use snafu::ResultExt;
@@ -46,6 +47,7 @@ use utoipa::OpenApi;
         get_table_statistics,
         get_table_columns_info,
         get_table_preview_data,
+        upload_file,
     ),
     components(
         schemas(
@@ -56,6 +58,9 @@ use utoipa::OpenApi;
             TablePreviewDataResponse,
             TablePreviewDataColumn,
             TablePreviewDataRow,
+            UploadParameters,
+            TableUploadPayload,
+            TableUploadResponse,
             ErrorResponse,
         )
     ),
@@ -288,12 +293,17 @@ pub async fn get_table_preview_data(
     ),
     responses(
         (status = 200, description = "Successful Response", body = TableUploadResponse),
+        (status = 400, description = "Bad request", body = ErrorResponse),
+        // 409, when schema provided but table already exists
+        (status = 409, description = "Already exists", body = ErrorResponse),
+        (status = 422, description = "Unprocessable content", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
 #[tracing::instrument(level = "debug", skip(state, multipart), err, ret(level = tracing::Level::TRACE))]
 pub async fn upload_file(
     DFSessionId(session_id): DFSessionId,
+    Query(parameters): Query<UploadParameters>,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
     mut multipart: Multipart,
@@ -301,6 +311,7 @@ pub async fn upload_file(
     let mut uploaded = false;
     let mut rows_loaded: usize = 0;
     let start = Instant::now();
+    let parameters: Format = parameters.into();
     while let Some(field) = multipart
         .next_field()
         .await
@@ -326,6 +337,7 @@ pub async fn upload_file(
                     },
                     data,
                     file_name.as_str(),
+                    parameters.clone(),
                 )
                 .await
                 .map_err(|e| TablesAPIError::CreateUpload {
@@ -339,7 +351,7 @@ pub async fn upload_file(
         Ok(Json(TableUploadResponse {
             count: rows_loaded,
             duration_ms: duration.as_millis(),
-        }))        
+        }))
     } else {
         Err(TablesAPIError::CreateUpload {
             source: TableError::FileField,

@@ -984,7 +984,6 @@ impl IceBucketQuery {
         let references = state
             .resolve_table_references(statement)
             .context(super::error::DataFusionSnafu)?;
-        //println!("References: {:?}", references);
         for reference in references {
             let resolved = state.resolve_table_ref(reference);
             if let Entry::Vacant(v) = tables.entry(resolved.clone()) {

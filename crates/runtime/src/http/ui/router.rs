@@ -30,7 +30,7 @@ use crate::http::ui::worksheets::handlers::{
 use crate::http::ui::queries::handlers::{queries, query};
 // use crate::http::ui::old_handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
-//     update_table_properties, upload_data_to_table,
+//     update_table_properties,
 // };
 
 use crate::http::ui::databases::handlers::ApiDoc as DatabasesApiDoc;
