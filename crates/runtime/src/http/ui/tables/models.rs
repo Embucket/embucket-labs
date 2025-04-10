@@ -90,9 +90,7 @@ pub(crate) struct TableUploadResponse {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct CsvParameters {
-
-}
+pub struct CsvParameters {}
 
 // path – Path to the CSV file
 // schema – An optional schema representing the CSV files. If None, the CSV reader will try to infer it based on data in file.
@@ -102,4 +100,3 @@ pub struct CsvParameters {
 // file_extension – File extension; only files with this extension are selected for data input.
 // table_partition_cols – Partition columns.
 // file_compression_type – File compression type.
-

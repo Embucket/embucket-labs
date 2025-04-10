@@ -139,8 +139,8 @@ impl ExecutionService {
         // 3. Use Execution service to insert data into the target table from the temporary table
         // 4. Drop the temporary table
 
-	let unique_file_id = Uuid::new_v4().to_string().replace("-", "_");
-        let mut rows_loaded: usize = 0;	
+        let unique_file_id = Uuid::new_v4().to_string().replace('-', "_");
+        let mut rows_loaded: usize = 0;
         let sessions = self.df_sessions.read().await;
         let user_session =
             sessions
@@ -149,7 +149,11 @@ impl ExecutionService {
                     id: session_id.to_string(),
                 })?;
 
-        let source_table = TableReference::full("tmp_db", "tmp_schema", format!("tmp_table_{unique_file_id}"));
+        let source_table = TableReference::full(
+            "tmp_db",
+            "tmp_schema",
+            format!("tmp_table_{unique_file_id}"),
+        );
         let inmem_catalog = MemoryCatalogProvider::new();
         inmem_catalog
             .register_schema(
@@ -178,7 +182,7 @@ impl ExecutionService {
             Some(Ok(batch)) => {
                 rows_loaded += batch.num_rows();
                 batch
-            },
+            }
             Some(Err(e)) => return Err(ExecutionError::DataFusion { source: e.into() }),
             None => {
                 return Err(ExecutionError::UploadFailed {

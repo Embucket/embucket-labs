@@ -18,9 +18,9 @@
 use crate::execution::error::ExecutionError;
 use crate::http::error::ErrorResponse;
 use crate::http::ui::error::IntoStatusCode;
+use axum::extract::multipart;
 use axum::response::IntoResponse;
 use axum::Json;
-use axum::extract::multipart;
 use http::StatusCode;
 use icebucket_metastore::error::MetastoreError;
 use snafu::prelude::*;
@@ -29,18 +29,19 @@ pub type TablesResult<T> = Result<T, TablesAPIError>;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
-
 pub enum TableError {
     #[snafu(display("Malformed multipart form data: {source}"))]
     MalformedMultipart { source: multipart::MultipartError },
     #[snafu(display("Malformed multipart file data: {source}"))]
-    MalformedMultipartFileData { source: multipart::MultipartError },    
+    MalformedMultipartFileData { source: multipart::MultipartError },
     #[snafu(display("Malformed file upload request"))]
     MalformedFileUploadRequest,
     #[snafu(display("File field missing in form data"))]
     FileField,
     #[snafu(transparent)]
-    Execution { source: crate::execution::error::ExecutionError },    
+    Execution {
+        source: crate::execution::error::ExecutionError,
+    },
     #[snafu(transparent)]
     Metastore { source: MetastoreError },
 }
@@ -68,12 +69,11 @@ impl IntoStatusCode for TablesAPIError {
                     | MetastoreError::TableNotFound { .. }
                     | MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
-                }
+                },
                 TableError::MalformedMultipart { .. }
                 | TableError::MalformedMultipartFileData { .. } => StatusCode::BAD_REQUEST,
-                TableError::Execution { .. } => StatusCode::INTERNAL_SERVER_ERROR,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },	
+            },
             Self::GetExecution { source } => match &source {
                 ExecutionError::TableNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,

@@ -19,25 +19,26 @@ use crate::execution::query::IceBucketQueryContext;
 use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
-use crate::http::ui::tables::error::{TableError, TablesAPIError, TablesResult, CreateUploadSnafu, 
-    MalformedMultipartSnafu, MalformedMultipartFileDataSnafu
+use crate::http::ui::tables::error::{
+    CreateUploadSnafu, MalformedMultipartFileDataSnafu, MalformedMultipartSnafu, TableError,
+    TablesAPIError, TablesResult,
 };
 use crate::http::ui::tables::models::{
     TableColumnInfo, TableColumnsInfoResponse, TablePreviewDataColumn, TablePreviewDataParameters,
     TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
-    TableUploadPayload, TableUploadResponse,	
+    TableUploadPayload, TableUploadResponse,
 };
 use arrow_array::{Array, StringArray};
 use axum::extract::Query;
 use axum::{
-    extract::{Path, State, Multipart},
+    extract::{Multipart, Path, State},
     Json,
 };
-use snafu::ResultExt;
 use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::IceBucketTableIdent;
-use utoipa::OpenApi;
+use snafu::ResultExt;
 use std::time::Instant;
+use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -304,7 +305,8 @@ pub async fn upload_file(
         .next_field()
         .await
         .context(MalformedMultipartSnafu)
-        .context(CreateUploadSnafu) ? {
+        .context(CreateUploadSnafu)?
+    {
         if let Some(file_name) = field.file_name() {
             let file_name = String::from(file_name);
             let data = field
@@ -326,20 +328,21 @@ pub async fn upload_file(
                     file_name.as_str(),
                 )
                 .await
-                .map_err(|e| TablesAPIError::CreateUpload { 
+                .map_err(|e| TablesAPIError::CreateUpload {
                     source: TableError::Execution { source: e },
                 })?;
             uploaded = true;
         }
     }
     let duration = start.elapsed();
-    if !uploaded {
-        Err(TablesAPIError::CreateUpload{ source: TableError::FileField })
-    }
-    else {
+    if uploaded {
         Ok(Json(TableUploadResponse {
             count: rows_loaded,
             duration_ms: duration.as_millis(),
-        }))
+        }))        
+    } else {
+        Err(TablesAPIError::CreateUpload {
+            source: TableError::FileField,
+        })
     }
 }
