@@ -24,10 +24,10 @@ use crate::http::ui::tables::error::{
     TablesAPIError, TablesResult,
 };
 use crate::http::ui::tables::models::{
-    TableColumnInfo, TableColumnsInfoResponse, TablePreviewDataColumn, TablePreviewDataParameters,
-    TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
-    TableUploadPayload, TableUploadResponse, TablesParameters, TablesResponse, UploadParameters,
-    Table,
+    Table, TableColumnInfo, TableColumnsInfoResponse, TablePreviewDataColumn,
+    TablePreviewDataParameters, TablePreviewDataResponse, TablePreviewDataRow, TableStatistics,
+    TableStatisticsResponse, TableUploadPayload, TableUploadResponse, TablesParameters,
+    TablesResponse, UploadParameters,
 };
 use arrow_array::{Array, StringArray};
 use axum::extract::Query;
