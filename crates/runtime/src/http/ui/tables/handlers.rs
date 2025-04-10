@@ -21,8 +21,9 @@ use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
 use crate::http::ui::tables::models::{
-    TableColumnInfo, TableColumnsInfoResponse, TablePreviewDataColumn, TablePreviewDataParameters,
-    TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
+    Table, TableColumnInfo, TableColumnsInfoResponse, TablePreviewDataColumn,
+    TablePreviewDataParameters, TablePreviewDataResponse, TablePreviewDataRow, TableStatistics,
+    TableStatisticsResponse, TablesParameters, TablesResponse,
 };
 use arrow_array::{Array, StringArray};
 use axum::extract::Query;
@@ -31,7 +32,7 @@ use axum::{
     Json,
 };
 use icebucket_metastore::error::MetastoreError;
-use icebucket_metastore::IceBucketTableIdent;
+use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -61,7 +62,7 @@ pub struct ApiDoc;
 
 #[utoipa::path(
     get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/statistics",
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/statistics",
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
@@ -122,7 +123,7 @@ pub async fn get_table_statistics(
 }
 #[utoipa::path(
     get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/columns",
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns",
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
@@ -175,7 +176,7 @@ pub async fn get_table_columns_info(
 }
 #[utoipa::path(
     get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/preview",
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/preview",
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
@@ -263,4 +264,77 @@ pub async fn get_table_preview_data(
     Ok(Json(TablePreviewDataResponse {
         items: preview_data_columns,
     }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables",
+    params(
+        ("databaseName" = String, description = "Database Name"),
+        ("schemaName" = String, description = "Schema Name"),
+        ("tableName" = String, description = "Table Name")
+    ),
+    operation_id = "getTables",
+    tags = ["tables"],
+    responses(
+        (status = 200, description = "Successful Response", body = TablesResponse),
+        (status = 404, description = "Table not found", body = ErrorResponse),
+        (status = 422, description = "Unprocessable entity", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[allow(clippy::unwrap_used)]
+pub async fn get_tables(
+    Query(parameters): Query<TablesParameters>,
+    State(state): State<AppState>,
+    Path((database_name, schema_name)): Path<(String, String)>,
+) -> TablesResult<Json<TablesResponse>> {
+    let ident = IceBucketSchemaIdent::new(database_name, schema_name);
+    state
+        .metastore
+        .list_tables(&ident, parameters.cursor.clone(), parameters.limit)
+        .await
+        .map_err(|e| TablesAPIError::GetMetastore { source: e })
+        .map(|rw_tables| {
+            let next_cursor = rw_tables
+                .iter()
+                .last()
+                .map_or(String::new(), |rw_table| rw_table.ident.table.clone());
+
+            let items = rw_tables
+                .into_iter()
+                .map(|rw_table| {
+                    let mut total_bytes = 0;
+                    let mut total_rows = 0;
+                    if let Ok(Some(latest_snapshot)) = rw_table.metadata.current_snapshot(None) {
+                        total_bytes = latest_snapshot
+                            .summary()
+                            .other
+                            .get("total-files-size")
+                            .and_then(|value| value.parse::<i64>().ok())
+                            .unwrap_or(0);
+                        total_rows = latest_snapshot
+                            .summary()
+                            .other
+                            .get("total-records")
+                            .and_then(|value| value.parse::<i64>().ok())
+                            .unwrap_or(0);
+                    }
+                    Table {
+                        name: rw_table.ident.table.clone(),
+                        r#type: "TABLE".to_string(),
+                        owner: String::new(),
+                        total_rows,
+                        total_bytes,
+                        created_at: rw_table.created_at,
+                        updated_at: rw_table.updated_at,
+                    }
+                })
+                .collect();
+            Ok(Json(TablesResponse {
+                items,
+                current_cursor: parameters.cursor,
+                next_cursor,
+            }))
+        })?
 }

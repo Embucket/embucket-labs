@@ -73,3 +73,26 @@ pub(crate) struct TablePreviewDataParameters {
     pub(crate) offset: Option<u32>,
     pub(crate) limit: Option<u16>,
 }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TablesResponse {
+    pub(crate) items: Vec<Table>,
+    pub current_cursor: Option<String>,
+    pub next_cursor: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Table {
+    pub(crate) name: String,
+    pub(crate) r#type: String,
+    pub(crate) owner: String,
+    pub(crate) total_rows: i64,
+    pub(crate) total_bytes: i64,
+    pub(crate) created_at: NaiveDateTime,
+    pub(crate) updated_at: NaiveDateTime,
+}
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
+pub struct TablesParameters {
+    pub cursor: Option<String>,
+    pub limit: Option<usize>,
+}
