@@ -284,7 +284,13 @@ pub async fn get_table_preview_data(
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
-        ("tableName" = String, description = "Table Name"),        
+        ("tableName" = String, description = "Table Name"),
+        ("header" = Option<bool>, Query, example = json!(true), description = "Has header"),
+        ("delimiter" = Option<u8>, Query, description = "an optional column delimiter, defaults to comma `','`"),
+        ("escape" = Option<u8>, Query, description = "an escape character"),
+        ("quote" = Option<u8>, Query, description = "a custom quote character, defaults to double quote `'\"'`"),
+        ("terminator" = Option<u8>, Query, description = "a custom terminator character, defaults to CRLF"),
+        ("comment" = Option<u8>, Query, description = "a comment character"),
     ),
     request_body(
         content = TableUploadPayload,
