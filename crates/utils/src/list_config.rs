@@ -18,15 +18,16 @@
 pub struct ListConfig {
     pub cursor: Option<String>,
     pub limit: Option<usize>,
-    pub search_prefix: Option<String>,
+    pub search: Option<String>,
 }
 
 impl ListConfig {
-    pub fn new(cursor: Option<String>, limit: Option<usize>, search_prefix: Option<String>) -> Self {
+    #[must_use]
+    pub const fn new(cursor: Option<String>, limit: Option<usize>, search: Option<String>) -> Self {
         Self {
             cursor,
             limit,
-            search_prefix,
+            search,
         }
     }
 }

@@ -228,7 +228,7 @@ pub async fn list_schemas(
 ) -> SchemasResult<Json<SchemasResponse>> {
     state
         .metastore
-        .list_schemas(&database_name, ListConfig::new(parameters.cursor.clone(), parameters.limit, parameters.search_prefix))
+        .list_schemas(&database_name, ListConfig::new(parameters.cursor.clone(), parameters.limit, parameters.search))
         .await
         .map_err(|e| SchemasAPIError::List { source: e })
         .map(|rw_objects| {

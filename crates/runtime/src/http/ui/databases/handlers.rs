@@ -210,7 +210,7 @@ pub async fn list_databases(
 ) -> DatabasesResult<Json<DatabasesResponse>> {
     state
         .metastore
-        .list_databases(ListConfig::new(parameters.cursor.clone(), parameters.limit, parameters.search_prefix))
+        .list_databases(ListConfig::new(parameters.cursor.clone(), parameters.limit, parameters.search))
         .await
         .map_err(|e| DatabasesAPIError::List { source: e })
         .map(|o| {

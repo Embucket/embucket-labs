@@ -18,6 +18,7 @@
 pub mod iterable;
 pub mod list_config;
 
+use crate::list_config::ListConfig;
 use async_trait::async_trait;
 use bytes::Bytes;
 use iterable::IterableEntity;
@@ -32,7 +33,6 @@ use std::ops::RangeBounds;
 use std::string::ToString;
 use std::sync::Arc;
 use uuid::Uuid;
-use crate::list_config::ListConfig;
 
 #[derive(Snafu, Debug)]
 //#[snafu(visibility(pub(crate)))]
@@ -158,9 +158,17 @@ impl Db {
         // from search_prefix to search_prefix (search),
         // from cursor to end (looking not from the start)
         // and from cursor to prefix (search without starting at the start and looking to the end (no full scan))
-        let start = list_config.search_prefix.clone().map_or_else(|| format!("{key}/"), |search_prefix| format!("{key}/{search_prefix}"));
-        let start = list_config.cursor.map_or_else(|| start, |cursor| format!("{key}/{cursor}\x00"));
-        let end = list_config.search_prefix.map_or_else(|| format!("{key}/\x7F"), |search_prefix| format!("{key}/{search_prefix}\x7F"));
+        let start = list_config.search.clone().map_or_else(
+            || format!("{key}/"),
+            |search_prefix| format!("{key}/{search_prefix}"),
+        );
+        let start = list_config
+            .cursor
+            .map_or_else(|| start, |cursor| format!("{key}/{cursor}\x00"));
+        let end = list_config.search.map_or_else(
+            || format!("{key}/\x7F"),
+            |search_prefix| format!("{key}/{search_prefix}\x7F"),
+        );
         let range = Bytes::from(start)..Bytes::from(end);
         let limit = list_config.limit.unwrap_or(usize::MAX);
         let mut iter = self.0.scan(range).await.context(ScanFailedSnafu)?;
@@ -311,12 +319,16 @@ mod test {
             .await
             .expect("Failed to put entity");
         let get_after_put = db.get::<TestEntity>("test/abc").await;
-        let list_after_append = db.list_objects::<TestEntity>("test", ListConfig::default()).await;
+        let list_after_append = db
+            .list_objects::<TestEntity>("test", ListConfig::default())
+            .await;
         db.delete("test/abc")
             .await
             .expect("Failed to delete entity");
         let get_after_delete = db.get::<TestEntity>("test/abc").await;
-        let list_after_remove = db.list_objects::<TestEntity>("test", ListConfig::default()).await;
+        let list_after_remove = db
+            .list_objects::<TestEntity>("test", ListConfig::default())
+            .await;
 
         insta::assert_debug_snapshot!((
             get_empty,

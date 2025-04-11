@@ -18,6 +18,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crate::error::{self as metastore_error, MetastoreResult};
+#[allow(clippy::wildcard_imports)]
+use crate::models::*;
 use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::Utc;
@@ -25,14 +27,12 @@ use dashmap::DashMap;
 use futures::{StreamExt, TryStreamExt};
 use iceberg_rust::catalog::commit::apply_table_updates;
 use iceberg_rust_spec::table_metadata::{FormatVersion, TableMetadataBuilder};
+use icebucket_utils::list_config::ListConfig;
 use icebucket_utils::Db;
 use object_store::{path::Path, ObjectStore, PutPayload};
 use serde::de::DeserializeOwned;
 use snafu::ResultExt;
 use uuid::Uuid;
-use icebucket_utils::list_config::ListConfig;
-#[allow(clippy::wildcard_imports)]
-use crate::models::*;
 
 #[async_trait]
 pub trait Metastore: std::fmt::Debug + Send + Sync {
