@@ -24,8 +24,8 @@ use crate::http::ui::navigation_trees::models::{
 };
 use axum::extract::Query;
 use axum::{extract::State, Json};
-use utoipa::OpenApi;
 use icebucket_utils::list_config::ListConfig;
+use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -68,7 +68,11 @@ pub async fn get_navigation_trees(
 ) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
     let rw_databases = state
         .metastore
-        .list_databases(ListConfig::new(parameters.cursor.clone(), parameters.limit, None))
+        .list_databases(ListConfig::new(
+            parameters.cursor.clone(),
+            parameters.limit,
+            None,
+        ))
         .await
         .map_err(|e| NavigationTreesAPIError::Get { source: e })?;
 

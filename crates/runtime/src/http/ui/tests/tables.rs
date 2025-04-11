@@ -410,8 +410,8 @@ async fn test_ui_tables() {
         &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
         json!(query_payload).to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
     //GET LIST Tables with search
@@ -426,8 +426,8 @@ async fn test_ui_tables() {
         ),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let tables: TablesResponse = res.json().await.unwrap();
     assert_eq!(4, tables.items.len());
@@ -445,8 +445,8 @@ async fn test_ui_tables() {
         ),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let tables: TablesResponse = res.json().await.unwrap();
     assert_eq!(2, tables.items.len());
@@ -465,8 +465,8 @@ async fn test_ui_tables() {
         ),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let tables: TablesResponse = res.json().await.unwrap();
     assert_eq!(2, tables.items.len());
@@ -484,8 +484,8 @@ async fn test_ui_tables() {
         ),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let tables: TablesResponse = res.json().await.unwrap();
     assert_eq!(1, tables.items.len());

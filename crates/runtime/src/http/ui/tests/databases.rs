@@ -286,9 +286,15 @@ async fn test_ui_databases() {
             properties: None,
             volume: volume.data.name.clone(),
         }
-            .into(),
+        .into(),
     };
-    let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected_another.clone())).await;
+    let res = ui_test_op(
+        addr,
+        Op::Create,
+        None,
+        &Entity::Database(expected_another.clone()),
+    )
+    .await;
     assert_eq!(http::StatusCode::OK, res.status());
 
     //Get list schemas with search
@@ -298,8 +304,8 @@ async fn test_ui_databases() {
         &format!("http://{addr}/ui/databases?search={}", "tes").to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(4, databases_response.items.len());
@@ -315,8 +321,8 @@ async fn test_ui_databases() {
         &format!("http://{addr}/ui/databases?search={}&limit=2", "tes").to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
@@ -330,11 +336,15 @@ async fn test_ui_databases() {
     let res = req(
         &client,
         Method::GET,
-        &format!("http://{addr}/ui/databases?search={}&cursor={cursor}", "tes").to_string(),
+        &format!(
+            "http://{addr}/ui/databases?search={}&cursor={cursor}",
+            "tes"
+        )
+        .to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
@@ -350,8 +360,8 @@ async fn test_ui_databases() {
         &format!("http://{addr}/ui/databases?search={}", "nam").to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(1, databases_response.items.len());

@@ -32,9 +32,9 @@ use axum::{
 };
 use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::models::IceBucketVolume;
+use icebucket_utils::list_config::ListConfig;
 use utoipa::OpenApi;
 use validator::Validate;
-use icebucket_utils::list_config::ListConfig;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -212,7 +212,11 @@ pub async fn list_volumes(
 ) -> VolumesResult<Json<VolumesResponse>> {
     state
         .metastore
-        .list_volumes(ListConfig::new(parameters.cursor.clone(), parameters.limit, parameters.search))
+        .list_volumes(ListConfig::new(
+            parameters.cursor.clone(),
+            parameters.limit,
+            parameters.search,
+        ))
         .await
         .map_err(|e| VolumesAPIError::List { source: e })
         .map(|o| {

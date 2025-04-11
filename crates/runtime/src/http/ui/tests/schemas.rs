@@ -192,11 +192,11 @@ async fn test_ui_schemas() {
             "http://{addr}/ui/databases/{}/schemas",
             database_name.clone()
         )
-            .to_string(),
+        .to_string(),
         json!(payload_another).to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
     //Get list schemas with search
@@ -208,11 +208,11 @@ async fn test_ui_schemas() {
             database_name.clone(),
             "tes"
         )
-            .to_string(),
+        .to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(3, schemas_response.items.len());
@@ -226,11 +226,11 @@ async fn test_ui_schemas() {
             database_name.clone(),
             "tes"
         )
-            .to_string(),
+        .to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(1, schemas_response.items.len());
@@ -248,11 +248,11 @@ async fn test_ui_schemas() {
             database_name.clone(),
             "tes"
         )
-            .to_string(),
+        .to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(2, schemas_response.items.len());
@@ -270,11 +270,11 @@ async fn test_ui_schemas() {
             database_name.clone(),
             "nam"
         )
-            .to_string(),
+        .to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(1, schemas_response.items.len());
@@ -337,10 +337,10 @@ async fn test_ui_schemas() {
             database_name.clone(),
             payload_another.name.clone()
         )
-            .to_string(),
+        .to_string(),
         String::new(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 }

@@ -31,12 +31,12 @@ use iceberg_rest_catalog::models::{
 use iceberg_rust_spec::table_metadata::TableMetadata;
 use icebucket_metastore::error::{self as metastore_error, MetastoreError};
 use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
+use icebucket_utils::list_config::ListConfig;
 use object_store::ObjectStore;
 use serde_json::{from_slice, Value};
 use snafu::ResultExt;
 use std::collections::HashMap;
 use validator::Validate;
-use icebucket_utils::list_config::ListConfig;
 
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_namespace(

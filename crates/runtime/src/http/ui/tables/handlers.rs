@@ -38,10 +38,10 @@ use axum::{
 use datafusion::arrow::csv::reader::Format;
 use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
+use icebucket_utils::list_config::ListConfig;
 use snafu::ResultExt;
 use std::time::Instant;
 use utoipa::OpenApi;
-use icebucket_utils::list_config::ListConfig;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -392,7 +392,14 @@ pub async fn get_tables(
     let ident = IceBucketSchemaIdent::new(database_name, schema_name);
     state
         .metastore
-        .list_tables(&ident, ListConfig::new(parameters.cursor.clone(), parameters.limit, parameters.search))
+        .list_tables(
+            &ident,
+            ListConfig::new(
+                parameters.cursor.clone(),
+                parameters.limit,
+                parameters.search,
+            ),
+        )
         .await
         .map_err(|e| TablesAPIError::GetMetastore { source: e })
         .map(|rw_tables| {
