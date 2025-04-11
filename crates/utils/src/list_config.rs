@@ -22,11 +22,12 @@ pub struct ListConfig {
     // ("\x00" is the smallest ASCII char to find anything after the "tested2" excluding it)
     // and the whole range would be `tested2\x00..\x7F
     // (`\x7F` is the largest ASCII char to find anything before it)
+    // if there are 4 tables `tested1..tested4` which would yield us "tested3" and "tested4" including other names if any exist
     pub cursor: Option<String>,
     // limit of how much items to take back from `fn list_objets` in utils crate
     pub limit: Option<usize>,
     //search string, from where and to where (in lexicographical sort order) to do the search
-    // ex: if we want to find all the test tables it could be "tes" (if there are 4 tables `tested1..tested2`)
+    // ex: if we want to find all the test tables it could be "tes" (if there are 4 tables `tested1..tested4`)
     // the range would be `tes..tes\x7F` tables
     // (`\x7F` is the largest ASCII char to find anything before it)
     // if we however had the cursor from cursor comment (line 21)
