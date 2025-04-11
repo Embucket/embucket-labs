@@ -197,6 +197,7 @@ pub async fn update_volume(
     params(
         ("cursor" = Option<String>, Query, description = "Volumes cursor"),
         ("limit" = Option<usize>, Query, description = "Volumes limit"),
+        ("search" = Option<String>, Query, description = "Volumes search (start with)"),
     ),
     tags = ["volumes"],
     path = "/ui/volumes",

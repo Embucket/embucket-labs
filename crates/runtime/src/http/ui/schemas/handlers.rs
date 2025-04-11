@@ -214,6 +214,7 @@ pub async fn update_schema(
         ("databaseName" = String, description = "Database Name"),
         ("cursor" = Option<String>, Query, description = "Schemas cursor"),
         ("limit" = Option<usize>, Query, description = "Schemas limit"),
+        ("search" = Option<String>, Query, description = "Schemas search (start with)"),
     ),
     responses(
         (status = 200, body = SchemasResponse),

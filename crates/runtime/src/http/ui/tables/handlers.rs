@@ -372,7 +372,10 @@ pub async fn upload_file(
     path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables",
     params(
         ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name")
+        ("schemaName" = String, description = "Schema Name"),
+        ("cursor" = Option<String>, Query, description = "Tables cursor"),
+        ("limit" = Option<usize>, Query, description = "Tables limit"),
+        ("search" = Option<String>, Query, description = "Tables search (start with)"),
     ),
     operation_id = "getTables",
     tags = ["tables"],
