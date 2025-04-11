@@ -26,7 +26,7 @@ pub struct ListConfig {
     pub cursor: Option<String>,
     // limit of how much items to take back from `fn list_objets` in utils crate
     pub limit: Option<usize>,
-    //search string, from where and to where (in lexicographical sort order) to do the search
+    //search string, from where (and to where in lexicographical sort order) to do the search
     // ex: if we want to find all the test tables it could be "tes" (if there are 4 tables `tested1..tested4`)
     // the range would be `tes..tes\x7F` tables
     // (`\x7F` is the largest ASCII char to find anything before it)
