@@ -107,7 +107,7 @@ async fn test_ui_tables() {
 
     let query_payload = QueryCreatePayload {
         query: format!(
-            "create or replace Iceberg TABLE {}.{}.{}
+            "create TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''
@@ -238,7 +238,7 @@ async fn test_ui_tables() {
     //Create three more tables
     let query_payload = QueryCreatePayload {
         query: format!(
-            "create or replace Iceberg TABLE {}.{}.{}
+            "create TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''
@@ -268,7 +268,7 @@ async fn test_ui_tables() {
 
     let query_payload = QueryCreatePayload {
         query: format!(
-            "create or replace Iceberg TABLE {}.{}.{}
+            "create TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''
@@ -298,7 +298,7 @@ async fn test_ui_tables() {
 
     let query_payload = QueryCreatePayload {
         query: format!(
-            "create or replace Iceberg TABLE {}.{}.{}
+            "create TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''
@@ -386,7 +386,7 @@ async fn test_ui_tables() {
     //Create a table with another name
     let query_payload = QueryCreatePayload {
         query: format!(
-            "create or replace Iceberg TABLE {}.{}.{}
+            "create TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''

@@ -155,17 +155,18 @@ impl Db {
     ) -> Result<Vec<T>> {
         //We can look with respect to limit
         // from start to end (full scan),
-        // from search_prefix to search_prefix (search),
+        // from starts_with to start_with (search),
         // from cursor to end (looking not from the start)
         // and from cursor to prefix (search without starting at the start and looking to the end (no full scan))
-        let start = list_config.search.clone().map_or_else(
+        // more info in `list_config` file
+        let start = list_config.starts_with.clone().map_or_else(
             || format!("{key}/"),
             |search_prefix| format!("{key}/{search_prefix}"),
         );
         let start = list_config
             .cursor
             .map_or_else(|| start, |cursor| format!("{key}/{cursor}\x00"));
-        let end = list_config.search.map_or_else(
+        let end = list_config.starts_with.map_or_else(
             || format!("{key}/\x7F"),
             |search_prefix| format!("{key}/{search_prefix}\x7F"),
         );

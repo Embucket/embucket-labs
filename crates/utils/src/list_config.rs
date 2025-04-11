@@ -16,18 +16,35 @@
 // under the License.
 
 pub struct ListConfig {
+    //from where to start the scan range for SlateDB
+    // ex: if we ended on "tested2", the cursor would be "tested2"
+    // and inside the `fn list_objets` in utils crate the start of the range would be "tested2\x00"
+    // ("\x00" is the smallest ASCII char to find anything after the "tested2" excluding it)
+    // and the whole range would be `tested2\x00..\x7F
+    // (`\x7F` is the largest ASCII char to find anything before it)
     pub cursor: Option<String>,
+    // limit of how much items to take back from `fn list_objets` in utils crate
     pub limit: Option<usize>,
-    pub search: Option<String>,
+    //search string, from where and to where (in lexicographical sort order) to do the search
+    // ex: if we want to find all the test tables it could be "tes" (if there are 4 tables `tested1..tested2`)
+    // the range would be `tes..tes\x7F` tables
+    // (`\x7F` is the largest ASCII char to find anything before it)
+    // if we however had the cursor from cursor comment (line 21)
+    // we could also go from `tested2\x00..tes\x7F` which would yield us "tested3" and "tested4" only excluding other names if any exist
+    pub starts_with: Option<String>,
 }
 
 impl ListConfig {
     #[must_use]
-    pub const fn new(cursor: Option<String>, limit: Option<usize>, search: Option<String>) -> Self {
+    pub const fn new(
+        cursor: Option<String>,
+        limit: Option<usize>,
+        starts_with: Option<String>,
+    ) -> Self {
         Self {
             cursor,
             limit,
-            search,
+            starts_with,
         }
     }
 }
