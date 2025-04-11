@@ -22,57 +22,57 @@ use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TableStatisticsResponse {
+pub struct TableStatisticsResponse {
     #[serde(flatten)]
-    pub(crate) data: TableStatistics,
+    pub data: TableStatistics,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TableStatistics {
-    pub(crate) name: String,
-    pub(crate) total_rows: i64,
-    pub(crate) total_bytes: i64,
-    pub(crate) created_at: NaiveDateTime,
-    pub(crate) updated_at: NaiveDateTime,
+pub struct TableStatistics {
+    pub name: String,
+    pub total_rows: i64,
+    pub total_bytes: i64,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TableColumnsInfoResponse {
-    pub(crate) items: Vec<TableColumnInfo>,
+pub struct TableColumnsInfoResponse {
+    pub items: Vec<TableColumnInfo>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TableColumnInfo {
-    pub(crate) name: String,
-    pub(crate) r#type: String,
-    pub(crate) description: String,
-    pub(crate) nullable: String,
-    pub(crate) default: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct TablePreviewDataResponse {
-    pub(crate) items: Vec<TablePreviewDataColumn>,
+pub struct TableColumnInfo {
+    pub name: String,
+    pub r#type: String,
+    pub description: String,
+    pub nullable: String,
+    pub default: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TablePreviewDataColumn {
-    pub(crate) name: String,
-    pub(crate) rows: Vec<TablePreviewDataRow>,
+pub struct TablePreviewDataResponse {
+    pub items: Vec<TablePreviewDataColumn>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TablePreviewDataRow {
-    pub(crate) data: String,
+pub struct TablePreviewDataColumn {
+    pub name: String,
+    pub rows: Vec<TablePreviewDataRow>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TablePreviewDataRow {
+    pub data: String,
 }
 
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
-pub(crate) struct TablePreviewDataParameters {
-    pub(crate) offset: Option<u32>,
-    pub(crate) limit: Option<u16>,
+pub struct TablePreviewDataParameters {
+    pub offset: Option<u32>,
+    pub limit: Option<u16>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -84,9 +84,9 @@ pub struct TableUploadPayload {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TableUploadResponse {
-    pub(crate) count: usize,
-    pub(crate) duration_ms: u128,
+pub struct TableUploadResponse {
+    pub count: usize,
+    pub duration_ms: u128,
 }
 
 // header – Whether the CSV file have a header, defaults to `false`
@@ -152,24 +152,25 @@ impl Into<Format> for UploadParameters {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TablesResponse {
-    pub(crate) items: Vec<Table>,
+pub struct TablesResponse {
+    pub items: Vec<Table>,
     pub current_cursor: Option<String>,
     pub next_cursor: String,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct Table {
-    pub(crate) name: String,
-    pub(crate) r#type: String,
-    pub(crate) owner: String,
-    pub(crate) total_rows: i64,
-    pub(crate) total_bytes: i64,
-    pub(crate) created_at: NaiveDateTime,
-    pub(crate) updated_at: NaiveDateTime,
+pub struct Table {
+    pub name: String,
+    pub r#type: String,
+    pub owner: String,
+    pub total_rows: i64,
+    pub total_bytes: i64,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct TablesParameters {
     pub cursor: Option<String>,
     pub limit: Option<usize>,
+    pub search_prefix: Option<String>,
 }

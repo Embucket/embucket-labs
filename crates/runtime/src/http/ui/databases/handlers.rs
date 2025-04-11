@@ -34,6 +34,7 @@ use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::IceBucketDatabase;
 use utoipa::OpenApi;
 use validator::Validate;
+use icebucket_utils::list_config::ListConfig;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -209,7 +210,7 @@ pub async fn list_databases(
 ) -> DatabasesResult<Json<DatabasesResponse>> {
     state
         .metastore
-        .list_databases(parameters.cursor.clone(), parameters.limit)
+        .list_databases(ListConfig::new(parameters.cursor.clone(), parameters.limit, parameters.search_prefix))
         .await
         .map_err(|e| DatabasesAPIError::List { source: e })
         .map(|o| {

@@ -41,6 +41,7 @@ use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
 use snafu::ResultExt;
 use std::time::Instant;
 use utoipa::OpenApi;
+use icebucket_utils::list_config::ListConfig;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -391,7 +392,7 @@ pub async fn get_tables(
     let ident = IceBucketSchemaIdent::new(database_name, schema_name);
     state
         .metastore
-        .list_tables(&ident, parameters.cursor.clone(), parameters.limit)
+        .list_tables(&ident, ListConfig::new(parameters.cursor.clone(), parameters.limit, parameters.search_prefix))
         .await
         .map_err(|e| TablesAPIError::GetMetastore { source: e })
         .map(|rw_tables| {

@@ -25,6 +25,7 @@ use crate::http::ui::navigation_trees::models::{
 use axum::extract::Query;
 use axum::{extract::State, Json};
 use utoipa::OpenApi;
+use icebucket_utils::list_config::ListConfig;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -67,7 +68,7 @@ pub async fn get_navigation_trees(
 ) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
     let rw_databases = state
         .metastore
-        .list_databases(parameters.cursor.clone(), parameters.limit)
+        .list_databases(ListConfig::new(parameters.cursor.clone(), parameters.limit, None))
         .await
         .map_err(|e| NavigationTreesAPIError::Get { source: e })?;
 
@@ -80,7 +81,7 @@ pub async fn get_navigation_trees(
     for rw_database in rw_databases {
         let rw_schemas = state
             .metastore
-            .list_schemas(&rw_database.ident.clone(), None, None)
+            .list_schemas(&rw_database.ident.clone(), ListConfig::default())
             .await
             .map_err(|e| NavigationTreesAPIError::Get { source: e })?;
 
@@ -88,7 +89,7 @@ pub async fn get_navigation_trees(
         for rw_schema in rw_schemas {
             let rw_tables = state
                 .metastore
-                .list_tables(&rw_schema.ident, None, None)
+                .list_tables(&rw_schema.ident, ListConfig::default())
                 .await
                 .map_err(|e| NavigationTreesAPIError::Get { source: e })?;
 

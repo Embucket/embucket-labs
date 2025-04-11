@@ -91,7 +91,8 @@ pub struct DatabasesResponse {
 }
 
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
-pub(crate) struct DatabasesParameters {
-    pub(crate) cursor: Option<String>,
-    pub(crate) limit: Option<usize>,
+pub struct DatabasesParameters {
+    pub cursor: Option<String>,
+    pub limit: Option<usize>,
+    pub search_prefix: Option<String>,
 }
