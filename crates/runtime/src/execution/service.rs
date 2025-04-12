@@ -190,8 +190,8 @@ impl ExecutionService {
         };
         let schema = Arc::new(schema);
 
-        // Here we create an arrow csv reader that infers the schema from first 10 rows
-        // and then builds a record batch
+        // Here we create an arrow CSV reader that infers the schema from the entire dataset
+        // (as `None` is passed for the number of rows) and then builds a record batch
         // TODO: This partially duplicates what Datafusion does with `CsvFormat::infer_schema`
         let csv = ReaderBuilder::new(schema.clone())
             .with_format(format)
