@@ -57,7 +57,7 @@ async fn test_execute_always_returns_schema() {
 }
 
 #[tokio::test]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_service_upload_file() {
     let metastore = SlateDBMetastore::new_in_memory().await;
 
@@ -181,5 +181,109 @@ async fn test_service_upload_file() {
             "+----+-------+-------+",
         ],
         &rows
+    );
+}
+
+#[tokio::test]
+async fn test_service_create_table_file_volume() {
+    let metastore = SlateDBMetastore::new_in_memory().await;
+
+    // Create a temporary directory for the file volume
+    let temp_dir = std::env::temp_dir().join("icebucket_test_file_volume");
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let temp_path = temp_dir.to_str().expect("Failed to convert path to string");
+    metastore
+        .create_volume(
+            &"test_volume".to_string(),
+            IceBucketVolume::new(
+                "test_volume".to_string(),
+                icebucket_metastore::IceBucketVolumeType::File(
+                    icebucket_metastore::IceBucketFileVolume {
+                        path: temp_path.to_string(),
+                    },
+                ),
+            ),
+        )
+        .await
+        .expect("Failed to create volume");
+    metastore
+        .create_database(
+            &"icebucket".to_string(),
+            IceBucketDatabase {
+                ident: "icebucket".to_string(),
+                properties: None,
+                volume: "test_volume".to_string(),
+            },
+        )
+        .await
+        .expect("Failed to create database");
+    let schema_ident = IceBucketSchemaIdent {
+        database: "icebucket".to_string(),
+        schema: "public".to_string(),
+    };
+    metastore
+        .create_schema(
+            &schema_ident.clone(),
+            IceBucketSchema {
+                ident: schema_ident,
+                properties: None,
+            },
+        )
+        .await
+        .expect("Failed to create schema");
+
+    let table_ident = IceBucketTableIdent {
+        database: "icebucket".to_string(),
+        schema: "public".to_string(),
+        table: "target_table".to_string(),
+    };
+    let execution_svc = ExecutionService::new(
+        metastore.clone(),
+        Config {
+            dbt_serialization_format: DataSerializationFormat::Json,
+        },
+    );
+    let session_id = "test_session_id";
+    execution_svc
+        .create_session(session_id.to_string())
+        .await
+        .expect("Failed to create session");
+
+    let create_table_sql = format!("CREATE TABLE {table_ident} (id INT, name STRING, value FLOAT) as VALUES (1, 'test1', 100.0), (2, 'test2', 200.0), (3, 'test3', 300.0)");
+    let (res, _) = execution_svc
+        .query(
+            session_id,
+            &create_table_sql,
+            IceBucketQueryContext::default(),
+        )
+        .await
+        .expect("Failed to create table");
+
+    assert_batches_eq!(
+        &[
+            "+-------+",
+            "| count |",
+            "+-------+",
+            "| 3     |",
+            "+-------+",
+        ],
+        &res
+    );
+
+    let insert_sql = format!("INSERT INTO {table_ident} (id, name, value) VALUES (4, 'test4', 400.0), (5, 'test5', 500.0)");
+    let (res, _) = execution_svc
+        .query(session_id, &insert_sql, IceBucketQueryContext::default())
+        .await
+        .expect("Failed to insert data");
+
+    assert_batches_eq!(
+        &[
+            "+-------+",
+            "| count |",
+            "+-------+",
+            "| 2     |",
+            "+-------+",
+        ],
+        &res
     );
 }
