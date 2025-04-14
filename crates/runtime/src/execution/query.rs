@@ -440,6 +440,7 @@ impl IceBucketQuery {
         created_entity_response()
     }
 
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn drop_query(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
         // TODO: Parse the query so that the table names can be normalized
 
