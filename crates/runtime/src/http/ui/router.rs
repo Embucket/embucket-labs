@@ -30,7 +30,7 @@ use crate::http::ui::worksheets::handlers::{
 use crate::http::ui::queries::handlers::{queries, query};
 // use crate::http::ui::old_handlers::tables::{
 //     create_table, delete_table, get_settings, get_snapshots, get_table, register_table,
-//     update_table_properties, upload_data_to_table,
+//     update_table_properties,
 // };
 
 use crate::http::ui::databases::handlers::ApiDoc as DatabasesApiDoc;
@@ -40,7 +40,8 @@ use crate::http::ui::navigation_trees::handlers::{
 use crate::http::ui::queries::handlers::ApiDoc as QueryApiDoc;
 use crate::http::ui::schemas::handlers::ApiDoc as SchemasApiDoc;
 use crate::http::ui::tables::handlers::{
-    get_table_columns_info, get_table_preview_data, get_table_statistics, ApiDoc as TableApiDoc,
+    get_table_columns_info, get_table_preview_data, get_table_statistics, get_tables, upload_file,
+    ApiDoc as TableApiDoc,
 };
 use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
@@ -109,6 +110,10 @@ pub fn create_router() -> Router<AppState> {
         //     post(create_table),
         // )
         .route(
+            "/databases/{databaseName}/schemas/{schemaName}/tables",
+            get(get_tables),
+        )
+        .route(
             "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/statistics",
             get(get_table_statistics),
         )
@@ -132,10 +137,10 @@ pub fn create_router() -> Router<AppState> {
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/settings",
         //     get(get_settings).post(update_table_properties),
         // )
-        // .route(
-        //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/upload",
-        //     post(upload_data_to_table),
-        // )
+        .route(
+            "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows",
+            post(upload_file),
+        )
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/snapshots",
         //     get(get_snapshots),

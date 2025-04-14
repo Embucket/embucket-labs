@@ -21,7 +21,7 @@ use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::queries::models::QueryCreatePayload;
 use crate::http::ui::schemas::models::SchemaCreatePayload;
 use crate::http::ui::tables::models::{
-    TableColumnsInfoResponse, TablePreviewDataResponse, TableStatisticsResponse,
+    TableColumnsInfoResponse, TablePreviewDataResponse, TableStatisticsResponse, TablesResponse,
 };
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{VolumeCreatePayload, VolumeCreateResponse};
@@ -234,4 +234,152 @@ async fn test_ui_tables() {
     let table: TableStatisticsResponse = res.json().await.unwrap();
     assert_eq!(0, table.data.total_bytes);
     assert_eq!(0, table.data.total_rows);
+
+    //Create three more tables
+    let query_payload = QueryCreatePayload {
+        query: format!(
+            "create or replace Iceberg TABLE {}.{}.{}
+        external_volume = ''
+	    catalog = ''
+	    base_location = ''
+        (
+	    APP_ID TEXT,
+	    PLATFORM TEXT,
+	    EVENT TEXT,
+        TXN_ID NUMBER(38,0),
+        EVENT_TIME TEXT
+	    );",
+            database_name.clone(),
+            schema_name.clone(),
+            "tested2"
+        ),
+        context: None,
+    };
+
+    let res = req(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        json!(query_payload).to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    let query_payload = QueryCreatePayload {
+        query: format!(
+            "create or replace Iceberg TABLE {}.{}.{}
+        external_volume = ''
+	    catalog = ''
+	    base_location = ''
+        (
+	    APP_ID TEXT,
+	    PLATFORM TEXT,
+	    EVENT TEXT,
+        TXN_ID NUMBER(38,0),
+        EVENT_TIME TEXT
+	    );",
+            database_name.clone(),
+            schema_name.clone(),
+            "tested3"
+        ),
+        context: None,
+    };
+
+    let res = req(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        json!(query_payload).to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    let query_payload = QueryCreatePayload {
+        query: format!(
+            "create or replace Iceberg TABLE {}.{}.{}
+        external_volume = ''
+	    catalog = ''
+	    base_location = ''
+        (
+	    APP_ID TEXT,
+	    PLATFORM TEXT,
+	    EVENT TEXT,
+        TXN_ID NUMBER(38,0),
+        EVENT_TIME TEXT
+	    );",
+            database_name.clone(),
+            schema_name.clone(),
+            "tested4"
+        ),
+        context: None,
+    };
+
+    let res = req(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        json!(query_payload).to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    //GET LIST Tables
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables",
+            database_name.clone(),
+            schema_name.clone()
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let tables: TablesResponse = res.json().await.unwrap();
+    assert_eq!(4, tables.items.len());
+    assert_eq!("TABLE".to_string(), tables.items.first().unwrap().r#type);
+    assert_eq!(0, tables.items.first().unwrap().total_bytes);
+    assert_eq!(0, tables.items.first().unwrap().total_rows);
+
+    //GET LIST Tables with Limit
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables?limit=2",
+            database_name.clone(),
+            schema_name.clone()
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let tables: TablesResponse = res.json().await.unwrap();
+    assert_eq!(2, tables.items.len());
+    assert_eq!("tested1".to_string(), tables.items.first().unwrap().name);
+    let cursor = tables.next_cursor;
+
+    //GET LIST Tables with cursor
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables?cursor={cursor}",
+            database_name.clone(),
+            schema_name.clone()
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let tables: TablesResponse = res.json().await.unwrap();
+    assert_eq!(2, tables.items.len());
+    assert_eq!("tested3".to_string(), tables.items.first().unwrap().name);
 }

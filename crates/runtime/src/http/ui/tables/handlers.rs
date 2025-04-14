@@ -19,19 +19,27 @@ use crate::execution::query::IceBucketQueryContext;
 use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
-use crate::http::ui::tables::error::{TablesAPIError, TablesResult};
+use crate::http::ui::tables::error::{
+    CreateUploadSnafu, MalformedMultipartFileDataSnafu, MalformedMultipartSnafu, TableError,
+    TablesAPIError, TablesResult,
+};
 use crate::http::ui::tables::models::{
-    TableColumnInfo, TableColumnsInfoResponse, TablePreviewDataColumn, TablePreviewDataParameters,
-    TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
+    Table, TableColumnInfo, TableColumnsInfoResponse, TablePreviewDataColumn,
+    TablePreviewDataParameters, TablePreviewDataResponse, TablePreviewDataRow, TableStatistics,
+    TableStatisticsResponse, TableUploadPayload, TableUploadResponse, TablesParameters,
+    TablesResponse, UploadParameters,
 };
 use arrow_array::{Array, StringArray};
 use axum::extract::Query;
 use axum::{
-    extract::{Path, State},
+    extract::{Multipart, Path, State},
     Json,
 };
+use datafusion::arrow::csv::reader::Format;
 use icebucket_metastore::error::MetastoreError;
-use icebucket_metastore::IceBucketTableIdent;
+use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
+use snafu::ResultExt;
+use std::time::Instant;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -40,6 +48,7 @@ use utoipa::OpenApi;
         get_table_statistics,
         get_table_columns_info,
         get_table_preview_data,
+        upload_file,
     ),
     components(
         schemas(
@@ -50,6 +59,9 @@ use utoipa::OpenApi;
             TablePreviewDataResponse,
             TablePreviewDataColumn,
             TablePreviewDataRow,
+            UploadParameters,
+            TableUploadPayload,
+            TableUploadResponse,
             ErrorResponse,
         )
     ),
@@ -61,7 +73,7 @@ pub struct ApiDoc;
 
 #[utoipa::path(
     get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/statistics",
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/statistics",
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
@@ -122,7 +134,7 @@ pub async fn get_table_statistics(
 }
 #[utoipa::path(
     get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/columns",
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns",
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
@@ -175,7 +187,7 @@ pub async fn get_table_columns_info(
 }
 #[utoipa::path(
     get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}/{tableName}/preview",
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/preview",
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
@@ -263,4 +275,165 @@ pub async fn get_table_preview_data(
     Ok(Json(TablePreviewDataResponse {
         items: preview_data_columns,
     }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows",
+    operation_id = "uploadFile",
+    tags = ["tables"],
+    params(
+        ("databaseName" = String, description = "Database Name"),
+        ("schemaName" = String, description = "Schema Name"),
+        ("tableName" = String, description = "Table Name"),
+        ("header" = Option<bool>, Query, example = json!(true), description = "Has header"),
+        ("delimiter" = Option<u8>, Query, description = "an optional column delimiter, defaults to comma `','`"),
+        ("escape" = Option<u8>, Query, description = "an escape character"),
+        ("quote" = Option<u8>, Query, description = "a custom quote character, defaults to double quote `'\"'`"),
+        ("terminator" = Option<u8>, Query, description = "a custom terminator character, defaults to CRLF"),
+        ("comment" = Option<u8>, Query, description = "a comment character"),
+    ),
+    request_body(
+        content = TableUploadPayload,
+        content_type = "multipart/form-data",
+        description = "Upload data to the table in multipart/form-data format"
+    ),
+    responses(
+        (status = 200, description = "Successful Response", body = TableUploadResponse),
+        (status = 400, description = "Bad request", body = ErrorResponse),
+        // 409, when schema provided but table already exists
+        (status = 409, description = "Already exists", body = ErrorResponse),
+        (status = 422, description = "Unprocessable content", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse)
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state, multipart), err, ret(level = tracing::Level::TRACE))]
+pub async fn upload_file(
+    DFSessionId(session_id): DFSessionId,
+    Query(parameters): Query<UploadParameters>,
+    State(state): State<AppState>,
+    Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
+    mut multipart: Multipart,
+) -> TablesResult<Json<TableUploadResponse>> {
+    let mut uploaded = false;
+    let mut rows_loaded: usize = 0;
+    let start = Instant::now();
+    let parameters: Format = parameters.into();
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .context(MalformedMultipartSnafu)
+        .context(CreateUploadSnafu)?
+    {
+        if let Some(file_name) = field.file_name() {
+            let file_name = String::from(file_name);
+            let data = field
+                .bytes()
+                .await
+                .context(MalformedMultipartFileDataSnafu)
+                .context(CreateUploadSnafu)?;
+
+            rows_loaded += state
+                .execution_svc
+                .upload_data_to_table(
+                    &session_id,
+                    &IceBucketTableIdent {
+                        table: table_name.clone(),
+                        schema: schema_name.clone(),
+                        database: database_name.clone(),
+                    },
+                    data,
+                    file_name.as_str(),
+                    parameters.clone(),
+                )
+                .await
+                .map_err(|e| TablesAPIError::CreateUpload {
+                    source: TableError::Execution { source: e },
+                })?;
+            uploaded = true;
+        }
+    }
+    let duration = start.elapsed();
+    if uploaded {
+        Ok(Json(TableUploadResponse {
+            count: rows_loaded,
+            duration_ms: duration.as_millis(),
+        }))
+    } else {
+        Err(TablesAPIError::CreateUpload {
+            source: TableError::FileField,
+        })
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables",
+    params(
+        ("databaseName" = String, description = "Database Name"),
+        ("schemaName" = String, description = "Schema Name")
+    ),
+    operation_id = "getTables",
+    tags = ["tables"],
+    responses(
+        (status = 200, description = "Successful Response", body = TablesResponse),
+        (status = 404, description = "Table not found", body = ErrorResponse),
+        (status = 422, description = "Unprocessable entity", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[allow(clippy::unwrap_used)]
+pub async fn get_tables(
+    Query(parameters): Query<TablesParameters>,
+    State(state): State<AppState>,
+    Path((database_name, schema_name)): Path<(String, String)>,
+) -> TablesResult<Json<TablesResponse>> {
+    let ident = IceBucketSchemaIdent::new(database_name, schema_name);
+    state
+        .metastore
+        .list_tables(&ident, parameters.cursor.clone(), parameters.limit)
+        .await
+        .map_err(|e| TablesAPIError::GetMetastore { source: e })
+        .map(|rw_tables| {
+            let next_cursor = rw_tables
+                .iter()
+                .last()
+                .map_or(String::new(), |rw_table| rw_table.ident.table.clone());
+
+            let items = rw_tables
+                .into_iter()
+                .map(|rw_table| {
+                    let mut total_bytes = 0;
+                    let mut total_rows = 0;
+                    if let Ok(Some(latest_snapshot)) = rw_table.metadata.current_snapshot(None) {
+                        total_bytes = latest_snapshot
+                            .summary()
+                            .other
+                            .get("total-files-size")
+                            .and_then(|value| value.parse::<i64>().ok())
+                            .unwrap_or(0);
+                        total_rows = latest_snapshot
+                            .summary()
+                            .other
+                            .get("total-records")
+                            .and_then(|value| value.parse::<i64>().ok())
+                            .unwrap_or(0);
+                    }
+                    Table {
+                        name: rw_table.ident.table.clone(),
+                        r#type: "TABLE".to_string(),
+                        owner: String::new(),
+                        total_rows,
+                        total_bytes,
+                        created_at: rw_table.created_at,
+                        updated_at: rw_table.updated_at,
+                    }
+                })
+                .collect();
+            Ok(Json(TablesResponse {
+                items,
+                current_cursor: parameters.cursor,
+                next_cursor,
+            }))
+        })?
 }

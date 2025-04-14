@@ -19,7 +19,7 @@ use crate::execution::query::IceBucketQueryContext;
 use crate::execution::service::ExecutionService;
 use crate::execution::utils::{Config, DataSerializationFormat};
 use crate::SlateDBMetastore;
-use datafusion::assert_batches_eq;
+use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
 use icebucket_metastore::models::table::IceBucketTableIdent;
 use icebucket_metastore::Metastore;
 use icebucket_metastore::{
@@ -121,10 +121,18 @@ async fn test_service_upload_file() {
         .await
         .expect("Failed to create session");
 
-    execution_svc
-        .upload_data_to_table(session_id, &table_ident, data.clone().into(), file_name)
+    let csv_format = Format::default().with_header(true);
+    let rows_loaded = execution_svc
+        .upload_data_to_table(
+            session_id,
+            &table_ident,
+            data.clone().into(),
+            file_name,
+            csv_format.clone(),
+        )
         .await
         .expect("Failed to upload file");
+    assert_eq!(rows_loaded, 3);
 
     // Verify that the file was uploaded successfully by running select * from the table
     let query = format!("SELECT * FROM {}", table_ident.table);
@@ -146,10 +154,11 @@ async fn test_service_upload_file() {
         &rows
     );
 
-    execution_svc
-        .upload_data_to_table(session_id, &table_ident, data.into(), file_name)
+    let rows_loaded = execution_svc
+        .upload_data_to_table(session_id, &table_ident, data.into(), file_name, csv_format)
         .await
         .expect("Failed to upload file");
+    assert_eq!(rows_loaded, 3);
 
     // Verify that the file was uploaded successfully by running select * from the table
     let query = format!("SELECT * FROM {}", table_ident.table);
