@@ -456,7 +456,7 @@ impl IceBucketQuery {
     #[tracing::instrument(level = "trace", err, ret)]
     pub async fn create_iceberg_table(
         catalog: Arc<dyn CatalogProvider>,
-        _table_location: Option<String>,
+        table_location: Option<String>,
         ident: IceBucketTableIdent,
         plan: LogicalPlan,
     ) -> ExecutionResult<Table> {
