@@ -16,6 +16,7 @@
 // under the License.
 use arrow::array::{Int64Array, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
+use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::catalog_common::CatalogProvider;
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
@@ -42,7 +43,6 @@ use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
-use iceberg_rust::table::Table;
 use icebucket_metastore::{
     IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableFormat,
     IceBucketTableIdent, Metastore,
@@ -406,7 +406,7 @@ impl IceBucketQuery {
             });
         }
 
-        Self::create_iceberg_table(
+        self.create_iceberg_table(
             catalog,
             table_location,
             ib_table_ident.clone(),
@@ -453,13 +453,15 @@ impl IceBucketQuery {
         Ok(res)
     }
 
-    #[tracing::instrument(level = "trace", err, ret)]
+    #[allow(unused_variables)]
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_iceberg_table(
+        &self,
         catalog: Arc<dyn CatalogProvider>,
         table_location: Option<String>,
         ident: IceBucketTableIdent,
         plan: LogicalPlan,
-    ) -> ExecutionResult<Table> {
+    ) -> ExecutionResult<()> {
         let iceberg_catalog =
             if let Some(external_catalog) = catalog.as_any().downcast_ref::<IcebergCatalog>() {
                 Ok(external_catalog.catalog())
@@ -467,10 +469,17 @@ impl IceBucketQuery {
                 catalog.as_any().downcast_ref::<IceBucketDFCatalog>()
             {
                 Ok(icebucket_catalog.catalog())
+            } else if catalog
+                .as_any()
+                .downcast_ref::<MemoryCatalogProvider>()
+                .is_some()
+            {
+                self.execute_logical_plan(plan).await?;
+                return Ok(());
             } else {
-                Err(ExecutionError::CatalogNotFound {
+                return Err(ExecutionError::CatalogNotFound {
                     catalog: "invalid type of catalog, expect iceberg or icebucket".to_string(),
-                })
+                });
             }?;
 
         let fields_with_ids = StructType::try_from(&new_fields_with_ids(
@@ -494,7 +503,8 @@ impl IceBucketQuery {
             // .with_location(location.clone())
             .build(&[ident.schema], iceberg_catalog)
             .await
-            .context(ex_error::IcebergSnafu)
+            .context(ex_error::IcebergSnafu)?;
+        Ok(())
     }
 
     pub async fn create_external_table_query(
