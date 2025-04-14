@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use super::catalog::IceBucketDFMetastore;
+use super::catalog::{IceBucketDFMetastore, DEFAULT_CATALOG};
 use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::IceBucketTypePlanner;
@@ -70,9 +70,9 @@ impl IceBucketUserSession {
                     .with_option_extension(IceBucketSessionParams::default())
                     .with_information_schema(true)
                     // Cannot create catalog (database) automatic since it requires default volume
-                    .with_create_default_catalog_and_schema(false)
+                    .with_create_default_catalog_and_schema(true)
                     .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect)
-                    .set_str("datafusion.catalog.default_catalog", "icebucket"),
+                    .set_str("datafusion.catalog.default_catalog", DEFAULT_CATALOG),
             )
             .with_default_features()
             .with_runtime_env(Arc::new(runtime_config))
@@ -88,23 +88,21 @@ impl IceBucketUserSession {
 
         catalog_list_impl.refresh(&ctx).await?;
 
-        Self::register_external_catalogs(metastore.clone(), &ctx).await?;
-
         let enable_ident_normalization = ctx.enable_ident_normalization();
-        Ok(Self {
+        let session = Self {
             metastore,
             ctx,
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
             executor: DedicatedExecutor::builder().build(),
-        })
+        };
+        session.register_external_catalogs().await?;
+        Ok(session)
     }
 
     #[allow(clippy::as_conversions)]
-    pub async fn register_external_catalogs(
-        metastore: Arc<dyn Metastore>,
-        ctx: &SessionContext,
-    ) -> ExecutionResult<()> {
-        let volumes = metastore
+    pub async fn register_external_catalogs(&self) -> ExecutionResult<()> {
+        let volumes = self
+            .metastore
             .list_volumes(None, None)
             .await
             .context(ex_error::MetastoreSnafu)?
@@ -122,7 +120,7 @@ impl IceBucketUserSession {
             return Ok(());
         }
         for volume in volumes {
-            let (ak, sk, token) = match volume.credentials {
+            let (ak, sk, token) = match volume.volume.credentials {
                 Some(AwsCredentials::AccessKey(ref creds)) => (
                     Some(creds.aws_access_key_id.clone()),
                     Some(creds.aws_secret_access_key.clone()),
@@ -136,12 +134,14 @@ impl IceBucketUserSession {
             let config = SdkConfig::builder()
                 .behavior_version(BehaviorVersion::latest())
                 .credentials_provider(SharedCredentialsProvider::new(creds))
-                .region(Region::new(volume.region.clone().unwrap_or_default()))
+                .region(Region::new(
+                    volume.volume.region.clone().unwrap_or_default(),
+                ))
                 .build();
             let catalog = S3TablesCatalog::new(
                 &config,
                 volume.arn.clone().unwrap_or_default().as_str(),
-                ObjectStoreBuilder::S3(IceBucketVolume::get_s3_builder(&volume)),
+                ObjectStoreBuilder::S3(IceBucketVolume::get_s3_builder(&volume.volume)),
             )
             .context(ex_error::S3TablesSnafu)?;
 
@@ -150,10 +150,8 @@ impl IceBucketUserSession {
                 .context(ex_error::DataFusionSnafu)?;
             let catalog_provider = Arc::new(catalog) as Arc<dyn CatalogProvider>;
 
-            let _catalog_name = volume.bucket.clone().unwrap_or_default().to_string();
-
-            // TODO set correct catalog name (s3 tables bucket contains "_" which is not supported by datafusion)
-            ctx.register_catalog("s3_tables", catalog_provider);
+            let catalog_name = volume.catalog.unwrap_or_else(|| "s3_tables".to_string());
+            self.ctx.register_catalog(catalog_name, catalog_provider);
         }
         Ok(())
     }

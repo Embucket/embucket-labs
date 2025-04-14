@@ -32,6 +32,7 @@ use datafusion::{
 };
 use datafusion_common::{exec_err, DataFusionError, Result as DFResult};
 use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
+use futures::executor::block_on;
 use iceberg_rust::{
     catalog::{
         commit::{CommitTable as IcebergCommitTable, CommitView as IcebergCommitView},
@@ -52,14 +53,17 @@ use iceberg_rust::{
 use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
+use icebucket_metastore::error::MetastoreResult;
 use icebucket_metastore::{
-    error::MetastoreError, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent,
-    IceBucketTableUpdate, Metastore,
+    error::MetastoreError, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest,
+    IceBucketTableIdent, IceBucketTableUpdate, Metastore,
 };
 use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
 use snafu::ResultExt;
 use url::Url;
+
+pub const DEFAULT_CATALOG: &str = "icebucket";
 
 type TableProviderCache = DashMap<String, Arc<dyn TableProvider>>;
 type SchemaProviderCache = DashMap<String, TableProviderCache>;
@@ -84,7 +88,7 @@ impl IceBucketDFMetastore {
         }
     }
 
-    #[allow(clippy::as_conversions)]
+    #[allow(clippy::as_conversions, clippy::too_many_lines)]
     #[tracing::instrument(level = "debug", skip(self, ctx))]
     pub async fn refresh(&self, ctx: &SessionContext) -> ExecutionResult<()> {
         let mut seen: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::default();
@@ -164,7 +168,7 @@ impl IceBucketDFMetastore {
                         icebucket_metastore::IceBucketTableFormat::Iceberg => {
                             let bridge = Arc::new(IceBucketIcebergBridge {
                                 metastore: self.metastore.clone(),
-                                ident: table.ident.clone(),
+                                database: table.ident.clone().database,
                                 object_store: table_object_store.clone(),
                             });
 
@@ -284,10 +288,14 @@ impl CatalogProviderList for IceBucketDFMetastore {
         if !self.mirror.contains_key(name) {
             return None;
         }
+        let iceberg_catalog = IceBucketIcebergBridge::new(self.metastore.clone(), name.to_string())
+            .ok()
+            .map(Arc::new)?;
         let catalog: Arc<dyn CatalogProvider> = Arc::new(IceBucketDFCatalog {
             ident: name.to_string(),
             metastore: self.metastore.clone(),
             mirror: self.mirror.clone(),
+            iceberg_catalog,
         });
         Some(catalog)
     }
@@ -297,6 +305,14 @@ pub struct IceBucketDFCatalog {
     pub ident: String,
     pub metastore: Arc<dyn Metastore>,
     pub mirror: Arc<CatalogProviderCache>,
+    pub iceberg_catalog: Arc<dyn IcebergCatalog>,
+}
+
+impl IceBucketDFCatalog {
+    #[must_use]
+    pub fn catalog(&self) -> Arc<dyn IcebergCatalog> {
+        self.iceberg_catalog.clone()
+    }
 }
 
 #[allow(clippy::missing_fields_in_debug)]
@@ -429,15 +445,35 @@ impl SchemaProvider for IceBucketDFSchema {
 #[derive(Debug)]
 pub struct IceBucketIcebergBridge {
     pub metastore: Arc<dyn Metastore>,
-    pub ident: IceBucketTableIdent,
+    pub database: String,
     pub object_store: Arc<dyn ObjectStore>,
+}
+
+impl IceBucketIcebergBridge {
+    fn new(metastore: Arc<dyn Metastore>, database: String) -> MetastoreResult<Self> {
+        let db = block_on(metastore.get_database(&database))?.ok_or(
+            MetastoreError::DatabaseNotFound {
+                db: database.clone(),
+            },
+        )?;
+        let object_store = block_on(metastore.volume_object_store(&db.volume))?.ok_or(
+            MetastoreError::VolumeNotFound {
+                volume: db.volume.clone(),
+            },
+        )?;
+        Ok(Self {
+            metastore,
+            database,
+            object_store,
+        })
+    }
 }
 
 #[async_trait]
 impl IcebergCatalog for IceBucketIcebergBridge {
     /// Name of the catalog
     fn name(&self) -> &str {
-        &self.ident.database
+        &self.database
     }
 
     /// Create a namespace in the catalog
@@ -452,7 +488,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             ));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.database.clone(),
+            database: self.name().to_string(),
             schema: namespace.join(""),
         };
         let schema = IceBucketSchema {
@@ -475,7 +511,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             ));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.database.clone(),
+            database: self.name().to_string(),
             schema: namespace.join(""),
         };
         self.metastore
@@ -496,7 +532,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             ));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.database.clone(),
+            database: self.name().to_string(),
             schema: namespace.join(""),
         };
         let schema = self
@@ -526,7 +562,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             ));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.database.clone(),
+            database: self.name().to_string(),
             schema: namespace.join(""),
         };
         let schema = self
@@ -568,7 +604,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             ));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.database.clone(),
+            database: self.name().to_string(),
             schema: namespace.join(""),
         };
         Ok(self
@@ -590,7 +626,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
             ));
         }
         let schema_ident = IceBucketSchemaIdent {
-            database: self.ident.database.clone(),
+            database: self.name().to_string(),
             schema: namespace.join(""),
         };
         Ok(self
@@ -637,11 +673,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
 
     /// Check if a table exists
     async fn tabular_exists(&self, identifier: &IcebergIdentifier) -> Result<bool, IcebergError> {
-        let table_ident = IceBucketTableIdent {
-            database: identifier.namespace()[0].clone(),
-            schema: identifier.namespace()[1].clone(),
-            table: identifier.name().to_string(),
-        };
+        let table_ident = IceBucketTableIdent::from_iceberg_ident(identifier);
         Ok(self
             .metastore
             .get_table(&table_ident)
@@ -652,11 +684,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
 
     /// Drop a table and delete all data and metadata files.
     async fn drop_table(&self, identifier: &IcebergIdentifier) -> Result<(), IcebergError> {
-        let table_ident = IceBucketTableIdent {
-            database: identifier.namespace()[0].clone(),
-            schema: identifier.namespace()[1].clone(),
-            table: identifier.name().to_string(),
-        };
+        let table_ident = IceBucketTableIdent::from_iceberg_ident(identifier);
         self.metastore
             .delete_table(&table_ident, true)
             .await
@@ -686,11 +714,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         self: Arc<Self>,
         identifier: &IcebergIdentifier,
     ) -> Result<IcebergTabular, IcebergError> {
-        let table_ident = IceBucketTableIdent {
-            database: identifier.namespace()[0].clone(),
-            schema: identifier.namespace()[1].clone(),
-            table: identifier.name().to_string(),
-        };
+        let table_ident = IceBucketTableIdent::from_iceberg_ident(identifier);
         let table = self
             .metastore
             .get_table(&table_ident)
@@ -714,10 +738,34 @@ impl IcebergCatalog for IceBucketIcebergBridge {
     /// Create a table in the catalog if it doesn't exist.
     async fn create_table(
         self: Arc<Self>,
-        _identifier: IcebergIdentifier,
-        _create_table: IcebergCreateTable,
+        identifier: IcebergIdentifier,
+        create_table: IcebergCreateTable,
     ) -> Result<IcebergTable, IcebergError> {
-        todo!()
+        let ident = IceBucketTableIdent {
+            database: self.name().to_string(),
+            schema: identifier.namespace().to_string(),
+            table: identifier.name().to_string(),
+        };
+        let table_create_request = IceBucketTableCreateRequest {
+            ident: ident.clone(),
+            schema: create_table.schema,
+            location: create_table.location,
+            partition_spec: create_table.partition_spec,
+            sort_order: create_table.write_order,
+            stage_create: create_table.stage_create,
+            volume_ident: None,
+            is_temporary: None,
+            format: None,
+            properties: None,
+        };
+
+        let table = self
+            .metastore
+            .create_table(&ident, table_create_request)
+            .await
+            .context(ex_error::MetastoreSnafu)
+            .map_err(|e| IcebergError::External(Box::new(e)))?;
+        Ok(IcebergTable::new(identifier.clone(), self.clone(), table.metadata.clone()).await?)
     }
 
     /// Create a view with the catalog if it doesn't exist.
@@ -747,11 +795,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         self: Arc<Self>,
         commit: IcebergCommitTable,
     ) -> Result<IcebergTable, IcebergError> {
-        let table_ident = IceBucketTableIdent {
-            database: commit.identifier.namespace()[0].clone(),
-            schema: commit.identifier.namespace()[1].clone(),
-            table: commit.identifier.name().to_string(),
-        };
+        let table_ident = IceBucketTableIdent::from_iceberg_ident(&commit.identifier);
         let table_update = IceBucketTableUpdate {
             requirements: commit.requirements,
             updates: commit.updates,

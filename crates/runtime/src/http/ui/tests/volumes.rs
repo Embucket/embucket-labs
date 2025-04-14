@@ -90,7 +90,6 @@ async fn test_ui_volumes_s3() {
                     aws_access_key_id: "********".to_string(),
                     aws_secret_access_key: "********".to_string(),
                 })),
-                arn: None,
             }),
         }),
     };

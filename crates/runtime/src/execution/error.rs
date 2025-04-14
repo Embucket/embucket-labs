@@ -90,6 +90,9 @@ pub enum ExecutionError {
     #[snafu(display("Cannot refresh catalog list"))]
     RefreshCatalogList { message: String },
 
+    #[snafu(display("Catalog {catalog} not found"))]
+    CatalogNotFound { catalog: String },
+
     #[snafu(display("S3Tables error: {source}"))]
     S3Tables { source: S3tablesError },
 

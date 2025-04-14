@@ -17,6 +17,6 @@
 
 //pub mod analyzer;
 //pub mod error;
+pub mod context_provider;
 pub mod functions;
-pub mod planner;
 pub mod type_planner;

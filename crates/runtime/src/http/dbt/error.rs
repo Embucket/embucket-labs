@@ -157,6 +157,7 @@ impl IntoResponse for ExecutionError {
             Self::DatabaseNotFound { .. }
             | Self::TableNotFound { .. }
             | Self::SchemaNotFound { .. }
+            | Self::CatalogNotFound { .. }
             | Self::Metastore { .. }
             | Self::DataFusion { .. }
             | Self::DataFusionQuery { .. } => http::StatusCode::OK,

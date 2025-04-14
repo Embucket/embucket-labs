@@ -81,6 +81,14 @@ pub struct IceBucketS3Volume {
     pub metadata_endpoint: Option<String>,
     #[validate(required, nested)]
     pub credentials: Option<AwsCredentials>,
+}
+
+#[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub struct IceBucketS3TablesVolume {
+    pub volume: IceBucketS3Volume,
+    #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
+    pub catalog: Option<String>,
     #[validate(length(min = 1))]
     pub arn: Option<String>,
 }
@@ -117,7 +125,7 @@ pub struct IceBucketFileVolume {
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum IceBucketVolumeType {
     S3(IceBucketS3Volume),
-    S3Tables(IceBucketS3Volume),
+    S3Tables(IceBucketS3TablesVolume),
     File(IceBucketFileVolume),
     Memory,
 }
@@ -125,7 +133,8 @@ pub enum IceBucketVolumeType {
 impl Validate for IceBucketVolumeType {
     fn validate(&self) -> Result<(), ValidationErrors> {
         match self {
-            Self::S3(volume) | Self::S3Tables(volume) => volume.validate(),
+            Self::S3(volume) => volume.validate(),
+            Self::S3Tables(volume) => volume.validate(),
             Self::File(volume) => volume.validate(),
             Self::Memory => Ok(()),
         }
@@ -152,8 +161,15 @@ impl IceBucketVolume {
 
     pub fn get_object_store(&self) -> MetastoreResult<Arc<dyn ObjectStore>> {
         match &self.volume {
-            IceBucketVolumeType::S3(volume) | IceBucketVolumeType::S3Tables(volume) => {
+            IceBucketVolumeType::S3(volume) => {
                 let s3_builder = Self::get_s3_builder(volume);
+                s3_builder
+                    .build()
+                    .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
+                    .context(metastore_error::ObjectStoreSnafu)
+            }
+            IceBucketVolumeType::S3Tables(volume) => {
+                let s3_builder = Self::get_s3_builder(&volume.volume);
                 s3_builder
                     .build()
                     .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
@@ -207,7 +223,12 @@ impl IceBucketVolume {
     #[must_use]
     pub fn prefix(&self) -> String {
         match &self.volume {
-            IceBucketVolumeType::S3(volume) | IceBucketVolumeType::S3Tables(volume) => volume
+            IceBucketVolumeType::S3(volume) => volume
+                .bucket
+                .as_ref()
+                .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
+            IceBucketVolumeType::S3Tables(volume) => volume
+                .volume
                 .bucket
                 .as_ref()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),

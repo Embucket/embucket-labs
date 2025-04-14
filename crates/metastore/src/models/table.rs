@@ -15,17 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::error::{MetastoreError, MetastoreResult};
 use iceberg_rust::{
     catalog::commit::{TableRequirement, TableUpdate},
     spec::table_metadata::TableMetadata,
 };
-use iceberg_rust_spec::{partition::PartitionSpec, schema::Schema, sort::SortOrder};
+use iceberg_rust_spec::{
+    partition::PartitionSpec, schema::Schema, sort::SortOrder, spec::identifier::Identifier,
+};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display};
 use utoipa::ToSchema;
 use validator::Validate;
-
-use crate::error::{MetastoreError, MetastoreResult};
 
 use super::{IceBucketSchemaIdent, IceBucketVolumeIdent};
 
@@ -51,6 +52,19 @@ impl IceBucketTableIdent {
             schema: schema.to_string(),
             database: database.to_string(),
         }
+    }
+    #[must_use]
+    pub fn from_iceberg_ident(ident: &Identifier) -> Self {
+        Self {
+            database: ident.namespace()[0].clone(),
+            schema: ident.namespace()[1].clone(),
+            table: ident.name().to_string(),
+        }
+    }
+
+    pub fn to_iceberg_ident(&self) -> Identifier {
+        let namespace = vec![self.schema.clone()];
+        Identifier::new(&namespace, &self.table)
     }
 }
 
