@@ -29,6 +29,7 @@ use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableWithJoins,
 };
+use datafusion_common::tree_node::{TransformedResult, TreeNode};
 use datafusion_common::{DataFusionError, ResolvedTableReference, TableReference};
 use datafusion_expr::logical_plan::dml::DmlStatement;
 use datafusion_expr::logical_plan::dml::InsertOp;
@@ -36,6 +37,7 @@ use datafusion_expr::logical_plan::dml::WriteOp;
 use datafusion_expr::CreateMemoryTable;
 use datafusion_expr::DdlStatement;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use datafusion_iceberg::planner::iceberg_transform;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::schema::Schema;
@@ -283,7 +285,7 @@ impl IceBucketQuery {
                     return Box::pin(self.execute_with_custom_plan(&subquery.to_string())).await;
                 }
                 Statement::Drop { .. } => {
-                    let result = Box::pin(self.execute_with_custom_plan(&self.query)).await;
+                    let result = Box::pin(self.drop_query(&self.query)).await;
                     self.refresh_catalog().await?;
                     return result;
                 }
@@ -328,7 +330,7 @@ impl IceBucketQuery {
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
-    // #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_table_query(
         &self,
         statement: Statement,
@@ -438,7 +440,19 @@ impl IceBucketQuery {
         created_entity_response()
     }
 
-    // #[tracing::instrument(level = "trace", err, ret)]
+    pub async fn drop_query(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
+        // TODO: Parse the query so that the table names can be normalized
+
+        let plan = self.get_custom_logical_plan(query).await?;
+        let transformed = plan
+            .transform(iceberg_transform)
+            .data()
+            .context(ex_error::DataFusionSnafu)?;
+        let res = self.execute_logical_plan(transformed).await?;
+        Ok(res)
+    }
+
+    #[tracing::instrument(level = "trace", err, ret)]
     pub async fn create_iceberg_table(
         catalog: Arc<dyn CatalogProvider>,
         _table_location: Option<String>,

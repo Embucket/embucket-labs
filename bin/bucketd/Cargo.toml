@@ -11,7 +11,7 @@ icebucket_runtime = { path = "../../crates/runtime" }
 object_store = { workspace = true }
 snmalloc-rs = { workspace = true }
 tokio = { workspace = true }
-tracing = { version = "0.1" }
+tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [lints]
