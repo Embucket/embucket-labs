@@ -18,13 +18,13 @@
 pub struct ListConfig {
     //From where to start the scan range for SlateDB
     // ex: if we ended on "tested2", the cursor would be "tested2"
-    // and inside the `fn list_objets` in utils crate the start of the range would be "tested2\x00"
+    // and inside the `fn list_objects` in utils crate the start of the range would be "tested2\x00"
     // ("\x00" is the smallest ASCII char to find anything after the "tested2" excluding it)
     // and the whole range would be `tested2\x00..\x7F
     // (`\x7F` is the largest ASCII char to find anything before it)
     // if there are 4 tables `tested1..tested4` which would yield us "tested3" and "tested4" including other names if any exist
     pub cursor: Option<String>,
-    //Limit of how much items to take back from `fn list_objets` in utils crate
+    //Limit of how much items to take back from `fn list_objects` in utils crate
     pub limit: Option<usize>,
     //Search string, from where (and to where in lexicographical sort order) to do the search
     // ex: if we want to find all the test tables it could be "tes" (if there are 4 tables `tested1..tested4`)

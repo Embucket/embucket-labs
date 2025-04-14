@@ -195,7 +195,7 @@ pub async fn update_database(
     params(
         ("cursor" = Option<String>, Query, description = "Databases cursor"),
         ("limit" = Option<usize>, Query, description = "Databases limit"),
-        ("search" = Option<String>, Query, description = "Tables search (start with)"),
+        ("search" = Option<String>, Query, description = "Databases search (start with)"),
     ),
     tags = ["databases"],
     path = "/ui/databases",
