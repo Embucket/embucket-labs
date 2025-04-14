@@ -32,7 +32,7 @@ pub struct ListConfig {
     // (`\x7F` is the largest ASCII char to find anything before it)
     // if we however had the cursor from cursor comment (line 21)
     // we could also go from `tested2\x00..tes\x7F` which would yield us "tested3" and "tested4" only excluding other names if any exist
-    pub starts_with: Option<String>,
+    pub token: Option<String>,
 }
 
 impl ListConfig {
@@ -40,12 +40,12 @@ impl ListConfig {
     pub const fn new(
         cursor: Option<String>,
         limit: Option<usize>,
-        starts_with: Option<String>,
+        token: Option<String>,
     ) -> Self {
         Self {
             cursor,
             limit,
-            starts_with,
+            token,
         }
     }
 }
