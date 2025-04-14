@@ -62,7 +62,7 @@ use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
 
-use super::catalog::{IceBucketDFCatalog, IceBucketDFMetastore};
+use super::catalogs::{catalog::IceBucketDFCatalog, metastore::IceBucketDFMetastore};
 use super::datafusion::context_provider::ExtendedSqlToRel;
 use super::datafusion::functions::visit_functions_expressions;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
@@ -456,7 +456,7 @@ impl IceBucketQuery {
     #[tracing::instrument(level = "trace", err, ret)]
     pub async fn create_iceberg_table(
         catalog: Arc<dyn CatalogProvider>,
-        _table_location: Option<String>,
+        table_location: Option<String>,
         ident: IceBucketTableIdent,
         plan: LogicalPlan,
     ) -> ExecutionResult<Table> {

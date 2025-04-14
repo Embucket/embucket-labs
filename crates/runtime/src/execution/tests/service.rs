@@ -57,7 +57,7 @@ async fn test_execute_always_returns_schema() {
 }
 
 #[tokio::test]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_service_upload_file() {
     let metastore = SlateDBMetastore::new_in_memory().await;
 

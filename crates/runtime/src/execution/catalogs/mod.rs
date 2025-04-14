@@ -15,15 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod catalogs;
-pub mod datafusion;
-pub mod dedicated_executor;
-pub mod error;
-pub mod models;
-pub mod query;
-pub mod service;
-pub mod session;
-pub mod utils;
-
-#[cfg(test)]
-pub mod tests;
+pub mod catalog;
+pub mod iceberg_catalog;
+pub mod metastore;
+pub mod schema;

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use super::catalog::{IceBucketDFMetastore, DEFAULT_CATALOG};
+use super::catalogs::metastore::{IceBucketDFMetastore, DEFAULT_CATALOG};
 use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::IceBucketTypePlanner;
