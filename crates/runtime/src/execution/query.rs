@@ -584,7 +584,7 @@ impl IceBucketQuery {
     }
 
     /// This is experimental CREATE STAGE support
-    /// Current limitations    
+    /// Current limitations
     /// TODO
     /// - Prepare object storage depending on the URL. Currently we support only s3 public buckets    ///   with public access with default eu-central-1 region
     /// - Parse credentials from specified config
