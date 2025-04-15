@@ -1458,7 +1458,7 @@ impl IceBucketQuery {
                         self.update_tables_in_query(&mut query)?;
                         // TODO: Removing all iceberg properties is temporary solution. It should be
                         // implemented properly in future.
-                        // https://github.com/Embucket/control-plane-v2/issues/199
+                        // https://github.com/Embucket/embucket/issues/199
                         let modified_statement = CreateTableStatement {
                             query: Some(query),
                             iceberg: false,

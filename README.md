@@ -41,8 +41,8 @@ Prerequisites:
 
 ```sh
 # Clone and build the Embucket binary
-git clone git@github.com:Embucket/control-plane-v2.git
-cd control-plane-v2/
+git clone git@github.com:Embucket/embucket.git
+cd embucket/
 cargo build
 ```
 
