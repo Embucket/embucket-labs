@@ -30,25 +30,25 @@ pub struct NavigationTreesResponse {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NavigationTreeDatabase {
-    pub(crate) name: String,
-    pub(crate) schemas: Vec<NavigationTreeSchema>,
+    pub name: String,
+    pub schemas: Vec<NavigationTreeSchema>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NavigationTreeSchema {
-    pub(crate) name: String,
-    pub(crate) tables: Vec<NavigationTreeTable>,
+    pub name: String,
+    pub tables: Vec<NavigationTreeTable>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NavigationTreeTable {
-    pub(crate) name: String,
+    pub name: String,
 }
 
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
-pub(crate) struct NavigationTreesParameters {
-    pub(crate) cursor: Option<String>,
-    pub(crate) limit: Option<usize>,
+pub struct NavigationTreesParameters {
+    pub cursor: Option<String>,
+    pub limit: Option<usize>,
 }
