@@ -26,8 +26,10 @@ use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
-use embucket_metastore::IceBucketVolumeType;
-use embucket_metastore::{IceBucketDatabase, IceBucketVolume};
+use embucket_metastore::IceBucketVolumeType as MetastoreVolumeType;
+use embucket_metastore::{
+    IceBucketDatabase as MetastoreDatabase, IceBucketVolume as MetastoreVolume,
+};
 use http::Method;
 use serde_json::json;
 
@@ -49,9 +51,9 @@ async fn test_ui_databases_navigation() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(IceBucketVolume {
+            data: Volume::from(MetastoreVolume {
                 ident: String::new(),
-                volume: IceBucketVolumeType::Memory,
+                volume: MetastoreVolumeType::Memory,
             }),
         }),
     )
@@ -60,7 +62,7 @@ async fn test_ui_databases_navigation() {
 
     // Create database, Ok
     let expected1 = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: "test1".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
@@ -68,7 +70,7 @@ async fn test_ui_databases_navigation() {
         .into(),
     };
     let expected2 = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: "test2".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
@@ -76,7 +78,7 @@ async fn test_ui_databases_navigation() {
         .into(),
     };
     let expected3 = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: "test3".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
@@ -84,7 +86,7 @@ async fn test_ui_databases_navigation() {
         .into(),
     };
     let expected4 = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: "test4".to_string(),
             properties: None,
             volume: volume.data.name.clone(),

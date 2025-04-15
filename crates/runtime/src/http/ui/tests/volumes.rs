@@ -19,10 +19,10 @@
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use crate::tests::run_icebucket_test_server;
-use embucket_metastore::IceBucketVolume;
+use embucket_metastore::IceBucketVolume as MetastoreVolume;
 use embucket_metastore::{
-    AwsAccessKeyCredentials, AwsCredentials, IceBucketFileVolume, IceBucketS3Volume,
-    IceBucketVolumeType,
+    AwsAccessKeyCredentials, AwsCredentials, IceBucketFileVolume as MetastoreFileVolume,
+    IceBucketS3Volume as MetastoreS3Volume, IceBucketVolumeType as MetastoreVolumeType,
 };
 use serde_json;
 
@@ -33,9 +33,9 @@ async fn test_ui_volumes_memory() {
 
     // memory volume with empty ident create Ok
     let expected = VolumeCreatePayload {
-        data: Volume::from(IceBucketVolume {
+        data: Volume::from(MetastoreVolume {
             ident: String::new(),
-            volume: IceBucketVolumeType::Memory,
+            volume: MetastoreVolumeType::Memory,
         }),
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
@@ -59,9 +59,9 @@ async fn test_ui_volumes_file() {
     assert_eq!(expected.data, created.data);
 
     let expected = VolumeCreatePayload {
-        data: Volume::from(IceBucketVolume {
+        data: Volume::from(MetastoreVolume {
             ident: String::new(),
-            volume: IceBucketVolumeType::File(IceBucketFileVolume {
+            volume: MetastoreVolumeType::File(MetastoreFileVolume {
                 path: "/tmp/data".to_string(),
             }),
         }),
@@ -78,9 +78,9 @@ async fn test_ui_volumes_s3() {
 
     // memory volume with empty ident create Ok
     let expected = VolumeCreatePayload {
-        data: Volume::from(IceBucketVolume {
+        data: Volume::from(MetastoreVolume {
             ident: String::new(),
-            volume: IceBucketVolumeType::S3(IceBucketS3Volume {
+            volume: MetastoreVolumeType::S3(MetastoreS3Volume {
                 region: Some("us-west-1".to_string()),
                 bucket: Some("icebucket".to_string()),
                 endpoint: Some("http://localhost:9000".to_string()),

@@ -24,7 +24,7 @@ use iceberg_rest_catalog::models::{
     CreateNamespaceRequest, CreateNamespaceResponse, CreateTableRequest, GetNamespaceResponse,
     ListNamespacesResponse, ListTablesResponse,
 };
-use iceberg_rust::catalog::commit::{TableRequirement, TableUpdate};
+use iceberg_rust::catalog::commit::{TableRequirement, TableUpdate as IcebergTableUpdate};
 use iceberg_rust_spec::identifier::Identifier;
 use serde::{Deserialize, Serialize};
 
@@ -121,5 +121,5 @@ pub struct CommitTable {
     /// Assertions about the metadata that must be true to update the metadata
     pub requirements: Vec<TableRequirement>,
     /// Changes to the table metadata
-    pub updates: Vec<TableUpdate>,
+    pub updates: Vec<IcebergTableUpdate>,
 }

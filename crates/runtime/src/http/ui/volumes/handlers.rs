@@ -31,7 +31,7 @@ use axum::{
     Json,
 };
 use embucket_metastore::error::MetastoreError;
-use embucket_metastore::models::IceBucketVolume;
+use embucket_metastore::models::IceBucketVolume as MetastoreVolume;
 use embucket_utils::list_config::ListConfig;
 use utoipa::OpenApi;
 use validator::Validate;
@@ -77,7 +77,7 @@ pub async fn create_volume(
     State(state): State<AppState>,
     Json(volume): Json<VolumeCreatePayload>,
 ) -> VolumesResult<Json<VolumeCreateResponse>> {
-    let icebucket_volume: IceBucketVolume = volume.data.into();
+    let icebucket_volume: MetastoreVolume = volume.data.into();
     icebucket_volume
         .validate()
         .map_err(|e| VolumesAPIError::Create {
@@ -175,7 +175,7 @@ pub async fn update_volume(
     Path(volume_name): Path<String>,
     Json(volume): Json<VolumeUpdatePayload>,
 ) -> VolumesResult<Json<VolumeUpdateResponse>> {
-    let volume: IceBucketVolume = volume.data.into();
+    let volume: MetastoreVolume = volume.data.into();
     volume.validate().map_err(|e| VolumesAPIError::Update {
         source: MetastoreError::Validation { source: e },
     })?;

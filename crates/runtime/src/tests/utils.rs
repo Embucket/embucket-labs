@@ -19,7 +19,8 @@ use std::sync::Arc;
 
 use crate::execution::{query::IceBucketQueryContext, session::IceBucketUserSession};
 use embucket_metastore::{
-    IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume, Metastore,
+    IceBucketDatabase as MetastoreDatabase, IceBucketSchema as MetastoreSchema,
+    IceBucketSchemaIdent as MetastoreSchemaIdent, IceBucketVolume as MetastoreVolume, Metastore,
     SlateDBMetastore,
 };
 
@@ -31,7 +32,7 @@ pub async fn create_df_session() -> Arc<IceBucketUserSession> {
     metastore
         .create_volume(
             &"test_volume".to_string(),
-            IceBucketVolume::new(
+            MetastoreVolume::new(
                 "test_volume".to_string(),
                 embucket_metastore::IceBucketVolumeType::Memory,
             ),
@@ -41,7 +42,7 @@ pub async fn create_df_session() -> Arc<IceBucketUserSession> {
     metastore
         .create_database(
             &"icebucket".to_string(),
-            IceBucketDatabase {
+            MetastoreDatabase {
                 ident: "icebucket".to_string(),
                 properties: None,
                 volume: "test_volume".to_string(),
@@ -49,14 +50,14 @@ pub async fn create_df_session() -> Arc<IceBucketUserSession> {
         )
         .await
         .expect("Failed to create database");
-    let schema_ident = IceBucketSchemaIdent {
+    let schema_ident = MetastoreSchemaIdent {
         database: "icebucket".to_string(),
         schema: "public".to_string(),
     };
     metastore
         .create_schema(
             &schema_ident.clone(),
-            IceBucketSchema {
+            MetastoreSchema {
                 ident: schema_ident,
                 properties: None,
             },

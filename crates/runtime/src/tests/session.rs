@@ -18,7 +18,8 @@
 use std::sync::Arc;
 
 use embucket_metastore::{
-    IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume, Metastore,
+    IceBucketDatabase as MetastoreDatabase, IceBucketSchema as MetastoreSchema,
+    IceBucketSchemaIdent as MetastoreSchemaIdent, IceBucketVolume as MetastoreVolume, Metastore,
     SlateDBMetastore,
 };
 
@@ -31,7 +32,7 @@ async fn test_create_table_and_insert() {
     metastore
         .create_volume(
             &"test_volume".to_string(),
-            IceBucketVolume::new(
+            MetastoreVolume::new(
                 "test_volume".to_string(),
                 embucket_metastore::IceBucketVolumeType::Memory,
             ),
@@ -41,7 +42,7 @@ async fn test_create_table_and_insert() {
     metastore
         .create_database(
             &"benchmark".to_string(),
-            IceBucketDatabase {
+            MetastoreDatabase {
                 ident: "benchmark".to_string(),
                 properties: None,
                 volume: "test_volume".to_string(),
@@ -49,14 +50,14 @@ async fn test_create_table_and_insert() {
         )
         .await
         .expect("Failed to create database");
-    let schema_ident = IceBucketSchemaIdent {
+    let schema_ident = MetastoreSchemaIdent {
         database: "benchmark".to_string(),
         schema: "public".to_string(),
     };
     metastore
         .create_schema(
             &schema_ident.clone(),
-            IceBucketSchema {
+            MetastoreSchema {
                 ident: schema_ident,
                 properties: None,
             },

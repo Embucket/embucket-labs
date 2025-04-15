@@ -16,9 +16,11 @@
 // under the License.
 
 use embucket_metastore::models::{
-    AwsCredentials, IceBucketFileVolume, IceBucketS3Volume, IceBucketVolume, IceBucketVolumeType,
+    AwsCredentials, IceBucketFileVolume as MetastoreFileVolume,
+    IceBucketS3Volume as MetastoreS3Volume, IceBucketVolume as MetastoreVolume,
+    IceBucketVolumeType as MetastoreVolumeType,
 };
-use embucket_metastore::IceBucketS3TablesVolume;
+use embucket_metastore::IceBucketS3TablesVolume as MetastoreS3TablesVolume;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -63,12 +65,12 @@ pub struct Volume {
     pub volume: VolumeType,
 }
 
-impl From<IceBucketVolume> for Volume {
-    fn from(volume: IceBucketVolume) -> Self {
+impl From<MetastoreVolume> for Volume {
+    fn from(volume: MetastoreVolume) -> Self {
         Self {
             name: volume.ident,
             volume: match volume.volume {
-                IceBucketVolumeType::S3(volume) => VolumeType::S3(S3Volume {
+                MetastoreVolumeType::S3(volume) => VolumeType::S3(S3Volume {
                     region: volume.region,
                     bucket: volume.bucket,
                     endpoint: volume.endpoint,
@@ -76,7 +78,7 @@ impl From<IceBucketVolume> for Volume {
                     metadata_endpoint: volume.metadata_endpoint,
                     credentials: volume.credentials,
                 }),
-                IceBucketVolumeType::S3Tables(volume) => VolumeType::S3Tables(S3TablesVolume {
+                MetastoreVolumeType::S3Tables(volume) => VolumeType::S3Tables(S3TablesVolume {
                     region: volume.region,
                     bucket: volume.bucket,
                     endpoint: volume.endpoint,
@@ -84,8 +86,8 @@ impl From<IceBucketVolume> for Volume {
                     name: volume.name,
                     arn: volume.arn,
                 }),
-                IceBucketVolumeType::File(file) => VolumeType::File(FileVolume { path: file.path }),
-                IceBucketVolumeType::Memory => VolumeType::Memory,
+                MetastoreVolumeType::File(file) => VolumeType::File(FileVolume { path: file.path }),
+                MetastoreVolumeType::Memory => VolumeType::Memory,
             },
         }
     }
@@ -93,12 +95,12 @@ impl From<IceBucketVolume> for Volume {
 
 // TODO: Remove it when found why it can't locate .into() if only From trait implemeted
 #[allow(clippy::from_over_into)]
-impl Into<IceBucketVolume> for Volume {
-    fn into(self) -> IceBucketVolume {
-        IceBucketVolume {
+impl Into<MetastoreVolume> for Volume {
+    fn into(self) -> MetastoreVolume {
+        MetastoreVolume {
             ident: self.name,
             volume: match self.volume {
-                VolumeType::S3(volume) => IceBucketVolumeType::S3(IceBucketS3Volume {
+                VolumeType::S3(volume) => MetastoreVolumeType::S3(MetastoreS3Volume {
                     region: volume.region,
                     bucket: volume.bucket,
                     endpoint: volume.endpoint,
@@ -107,7 +109,7 @@ impl Into<IceBucketVolume> for Volume {
                     credentials: volume.credentials,
                 }),
                 VolumeType::S3Tables(volume) => {
-                    IceBucketVolumeType::S3Tables(IceBucketS3TablesVolume {
+                    MetastoreVolumeType::S3Tables(MetastoreS3TablesVolume {
                         region: volume.region,
                         bucket: volume.bucket,
                         endpoint: volume.endpoint,
@@ -117,9 +119,9 @@ impl Into<IceBucketVolume> for Volume {
                     })
                 }
                 VolumeType::File(volume) => {
-                    IceBucketVolumeType::File(IceBucketFileVolume { path: volume.path })
+                    MetastoreVolumeType::File(MetastoreFileVolume { path: volume.path })
                 }
-                VolumeType::Memory => IceBucketVolumeType::Memory,
+                VolumeType::Memory => MetastoreVolumeType::Memory,
             },
         }
     }

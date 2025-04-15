@@ -17,7 +17,7 @@
 
 use crate::error::{MetastoreError, MetastoreResult};
 use iceberg_rust::{
-    catalog::commit::{TableRequirement, TableUpdate},
+    catalog::commit::{TableRequirement, TableUpdate as IcebergTableUpdate},
     spec::table_metadata::TableMetadata,
 };
 use iceberg_rust_spec::{
@@ -333,7 +333,7 @@ pub struct IceBucketTableUpdate {
     /// Commit will fail if the requirements are not met.
     pub requirements: Vec<TableRequirement>,
     /// The updates of the table.
-    pub updates: Vec<TableUpdate>,
+    pub updates: Vec<IcebergTableUpdate>,
 }
 
 pub struct TableRequirementExt(TableRequirement);

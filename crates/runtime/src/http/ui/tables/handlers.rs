@@ -37,7 +37,9 @@ use axum::{
 };
 use datafusion::arrow::csv::reader::Format;
 use embucket_metastore::error::MetastoreError;
-use embucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
+use embucket_metastore::{
+    IceBucketSchemaIdent as MetastoreSchemaIdent, IceBucketTableIdent as MetastoreTableIdent,
+};
 use embucket_utils::list_config::ListConfig;
 use snafu::ResultExt;
 use std::time::Instant;
@@ -94,7 +96,7 @@ pub async fn get_table_statistics(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> TablesResult<Json<TableStatisticsResponse>> {
-    let ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    let ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     match state.metastore.get_table(&ident).await {
         Ok(Some(rw_object)) => {
             let mut total_bytes = 0;
@@ -216,7 +218,7 @@ pub async fn get_table_preview_data(
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
     };
-    let ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    let ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     let column_names = match state.metastore.get_table(&ident).await {
         Ok(Some(rw_object)) => {
             if let Ok(schema) = rw_object.metadata.current_schema(None) {
@@ -338,7 +340,7 @@ pub async fn upload_file(
                 .execution_svc
                 .upload_data_to_table(
                     &session_id,
-                    &IceBucketTableIdent {
+                    &MetastoreTableIdent {
                         table: table_name.clone(),
                         schema: schema_name.clone(),
                         database: database_name.clone(),
@@ -392,7 +394,7 @@ pub async fn get_tables(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> TablesResult<Json<TablesResponse>> {
-    let ident = IceBucketSchemaIdent::new(database_name, schema_name);
+    let ident = MetastoreSchemaIdent::new(database_name, schema_name);
     state
         .metastore
         .list_tables(

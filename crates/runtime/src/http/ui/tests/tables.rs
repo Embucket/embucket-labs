@@ -27,8 +27,10 @@ use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{VolumeCreatePayload, VolumeCreateResponse};
 use crate::http::ui::worksheets::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
-use embucket_metastore::IceBucketVolumeType;
-use embucket_metastore::{IceBucketDatabase, IceBucketVolume};
+use embucket_metastore::IceBucketVolumeType as MetastoreVolumeType;
+use embucket_metastore::{
+    IceBucketDatabase as MetastoreDatabase, IceBucketVolume as MetastoreVolume,
+};
 use http::Method;
 use serde_json::json;
 
@@ -44,9 +46,9 @@ async fn test_ui_tables() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: IceBucketVolume {
+            data: MetastoreVolume {
                 ident: String::new(),
-                volume: IceBucketVolumeType::Memory,
+                volume: MetastoreVolumeType::Memory,
             }
             .into(),
         }),
@@ -56,7 +58,7 @@ async fn test_ui_tables() {
 
     let database_name = "test1".to_string();
     // Create database, Ok
-    let expected1 = IceBucketDatabase {
+    let expected1 = MetastoreDatabase {
         ident: database_name.clone(),
         properties: None,
         volume: volume.data.name.clone(),
