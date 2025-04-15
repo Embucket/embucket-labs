@@ -37,11 +37,7 @@ pub struct ListConfig {
 
 impl ListConfig {
     #[must_use]
-    pub const fn new(
-        cursor: Option<String>,
-        limit: Option<usize>,
-        token: Option<String>,
-    ) -> Self {
+    pub const fn new(cursor: Option<String>, limit: Option<usize>, token: Option<String>) -> Self {
         Self {
             cursor,
             limit,

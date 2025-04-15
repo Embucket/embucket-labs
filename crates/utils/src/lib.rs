@@ -159,14 +159,14 @@ impl Db {
         // from cursor to end (looking not from the start)
         // and from cursor to prefix (search without starting at the start and looking to the end (no full scan))
         // more info in `list_config` file
-        let start = list_config.starts_with.clone().map_or_else(
+        let start = list_config.token.clone().map_or_else(
             || format!("{key}/"),
             |search_prefix| format!("{key}/{search_prefix}"),
         );
         let start = list_config
             .cursor
             .map_or_else(|| start, |cursor| format!("{key}/{cursor}\x00"));
-        let end = list_config.starts_with.map_or_else(
+        let end = list_config.token.map_or_else(
             || format!("{key}/\x7F"),
             |search_prefix| format!("{key}/{search_prefix}\x7F"),
         );
