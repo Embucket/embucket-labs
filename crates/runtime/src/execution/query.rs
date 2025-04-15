@@ -404,7 +404,7 @@ impl IceBucketQuery {
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
-    // #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_table_query(
         &self,
         statement: Statement,
@@ -862,7 +862,7 @@ impl IceBucketQuery {
         created_entity_response()
     }
 
-    // #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn get_custom_logical_plan(&self, query: &str) -> ExecutionResult<LogicalPlan> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
