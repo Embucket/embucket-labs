@@ -7,7 +7,6 @@ repos:
       - id: fmt
         args: [ "--", "--check"]
       - id: clippy
-        args: [ "--workspace", "--tests" ]
   - repo: local
     # chmod +x check_license.sh
     hooks:

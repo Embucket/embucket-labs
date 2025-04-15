@@ -341,11 +341,11 @@ impl IceBucketQuery {
         )
     }
 
-    /// The code below relies on [Catalog] trait for different iceberg catalog
+    /// The code below relies on [`Catalog`] trait for different iceberg catalog
     /// implementations (REST, S3 table buckets, or anything else).
-    /// In case this is built-in datafusion's [MemoryCatalogProvider] we shortcut and rely on its implementation
+    /// In case this is built-in datafusion's [`MemoryCatalogProvider`] we shortcut and rely on its implementation
     /// to actually execute logical plan.
-    /// Otherwise, code tries to downcast catalog to [Catalog] and if successful,
+    /// Otherwise, code tries to downcast catalog to [`Catalog`] and if successful,
     /// return the catalog
     pub async fn resolve_iceberg_catalog_or_execute(
         &self,

@@ -73,6 +73,7 @@ impl IceBucketIcebergBridge {
         })
     }
 
+    #[must_use]
     pub fn ident(&self, identifier: &IcebergIdentifier) -> IceBucketTableIdent {
         IceBucketTableIdent {
             database: self.database.to_string(),
