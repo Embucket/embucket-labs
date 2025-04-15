@@ -36,7 +36,7 @@ pub struct Worksheet {
 
 impl Worksheet {
     #[must_use]
-    pub fn get_key(id: WorksheetId) -> Bytes {
+    pub fn get_key(id: Option<WorksheetId>) -> Bytes {
         Bytes::from(format!("/ws/{id}"))
     }
 

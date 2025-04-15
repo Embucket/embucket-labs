@@ -68,8 +68,11 @@ pub trait QueryRecordActions {
 
 impl QueryRecord {
     #[must_use]
-    pub fn get_key(worksheet_id: WorksheetId, id: QueryRecordId) -> Bytes {
-        Bytes::from(format!("/qh/{worksheet_id}/{id}"))
+    pub fn get_key(worksheet_id: Option<WorksheetId>, id: QueryRecordId) -> Bytes {
+        match worksheet_id {
+            Some(worksheet_id) => Bytes::from(format!("/qh/{worksheet_id}/{id}")),
+            None => Bytes::from(format!("/qh/other/{id}")), // other query history
+        }
     }
 }
 

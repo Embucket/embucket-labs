@@ -65,7 +65,7 @@ pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
     async fn add_query(&self, item: &QueryRecord) -> WorksheetsStoreResult<()>;
     async fn get_queries(
         &self,
-        worksheet_id: WorksheetId,
+        worksheet_id: Option<WorksheetId>,
         cursor: Option<i64>,
         limit: Option<u16>,
     ) -> WorksheetsStoreResult<Vec<QueryRecord>>;
@@ -166,7 +166,7 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 
     async fn get_queries(
         &self,
-        worksheet_id: WorksheetId,
+        worksheet_id: Option<WorksheetId>,
         cursor: Option<i64>,
         limit: Option<u16>,
     ) -> WorksheetsStoreResult<Vec<QueryRecord>> {
@@ -201,9 +201,9 @@ mod tests {
         // create worksheet first
         let worksheet = Worksheet::new(String::new(), String::new());
 
-        let n: u16 = 3;
+        let expected_count: u16 = 4;
         let mut created: Vec<QueryRecord> = vec![];
-        for i in 0..n {
+        for i in 0..expected_count {
             let ctx = MockQueryRecordActions::query_start_context();
             ctx.expect().returning(move |query, worksheet_id| {
                 let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
@@ -221,22 +221,45 @@ mod tests {
                     error: None,
                 }                 
             });
-            let mut item = MockQueryRecordActions::query_start(
-                format!("select {i}").as_str(),
-                Some(worksheet.id),
-            );
-            if i == 0 {
-                // 0 idx
-                item.query_finished(
-                    1,
-                    Some(String::from("pseudo result")),
-                );
+            match i {
+                0 => {
+                    // with worksheet, query OK
+                    let mut item = MockQueryRecordActions::query_start(
+                        format!("select {i}").as_str(),
+                        Some(worksheet.id),
+                    );                    
+                    item.query_finished(
+                        1,
+                        Some(String::from("pseudo result")),
+                    );
+                    created.push(item);
+                }
+                1 => {
+                    // with worksheet, query Error
+                    let mut item = MockQueryRecordActions::query_start(
+                        format!("select {i}").as_str(),
+                        Some(worksheet.id),
+                    );                    
+                    item.query_finished_with_error("Test query pseudo error".to_string());
+                    created.push(item);
+                }
+                2 => {
+                    // with worksheet, Query Running
+                    created.push(MockQueryRecordActions::query_start(
+                        format!("select {i}").as_str(),Some(worksheet.id),
+                    ));
+                }
+                _ => {
+                    // without worksheet, Query Running
+                    created.push(MockQueryRecordActions::query_start(
+                        format!("select {i}").as_str(),None,
+                    ));
+                    // just break as we tested all cases
+                    break;
+                }
             }
-            else if i == 1 {
-                item.query_finished_with_error("Test query pseudo error".to_string());
-            }
-            // i==2 has QueryStatus::Running
-            created.push(item.clone());
+            
+            let item = created.last().expect("No item added");
             eprintln!("added {:?}", item.key());
             db.add_query(&item).await.unwrap();
         }
@@ -244,14 +267,22 @@ mod tests {
         let cursor = <QueryRecord as IterableEntity>::Cursor::CURSOR_MIN;
         eprintln!("cursor: {cursor}");
         let retrieved = db
-            .get_queries(worksheet.id, Some(cursor), Some(10))
+            .get_queries(Some(worksheet.id), Some(cursor), Some(10))
             .await
             .unwrap();
-        for item in &retrieved {
-            eprintln!("retrieved: {:?}", item.key());
-        }
+        // queries belong to worksheet
+        assert_eq!(3, retrieved.len());
 
-        assert_eq!(usize::from(n), retrieved.len());
-        assert_eq!(created, retrieved);
+        let retrieved_all = db
+            .get_queries(None, Some(cursor), Some(10))
+            .await
+            .unwrap();
+        // all queries
+        assert_eq!(usize::from(expected_count), retrieved_all.len());
+
+        for item in &retrieved_all {
+            eprintln!("retrieved_all: {:?}", item.key());
+        }
+        assert_eq!(created, retrieved_all);
     }
 }
