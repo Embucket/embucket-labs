@@ -18,8 +18,8 @@
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::queries::models::{
-    ExecutionContext, GetQueriesParams, PostQueriesParams, QueriesResponse, QueryCreatePayload,
-    QueryCreateResponse, QueryRecord, ResultSet,
+    ExecutionContext, GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse,
+    QueryRecord, ResultSet,
 };
 use crate::http::{
     error::ErrorResponse,
@@ -49,9 +49,6 @@ pub struct ApiDoc;
     path = "/ui/queries",
     operation_id = "createQuery",
     tags = ["queries"],
-    params(
-        ("worksheet_id" = Option<WorksheetId>, Query, description = "Worksheet id"),
-    ),
     request_body(
         content(
             (
@@ -59,6 +56,7 @@ pub struct ApiDoc;
                 examples (
                     ("with context" = (
                         value = json!(QueryCreatePayload {
+                            worksheet_id: None,
                             query: "CREATE TABLE test(a INT);".to_string(),
                             context: Some(HashMap::from([
                                 ("database".to_string(), "my_database".to_string()),
@@ -68,6 +66,7 @@ pub struct ApiDoc;
                     )),
                     ("with fully qualified name" = (
                         value = json!(QueryCreatePayload {
+                            worksheet_id: None,
                             query: "CREATE TABLE my_database.public.test(a INT);".to_string(),
                             context: None,
                         })
@@ -87,8 +86,7 @@ pub struct ApiDoc;
 pub async fn query(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
-    Query(params): Query<PostQueriesParams>,
-    Json(request): Json<QueryCreatePayload>,
+    Json(payload): Json<QueryCreatePayload>,
 ) -> QueriesResult<Json<QueryCreateResponse>> {
     //
     // Note: This handler allowed to return error from a designated place only,
@@ -96,25 +94,25 @@ pub async fn query(
 
     // Here we use worksheet_id = 0 if worksheet_id is not defined,
     // we still can get queries records for non existing worksheet
-    let worksheet_id = params.worksheet_id.unwrap_or_default();
+    let worksheet_id = payload.worksheet_id.unwrap_or_default();
 
     let query_context = ExecutionContext {
-        database: request
+        database: payload
             .context
             .as_ref()
             .and_then(|c| c.get("database").cloned()),
-        schema: request
+        schema: payload
             .context
             .as_ref()
             .and_then(|c| c.get("schema").cloned()),
     };
 
     // TODO: save query record even if no related worksheet
-    let mut query_record = QueryRecordItem::query_start(worksheet_id, &request.query, None);
+    let mut query_record = QueryRecordItem::query_start(worksheet_id, &payload.query, None);
 
     let query_res = state
         .execution_svc
-        .query(&session_id, &request.query, query_context)
+        .query(&session_id, &payload.query, query_context)
         .await;
 
     match query_res {
@@ -170,7 +168,7 @@ pub async fn query(
     operation_id = "getQueries",
     tags = ["queries"],
     params(
-        ("worksheet_id" = Option<WorksheetId>, Query, description = "Worksheet id"),
+        ("worksheetId" = Option<WorksheetId>, Query, description = "Worksheet id"),
         ("cursor" = Option<QueryRecordId>, Query, description = "Cursor"),
         ("limit" = Option<u16>, Query, description = "Queries limit"),
     ),

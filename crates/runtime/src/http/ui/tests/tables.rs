@@ -106,6 +106,7 @@ async fn test_ui_tables() {
     let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
 
     let query_payload = QueryCreatePayload {
+        worksheet_id: Some(worksheet.id),
         query: format!(
             "create TABLE {}.{}.{}
         external_volume = ''
@@ -128,7 +129,7 @@ async fn test_ui_tables() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries"),
         json!(query_payload).to_string(),
     )
     .await
@@ -136,6 +137,7 @@ async fn test_ui_tables() {
     assert_eq!(http::StatusCode::OK, res.status());
 
     let query_payload = QueryCreatePayload {
+        worksheet_id: Some(worksheet.id),
         query: format!(
             "INSERT INTO {}.{}.{} (APP_ID, PLATFORM, EVENT, TXN_ID, EVENT_TIME)
         VALUES ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
@@ -150,7 +152,7 @@ async fn test_ui_tables() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries"),
         json!(query_payload).to_string(),
     )
     .await
@@ -237,6 +239,7 @@ async fn test_ui_tables() {
 
     //Create three more tables
     let query_payload = QueryCreatePayload {
+        worksheet_id: Some(worksheet.id),
         query: format!(
             "create TABLE {}.{}.{}
         external_volume = ''
@@ -259,7 +262,7 @@ async fn test_ui_tables() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries"),
         json!(query_payload).to_string(),
     )
     .await
@@ -267,6 +270,7 @@ async fn test_ui_tables() {
     assert_eq!(http::StatusCode::OK, res.status());
 
     let query_payload = QueryCreatePayload {
+        worksheet_id: Some(worksheet.id),
         query: format!(
             "create TABLE {}.{}.{}
         external_volume = ''
@@ -289,7 +293,7 @@ async fn test_ui_tables() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries"),
         json!(query_payload).to_string(),
     )
     .await
@@ -297,6 +301,7 @@ async fn test_ui_tables() {
     assert_eq!(http::StatusCode::OK, res.status());
 
     let query_payload = QueryCreatePayload {
+        worksheet_id: Some(worksheet.id),
         query: format!(
             "create TABLE {}.{}.{}
         external_volume = ''
@@ -319,7 +324,7 @@ async fn test_ui_tables() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries"),
         json!(query_payload).to_string(),
     )
     .await
@@ -385,6 +390,7 @@ async fn test_ui_tables() {
 
     //Create a table with another name
     let query_payload = QueryCreatePayload {
+        worksheet_id: Some(worksheet.id),
         query: format!(
             "create TABLE {}.{}.{}
         external_volume = ''
@@ -407,7 +413,7 @@ async fn test_ui_tables() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries"),
         json!(query_payload).to_string(),
     )
     .await

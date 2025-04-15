@@ -101,6 +101,7 @@ impl TryFrom<&str> for ResultSet {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryCreatePayload {
+    pub worksheet_id: Option<WorksheetId>,
     pub query: String,
     pub context: Option<HashMap<String, String>>,
 }
@@ -165,13 +166,9 @@ pub struct QueriesResponse {
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema, utoipa::IntoParams)]
+#[serde(rename_all = "camelCase")]
 pub struct GetQueriesParams {
     pub worksheet_id: Option<WorksheetId>,
     pub cursor: Option<QueryRecordId>,
     pub limit: Option<u16>,
-}
-
-#[derive(Debug, Deserialize, utoipa::ToSchema, utoipa::IntoParams)]
-pub struct PostQueriesParams {
-    pub worksheet_id: Option<WorksheetId>,
 }

@@ -37,21 +37,22 @@ async fn test_ui_queries_no_worksheet() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", 0),
+        &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
+            worksheet_id: Some(0),
             query: "SELECT 1".to_string(),
             context: None,
         })
         .to_string(),
     )
     .await
-    .unwrap();
+    .expect("Create query error");
     assert_eq!(http::StatusCode::OK, res.status());
 
     let res = req(
         &client,
         Method::GET,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", 0),
+        &format!("http://{addr}/ui/queries?worksheetId={}", 0),
         String::new(),
     )
     .await
@@ -87,7 +88,7 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::DELETE,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries?worksheetId={}", worksheet.id),
         String::new(),
     )
     .await
@@ -98,7 +99,7 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", 0),
+        &format!("http://{addr}/ui/queries"),
         String::new(),
     )
     .await
@@ -108,15 +109,16 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
+            worksheet_id: Some(worksheet.id),
             query: "SELECT 1, 2".to_string(),
             context: None,
         })
         .to_string(),
     )
     .await
-    .unwrap();
+    .expect("Create query error");
     //println!("{:?}", res.bytes().await);
 
     let query_run_resp = res.json::<QueryCreateResponse>().await.unwrap();
@@ -142,15 +144,16 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
+            worksheet_id: Some(worksheet.id),
             query: "SELECT 2".to_string(),
             context: None,
         })
         .to_string(),
     )
     .await
-    .unwrap();
+    .expect("Create query error");
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
     let query_run_resp2 = res.json::<QueryCreateResponse>().await.unwrap();
@@ -170,8 +173,9 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
+            worksheet_id: Some(worksheet.id),
             query: "SELECT foo".to_string(),
             context: None,
         })
@@ -187,15 +191,16 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
+            worksheet_id: Some(worksheet.id),
             query: "SELECT foo".to_string(),
             context: None,
         })
         .to_string(),
     )
     .await
-    .unwrap();
+    .expect("Create query error");
     // println!("err resp: {:?}", res.text().await.expect("Can't get response text"));
     assert_eq!(http::StatusCode::UNPROCESSABLE_ENTITY, res.status());
     let err = res.json::<ErrorResponse>().await.unwrap();
@@ -205,11 +210,11 @@ async fn test_ui_queries() {
     let res = req(
         &client,
         Method::GET,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries?worksheetId={}", worksheet.id),
         String::new(),
     )
     .await
-    .unwrap();
+    .expect("Error getting queries");
     assert_eq!(http::StatusCode::OK, res.status());
     // println!("{:?}", res.bytes().await);
     let history_resp = res.json::<QueriesResponse>().await.unwrap();
@@ -220,7 +225,7 @@ async fn test_ui_queries() {
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/queries?worksheet_id={}&limit=2",
+            "http://{addr}/ui/queries?worksheetId={}&limit=2",
             worksheet.id
         ),
         String::new(),
@@ -241,7 +246,7 @@ async fn test_ui_queries() {
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/queries?worksheet_id={}&cursor={}",
+            "http://{addr}/ui/queries?worksheetId={}&cursor={}",
             worksheet.id, history_resp.next_cursor
         ),
         String::new(),

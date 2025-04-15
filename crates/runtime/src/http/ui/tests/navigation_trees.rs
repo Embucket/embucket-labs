@@ -148,6 +148,7 @@ async fn test_ui_databases_navigation() {
     let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
 
     let query_payload = QueryCreatePayload {
+        worksheet_id: Some(worksheet.id),
         query: format!(
             "create or replace Iceberg TABLE {}.{}.{}
         external_volume = ''
@@ -171,7 +172,7 @@ async fn test_ui_databases_navigation() {
     let res = req(
         &client,
         Method::POST,
-        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        &format!("http://{addr}/ui/queries"),
         json!(query_payload).to_string(),
     )
     .await
