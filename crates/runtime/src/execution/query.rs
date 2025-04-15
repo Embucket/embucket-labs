@@ -453,6 +453,12 @@ impl IceBucketQuery {
         Ok(res)
     }
 
+    /// The code below relies on iceberg_rust::catalog::Catalog trait for different iceberg catalog
+    /// implementations (REST, S3 table buckets, or anything else).
+    /// In case this is built-in datafusion's MemoryCatalog we shortcut and execute logical plan
+    /// and rely on its implementation to actually create a table.
+    /// Otherwise, code tries to downcast catalog to iceberg_rust::catalog::Catalog and if successful,
+    /// calls its API to call external Iceberg catalog to do the job with CreateTableBuilder.build().
     #[allow(unused_variables)]
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_iceberg_table(
