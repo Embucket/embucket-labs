@@ -46,11 +46,11 @@ pub struct ApiDoc;
 
 #[utoipa::path(
     post,
-    path = "/queries",
+    path = "/ui/queries",
     operation_id = "createQuery",
     tags = ["queries"],
     params(
-        ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
+        ("worksheet_id" = Option<WorksheetId>, Query, description = "Worksheet id"),
     ),
     request_body(
         content(
@@ -64,6 +64,12 @@ pub struct ApiDoc;
                                 ("database".to_string(), "my_database".to_string()),
                                 ("schema".to_string(), "public".to_string()),
                             ])),
+                        })
+                    )),
+                    ("with fully qualified name" = (
+                        value = json!(QueryCreatePayload {
+                            query: "CREATE TABLE my_database.public.test(a INT);".to_string(),
+                            context: None,
                         })
                     )),
                 )
@@ -160,11 +166,11 @@ pub async fn query(
 
 #[utoipa::path(
     get,
-    path = "/queries",
+    path = "/ui/queries",
     operation_id = "getQueries",
     tags = ["queries"],
     params(
-        ("worksheet_id" = WorksheetId, Path, description = "Worksheet id"),
+        ("worksheet_id" = Option<WorksheetId>, Query, description = "Worksheet id"),
         ("cursor" = Option<QueryRecordId>, Query, description = "Cursor"),
         ("limit" = Option<u16>, Query, description = "Queries limit"),
     ),

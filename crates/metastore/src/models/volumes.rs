@@ -86,11 +86,33 @@ pub struct IceBucketS3Volume {
 #[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct IceBucketS3TablesVolume {
-    pub volume: IceBucketS3Volume,
-    #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
-    pub catalog: Option<String>,
     #[validate(length(min = 1))]
-    pub arn: Option<String>,
+    pub region: String,
+    #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
+    pub bucket: Option<String>,
+    #[validate(length(min = 1))]
+    pub endpoint: String,
+    #[validate(nested)]
+    pub credentials: AwsCredentials,
+    #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
+    pub name: String,
+    #[validate(length(min = 1))]
+    pub arn: String,
+}
+
+impl IceBucketS3TablesVolume {
+    #[must_use]
+    pub fn s3_builder(&self) -> AmazonS3Builder {
+        let s3_volume = IceBucketS3Volume {
+            region: Some(self.region.clone()),
+            bucket: Some(self.name.clone()),
+            endpoint: Some(self.endpoint.clone()),
+            skip_signature: None,
+            metadata_endpoint: None,
+            credentials: Some(self.credentials.clone()),
+        };
+        IceBucketVolume::get_s3_builder(&s3_volume)
+    }
 }
 
 fn validate_bucket_name(bucket_name: &str) -> Result<(), ValidationError> {
@@ -169,7 +191,7 @@ impl IceBucketVolume {
                     .context(metastore_error::ObjectStoreSnafu)
             }
             IceBucketVolumeType::S3Tables(volume) => {
-                let s3_builder = Self::get_s3_builder(&volume.volume);
+                let s3_builder = volume.s3_builder();
                 s3_builder
                     .build()
                     .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
@@ -228,7 +250,6 @@ impl IceBucketVolume {
                 .as_ref()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
             IceBucketVolumeType::S3Tables(volume) => volume
-                .volume
                 .bucket
                 .as_ref()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
