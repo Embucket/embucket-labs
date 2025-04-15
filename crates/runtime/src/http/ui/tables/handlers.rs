@@ -23,7 +23,11 @@ use crate::http::ui::tables::error::{
     CreateUploadSnafu, MalformedMultipartFileDataSnafu, MalformedMultipartSnafu, TableError,
     TablesAPIError, TablesResult,
 };
-use crate::http::ui::tables::models::{Table, TableColumn, TableColumnsResponse, TablePreviewDataColumn, TablePreviewDataParameters, TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse, TableUploadPayload, TableUploadResponse, TablesParameters, TablesResponse, UploadParameters};
+use crate::http::ui::tables::models::{
+    Table, TableColumn, TableColumnsResponse, TablePreviewDataColumn, TablePreviewDataParameters,
+    TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
+    TableUploadPayload, TableUploadResponse, TablesParameters, TablesResponse, UploadParameters,
+};
 use arrow_array::{Array, StringArray};
 use axum::extract::Query;
 use axum::{
@@ -41,7 +45,7 @@ use utoipa::OpenApi;
 #[openapi(
     paths(
         get_table_statistics,
-        get_table_columns_info,
+        get_table_columns,
         get_table_preview_data,
         upload_file,
     ),
@@ -135,7 +139,7 @@ pub async fn get_table_statistics(
         ("schemaName" = String, description = "Schema Name"),
         ("tableName" = String, description = "Table Name")
     ),
-    operation_id = "getTableColumnsInfo",
+    operation_id = "getTableColumns",
     tags = ["tables"],
     responses(
         (status = 200, description = "Successful Response", body = TableColumnsResponse),
@@ -145,7 +149,7 @@ pub async fn get_table_statistics(
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
-pub async fn get_table_columns_info(
+pub async fn get_table_columns(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,

@@ -21,7 +21,7 @@ use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::queries::models::QueryCreatePayload;
 use crate::http::ui::schemas::models::SchemaCreatePayload;
 use crate::http::ui::tables::models::{
-    TableColumnsInfoResponse, TablePreviewDataResponse, TableStatisticsResponse, TablesResponse,
+    TableColumnsResponse, TablePreviewDataResponse, TableStatisticsResponse, TablesResponse,
 };
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{VolumeCreatePayload, VolumeCreateResponse};
@@ -171,7 +171,7 @@ async fn test_ui_tables() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let table: TableColumnsInfoResponse = res.json().await.unwrap();
+    let table: TableColumnsResponse = res.json().await.unwrap();
     assert_eq!(5, table.items.len());
 
     //table preview data
