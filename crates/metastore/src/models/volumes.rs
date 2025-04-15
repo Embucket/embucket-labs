@@ -101,6 +101,7 @@ pub struct IceBucketS3TablesVolume {
 }
 
 impl IceBucketS3TablesVolume {
+    #[must_use]
     pub fn s3_builder(&self) -> AmazonS3Builder {
         let s3_volume = IceBucketS3Volume {
             region: Some(self.region.clone()),
