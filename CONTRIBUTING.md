@@ -1,5 +1,5 @@
 # Contributing
-IceBucket is a streamlined solution for building and managing an open lakehouse platform based on the Apache Iceberg open table format. This project is designed to be radically simple, focusing on ease of deployment, operation, and maintenance.
+Embucket is a streamlined solution for building and managing an open lakehouse platform based on the Apache Iceberg open table format. This project is designed to be radically simple, focusing on ease of deployment, operation, and maintenance.
 
 
 When contributing to this repository, please first discuss the change you wish to make via issue, email, or any other method with the owners of this repository before making a change.
