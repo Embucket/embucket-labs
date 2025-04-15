@@ -1542,16 +1542,15 @@ impl IceBucketQuery {
         &self,
         mut schema_ident: Vec<Ident>,
     ) -> ExecutionResult<NormalizedIdent> {
-        let database = self.current_database();
         if schema_ident.len() == 1 {
-            if let Some(database) = database {
+            if let Some(database) = self.current_database() {
                 schema_ident.insert(0, Ident::new(database));
             } else {
                 return Err(ExecutionError::InvalidSchemaIdentifier {
                     ident: NormalizedIdent(schema_ident).to_string(),
                 });
             }
-        } else {
+        } else if schema_ident.len() > 2 {
             return Err(ExecutionError::InvalidSchemaIdentifier {
                 ident: NormalizedIdent(schema_ident).to_string(),
             });

@@ -40,6 +40,12 @@ impl IceBucketSchemaIdent {
     }
 }
 
+impl std::fmt::Display for IceBucketSchemaIdent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.database, self.schema)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema)]
 pub struct IceBucketSchema {
     pub ident: IceBucketSchemaIdent,

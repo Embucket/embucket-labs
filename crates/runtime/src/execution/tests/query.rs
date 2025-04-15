@@ -302,7 +302,7 @@ async fn test_context_name_injection() {
 
 #[tokio::test]
 async fn test_create_table_with_timestamp_nanosecond() {
-    let (execution_svc, session_id) = prepare_env().await;
+    let (execution_svc, _, session_id) = prepare_env().await;
     let table_ident = IceBucketTableIdent {
         database: "icebucket".to_string(),
         schema: "public".to_string(),
@@ -329,7 +329,7 @@ async fn test_create_table_with_timestamp_nanosecond() {
 
 #[tokio::test]
 async fn test_drop_table() {
-    let (execution_svc, session_id) = prepare_env().await;
+    let (execution_svc, _, session_id) = prepare_env().await;
     let table_ident = IceBucketTableIdent {
         database: "icebucket".to_string(),
         schema: "public".to_string(),
@@ -374,7 +374,26 @@ async fn test_drop_table() {
     }
 }
 
-async fn prepare_env() -> (ExecutionService, String) {
+#[tokio::test]
+async fn create_schema() {
+    let (execution_svc, metastore, session_id) = prepare_env().await;
+    let schema_ident = IceBucketSchemaIdent {
+        database: "icebucket".to_string(),
+        schema: "public_new".to_string(),
+    };
+    let query = format!("CREATE SCHEMA {schema_ident};");
+    execution_svc
+        .query(&session_id, &query, IceBucketQueryContext::default())
+        .await
+        .expect("Failed to execute query");
+    // TODO use "SHOW SCHEMAS" sql
+    metastore
+        .get_schema(&schema_ident)
+        .await
+        .expect("Failed to get schema");
+}
+
+async fn prepare_env() -> (ExecutionService, Arc<SlateDBMetastore>, String) {
     let metastore = SlateDBMetastore::new_in_memory().await;
     metastore
         .create_volume(
@@ -424,5 +443,5 @@ async fn prepare_env() -> (ExecutionService, String) {
         .create_session(session_id.to_string())
         .await
         .expect("Failed to create session");
-    (execution_svc, session_id.to_string())
+    (execution_svc, metastore, session_id.to_string())
 }
