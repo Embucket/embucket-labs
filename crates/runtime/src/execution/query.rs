@@ -30,7 +30,6 @@ use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableWithJoins,
 };
-use datafusion_common::tree_node::{TransformedResult, TreeNode};
 use datafusion_common::{DataFusionError, ResolvedTableReference, TableReference};
 use datafusion_expr::logical_plan::dml::DmlStatement;
 use datafusion_expr::logical_plan::dml::InsertOp;
@@ -38,8 +37,8 @@ use datafusion_expr::logical_plan::dml::WriteOp;
 use datafusion_expr::CreateMemoryTable;
 use datafusion_expr::DdlStatement;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
-use datafusion_iceberg::planner::iceberg_transform;
 use iceberg_rust::catalog::create::CreateTableBuilder;
+use iceberg_rust::catalog::Catalog;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
@@ -86,6 +85,11 @@ pub struct IceBucketQuery {
     pub query: String,
     pub session: Arc<IceBucketUserSession>,
     pub query_context: IceBucketQueryContext,
+}
+
+pub enum IcebergCatalogResult {
+    Catalog(Arc<dyn Catalog>),
+    Result(ExecutionResult<Vec<RecordBatch>>),
 }
 
 impl IceBucketQuery {
@@ -285,7 +289,7 @@ impl IceBucketQuery {
                     return Box::pin(self.execute_with_custom_plan(&subquery.to_string())).await;
                 }
                 Statement::Drop { .. } => {
-                    let result = Box::pin(self.drop_query(&self.query)).await;
+                    let result = Box::pin(self.drop_query(*s)).await;
                     self.refresh_catalog().await?;
                     return result;
                 }
@@ -308,7 +312,7 @@ impl IceBucketQuery {
     #[must_use]
     #[allow(clippy::unwrap_used)]
     #[tracing::instrument(level = "trace", ret)]
-    pub(super) fn preprocess_query(query: &str) -> String {
+    pub fn preprocess_query(query: &str) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         // TODO: This regex should be a static allocation
         let re = regex::Regex::new(r"(\w+.\w+)\[(\d+)][:\.](\w+)").unwrap();
@@ -329,8 +333,78 @@ impl IceBucketQuery {
             .replace("FROM @~/", "FROM ")
     }
 
-    #[allow(clippy::redundant_else, clippy::too_many_lines)]
+    pub fn get_catalog(&self, name: &str) -> ExecutionResult<Arc<dyn CatalogProvider>> {
+        self.session.ctx.state().catalog_list().catalog(name).ok_or(
+            ExecutionError::CatalogNotFound {
+                catalog: name.to_string(),
+            },
+        )
+    }
+
+    /// The code below relies on [Catalog] trait for different iceberg catalog
+    /// implementations (REST, S3 table buckets, or anything else).
+    /// In case this is built-in datafusion's [MemoryCatalogProvider] we shortcut and rely on its implementation
+    /// to actually execute logical plan.
+    /// Otherwise, code tries to downcast catalog to [Catalog] and if successful,
+    /// return the catalog
+    pub async fn resolve_iceberg_catalog_or_execute(
+        &self,
+        catalog: Arc<dyn CatalogProvider>,
+        plan: LogicalPlan,
+    ) -> IcebergCatalogResult {
+        if let Some(iceberg_catalog) = catalog.as_any().downcast_ref::<IcebergCatalog>() {
+            IcebergCatalogResult::Catalog(iceberg_catalog.catalog())
+        } else if let Some(icebucket_catalog) =
+            catalog.as_any().downcast_ref::<IceBucketDFCatalog>()
+        {
+            IcebergCatalogResult::Catalog(icebucket_catalog.catalog())
+        } else if catalog
+            .as_any()
+            .downcast_ref::<MemoryCatalogProvider>()
+            .is_some()
+        {
+            let result = self.execute_logical_plan(plan).await;
+            IcebergCatalogResult::Result(result)
+        } else {
+            IcebergCatalogResult::Result(Err(ExecutionError::CatalogNotFound {
+                catalog: "invalid catalog type".to_string(),
+            }))
+        }
+    }
+
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    pub async fn drop_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
+        let Statement::Drop { names, .. } = statement.clone() else {
+            return Err(ExecutionError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only DROP statements are supported".to_string(),
+                ),
+            });
+        };
+        let ident: IceBucketTableIdent = self.resolve_table_ident(names[0].0.clone())?.into();
+        let plan = self.sql_statement_to_plan(statement).await?;
+        let catalog = self.get_catalog(ident.database.as_str())?;
+        let iceberg_catalog = match self
+            .resolve_iceberg_catalog_or_execute(catalog, plan.clone())
+            .await
+        {
+            IcebergCatalogResult::Catalog(catalog) => catalog,
+            IcebergCatalogResult::Result(result) => {
+                return match result {
+                    Ok(_) => Ok(vec![]),
+                    Err(err) => Err(err),
+                }
+            }
+        };
+        iceberg_catalog
+            .drop_table(&ident.to_iceberg_ident())
+            .await
+            .context(ex_error::IcebergSnafu)?;
+        Ok(vec![])
+    }
+
+    #[allow(clippy::redundant_else, clippy::too_many_lines)]
+    // #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_table_query(
         &self,
         statement: Statement,
@@ -354,65 +428,37 @@ impl IceBucketQuery {
         if let Some(ref mut query) = create_table_statement.query {
             self.update_qualify_in_query(query);
         }
-
-        let tables = self
-            .table_references_for_statement(
-                &DFStatement::Statement(Box::new(Statement::CreateTable(
-                    create_table_statement.clone(),
-                ))),
-                &self.session.ctx.state(),
-            )
-            .await?;
-        let ctx_provider = SessionContextProvider {
-            state: &self.session.ctx.state(),
-            tables,
-        };
-        let planner =
-            ExtendedSqlToRel::new(&ctx_provider, self.session.ctx.state().get_parser_options());
-        let plan = planner
+        let plan = self
             .sql_statement_to_plan(Statement::CreateTable(create_table_statement.clone()))
-            .context(super::error::DataFusionSnafu)?;
+            .await?;
 
         // Check if it already exists, if it is - drop it
         // For now we behave as CREATE OR REPLACE
         // TODO support CREATE without REPLACE
-        let ib_table_ident: IceBucketTableIdent = new_table_ident.into();
+        let ident: IceBucketTableIdent = new_table_ident.into();
 
-        let catalog = self
-            .session
-            .ctx
-            .state()
-            .catalog_list()
-            .catalog(ib_table_ident.database.as_str())
-            .ok_or(ExecutionError::CatalogNotFound {
-                catalog: ib_table_ident.database.clone(),
-            })?;
-        let schema_provider = catalog.schema(ib_table_ident.schema.as_str()).ok_or(
-            ExecutionError::SchemaNotFound {
-                schema: ib_table_ident.schema.clone(),
-            },
-        )?;
+        let catalog = self.get_catalog(ident.database.as_str())?;
+        let schema_provider =
+            catalog
+                .schema(ident.schema.as_str())
+                .ok_or(ExecutionError::SchemaNotFound {
+                    schema: ident.schema.clone(),
+                })?;
 
-        let table_exists = schema_provider.table_exist(ib_table_ident.table.as_str());
-
+        let table_exists = schema_provider.table_exist(ident.table.as_str());
         if table_exists && create_table_statement.or_replace {
             schema_provider
-                .deregister_table(&ib_table_ident.table)
+                .deregister_table(&ident.table)
                 .context(ex_error::DataFusionSnafu)?;
         } else if table_exists && create_table_statement.if_not_exists {
             return Err(ExecutionError::ObjectAlreadyExists {
                 type_name: "table".to_string(),
-                name: ib_table_ident.to_string(),
+                name: ident.to_string(),
             });
         }
 
-        self.create_iceberg_table(
-            catalog,
-            table_location,
-            ib_table_ident.clone(),
-            plan.clone(),
-        )
-        .await?;
+        self.create_iceberg_table(catalog, table_location, ident.clone(), plan.clone())
+            .await?;
 
         // Now we have created table in the metastore, we need to register it in the catalog
         self.refresh_catalog().await?;
@@ -436,29 +482,9 @@ impl IceBucketQuery {
             ));
             return self.execute_logical_plan(insert_plan).await;
         }
-
         created_entity_response()
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
-    pub async fn drop_query(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
-        // TODO: Parse the query so that the table names can be normalized
-
-        let plan = self.get_custom_logical_plan(query).await?;
-        let transformed = plan
-            .transform(iceberg_transform)
-            .data()
-            .context(ex_error::DataFusionSnafu)?;
-        let res = self.execute_logical_plan(transformed).await?;
-        Ok(res)
-    }
-
-    /// The code below relies on iceberg_rust::catalog::Catalog trait for different iceberg catalog
-    /// implementations (REST, S3 table buckets, or anything else).
-    /// In case this is built-in datafusion's MemoryCatalog we shortcut and execute logical plan
-    /// and rely on its implementation to actually create a table.
-    /// Otherwise, code tries to downcast catalog to iceberg_rust::catalog::Catalog and if successful,
-    /// calls its API to call external Iceberg catalog to do the job with CreateTableBuilder.build().
     #[allow(unused_variables)]
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_iceberg_table(
@@ -468,26 +494,18 @@ impl IceBucketQuery {
         ident: IceBucketTableIdent,
         plan: LogicalPlan,
     ) -> ExecutionResult<()> {
-        let iceberg_catalog =
-            if let Some(external_catalog) = catalog.as_any().downcast_ref::<IcebergCatalog>() {
-                Ok(external_catalog.catalog())
-            } else if let Some(icebucket_catalog) =
-                catalog.as_any().downcast_ref::<IceBucketDFCatalog>()
-            {
-                Ok(icebucket_catalog.catalog())
-            } else if catalog
-                .as_any()
-                .downcast_ref::<MemoryCatalogProvider>()
-                .is_some()
-            {
-                self.execute_logical_plan(plan).await?;
-                return Ok(());
-            } else {
-                return Err(ExecutionError::CatalogNotFound {
-                    catalog: "invalid type of catalog, expect iceberg or icebucket".to_string(),
-                });
-            }?;
-
+        let iceberg_catalog = match self
+            .resolve_iceberg_catalog_or_execute(catalog, plan.clone())
+            .await
+        {
+            IcebergCatalogResult::Catalog(catalog) => catalog,
+            IcebergCatalogResult::Result(result) => {
+                return match result {
+                    Ok(_) => Ok(()),
+                    Err(err) => Err(err),
+                }
+            }
+        };
         let fields_with_ids = StructType::try_from(&new_fields_with_ids(
             plan.schema().as_arrow().fields(),
             &mut 0,
@@ -575,222 +593,221 @@ impl IceBucketQuery {
     /// - We don't need to create table in case we have common shared session context.
     ///   CSV is registered as a table which can referenced from SQL statements executed against this context
     /// - Revisit this with the new metastore approach
-    pub(super) async fn create_stage_query(
+    pub async fn create_stage_query(
         &self,
         statement: Statement,
     ) -> ExecutionResult<Vec<RecordBatch>> {
-        if let Statement::CreateStage {
+        let Statement::CreateStage {
             name,
             stage_params,
             file_format,
             ..
         } = statement
-        {
-            let table_name = name
-                .0
-                .last()
-                .ok_or_else(|| ExecutionError::InvalidTableIdentifier {
-                    ident: name.to_string(),
-                })?
-                .clone();
-
-            let skip_header = file_format.options.iter().any(|option| {
-                option.option_name.eq_ignore_ascii_case("skip_header")
-                    && option.value.eq_ignore_ascii_case("true")
-            });
-
-            let field_optionally_enclosed_by = file_format
-                .options
-                .iter()
-                .find_map(|option| {
-                    if option
-                        .option_name
-                        .eq_ignore_ascii_case("field_optionally_enclosed_by")
-                    {
-                        Some(option.value.as_bytes()[0])
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or(b'"');
-
-            let file_path = stage_params.url.unwrap_or_default();
-            let url =
-                Url::parse(file_path.as_str()).map_err(|_| ExecutionError::InvalidFilePath {
-                    path: file_path.clone(),
-                })?;
-            let bucket = url.host_str().unwrap_or_default();
-            // TODO Replace this with the new metastore volume approach
-            let s3 = AmazonS3Builder::from_env()
-                // TODO Get region automatically from the Volume
-                .with_region("eu-central-1")
-                .with_bucket_name(bucket)
-                .build()
-                .map_err(|_| ExecutionError::InvalidBucketIdentifier {
-                    ident: bucket.to_string(),
-                })?;
-
-            self.session.ctx.register_object_store(&url, Arc::new(s3));
-
-            // Read CSV file to get default schema
-            let csv_data = self
-                .session
-                .ctx
-                .read_csv(
-                    file_path.clone(),
-                    CsvReadOptions::new()
-                        .has_header(skip_header)
-                        .quote(field_optionally_enclosed_by),
-                )
-                .await
-                .context(ex_error::DataFusionSnafu)?;
-
-            let fields = csv_data
-                .schema()
-                .iter()
-                .map(|(_, field)| {
-                    let data_type = if matches!(field.data_type(), DataType::Null) {
-                        DataType::Utf8
-                    } else {
-                        field.data_type().clone()
-                    };
-                    Field::new(field.name(), data_type, field.is_nullable())
-                })
-                .collect::<Vec<_>>();
-
-            // Register CSV file with filled missing datatype with default Utf8
-            self.session
-                .ctx
-                .register_csv(
-                    table_name.value.clone(),
-                    file_path,
-                    CsvReadOptions::new()
-                        .has_header(skip_header)
-                        .quote(field_optionally_enclosed_by)
-                        .schema(&ArrowSchema::new(fields)),
-                )
-                .await
-                .context(ex_error::DataFusionSnafu)?;
-            Ok(vec![])
-        } else {
-            Err(ExecutionError::DataFusion {
+        else {
+            return Err(ExecutionError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only CREATE STAGE statements are supported".to_string(),
                 ),
+            });
+        };
+
+        let table_name = name
+            .0
+            .last()
+            .ok_or_else(|| ExecutionError::InvalidTableIdentifier {
+                ident: name.to_string(),
+            })?
+            .clone();
+
+        let skip_header = file_format.options.iter().any(|option| {
+            option.option_name.eq_ignore_ascii_case("skip_header")
+                && option.value.eq_ignore_ascii_case("true")
+        });
+
+        let field_optionally_enclosed_by = file_format
+            .options
+            .iter()
+            .find_map(|option| {
+                if option
+                    .option_name
+                    .eq_ignore_ascii_case("field_optionally_enclosed_by")
+                {
+                    Some(option.value.as_bytes()[0])
+                } else {
+                    None
+                }
             })
-        }
+            .unwrap_or(b'"');
+
+        let file_path = stage_params.url.unwrap_or_default();
+        let url = Url::parse(file_path.as_str()).map_err(|_| ExecutionError::InvalidFilePath {
+            path: file_path.clone(),
+        })?;
+        let bucket = url.host_str().unwrap_or_default();
+        // TODO Replace this with the new metastore volume approach
+        let s3 = AmazonS3Builder::from_env()
+            // TODO Get region automatically from the Volume
+            .with_region("eu-central-1")
+            .with_bucket_name(bucket)
+            .build()
+            .map_err(|_| ExecutionError::InvalidBucketIdentifier {
+                ident: bucket.to_string(),
+            })?;
+
+        self.session.ctx.register_object_store(&url, Arc::new(s3));
+
+        // Read CSV file to get default schema
+        let csv_data = self
+            .session
+            .ctx
+            .read_csv(
+                file_path.clone(),
+                CsvReadOptions::new()
+                    .has_header(skip_header)
+                    .quote(field_optionally_enclosed_by),
+            )
+            .await
+            .context(ex_error::DataFusionSnafu)?;
+
+        let fields = csv_data
+            .schema()
+            .iter()
+            .map(|(_, field)| {
+                let data_type = if matches!(field.data_type(), DataType::Null) {
+                    DataType::Utf8
+                } else {
+                    field.data_type().clone()
+                };
+                Field::new(field.name(), data_type, field.is_nullable())
+            })
+            .collect::<Vec<_>>();
+
+        // Register CSV file with filled missing datatype with default Utf8
+        self.session
+            .ctx
+            .register_csv(
+                table_name.value.clone(),
+                file_path,
+                CsvReadOptions::new()
+                    .has_header(skip_header)
+                    .quote(field_optionally_enclosed_by)
+                    .schema(&ArrowSchema::new(fields)),
+            )
+            .await
+            .context(ex_error::DataFusionSnafu)?;
+        Ok(vec![])
     }
 
     pub async fn copy_into_snowflake_query(
         &self,
         statement: Statement,
     ) -> ExecutionResult<Vec<RecordBatch>> {
-        if let Statement::CopyIntoSnowflake {
+        let Statement::CopyIntoSnowflake {
             into, from_stage, ..
         } = statement
-        {
-            let from_stage: Vec<Ident> = from_stage
-                .0
-                .iter()
-                .map(|fs| Ident::new(fs.to_string().replace('@', "")))
-                .collect();
-            let insert_into = self.resolve_table_ident(into.0)?;
-            let insert_from = self.resolve_table_ident(from_stage)?;
-            // Insert data to table
-            let insert_query = format!("INSERT INTO {insert_into} SELECT * FROM {insert_from}");
-            self.execute_with_custom_plan(&insert_query).await
-        } else {
-            Err(ExecutionError::DataFusion {
+        else {
+            return Err(ExecutionError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only COPY INTO statements are supported".to_string(),
                 ),
-            })
-        }
+            });
+        };
+
+        let from_stage: Vec<Ident> = from_stage
+            .0
+            .iter()
+            .map(|fs| Ident::new(fs.to_string().replace('@', "")))
+            .collect();
+        let insert_into = self.resolve_table_ident(into.0)?;
+        let insert_from = self.resolve_table_ident(from_stage)?;
+        // Insert data to table
+        let insert_query = format!("INSERT INTO {insert_into} SELECT * FROM {insert_from}");
+        self.execute_with_custom_plan(&insert_query).await
     }
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn merge_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
-        if let Statement::Merge {
+        let Statement::Merge {
             table,
             mut source,
             on,
             clauses,
             ..
         } = statement
-        {
-            let (target_table, target_alias) = Self::get_table_with_alias(table);
-            let (_source_table, source_alias) = Self::get_table_with_alias(source.clone());
-
-            let target_table = self.resolve_table_ident(target_table.0)?;
-
-            let source_query = if let TableFactor::Derived {
-                subquery,
-                lateral,
-                alias,
-            } = source
-            {
-                source = TableFactor::Derived {
-                    lateral,
-                    subquery,
-                    alias: None,
-                };
-                alias.map_or_else(|| source.to_string(), |alias| format!("{source} {alias}"))
-            } else {
-                source.to_string()
-            };
-
-            // Prepare WHERE clause to filter unmatched records
-            let where_clause = self
-                .get_expr_where_clause(*on.clone(), target_alias.as_str())
-                .iter()
-                .map(|v| format!("{v} IS NULL"))
-                .collect::<Vec<_>>();
-            let where_clause_str = if where_clause.is_empty() {
-                String::new()
-            } else {
-                format!(" WHERE {}", where_clause.join(" AND "))
-            };
-
-            // Check NOT MATCHED for records to INSERT
-            // Extract columns and values from clauses
-            let mut columns = String::new();
-            let mut values = String::new();
-            for clause in clauses {
-                if clause.clause_kind == MergeClauseKind::NotMatched {
-                    if let MergeAction::Insert(insert) = clause.action {
-                        columns = insert
-                            .columns
-                            .iter()
-                            .map(ToString::to_string)
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        if let MergeInsertKind::Values(values_insert) = insert.kind {
-                            values = values_insert
-                                .rows
-                                .into_iter()
-                                .flatten()
-                                .collect::<Vec<_>>()
-                                .iter()
-                                .map(|v| format!("{source_alias}.{v}"))
-                                .collect::<Vec<_>>()
-                                .join(", ");
-                        }
-                    }
-                }
-            }
-            let select_query =
-                format!("SELECT {values} FROM {source_query} JOIN {target_table} {target_alias} ON {on}{where_clause_str}");
-
-            // Construct the INSERT statement
-            let insert_query = format!("INSERT INTO {target_table} ({columns}) {select_query}");
-            self.execute_with_custom_plan(&insert_query).await
-        } else {
-            Err(ExecutionError::DataFusion {
+        else {
+            return Err(ExecutionError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only MERGE statements are supported".to_string(),
                 ),
-            })
+            });
+        };
+
+        let (target_table, target_alias) = Self::get_table_with_alias(table);
+        let (_source_table, source_alias) = Self::get_table_with_alias(source.clone());
+
+        let target_table = self.resolve_table_ident(target_table.0)?;
+
+        let source_query = if let TableFactor::Derived {
+            subquery,
+            lateral,
+            alias,
+        } = source
+        {
+            source = TableFactor::Derived {
+                lateral,
+                subquery,
+                alias: None,
+            };
+            alias.map_or_else(|| source.to_string(), |alias| format!("{source} {alias}"))
+        } else {
+            source.to_string()
+        };
+
+        // Prepare WHERE clause to filter unmatched records
+        let where_clause = self
+            .get_expr_where_clause(*on.clone(), target_alias.as_str())
+            .iter()
+            .map(|v| format!("{v} IS NULL"))
+            .collect::<Vec<_>>();
+        let where_clause_str = if where_clause.is_empty() {
+            String::new()
+        } else {
+            format!(" WHERE {}", where_clause.join(" AND "))
+        };
+
+        // Check NOT MATCHED for records to INSERT
+        // Extract columns and values from clauses
+        let mut columns = String::new();
+        let mut values = String::new();
+        for clause in clauses {
+            if clause.clause_kind == MergeClauseKind::NotMatched {
+                if let MergeAction::Insert(insert) = clause.action {
+                    columns = insert
+                        .columns
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    if let MergeInsertKind::Values(values_insert) = insert.kind {
+                        values = values_insert
+                            .rows
+                            .into_iter()
+                            .flatten()
+                            .collect::<Vec<_>>()
+                            .iter()
+                            .map(|v| format!("{source_alias}.{v}"))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                    }
+                }
+            }
         }
+        let select_query =
+            format!("SELECT {values} FROM {source_query} JOIN {target_table} {target_alias} ON {on}{where_clause_str}");
+
+        // Construct the INSERT statement
+        let insert_query = format!("INSERT INTO {target_table} ({columns}) {select_query}");
+        self.execute_with_custom_plan(&insert_query).await
     }
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
@@ -845,7 +862,7 @@ impl IceBucketQuery {
         created_entity_response()
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    // #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn get_custom_logical_plan(&self, query: &str) -> ExecutionResult<LogicalPlan> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
@@ -858,19 +875,7 @@ impl IceBucketQuery {
         statement = self.update_statement_references(statement)?;
 
         if let DFStatement::Statement(s) = statement.clone() {
-            let tables = self
-                .table_references_for_statement(&statement, &self.session.ctx.state())
-                .await?;
-            let ctx_provider = SessionContextProvider {
-                state: &self.session.ctx.state(),
-                tables,
-            };
-
-            let planner =
-                ExtendedSqlToRel::new(&ctx_provider, self.session.ctx.state().get_parser_options());
-            planner
-                .sql_statement_to_plan(*s)
-                .context(super::error::DataFusionSnafu)
+            self.sql_statement_to_plan(*s).await
         } else {
             Err(ExecutionError::DataFusion {
                 source: DataFusionError::NotImplemented(
@@ -878,6 +883,27 @@ impl IceBucketQuery {
                 ),
             })
         }
+    }
+
+    pub async fn sql_statement_to_plan(
+        &self,
+        statement: Statement,
+    ) -> ExecutionResult<LogicalPlan> {
+        let tables = self
+            .table_references_for_statement(
+                &DFStatement::Statement(Box::new(statement.clone())),
+                &self.session.ctx.state(),
+            )
+            .await?;
+        let ctx_provider = SessionContextProvider {
+            state: &self.session.ctx.state(),
+            tables,
+        };
+        let planner =
+            ExtendedSqlToRel::new(&ctx_provider, self.session.ctx.state().get_parser_options());
+        planner
+            .sql_statement_to_plan(statement)
+            .context(super::error::DataFusionSnafu)
     }
 
     async fn execute_sql(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
@@ -1018,6 +1044,7 @@ impl IceBucketQuery {
         }
     }
 
+    #[allow(clippy::unwrap_used)]
     async fn table_references_for_statement(
         &self,
         statement: &DFStatement,
@@ -1042,7 +1069,6 @@ impl IceBucketQuery {
                 }
             }
         }
-        #[allow(clippy::unwrap_used)]
         // Unwraps are allowed here because we are sure that objects exists
         for catalog in self.session.ctx.state().catalog_list().catalog_names() {
             let provider = self

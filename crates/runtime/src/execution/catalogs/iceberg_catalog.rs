@@ -55,7 +55,7 @@ pub struct IceBucketIcebergBridge {
 }
 
 impl IceBucketIcebergBridge {
-    pub(crate) fn new(metastore: Arc<dyn Metastore>, database: String) -> MetastoreResult<Self> {
+    pub fn new(metastore: Arc<dyn Metastore>, database: String) -> MetastoreResult<Self> {
         let db = block_on(metastore.get_database(&database))?.ok_or(
             MetastoreError::DatabaseNotFound {
                 db: database.clone(),
@@ -71,6 +71,14 @@ impl IceBucketIcebergBridge {
             database,
             object_store,
         })
+    }
+
+    pub fn ident(&self, identifier: &IcebergIdentifier) -> IceBucketTableIdent {
+        IceBucketTableIdent {
+            database: self.database.to_string(),
+            schema: identifier.namespace().to_string(),
+            table: identifier.name().to_string(),
+        }
     }
 }
 
@@ -278,7 +286,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
 
     /// Check if a table exists
     async fn tabular_exists(&self, identifier: &IcebergIdentifier) -> Result<bool, IcebergError> {
-        let table_ident = IceBucketTableIdent::from_iceberg_ident(identifier);
+        let table_ident = self.ident(identifier);
         Ok(self
             .metastore
             .get_table(&table_ident)
@@ -289,7 +297,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
 
     /// Drop a table and delete all data and metadata files.
     async fn drop_table(&self, identifier: &IcebergIdentifier) -> Result<(), IcebergError> {
-        let table_ident = IceBucketTableIdent::from_iceberg_ident(identifier);
+        let table_ident = self.ident(identifier);
         self.metastore
             .delete_table(&table_ident, true)
             .await
@@ -319,10 +327,10 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         self: Arc<Self>,
         identifier: &IcebergIdentifier,
     ) -> Result<IcebergTabular, IcebergError> {
-        let table_ident = IceBucketTableIdent::from_iceberg_ident(identifier);
+        let ident = self.ident(identifier);
         let table = self
             .metastore
-            .get_table(&table_ident)
+            .get_table(&ident)
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         match table {
@@ -334,7 +342,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 Ok(IcebergTabular::Table(iceberg_table))
             }
             None => Err(IcebergError::NotFound(format!(
-                "Table {} not found",
+                "Table {}",
                 identifier.name()
             ))),
         }
@@ -346,11 +354,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         identifier: IcebergIdentifier,
         create_table: IcebergCreateTable,
     ) -> Result<IcebergTable, IcebergError> {
-        let ident = IceBucketTableIdent {
-            database: self.name().to_string(),
-            schema: identifier.namespace().to_string(),
-            table: identifier.name().to_string(),
-        };
+        let ident = self.ident(&identifier);
         let table_create_request = IceBucketTableCreateRequest {
             ident: ident.clone(),
             schema: create_table.schema,
@@ -400,7 +404,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         self: Arc<Self>,
         commit: IcebergCommitTable,
     ) -> Result<IcebergTable, IcebergError> {
-        let table_ident = IceBucketTableIdent::from_iceberg_ident(&commit.identifier);
+        let table_ident = self.ident(&commit.identifier);
         let table_update = IceBucketTableUpdate {
             requirements: commit.requirements,
             updates: commit.updates,

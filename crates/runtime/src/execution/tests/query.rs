@@ -301,10 +301,81 @@ async fn test_context_name_injection() {
 }
 
 #[tokio::test]
-#[allow(clippy::expect_used, clippy::unwrap_used)]
 async fn test_create_table_with_timestamp_nanosecond() {
-    let metastore = SlateDBMetastore::new_in_memory().await;
+    let (execution_svc, session_id) = prepare_env().await;
+    let table_ident = IceBucketTableIdent {
+        database: "icebucket".to_string(),
+        schema: "public".to_string(),
+        table: "target_table".to_string(),
+    };
+    // Verify that the file was uploaded successfully by running select * from the table
+    let query = format!("CREATE TABLE {table_ident} (id INT, ts TIMESTAMP_NTZ(9)) as VALUES (1, '2025-04-09T21:11:23'), (2, '2025-04-09T21:11:00');");
+    let (rows, _) = execution_svc
+        .query(&session_id, &query, IceBucketQueryContext::default())
+        .await
+        .expect("Failed to execute query");
 
+    assert_batches_eq!(
+        &[
+            "+-------+",
+            "| count |",
+            "+-------+",
+            "| 2     |",
+            "+-------+",
+        ],
+        &rows
+    );
+}
+
+#[tokio::test]
+async fn test_drop_table() {
+    let (execution_svc, session_id) = prepare_env().await;
+    let table_ident = IceBucketTableIdent {
+        database: "icebucket".to_string(),
+        schema: "public".to_string(),
+        table: "target_table".to_string(),
+    };
+    // Verify that the file was uploaded successfully by running select * from the table
+    let query = format!("CREATE TABLE {table_ident} (id INT) as VALUES (1), (2);");
+    let (rows, _) = execution_svc
+        .query(&session_id, &query, IceBucketQueryContext::default())
+        .await
+        .expect("Failed to execute query");
+
+    assert_batches_eq!(
+        &[
+            "+-------+",
+            "| count |",
+            "+-------+",
+            "| 2     |",
+            "+-------+",
+        ],
+        &rows
+    );
+
+    let query = format!("DROP TABLE {table_ident};");
+    execution_svc
+        .query(&session_id, &query, IceBucketQueryContext::default())
+        .await
+        .expect("Failed to execute query");
+
+    // Verify that the table is not exists
+    let query = format!("SELECT * FROM {table_ident};");
+    let res = execution_svc
+        .query(&session_id, &query, IceBucketQueryContext::default())
+        .await;
+
+    assert!(res.is_err());
+    if let Err(err) = res {
+        assert_eq!(
+            err.to_string(),
+            format!("DataFusion error: Error during planning: table '{table_ident}' not found")
+        );
+    }
+}
+
+async fn prepare_env() -> (ExecutionService, String) {
+    let metastore = SlateDBMetastore::new_in_memory().await;
     metastore
         .create_volume(
             &"test_volume".to_string(),
@@ -353,27 +424,5 @@ async fn test_create_table_with_timestamp_nanosecond() {
         .create_session(session_id.to_string())
         .await
         .expect("Failed to create session");
-
-    let table_ident = IceBucketTableIdent {
-        database: "icebucket".to_string(),
-        schema: "public".to_string(),
-        table: "target_table".to_string(),
-    };
-    // Verify that the file was uploaded successfully by running select * from the table
-    let query = format!("CREATE TABLE {table_ident} (id INT, ts TIMESTAMP_NTZ(9)) as VALUES (1, '2025-04-09T21:11:23'), (2, '2025-04-09T21:11:00');");
-    let (rows, _) = execution_svc
-        .query(session_id, &query, IceBucketQueryContext::default())
-        .await
-        .expect("Failed to execute query");
-
-    assert_batches_eq!(
-        &[
-            "+-------+",
-            "| count |",
-            "+-------+",
-            "| 2     |",
-            "+-------+",
-        ],
-        &rows
-    );
+    (execution_svc, session_id.to_string())
 }

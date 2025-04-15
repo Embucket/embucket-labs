@@ -152,7 +152,7 @@ impl IceBucketDFMetastore {
                             });
 
                             let ib_identifier = IcebergIdentifier::new(
-                                &[table.ident.database.clone(), table.ident.schema.clone()],
+                                &[table.ident.schema.clone()],
                                 &table.ident.table,
                             );
                             let tabular = bridge

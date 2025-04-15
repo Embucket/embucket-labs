@@ -54,15 +54,6 @@ impl IceBucketTableIdent {
         }
     }
     #[must_use]
-    pub fn from_iceberg_ident(ident: &Identifier) -> Self {
-        Self {
-            database: ident.namespace()[0].clone(),
-            schema: ident.namespace()[1].clone(),
-            table: ident.name().to_string(),
-        }
-    }
-
-    #[must_use]
     pub fn to_iceberg_ident(&self) -> Identifier {
         let namespace = vec![self.schema.clone()];
         Identifier::new(&namespace, &self.table)
