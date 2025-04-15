@@ -23,12 +23,7 @@ use crate::http::ui::tables::error::{
     CreateUploadSnafu, MalformedMultipartFileDataSnafu, MalformedMultipartSnafu, TableError,
     TablesAPIError, TablesResult,
 };
-use crate::http::ui::tables::models::{
-    Table, TableColumnInfo, TableColumnsInfoResponse, TablePreviewDataColumn,
-    TablePreviewDataParameters, TablePreviewDataResponse, TablePreviewDataRow, TableStatistics,
-    TableStatisticsResponse, TableUploadPayload, TableUploadResponse, TablesParameters,
-    TablesResponse, UploadParameters,
-};
+use crate::http::ui::tables::models::{Table, TableColumn, TableColumnsResponse, TablePreviewDataColumn, TablePreviewDataParameters, TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse, TableUploadPayload, TableUploadResponse, TablesParameters, TablesResponse, UploadParameters};
 use arrow_array::{Array, StringArray};
 use axum::extract::Query;
 use axum::{
@@ -54,8 +49,8 @@ use utoipa::OpenApi;
         schemas(
             TableStatisticsResponse,
             TableStatistics,
-            TableColumnsInfoResponse,
-            TableColumnInfo,
+            TableColumnsResponse,
+            TableColumn,
             TablePreviewDataResponse,
             TablePreviewDataColumn,
             TablePreviewDataRow,
@@ -143,7 +138,7 @@ pub async fn get_table_statistics(
     operation_id = "getTableColumnsInfo",
     tags = ["tables"],
     responses(
-        (status = 200, description = "Successful Response", body = TableColumnsInfoResponse),
+        (status = 200, description = "Successful Response", body = TableColumnsResponse),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -154,7 +149,7 @@ pub async fn get_table_columns_info(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> TablesResult<Json<TableColumnsInfoResponse>> {
+) -> TablesResult<Json<TableColumnsResponse>> {
     let context = IceBucketQueryContext {
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
@@ -165,9 +160,9 @@ pub async fn get_table_columns_info(
         .query(&session_id, sql_string.as_str(), context)
         .await
         .map_err(|e| TablesAPIError::GetExecution { source: e })?;
-    let items: Vec<TableColumnInfo> = column_infos
+    let items: Vec<TableColumn> = column_infos
         .iter()
-        .map(|column_info| TableColumnInfo {
+        .map(|column_info| TableColumn {
             name: column_info.name.clone(),
             r#type: column_info.r#type.clone(),
             description: String::new(),
@@ -183,7 +178,7 @@ pub async fn get_table_columns_info(
             },
         })
         .collect();
-    Ok(Json(TableColumnsInfoResponse { items }))
+    Ok(Json(TableColumnsResponse { items }))
 }
 #[utoipa::path(
     get,
@@ -368,7 +363,7 @@ pub async fn upload_file(
 
 #[utoipa::path(
     get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables",
+    path = "/ui/databases/{databaseName}/schemas/tables/{schemaName}/tables",
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name")

@@ -37,12 +37,12 @@ pub(crate) struct TableStatistics {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TableColumnsInfoResponse {
-    pub(crate) items: Vec<TableColumnInfo>,
+pub(crate) struct TableColumnsResponse {
+    pub(crate) items: Vec<TableColumn>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TableColumnInfo {
+pub(crate) struct TableColumn {
     pub(crate) name: String,
     pub(crate) r#type: String,
     pub(crate) description: String,
