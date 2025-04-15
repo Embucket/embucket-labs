@@ -385,6 +385,17 @@ test_query!(select_date_add_diff, "SELECT dateadd(day, 5, '2025-06-01')");
 // test_query!(show_views, "SHOW VIEWS");
 // test_query!(show_views_like, "SHOW VIEWS LIKE '%TESTING%'");
 
+test_query!(
+    create_schema,
+    "CREATE SCHEMA IF NOT EXISTS icebucket.public_snowplow_manifest"
+);
+
+// TODO: Why is this failing?
+test_query!(
+    show_schemas_in_database,
+    "SHOW SCHEMAS IN DATABASE icebucket"
+);
+
 // // ICEBERG
 
 // test_query!(

@@ -302,7 +302,7 @@ async fn test_context_name_injection() {
 
 #[tokio::test]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-async fn test_create_table_with_timestamp_nanosecond() {
+async fn test_show_schemas_in_database() {
     let metastore = SlateDBMetastore::new_in_memory().await;
 
     metastore
@@ -354,24 +354,74 @@ async fn test_create_table_with_timestamp_nanosecond() {
         .await
         .expect("Failed to create session");
 
-    let table_ident = IceBucketTableIdent {
-        database: "icebucket".to_string(),
-        schema: "public".to_string(),
-        table: "target_table".to_string(),
-    };
     // Verify that the file was uploaded successfully by running select * from the table
-    let query = format!("CREATE TABLE {table_ident} (id INT, ts TIMESTAMP_NTZ(9)) as VALUES (1, '2025-04-09T21:11:23'), (2, '2025-04-09T21:11:00');");
+    let query = "SHOW SCHEMAS IN icebucket LIMIT 1000;";
     let (rows, _) = execution_svc
-        .query(session_id, &query, IceBucketQueryContext::default())
+        .query(session_id, query, IceBucketQueryContext::default())
         .await
         .expect("Failed to execute query");
 
     assert_batches_eq!(
         &[
+            "+--------+",
+            "| name   |",
+            "+--------+",
+            "| public |",
+            "+--------+",
+        ],
+        &rows
+    );
+}
+
+#[tokio::test]
+async fn test_create_schema_query() {
+    let metastore = SlateDBMetastore::new_in_memory().await;
+
+    metastore
+        .create_volume(
+            &"test_volume".to_string(),
+            IceBucketVolume::new(
+                "test_volume".to_string(),
+                icebucket_metastore::IceBucketVolumeType::Memory,
+            ),
+        )
+        .await
+        .expect("Failed to create volume");
+    metastore
+        .create_database(
+            &"icebucket".to_string(),
+            IceBucketDatabase {
+                ident: "icebucket".to_string(),
+                properties: None,
+                volume: "test_volume".to_string(),
+            },
+        )
+        .await
+        .expect("Failed to create database");
+
+    let query = "CREATE SCHEMA if not exists icebucket.public_snowplow_manifest";
+    let execution_svc = ExecutionService::new(
+        metastore.clone(),
+        Config {
+            dbt_serialization_format: DataSerializationFormat::Json,
+        },
+    );
+    let session_id = "test_session_id";
+    execution_svc
+        .create_session(session_id.to_string())
+        .await
+        .expect("Failed to create session");
+
+    let (rows, _) = execution_svc
+        .query(session_id, query, IceBucketQueryContext::default())
+        .await
+        .expect("Failed to execute query");
+    assert_batches_eq!(
+        &[
             "+-------+",
             "| count |",
             "+-------+",
-            "| 2     |",
+            "| 0     |",
             "+-------+",
         ],
         &rows
