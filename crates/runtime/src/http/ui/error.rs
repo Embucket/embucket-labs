@@ -29,7 +29,7 @@ pub enum UIError {
     },
     #[snafu(transparent)]
     Metastore {
-        source: icebucket_metastore::error::MetastoreError,
+        source: embucket_metastore::error::MetastoreError,
     },
 }
 pub type UIResult<T> = Result<T, UIError>;

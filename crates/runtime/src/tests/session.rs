@@ -17,7 +17,7 @@
 
 use std::sync::Arc;
 
-use icebucket_metastore::{
+use embucket_metastore::{
     IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume, Metastore,
     SlateDBMetastore,
 };
@@ -33,7 +33,7 @@ async fn test_create_table_and_insert() {
             &"test_volume".to_string(),
             IceBucketVolume::new(
                 "test_volume".to_string(),
-                icebucket_metastore::IceBucketVolumeType::Memory,
+                embucket_metastore::IceBucketVolumeType::Memory,
             ),
         )
         .await

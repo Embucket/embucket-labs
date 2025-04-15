@@ -18,7 +18,7 @@
 use std::sync::Arc;
 
 use crate::execution::{query::IceBucketQueryContext, session::IceBucketUserSession};
-use icebucket_metastore::{
+use embucket_metastore::{
     IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume, Metastore,
     SlateDBMetastore,
 };
@@ -33,7 +33,7 @@ pub async fn create_df_session() -> Arc<IceBucketUserSession> {
             &"test_volume".to_string(),
             IceBucketVolume::new(
                 "test_volume".to_string(),
-                icebucket_metastore::IceBucketVolumeType::Memory,
+                embucket_metastore::IceBucketVolumeType::Memory,
             ),
         )
         .await

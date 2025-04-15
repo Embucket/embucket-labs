@@ -24,7 +24,7 @@ use crate::http::ui::{
     worksheets::models::{WorksheetCreatePayload, WorksheetCreateResponse},
 };
 use chrono::{TimeZone, Utc};
-use icebucket_metastore::{
+use embucket_metastore::{
     IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume,
 };
 use serde_json::json;
@@ -50,7 +50,7 @@ async fn test_parallel_queries() {
 
     let vol = IceBucketVolume {
         ident: "test_volume".to_string(),
-        volume: icebucket_metastore::IceBucketVolumeType::Memory,
+        volume: embucket_metastore::IceBucketVolumeType::Memory,
     };
 
     let _create_volume = client

@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_history::store::WorksheetsStore;
-use icebucket_metastore::metastore::Metastore;
+use embucket_history::store::WorksheetsStore;
+use embucket_metastore::metastore::Metastore;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::execution::service::ExecutionService;
-use crate::http::config::IceBucketWebConfig;
+use crate::http::config::WebConfig;
 
 // Define a State struct that contains shared services or repositories
 #[derive(Clone)]
@@ -31,7 +31,7 @@ pub struct AppState {
     pub history: Arc<dyn WorksheetsStore + Send + Sync>,
     pub execution_svc: Arc<ExecutionService>,
     pub dbt_sessions: Arc<Mutex<HashMap<String, String>>>,
-    pub config: Arc<IceBucketWebConfig>,
+    pub config: Arc<WebConfig>,
 }
 
 impl AppState {
@@ -40,7 +40,7 @@ impl AppState {
         metastore: Arc<dyn Metastore + Send + Sync>,
         history: Arc<dyn WorksheetsStore + Send + Sync>,
         execution_svc: Arc<ExecutionService>,
-        config: Arc<IceBucketWebConfig>,
+        config: Arc<WebConfig>,
     ) -> Self {
         Self {
             metastore,

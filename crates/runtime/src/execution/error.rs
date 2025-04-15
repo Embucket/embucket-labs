@@ -63,7 +63,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Metastore error: {source}"))]
     Metastore {
-        source: icebucket_metastore::error::MetastoreError,
+        source: embucket_metastore::error::MetastoreError,
     },
 
     #[snafu(display("Database {db} not found"))]

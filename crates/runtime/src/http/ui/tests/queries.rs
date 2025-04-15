@@ -24,8 +24,8 @@ use crate::http::ui::queries::models::{
 use crate::http::ui::tests::common::req;
 use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
+use embucket_history::QueryStatus;
 use http::Method;
-use icebucket_history::QueryStatus;
 use serde_json::json;
 
 #[tokio::test]

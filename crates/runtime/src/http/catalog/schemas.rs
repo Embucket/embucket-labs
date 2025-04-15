@@ -15,17 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use embucket_metastore::{
+    IceBucketSchema, IceBucketSchemaIdent, IceBucketTable, IceBucketTableCreateRequest,
+    IceBucketTableFormat, IceBucketTableIdent, IceBucketTableUpdate, IceBucketVolumeIdent,
+    RwObject,
+};
 use iceberg_rest_catalog::models::{
     CreateNamespaceRequest, CreateNamespaceResponse, CreateTableRequest, GetNamespaceResponse,
     ListNamespacesResponse, ListTablesResponse,
 };
 use iceberg_rust::catalog::commit::{TableRequirement, TableUpdate};
 use iceberg_rust_spec::identifier::Identifier;
-use icebucket_metastore::{
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTable, IceBucketTableCreateRequest,
-    IceBucketTableFormat, IceBucketTableIdent, IceBucketTableUpdate, IceBucketVolumeIdent,
-    RwObject,
-};
 use serde::{Deserialize, Serialize};
 
 #[must_use]

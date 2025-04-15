@@ -26,8 +26,8 @@ use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::visit_expressions;
 use datafusion::sql::sqlparser::ast::Statement as SQLStatement;
 use datafusion::sql::sqlparser::ast::{Expr, ObjectName};
-use icebucket_metastore::Metastore;
-use icebucket_metastore::{
+use embucket_metastore::Metastore;
+use embucket_metastore::{
     IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent, IceBucketVolume,
 };
 use sqlparser::ast::{
@@ -400,7 +400,7 @@ async fn prepare_env() -> (ExecutionService, Arc<SlateDBMetastore>, String) {
             &"test_volume".to_string(),
             IceBucketVolume::new(
                 "test_volume".to_string(),
-                icebucket_metastore::IceBucketVolumeType::Memory,
+                embucket_metastore::IceBucketVolumeType::Memory,
             ),
         )
         .await

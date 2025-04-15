@@ -27,9 +27,9 @@ use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{VolumeCreatePayload, VolumeCreateResponse};
 use crate::http::ui::worksheets::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
+use embucket_metastore::IceBucketVolumeType;
+use embucket_metastore::{IceBucketDatabase, IceBucketVolume};
 use http::Method;
-use icebucket_metastore::IceBucketVolumeType;
-use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
 use serde_json::json;
 
 #[tokio::test]

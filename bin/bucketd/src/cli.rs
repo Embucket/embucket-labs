@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 #[derive(Parser)]
 #[command(version, about, long_about=None)]
-pub struct IceBucketOpts {
+pub struct CliOpts {
     #[arg(
         short,
         long,
@@ -152,7 +152,7 @@ enum StoreBackend {
     Memory,
 }
 
-impl IceBucketOpts {
+impl CliOpts {
     #[allow(clippy::unwrap_used, clippy::as_conversions)]
     pub fn object_store_backend(self) -> ObjectStoreResult<Arc<dyn ObjectStore>> {
         match self.backend {

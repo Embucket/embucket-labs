@@ -23,15 +23,15 @@ use crate::http::metastore::error::{MetastoreAPIError, MetastoreAPIResult};
 use crate::http::state::AppState;
 use axum::http::StatusCode;
 use axum::{extract::Path, extract::Query, extract::State, Json};
+use embucket_metastore::error::{self as metastore_error, MetastoreError};
+use embucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
+use embucket_utils::list_config::ListConfig;
 use iceberg_rest_catalog::models::{
     CatalogConfig, CommitTableResponse, CreateNamespaceRequest, CreateNamespaceResponse,
     CreateTableRequest, GetNamespaceResponse, ListNamespacesResponse, ListTablesResponse,
     LoadTableResult, RegisterTableRequest,
 };
 use iceberg_rust_spec::table_metadata::TableMetadata;
-use icebucket_metastore::error::{self as metastore_error, MetastoreError};
-use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
-use icebucket_utils::list_config::ListConfig;
 use object_store::ObjectStore;
 use serde_json::{from_slice, Value};
 use snafu::ResultExt;

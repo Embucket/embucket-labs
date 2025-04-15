@@ -30,9 +30,9 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use icebucket_metastore::error::MetastoreError;
-use icebucket_metastore::IceBucketDatabase;
-use icebucket_utils::list_config::ListConfig;
+use embucket_metastore::error::MetastoreError;
+use embucket_metastore::IceBucketDatabase;
+use embucket_utils::list_config::ListConfig;
 use utoipa::OpenApi;
 use validator::Validate;
 

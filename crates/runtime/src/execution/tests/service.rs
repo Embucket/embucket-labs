@@ -20,9 +20,9 @@ use crate::execution::service::ExecutionService;
 use crate::execution::utils::{Config, DataSerializationFormat};
 use crate::SlateDBMetastore;
 use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
-use icebucket_metastore::models::table::IceBucketTableIdent;
-use icebucket_metastore::Metastore;
-use icebucket_metastore::{
+use embucket_metastore::models::table::IceBucketTableIdent;
+use embucket_metastore::Metastore;
+use embucket_metastore::{
     IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume,
 };
 
@@ -66,7 +66,7 @@ async fn test_service_upload_file() {
             &"test_volume".to_string(),
             IceBucketVolume::new(
                 "test_volume".to_string(),
-                icebucket_metastore::IceBucketVolumeType::Memory,
+                embucket_metastore::IceBucketVolumeType::Memory,
             ),
         )
         .await
@@ -197,8 +197,8 @@ async fn test_service_create_table_file_volume() {
             &"test_volume".to_string(),
             IceBucketVolume::new(
                 "test_volume".to_string(),
-                icebucket_metastore::IceBucketVolumeType::File(
-                    icebucket_metastore::IceBucketFileVolume {
+                embucket_metastore::IceBucketVolumeType::File(
+                    embucket_metastore::IceBucketFileVolume {
                         path: temp_path.to_string(),
                     },
                 ),

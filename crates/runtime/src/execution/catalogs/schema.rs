@@ -19,7 +19,7 @@ use crate::execution::catalogs::metastore::CatalogProviderCache;
 use async_trait::async_trait;
 use datafusion::catalog::{SchemaProvider, TableProvider};
 use datafusion_common::{exec_err, DataFusionError, Result as DFResult};
-use icebucket_metastore::Metastore;
+use embucket_metastore::Metastore;
 use std::any::Any;
 use std::sync::Arc;
 

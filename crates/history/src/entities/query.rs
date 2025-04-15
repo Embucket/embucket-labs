@@ -18,7 +18,7 @@
 use crate::WorksheetId;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use icebucket_utils::iterable::IterableEntity;
+use embucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

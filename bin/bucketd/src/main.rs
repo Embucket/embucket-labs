@@ -20,9 +20,9 @@ pub(crate) mod cli;
 use clap::Parser;
 use dotenv::dotenv;
 use icebucket_runtime::{
-    config::{IceBucketDbConfig, IceBucketRuntimeConfig},
-    http::config::IceBucketWebConfig,
-    run_icebucket,
+    config::{DbConfig, RuntimeConfig},
+    http::config::WebConfig,
+    run_binary,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -43,7 +43,7 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let opts = cli::IceBucketOpts::parse();
+    let opts = cli::CliOpts::parse();
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let host = opts.host.clone().unwrap();
     let iceberg_catalog_url = opts.catalog_url.clone().unwrap();
@@ -65,13 +65,13 @@ async fn main() {
             return;
         }
         Ok(object_store) => {
-            tracing::info!("Starting 🧊🪣 IceBucket...");
+            tracing::info!("Starting embucket");
 
-            let runtime_config = IceBucketRuntimeConfig {
-                db: IceBucketDbConfig {
+            let runtime_config = RuntimeConfig {
+                db: DbConfig {
                     slatedb_prefix: slatedb_prefix.clone(),
                 },
-                web: IceBucketWebConfig {
+                web: WebConfig {
                     host,
                     port,
                     allow_origin,
@@ -80,8 +80,8 @@ async fn main() {
                 },
             };
 
-            if let Err(e) = run_icebucket(object_store, runtime_config).await {
-                tracing::error!("Error while running IceBucket: {:?}", e);
+            if let Err(e) = run_binary(object_store, runtime_config).await {
+                tracing::error!("Error while running: {:?}", e);
             }
         }
     }

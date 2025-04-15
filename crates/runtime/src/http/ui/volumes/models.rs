@@ -15,10 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_metastore::models::{
+use embucket_metastore::models::{
     AwsCredentials, IceBucketFileVolume, IceBucketS3Volume, IceBucketVolume, IceBucketVolumeType,
 };
-use icebucket_metastore::IceBucketS3TablesVolume;
+use embucket_metastore::IceBucketS3TablesVolume;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 

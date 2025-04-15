@@ -1,0 +1,26 @@
+---
+source: crates/metastore/src/metastore.rs
+expression: "(rwo1, rwo2)"
+---
+(
+    RwObject {
+        data: IceBucketVolume {
+            ident: "test",
+            volume: Memory,
+        },
+        created_at: "TIMESTAMP",
+        updated_at: "TIMESTAMP",
+    },
+    RwObject {
+        data: IceBucketVolume {
+            ident: "test",
+            volume: File(
+                IceBucketFileVolume {
+                    path: "/tmp",
+                },
+            ),
+        },
+        created_at: "TIMESTAMP",
+        updated_at: "TIMESTAMP",
+    },
+)

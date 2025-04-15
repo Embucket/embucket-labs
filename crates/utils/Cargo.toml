@@ -1,5 +1,5 @@
 [package]
-name = "icebucket_utils"
+name = "embucket_utils"
 version = "0.1.0"
 edition = "2021"
 license-file = { workspace = true }

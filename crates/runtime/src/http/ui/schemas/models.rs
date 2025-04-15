@@ -16,8 +16,8 @@
 // under the License.
 
 use chrono::NaiveDateTime;
-use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
-use icebucket_metastore::RwObject;
+use embucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
+use embucket_metastore::RwObject;
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 use utoipa::{IntoParams, ToSchema};

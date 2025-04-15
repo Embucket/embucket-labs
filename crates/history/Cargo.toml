@@ -1,11 +1,11 @@
 [package]
-name = "icebucket_history"
+name = "embucket_history"
 version = "0.1.0"
 edition = "2021"
 license-file = { workspace = true }
 
 [dependencies]
-icebucket_utils = { path = "../utils" }
+embucket_utils = { path = "../utils" }
 bytes = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true }

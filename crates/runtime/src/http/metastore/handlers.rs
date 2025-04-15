@@ -23,13 +23,13 @@ use axum::{
 use snafu::ResultExt;
 
 #[allow(clippy::wildcard_imports)]
-use icebucket_metastore::{
+use embucket_metastore::{
     error::{self as metastore_error, MetastoreError},
     *,
 };
 
 use crate::http::state::AppState;
-use icebucket_utils::list_config::ListConfig;
+use embucket_utils::list_config::ListConfig;
 use validator::Validate;
 
 /*#[derive(OpenApi)]

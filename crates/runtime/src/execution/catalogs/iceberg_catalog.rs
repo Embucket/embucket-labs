@@ -18,6 +18,12 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
+use embucket_metastore::error::{MetastoreError, MetastoreResult};
+use embucket_metastore::{
+    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableIdent,
+    IceBucketTableUpdate, Metastore,
+};
+use embucket_utils::list_config::ListConfig;
 use futures::executor::block_on;
 use iceberg_rust::{
     catalog::{
@@ -39,12 +45,6 @@ use iceberg_rust::{
 use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
-use icebucket_metastore::error::{MetastoreError, MetastoreResult};
-use icebucket_metastore::{
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableIdent,
-    IceBucketTableUpdate, Metastore,
-};
-use icebucket_utils::list_config::ListConfig;
 use object_store::ObjectStore;
 use snafu::ResultExt;
 

@@ -19,8 +19,8 @@
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use crate::tests::run_icebucket_test_server;
-use icebucket_metastore::IceBucketVolume;
-use icebucket_metastore::{
+use embucket_metastore::IceBucketVolume;
+use embucket_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, IceBucketFileVolume, IceBucketS3Volume,
     IceBucketVolumeType,
 };

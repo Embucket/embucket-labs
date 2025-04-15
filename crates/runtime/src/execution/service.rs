@@ -34,7 +34,7 @@ use super::{
     session::IceBucketUserSession,
     utils::{convert_record_batches, Config},
 };
-use icebucket_metastore::{IceBucketTableIdent, Metastore};
+use embucket_metastore::{IceBucketTableIdent, Metastore};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 

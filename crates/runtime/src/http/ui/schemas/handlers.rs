@@ -30,10 +30,10 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use icebucket_metastore::error::MetastoreError;
-use icebucket_metastore::models::IceBucketSchemaIdent;
-use icebucket_metastore::IceBucketSchema;
-use icebucket_utils::list_config::ListConfig;
+use embucket_metastore::error::MetastoreError;
+use embucket_metastore::models::IceBucketSchemaIdent;
+use embucket_metastore::IceBucketSchema;
+use embucket_utils::list_config::ListConfig;
 use std::collections::HashMap;
 use std::convert::From;
 use std::convert::Into;

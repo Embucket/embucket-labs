@@ -33,11 +33,11 @@ use datafusion::{
 };
 use datafusion_common::DataFusionError;
 use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
+use embucket_metastore::{error::MetastoreError, Metastore};
+use embucket_utils::list_config::ListConfig;
 use iceberg_rust::{
     catalog::Catalog as IcebergCatalog, spec::identifier::Identifier as IcebergIdentifier,
 };
-use icebucket_metastore::{error::MetastoreError, Metastore};
-use icebucket_utils::list_config::ListConfig;
 use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
 use snafu::ResultExt;
@@ -123,7 +123,7 @@ impl IceBucketDFMetastore {
                         .insert(get_url_key(&url), table_object_store.clone());
 
                     let table_provider = match table.format {
-                        icebucket_metastore::IceBucketTableFormat::Parquet => {
+                        embucket_metastore::IceBucketTableFormat::Parquet => {
                             let parq_read_options = ParquetReadOptions::default();
                             let listing_options = parq_read_options.to_listing_options(
                                 ctx.state().config(),
@@ -145,7 +145,7 @@ impl IceBucketDFMetastore {
                                 ListingTable::try_new(config).context(ex_error::DataFusionSnafu)?,
                             ) as Arc<dyn TableProvider>
                         }
-                        icebucket_metastore::IceBucketTableFormat::Iceberg => {
+                        embucket_metastore::IceBucketTableFormat::Iceberg => {
                             let bridge = Arc::new(IceBucketIcebergBridge {
                                 metastore: self.metastore.clone(),
                                 database: table.ident.clone().database,

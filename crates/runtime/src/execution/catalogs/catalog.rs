@@ -20,8 +20,8 @@ use std::{any::Any, sync::Arc};
 use crate::execution::catalogs::metastore::CatalogProviderCache;
 use crate::execution::catalogs::schema::IceBucketDFSchema;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
+use embucket_metastore::Metastore;
 use iceberg_rust::catalog::Catalog as IcebergCatalog;
-use icebucket_metastore::Metastore;
 
 pub struct IceBucketDFCatalog {
     pub ident: String,

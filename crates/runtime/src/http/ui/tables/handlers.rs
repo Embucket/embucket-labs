@@ -36,9 +36,9 @@ use axum::{
     Json,
 };
 use datafusion::arrow::csv::reader::Format;
-use icebucket_metastore::error::MetastoreError;
-use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
-use icebucket_utils::list_config::ListConfig;
+use embucket_metastore::error::MetastoreError;
+use embucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
+use embucket_utils::list_config::ListConfig;
 use snafu::ResultExt;
 use std::time::Instant;
 use utoipa::OpenApi;

@@ -28,7 +28,7 @@ use chrono::DateTime;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
-use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
+use embucket_metastore::IceBucketTableIdent;
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
 use std::sync::Arc;

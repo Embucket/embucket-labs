@@ -27,7 +27,7 @@ use axum::{
     Json,
 };
 use chrono::Utc;
-use icebucket_history::{Worksheet, WorksheetId};
+use embucket_history::{Worksheet, WorksheetId};
 use tracing;
 use utoipa::OpenApi;
 
