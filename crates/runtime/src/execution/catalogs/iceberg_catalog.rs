@@ -44,6 +44,7 @@ use icebucket_metastore::{
     IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableIdent,
     IceBucketTableUpdate, Metastore,
 };
+use icebucket_utils::list_config::ListConfig;
 use object_store::ObjectStore;
 use snafu::ResultExt;
 
@@ -245,7 +246,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         };
         Ok(self
             .metastore
-            .list_tables(&schema_ident, None, None)
+            .list_tables(&schema_ident, ListConfig::default())
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?
             .iter()
@@ -266,13 +267,13 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         let mut namespaces = Vec::new();
         let databases = self
             .metastore
-            .list_databases(None, None)
+            .list_databases(ListConfig::default())
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         for database in databases {
             let schemas = self
                 .metastore
-                .list_schemas(&database.ident, None, None)
+                .list_schemas(&database.ident, ListConfig::default())
                 .await
                 .map_err(|e| IcebergError::External(Box::new(e)))?;
             for schema in schemas {

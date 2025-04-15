@@ -39,6 +39,7 @@ use geodatafusion::udf::native::register_native as register_geo_native;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
 use icebucket_metastore::{AwsCredentials, IceBucketVolumeType, Metastore};
+use icebucket_utils::list_config::ListConfig;
 use snafu::ResultExt;
 use std::any::Any;
 use std::collections::HashMap;
@@ -103,7 +104,7 @@ impl IceBucketUserSession {
     pub async fn register_external_catalogs(&self) -> ExecutionResult<()> {
         let volumes = self
             .metastore
-            .list_volumes(None, None)
+            .list_volumes(ListConfig::default())
             .await
             .context(ex_error::MetastoreSnafu)?
             .into_iter()
