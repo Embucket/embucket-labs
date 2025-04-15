@@ -375,7 +375,7 @@ async fn test_drop_table() {
 }
 
 #[tokio::test]
-async fn create_schema() {
+async fn test_create_schema() {
     let (execution_svc, metastore, session_id) = prepare_env().await;
     let schema_ident = IceBucketSchemaIdent {
         database: "icebucket".to_string(),
