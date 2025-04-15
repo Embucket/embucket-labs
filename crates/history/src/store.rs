@@ -192,6 +192,7 @@ mod tests {
     use chrono::{Duration, TimeZone, Utc};
     use icebucket_utils::iterable::{IterableCursor, IterableEntity};
     use tokio;
+    use crate::*;
 
     #[tokio::test]
     async fn test_history() {
@@ -200,25 +201,41 @@ mod tests {
         // create worksheet first
         let worksheet = Worksheet::new(String::new(), String::new());
 
-        let n: u16 = 2;
+        let n: u16 = 3;
         let mut created: Vec<QueryRecord> = vec![];
         for i in 0..n {
-            let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
-                + Duration::milliseconds(i.into());
-            let mut item = QueryRecord::query_start(
-                worksheet.id,
+            let ctx = MockQueryRecordActions::query_start_context();
+            ctx.expect().returning(move |query, worksheet_id| {
+                let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
+                 + Duration::milliseconds(i.into());
+                 QueryRecord { 
+                    id: start_time.timestamp_millis(),
+                    worksheet_id,
+                    query: query.to_string(),
+                    start_time: start_time,
+                    end_time: start_time,
+                    duration_ms: 0,
+                    result_count: 0,
+                    result: None,
+                    status: QueryStatus::Running,
+                    error: None,
+                }                 
+            });
+            let mut item = MockQueryRecordActions::query_start(
                 format!("select {i}").as_str(),
-                Some(start_time),
+                Some(worksheet.id),
             );
             if i == 0 {
+                // 0 idx
                 item.query_finished(
                     1,
                     Some(String::from("pseudo result")),
-                    Some(item.start_time),
                 );
-            } else {
+            }
+            else if i == 1 {
                 item.query_finished_with_error("Test query pseudo error".to_string());
             }
+            // i==2 has QueryStatus::Running
             created.push(item.clone());
             eprintln!("added {:?}", item.key());
             db.add_query(&item).await.unwrap();

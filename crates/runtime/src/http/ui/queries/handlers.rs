@@ -29,7 +29,7 @@ use axum::{
     extract::{Query, State},
     Json,
 };
-use icebucket_history::{QueryRecord as QueryRecordItem, QueryRecordId, WorksheetId};
+use icebucket_history::{QueryRecordActions, QueryRecord as QueryRecordItem, QueryRecordId, WorksheetId};
 use icebucket_utils::iterable::IterableEntity;
 use std::collections::HashMap;
 use utoipa::OpenApi;
@@ -90,7 +90,7 @@ pub async fn query(
 ) -> QueriesResult<Json<QueryCreateResponse>> {
     //
     // Note: This handler allowed to return error from a designated place only,
-    // after query record successfull saved result or error.
+    // after query record successfuly saved result or error.
 
     // Here we use worksheet_id = 0 if worksheet_id is not defined,
     // we still can get queries records for non existing worksheet
@@ -107,8 +107,7 @@ pub async fn query(
             .and_then(|c| c.get("schema").cloned()),
     };
 
-    // TODO: save query record even if no related worksheet
-    let mut query_record = QueryRecordItem::query_start(worksheet_id, &payload.query, None);
+    let mut query_record = QueryRecordItem::query_start(&payload.query, worksheet_id);
 
     let query_res = state
         .execution_svc
@@ -124,7 +123,7 @@ pub async fn query(
 
                     if let Ok(encoded_res) = encoded_res {
                         let result_count = i64::try_from(records.len()).unwrap_or(0);
-                        query_record.query_finished(result_count, Some(encoded_res), None);
+                        query_record.query_finished(result_count, Some(encoded_res));
                     }
                     // failed to wrap query results
                     else if let Err(err) = encoded_res {
