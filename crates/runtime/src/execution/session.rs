@@ -38,7 +38,7 @@ use datafusion_iceberg::planner::IcebergQueryPlanner;
 use geodatafusion::udf::native::register_native as register_geo_native;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
-use icebucket_metastore::{AwsCredentials, IceBucketVolume, IceBucketVolumeType, Metastore};
+use icebucket_metastore::{AwsCredentials, IceBucketVolumeType, Metastore};
 use snafu::ResultExt;
 use std::any::Any;
 use std::collections::HashMap;
@@ -120,28 +120,25 @@ impl IceBucketUserSession {
             return Ok(());
         }
         for volume in volumes {
-            let (ak, sk, token) = match volume.volume.credentials {
-                Some(AwsCredentials::AccessKey(ref creds)) => (
+            let (ak, sk, token) = match volume.credentials {
+                AwsCredentials::AccessKey(ref creds) => (
                     Some(creds.aws_access_key_id.clone()),
                     Some(creds.aws_secret_access_key.clone()),
                     None,
                 ),
-                Some(AwsCredentials::Token(ref token)) => (None, None, Some(token.clone())),
-                _ => (None, None, None),
+                AwsCredentials::Token(ref token) => (None, None, Some(token.clone())),
             };
             let creds =
                 Credentials::from_keys(ak.unwrap_or_default(), sk.unwrap_or_default(), token);
             let config = SdkConfig::builder()
                 .behavior_version(BehaviorVersion::latest())
                 .credentials_provider(SharedCredentialsProvider::new(creds))
-                .region(Region::new(
-                    volume.volume.region.clone().unwrap_or_default(),
-                ))
+                .region(Region::new(volume.region.clone()))
                 .build();
             let catalog = S3TablesCatalog::new(
                 &config,
-                volume.arn.clone().unwrap_or_default().as_str(),
-                ObjectStoreBuilder::S3(IceBucketVolume::get_s3_builder(&volume.volume)),
+                volume.arn.as_str(),
+                ObjectStoreBuilder::S3(volume.s3_builder()),
             )
             .context(ex_error::S3TablesSnafu)?;
 
@@ -150,8 +147,7 @@ impl IceBucketUserSession {
                 .context(ex_error::DataFusionSnafu)?;
             let catalog_provider = Arc::new(catalog) as Arc<dyn CatalogProvider>;
 
-            let catalog_name = volume.catalog.unwrap_or_else(|| "s3_tables".to_string());
-            self.ctx.register_catalog(catalog_name, catalog_provider);
+            self.ctx.register_catalog(volume.name, catalog_provider);
         }
         Ok(())
     }
