@@ -32,6 +32,7 @@ use axum::{
 };
 use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::IceBucketDatabase;
+use icebucket_utils::list_config::ListConfig;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -194,6 +195,7 @@ pub async fn update_database(
     params(
         ("cursor" = Option<String>, Query, description = "Databases cursor"),
         ("limit" = Option<usize>, Query, description = "Databases limit"),
+        ("search" = Option<String>, Query, description = "Databases search (start with)"),
     ),
     tags = ["databases"],
     path = "/ui/databases",
@@ -209,7 +211,11 @@ pub async fn list_databases(
 ) -> DatabasesResult<Json<DatabasesResponse>> {
     state
         .metastore
-        .list_databases(parameters.cursor.clone(), parameters.limit)
+        .list_databases(ListConfig::new(
+            parameters.cursor.clone(),
+            parameters.limit,
+            parameters.search,
+        ))
         .await
         .map_err(|e| DatabasesAPIError::List { source: e })
         .map(|o| {

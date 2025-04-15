@@ -94,4 +94,5 @@ pub struct DatabasesResponse {
 pub struct DatabasesParameters {
     pub cursor: Option<String>,
     pub limit: Option<usize>,
+    pub search: Option<String>,
 }

@@ -180,6 +180,106 @@ async fn test_ui_schemas() {
         schemas_response.items.first().unwrap().name
     );
 
+    let schema_name = "naming1".to_string();
+    let payload_another = SchemaCreatePayload {
+        name: schema_name.clone(),
+    };
+    //Create schema with another name
+    let res = req(
+        &client,
+        Method::POST,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas",
+            database_name.clone()
+        )
+        .to_string(),
+        json!(payload_another).to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    //Get list schemas with search
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas?search={}",
+            database_name.clone(),
+            "tes"
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let schemas_response: SchemasResponse = res.json().await.unwrap();
+    assert_eq!(3, schemas_response.items.len());
+
+    //Get list schemas with parameters
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas?search={}&limit=1",
+            database_name.clone(),
+            "tes"
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let schemas_response: SchemasResponse = res.json().await.unwrap();
+    assert_eq!(1, schemas_response.items.len());
+    assert_eq!(
+        "testing1".to_string(),
+        schemas_response.items.first().unwrap().name
+    );
+    let cursor = schemas_response.next_cursor;
+    //Get list schemas with parameters
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas?search={}&cursor={cursor}",
+            database_name.clone(),
+            "tes"
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let schemas_response: SchemasResponse = res.json().await.unwrap();
+    assert_eq!(2, schemas_response.items.len());
+    assert_eq!(
+        "testing2".to_string(),
+        schemas_response.items.first().unwrap().name
+    );
+
+    //Get list schemas with search for another name
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas?search={}",
+            database_name.clone(),
+            "nam"
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let schemas_response: SchemasResponse = res.json().await.unwrap();
+    assert_eq!(1, schemas_response.items.len());
+    assert_eq!("naming1", schemas_response.items.first().unwrap().name);
+
     //Delete existing schema
     let res = req(
         &client,
@@ -220,6 +320,22 @@ async fn test_ui_schemas() {
             "http://{addr}/ui/databases/{}/schemas/{}",
             database_name.clone(),
             payload3.name.clone()
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    //Delete existing schema
+    let res = req(
+        &client,
+        Method::DELETE,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}",
+            database_name.clone(),
+            payload_another.name.clone()
         )
         .to_string(),
         String::new(),

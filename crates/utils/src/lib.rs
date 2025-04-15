@@ -16,7 +16,9 @@
 // under the License.
 
 pub mod iterable;
+pub mod list_config;
 
+use crate::list_config::ListConfig;
 use async_trait::async_trait;
 use bytes::Bytes;
 use iterable::IterableEntity;
@@ -139,7 +141,7 @@ impl Db {
         )
     }
 
-    /// Retrieves a list of keys from the database.
+    /// Retrieves a list of objects from the database.
     ///
     /// # Errors
     ///
@@ -149,14 +151,27 @@ impl Db {
     pub async fn list_objects<T: Send + for<'de> serde::de::Deserialize<'de>>(
         &self,
         key: &str,
-        cursor: Option<String>,
-        limit: Option<usize>,
+        list_config: ListConfig,
     ) -> Result<Vec<T>> {
-        let start =
-            cursor.map_or_else(|| format!("{key}/"), |cursor| format!("{key}/{cursor}\x00"));
-        let end = format!("{key}/\x7F");
+        //We can look with respect to limit
+        // from start to end (full scan),
+        // from starts_with to start_with (search),
+        // from cursor to end (looking not from the start)
+        // and from cursor to prefix (search without starting at the start and looking to the end (no full scan))
+        // more info in `list_config` file
+        let start = list_config.token.clone().map_or_else(
+            || format!("{key}/"),
+            |search_prefix| format!("{key}/{search_prefix}"),
+        );
+        let start = list_config
+            .cursor
+            .map_or_else(|| start, |cursor| format!("{key}/{cursor}\x00"));
+        let end = list_config.token.map_or_else(
+            || format!("{key}/\x7F"),
+            |search_prefix| format!("{key}/{search_prefix}\x7F"),
+        );
         let range = Bytes::from(start)..Bytes::from(end);
-        let limit = limit.unwrap_or(usize::MAX);
+        let limit = list_config.limit.unwrap_or(usize::MAX);
         let mut iter = self.0.scan(range).await.context(ScanFailedSnafu)?;
         let mut objects: Vec<T> = vec![];
         while let Ok(Some(value)) = iter.next().await {
@@ -266,7 +281,7 @@ pub trait Repository {
     async fn _list(&self) -> Result<Vec<Self::Entity>> {
         let entities = self
             .db()
-            .list_objects(Self::collection_key(), None, None)
+            .list_objects(Self::collection_key(), ListConfig::default())
             .await?;
         Ok(entities)
     }
@@ -305,12 +320,16 @@ mod test {
             .await
             .expect("Failed to put entity");
         let get_after_put = db.get::<TestEntity>("test/abc").await;
-        let list_after_append = db.list_objects::<TestEntity>("test", None, None).await;
+        let list_after_append = db
+            .list_objects::<TestEntity>("test", ListConfig::default())
+            .await;
         db.delete("test/abc")
             .await
             .expect("Failed to delete entity");
         let get_after_delete = db.get::<TestEntity>("test/abc").await;
-        let list_after_remove = db.list_objects::<TestEntity>("test", None, None).await;
+        let list_after_remove = db
+            .list_objects::<TestEntity>("test", ListConfig::default())
+            .await;
 
         insta::assert_debug_snapshot!((
             get_empty,

@@ -172,4 +172,5 @@ pub struct Table {
 pub struct TablesParameters {
     pub cursor: Option<String>,
     pub limit: Option<usize>,
+    pub search: Option<String>,
 }

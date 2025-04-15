@@ -172,4 +172,5 @@ pub struct VolumesResponse {
 pub struct VolumesParameters {
     pub cursor: Option<String>,
     pub limit: Option<usize>,
+    pub search: Option<String>,
 }

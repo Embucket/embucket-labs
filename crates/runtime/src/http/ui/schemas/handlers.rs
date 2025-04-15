@@ -33,6 +33,7 @@ use axum::{
 use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::models::IceBucketSchemaIdent;
 use icebucket_metastore::IceBucketSchema;
+use icebucket_utils::list_config::ListConfig;
 use std::collections::HashMap;
 use std::convert::From;
 use std::convert::Into;
@@ -213,6 +214,7 @@ pub async fn update_schema(
         ("databaseName" = String, description = "Database Name"),
         ("cursor" = Option<String>, Query, description = "Schemas cursor"),
         ("limit" = Option<usize>, Query, description = "Schemas limit"),
+        ("search" = Option<String>, Query, description = "Schemas search (start with)"),
     ),
     responses(
         (status = 200, body = SchemasResponse),
@@ -227,7 +229,14 @@ pub async fn list_schemas(
 ) -> SchemasResult<Json<SchemasResponse>> {
     state
         .metastore
-        .list_schemas(&database_name, parameters.cursor.clone(), parameters.limit)
+        .list_schemas(
+            &database_name,
+            ListConfig::new(
+                parameters.cursor.clone(),
+                parameters.limit,
+                parameters.search,
+            ),
+        )
         .await
         .map_err(|e| SchemasAPIError::List { source: e })
         .map(|rw_objects| {

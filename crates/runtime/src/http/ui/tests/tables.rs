@@ -107,7 +107,7 @@ async fn test_ui_tables() {
 
     let query_payload = QueryCreatePayload {
         query: format!(
-            "create or replace Iceberg TABLE {}.{}.{}
+            "create TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''
@@ -238,7 +238,7 @@ async fn test_ui_tables() {
     //Create three more tables
     let query_payload = QueryCreatePayload {
         query: format!(
-            "create or replace Iceberg TABLE {}.{}.{}
+            "create TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''
@@ -268,7 +268,7 @@ async fn test_ui_tables() {
 
     let query_payload = QueryCreatePayload {
         query: format!(
-            "create or replace Iceberg TABLE {}.{}.{}
+            "create TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''
@@ -298,7 +298,7 @@ async fn test_ui_tables() {
 
     let query_payload = QueryCreatePayload {
         query: format!(
-            "create or replace Iceberg TABLE {}.{}.{}
+            "create TABLE {}.{}.{}
         external_volume = ''
 	    catalog = ''
 	    base_location = ''
@@ -382,4 +382,112 @@ async fn test_ui_tables() {
     let tables: TablesResponse = res.json().await.unwrap();
     assert_eq!(2, tables.items.len());
     assert_eq!("tested3".to_string(), tables.items.first().unwrap().name);
+
+    //Create a table with another name
+    let query_payload = QueryCreatePayload {
+        query: format!(
+            "create TABLE {}.{}.{}
+        external_volume = ''
+	    catalog = ''
+	    base_location = ''
+        (
+	    APP_ID TEXT,
+	    PLATFORM TEXT,
+	    EVENT TEXT,
+        TXN_ID NUMBER(38,0),
+        EVENT_TIME TEXT
+	    );",
+            database_name.clone(),
+            schema_name.clone(),
+            "named1"
+        ),
+        context: None,
+    };
+
+    let res = req(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/queries?worksheet_id={}", worksheet.id),
+        json!(query_payload).to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+
+    //GET LIST Tables with search
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables?search={}",
+            database_name.clone(),
+            schema_name.clone(),
+            "tes"
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let tables: TablesResponse = res.json().await.unwrap();
+    assert_eq!(4, tables.items.len());
+    assert_eq!("tested1".to_string(), tables.items.first().unwrap().name);
+
+    //GET LIST Tables with search and limit
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables?search={}&limit=2",
+            database_name.clone(),
+            schema_name.clone(),
+            "tes"
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let tables: TablesResponse = res.json().await.unwrap();
+    assert_eq!(2, tables.items.len());
+    assert_eq!("tested1".to_string(), tables.items.first().unwrap().name);
+    let cursor = tables.next_cursor;
+
+    //GET LIST Tables with cursor
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables?search={}&cursor={cursor}",
+            database_name.clone(),
+            schema_name.clone(),
+            "tes"
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let tables: TablesResponse = res.json().await.unwrap();
+    assert_eq!(2, tables.items.len());
+    assert_eq!("tested3".to_string(), tables.items.first().unwrap().name);
+
+    //GET LIST Tables with search for the other table
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables?search={}",
+            database_name.clone(),
+            schema_name.clone(),
+            "nam"
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let tables: TablesResponse = res.json().await.unwrap();
+    assert_eq!(1, tables.items.len());
+    assert_eq!("named1".to_string(), tables.items.first().unwrap().name);
 }

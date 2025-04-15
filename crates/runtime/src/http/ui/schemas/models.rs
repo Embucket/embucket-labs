@@ -101,4 +101,5 @@ pub struct SchemasResponse {
 pub struct SchemasParameters {
     pub cursor: Option<String>,
     pub limit: Option<usize>,
+    pub search: Option<String>,
 }

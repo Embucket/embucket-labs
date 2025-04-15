@@ -37,6 +37,7 @@ use axum::{
 use datafusion::arrow::csv::reader::Format;
 use icebucket_metastore::error::MetastoreError;
 use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
+use icebucket_utils::list_config::ListConfig;
 use snafu::ResultExt;
 use std::time::Instant;
 use utoipa::OpenApi;
@@ -370,7 +371,10 @@ pub async fn upload_file(
     path = "/ui/databases/{databaseName}/schemas/tables/{schemaName}/tables",
     params(
         ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name")
+        ("schemaName" = String, description = "Schema Name"),
+        ("cursor" = Option<String>, Query, description = "Tables cursor"),
+        ("limit" = Option<usize>, Query, description = "Tables limit"),
+        ("search" = Option<String>, Query, description = "Tables search (start with)"),
     ),
     operation_id = "getTables",
     tags = ["tables"],
@@ -390,7 +394,14 @@ pub async fn get_tables(
     let ident = IceBucketSchemaIdent::new(database_name, schema_name);
     state
         .metastore
-        .list_tables(&ident, parameters.cursor.clone(), parameters.limit)
+        .list_tables(
+            &ident,
+            ListConfig::new(
+                parameters.cursor.clone(),
+                parameters.limit,
+                parameters.search,
+            ),
+        )
         .await
         .map_err(|e| TablesAPIError::GetMetastore { source: e })
         .map(|rw_tables| {

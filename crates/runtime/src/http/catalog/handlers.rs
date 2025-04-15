@@ -31,6 +31,7 @@ use iceberg_rest_catalog::models::{
 use iceberg_rust_spec::table_metadata::TableMetadata;
 use icebucket_metastore::error::{self as metastore_error, MetastoreError};
 use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
+use icebucket_utils::list_config::ListConfig;
 use object_store::ObjectStore;
 use serde_json::{from_slice, Value};
 use snafu::ResultExt;
@@ -95,7 +96,7 @@ pub async fn list_namespaces(
 ) -> MetastoreAPIResult<Json<ListNamespacesResponse>> {
     let schemas = state
         .metastore
-        .list_schemas(&database_name, None, None)
+        .list_schemas(&database_name, ListConfig::default())
         .await
         .map_err(MetastoreAPIError)?;
     Ok(Json(from_schemas_list(schemas)))
@@ -218,7 +219,7 @@ pub async fn list_tables(
     let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
     let tables = state
         .metastore
-        .list_tables(&schema_ident, None, None)
+        .list_tables(&schema_ident, ListConfig::default())
         .await
         .map_err(MetastoreAPIError)?;
     Ok(Json(from_tables_list(tables)))

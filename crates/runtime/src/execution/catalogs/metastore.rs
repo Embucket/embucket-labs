@@ -37,6 +37,7 @@ use iceberg_rust::{
     catalog::Catalog as IcebergCatalog, spec::identifier::Identifier as IcebergIdentifier,
 };
 use icebucket_metastore::{error::MetastoreError, Metastore};
+use icebucket_utils::list_config::ListConfig;
 use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
 use snafu::ResultExt;
@@ -74,7 +75,7 @@ impl IceBucketDFMetastore {
 
         let databases = self
             .metastore
-            .list_databases(None, None)
+            .list_databases(ListConfig::default())
             .await
             .context(ex_error::MetastoreSnafu)?;
         for database in databases {
@@ -85,7 +86,7 @@ impl IceBucketDFMetastore {
             let db_seen_entry = seen.entry(database.ident.clone()).or_default();
             let schemas = self
                 .metastore
-                .list_schemas(&database.ident, None, None)
+                .list_schemas(&database.ident, ListConfig::default())
                 .await
                 .context(ex_error::MetastoreSnafu)?;
             for schema in schemas {
@@ -97,7 +98,7 @@ impl IceBucketDFMetastore {
                     .or_default();
                 let tables = self
                     .metastore
-                    .list_tables(&schema.ident, None, None)
+                    .list_tables(&schema.ident, ListConfig::default())
                     .await
                     .context(ex_error::MetastoreSnafu)?;
                 for table in tables {
