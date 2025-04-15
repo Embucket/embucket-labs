@@ -42,9 +42,10 @@ use iceberg_rust::catalog::Catalog;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
+use iceberg_rust_spec::namespace::Namespace;
 use icebucket_metastore::{
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableFormat,
-    IceBucketTableIdent, Metastore,
+    IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableFormat, IceBucketTableIdent,
+    Metastore,
 };
 use object_store::aws::AmazonS3Builder;
 use serde::{Deserialize, Serialize};
@@ -256,11 +257,8 @@ impl IceBucketQuery {
                     .create_database(db_name, if_not_exists)
                     .await;*/
                 }
-                Statement::CreateSchema {
-                    schema_name,
-                    if_not_exists,
-                } => {
-                    let result = self.create_schema(schema_name, if_not_exists).await;
+                Statement::CreateSchema { .. } => {
+                    let result = self.create_schema(*s).await;
                     self.refresh_catalog().await?;
                     return result;
                 }
@@ -810,56 +808,57 @@ impl IceBucketQuery {
         self.execute_with_custom_plan(&insert_query).await
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
-    pub async fn create_schema(
-        &self,
-        name: SchemaName,
-        if_not_exists: bool,
-    ) -> ExecutionResult<Vec<RecordBatch>> {
-        match name {
-            SchemaName::Simple(schema_name) => {
-                let object_name = self.resolve_schema_ident(schema_name.0)?;
+    // #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    pub async fn create_schema(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
+        let Statement::CreateSchema {
+            schema_name,
+            if_not_exists,
+        } = statement.clone()
+        else {
+            return Err(ExecutionError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only COPY INTO statements are supported".to_string(),
+                ),
+            });
+        };
 
-                let database_name = object_name.0[0].clone().to_string();
-                let schema_name = object_name.0[1].clone().to_string();
+        let SchemaName::Simple(schema_name) = schema_name else {
+            return Err(ExecutionError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only simple schema names are supported".to_string(),
+                ),
+            });
+        };
 
-                let icebucket_schema_ident = IceBucketSchemaIdent {
-                    database: database_name.clone(),
-                    schema: schema_name.clone(),
-                };
+        let ident: IceBucketSchemaIdent = self.resolve_schema_ident(schema_name.0)?.into();
+        let catalog = self.get_catalog(ident.database.as_str())?;
+        if catalog.schema(ident.schema.as_str()).is_some() && if_not_exists {
+            return Err(ExecutionError::ObjectAlreadyExists {
+                type_name: "schema".to_string(),
+                name: ident.schema,
+            });
+        }
 
-                let exists = self
-                    .metastore
-                    .get_schema(&icebucket_schema_ident)
-                    .await
-                    .context(ex_error::MetastoreSnafu)?
-                    .is_some();
-
-                if exists && if_not_exists {
-                    return Err(ExecutionError::ObjectAlreadyExists {
-                        type_name: "schema".to_string(),
-                        name: schema_name.to_string(),
-                    });
-                } else if !exists {
-                    let icebucket_schema = IceBucketSchema {
-                        ident: icebucket_schema_ident.clone(),
-                        properties: None,
-                    };
-                    self.metastore
-                        .create_schema(&icebucket_schema_ident, icebucket_schema)
-                        .await
-                        .context(ex_error::MetastoreSnafu)?;
+        let plan = self.sql_statement_to_plan(statement).await?;
+        let downcast_result = self.resolve_iceberg_catalog_or_execute(catalog, plan).await;
+        let iceberg_catalog = match downcast_result {
+            IcebergCatalogResult::Catalog(catalog) => catalog,
+            IcebergCatalogResult::Result(result) => {
+                return match result {
+                    Ok(_) => Ok(vec![]),
+                    Err(err) => Err(err),
                 }
             }
-            _ => {
-                return Err(ExecutionError::DataFusion {
-                    source: DataFusionError::NotImplemented(
-                        "Only simple schema names are supported".to_string(),
-                    ),
-                });
-            }
-        }
-        created_entity_response()
+        };
+
+        let namespace = Namespace::try_new(&[ident.schema])
+            .map_err(|err| DataFusionError::External(Box::new(err)))
+            .context(ex_error::DataFusionSnafu)?;
+        iceberg_catalog
+            .create_namespace(&namespace, None)
+            .await
+            .context(ex_error::IcebergSnafu)?;
+        Ok(vec![])
     }
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
