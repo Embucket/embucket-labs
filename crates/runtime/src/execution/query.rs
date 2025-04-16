@@ -79,8 +79,8 @@ pub struct QueryContext {
 
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
+    pub raw_query: String,
     pub query: String,
-    pub parsed_query: String,
     pub session: Arc<UserSession>,
     pub query_context: QueryContext,
 }
@@ -98,8 +98,8 @@ impl UserQuery {
         let query = Self::preprocess_query(&query.into());
         Self {
             metastore: session.metastore.clone(),
-            query: query.clone(),
-            parsed_query: query,
+            raw_query: query.clone(),
+            query,
             session,
             query_context,
         }
@@ -108,7 +108,7 @@ impl UserQuery {
     pub fn parse_query(&self) -> Result<DFStatement, DataFusionError> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
-        let mut statement = state.sql_to_statement(&self.query, dialect)?;
+        let mut statement = state.sql_to_statement(&self.raw_query, dialect)?;
         Self::postprocess_query_statement(&mut statement);
         Ok(statement)
     }
@@ -167,7 +167,7 @@ impl UserQuery {
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn execute(&mut self) -> ExecutionResult<Vec<RecordBatch>> {
         let statement = self.parse_query().context(super::error::DataFusionSnafu)?;
-        self.parsed_query = statement.to_string();
+        self.query = statement.to_string();
 
         // TODO: Code should be organized in a better way
         // 1. Single place to parse SQL strings into AST
@@ -270,7 +270,7 @@ impl UserQuery {
                 | Statement::ShowVariable { .. }
                 | Statement::ShowObjects { .. }
                 | Statement::Update { .. } => {
-                    return Box::pin(self.execute_with_custom_plan(&self.parsed_query)).await;
+                    return Box::pin(self.execute_with_custom_plan(&self.query)).await;
                 }
                 Statement::Query(mut subquery) => {
                     self.update_qualify_in_query(subquery.as_mut());
@@ -290,7 +290,7 @@ impl UserQuery {
         } else if let DFStatement::CreateExternalTable(cetable) = statement {
             return Box::pin(self.create_external_table_query(cetable)).await;
         }
-        self.execute_sql(&self.parsed_query).await
+        self.execute_sql(&self.query).await
     }
 
     /// .
