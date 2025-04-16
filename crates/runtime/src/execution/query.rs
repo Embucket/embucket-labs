@@ -38,13 +38,14 @@ use datafusion_expr::CreateMemoryTable;
 use datafusion_expr::DdlStatement;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use embucket_metastore::{
-    Metastore, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
+    Metastore, SchemaIdent as MetastoreSchemaIdent,
     TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
     TableIdent as MetastoreTableIdent,
 };
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
+use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;

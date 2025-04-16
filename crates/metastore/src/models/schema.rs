@@ -40,7 +40,7 @@ impl SchemaIdent {
     }
 }
 
-impl std::fmt::Display for IceBucketSchemaIdent {
+impl std::fmt::Display for SchemaIdent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}", self.database, self.schema)
     }

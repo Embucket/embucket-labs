@@ -378,13 +378,13 @@ async fn test_drop_table() {
 #[tokio::test]
 async fn test_create_schema() {
     let (execution_svc, metastore, session_id) = prepare_env().await;
-    let schema_ident = IceBucketSchemaIdent {
-        database: "icebucket".to_string(),
+    let schema_ident = MetastoreSchemaIdent {
+        database: "embucket".to_string(),
         schema: "public_new".to_string(),
     };
     let query = format!("CREATE SCHEMA {schema_ident};");
     execution_svc
-        .query(&session_id, &query, IceBucketQueryContext::default())
+        .query(&session_id, &query, QueryContext::default())
         .await
         .expect("Failed to execute query");
     // TODO use "SHOW SCHEMAS" sql
