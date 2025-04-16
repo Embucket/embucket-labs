@@ -258,7 +258,7 @@ impl IceBucketQuery {
                     .await;*/
                 }
                 Statement::CreateSchema { .. } => {
-                    let result = self.create_schema(*s).await;
+                    let result = Box::pin(self.create_schema(*s)).await;
                     self.refresh_catalog().await?;
                     return result;
                 }
@@ -808,7 +808,7 @@ impl IceBucketQuery {
         self.execute_with_custom_plan(&insert_query).await
     }
 
-    // #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_schema(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
         let Statement::CreateSchema {
             schema_name,
@@ -817,7 +817,7 @@ impl IceBucketQuery {
         else {
             return Err(ExecutionError::DataFusion {
                 source: DataFusionError::NotImplemented(
-                    "Only COPY INTO statements are supported".to_string(),
+                    "Only CREATE SCHEMA statements are supported".to_string(),
                 ),
             });
         };
@@ -858,7 +858,7 @@ impl IceBucketQuery {
             .create_namespace(&namespace, None)
             .await
             .context(ex_error::IcebergSnafu)?;
-        Ok(vec![])
+        created_entity_response()
     }
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
@@ -1542,20 +1542,24 @@ impl IceBucketQuery {
         &self,
         mut schema_ident: Vec<Ident>,
     ) -> ExecutionResult<NormalizedIdent> {
-        if schema_ident.len() == 1 {
-            if let Some(database) = self.current_database() {
-                schema_ident.insert(0, Ident::new(database));
-            } else {
+        match schema_ident.len() {
+            1 => match self.current_database() {
+                Some(database) => {
+                    schema_ident.insert(0, Ident::new(database));
+                }
+                None => {
+                    return Err(ExecutionError::InvalidSchemaIdentifier {
+                        ident: NormalizedIdent(schema_ident).to_string(),
+                    });
+                }
+            },
+            2 => {}
+            _ => {
                 return Err(ExecutionError::InvalidSchemaIdentifier {
                     ident: NormalizedIdent(schema_ident).to_string(),
                 });
             }
-        } else if schema_ident.len() > 2 {
-            return Err(ExecutionError::InvalidSchemaIdentifier {
-                ident: NormalizedIdent(schema_ident).to_string(),
-            });
         }
-
         Ok(NormalizedIdent(
             schema_ident
                 .iter()

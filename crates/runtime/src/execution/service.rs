@@ -220,7 +220,7 @@ impl ExecutionService {
         };
 
         let query = user_session.query(&query, IceBucketQueryContext::default());
-        query.execute().await?;
+        Box::pin(query.execute()).await?;
 
         user_session
             .ctx
