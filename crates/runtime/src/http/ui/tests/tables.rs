@@ -181,7 +181,7 @@ async fn test_ui_tables() {
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1/preview",
+            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1/rows",
             database_name.clone(),
             schema_name.clone()
         ),
@@ -202,7 +202,7 @@ async fn test_ui_tables() {
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1/preview?offset=1&limit=1",
+            "http://{addr}/ui/databases/{}/schemas/{}/tables/tested1/rows?offset=1&limit=1",
             database_name.clone(),
             schema_name.clone()
         ),

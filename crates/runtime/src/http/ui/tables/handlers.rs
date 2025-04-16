@@ -24,10 +24,9 @@ use crate::http::ui::tables::error::{
     TablesAPIError, TablesResult,
 };
 use crate::http::ui::tables::models::{
-    Table, TableColumnInfo, TableColumnsInfoResponse, TablePreviewDataColumn,
-    TablePreviewDataParameters, TablePreviewDataResponse, TablePreviewDataRow, TableStatistics,
-    TableStatisticsResponse, TableUploadPayload, TableUploadResponse, TablesParameters,
-    TablesResponse, UploadParameters,
+    Table, TableColumn, TableColumnsResponse, TablePreviewDataColumn, TablePreviewDataParameters,
+    TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
+    TableUploadPayload, TableUploadResponse, TablesParameters, TablesResponse, UploadParameters,
 };
 use arrow_array::{Array, StringArray};
 use axum::extract::Query;
@@ -47,7 +46,7 @@ use utoipa::OpenApi;
 #[openapi(
     paths(
         get_table_statistics,
-        get_table_columns_info,
+        get_table_columns,
         get_table_preview_data,
         upload_file,
     ),
@@ -55,8 +54,8 @@ use utoipa::OpenApi;
         schemas(
             TableStatisticsResponse,
             TableStatistics,
-            TableColumnsInfoResponse,
-            TableColumnInfo,
+            TableColumnsResponse,
+            TableColumn,
             TablePreviewDataResponse,
             TablePreviewDataColumn,
             TablePreviewDataRow,
@@ -141,21 +140,21 @@ pub async fn get_table_statistics(
         ("schemaName" = String, description = "Schema Name"),
         ("tableName" = String, description = "Table Name")
     ),
-    operation_id = "getTableColumnsInfo",
+    operation_id = "getTableColumns",
     tags = ["tables"],
     responses(
-        (status = 200, description = "Successful Response", body = TableColumnsInfoResponse),
+        (status = 200, description = "Successful Response", body = TableColumnsResponse),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
-pub async fn get_table_columns_info(
+pub async fn get_table_columns(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> TablesResult<Json<TableColumnsInfoResponse>> {
+) -> TablesResult<Json<TableColumnsResponse>> {
     let context = QueryContext {
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
@@ -166,9 +165,9 @@ pub async fn get_table_columns_info(
         .query(&session_id, sql_string.as_str(), context)
         .await
         .map_err(|e| TablesAPIError::GetExecution { source: e })?;
-    let items: Vec<TableColumnInfo> = column_infos
+    let items: Vec<TableColumn> = column_infos
         .iter()
-        .map(|column_info| TableColumnInfo {
+        .map(|column_info| TableColumn {
             name: column_info.name.clone(),
             r#type: column_info.r#type.clone(),
             description: String::new(),
@@ -184,11 +183,11 @@ pub async fn get_table_columns_info(
             },
         })
         .collect();
-    Ok(Json(TableColumnsInfoResponse { items }))
+    Ok(Json(TableColumnsResponse { items }))
 }
 #[utoipa::path(
     get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/preview",
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows",
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
