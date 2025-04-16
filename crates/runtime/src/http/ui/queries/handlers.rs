@@ -92,10 +92,6 @@ pub async fn query(
     // Note: This handler allowed to return error from a designated place only,
     // after query record successfuly saved result or error.
 
-    // Here we use worksheet_id = 0 if worksheet_id is not defined,
-    // we still can get queries records for non existing worksheet
-    let worksheet_id = payload.worksheet_id.unwrap_or_default();
-
     let query_context = ExecutionContext {
         database: payload
             .context
@@ -107,7 +103,7 @@ pub async fn query(
             .and_then(|c| c.get("schema").cloned()),
     };
 
-    let mut query_record = QueryRecordItem::query_start(&payload.query, worksheet_id);
+    let mut query_record = QueryRecordItem::query_start(&payload.query, payload.worksheet_id);
 
     let query_res = state
         .execution_svc
@@ -182,13 +178,9 @@ pub async fn queries(
     Query(params): Query<GetQueriesParams>,
     State(state): State<AppState>,
 ) -> QueriesResult<Json<QueriesResponse>> {
-    // Here we use worksheet_id = 0 if worksheet_id is not defined,
-    // we still can get queries records for non existing worksheet
-    let worksheet_id = params.worksheet_id.unwrap_or_default();
-
     let result = state
         .history
-        .get_queries(worksheet_id, params.cursor, params.limit)
+        .get_queries(params.worksheet_id, params.cursor, params.limit)
         .await;
 
     match result {

@@ -127,6 +127,6 @@ impl IterableEntity for QueryRecord {
     }
 
     fn key(&self) -> Bytes {
-        Self::get_key(self.worksheet_id.unwrap_or_default(), self.id)
+        Self::get_key(self.worksheet_id, self.id)
     }
 }
