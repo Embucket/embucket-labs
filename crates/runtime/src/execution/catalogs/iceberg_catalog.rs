@@ -308,11 +308,12 @@ impl IcebergCatalog for IcebergBridge {
         Ok(())
     }
 
-    /// Drop a table and delete all data and metadata files.
+    /// Drop a view
     async fn drop_view(&self, _identifier: &IcebergIdentifier) -> Result<(), IcebergError> {
-        Err(IcebergError::NotSupported(
-            "Views are not supported".to_string(),
-        ))
+        // Err(IcebergError::NotSupported(
+        //     "Views are not supported".to_string(),
+        // ))
+        Ok(())
     }
 
     /// Drop a table and delete all data and metadata files.

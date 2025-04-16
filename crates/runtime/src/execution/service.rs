@@ -92,7 +92,7 @@ impl ExecutionService {
                     id: session_id.to_string(),
                 })?;
 
-        let query_obj = user_session.query(query, query_context);
+        let mut query_obj = user_session.query(query, query_context);
 
         let records: Vec<RecordBatch> = query_obj.execute().await?;
 
@@ -102,21 +102,6 @@ impl ExecutionService {
         // Perhaps this can be moved closer to Snowflake API layer
         let (records, columns) = convert_record_batches(records, data_format)
             .context(ex_error::DataFusionQuerySnafu { query })?;
-
-        // TODO: Perhaps it's better to return a schema as a result of `execute` method
-        let columns = if columns.is_empty() {
-            query_obj
-                .get_custom_logical_plan()
-                .await?
-                .schema()
-                .fields()
-                .iter()
-                .map(|field| ColumnInfo::from_field(field))
-                .collect::<Vec<_>>()
-        } else {
-            columns
-        };
-
         Ok((records, columns))
     }
 
@@ -215,7 +200,7 @@ impl ExecutionService {
             format!("CREATE TABLE {table_ident} AS SELECT * FROM {table}")
         };
 
-        let query = user_session.query(&query, QueryContext::default());
+        let mut query = user_session.query(&query, QueryContext::default());
         Box::pin(query.execute()).await?;
 
         user_session

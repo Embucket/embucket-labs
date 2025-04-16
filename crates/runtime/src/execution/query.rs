@@ -80,6 +80,7 @@ pub struct QueryContext {
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
     pub query: String,
+    pub parsed_query: String,
     pub session: Arc<UserSession>,
     pub query_context: QueryContext,
 }
@@ -97,7 +98,8 @@ impl UserQuery {
         let query = Self::preprocess_query(&query.into());
         Self {
             metastore: session.metastore.clone(),
-            query,
+            query: query.clone(),
+            parsed_query: query,
             session,
             query_context,
         }
@@ -163,11 +165,9 @@ impl UserQuery {
     }
 
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
-    pub async fn execute(&self) -> ExecutionResult<Vec<RecordBatch>> {
-        let mut statement = self.parse_query().context(super::error::DataFusionSnafu)?;
-        // TODO: Check if this can be removed since it's called already
-        // in `parse_query`
-        Self::postprocess_query_statement(&mut statement);
+    pub async fn execute(&mut self) -> ExecutionResult<Vec<RecordBatch>> {
+        let statement = self.parse_query().context(super::error::DataFusionSnafu)?;
+        self.parsed_query = statement.to_string();
 
         // TODO: Code should be organized in a better way
         // 1. Single place to parse SQL strings into AST
@@ -188,7 +188,7 @@ impl UserQuery {
                         .collect();
 
                     self.session.set_session_variable(set, params)?;
-                    return Ok(vec![]);
+                    return status_response();
                 }
                 Statement::Use(entity) => {
                     let (variable, value) = match entity {
@@ -210,7 +210,7 @@ impl UserQuery {
                     }
                     let params = HashMap::from([(variable.to_string(), value)]);
                     self.session.set_session_variable(true, params)?;
-                    return Ok(vec![]);
+                    return status_response();
                 }
                 Statement::SetVariable {
                     variables, value, ..
@@ -230,13 +230,12 @@ impl UserQuery {
                     let values = values?;
                     let params = keys.into_iter().zip(values.into_iter()).collect();
                     self.session.set_session_variable(true, params)?;
-                    return Ok(vec![]);
+                    return status_response();
                 }
                 Statement::CreateTable { .. } => {
                     let result = Box::pin(self.create_table_query(*s)).await;
                     return result;
                 }
-
                 Statement::CreateDatabase { .. } => {
                     // TODO: Databases are only able to be created through the
                     // metastore API. We need to add Snowflake volume syntax to CREATE DATABASE query
@@ -271,7 +270,7 @@ impl UserQuery {
                 | Statement::ShowVariable { .. }
                 | Statement::ShowObjects { .. }
                 | Statement::Update { .. } => {
-                    return Box::pin(self.execute_with_custom_plan(&self.query)).await;
+                    return Box::pin(self.execute_with_custom_plan(&self.parsed_query)).await;
                 }
                 Statement::Query(mut subquery) => {
                     self.update_qualify_in_query(subquery.as_mut());
@@ -291,7 +290,7 @@ impl UserQuery {
         } else if let DFStatement::CreateExternalTable(cetable) = statement {
             return Box::pin(self.create_external_table_query(cetable)).await;
         }
-        self.execute_sql(&self.query).await
+        self.execute_sql(&self.parsed_query).await
     }
 
     /// .
@@ -306,7 +305,6 @@ impl UserQuery {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         // TODO: This regex should be a static allocation
         let re = regex::Regex::new(r"(\w+.\w+)\[(\d+)][:\.](\w+)").unwrap();
-        //date_add processing moved to `postprocess_query_statement`
         let mut query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
             .to_string();
@@ -362,7 +360,13 @@ impl UserQuery {
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn drop_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
-        let Statement::Drop { names, .. } = statement.clone() else {
+        let Statement::Drop {
+            names,
+            if_exists,
+            object_type,
+            ..
+        } = statement.clone()
+        else {
             return Err(ExecutionError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only DROP statements are supported".to_string(),
@@ -379,16 +383,41 @@ impl UserQuery {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
                 return match result {
-                    Ok(_) => Ok(vec![]),
+                    Ok(_) => status_response(),
                     Err(err) => Err(err),
                 }
             }
         };
-        iceberg_catalog
-            .drop_table(&ident.to_iceberg_ident())
+
+        let table_exists = iceberg_catalog
+            .clone()
+            .load_tabular(&ident.to_iceberg_ident())
             .await
-            .context(ex_error::IcebergSnafu)?;
-        Ok(vec![])
+            .is_ok();
+        if table_exists && if_exists {
+            match object_type {
+                ObjectType::Table => {
+                    iceberg_catalog
+                        .drop_table(&ident.to_iceberg_ident())
+                        .await
+                        .context(ex_error::IcebergSnafu)?;
+                }
+                ObjectType::View => {
+                    iceberg_catalog
+                        .drop_view(&ident.to_iceberg_ident())
+                        .await
+                        .context(ex_error::IcebergSnafu)?;
+                }
+                _ => {
+                    return Err(ExecutionError::DataFusion {
+                        source: DataFusionError::NotImplemented(
+                            "Only DROP TABLE/VIEW statements are supported".to_string(),
+                        ),
+                    });
+                }
+            }
+        }
+        status_response()
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
@@ -407,6 +436,8 @@ impl UserQuery {
 
         let new_table_ident = self.resolve_table_ident(create_table_statement.name.0.clone())?;
         create_table_statement.name = new_table_ident.clone().into();
+        // We don't support transient tables for now
+        create_table_statement.transient = false;
 
         let table_location = create_table_statement
             .location
@@ -420,33 +451,17 @@ impl UserQuery {
             .sql_statement_to_plan(Statement::CreateTable(create_table_statement.clone()))
             .await?;
 
-        // Check if it already exists, if it is - drop it
-        // For now we behave as CREATE OR REPLACE
-        // TODO support CREATE without REPLACE
         let ident: MetastoreTableIdent = new_table_ident.into();
 
         let catalog = self.get_catalog(ident.database.as_str())?;
-        let schema_provider =
-            catalog
-                .schema(ident.schema.as_str())
-                .ok_or(ExecutionError::SchemaNotFound {
-                    schema: ident.schema.clone(),
-                })?;
-
-        let table_exists = schema_provider.table_exist(ident.table.as_str());
-        if table_exists && create_table_statement.or_replace {
-            schema_provider
-                .deregister_table(&ident.table)
-                .context(ex_error::DataFusionSnafu)?;
-        } else if table_exists && create_table_statement.if_not_exists {
-            return Err(ExecutionError::ObjectAlreadyExists {
-                type_name: "table".to_string(),
-                name: ident.to_string(),
-            });
-        }
-
-        self.create_iceberg_table(catalog, table_location, ident.clone(), plan.clone())
-            .await?;
+        self.create_iceberg_table(
+            catalog,
+            table_location,
+            ident.clone(),
+            create_table_statement,
+            plan.clone(),
+        )
+        .await?;
 
         // Now we have created table in the metastore, we need to register it in the catalog
         self.refresh_catalog().await?;
@@ -454,7 +469,6 @@ impl UserQuery {
         // Insert data to new table
         // Since we don't execute logical plan, and we don't transform it to physical plan and
         // also don't execute it as well, we need somehow to support CTAS
-
         let schema = plan.schema().clone();
         if let LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(CreateMemoryTable {
             name,
@@ -474,14 +488,14 @@ impl UserQuery {
     }
 
     #[allow(unused_variables)]
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_iceberg_table(
         &self,
         catalog: Arc<dyn CatalogProvider>,
         table_location: Option<String>,
         ident: MetastoreTableIdent,
+        statement: CreateTableStatement,
         plan: LogicalPlan,
-    ) -> ExecutionResult<()> {
+    ) -> ExecutionResult<Vec<RecordBatch>> {
         let iceberg_catalog = match self
             .resolve_iceberg_catalog_or_execute(catalog, plan.clone())
             .await
@@ -489,11 +503,31 @@ impl UserQuery {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
                 return match result {
-                    Ok(_) => Ok(()),
+                    Ok(_) => created_entity_response(),
                     Err(err) => Err(err),
                 }
             }
         };
+
+        // Check if it already exists, if exists and CREATE OR REPLACE - drop it
+        let table_exists = iceberg_catalog
+            .clone()
+            .load_tabular(&ident.to_iceberg_ident())
+            .await
+            .is_ok();
+        if table_exists && statement.if_not_exists {
+            return Err(ExecutionError::ObjectAlreadyExists {
+                type_name: "table".to_string(),
+                name: ident.to_string(),
+            });
+        }
+
+        if table_exists && statement.or_replace {
+            iceberg_catalog
+                .drop_table(&ident.to_iceberg_ident())
+                .await
+                .context(ex_error::IcebergSnafu)?;
+        }
         let fields_with_ids = StructType::try_from(&new_fields_with_ids(
             plan.schema().as_arrow().fields(),
             &mut 0,
@@ -516,7 +550,7 @@ impl UserQuery {
             .build(&[ident.schema], iceberg_catalog)
             .await
             .context(ex_error::IcebergSnafu)?;
-        Ok(())
+        created_entity_response()
     }
 
     pub async fn create_external_table_query(
@@ -683,7 +717,7 @@ impl UserQuery {
             )
             .await
             .context(ex_error::DataFusionSnafu)?;
-        Ok(vec![])
+        status_response()
     }
 
     pub async fn copy_into_snowflake_query(
@@ -835,7 +869,7 @@ impl UserQuery {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
                 return match result {
-                    Ok(_) => Ok(vec![]),
+                    Ok(_) => created_entity_response(),
                     Err(err) => Err(err),
                 }
             }
@@ -851,7 +885,6 @@ impl UserQuery {
         created_entity_response()
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn get_custom_logical_plan(&self) -> ExecutionResult<LogicalPlan> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
@@ -859,7 +892,7 @@ impl UserQuery {
         // We turn a query to SQL only to turn it back into a statement
         // TODO: revisit this pattern
         let mut statement = state
-            .sql_to_statement(&self.query, dialect)
+            .sql_to_statement(&self.parsed_query, dialect)
             .context(super::error::DataFusionSnafu)?;
         statement = self.update_statement_references(statement)?;
 
@@ -1661,4 +1694,13 @@ pub fn created_entity_response() -> ExecutionResult<Vec<RecordBatch>> {
         vec![Arc::new(Int64Array::from(vec![0]))],
     )
     .context(ex_error::ArrowSnafu)?])
+}
+
+pub fn status_response() -> ExecutionResult<Vec<RecordBatch>> {
+    let schema = Arc::new(ArrowSchema::new(vec![Field::new(
+        "status",
+        DataType::Utf8,
+        false,
+    )]));
+    Ok(vec![RecordBatch::new_empty(schema)])
 }
