@@ -82,7 +82,7 @@ async fn test_create_table_and_insert() {
             PRIMARY KEY (CounterID, EventDate, EventTime, WatchID)
         );
     ";
-    let query1 = session.query(create_query, QueryContext::default());
+    let mut query1 = session.query(create_query, QueryContext::default());
 
     let statement = query1.parse_query().expect("Failed to parse query");
     let result = query1.execute().await.expect("Failed to execute query");
