@@ -21,7 +21,7 @@ use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
-pub enum IceBucketSQLError {
+pub enum SQLError {
     #[snafu(display("Arrow error: {source}"))]
     Arrow { source: arrow::error::ArrowError },
 
@@ -64,4 +64,4 @@ pub enum IceBucketSQLError {
     NotImplemented { message: String },
 }
 
-pub type IceBucketSQLResult<T> = std::result::Result<T, IceBucketSQLError>;
+pub type SQLResult<T> = std::result::Result<T, SQLError>;

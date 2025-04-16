@@ -77,15 +77,15 @@ pub async fn create_volume(
     State(state): State<AppState>,
     Json(volume): Json<VolumeCreatePayload>,
 ) -> VolumesResult<Json<VolumeCreateResponse>> {
-    let icebucket_volume: MetastoreVolume = volume.data.into();
-    icebucket_volume
+    let embucket_volume: MetastoreVolume = volume.data.into();
+    embucket_volume
         .validate()
         .map_err(|e| VolumesAPIError::Create {
             source: MetastoreError::Validation { source: e },
         })?;
     state
         .metastore
-        .create_volume(&icebucket_volume.ident.clone(), icebucket_volume)
+        .create_volume(&embucket_volume.ident.clone(), embucket_volume)
         .await
         .map_err(|e| VolumesAPIError::Create { source: e })
         .map(|o| {

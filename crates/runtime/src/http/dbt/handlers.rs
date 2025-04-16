@@ -16,7 +16,7 @@
 // under the License.
 
 use super::error::{self as dbt_error, DbtError, DbtResult};
-use crate::execution::query::IceBucketQueryContext;
+use crate::execution::query::QueryContext;
 use crate::execution::utils::DataSerializationFormat;
 use crate::http::dbt::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
@@ -132,11 +132,7 @@ pub async fn query(
 
     let (records, columns) = state
         .execution_svc
-        .query(
-            &session_id,
-            &body_json.sql_text,
-            IceBucketQueryContext::default(),
-        )
+        .query(&session_id, &body_json.sql_text, QueryContext::default())
         .await
         .map_err(|e| DbtError::Execution { source: e })?;
 

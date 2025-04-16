@@ -17,7 +17,7 @@
 
 use std::sync::Arc;
 
-use crate::execution::{query::IceBucketQueryContext, session::IceBucketUserSession};
+use crate::execution::{query::QueryContext, session::UserSession};
 use embucket_metastore::{
     Database as MetastoreDatabase, Metastore, Schema as MetastoreSchema,
     SchemaIdent as MetastoreSchemaIdent, SlateDBMetastore, Volume as MetastoreVolume,
@@ -26,7 +26,7 @@ use embucket_metastore::{
 static TABLE_SETUP: &str = include_str!(r"./queries/table_setup.sql");
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
-pub async fn create_df_session() -> Arc<IceBucketUserSession> {
+pub async fn create_df_session() -> Arc<UserSession> {
     let metastore = SlateDBMetastore::new_in_memory().await;
     metastore
         .create_volume(
@@ -65,14 +65,14 @@ pub async fn create_df_session() -> Arc<IceBucketUserSession> {
         .expect("Failed to create schema");
 
     let user_session = Arc::new(
-        IceBucketUserSession::new(metastore)
+        UserSession::new(metastore)
             .await
             .expect("Failed to create user session"),
     );
 
     for query in TABLE_SETUP.split(';') {
         if !query.is_empty() {
-            let query = user_session.query(query, IceBucketQueryContext::default());
+            let query = user_session.query(query, QueryContext::default());
             query.execute().await.unwrap();
             //ctx.sql(query).await.unwrap().collect().await.unwrap();
         }
@@ -88,7 +88,7 @@ pub mod macros {
                 async fn [< query_ $test_fn_name >]() {
                     let ctx = crate::tests::utils::create_df_session().await;
 
-                    let query = ctx.query($query, crate::execution::query::IceBucketQueryContext::default());
+                    let query = ctx.query($query, crate::execution::query::QueryContext::default());
                     let statement = query.parse_query().unwrap();
                     let plan = query.plan().await;
                     //TODO: add our plan processing also

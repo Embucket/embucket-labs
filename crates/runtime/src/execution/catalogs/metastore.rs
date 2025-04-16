@@ -21,8 +21,8 @@ use std::{
     sync::Arc,
 };
 
-use crate::execution::catalogs::catalog::IceBucketDFCatalog;
-use crate::execution::catalogs::iceberg_catalog::IceBucketIcebergBridge;
+use crate::execution::catalogs::catalog::DFCatalog;
+use crate::execution::catalogs::iceberg_catalog::IcebergBridge;
 use crate::execution::error::{self as ex_error, ExecutionResult};
 use dashmap::DashMap;
 use datafusion::{
@@ -50,14 +50,14 @@ pub type SchemaProviderCache = DashMap<String, TableProviderCache>;
 pub type CatalogProviderCache = DashMap<String, SchemaProviderCache>;
 
 #[derive(Clone)]
-pub struct IceBucketDFMetastore {
+pub struct DFMetastore {
     pub metastore: Arc<dyn Metastore>,
     pub mirror: Arc<CatalogProviderCache>,
     pub table_object_store: Arc<DashMap<String, Arc<dyn ObjectStore>>>,
     pub catalogs: DashMap<String, Arc<dyn CatalogProvider>>,
 }
 
-impl IceBucketDFMetastore {
+impl DFMetastore {
     pub fn new(metastore: Arc<dyn Metastore>) -> Self {
         let table_object_store: DashMap<String, Arc<dyn ObjectStore>> = DashMap::new();
         table_object_store.insert("file://".to_string(), Arc::new(LocalFileSystem::new()));
@@ -146,7 +146,7 @@ impl IceBucketDFMetastore {
                             ) as Arc<dyn TableProvider>
                         }
                         embucket_metastore::TableFormat::Iceberg => {
-                            let bridge = Arc::new(IceBucketIcebergBridge {
+                            let bridge = Arc::new(IcebergBridge {
                                 metastore: self.metastore.clone(),
                                 database: table.ident.clone().database,
                                 object_store: table_object_store.clone(),
@@ -198,9 +198,9 @@ impl IceBucketDFMetastore {
     }
 }
 
-impl std::fmt::Debug for IceBucketDFMetastore {
+impl std::fmt::Debug for DFMetastore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IceBucketDFMetastore").finish()
+        f.debug_struct("DFMetastore").finish()
     }
 }
 
@@ -215,7 +215,7 @@ fn get_url_key(url: &Url) -> String {
     )
 }
 
-impl ObjectStoreRegistry for IceBucketDFMetastore {
+impl ObjectStoreRegistry for DFMetastore {
     fn register_store(
         &self,
         url: &Url,
@@ -238,7 +238,7 @@ impl ObjectStoreRegistry for IceBucketDFMetastore {
 }
 
 // Explore using AsyncCatalogProviderList alongside CatalogProviderList
-impl CatalogProviderList for IceBucketDFMetastore {
+impl CatalogProviderList for DFMetastore {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -268,10 +268,10 @@ impl CatalogProviderList for IceBucketDFMetastore {
         if !self.mirror.contains_key(name) {
             return None;
         }
-        let iceberg_catalog = IceBucketIcebergBridge::new(self.metastore.clone(), name.to_string())
+        let iceberg_catalog = IcebergBridge::new(self.metastore.clone(), name.to_string())
             .ok()
             .map(Arc::new)?;
-        let catalog: Arc<dyn CatalogProvider> = Arc::new(IceBucketDFCatalog {
+        let catalog: Arc<dyn CatalogProvider> = Arc::new(DFCatalog {
             ident: name.to_string(),
             metastore: self.metastore.clone(),
             mirror: self.mirror.clone(),

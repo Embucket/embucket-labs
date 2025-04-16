@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::execution::query::IceBucketQueryContext;
+use crate::execution::query::QueryContext;
 use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
@@ -156,7 +156,7 @@ pub async fn get_table_columns_info(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> TablesResult<Json<TableColumnsInfoResponse>> {
-    let context = IceBucketQueryContext {
+    let context = QueryContext {
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
     };
@@ -212,7 +212,7 @@ pub async fn get_table_preview_data(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> TablesResult<Json<TablePreviewDataResponse>> {
-    let context = IceBucketQueryContext {
+    let context = QueryContext {
         database: Some(database_name.clone()),
         schema: Some(schema_name.clone()),
     };

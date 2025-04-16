@@ -62,30 +62,25 @@ use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
 
-use super::catalogs::{catalog::IceBucketDFCatalog, metastore::IceBucketDFMetastore};
+use super::catalogs::{catalog::DFCatalog, metastore::DFMetastore};
 use super::datafusion::context_provider::ExtendedSqlToRel;
 use super::datafusion::functions::visit_functions_expressions;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::utils::NormalizedIdent;
 
-use super::session::IceBucketUserSession;
+use super::session::UserSession;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct IceBucketQueryContext {
+pub struct QueryContext {
     pub database: Option<String>,
     pub schema: Option<String>,
-}
-
-pub enum IceBucketQueryState {
-    Raw(String),
-    Preprocessed(String),
 }
 
 pub struct IceBucketQuery {
     pub metastore: Arc<dyn Metastore>,
     pub query: String,
-    pub session: Arc<IceBucketUserSession>,
-    pub query_context: IceBucketQueryContext,
+    pub session: Arc<UserSession>,
+    pub query_context: QueryContext,
 }
 
 pub enum IcebergCatalogResult {
@@ -94,11 +89,7 @@ pub enum IcebergCatalogResult {
 }
 
 impl IceBucketQuery {
-    pub(super) fn new<S>(
-        session: Arc<IceBucketUserSession>,
-        query: S,
-        query_context: IceBucketQueryContext,
-    ) -> Self
+    pub(super) fn new<S>(session: Arc<UserSession>, query: S, query_context: QueryContext) -> Self
     where
         S: Into<String>,
     {
@@ -147,7 +138,7 @@ impl IceBucketQuery {
             .state()
             .catalog_list()
             .as_any()
-            .downcast_ref::<IceBucketDFMetastore>()
+            .downcast_ref::<DFMetastore>()
         {
             catalog_list_impl.refresh(&self.session.ctx).await
         } else {
@@ -352,10 +343,8 @@ impl IceBucketQuery {
     ) -> IcebergCatalogResult {
         if let Some(iceberg_catalog) = catalog.as_any().downcast_ref::<IcebergCatalog>() {
             IcebergCatalogResult::Catalog(iceberg_catalog.catalog())
-        } else if let Some(icebucket_catalog) =
-            catalog.as_any().downcast_ref::<IceBucketDFCatalog>()
-        {
-            IcebergCatalogResult::Catalog(icebucket_catalog.catalog())
+        } else if let Some(embucket_catalog) = catalog.as_any().downcast_ref::<DFCatalog>() {
+            IcebergCatalogResult::Catalog(embucket_catalog.catalog())
         } else if catalog
             .as_any()
             .downcast_ref::<MemoryCatalogProvider>()

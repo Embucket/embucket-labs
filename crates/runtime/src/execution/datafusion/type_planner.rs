@@ -24,9 +24,9 @@ use datafusion::sql::utils::make_decimal_type;
 use datafusion_common::{not_impl_err, DataFusionError};
 
 #[derive(Debug)]
-pub struct IceBucketTypePlanner {}
+pub struct CustomTypePlanner {}
 
-impl TypePlanner for IceBucketTypePlanner {
+impl TypePlanner for CustomTypePlanner {
     fn plan_type(&self, sql_type: &ast::DataType) -> Result<Option<DataType>> {
         match sql_type {
             SQLDataType::Int32 => Ok(Some(DataType::Int32)),

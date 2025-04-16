@@ -99,27 +99,6 @@ impl From<String> for TableFormat {
     }
 }
 
-/*#[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct IceBucketSimpleSchema {
-    pub fields: Vec<NestedFieldRef>,
-    pub schema_id: Option<i32>,
-}
-
-impl TryFrom<IceBucketSimpleSchema> for Schema {
-    type Error = MetastoreError;
-    fn try_from(schema: IceBucketSimpleSchema) -> MetastoreResult<Self> {
-        let mut builder = Self::builder();
-        builder = builder.with_fields(schema.fields);
-        if let Some(schema_id) = schema.schema_id {
-            builder = builder.with_schema_id(schema_id);
-        }
-        builder.build()
-            .context(metastore_error::IcebergSnafu)
-    }
-}
-
-type SimpleOrIcebergSchema = Either<IceBucketSimpleSchema, Schema>;*/
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Table {
     pub ident: TableIdent,
@@ -131,41 +110,6 @@ pub struct Table {
     pub is_temporary: bool,
     pub format: TableFormat,
 }
-
-/*impl PartialSchema for IceBucketTable {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-
-        let table_metadata_schema = openapi::ObjectBuilder::new()
-            .property("format_version", openapi::ObjectBuilder::new()
-                .schema_type(openapi::Type::Integer)
-                .format(Some(openapi::SchemaFormat::KnownFormat(openapi::KnownFormat::Int32)))
-                .build()
-            )
-            .property(
-                "table_uuid",
-                openapi::Object::with_type(openapi::Type::String))
-            .property("name", openapi::schema::String::default())
-            .property("schema_id", openapi::schema::Integer::default())
-            .property("current_schema_id", openapi::schema::Integer::default())
-            .property("default_partition_spec_id", openapi::schema::Integer::default())
-            .property("default_sort_order_id", openapi::schema::Integer::default())
-            .property("last_partition_id", openapi::schema::Integer::default())
-            .property("last_column_id", openapi::schema::Integer::default())
-            .property("refs", openapi::schema::Object::default())
-            .property("properties", utoipa_schema::Map::default())
-            .property("schema", openapi::schema::Object::default())
-            .property("partition_spec", openapi::schema::Object::default())
-            .property("sort_order", openapi::schema::Object::default())
-            .build();
-        openapi::ObjectBuilder::default()
-            .property("ident", IceBucketTableIdent::schema())
-            .property("metadata", table_metadata_schema)
-            .property("metadata_location", openapi::schema::String::default())
-            .property("properties", utoipa_schema::Map::default())
-            .build()
-    }
-}
-impl ToSchema for IceBucketTable {}*/
 
 #[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct TableCreateRequest {
@@ -183,74 +127,6 @@ pub struct TableCreateRequest {
     pub volume_ident: Option<VolumeIdent>,
     pub is_temporary: Option<bool>,
 }
-
-/*fn type_schema() -> (String, openapi::RefOr<openapi::schema::Schema>) {
-    let primitive_type = openapi::OneOfBuilder::new()
-        .item(openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::String))
-            .enum_values(Some(vec!["boolean", "int", "long", "float", "double", "date", "time", "timestamp", "timestamptz", "string", "uuid", "binary"]))
-        )
-        .item(openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Object))
-            .property("precision", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
-            .build())
-            .property("scale", openapi::schema::Type::Integer)
-        )
-        .item(openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer)))
-        .build();
-    let struct_type = openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("StructType".to_string()).build());
-    let list_type = openapi::ObjectBuilder::new()
-        .property("element_id", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
-            .build()
-        )
-        .property("element_required", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Boolean))
-            .build()
-        )
-        .property("element", openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("Type".to_string()).build()))
-        .build();
-    let map_type = openapi::ObjectBuilder::new()
-        .property("key_id", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
-            .build()
-        )
-        .property("key", openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("Type".to_string()).build()))
-        .property("value_id", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
-            .build()
-        )
-        .property("value", openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("Type".to_string()).build()))
-        .property("value_required", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Boolean))
-            .build()
-        )
-        .build();
-    let one_of = openapi::OneOf::builder()
-        .item(primitive_type.into())
-        .item(struct_type)
-        .item(list_type)
-        .item(map_type);
-    ("Type".to_string(), one_of.into())
-}
-
-impl ToSchema for IceBucketTableCreateRequest {}
-impl PartialSchema for IceBucketTableCreateRequest {
-    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-
-        let
-        let mut type_schema = openapi::OneOfBuilder::new()
-            .item(primitive_type)
-
-
-        let mut struct_field_type = openapi::OneOfBuilder::new()
-            .item(primitive_type)
-        let struct_field = openapi::ObjectBuilder::new()
-            .property("id", )
-    }
-}*/
 
 #[derive(ToSchema, Deserialize, Serialize)]
 enum MyPrimitive {
@@ -294,33 +170,6 @@ struct MySchema {
     #[serde(flatten)]
     fields: MyStruct,
 }
-/*impl TryFrom<IceBucketTableCreateRequest> for iceberg::TableCreation {
-    type Error = MetastoreError;
-
-    fn try_from(schema: IceBucketTableCreateRequest) -> MetastoreResult<Self> {
-        let mut properties = schema.properties.unwrap_or_default();
-        let utc_now = Utc::now();
-        let utc_now_str = utc_now.to_rfc3339();
-        properties.insert("created_at".to_string(), utc_now_str.clone());
-        properties.insert("updated_at".to_string(), utc_now_str);
-
-        let table_schema = match schema.schema {
-            Either::Left(simple_schema) => {
-                Schema::try_from(simple_schema)?
-            }
-            Either::Right(schema) => schema,
-        };
-
-        Ok(Self {
-            name: schema.ident.table,
-            location: schema.location,
-            schema: table_schema,
-            partition_spec: schema.partition_spec.map(std::convert::Into::into),
-            sort_order: schema.write_order,
-            properties,
-        })
-    }
-}*/
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Config {

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::execution::query::IceBucketQueryContext;
+use crate::execution::query::QueryContext;
 use crate::execution::service::ExecutionService;
 use crate::execution::utils::{Config, DataSerializationFormat};
 use crate::SlateDBMetastore;
@@ -47,7 +47,7 @@ async fn test_execute_always_returns_schema() {
         .query(
             "test_session_id",
             "SELECT 1 AS a, 2.0 AS b, '3' AS c WHERE False",
-            IceBucketQueryContext::default(),
+            QueryContext::default(),
         )
         .await
         .expect("Failed to execute query");
@@ -138,7 +138,7 @@ async fn test_service_upload_file() {
     // Verify that the file was uploaded successfully by running select * from the table
     let query = format!("SELECT * FROM {}", table_ident.table);
     let (rows, _) = execution_svc
-        .query(session_id, &query, IceBucketQueryContext::default())
+        .query(session_id, &query, QueryContext::default())
         .await
         .expect("Failed to execute query");
 
@@ -164,7 +164,7 @@ async fn test_service_upload_file() {
     // Verify that the file was uploaded successfully by running select * from the table
     let query = format!("SELECT * FROM {}", table_ident.table);
     let (rows, _) = execution_svc
-        .query(session_id, &query, IceBucketQueryContext::default())
+        .query(session_id, &query, QueryContext::default())
         .await
         .expect("Failed to execute query");
 
@@ -190,7 +190,7 @@ async fn test_service_create_table_file_volume() {
     let metastore = SlateDBMetastore::new_in_memory().await;
 
     // Create a temporary directory for the file volume
-    let temp_dir = std::env::temp_dir().join("icebucket_test_file_volume");
+    let temp_dir = std::env::temp_dir().join("test_file_volume");
     let _ = std::fs::create_dir_all(&temp_dir);
     let temp_path = temp_dir.to_str().expect("Failed to convert path to string");
     metastore
@@ -250,11 +250,7 @@ async fn test_service_create_table_file_volume() {
 
     let create_table_sql = format!("CREATE TABLE {table_ident} (id INT, name STRING, value FLOAT) as VALUES (1, 'test1', 100.0), (2, 'test2', 200.0), (3, 'test3', 300.0)");
     let (res, _) = execution_svc
-        .query(
-            session_id,
-            &create_table_sql,
-            IceBucketQueryContext::default(),
-        )
+        .query(session_id, &create_table_sql, QueryContext::default())
         .await
         .expect("Failed to create table");
 
@@ -271,7 +267,7 @@ async fn test_service_create_table_file_volume() {
 
     let insert_sql = format!("INSERT INTO {table_ident} (id, name, value) VALUES (4, 'test4', 400.0), (5, 'test5', 500.0)");
     let (res, _) = execution_svc
-        .query(session_id, &insert_sql, IceBucketQueryContext::default())
+        .query(session_id, &insert_sql, QueryContext::default())
         .await
         .expect("Failed to insert data");
 

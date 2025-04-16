@@ -50,13 +50,13 @@ use object_store::ObjectStore;
 use snafu::ResultExt;
 
 #[derive(Debug)]
-pub struct IceBucketIcebergBridge {
+pub struct IcebergBridge {
     pub metastore: Arc<dyn Metastore>,
     pub database: String,
     pub object_store: Arc<dyn ObjectStore>,
 }
 
-impl IceBucketIcebergBridge {
+impl IcebergBridge {
     pub fn new(metastore: Arc<dyn Metastore>, database: String) -> MetastoreResult<Self> {
         let db = block_on(metastore.get_database(&database))?.ok_or(
             MetastoreError::DatabaseNotFound {
@@ -86,7 +86,7 @@ impl IceBucketIcebergBridge {
 }
 
 #[async_trait]
-impl IcebergCatalog for IceBucketIcebergBridge {
+impl IcebergCatalog for IcebergBridge {
     /// Name of the catalog
     fn name(&self) -> &str {
         &self.database

@@ -30,7 +30,7 @@ use snafu::ResultExt;
 use std::collections::HashMap;
 use utoipa::ToSchema;
 
-pub type ExecutionContext = crate::execution::query::IceBucketQueryContext;
+pub type ExecutionContext = crate::execution::query::QueryContext;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

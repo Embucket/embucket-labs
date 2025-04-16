@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::execution::query::{IceBucketQuery, IceBucketQueryContext};
-use crate::execution::session::IceBucketUserSession;
+use crate::execution::query::{IceBucketQuery, QueryContext};
+use crate::execution::session::UserSession;
 
 use crate::execution::service::ExecutionService;
 use crate::execution::utils::{Config, DataSerializationFormat};
@@ -62,11 +62,11 @@ impl<'a, T> Test<'a, T> {
 async fn test_timestamp_keywords_postprocess() {
     let metastore = SlateDBMetastore::new_in_memory().await;
     let session = Arc::new(
-        IceBucketUserSession::new(metastore)
+        UserSession::new(metastore)
             .await
             .expect("Failed to create user session"),
     );
-    let query_context = IceBucketQueryContext::default();
+    let query_context = QueryContext::default();
     let test = vec![
         Test::new(
             "SELECT dateadd(year, 5, '2025-06-01')",
@@ -189,11 +189,11 @@ fn test_postprocess_query_statement_functions_expressions() {
 async fn test_context_name_injection() {
     let metastore = SlateDBMetastore::new_in_memory().await;
     let session = Arc::new(
-        IceBucketUserSession::new(metastore)
+        UserSession::new(metastore)
             .await
             .expect("Failed to create user session"),
     );
-    let query1 = session.query("SELECT * FROM table1", IceBucketQueryContext::default());
+    let query1 = session.query("SELECT * FROM table1", QueryContext::default());
     let query_statement = if let DFStatement::Statement(statement) =
         query1.parse_query().expect("Failed to parse query")
     {
@@ -214,7 +214,7 @@ async fn test_context_name_injection() {
 
     let query2 = session.query(
         "SELECT * from table2",
-        IceBucketQueryContext {
+        QueryContext {
             database: Some("db2".to_string()),
             schema: Some("sch2".to_string()),
         },
@@ -246,7 +246,7 @@ async fn test_context_name_injection() {
                 .collect(),
         )
         .expect("Failed to set session variable");
-    let query3 = session.query("SELECT * from table3", IceBucketQueryContext::default());
+    let query3 = session.query("SELECT * from table3", QueryContext::default());
     let query_statement3 = if let DFStatement::Statement(statement) =
         query3.parse_query().expect("Failed to parse query")
     {
@@ -279,7 +279,7 @@ async fn test_context_name_injection() {
         .expect("Failed to set session variable");
     let query4 = session.query(
         "SELECT * from table4 INNER JOIN table4_1 ON 1=1",
-        IceBucketQueryContext::default(),
+        QueryContext::default(),
     );
     let query_statement4 = if let DFStatement::Statement(statement) =
         query4.parse_query().expect("Failed to parse query")
@@ -312,7 +312,7 @@ async fn test_create_table_with_timestamp_nanosecond() {
     // Verify that the file was uploaded successfully by running select * from the table
     let query = format!("CREATE TABLE {}.{}.{} (id INT, ts TIMESTAMP_NTZ(9)) as VALUES (1, '2025-04-09T21:11:23'), (2, '2025-04-09T21:11:00');", table_ident.database, table_ident.schema, table_ident.table);
     let (rows, _) = execution_svc
-        .query(&session_id, &query, IceBucketQueryContext::default())
+        .query(&session_id, &query, QueryContext::default())
         .await
         .expect("Failed to execute query");
 
@@ -339,7 +339,7 @@ async fn test_drop_table() {
     // Verify that the file was uploaded successfully by running select * from the table
     let query = format!("CREATE TABLE {table_ident} (id INT) as VALUES (1), (2);");
     let (rows, _) = execution_svc
-        .query(&session_id, &query, IceBucketQueryContext::default())
+        .query(&session_id, &query, QueryContext::default())
         .await
         .expect("Failed to execute query");
 
@@ -356,14 +356,14 @@ async fn test_drop_table() {
 
     let query = format!("DROP TABLE {table_ident};");
     execution_svc
-        .query(&session_id, &query, IceBucketQueryContext::default())
+        .query(&session_id, &query, QueryContext::default())
         .await
         .expect("Failed to execute query");
 
     // Verify that the table is not exists
     let query = format!("SELECT * FROM {table_ident};");
     let res = execution_svc
-        .query(&session_id, &query, IceBucketQueryContext::default())
+        .query(&session_id, &query, QueryContext::default())
         .await;
 
     assert!(res.is_err());

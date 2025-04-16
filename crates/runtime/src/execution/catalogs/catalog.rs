@@ -23,14 +23,14 @@ use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use embucket_metastore::Metastore;
 use iceberg_rust::catalog::Catalog as IcebergCatalog;
 
-pub struct IceBucketDFCatalog {
+pub struct DFCatalog {
     pub ident: String,
     pub metastore: Arc<dyn Metastore>,
     pub mirror: Arc<CatalogProviderCache>,
     pub iceberg_catalog: Arc<dyn IcebergCatalog>,
 }
 
-impl IceBucketDFCatalog {
+impl DFCatalog {
     #[must_use]
     pub fn catalog(&self) -> Arc<dyn IcebergCatalog> {
         self.iceberg_catalog.clone()
@@ -38,15 +38,15 @@ impl IceBucketDFCatalog {
 }
 
 #[allow(clippy::missing_fields_in_debug)]
-impl std::fmt::Debug for IceBucketDFCatalog {
+impl std::fmt::Debug for DFCatalog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IceBucketDFCatalog")
+        f.debug_struct("DFCatalog")
             .field("ident", &self.ident)
             .finish()
     }
 }
 
-impl CatalogProvider for IceBucketDFCatalog {
+impl CatalogProvider for DFCatalog {
     fn as_any(&self) -> &dyn Any {
         self
     }

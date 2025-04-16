@@ -19,7 +19,7 @@ pub(crate) mod cli;
 
 use clap::Parser;
 use dotenv::dotenv;
-use icebucket_runtime::{
+use embucket_runtime::{
     config::{DbConfig, RuntimeConfig},
     http::config::WebConfig,
     run_binary,
@@ -36,9 +36,8 @@ async fn main() {
 
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                "bucketd=debug,icebucket_runtime=debug,tower_http=debug".into()
-            }),
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "bucketd=debug,embucket_runtime=debug,tower_http=debug".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
