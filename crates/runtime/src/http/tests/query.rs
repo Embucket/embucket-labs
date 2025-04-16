@@ -17,15 +17,16 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::tests::run_icebucket_test_server;
+use crate::tests::run_test_server;
 // for `collect`
 use crate::http::ui::{
     queries::models::QueryCreateResponse,
     worksheets::models::{WorksheetCreatePayload, WorksheetCreateResponse},
 };
 use chrono::{TimeZone, Utc};
-use icebucket_metastore::{
-    IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume,
+use embucket_metastore::{
+    Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
+    Volume as MetastoreVolume,
 };
 use serde_json::json;
 
@@ -44,13 +45,13 @@ fn get_patched_query_response(query_resp: &str) -> String {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_parallel_queries() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
     let client = reqwest::Client::new();
     let client2 = reqwest::Client::new();
 
-    let vol = IceBucketVolume {
+    let vol = MetastoreVolume {
         ident: "test_volume".to_string(),
-        volume: icebucket_metastore::IceBucketVolumeType::Memory,
+        volume: embucket_metastore::VolumeType::Memory,
     };
 
     let _create_volume = client
@@ -63,7 +64,7 @@ async fn test_parallel_queries() {
         .error_for_status_ref()
         .expect("Create volume wasn't 200");
 
-    let db = IceBucketDatabase {
+    let db = MetastoreDatabase {
         ident: "benchmark".to_string(),
         volume: "test_volume".to_string(),
         properties: None,
@@ -79,8 +80,8 @@ async fn test_parallel_queries() {
         .error_for_status_ref()
         .expect("Create database wasn't 200");
 
-    let schema = IceBucketSchema {
-        ident: IceBucketSchemaIdent {
+    let schema = MetastoreSchema {
+        ident: MetastoreSchemaIdent {
             database: "benchmark".to_string(),
             schema: "public".to_string(),
         },

@@ -21,15 +21,17 @@ use crate::http::ui::databases::models::{Database, DatabaseCreatePayload};
 use crate::http::ui::schemas::models::{SchemaCreatePayload, SchemasResponse};
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
-use crate::tests::run_icebucket_test_server;
+use crate::tests::run_test_server;
+use embucket_metastore::{
+    Database as MetastoreDatabase, Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
+};
 use http::Method;
-use icebucket_metastore::{IceBucketDatabase, IceBucketVolume, IceBucketVolumeType};
 use serde_json::json;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_schemas() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
     // Create volume with empty name
@@ -38,9 +40,9 @@ async fn test_ui_schemas() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(IceBucketVolume {
+            data: Volume::from(MetastoreVolume {
                 ident: String::new(),
-                volume: IceBucketVolumeType::Memory,
+                volume: MetastoreVolumeType::Memory,
             }),
         }),
     )
@@ -49,7 +51,7 @@ async fn test_ui_schemas() {
 
     let database_name = "test1".to_string();
     // Create database, Ok
-    let expected1 = IceBucketDatabase {
+    let expected1 = MetastoreDatabase {
         ident: database_name.clone(),
         properties: None,
         volume: volume.data.name.clone(),

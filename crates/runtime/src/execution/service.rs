@@ -30,11 +30,11 @@ use snafu::ResultExt;
 
 use super::{
     models::ColumnInfo,
-    query::IceBucketQueryContext,
-    session::IceBucketUserSession,
+    query::QueryContext,
+    session::UserSession,
     utils::{convert_record_batches, Config},
 };
-use icebucket_metastore::{IceBucketTableIdent, Metastore};
+use embucket_metastore::{Metastore, TableIdent as MetastoreTableIdent};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -42,7 +42,7 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 pub struct ExecutionService {
     metastore: Arc<dyn Metastore>,
-    df_sessions: Arc<RwLock<HashMap<String, Arc<IceBucketUserSession>>>>,
+    df_sessions: Arc<RwLock<HashMap<String, Arc<UserSession>>>>,
     config: Config,
 }
 
@@ -59,7 +59,7 @@ impl ExecutionService {
     pub async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
         let session_exists = { self.df_sessions.read().await.contains_key(&session_id) };
         if !session_exists {
-            let user_session = IceBucketUserSession::new(self.metastore.clone()).await?;
+            let user_session = UserSession::new(self.metastore.clone()).await?;
             tracing::trace!("Acuiring write lock for df_sessions");
             let mut session_list_mut = self.df_sessions.write().await;
             tracing::trace!("Acquired write lock for df_sessions");
@@ -82,7 +82,7 @@ impl ExecutionService {
         &self,
         session_id: &str,
         query: &str,
-        query_context: IceBucketQueryContext,
+        query_context: QueryContext,
     ) -> ExecutionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
         let sessions = self.df_sessions.read().await;
         let user_session =
@@ -128,7 +128,7 @@ impl ExecutionService {
     pub async fn upload_data_to_table(
         &self,
         session_id: &str,
-        table_ident: &IceBucketTableIdent,
+        table_ident: &MetastoreTableIdent,
         data: Bytes,
         file_name: &str,
         format: Format,
@@ -219,8 +219,8 @@ impl ExecutionService {
             format!("CREATE TABLE {table_ident} AS SELECT * FROM {table}")
         };
 
-        let query = user_session.query(&query, IceBucketQueryContext::default());
-        query.execute().await?;
+        let query = user_session.query(&query, QueryContext::default());
+        Box::pin(query.execute()).await?;
 
         user_session
             .ctx

@@ -19,11 +19,11 @@ use crate::execution::catalogs::metastore::CatalogProviderCache;
 use async_trait::async_trait;
 use datafusion::catalog::{SchemaProvider, TableProvider};
 use datafusion_common::{exec_err, DataFusionError, Result as DFResult};
-use icebucket_metastore::Metastore;
+use embucket_metastore::Metastore;
 use std::any::Any;
 use std::sync::Arc;
 
-pub struct IceBucketDFSchema {
+pub struct DFSchema {
     pub database: String,
     pub schema: String,
     pub metastore: Arc<dyn Metastore>,
@@ -31,9 +31,9 @@ pub struct IceBucketDFSchema {
 }
 
 #[allow(clippy::missing_fields_in_debug)]
-impl std::fmt::Debug for IceBucketDFSchema {
+impl std::fmt::Debug for DFSchema {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IceBucketDFSchema")
+        f.debug_struct("DFSchema")
             .field("database", &self.database)
             .field("schema", &self.schema)
             .field("metastore", &"")
@@ -42,7 +42,7 @@ impl std::fmt::Debug for IceBucketDFSchema {
 }
 
 #[async_trait]
-impl SchemaProvider for IceBucketDFSchema {
+impl SchemaProvider for DFSchema {
     /// Returns the owner of the Schema, default is None. This value is reported
     /// as part of `information_tables.schemata
     fn owner_name(&self) -> Option<&str> {

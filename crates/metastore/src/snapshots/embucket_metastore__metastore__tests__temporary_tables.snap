@@ -1,7 +1,6 @@
 ---
 source: crates/metastore/src/metastore.rs
 expression: "(create_table.volume_ident.as_ref(), paths)"
-snapshot_kind: text
 ---
 (
     Some(

@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::http::{config::IceBucketWebConfig, make_icebucket_app};
-use icebucket_history::store::SlateDBWorksheetsStore;
-use icebucket_metastore::SlateDBMetastore;
-use icebucket_utils::Db;
+use crate::http::{config::WebConfig, make_app};
+use embucket_history::store::SlateDBWorksheetsStore;
+use embucket_metastore::SlateDBMetastore;
+use embucket_utils::Db;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]
-pub async fn run_icebucket_test_server() -> SocketAddr {
+pub async fn run_test_server() -> SocketAddr {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
 
@@ -31,10 +31,10 @@ pub async fn run_icebucket_test_server() -> SocketAddr {
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history = Arc::new(SlateDBWorksheetsStore::new(db));
 
-    let app = make_icebucket_app(
+    let app = make_app(
         metastore,
         history,
-        &IceBucketWebConfig {
+        &WebConfig {
             port: 3000,
             host: "0.0.0.0".to_string(),
             allow_origin: None,

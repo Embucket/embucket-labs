@@ -18,6 +18,13 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
+use embucket_metastore::error::{MetastoreError, MetastoreResult};
+use embucket_metastore::{
+    Metastore, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
+    TableCreateRequest as MetastoreTableCreateRequest, TableIdent as MetastoreTableIdent,
+    TableUpdate as MetastoreTableUpdate,
+};
+use embucket_utils::list_config::ListConfig;
 use futures::executor::block_on;
 use iceberg_rust::{
     catalog::{
@@ -39,23 +46,17 @@ use iceberg_rust::{
 use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
-use icebucket_metastore::error::{MetastoreError, MetastoreResult};
-use icebucket_metastore::{
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableIdent,
-    IceBucketTableUpdate, Metastore,
-};
-use icebucket_utils::list_config::ListConfig;
 use object_store::ObjectStore;
 use snafu::ResultExt;
 
 #[derive(Debug)]
-pub struct IceBucketIcebergBridge {
+pub struct IcebergBridge {
     pub metastore: Arc<dyn Metastore>,
     pub database: String,
     pub object_store: Arc<dyn ObjectStore>,
 }
 
-impl IceBucketIcebergBridge {
+impl IcebergBridge {
     pub fn new(metastore: Arc<dyn Metastore>, database: String) -> MetastoreResult<Self> {
         let db = block_on(metastore.get_database(&database))?.ok_or(
             MetastoreError::DatabaseNotFound {
@@ -75,8 +76,8 @@ impl IceBucketIcebergBridge {
     }
 
     #[must_use]
-    pub fn ident(&self, identifier: &IcebergIdentifier) -> IceBucketTableIdent {
-        IceBucketTableIdent {
+    pub fn ident(&self, identifier: &IcebergIdentifier) -> MetastoreTableIdent {
+        MetastoreTableIdent {
             database: self.database.to_string(),
             schema: identifier.namespace().to_string(),
             table: identifier.name().to_string(),
@@ -85,7 +86,7 @@ impl IceBucketIcebergBridge {
 }
 
 #[async_trait]
-impl IcebergCatalog for IceBucketIcebergBridge {
+impl IcebergCatalog for IcebergBridge {
     /// Name of the catalog
     fn name(&self) -> &str {
         &self.database
@@ -102,11 +103,11 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
-        let schema = IceBucketSchema {
+        let schema = MetastoreSchema {
             ident: schema_ident.clone(),
             properties: properties.clone(),
         };
@@ -125,7 +126,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
@@ -146,7 +147,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
@@ -176,7 +177,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
@@ -218,7 +219,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
@@ -240,7 +241,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
@@ -357,7 +358,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         create_table: IcebergCreateTable,
     ) -> Result<IcebergTable, IcebergError> {
         let ident = self.ident(&identifier);
-        let table_create_request = IceBucketTableCreateRequest {
+        let table_create_request = MetastoreTableCreateRequest {
             ident: ident.clone(),
             schema: create_table.schema,
             location: create_table.location,
@@ -407,7 +408,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         commit: IcebergCommitTable,
     ) -> Result<IcebergTable, IcebergError> {
         let table_ident = self.ident(&commit.identifier);
-        let table_update = IceBucketTableUpdate {
+        let table_update = MetastoreTableUpdate {
             requirements: commit.requirements,
             updates: commit.updates,
         };

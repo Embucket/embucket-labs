@@ -15,23 +15,24 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use embucket_metastore::{
+    RwObject, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
+    Table as MetastoreTable, TableCreateRequest as MetastoreTableCreateRequest,
+    TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent,
+    TableUpdate as MetastoreTableUpdate, VolumeIdent as MetastoreVolumeIdent,
+};
 use iceberg_rest_catalog::models::{
     CreateNamespaceRequest, CreateNamespaceResponse, CreateTableRequest, GetNamespaceResponse,
     ListNamespacesResponse, ListTablesResponse,
 };
-use iceberg_rust::catalog::commit::{TableRequirement, TableUpdate};
+use iceberg_rust::catalog::commit::{TableRequirement, TableUpdate as IcebergTableUpdate};
 use iceberg_rust_spec::identifier::Identifier;
-use icebucket_metastore::{
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTable, IceBucketTableCreateRequest,
-    IceBucketTableFormat, IceBucketTableIdent, IceBucketTableUpdate, IceBucketVolumeIdent,
-    RwObject,
-};
 use serde::{Deserialize, Serialize};
 
 #[must_use]
-pub fn to_schema(request: CreateNamespaceRequest, db: String) -> IceBucketSchema {
-    IceBucketSchema {
-        ident: IceBucketSchemaIdent {
+pub fn to_schema(request: CreateNamespaceRequest, db: String) -> MetastoreSchema {
+    MetastoreSchema {
+        ident: MetastoreSchemaIdent {
             schema: request
                 .namespace
                 .first()
@@ -44,7 +45,7 @@ pub fn to_schema(request: CreateNamespaceRequest, db: String) -> IceBucketSchema
 }
 
 #[must_use]
-pub fn from_schema(schema: IceBucketSchema) -> CreateNamespaceResponse {
+pub fn from_schema(schema: MetastoreSchema) -> CreateNamespaceResponse {
     CreateNamespaceResponse {
         namespace: vec![schema.ident.database],
         properties: schema.properties,
@@ -52,7 +53,7 @@ pub fn from_schema(schema: IceBucketSchema) -> CreateNamespaceResponse {
 }
 
 #[must_use]
-pub fn from_get_schema(schema: IceBucketSchema) -> GetNamespaceResponse {
+pub fn from_get_schema(schema: MetastoreSchema) -> GetNamespaceResponse {
     GetNamespaceResponse {
         namespace: vec![schema.ident.database],
         properties: schema.properties,
@@ -62,13 +63,13 @@ pub fn from_get_schema(schema: IceBucketSchema) -> GetNamespaceResponse {
 #[must_use]
 pub fn to_create_table(
     table: CreateTableRequest,
-    table_ident: IceBucketTableIdent,
-    volume_ident: Option<IceBucketVolumeIdent>,
-) -> IceBucketTableCreateRequest {
-    IceBucketTableCreateRequest {
+    table_ident: MetastoreTableIdent,
+    volume_ident: Option<MetastoreVolumeIdent>,
+) -> MetastoreTableCreateRequest {
+    MetastoreTableCreateRequest {
         ident: table_ident,
         properties: table.properties,
-        format: Some(IceBucketTableFormat::Iceberg),
+        format: Some(MetastoreTableFormat::Iceberg),
         location: table.location,
         schema: *table.schema,
         partition_spec: table.partition_spec.map(|spec| *spec),
@@ -80,7 +81,7 @@ pub fn to_create_table(
 }
 
 #[must_use]
-pub fn from_schemas_list(schemas: Vec<RwObject<IceBucketSchema>>) -> ListNamespacesResponse {
+pub fn from_schemas_list(schemas: Vec<RwObject<MetastoreSchema>>) -> ListNamespacesResponse {
     let namespaces = schemas
         .into_iter()
         .map(|schema| vec![schema.data.ident.schema])
@@ -92,15 +93,15 @@ pub fn from_schemas_list(schemas: Vec<RwObject<IceBucketSchema>>) -> ListNamespa
 }
 
 #[must_use]
-pub fn to_table_commit(commit: CommitTable) -> IceBucketTableUpdate {
-    IceBucketTableUpdate {
+pub fn to_table_commit(commit: CommitTable) -> MetastoreTableUpdate {
+    MetastoreTableUpdate {
         requirements: commit.requirements,
         updates: commit.updates,
     }
 }
 
 #[must_use]
-pub fn from_tables_list(tables: Vec<RwObject<IceBucketTable>>) -> ListTablesResponse {
+pub fn from_tables_list(tables: Vec<RwObject<MetastoreTable>>) -> ListTablesResponse {
     let identifiers = tables
         .into_iter()
         .map(|table| Identifier::new(&[table.data.ident.schema], &table.data.ident.table))
@@ -121,5 +122,5 @@ pub struct CommitTable {
     /// Assertions about the metadata that must be true to update the metadata
     pub requirements: Vec<TableRequirement>,
     /// Changes to the table metadata
-    pub updates: Vec<TableUpdate>,
+    pub updates: Vec<IcebergTableUpdate>,
 }

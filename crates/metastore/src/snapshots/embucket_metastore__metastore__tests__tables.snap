@@ -1,7 +1,6 @@
 ---
 source: crates/metastore/src/metastore.rs
 expression: "(no_schema_result, table_create, paths, table_list, table_get,\ntable_list_after)"
-snapshot_kind: text
 ---
 (
     Err(
@@ -11,8 +10,8 @@ snapshot_kind: text
         },
     ),
     RwObject {
-        data: IceBucketTable {
-            ident: IceBucketTableIdent {
+        data: Table {
+            ident: TableIdent {
                 table: "testtable",
                 schema: "testschema",
                 database: "testdb",
@@ -105,8 +104,8 @@ snapshot_kind: text
     ),
     [
         RwObject {
-            data: IceBucketTable {
-                ident: IceBucketTableIdent {
+            data: Table {
+                ident: TableIdent {
                     table: "testtable",
                     schema: "testschema",
                     database: "testdb",
@@ -183,8 +182,8 @@ snapshot_kind: text
     ],
     Some(
         RwObject {
-            data: IceBucketTable {
-                ident: IceBucketTableIdent {
+            data: Table {
+                ident: TableIdent {
                     table: "testtable",
                     schema: "testschema",
                     database: "testdb",

@@ -18,24 +18,24 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
-use crate::tests::run_icebucket_test_server;
-use icebucket_metastore::IceBucketVolume;
-use icebucket_metastore::{
-    AwsAccessKeyCredentials, AwsCredentials, IceBucketFileVolume, IceBucketS3Volume,
-    IceBucketVolumeType,
+use crate::tests::run_test_server;
+use embucket_metastore::Volume as MetastoreVolume;
+use embucket_metastore::{
+    AwsAccessKeyCredentials, AwsCredentials, FileVolume as MetastoreFileVolume,
+    S3Volume as MetastoreS3Volume, VolumeType as MetastoreVolumeType,
 };
 use serde_json;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_volumes_memory() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
 
     // memory volume with empty ident create Ok
     let expected = VolumeCreatePayload {
-        data: Volume::from(IceBucketVolume {
+        data: Volume::from(MetastoreVolume {
             ident: String::new(),
-            volume: IceBucketVolumeType::Memory,
+            volume: MetastoreVolumeType::Memory,
         }),
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
@@ -47,7 +47,7 @@ async fn test_ui_volumes_memory() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_volumes_file() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
 
     // memory volume with empty ident create Ok
     let payload = r#"{"name":"","type": "file", "path":"/tmp/data"}"#;
@@ -59,9 +59,9 @@ async fn test_ui_volumes_file() {
     assert_eq!(expected.data, created.data);
 
     let expected = VolumeCreatePayload {
-        data: Volume::from(IceBucketVolume {
+        data: Volume::from(MetastoreVolume {
             ident: String::new(),
-            volume: IceBucketVolumeType::File(IceBucketFileVolume {
+            volume: MetastoreVolumeType::File(MetastoreFileVolume {
                 path: "/tmp/data".to_string(),
             }),
         }),
@@ -74,15 +74,15 @@ async fn test_ui_volumes_file() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_volumes_s3() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
 
     // memory volume with empty ident create Ok
     let expected = VolumeCreatePayload {
-        data: Volume::from(IceBucketVolume {
+        data: Volume::from(MetastoreVolume {
             ident: String::new(),
-            volume: IceBucketVolumeType::S3(IceBucketS3Volume {
+            volume: MetastoreVolumeType::S3(MetastoreS3Volume {
                 region: Some("us-west-1".to_string()),
-                bucket: Some("icebucket".to_string()),
+                bucket: Some("embucket".to_string()),
                 endpoint: Some("http://localhost:9000".to_string()),
                 skip_signature: None,
                 metadata_endpoint: None,

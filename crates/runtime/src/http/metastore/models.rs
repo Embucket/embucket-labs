@@ -17,9 +17,9 @@
 
 // These are API wrappers for the metastore models
 
-use icebucket_metastore::models::*;
+use embucket_metastore::models::*;
 use serde::{Deserialize, Serialize};
-use utoipa::{ToSchema};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HTTPRwObject<T: ToSchema + Eq + Clone>(pub RwObject<T>);
@@ -50,4 +50,3 @@ impl<T: ToSchema + Eq + Clone> From<HTTPRwObjectVec<T>> for Vec<RwObject<T>> {
         http_rw_objects.0.into_iter().map(RwObject::from).collect()
     }
 }
-

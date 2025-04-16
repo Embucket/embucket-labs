@@ -30,10 +30,10 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use icebucket_metastore::error::MetastoreError;
-use icebucket_metastore::models::IceBucketSchemaIdent;
-use icebucket_metastore::IceBucketSchema;
-use icebucket_utils::list_config::ListConfig;
+use embucket_metastore::error::MetastoreError;
+use embucket_metastore::models::SchemaIdent as MetastoreSchemaIdent;
+use embucket_metastore::Schema as MetastoreSchema;
+use embucket_utils::list_config::ListConfig;
 use std::collections::HashMap;
 use std::convert::From;
 use std::convert::Into;
@@ -85,8 +85,8 @@ pub async fn create_schema(
     Path(database_name): Path<String>,
     Json(payload): Json<SchemaCreatePayload>,
 ) -> SchemasResult<Json<SchemaCreateResponse>> {
-    let ident = IceBucketSchemaIdent::new(database_name, payload.name);
-    let schema = IceBucketSchema {
+    let ident = MetastoreSchemaIdent::new(database_name, payload.name);
+    let schema = MetastoreSchema {
         ident,
         properties: Some(HashMap::new()),
     };
@@ -123,7 +123,7 @@ pub async fn delete_schema(
     Query(query): Query<QueryParameters>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> SchemasResult<()> {
-    let ident = IceBucketSchemaIdent::new(database_name, schema_name);
+    let ident = MetastoreSchemaIdent::new(database_name, schema_name);
     state
         .metastore
         .delete_schema(&ident, query.cascade.unwrap_or_default())
@@ -151,7 +151,7 @@ pub async fn get_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> SchemasResult<Json<SchemaResponse>> {
-    let schema_ident = IceBucketSchemaIdent {
+    let schema_ident = MetastoreSchemaIdent {
         database: database_name.clone(),
         schema: schema_name.clone(),
     };
@@ -191,7 +191,7 @@ pub async fn update_schema(
     Path((database_name, schema_name)): Path<(String, String)>,
     Json(schema): Json<SchemaUpdatePayload>,
 ) -> SchemasResult<Json<SchemaUpdateResponse>> {
-    let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
+    let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
     // TODO: Implement schema renames
     state
         .metastore

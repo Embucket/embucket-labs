@@ -23,15 +23,15 @@ use crate::http::metastore::error::{MetastoreAPIError, MetastoreAPIResult};
 use crate::http::state::AppState;
 use axum::http::StatusCode;
 use axum::{extract::Path, extract::Query, extract::State, Json};
+use embucket_metastore::error::{self as metastore_error, MetastoreError};
+use embucket_metastore::{SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent};
+use embucket_utils::list_config::ListConfig;
 use iceberg_rest_catalog::models::{
     CatalogConfig, CommitTableResponse, CreateNamespaceRequest, CreateNamespaceResponse,
     CreateTableRequest, GetNamespaceResponse, ListNamespacesResponse, ListTablesResponse,
     LoadTableResult, RegisterTableRequest,
 };
 use iceberg_rust_spec::table_metadata::TableMetadata;
-use icebucket_metastore::error::{self as metastore_error, MetastoreError};
-use icebucket_metastore::{IceBucketSchemaIdent, IceBucketTableIdent};
-use icebucket_utils::list_config::ListConfig;
 use object_store::ObjectStore;
 use serde_json::{from_slice, Value};
 use snafu::ResultExt;
@@ -57,7 +57,7 @@ pub async fn get_namespace(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> MetastoreAPIResult<Json<GetNamespaceResponse>> {
-    let schema_ident = IceBucketSchemaIdent {
+    let schema_ident = MetastoreSchemaIdent {
         database: database_name.clone(),
         schema: schema_name.clone(),
     };
@@ -80,7 +80,7 @@ pub async fn delete_namespace(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> MetastoreAPIResult<StatusCode> {
-    let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
+    let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
     state
         .metastore
         .delete_schema(&schema_ident, true)
@@ -108,7 +108,7 @@ pub async fn create_table(
     Path((database_name, schema_name)): Path<(String, String)>,
     Json(table): Json<CreateTableRequest>,
 ) -> MetastoreAPIResult<Json<LoadTableResult>> {
-    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table.name);
+    let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table.name);
     let volume_ident = state
         .metastore
         .volume_for_table(&table_ident.clone())
@@ -133,7 +133,7 @@ pub async fn register_table(
     Path((database_name, schema_name)): Path<(String, String)>,
     Json(register): Json<RegisterTableRequest>,
 ) -> MetastoreAPIResult<Json<LoadTableResult>> {
-    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &register.name);
+    let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &register.name);
     let metadata_raw = state
         .metastore
         .volume_for_table(&table_ident)
@@ -163,7 +163,7 @@ pub async fn commit_table(
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
     Json(commit): Json<CommitTable>,
 ) -> MetastoreAPIResult<Json<CommitTableResponse>> {
-    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     let table_updates = to_table_commit(commit);
     let ib_table = state
         .metastore
@@ -181,7 +181,7 @@ pub async fn get_table(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> MetastoreAPIResult<Json<LoadTableResult>> {
-    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     let table = state
         .metastore
         .get_table(&table_ident)
@@ -202,7 +202,7 @@ pub async fn delete_table(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> MetastoreAPIResult<StatusCode> {
-    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     state
         .metastore
         .delete_table(&table_ident, true)
@@ -216,7 +216,7 @@ pub async fn list_tables(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> MetastoreAPIResult<Json<ListTablesResponse>> {
-    let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
+    let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
     let tables = state
         .metastore
         .list_tables(&schema_ident, ListConfig::default())

@@ -1,19 +1,17 @@
 ---
 source: crates/metastore/src/metastore.rs
 expression: "(no_volume_result, all_databases, fetched_db, all_dbs_after)"
-snapshot_kind: text
 ---
 (
     Err(
-        ObjectNotFound {
-            type_name: "volume",
-            name: "testv1",
+        VolumeNotFound {
+            volume: "testv1",
         },
     ),
     [
         RwObject {
-            data: IceBucketDatabase {
-                name: "testdb",
+            data: Database {
+                ident: "testdb",
                 properties: None,
                 volume: "testv1",
             },
@@ -23,8 +21,8 @@ snapshot_kind: text
     ],
     Some(
         RwObject {
-            data: IceBucketDatabase {
-                name: "testdb",
+            data: Database {
+                ident: "testdb",
                 properties: None,
                 volume: "testv2",
             },

@@ -17,8 +17,8 @@
 
 use crate::{QueryRecord, QueryRecordId, Worksheet, WorksheetId};
 use async_trait::async_trait;
-use icebucket_utils::iterable::{IterableCursor, IterableEntity};
-use icebucket_utils::Db;
+use embucket_utils::iterable::{IterableCursor, IterableEntity};
+use embucket_utils::Db;
 use snafu::{ResultExt, Snafu};
 use std::sync::Arc;
 
@@ -28,25 +28,25 @@ pub enum WorksheetsStoreError {
     BadKey { source: std::str::Utf8Error },
 
     #[snafu(display("Error adding worksheet: {source}"))]
-    WorksheetAdd { source: icebucket_utils::Error },
+    WorksheetAdd { source: embucket_utils::Error },
 
     #[snafu(display("Error getting worksheet: {source}"))]
-    WorksheetGet { source: icebucket_utils::Error },
+    WorksheetGet { source: embucket_utils::Error },
 
     #[snafu(display("Error getting worksheets: {source}"))]
-    WorksheetsList { source: icebucket_utils::Error },
+    WorksheetsList { source: embucket_utils::Error },
 
     #[snafu(display("Error deleting worksheet: {source}"))]
-    WorksheetDelete { source: icebucket_utils::Error },
+    WorksheetDelete { source: embucket_utils::Error },
 
     #[snafu(display("Error updating worksheet: {source}"))]
-    WorksheetUpdate { source: icebucket_utils::Error },
+    WorksheetUpdate { source: embucket_utils::Error },
 
     #[snafu(display("Error adding query record: {source}"))]
-    QueryAdd { source: icebucket_utils::Error },
+    QueryAdd { source: embucket_utils::Error },
 
     #[snafu(display("Error getting query history: {source}"))]
-    QueryGet { source: icebucket_utils::Error },
+    QueryGet { source: embucket_utils::Error },
 
     #[snafu(display("Can't locate worksheet by key: {message}"))]
     WorksheetNotFound { message: String },
@@ -190,7 +190,7 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 mod tests {
     use super::*;
     use chrono::{Duration, TimeZone, Utc};
-    use icebucket_utils::iterable::{IterableCursor, IterableEntity};
+    use embucket_utils::iterable::{IterableCursor, IterableEntity};
     use tokio;
 
     #[tokio::test]

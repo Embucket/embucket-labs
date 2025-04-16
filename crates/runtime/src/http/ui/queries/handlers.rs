@@ -29,8 +29,8 @@ use axum::{
     extract::{Query, State},
     Json,
 };
-use icebucket_history::{QueryRecord as QueryRecordItem, QueryRecordId, WorksheetId};
-use icebucket_utils::iterable::IterableEntity;
+use embucket_history::{QueryRecord as QueryRecordItem, QueryRecordId, WorksheetId};
+use embucket_utils::iterable::IterableEntity;
 use std::collections::HashMap;
 use utoipa::OpenApi;
 

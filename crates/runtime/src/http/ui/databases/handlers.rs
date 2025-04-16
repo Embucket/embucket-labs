@@ -30,9 +30,9 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use icebucket_metastore::error::MetastoreError;
-use icebucket_metastore::IceBucketDatabase;
-use icebucket_utils::list_config::ListConfig;
+use embucket_metastore::error::MetastoreError;
+use embucket_metastore::Database as MetastoreDatabase;
+use embucket_utils::list_config::ListConfig;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -78,7 +78,7 @@ pub async fn create_database(
     State(state): State<AppState>,
     Json(database): Json<DatabaseCreatePayload>,
 ) -> DatabasesResult<Json<DatabaseCreateResponse>> {
-    let database: IceBucketDatabase = database.data.into();
+    let database: MetastoreDatabase = database.data.into();
     database.validate().map_err(|e| DatabasesAPIError::Create {
         source: MetastoreError::Validation { source: e },
     })?;
@@ -172,7 +172,7 @@ pub async fn update_database(
     Path(database_name): Path<String>,
     Json(database): Json<DatabaseUpdatePayload>,
 ) -> DatabasesResult<Json<DatabaseUpdateResponse>> {
-    let database: IceBucketDatabase = database.data.into();
+    let database: MetastoreDatabase = database.data.into();
     database.validate().map_err(|e| DatabasesAPIError::Update {
         source: MetastoreError::Validation { source: e },
     })?;

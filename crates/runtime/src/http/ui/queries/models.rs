@@ -22,7 +22,7 @@ use crate::execution::models::ColumnInfo;
 use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use chrono::{DateTime, Utc};
-use icebucket_history::{QueryRecord as QueryRecordItem, QueryRecordId, QueryStatus, WorksheetId};
+use embucket_history::{QueryRecord as QueryRecordItem, QueryRecordId, QueryStatus, WorksheetId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -30,7 +30,7 @@ use snafu::ResultExt;
 use std::collections::HashMap;
 use utoipa::ToSchema;
 
-pub type ExecutionContext = crate::execution::query::IceBucketQueryContext;
+pub type ExecutionContext = crate::execution::query::QueryContext;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

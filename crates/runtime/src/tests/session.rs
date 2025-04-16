@@ -17,12 +17,12 @@
 
 use std::sync::Arc;
 
-use icebucket_metastore::{
-    IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume, Metastore,
-    SlateDBMetastore,
+use embucket_metastore::{
+    Database as MetastoreDatabase, Metastore, Schema as MetastoreSchema,
+    SchemaIdent as MetastoreSchemaIdent, SlateDBMetastore, Volume as MetastoreVolume,
 };
 
-use crate::execution::{query::IceBucketQueryContext, session::IceBucketUserSession};
+use crate::execution::{query::QueryContext, session::UserSession};
 
 #[tokio::test]
 #[allow(clippy::expect_used, clippy::manual_let_else, clippy::too_many_lines)]
@@ -31,9 +31,9 @@ async fn test_create_table_and_insert() {
     metastore
         .create_volume(
             &"test_volume".to_string(),
-            IceBucketVolume::new(
+            MetastoreVolume::new(
                 "test_volume".to_string(),
-                icebucket_metastore::IceBucketVolumeType::Memory,
+                embucket_metastore::VolumeType::Memory,
             ),
         )
         .await
@@ -41,7 +41,7 @@ async fn test_create_table_and_insert() {
     metastore
         .create_database(
             &"benchmark".to_string(),
-            IceBucketDatabase {
+            MetastoreDatabase {
                 ident: "benchmark".to_string(),
                 properties: None,
                 volume: "test_volume".to_string(),
@@ -49,14 +49,14 @@ async fn test_create_table_and_insert() {
         )
         .await
         .expect("Failed to create database");
-    let schema_ident = IceBucketSchemaIdent {
+    let schema_ident = MetastoreSchemaIdent {
         database: "benchmark".to_string(),
         schema: "public".to_string(),
     };
     metastore
         .create_schema(
             &schema_ident.clone(),
-            IceBucketSchema {
+            MetastoreSchema {
                 ident: schema_ident,
                 properties: None,
             },
@@ -64,7 +64,7 @@ async fn test_create_table_and_insert() {
         .await
         .expect("Failed to create schema");
     let session = Arc::new(
-        IceBucketUserSession::new(metastore)
+        UserSession::new(metastore)
             .await
             .expect("Failed to create user session"),
     );
@@ -82,13 +82,13 @@ async fn test_create_table_and_insert() {
             PRIMARY KEY (CounterID, EventDate, EventTime, WatchID)
         );
     ";
-    let query1 = session.query(create_query, IceBucketQueryContext::default());
+    let query1 = session.query(create_query, QueryContext::default());
 
     let statement = query1.parse_query().expect("Failed to parse query");
     let result = query1.execute().await.expect("Failed to execute query");
 
     let all_query = session
-        .query("SHOW TABLES", IceBucketQueryContext::default())
+        .query("SHOW TABLES", QueryContext::default())
         .execute()
         .await
         .expect("Failed to execute query");
@@ -96,7 +96,7 @@ async fn test_create_table_and_insert() {
     let insert_query = session
         .query(
             "INSERT INTO benchmark.public.hits VALUES (1, 1, 'test', 1, 1, 1, 1, 1)",
-            IceBucketQueryContext::default(),
+            QueryContext::default(),
         )
         .execute()
         .await
@@ -105,7 +105,7 @@ async fn test_create_table_and_insert() {
     let select_query = session
         .query(
             "SELECT * FROM benchmark.public.hits",
-            IceBucketQueryContext::default(),
+            QueryContext::default(),
         )
         .execute()
         .await

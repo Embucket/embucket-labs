@@ -17,15 +17,15 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::http::config::IceBucketWebConfig;
+use crate::http::config::WebConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IceBucketRuntimeConfig {
-    pub web: IceBucketWebConfig,
-    pub db: IceBucketDbConfig,
+pub struct RuntimeConfig {
+    pub web: WebConfig,
+    pub db: DbConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IceBucketDbConfig {
+pub struct DbConfig {
     pub slatedb_prefix: String,
 }
