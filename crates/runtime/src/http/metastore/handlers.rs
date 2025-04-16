@@ -32,20 +32,6 @@ use crate::http::state::AppState;
 use embucket_utils::list_config::ListConfig;
 use validator::Validate;
 
-/*#[derive(OpenApi)]
-#[openapi(
-    paths(
-        list_volumes,
-        get_volume
-    ),
-    components(
-        schemas(
-            HTTPIceBucketVolume,
-        ),
-    )
-)]
-pub struct MetastoreApi;*/
-
 pub type RwObjectVec<T> = Vec<RwObject<T>>;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -54,15 +40,6 @@ pub struct QueryParameters {
     pub cascade: Option<bool>,
 }
 
-/*#[utoipa::path(
-    get,
-    operation_id = "listVolumes",
-    path="/volumes",
-    responses(
-        (status = StatusCode::OK, body = RwObjectVec<IceBucketVolume>),
-        (status = "5XX", description = "server error"),
-    )
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_volumes(
     State(state): State<AppState>,
@@ -78,19 +55,6 @@ pub async fn list_volumes(
     Ok(Json(volumes))
 }
 
-/*#[utoipa::path(
-    get,
-    operation_id = "getVolume",
-    path="/volumes/{volumeName}",
-    params(
-        ("volumeName" = String, description = "Volume Name")
-    ),
-    responses(
-        (status = StatusCode::OK, body = RwObject<IceBucketVolume>),
-        (status = StatusCode::NOT_FOUND, description = "Volume not found", body = ErrorResponse),
-        (status = "5XX", description = "server error", body = ErrorResponse),
-    )
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_volume(
     State(state): State<AppState>,
@@ -106,16 +70,6 @@ pub async fn get_volume(
     }
 }
 
-/*#[utoipa::path(
-    post,
-    operation_id = "createVolume",
-    path="/volumes",
-    request_body = IceBucketVolume,
-    responses(
-        (status = 200, body = RwObject<IceBucketVolume>),
-        (status = "5XX", description = "server error", body = ErrorResponse),
-    )
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_volume(
     State(state): State<AppState>,
@@ -132,16 +86,6 @@ pub async fn create_volume(
         .map(|v| Json(hide_sensitive(v)))
 }
 
-/*#[utoipa::path(
-    put,
-    operation_id = "updateVolume",
-    path="/volumes/{volumeName}",
-    params(("volumeName" = String, description = "Volume Name")),
-    request_body = IceBucketVolume,
-    responses((status = 200, body = IceBucketVolume),
-              (status = 404, description = "Volume not found")
-    )
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn update_volume(
     State(state): State<AppState>,
@@ -159,13 +103,6 @@ pub async fn update_volume(
         .map(|v| Json(hide_sensitive(v)))
 }
 
-/*#[utoipa::path(
-    delete,
-    operation_id = "deleteVolume",
-    path="/volumes/{volumeName}",
-    params(("volumeName" = String, description = "Volume Name")),
-    responses((status = 200), (status = 404, description = "Volume not found"))
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_volume(
     State(state): State<AppState>,
@@ -179,12 +116,6 @@ pub async fn delete_volume(
         .map_err(MetastoreAPIError)
 }
 
-/*#[utoipa::path(
-    get,
-    operation_id = "listDatabases",
-    path="/databases",
-    responses((status = 200, body = RwObjectVec<IceBucketDatabase>))
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_databases(
     State(state): State<AppState>,
@@ -197,15 +128,6 @@ pub async fn list_databases(
         .map(Json)
 }
 
-/*#[utoipa::path(
-    get,
-    operation_id = "getDatabase",
-    path="/databases/{databaseName}",
-    params(("databaseName" = String, description = "Database Name")),
-    responses((status = 200, body = RwObject<IceBucketDatabase>),
-              (status = 404, description = "Database not found")
-    )
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_database(
     State(state): State<AppState>,
@@ -221,13 +143,6 @@ pub async fn get_database(
     }
 }
 
-/*#[utoipa::path(
-    post,
-    operation_id = "createDatabase",
-    path="/databases",
-    request_body = IceBucketDatabase,
-    responses((status = 200, body = RwObject<IceBucketDatabase>))
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_database(
     State(state): State<AppState>,
@@ -244,16 +159,6 @@ pub async fn create_database(
         .map(Json)
 }
 
-/*#[utoipa::path(
-    put,
-    operation_id = "updateDatabase",
-    path="/databases/{databaseName}",
-    params(("databaseName" = String, description = "Database Name")),
-    request_body = IceBucketDatabase,
-    responses((status = 200, body = RwObject<IceBucketDatabase>),
-              (status = 404, description = "Database not found")
-    )
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn update_database(
     State(state): State<AppState>,
@@ -272,13 +177,6 @@ pub async fn update_database(
         .map(Json)
 }
 
-/*#[utoipa::path(
-    delete,
-    operation_id = "deleteDatabase",
-    path="/databases/{databaseName}",
-    params(("databaseName" = String, description = "Database Name")),
-    responses((status = 200))
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_database(
     State(state): State<AppState>,
@@ -292,15 +190,6 @@ pub async fn delete_database(
         .map_err(MetastoreAPIError)
 }
 
-/*#[utoipa::path(
-    get,
-    operation_id = "listSchemas",
-    path="/databases/{databaseName}/schemas",
-    params(("databaseName" = String, description = "Database Name")),
-    responses((status = 200, body = RwObjectVec<IceBucketSchema>),
-              (status = 404, description = "Database not found")
-    )
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_schemas(
     State(state): State<AppState>,
@@ -314,17 +203,6 @@ pub async fn list_schemas(
         .map(Json)
 }
 
-/*#[utoipa::path(
-    get,
-    operation_id = "getSchema",
-    path="/databases/{databaseName}/schemas/{schemaName}",
-    params(("databaseName" = String, description = "Database Name"),
-            ("schemaName" = String, description = "Schema Name")
-    ),
-    responses((status = 200, body = RwObject<IceBucketSchema>),
-              (status = 404, description = "Schema not found")
-    )
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_schema(
     State(state): State<AppState>,
@@ -345,14 +223,6 @@ pub async fn get_schema(
     }
 }
 
-/*#[utoipa::path(
-    post,
-    operation_id = "createSchema",
-    path="/databases/{databaseName}/schemas",
-    params(("databaseName" = String, description = "Database Name")),
-    request_body = IceBucketSchema,
-    responses((status = 200, body = RwObject<IceBucketSchema>))
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_schema(
     State(state): State<AppState>,
@@ -367,18 +237,6 @@ pub async fn create_schema(
         .map(Json)
 }
 
-/*#[utoipa::path(
-    put,
-    operation_id = "updateSchema",
-    path="/databases/{databaseName}/schemas/{schemaName}",
-    params(("databaseName" = String, description = "Database Name"),
-            ("schemaName" = String, description = "Schema Name")
-    ),
-    request_body = IceBucketSchema,
-    responses((status = 200, body = RwObject<IceBucketSchema>),
-              (status = 404, description = "Schema not found")
-    )
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn update_schema(
     State(state): State<AppState>,
@@ -395,15 +253,6 @@ pub async fn update_schema(
         .map(Json)
 }
 
-/*#[utoipa::path(
-    delete,
-    operation_id = "deleteSchema",
-    path="/databases/{databaseName}/schemas/{schemaName}",
-    params(("databaseName" = String, description = "Database Name"),
-            ("schemaName" = String, description = "Schema Name")
-    ),
-    responses((status = 200))
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_schema(
     State(state): State<AppState>,
@@ -418,17 +267,6 @@ pub async fn delete_schema(
         .map_err(MetastoreAPIError)
 }
 
-/*#[utoipa::path(
-    get,
-    operation_id = "listTables",
-    path="/databases/{databaseName}/schemas/{schemaName}/tables",
-    params(("databaseName" = String, description = "Database Name"),
-            ("schemaName" = String, description = "Schema Name")
-    ),
-    responses((status = 200, body = RwObjectVec<IceBucketTable>),
-              (status = 404, description = "Schema not found")
-    )
-)]*/
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_tables(
     State(state): State<AppState>,

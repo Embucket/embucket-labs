@@ -21,7 +21,7 @@ use crate::http::ui::databases::models::{Database, DatabaseCreatePayload};
 use crate::http::ui::schemas::models::{SchemaCreatePayload, SchemasResponse};
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
-use crate::tests::run_icebucket_test_server;
+use crate::tests::run_test_server;
 use embucket_metastore::{
     Database as MetastoreDatabase, Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
 };
@@ -31,7 +31,7 @@ use serde_json::json;
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_schemas() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
     // Create volume with empty name

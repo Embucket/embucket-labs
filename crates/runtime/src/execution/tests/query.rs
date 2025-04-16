@@ -305,7 +305,7 @@ async fn test_context_name_injection() {
 async fn test_create_table_with_timestamp_nanosecond() {
     let (execution_svc, _, session_id) = prepare_env().await;
     let table_ident = MetastoreTableIdent {
-        database: "icebucket".to_string(),
+        database: "embucket".to_string(),
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };
@@ -332,7 +332,7 @@ async fn test_create_table_with_timestamp_nanosecond() {
 async fn test_drop_table() {
     let (execution_svc, _, session_id) = prepare_env().await;
     let table_ident = MetastoreTableIdent {
-        database: "icebucket".to_string(),
+        database: "embucket".to_string(),
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };
@@ -408,9 +408,9 @@ async fn prepare_env() -> (ExecutionService, Arc<SlateDBMetastore>, String) {
         .expect("Failed to create volume");
     metastore
         .create_database(
-            &"icebucket".to_string(),
+            &"embucket".to_string(),
             MetastoreDatabase {
-                ident: "icebucket".to_string(),
+                ident: "embucket".to_string(),
                 properties: None,
                 volume: "test_volume".to_string(),
             },
@@ -418,7 +418,7 @@ async fn prepare_env() -> (ExecutionService, Arc<SlateDBMetastore>, String) {
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
-        database: "icebucket".to_string(),
+        database: "embucket".to_string(),
         schema: "public".to_string(),
     };
     metastore

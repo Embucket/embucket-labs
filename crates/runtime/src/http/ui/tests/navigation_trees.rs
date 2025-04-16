@@ -25,7 +25,7 @@ use crate::http::ui::tests::common::req;
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
-use crate::tests::run_icebucket_test_server;
+use crate::tests::run_test_server;
 use embucket_metastore::VolumeType as MetastoreVolumeType;
 use embucket_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
 use http::Method;
@@ -34,7 +34,7 @@ use serde_json::json;
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_databases_navigation() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
     let client = reqwest::Client::new();
     let url = format!("http://{addr}/ui/navigation-trees");
     let res = req(&client, Method::GET, &url, String::new())

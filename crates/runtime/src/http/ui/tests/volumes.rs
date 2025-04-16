@@ -18,7 +18,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
-use crate::tests::run_icebucket_test_server;
+use crate::tests::run_test_server;
 use embucket_metastore::Volume as MetastoreVolume;
 use embucket_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume as MetastoreFileVolume,
@@ -29,7 +29,7 @@ use serde_json;
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_volumes_memory() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
 
     // memory volume with empty ident create Ok
     let expected = VolumeCreatePayload {
@@ -47,7 +47,7 @@ async fn test_ui_volumes_memory() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_volumes_file() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
 
     // memory volume with empty ident create Ok
     let payload = r#"{"name":"","type": "file", "path":"/tmp/data"}"#;
@@ -74,7 +74,7 @@ async fn test_ui_volumes_file() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_volumes_s3() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
 
     // memory volume with empty ident create Ok
     let expected = VolumeCreatePayload {
@@ -82,7 +82,7 @@ async fn test_ui_volumes_s3() {
             ident: String::new(),
             volume: MetastoreVolumeType::S3(MetastoreS3Volume {
                 region: Some("us-west-1".to_string()),
-                bucket: Some("icebucket".to_string()),
+                bucket: Some("embucket".to_string()),
                 endpoint: Some("http://localhost:9000".to_string()),
                 skip_signature: None,
                 metadata_endpoint: None,

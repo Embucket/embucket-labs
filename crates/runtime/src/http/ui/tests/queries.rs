@@ -23,7 +23,7 @@ use crate::http::ui::queries::models::{
 };
 use crate::http::ui::tests::common::req;
 use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
-use crate::tests::run_icebucket_test_server;
+use crate::tests::run_test_server;
 use embucket_history::QueryStatus;
 use http::Method;
 use serde_json::json;
@@ -31,7 +31,7 @@ use serde_json::json;
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_queries_no_worksheet() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
     let res = req(
@@ -65,7 +65,7 @@ async fn test_ui_queries_no_worksheet() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_queries() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
     let res = req(

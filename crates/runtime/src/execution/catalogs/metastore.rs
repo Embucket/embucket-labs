@@ -43,7 +43,7 @@ use object_store::ObjectStore;
 use snafu::ResultExt;
 use url::Url;
 
-pub const DEFAULT_CATALOG: &str = "icebucket";
+pub const DEFAULT_CATALOG: &str = "embucket";
 
 pub type TableProviderCache = DashMap<String, Arc<dyn TableProvider>>;
 pub type SchemaProviderCache = DashMap<String, TableProviderCache>;

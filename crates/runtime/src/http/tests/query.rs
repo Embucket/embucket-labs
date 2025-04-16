@@ -17,7 +17,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::tests::run_icebucket_test_server;
+use crate::tests::run_test_server;
 // for `collect`
 use crate::http::ui::{
     queries::models::QueryCreateResponse,
@@ -45,7 +45,7 @@ fn get_patched_query_response(query_resp: &str) -> String {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_parallel_queries() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
     let client = reqwest::Client::new();
     let client2 = reqwest::Client::new();
 

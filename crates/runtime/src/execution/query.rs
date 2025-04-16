@@ -129,7 +129,7 @@ impl IceBucketQuery {
             .database
             .clone()
             .or_else(|| self.session.get_session_variable("database"))
-            .or_else(|| Some("icebucket".to_string()))
+            .or_else(|| Some("embucket".to_string()))
     }
 
     fn current_schema(&self) -> Option<String> {

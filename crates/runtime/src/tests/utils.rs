@@ -40,9 +40,9 @@ pub async fn create_df_session() -> Arc<IceBucketUserSession> {
         .expect("Failed to create volume");
     metastore
         .create_database(
-            &"icebucket".to_string(),
+            &"embucket".to_string(),
             MetastoreDatabase {
-                ident: "icebucket".to_string(),
+                ident: "embucket".to_string(),
                 properties: None,
                 volume: "test_volume".to_string(),
             },
@@ -50,7 +50,7 @@ pub async fn create_df_session() -> Arc<IceBucketUserSession> {
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
-        database: "icebucket".to_string(),
+        database: "embucket".to_string(),
         schema: "public".to_string(),
     };
     metastore

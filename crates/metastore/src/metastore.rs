@@ -125,13 +125,13 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
 
 ///
 /// vol -> List of volumes
-/// vol/<name> -> `IceBucketVolume`
+/// vol/<name> -> `Volume`
 /// db -> List of databases
-/// db/<name> -> `IceBucketDatabase`
+/// db/<name> -> `Database`
 /// sch/<db> -> List of schemas for <db>
-/// sch/<db>/<name> -> `IceBucketSchema`
+/// sch/<db>/<name> -> `Schema`
 /// tbl/<db>/<schema> -> List of tables for <schema> in <db>
-/// tbl/<db>/<schema>/<table> -> `IceBucketTable`
+/// tbl/<db>/<schema>/<table> -> `Table`
 ///
 const KEY_VOLUME: &str = "vol";
 const KEY_DATABASE: &str = "db";

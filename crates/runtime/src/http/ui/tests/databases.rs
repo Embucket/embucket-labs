@@ -23,7 +23,7 @@ use crate::http::ui::databases::models::{
 };
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
-use crate::tests::run_icebucket_test_server;
+use crate::tests::run_test_server;
 use embucket_metastore::VolumeType as MetastoreVolumeType;
 use embucket_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
 use http::Method;
@@ -34,7 +34,7 @@ use http::Method;
     expected = "Failed to get error response: reqwest::Error { kind: Decode, source: Error(\"missing field `message`\", line: 1, column: 32) }"
 )]
 async fn test_ui_databases_metastore_update_bug() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
 
     // Create volume with empty name
     let res = ui_test_op(
@@ -135,7 +135,7 @@ async fn test_ui_databases_metastore_update_bug() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_databases() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
     // Create volume with empty name

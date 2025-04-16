@@ -74,9 +74,9 @@ async fn test_service_upload_file() {
         .expect("Failed to create volume");
     metastore
         .create_database(
-            &"icebucket".to_string(),
+            &"embucket".to_string(),
             MetastoreDatabase {
-                ident: "icebucket".to_string(),
+                ident: "embucket".to_string(),
                 properties: None,
                 volume: "test_volume".to_string(),
             },
@@ -84,7 +84,7 @@ async fn test_service_upload_file() {
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
-        database: "icebucket".to_string(),
+        database: "embucket".to_string(),
         schema: "public".to_string(),
     };
     metastore
@@ -100,7 +100,7 @@ async fn test_service_upload_file() {
 
     let file_name = "test.csv";
     let table_ident = MetastoreTableIdent {
-        database: "icebucket".to_string(),
+        database: "embucket".to_string(),
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };
@@ -207,9 +207,9 @@ async fn test_service_create_table_file_volume() {
         .expect("Failed to create volume");
     metastore
         .create_database(
-            &"icebucket".to_string(),
+            &"embucket".to_string(),
             MetastoreDatabase {
-                ident: "icebucket".to_string(),
+                ident: "embucket".to_string(),
                 properties: None,
                 volume: "test_volume".to_string(),
             },
@@ -217,7 +217,7 @@ async fn test_service_create_table_file_volume() {
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
-        database: "icebucket".to_string(),
+        database: "embucket".to_string(),
         schema: "public".to_string(),
     };
     metastore
@@ -232,7 +232,7 @@ async fn test_service_create_table_file_volume() {
         .expect("Failed to create schema");
 
     let table_ident = MetastoreTableIdent {
-        database: "icebucket".to_string(),
+        database: "embucket".to_string(),
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };

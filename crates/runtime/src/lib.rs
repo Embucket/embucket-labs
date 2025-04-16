@@ -21,7 +21,7 @@ use config::RuntimeConfig;
 use embucket_history::store::SlateDBWorksheetsStore;
 use embucket_metastore::SlateDBMetastore;
 use embucket_utils::Db;
-use http::{make_app, run_icebucket_app};
+use http::{make_app, run_app};
 use object_store::{path::Path, ObjectStore};
 use slatedb::{config::DbOptions, db::Db as SlateDb};
 
@@ -53,5 +53,5 @@ pub async fn run_binary(
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history = Arc::new(SlateDBWorksheetsStore::new(db));
     let app = make_app(metastore, history, &config.web)?;
-    run_icebucket_app(app, &config.web).await
+    run_app(app, &config.web).await
 }
