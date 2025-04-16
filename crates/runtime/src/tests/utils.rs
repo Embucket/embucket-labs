@@ -72,7 +72,7 @@ pub async fn create_df_session() -> Arc<UserSession> {
 
     for query in TABLE_SETUP.split(';') {
         if !query.is_empty() {
-            let query = user_session.query(query, QueryContext::default());
+            let mut query = user_session.query(query, QueryContext::default());
             query.execute().await.unwrap();
             //ctx.sql(query).await.unwrap().collect().await.unwrap();
         }
@@ -88,7 +88,7 @@ pub mod macros {
                 async fn [< query_ $test_fn_name >]() {
                     let ctx = crate::tests::utils::create_df_session().await;
 
-                    let query = ctx.query($query, crate::execution::query::QueryContext::default());
+                    let mut query = ctx.query($query, crate::execution::query::QueryContext::default());
                     let statement = query.parse_query().unwrap();
                     let plan = query.plan().await;
                     //TODO: add our plan processing also
