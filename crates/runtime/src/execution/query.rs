@@ -928,7 +928,7 @@ impl UserQuery {
 
     async fn execute_sql(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
         // TODO: Why this method doesn't rely on execute_logical_plan ??
-        // It seems the only difference it relies on differetn DF SessionContext API
+        // It seems the only difference it relies on different DF SessionContext API
         // bypassing custom handling
         let session = self.session.clone();
         let query = query.to_string();
