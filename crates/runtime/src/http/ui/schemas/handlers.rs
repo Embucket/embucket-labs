@@ -31,8 +31,8 @@ use axum::{
     Json,
 };
 use embucket_metastore::error::MetastoreError;
-use embucket_metastore::models::IceBucketSchemaIdent as MetastoreSchemaIdent;
-use embucket_metastore::IceBucketSchema as MetastoreSchema;
+use embucket_metastore::models::SchemaIdent as MetastoreSchemaIdent;
+use embucket_metastore::Schema as MetastoreSchema;
 use embucket_utils::list_config::ListConfig;
 use std::collections::HashMap;
 use std::convert::From;

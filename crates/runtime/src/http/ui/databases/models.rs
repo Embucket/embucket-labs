@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use embucket_metastore::models::IceBucketDatabase as MetastoreDatabase;
+use embucket_metastore::models::Database as MetastoreDatabase;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 

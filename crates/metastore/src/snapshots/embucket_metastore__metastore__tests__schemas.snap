@@ -9,8 +9,8 @@ expression: "(no_db_result, schema_create, schema_list, schema_get, schema_list_
         },
     ),
     RwObject {
-        data: IceBucketSchema {
-            ident: IceBucketSchemaIdent {
+        data: Schema {
+            ident: SchemaIdent {
                 schema: "testschema",
                 database: "testdb",
             },
@@ -21,8 +21,8 @@ expression: "(no_db_result, schema_create, schema_list, schema_get, schema_list_
     },
     [
         RwObject {
-            data: IceBucketSchema {
-                ident: IceBucketSchemaIdent {
+            data: Schema {
+                ident: SchemaIdent {
                     schema: "testschema",
                     database: "testdb",
                 },
@@ -34,8 +34,8 @@ expression: "(no_db_result, schema_create, schema_list, schema_get, schema_list_
     ],
     Some(
         RwObject {
-            data: IceBucketSchema {
-                ident: IceBucketSchemaIdent {
+            data: Schema {
+                ident: SchemaIdent {
                     schema: "testschema",
                     database: "testdb",
                 },

@@ -19,10 +19,10 @@
 use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use crate::tests::run_icebucket_test_server;
-use embucket_metastore::IceBucketVolume as MetastoreVolume;
+use embucket_metastore::Volume as MetastoreVolume;
 use embucket_metastore::{
-    AwsAccessKeyCredentials, AwsCredentials, IceBucketFileVolume as MetastoreFileVolume,
-    IceBucketS3Volume as MetastoreS3Volume, IceBucketVolumeType as MetastoreVolumeType,
+    AwsAccessKeyCredentials, AwsCredentials, FileVolume as MetastoreFileVolume,
+    S3Volume as MetastoreS3Volume, VolumeType as MetastoreVolumeType,
 };
 use serde_json;
 

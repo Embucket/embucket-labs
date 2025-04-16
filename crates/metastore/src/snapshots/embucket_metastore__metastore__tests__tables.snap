@@ -10,8 +10,8 @@ expression: "(no_schema_result, table_create, paths, table_list, table_get,\ntab
         },
     ),
     RwObject {
-        data: IceBucketTable {
-            ident: IceBucketTableIdent {
+        data: Table {
+            ident: TableIdent {
                 table: "testtable",
                 schema: "testschema",
                 database: "testdb",
@@ -104,8 +104,8 @@ expression: "(no_schema_result, table_create, paths, table_list, table_get,\ntab
     ),
     [
         RwObject {
-            data: IceBucketTable {
-                ident: IceBucketTableIdent {
+            data: Table {
+                ident: TableIdent {
                     table: "testtable",
                     schema: "testschema",
                     database: "testdb",
@@ -182,8 +182,8 @@ expression: "(no_schema_result, table_create, paths, table_list, table_get,\ntab
     ],
     Some(
         RwObject {
-            data: IceBucketTable {
-                ident: IceBucketTableIdent {
+            data: Table {
+                ident: TableIdent {
                     table: "testtable",
                     schema: "testschema",
                     database: "testdb",

@@ -20,10 +20,9 @@ use std::{collections::HashMap, sync::Arc};
 use async_trait::async_trait;
 use embucket_metastore::error::{MetastoreError, MetastoreResult};
 use embucket_metastore::{
-    IceBucketSchema as MetastoreSchema, IceBucketSchemaIdent as MetastoreSchemaIdent,
-    IceBucketTableCreateRequest as MetastoreTableCreateRequest,
-    IceBucketTableIdent as MetastoreTableIdent, IceBucketTableUpdate as MetastoreTableUpdate,
-    Metastore,
+    Metastore, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
+    TableCreateRequest as MetastoreTableCreateRequest, TableIdent as MetastoreTableIdent,
+    TableUpdate as MetastoreTableUpdate,
 };
 use embucket_utils::list_config::ListConfig;
 use futures::executor::block_on;

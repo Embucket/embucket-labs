@@ -37,9 +37,7 @@ use axum::{
 };
 use datafusion::arrow::csv::reader::Format;
 use embucket_metastore::error::MetastoreError;
-use embucket_metastore::{
-    IceBucketSchemaIdent as MetastoreSchemaIdent, IceBucketTableIdent as MetastoreTableIdent,
-};
+use embucket_metastore::{SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent};
 use embucket_utils::list_config::ListConfig;
 use snafu::ResultExt;
 use std::time::Instant;

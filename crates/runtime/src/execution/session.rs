@@ -35,7 +35,7 @@ use datafusion::sql::planner::IdentNormalizer;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
-use embucket_metastore::{AwsCredentials, IceBucketVolumeType as MetastoreVolumeType, Metastore};
+use embucket_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
 use embucket_utils::list_config::ListConfig;
 use geodatafusion::udf::native::register_native as register_geo_native;
 use iceberg_rust::object_store::ObjectStoreBuilder;

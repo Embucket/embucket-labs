@@ -10,7 +10,7 @@ expression: "(no_volume_result, all_databases, fetched_db, all_dbs_after)"
     ),
     [
         RwObject {
-            data: IceBucketDatabase {
+            data: Database {
                 ident: "testdb",
                 properties: None,
                 volume: "testv1",
@@ -21,7 +21,7 @@ expression: "(no_volume_result, all_databases, fetched_db, all_dbs_after)"
     ],
     Some(
         RwObject {
-            data: IceBucketDatabase {
+            data: Database {
                 ident: "testdb",
                 properties: None,
                 volume: "testv2",

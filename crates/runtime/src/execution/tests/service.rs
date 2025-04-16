@@ -20,11 +20,11 @@ use crate::execution::service::ExecutionService;
 use crate::execution::utils::{Config, DataSerializationFormat};
 use crate::SlateDBMetastore;
 use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
-use embucket_metastore::models::table::IceBucketTableIdent as MetastoreTableIdent;
+use embucket_metastore::models::table::TableIdent as MetastoreTableIdent;
 use embucket_metastore::Metastore;
 use embucket_metastore::{
-    IceBucketDatabase as MetastoreDatabase, IceBucketSchema as MetastoreSchema,
-    IceBucketSchemaIdent as MetastoreSchemaIdent, IceBucketVolume as MetastoreVolume,
+    Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
+    Volume as MetastoreVolume,
 };
 
 #[tokio::test]
@@ -67,7 +67,7 @@ async fn test_service_upload_file() {
             &"test_volume".to_string(),
             MetastoreVolume::new(
                 "test_volume".to_string(),
-                embucket_metastore::IceBucketVolumeType::Memory,
+                embucket_metastore::VolumeType::Memory,
             ),
         )
         .await
@@ -198,11 +198,9 @@ async fn test_service_create_table_file_volume() {
             &"test_volume".to_string(),
             MetastoreVolume::new(
                 "test_volume".to_string(),
-                embucket_metastore::IceBucketVolumeType::File(
-                    embucket_metastore::IceBucketFileVolume {
-                        path: temp_path.to_string(),
-                    },
-                ),
+                embucket_metastore::VolumeType::File(embucket_metastore::FileVolume {
+                    path: temp_path.to_string(),
+                }),
             ),
         )
         .await

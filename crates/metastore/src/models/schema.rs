@@ -20,22 +20,22 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use super::IceBucketDatabaseIdent;
+use super::DatabaseIdent;
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
 /// A schema identifier
-pub struct IceBucketSchemaIdent {
+pub struct SchemaIdent {
     #[validate(length(min = 1))]
     /// The name of the schema
     pub schema: String,
     #[validate(length(min = 1))]
     /// The database the schema belongs to
-    pub database: IceBucketDatabaseIdent,
+    pub database: DatabaseIdent,
 }
 
-impl IceBucketSchemaIdent {
+impl SchemaIdent {
     #[must_use]
-    pub const fn new(database: IceBucketDatabaseIdent, schema: String) -> Self {
+    pub const fn new(database: DatabaseIdent, schema: String) -> Self {
         Self { schema, database }
     }
 }
@@ -47,19 +47,19 @@ impl std::fmt::Display for IceBucketSchemaIdent {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema)]
-pub struct IceBucketSchema {
-    pub ident: IceBucketSchemaIdent,
+pub struct Schema {
+    pub ident: SchemaIdent,
     pub properties: Option<HashMap<String, String>>,
 }
 
-impl IceBucketSchema {
+impl Schema {
     #[must_use]
     pub fn prefix(&self, parent: &str) -> String {
         format!("{}/{}", parent, self.ident.schema)
     }
 }
 
-impl std::fmt::Display for IceBucketSchema {
+impl std::fmt::Display for Schema {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}", self.ident.database, self.ident.schema)
     }
@@ -71,8 +71,8 @@ mod tests {
 
     #[test]
     fn test_prefix() {
-        let schema = IceBucketSchema {
-            ident: IceBucketSchemaIdent {
+        let schema = Schema {
+            ident: SchemaIdent {
                 schema: "schema".to_string(),
                 database: "db".to_string(),
             },

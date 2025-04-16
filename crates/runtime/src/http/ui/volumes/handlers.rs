@@ -31,7 +31,7 @@ use axum::{
     Json,
 };
 use embucket_metastore::error::MetastoreError;
-use embucket_metastore::models::IceBucketVolume as MetastoreVolume;
+use embucket_metastore::models::Volume as MetastoreVolume;
 use embucket_utils::list_config::ListConfig;
 use utoipa::OpenApi;
 use validator::Validate;

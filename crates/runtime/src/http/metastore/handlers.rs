@@ -66,7 +66,7 @@ pub struct QueryParameters {
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_volumes(
     State(state): State<AppState>,
-) -> MetastoreAPIResult<Json<RwObjectVec<IceBucketVolume>>> {
+) -> MetastoreAPIResult<Json<RwObjectVec<Volume>>> {
     let volumes = state
         .metastore
         .list_volumes(ListConfig::default())
@@ -95,7 +95,7 @@ pub async fn list_volumes(
 pub async fn get_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketVolume>>> {
+) -> MetastoreAPIResult<Json<RwObject<Volume>>> {
     match state.metastore.get_volume(&volume_name).await {
         Ok(Some(volume)) => Ok(Json(hide_sensitive(volume))),
         Ok(None) => Err(MetastoreError::VolumeNotFound {
@@ -119,8 +119,8 @@ pub async fn get_volume(
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_volume(
     State(state): State<AppState>,
-    Json(volume): Json<IceBucketVolume>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketVolume>>> {
+    Json(volume): Json<Volume>,
+) -> MetastoreAPIResult<Json<RwObject<Volume>>> {
     volume
         .validate()
         .context(metastore_error::ValidationSnafu)?;
@@ -146,8 +146,8 @@ pub async fn create_volume(
 pub async fn update_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
-    Json(volume): Json<IceBucketVolume>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketVolume>>> {
+    Json(volume): Json<Volume>,
+) -> MetastoreAPIResult<Json<RwObject<Volume>>> {
     volume
         .validate()
         .context(metastore_error::ValidationSnafu)?;
@@ -188,7 +188,7 @@ pub async fn delete_volume(
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_databases(
     State(state): State<AppState>,
-) -> MetastoreAPIResult<Json<Vec<RwObject<IceBucketDatabase>>>> {
+) -> MetastoreAPIResult<Json<Vec<RwObject<Database>>>> {
     state
         .metastore
         .list_databases(ListConfig::default())
@@ -210,7 +210,7 @@ pub async fn list_databases(
 pub async fn get_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketDatabase>>> {
+) -> MetastoreAPIResult<Json<RwObject<Database>>> {
     match state.metastore.get_database(&database_name).await {
         Ok(Some(db)) => Ok(Json(db)),
         Ok(None) => Err(MetastoreError::DatabaseNotFound {
@@ -231,8 +231,8 @@ pub async fn get_database(
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_database(
     State(state): State<AppState>,
-    Json(database): Json<IceBucketDatabase>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketDatabase>>> {
+    Json(database): Json<Database>,
+) -> MetastoreAPIResult<Json<RwObject<Database>>> {
     database
         .validate()
         .context(metastore_error::ValidationSnafu)?;
@@ -258,8 +258,8 @@ pub async fn create_database(
 pub async fn update_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-    Json(database): Json<IceBucketDatabase>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketDatabase>>> {
+    Json(database): Json<Database>,
+) -> MetastoreAPIResult<Json<RwObject<Database>>> {
     database
         .validate()
         .context(metastore_error::ValidationSnafu)?;
@@ -305,7 +305,7 @@ pub async fn delete_database(
 pub async fn list_schemas(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-) -> MetastoreAPIResult<Json<Vec<RwObject<IceBucketSchema>>>> {
+) -> MetastoreAPIResult<Json<Vec<RwObject<Schema>>>> {
     state
         .metastore
         .list_schemas(&database_name, ListConfig::default())
@@ -329,8 +329,8 @@ pub async fn list_schemas(
 pub async fn get_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketSchema>>> {
-    let schema_ident = IceBucketSchemaIdent {
+) -> MetastoreAPIResult<Json<RwObject<Schema>>> {
+    let schema_ident = SchemaIdent {
         database: database_name.clone(),
         schema: schema_name.clone(),
     };
@@ -357,8 +357,8 @@ pub async fn get_schema(
 pub async fn create_schema(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-    Json(schema): Json<IceBucketSchema>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketSchema>>> {
+    Json(schema): Json<Schema>,
+) -> MetastoreAPIResult<Json<RwObject<Schema>>> {
     state
         .metastore
         .create_schema(&schema.ident.clone(), schema)
@@ -383,9 +383,9 @@ pub async fn create_schema(
 pub async fn update_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-    Json(schema): Json<IceBucketSchema>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketSchema>>> {
-    let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
+    Json(schema): Json<Schema>,
+) -> MetastoreAPIResult<Json<RwObject<Schema>>> {
+    let schema_ident = SchemaIdent::new(database_name, schema_name);
     // TODO: Implement schema renames
     state
         .metastore
@@ -410,7 +410,7 @@ pub async fn delete_schema(
     Query(query): Query<QueryParameters>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> MetastoreAPIResult<()> {
-    let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
+    let schema_ident = SchemaIdent::new(database_name, schema_name);
     state
         .metastore
         .delete_schema(&schema_ident, query.cascade.unwrap_or_default())
@@ -433,8 +433,8 @@ pub async fn delete_schema(
 pub async fn list_tables(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> MetastoreAPIResult<Json<Vec<RwObject<IceBucketTable>>>> {
-    let schema_ident = IceBucketSchemaIdent::new(database_name, schema_name);
+) -> MetastoreAPIResult<Json<Vec<RwObject<Table>>>> {
+    let schema_ident = SchemaIdent::new(database_name, schema_name);
     state
         .metastore
         .list_tables(&schema_ident, ListConfig::default())
@@ -447,8 +447,8 @@ pub async fn list_tables(
 pub async fn get_table(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketTable>>> {
-    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+) -> MetastoreAPIResult<Json<RwObject<Table>>> {
+    let table_ident = TableIdent::new(&database_name, &schema_name, &table_name);
     match state.metastore.get_table(&table_ident).await {
         Ok(Some(table)) => Ok(Json(table)),
         Ok(None) => Err(MetastoreError::TableNotFound {
@@ -465,10 +465,10 @@ pub async fn get_table(
 pub async fn create_table(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-    Json(table): Json<IceBucketTableCreateRequest>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketTable>>> {
+    Json(table): Json<TableCreateRequest>,
+) -> MetastoreAPIResult<Json<RwObject<Table>>> {
     table.validate().context(metastore_error::ValidationSnafu)?;
-    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table.ident.table);
+    let table_ident = TableIdent::new(&database_name, &schema_name, &table.ident.table);
     state
         .metastore
         .create_table(&table_ident, table)
@@ -481,9 +481,9 @@ pub async fn create_table(
 pub async fn update_table(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-    Json(table): Json<IceBucketTableUpdate>,
-) -> MetastoreAPIResult<Json<RwObject<IceBucketTable>>> {
-    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    Json(table): Json<TableUpdate>,
+) -> MetastoreAPIResult<Json<RwObject<Table>>> {
+    let table_ident = TableIdent::new(&database_name, &schema_name, &table_name);
     state
         .metastore
         .update_table(&table_ident, table)
@@ -498,7 +498,7 @@ pub async fn delete_table(
     Query(query): Query<QueryParameters>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> MetastoreAPIResult<()> {
-    let table_ident = IceBucketTableIdent::new(&database_name, &schema_name, &table_name);
+    let table_ident = TableIdent::new(&database_name, &schema_name, &table_name);
     state
         .metastore
         .delete_table(&table_ident, query.cascade.unwrap_or_default())
@@ -508,9 +508,9 @@ pub async fn delete_table(
 
 #[allow(clippy::needless_pass_by_value)]
 #[must_use]
-pub fn hide_sensitive(volume: RwObject<IceBucketVolume>) -> RwObject<IceBucketVolume> {
+pub fn hide_sensitive(volume: RwObject<Volume>) -> RwObject<Volume> {
     let mut new_volume = volume;
-    if let IceBucketVolumeType::S3(ref mut s3_volume) = new_volume.data.volume {
+    if let VolumeType::S3(ref mut s3_volume) = new_volume.data.volume {
         if let Some(AwsCredentials::AccessKey(ref mut access_key)) = s3_volume.credentials {
             access_key.aws_access_key_id = "******".to_string();
             access_key.aws_secret_access_key = "******".to_string();

@@ -69,7 +69,7 @@ impl Validate for AwsCredentials {
 
 #[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
-pub struct IceBucketS3Volume {
+pub struct S3Volume {
     #[validate(length(min = 1))]
     pub region: Option<String>,
     #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
@@ -85,7 +85,7 @@ pub struct IceBucketS3Volume {
 
 #[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
-pub struct IceBucketS3TablesVolume {
+pub struct S3TablesVolume {
     #[validate(length(min = 1))]
     pub region: String,
     #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
@@ -100,10 +100,10 @@ pub struct IceBucketS3TablesVolume {
     pub arn: String,
 }
 
-impl IceBucketS3TablesVolume {
+impl S3TablesVolume {
     #[must_use]
     pub fn s3_builder(&self) -> AmazonS3Builder {
-        let s3_volume = IceBucketS3Volume {
+        let s3_volume = S3Volume {
             region: Some(self.region.clone()),
             bucket: Some(self.name.clone()),
             endpoint: Some(self.endpoint.clone()),
@@ -111,7 +111,7 @@ impl IceBucketS3TablesVolume {
             metadata_endpoint: None,
             credentials: Some(self.credentials.clone()),
         };
-        IceBucketVolume::get_s3_builder(&s3_volume)
+        Volume::get_s3_builder(&s3_volume)
     }
 }
 
@@ -138,21 +138,21 @@ fn validate_bucket_name(bucket_name: &str) -> Result<(), ValidationError> {
 
 #[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
-pub struct IceBucketFileVolume {
+pub struct FileVolume {
     #[validate(length(min = 1))]
     pub path: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(tag = "type", rename_all = "kebab-case")]
-pub enum IceBucketVolumeType {
-    S3(IceBucketS3Volume),
-    S3Tables(IceBucketS3TablesVolume),
-    File(IceBucketFileVolume),
+pub enum VolumeType {
+    S3(S3Volume),
+    S3Tables(S3TablesVolume),
+    File(FileVolume),
     Memory,
 }
 
-impl Validate for IceBucketVolumeType {
+impl Validate for VolumeType {
     fn validate(&self) -> Result<(), ValidationErrors> {
         match self {
             Self::S3(volume) => volume.validate(),
@@ -165,49 +165,49 @@ impl Validate for IceBucketVolumeType {
 
 #[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
-pub struct IceBucketVolume {
-    pub ident: IceBucketVolumeIdent,
+pub struct Volume {
+    pub ident: VolumeIdent,
     #[serde(flatten)]
     #[validate(nested)]
-    pub volume: IceBucketVolumeType,
+    pub volume: VolumeType,
 }
 
-pub type IceBucketVolumeIdent = String;
+pub type VolumeIdent = String;
 
 #[allow(clippy::as_conversions)]
-impl IceBucketVolume {
+impl Volume {
     #[must_use]
-    pub const fn new(ident: IceBucketVolumeIdent, volume: IceBucketVolumeType) -> Self {
+    pub const fn new(ident: VolumeIdent, volume: VolumeType) -> Self {
         Self { ident, volume }
     }
 
     pub fn get_object_store(&self) -> MetastoreResult<Arc<dyn ObjectStore>> {
         match &self.volume {
-            IceBucketVolumeType::S3(volume) => {
+            VolumeType::S3(volume) => {
                 let s3_builder = Self::get_s3_builder(volume);
                 s3_builder
                     .build()
                     .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
                     .context(metastore_error::ObjectStoreSnafu)
             }
-            IceBucketVolumeType::S3Tables(volume) => {
+            VolumeType::S3Tables(volume) => {
                 let s3_builder = volume.s3_builder();
                 s3_builder
                     .build()
                     .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
                     .context(metastore_error::ObjectStoreSnafu)
             }
-            IceBucketVolumeType::File(_) => Ok(Arc::new(
+            VolumeType::File(_) => Ok(Arc::new(
                 object_store::local::LocalFileSystem::new().with_automatic_cleanup(true),
             ) as Arc<dyn ObjectStore>),
-            IceBucketVolumeType::Memory => {
+            VolumeType::Memory => {
                 Ok(Arc::new(object_store::memory::InMemory::new()) as Arc<dyn ObjectStore>)
             }
         }
     }
 
     #[must_use]
-    pub fn get_s3_builder(volume: &IceBucketS3Volume) -> AmazonS3Builder {
+    pub fn get_s3_builder(volume: &S3Volume) -> AmazonS3Builder {
         let mut s3_builder = AmazonS3Builder::new()
             .with_conditional_put(object_store::aws::S3ConditionalPut::ETagMatch);
 
@@ -245,16 +245,16 @@ impl IceBucketVolume {
     #[must_use]
     pub fn prefix(&self) -> String {
         match &self.volume {
-            IceBucketVolumeType::S3(volume) => volume
+            VolumeType::S3(volume) => volume
                 .bucket
                 .as_ref()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
-            IceBucketVolumeType::S3Tables(volume) => volume
+            VolumeType::S3Tables(volume) => volume
                 .bucket
                 .as_ref()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
-            IceBucketVolumeType::File(volume) => format!("file://{}", volume.path),
-            IceBucketVolumeType::Memory => "memory://".to_string(),
+            VolumeType::File(volume) => format!("file://{}", volume.path),
+            VolumeType::Memory => "memory://".to_string(),
         }
     }
 

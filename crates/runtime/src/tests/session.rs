@@ -18,9 +18,8 @@
 use std::sync::Arc;
 
 use embucket_metastore::{
-    IceBucketDatabase as MetastoreDatabase, IceBucketSchema as MetastoreSchema,
-    IceBucketSchemaIdent as MetastoreSchemaIdent, IceBucketVolume as MetastoreVolume, Metastore,
-    SlateDBMetastore,
+    Database as MetastoreDatabase, Metastore, Schema as MetastoreSchema,
+    SchemaIdent as MetastoreSchemaIdent, SlateDBMetastore, Volume as MetastoreVolume,
 };
 
 use crate::execution::{query::IceBucketQueryContext, session::IceBucketUserSession};
@@ -34,7 +33,7 @@ async fn test_create_table_and_insert() {
             &"test_volume".to_string(),
             MetastoreVolume::new(
                 "test_volume".to_string(),
-                embucket_metastore::IceBucketVolumeType::Memory,
+                embucket_metastore::VolumeType::Memory,
             ),
         )
         .await

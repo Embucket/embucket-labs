@@ -24,9 +24,7 @@ use crate::http::state::AppState;
 use axum::http::StatusCode;
 use axum::{extract::Path, extract::Query, extract::State, Json};
 use embucket_metastore::error::{self as metastore_error, MetastoreError};
-use embucket_metastore::{
-    IceBucketSchemaIdent as MetastoreSchemaIdent, IceBucketTableIdent as MetastoreTableIdent,
-};
+use embucket_metastore::{SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent};
 use embucket_utils::list_config::ListConfig;
 use iceberg_rest_catalog::models::{
     CatalogConfig, CommitTableResponse, CreateNamespaceRequest, CreateNamespaceResponse,

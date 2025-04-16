@@ -38,10 +38,9 @@ use datafusion_expr::CreateMemoryTable;
 use datafusion_expr::DdlStatement;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use embucket_metastore::{
-    IceBucketSchema as MetastoreSchema, IceBucketSchemaIdent as MetastoreSchemaIdent,
-    IceBucketTableCreateRequest as MetastoreTableCreateRequest,
-    IceBucketTableFormat as MetastoreTableFormat, IceBucketTableIdent as MetastoreTableIdent,
-    Metastore,
+    Metastore, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
+    TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
+    TableIdent as MetastoreTableIdent,
 };
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::Catalog;

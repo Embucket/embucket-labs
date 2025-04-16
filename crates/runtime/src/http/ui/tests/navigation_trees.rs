@@ -26,10 +26,8 @@ use crate::http::ui::tests::common::{ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_icebucket_test_server;
-use embucket_metastore::IceBucketVolumeType as MetastoreVolumeType;
-use embucket_metastore::{
-    IceBucketDatabase as MetastoreDatabase, IceBucketVolume as MetastoreVolume,
-};
+use embucket_metastore::VolumeType as MetastoreVolumeType;
+use embucket_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
 use http::Method;
 use serde_json::json;
 

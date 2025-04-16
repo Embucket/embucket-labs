@@ -25,8 +25,8 @@ use crate::http::ui::{
 };
 use chrono::{TimeZone, Utc};
 use embucket_metastore::{
-    IceBucketDatabase as MetastoreDatabase, IceBucketSchema as MetastoreSchema,
-    IceBucketSchemaIdent as MetastoreSchemaIdent, IceBucketVolume as MetastoreVolume,
+    Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
+    Volume as MetastoreVolume,
 };
 use serde_json::json;
 
@@ -51,7 +51,7 @@ async fn test_parallel_queries() {
 
     let vol = MetastoreVolume {
         ident: "test_volume".to_string(),
-        volume: embucket_metastore::IceBucketVolumeType::Memory,
+        volume: embucket_metastore::VolumeType::Memory,
     };
 
     let _create_volume = client

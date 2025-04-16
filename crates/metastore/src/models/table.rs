@@ -28,11 +28,11 @@ use std::{collections::HashMap, fmt::Display};
 use utoipa::ToSchema;
 use validator::Validate;
 
-use super::{IceBucketSchemaIdent, IceBucketVolumeIdent};
+use super::{SchemaIdent, VolumeIdent};
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
 /// A table identifier
-pub struct IceBucketTableIdent {
+pub struct TableIdent {
     #[validate(length(min = 1))]
     /// The name of the table
     pub table: String,
@@ -44,7 +44,7 @@ pub struct IceBucketTableIdent {
     pub database: String,
 }
 
-impl IceBucketTableIdent {
+impl TableIdent {
     #[must_use]
     pub fn new(database: &str, schema: &str, table: &str) -> Self {
         Self {
@@ -60,8 +60,8 @@ impl IceBucketTableIdent {
     }
 }
 
-impl From<IceBucketTableIdent> for IceBucketSchemaIdent {
-    fn from(ident: IceBucketTableIdent) -> Self {
+impl From<TableIdent> for SchemaIdent {
+    fn from(ident: TableIdent) -> Self {
         Self {
             database: ident.database,
             schema: ident.schema,
@@ -69,7 +69,7 @@ impl From<IceBucketTableIdent> for IceBucketSchemaIdent {
     }
 }
 
-impl Display for IceBucketTableIdent {
+impl Display for TableIdent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}.{}", self.database, self.schema, self.table)
     }
@@ -79,7 +79,7 @@ impl Display for IceBucketTableIdent {
     Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema, strum::EnumString,
 )]
 #[serde(rename_all = "kebab-case")]
-pub enum IceBucketTableFormat {
+pub enum TableFormat {
     /*
     Avro,
     Orc,
@@ -90,7 +90,7 @@ pub enum IceBucketTableFormat {
     Iceberg,
 }
 
-impl From<String> for IceBucketTableFormat {
+impl From<String> for TableFormat {
     fn from(value: String) -> Self {
         match value.to_lowercase().as_str() {
             "parquet" => Self::Parquet,
@@ -121,15 +121,15 @@ impl TryFrom<IceBucketSimpleSchema> for Schema {
 type SimpleOrIcebergSchema = Either<IceBucketSimpleSchema, Schema>;*/
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct IceBucketTable {
-    pub ident: IceBucketTableIdent,
+pub struct Table {
+    pub ident: TableIdent,
     pub metadata: TableMetadata,
     pub metadata_location: String,
     pub properties: HashMap<String, String>,
-    pub volume_ident: Option<IceBucketVolumeIdent>,
+    pub volume_ident: Option<VolumeIdent>,
     pub volume_location: Option<String>,
     pub is_temporary: bool,
-    pub format: IceBucketTableFormat,
+    pub format: TableFormat,
 }
 
 /*impl PartialSchema for IceBucketTable {
@@ -168,11 +168,11 @@ pub struct IceBucketTable {
 impl ToSchema for IceBucketTable {}*/
 
 #[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct IceBucketTableCreateRequest {
+pub struct TableCreateRequest {
     #[validate(nested)]
-    pub ident: IceBucketTableIdent,
+    pub ident: TableIdent,
     pub properties: Option<HashMap<String, String>>,
-    pub format: Option<IceBucketTableFormat>,
+    pub format: Option<TableFormat>,
 
     pub location: Option<String>,
     //pub schema: SimpleOrIcebergSchema,
@@ -180,7 +180,7 @@ pub struct IceBucketTableCreateRequest {
     pub partition_spec: Option<PartitionSpec>,
     pub sort_order: Option<SortOrder>,
     pub stage_create: Option<bool>,
-    pub volume_ident: Option<IceBucketVolumeIdent>,
+    pub volume_ident: Option<VolumeIdent>,
     pub is_temporary: Option<bool>,
 }
 
@@ -329,7 +329,7 @@ pub struct Config {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct IceBucketTableUpdate {
+pub struct TableUpdate {
     /// Commit will fail if the requirements are not met.
     pub requirements: Vec<TableRequirement>,
     /// The updates of the table.

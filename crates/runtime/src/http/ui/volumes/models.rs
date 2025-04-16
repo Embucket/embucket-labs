@@ -16,11 +16,10 @@
 // under the License.
 
 use embucket_metastore::models::{
-    AwsCredentials, IceBucketFileVolume as MetastoreFileVolume,
-    IceBucketS3Volume as MetastoreS3Volume, IceBucketVolume as MetastoreVolume,
-    IceBucketVolumeType as MetastoreVolumeType,
+    AwsCredentials, FileVolume as MetastoreFileVolume, S3Volume as MetastoreS3Volume,
+    Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
 };
-use embucket_metastore::IceBucketS3TablesVolume as MetastoreS3TablesVolume;
+use embucket_metastore::S3TablesVolume as MetastoreS3TablesVolume;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 

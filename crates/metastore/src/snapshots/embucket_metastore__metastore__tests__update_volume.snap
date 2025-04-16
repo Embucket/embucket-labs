@@ -4,7 +4,7 @@ expression: "(rwo1, rwo2)"
 ---
 (
     RwObject {
-        data: IceBucketVolume {
+        data: Volume {
             ident: "test",
             volume: Memory,
         },
@@ -12,10 +12,10 @@ expression: "(rwo1, rwo2)"
         updated_at: "TIMESTAMP",
     },
     RwObject {
-        data: IceBucketVolume {
+        data: Volume {
             ident: "test",
             volume: File(
-                IceBucketFileVolume {
+                FileVolume {
                     path: "/tmp",
                 },
             ),

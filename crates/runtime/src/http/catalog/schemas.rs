@@ -16,11 +16,10 @@
 // under the License.
 
 use embucket_metastore::{
-    IceBucketSchema as MetastoreSchema, IceBucketSchemaIdent as MetastoreSchemaIdent,
-    IceBucketTable as MetastoreTable, IceBucketTableCreateRequest as MetastoreTableCreateRequest,
-    IceBucketTableFormat as MetastoreTableFormat, IceBucketTableIdent as MetastoreTableIdent,
-    IceBucketTableUpdate as MetastoreTableUpdate, IceBucketVolumeIdent as MetastoreVolumeIdent,
-    RwObject,
+    RwObject, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
+    Table as MetastoreTable, TableCreateRequest as MetastoreTableCreateRequest,
+    TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent,
+    TableUpdate as MetastoreTableUpdate, VolumeIdent as MetastoreVolumeIdent,
 };
 use iceberg_rest_catalog::models::{
     CreateNamespaceRequest, CreateNamespaceResponse, CreateTableRequest, GetNamespaceResponse,

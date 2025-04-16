@@ -123,7 +123,7 @@ impl IceBucketDFMetastore {
                         .insert(get_url_key(&url), table_object_store.clone());
 
                     let table_provider = match table.format {
-                        embucket_metastore::IceBucketTableFormat::Parquet => {
+                        embucket_metastore::TableFormat::Parquet => {
                             let parq_read_options = ParquetReadOptions::default();
                             let listing_options = parq_read_options.to_listing_options(
                                 ctx.state().config(),
@@ -145,7 +145,7 @@ impl IceBucketDFMetastore {
                                 ListingTable::try_new(config).context(ex_error::DataFusionSnafu)?,
                             ) as Arc<dyn TableProvider>
                         }
-                        embucket_metastore::IceBucketTableFormat::Iceberg => {
+                        embucket_metastore::TableFormat::Iceberg => {
                             let bridge = Arc::new(IceBucketIcebergBridge {
                                 metastore: self.metastore.clone(),
                                 database: table.ident.clone().database,

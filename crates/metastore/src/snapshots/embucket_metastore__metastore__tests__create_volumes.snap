@@ -13,7 +13,7 @@ expression: "(test_volume, all_volumes)"
     ),
     [
         RwObject {
-            data: IceBucketVolume {
+            data: Volume {
                 ident: "test",
                 volume: Memory,
             },
