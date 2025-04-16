@@ -21,7 +21,7 @@ use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
 use super::error::{self as ex_error, ExecutionResult};
-use super::query::{IceBucketQuery, QueryContext};
+use super::query::{QueryContext, UserQuery};
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::provider::SharedCredentialsProvider;
 use aws_credential_types::Credentials;
@@ -153,11 +153,11 @@ impl UserSession {
         Ok(())
     }
 
-    pub fn query<S>(self: &Arc<Self>, query: S, query_context: QueryContext) -> IceBucketQuery
+    pub fn query<S>(self: &Arc<Self>, query: S, query_context: QueryContext) -> UserQuery
     where
         S: Into<String>,
     {
-        IceBucketQuery::new(self.clone(), query.into(), query_context)
+        UserQuery::new(self.clone(), query.into(), query_context)
     }
 
     pub fn set_session_variable(

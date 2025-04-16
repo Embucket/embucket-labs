@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::execution::query::{IceBucketQuery, QueryContext};
+use crate::execution::query::{QueryContext, UserQuery};
 use crate::execution::session::UserSession;
 
 use crate::execution::service::ExecutionService;
@@ -122,7 +122,7 @@ async fn test_timestamp_keywords_postprocess() {
     for test in test.iter() {
         let query = session.query(test.input, query_context.clone());
         let mut statement = query.parse_query().unwrap();
-        IceBucketQuery::postprocess_query_statement(&mut statement);
+        UserQuery::postprocess_query_statement(&mut statement);
         if let DFStatement::Statement(statement) = statement {
             visit_expressions(&statement, |expr| {
                 if let Expr::Function(Function {
@@ -178,7 +178,7 @@ fn test_postprocess_query_statement_functions_expressions() {
     for (init, exp) in args {
         let statement = DFParser::parse_sql(init).unwrap().pop_front();
         if let Some(mut s) = statement {
-            IceBucketQuery::postprocess_query_statement(&mut s);
+            UserQuery::postprocess_query_statement(&mut s);
             assert_eq!(s.to_string(), exp);
         }
     }

@@ -76,7 +76,7 @@ pub struct QueryContext {
     pub schema: Option<String>,
 }
 
-pub struct IceBucketQuery {
+pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
     pub query: String,
     pub session: Arc<UserSession>,
@@ -88,7 +88,7 @@ pub enum IcebergCatalogResult {
     Result(ExecutionResult<Vec<RecordBatch>>),
 }
 
-impl IceBucketQuery {
+impl UserQuery {
     pub(super) fn new<S>(session: Arc<UserSession>, query: S, query_context: QueryContext) -> Self
     where
         S: Into<String>,

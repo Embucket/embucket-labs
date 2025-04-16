@@ -18,7 +18,7 @@
 use std::{any::Any, sync::Arc};
 
 use crate::execution::catalogs::metastore::CatalogProviderCache;
-use crate::execution::catalogs::schema::IceBucketDFSchema;
+use crate::execution::catalogs::schema::DFSchema;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use embucket_metastore::Metastore;
 use iceberg_rust::catalog::Catalog as IcebergCatalog;
@@ -63,7 +63,7 @@ impl CatalogProvider for DFCatalog {
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
         if let Some(db) = self.mirror.get(&self.ident) {
             if db.contains_key(name) {
-                let schema: Arc<dyn SchemaProvider> = Arc::new(IceBucketDFSchema {
+                let schema: Arc<dyn SchemaProvider> = Arc::new(DFSchema {
                     database: self.ident.clone(),
                     schema: name.to_string(),
                     metastore: self.metastore.clone(),
