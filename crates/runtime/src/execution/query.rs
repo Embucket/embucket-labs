@@ -927,6 +927,9 @@ impl UserQuery {
     }
 
     async fn execute_sql(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
+        // TODO: Why this method doesn't rely on execute_logical_plan ??
+        // It seems the only difference it relies on differetn DF SessionContext API
+        // bypassing custom handling
         let session = self.session.clone();
         let query = query.to_string();
         let stream = self
@@ -1526,30 +1529,43 @@ impl UserQuery {
 
     // Fill in the database and schema if they are missing
     // and normalize the identifiers
+    // TODO: rewrite and cover with tests
     pub fn resolve_table_ident(
         &self,
         mut table_ident: Vec<Ident>,
     ) -> ExecutionResult<NormalizedIdent> {
-        let database = self.current_database();
-        let schema = self.current_schema();
-        if table_ident.len() == 1 {
-            match (database, schema) {
-                (Some(database), Some(schema)) => {
-                    table_ident.insert(0, Ident::new(database));
-                    table_ident.insert(1, Ident::new(schema));
-                }
-                (Some(_), None) | (None, Some(_)) => {
-                    return Err(ExecutionError::InvalidTableIdentifier {
-                        ident: NormalizedIdent(table_ident).to_string(),
-                    });
-                }
-                _ => {}
+        let database = self
+            .current_database()
+            .ok_or(ExecutionError::InvalidTableIdentifier {
+                ident: NormalizedIdent(table_ident.clone()).to_string(),
+            })?;
+        let database = Ident::new(database);
+        let schema = self
+            .current_schema()
+            .ok_or(ExecutionError::InvalidTableIdentifier {
+                ident: NormalizedIdent(table_ident.clone()).to_string(),
+            })?;
+        let schema = Ident::new(schema);
+        // Input is vector of ast::ident
+        // can be single element, 2 or 3
+        // output is vec of 3 elements ast::ident
+        // convert into NormalizedIdent
+
+        match table_ident.len() {
+            1 => {
+                table_ident.insert(0, database);
+                table_ident.insert(1, schema);
             }
-        } else if table_ident.len() != 3 {
-            return Err(ExecutionError::InvalidTableIdentifier {
-                ident: NormalizedIdent(table_ident).to_string(),
-            });
-        }
+            2 => {
+                table_ident.insert(0, database);
+            }
+            3 => {}
+            _ => {
+                return Err(ExecutionError::InvalidTableIdentifier {
+                    ident: NormalizedIdent(table_ident).to_string(),
+                });
+            }
+        };
 
         Ok(NormalizedIdent(
             table_ident
@@ -1559,6 +1575,7 @@ impl UserQuery {
         ))
     }
 
+    // TODO: rewrite and cover with tests
     pub fn resolve_schema_ident(
         &self,
         mut schema_ident: Vec<Ident>,

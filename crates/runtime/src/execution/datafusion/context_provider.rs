@@ -35,6 +35,10 @@ use datafusion_expr::DropCatalogSchema;
 use sqlparser::ast::ObjectType;
 use std::sync::Arc;
 
+// TODO: Consolidate QueryPlanner API with UserQuery API
+// There are several code paths to handle
+// UserQuery calls QueryPlanner to execute queries: better documentation
+// is needed to better differentiate what is handled where
 pub struct ExtendedSqlToRel<'a, S>
 where
     S: ContextProvider,
@@ -61,23 +65,9 @@ where
         }
     }
 
-    /// Custom implementation of `sql_statement_to_plan`
-    pub fn sql_statement_to_plan(&self, statement: Statement) -> Result<LogicalPlan> {
-        // Check for a custom statement type
-        match self.handle_custom_statement(statement.clone()) {
-            Ok(plan) => return Ok(plan),
-            Err(e) => {
-                tracing::debug!("Custom statement parsing skipped: {} {}", statement, e);
-            }
-        }
-
-        // For all other statements, delegate to the wrapped SqlToRel
-        self.inner.sql_statement_to_plan(statement)
-    }
-
     /// Handle custom statements not supported by the original `SqlToRel`
     #[allow(clippy::too_many_lines)]
-    fn handle_custom_statement(&self, statement: Statement) -> Result<LogicalPlan> {
+    pub fn sql_statement_to_plan(&self, statement: Statement) -> Result<LogicalPlan> {
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
         // Example: Custom handling for a specific statement
         match statement.clone() {
@@ -188,7 +178,7 @@ where
                     )))
                 }
             }
-            _ => plan_err!("Unsupported statement: {:?}", statement),
+            _ => self.inner.sql_statement_to_plan(statement),
         }
     }
 
