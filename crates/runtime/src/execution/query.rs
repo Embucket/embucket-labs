@@ -852,14 +852,14 @@ impl UserQuery {
     }
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
-    pub async fn get_custom_logical_plan(&self, query: &str) -> ExecutionResult<LogicalPlan> {
+    pub async fn get_custom_logical_plan(&self) -> ExecutionResult<LogicalPlan> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
 
         // We turn a query to SQL only to turn it back into a statement
         // TODO: revisit this pattern
         let mut statement = state
-            .sql_to_statement(query, dialect)
+            .sql_to_statement(&self.query, dialect)
             .context(super::error::DataFusionSnafu)?;
         statement = self.update_statement_references(statement)?;
 
@@ -938,7 +938,7 @@ impl UserQuery {
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
-        let plan = self.get_custom_logical_plan(query).await?;
+        let plan = self.get_custom_logical_plan().await?;
         self.execute_logical_plan(plan).await
     }
 

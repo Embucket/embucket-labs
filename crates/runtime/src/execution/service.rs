@@ -106,12 +106,8 @@ impl ExecutionService {
         // TODO: Perhaps it's better to return a schema as a result of `execute` method
         let columns = if columns.is_empty() {
             query_obj
-                .plan()
-                .await
-                .map_err(|e| ExecutionError::DataFusionQuery {
-                    query: query.to_string(),
-                    source: e,
-                })?
+                .get_custom_logical_plan()
+                .await?
                 .schema()
                 .fields()
                 .iter()
