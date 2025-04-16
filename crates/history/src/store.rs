@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::{QueryRecord, QueryRecordId, Worksheet, WorksheetId};
+use crate::{QueryRecord, QueryRecordId, QueryRecordReference, Worksheet, WorksheetId};
 use async_trait::async_trait;
 use icebucket_utils::iterable::{IterableCursor, IterableEntity};
 use icebucket_utils::Db;
@@ -44,6 +44,9 @@ pub enum WorksheetsStoreError {
 
     #[snafu(display("Error adding query record: {source}"))]
     QueryAdd { source: icebucket_utils::Error },
+
+    #[snafu(display("Error adding query record reference: {source}"))]
+    QueryReferenceAdd { source: icebucket_utils::Error },    
 
     #[snafu(display("Error getting query history: {source}"))]
     QueryGet { source: icebucket_utils::Error },
@@ -157,6 +160,14 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
     }
 
     async fn add_query(&self, item: &QueryRecord) -> WorksheetsStoreResult<()> {
+        // add query reference to worksheet
+        self
+            .db
+            .put_iterable_entity(item)
+            .await
+            .context(QueryReferenceAddSnafu)?;
+
+        // add query record
         Ok(self
             .db
             .put_iterable_entity(item)
@@ -170,18 +181,37 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
         cursor: Option<i64>,
         limit: Option<u16>,
     ) -> WorksheetsStoreResult<Vec<QueryRecord>> {
-        // TODO: add worksheet_id to key prefix
-        let start_key = if let Some(cursor) = cursor {
-            QueryRecord::get_key(worksheet_id, cursor)
-        } else {
-            QueryRecord::get_key(worksheet_id, QueryRecordId::CURSOR_MIN)
-        };
-        let end_key = QueryRecord::get_key(worksheet_id, QueryRecordId::CURSOR_MAX);
-        Ok(self
-            .db
-            .items_from_range(start_key..end_key, limit)
-            .await
-            .context(QueryGetSnafu)?)
+        match worksheet_id {
+            Some(worksheet_id) => {
+                // get queries references
+                let start_key = QueryRecordReference::get_key(worksheet_id, cursor.unwrap_or(QueryRecordId::CURSOR_MIN));
+                let end_key = QueryRecordReference::get_key(worksheet_id, QueryRecordId::CURSOR_MAX);
+                let refs: Vec<QueryRecordReference> = self
+                    .db
+                    .items_from_range(start_key..end_key, limit)
+                    .await
+                    .context(QueryGetSnafu)?;
+
+                let mut iter = self.db.range_iterator(start_key..end_key).await?;
+                while let Ok(Some(item)) = iter.next().await {
+                    let item = de::from_slice(&item.value).context(DeserializeValueSnafu)?;
+                    items.push(item);
+                    if items.len() >= usize::from(limit.unwrap_or(u16::MAX)) {
+                        break;
+                    }
+                }
+
+            }
+            None => {
+                let start_key= QueryRecord::get_key(cursor.unwrap_or(QueryRecordId::CURSOR_MIN));
+                let end_key = QueryRecord::get_key(worksheet_id, QueryRecordId::CURSOR_MAX);
+                Ok(self
+                    .db
+                    .items_from_range(start_key..end_key, limit)
+                    .await
+                    .context(QueryGetSnafu)?)
+            }
+        }
     }
 }
 
