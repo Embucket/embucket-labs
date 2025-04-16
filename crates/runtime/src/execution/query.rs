@@ -38,8 +38,10 @@ use datafusion_expr::CreateMemoryTable;
 use datafusion_expr::DdlStatement;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use embucket_metastore::{
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableFormat,
-    IceBucketTableIdent, Metastore,
+    IceBucketSchema as MetastoreSchema, IceBucketSchemaIdent as MetastoreSchemaIdent,
+    IceBucketTableCreateRequest as MetastoreTableCreateRequest,
+    IceBucketTableFormat as MetastoreTableFormat, IceBucketTableIdent as MetastoreTableIdent,
+    Metastore,
 };
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::Catalog;
@@ -378,7 +380,7 @@ impl IceBucketQuery {
                 ),
             });
         };
-        let ident: IceBucketTableIdent = self.resolve_table_ident(names[0].0.clone())?.into();
+        let ident: MetastoreTableIdent = self.resolve_table_ident(names[0].0.clone())?.into();
         let plan = self.sql_statement_to_plan(statement).await?;
         let catalog = self.get_catalog(ident.database.as_str())?;
         let iceberg_catalog = match self
@@ -432,7 +434,7 @@ impl IceBucketQuery {
         // Check if it already exists, if it is - drop it
         // For now we behave as CREATE OR REPLACE
         // TODO support CREATE without REPLACE
-        let ident: IceBucketTableIdent = new_table_ident.into();
+        let ident: MetastoreTableIdent = new_table_ident.into();
 
         let catalog = self.get_catalog(ident.database.as_str())?;
         let schema_provider =
@@ -488,7 +490,7 @@ impl IceBucketQuery {
         &self,
         catalog: Arc<dyn CatalogProvider>,
         table_location: Option<String>,
-        ident: IceBucketTableIdent,
+        ident: MetastoreTableIdent,
         plan: LogicalPlan,
     ) -> ExecutionResult<()> {
         let iceberg_catalog = match self
@@ -533,7 +535,7 @@ impl IceBucketQuery {
         statement: CreateExternalTable,
     ) -> ExecutionResult<Vec<RecordBatch>> {
         let table_location = statement.location.clone();
-        let table_format = IceBucketTableFormat::from(statement.file_type);
+        let table_format = MetastoreTableFormat::from(statement.file_type);
         let session_context = HashMap::new();
         let session_context_planner = SessionContextProvider {
             state: &self.session.ctx.state(),
@@ -553,9 +555,9 @@ impl IceBucketQuery {
 
         // TODO: Use the options with the table format in the future
         let _table_options = statement.options.clone();
-        let table_ident: IceBucketTableIdent = self.resolve_table_ident(statement.name.0)?.into();
+        let table_ident: MetastoreTableIdent = self.resolve_table_ident(statement.name.0)?.into();
 
-        let table_create_request = IceBucketTableCreateRequest {
+        let table_create_request = MetastoreTableCreateRequest {
             ident: table_ident.clone(),
             schema: Schema::builder()
                 .with_schema_id(0)
@@ -829,7 +831,7 @@ impl IceBucketQuery {
             });
         };
 
-        let ident: IceBucketSchemaIdent = self.resolve_schema_ident(schema_name.0)?.into();
+        let ident: MetastoreSchemaIdent = self.resolve_schema_ident(schema_name.0)?.into();
         let catalog = self.get_catalog(ident.database.as_str())?;
         if catalog.schema(ident.schema.as_str()).is_some() && if_not_exists {
             return Err(ExecutionError::ObjectAlreadyExists {

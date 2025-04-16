@@ -20,10 +20,11 @@ use crate::execution::service::ExecutionService;
 use crate::execution::utils::{Config, DataSerializationFormat};
 use crate::SlateDBMetastore;
 use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
-use embucket_metastore::models::table::IceBucketTableIdent;
+use embucket_metastore::models::table::IceBucketTableIdent as MetastoreTableIdent;
 use embucket_metastore::Metastore;
 use embucket_metastore::{
-    IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume,
+    IceBucketDatabase as MetastoreDatabase, IceBucketSchema as MetastoreSchema,
+    IceBucketSchemaIdent as MetastoreSchemaIdent, IceBucketVolume as MetastoreVolume,
 };
 
 #[tokio::test]
@@ -64,7 +65,7 @@ async fn test_service_upload_file() {
     metastore
         .create_volume(
             &"test_volume".to_string(),
-            IceBucketVolume::new(
+            MetastoreVolume::new(
                 "test_volume".to_string(),
                 embucket_metastore::IceBucketVolumeType::Memory,
             ),
@@ -74,7 +75,7 @@ async fn test_service_upload_file() {
     metastore
         .create_database(
             &"icebucket".to_string(),
-            IceBucketDatabase {
+            MetastoreDatabase {
                 ident: "icebucket".to_string(),
                 properties: None,
                 volume: "test_volume".to_string(),
@@ -82,14 +83,14 @@ async fn test_service_upload_file() {
         )
         .await
         .expect("Failed to create database");
-    let schema_ident = IceBucketSchemaIdent {
+    let schema_ident = MetastoreSchemaIdent {
         database: "icebucket".to_string(),
         schema: "public".to_string(),
     };
     metastore
         .create_schema(
             &schema_ident.clone(),
-            IceBucketSchema {
+            MetastoreSchema {
                 ident: schema_ident,
                 properties: None,
             },
@@ -98,7 +99,7 @@ async fn test_service_upload_file() {
         .expect("Failed to create schema");
 
     let file_name = "test.csv";
-    let table_ident = IceBucketTableIdent {
+    let table_ident = MetastoreTableIdent {
         database: "icebucket".to_string(),
         schema: "public".to_string(),
         table: "target_table".to_string(),
@@ -195,7 +196,7 @@ async fn test_service_create_table_file_volume() {
     metastore
         .create_volume(
             &"test_volume".to_string(),
-            IceBucketVolume::new(
+            MetastoreVolume::new(
                 "test_volume".to_string(),
                 embucket_metastore::IceBucketVolumeType::File(
                     embucket_metastore::IceBucketFileVolume {
@@ -209,7 +210,7 @@ async fn test_service_create_table_file_volume() {
     metastore
         .create_database(
             &"icebucket".to_string(),
-            IceBucketDatabase {
+            MetastoreDatabase {
                 ident: "icebucket".to_string(),
                 properties: None,
                 volume: "test_volume".to_string(),
@@ -217,14 +218,14 @@ async fn test_service_create_table_file_volume() {
         )
         .await
         .expect("Failed to create database");
-    let schema_ident = IceBucketSchemaIdent {
+    let schema_ident = MetastoreSchemaIdent {
         database: "icebucket".to_string(),
         schema: "public".to_string(),
     };
     metastore
         .create_schema(
             &schema_ident.clone(),
-            IceBucketSchema {
+            MetastoreSchema {
                 ident: schema_ident,
                 properties: None,
             },
@@ -232,7 +233,7 @@ async fn test_service_create_table_file_volume() {
         .await
         .expect("Failed to create schema");
 
-    let table_ident = IceBucketTableIdent {
+    let table_ident = MetastoreTableIdent {
         database: "icebucket".to_string(),
         schema: "public".to_string(),
         table: "target_table".to_string(),

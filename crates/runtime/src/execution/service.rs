@@ -34,7 +34,7 @@ use super::{
     session::IceBucketUserSession,
     utils::{convert_record_batches, Config},
 };
-use embucket_metastore::{IceBucketTableIdent, Metastore};
+use embucket_metastore::{IceBucketTableIdent as MetastoreTableIdent, Metastore};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -128,7 +128,7 @@ impl ExecutionService {
     pub async fn upload_data_to_table(
         &self,
         session_id: &str,
-        table_ident: &IceBucketTableIdent,
+        table_ident: &MetastoreTableIdent,
         data: Bytes,
         file_name: &str,
         format: Format,

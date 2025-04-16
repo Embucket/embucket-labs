@@ -25,7 +25,8 @@ use crate::http::ui::{
 };
 use chrono::{TimeZone, Utc};
 use embucket_metastore::{
-    IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketVolume,
+    IceBucketDatabase as MetastoreDatabase, IceBucketSchema as MetastoreSchema,
+    IceBucketSchemaIdent as MetastoreSchemaIdent, IceBucketVolume as MetastoreVolume,
 };
 use serde_json::json;
 
@@ -48,7 +49,7 @@ async fn test_parallel_queries() {
     let client = reqwest::Client::new();
     let client2 = reqwest::Client::new();
 
-    let vol = IceBucketVolume {
+    let vol = MetastoreVolume {
         ident: "test_volume".to_string(),
         volume: embucket_metastore::IceBucketVolumeType::Memory,
     };
@@ -63,7 +64,7 @@ async fn test_parallel_queries() {
         .error_for_status_ref()
         .expect("Create volume wasn't 200");
 
-    let db = IceBucketDatabase {
+    let db = MetastoreDatabase {
         ident: "benchmark".to_string(),
         volume: "test_volume".to_string(),
         properties: None,
@@ -79,8 +80,8 @@ async fn test_parallel_queries() {
         .error_for_status_ref()
         .expect("Create database wasn't 200");
 
-    let schema = IceBucketSchema {
-        ident: IceBucketSchemaIdent {
+    let schema = MetastoreSchema {
+        ident: MetastoreSchemaIdent {
             database: "benchmark".to_string(),
             schema: "public".to_string(),
         },

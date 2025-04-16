@@ -20,8 +20,10 @@ use std::{collections::HashMap, sync::Arc};
 use async_trait::async_trait;
 use embucket_metastore::error::{MetastoreError, MetastoreResult};
 use embucket_metastore::{
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableIdent,
-    IceBucketTableUpdate, Metastore,
+    IceBucketSchema as MetastoreSchema, IceBucketSchemaIdent as MetastoreSchemaIdent,
+    IceBucketTableCreateRequest as MetastoreTableCreateRequest,
+    IceBucketTableIdent as MetastoreTableIdent, IceBucketTableUpdate as MetastoreTableUpdate,
+    Metastore,
 };
 use embucket_utils::list_config::ListConfig;
 use futures::executor::block_on;
@@ -75,8 +77,8 @@ impl IceBucketIcebergBridge {
     }
 
     #[must_use]
-    pub fn ident(&self, identifier: &IcebergIdentifier) -> IceBucketTableIdent {
-        IceBucketTableIdent {
+    pub fn ident(&self, identifier: &IcebergIdentifier) -> MetastoreTableIdent {
+        MetastoreTableIdent {
             database: self.database.to_string(),
             schema: identifier.namespace().to_string(),
             table: identifier.name().to_string(),
@@ -102,11 +104,11 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
-        let schema = IceBucketSchema {
+        let schema = MetastoreSchema {
             ident: schema_ident.clone(),
             properties: properties.clone(),
         };
@@ -125,7 +127,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
@@ -146,7 +148,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
@@ -176,7 +178,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
@@ -218,7 +220,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
@@ -240,7 +242,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
                 "Nested namespaces are not supported".to_string(),
             ));
         }
-        let schema_ident = IceBucketSchemaIdent {
+        let schema_ident = MetastoreSchemaIdent {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
@@ -357,7 +359,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         create_table: IcebergCreateTable,
     ) -> Result<IcebergTable, IcebergError> {
         let ident = self.ident(&identifier);
-        let table_create_request = IceBucketTableCreateRequest {
+        let table_create_request = MetastoreTableCreateRequest {
             ident: ident.clone(),
             schema: create_table.schema,
             location: create_table.location,
@@ -407,7 +409,7 @@ impl IcebergCatalog for IceBucketIcebergBridge {
         commit: IcebergCommitTable,
     ) -> Result<IcebergTable, IcebergError> {
         let table_ident = self.ident(&commit.identifier);
-        let table_update = IceBucketTableUpdate {
+        let table_update = MetastoreTableUpdate {
             requirements: commit.requirements,
             updates: commit.updates,
         };

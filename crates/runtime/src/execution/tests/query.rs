@@ -28,7 +28,9 @@ use datafusion::sql::sqlparser::ast::Statement as SQLStatement;
 use datafusion::sql::sqlparser::ast::{Expr, ObjectName};
 use embucket_metastore::Metastore;
 use embucket_metastore::{
-    IceBucketDatabase, IceBucketSchema, IceBucketSchemaIdent, IceBucketTableIdent, IceBucketVolume,
+    IceBucketDatabase as MetastoreDatabase, IceBucketSchema as MetastoreSchema,
+    IceBucketSchemaIdent as MetastoreSchemaIdent, IceBucketTableIdent as MetastoreTableIdent,
+    IceBucketVolume as MetastoreVolume,
 };
 use sqlparser::ast::{
     Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments,
@@ -303,13 +305,13 @@ async fn test_context_name_injection() {
 #[tokio::test]
 async fn test_create_table_with_timestamp_nanosecond() {
     let (execution_svc, _, session_id) = prepare_env().await;
-    let table_ident = IceBucketTableIdent {
+    let table_ident = MetastoreTableIdent {
         database: "icebucket".to_string(),
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };
     // Verify that the file was uploaded successfully by running select * from the table
-    let query = format!("CREATE TABLE {table_ident} (id INT, ts TIMESTAMP_NTZ(9)) as VALUES (1, '2025-04-09T21:11:23'), (2, '2025-04-09T21:11:00');");
+    let query = format!("CREATE TABLE {}.{}.{} (id INT, ts TIMESTAMP_NTZ(9)) as VALUES (1, '2025-04-09T21:11:23'), (2, '2025-04-09T21:11:00');", table_ident.database, table_ident.schema, table_ident.table);
     let (rows, _) = execution_svc
         .query(&session_id, &query, IceBucketQueryContext::default())
         .await
@@ -330,7 +332,7 @@ async fn test_create_table_with_timestamp_nanosecond() {
 #[tokio::test]
 async fn test_drop_table() {
     let (execution_svc, _, session_id) = prepare_env().await;
-    let table_ident = IceBucketTableIdent {
+    let table_ident = MetastoreTableIdent {
         database: "icebucket".to_string(),
         schema: "public".to_string(),
         table: "target_table".to_string(),
@@ -398,7 +400,7 @@ async fn prepare_env() -> (ExecutionService, Arc<SlateDBMetastore>, String) {
     metastore
         .create_volume(
             &"test_volume".to_string(),
-            IceBucketVolume::new(
+            MetastoreVolume::new(
                 "test_volume".to_string(),
                 embucket_metastore::IceBucketVolumeType::Memory,
             ),
@@ -408,7 +410,7 @@ async fn prepare_env() -> (ExecutionService, Arc<SlateDBMetastore>, String) {
     metastore
         .create_database(
             &"icebucket".to_string(),
-            IceBucketDatabase {
+            MetastoreDatabase {
                 ident: "icebucket".to_string(),
                 properties: None,
                 volume: "test_volume".to_string(),
@@ -416,14 +418,14 @@ async fn prepare_env() -> (ExecutionService, Arc<SlateDBMetastore>, String) {
         )
         .await
         .expect("Failed to create database");
-    let schema_ident = IceBucketSchemaIdent {
+    let schema_ident = MetastoreSchemaIdent {
         database: "icebucket".to_string(),
         schema: "public".to_string(),
     };
     metastore
         .create_schema(
             &schema_ident.clone(),
-            IceBucketSchema {
+            MetastoreSchema {
                 ident: schema_ident,
                 properties: None,
             },

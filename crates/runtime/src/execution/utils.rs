@@ -28,7 +28,7 @@ use chrono::DateTime;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
-use embucket_metastore::IceBucketTableIdent;
+use embucket_metastore::IceBucketTableIdent as MetastoreTableIdent;
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -381,7 +381,7 @@ impl From<&NormalizedIdent> for String {
     }
 }
 
-impl From<NormalizedIdent> for IceBucketTableIdent {
+impl From<NormalizedIdent> for MetastoreTableIdent {
     fn from(ident: NormalizedIdent) -> Self {
         let ident = ident.0;
         // TODO check len, return err. This code is just tmp
