@@ -138,7 +138,7 @@ async fn test_parallel_queries() {
         .id;
 
     let query1 = client
-        .post(format!("http://{addr}/ui/queries?worksheet_id={wid}"))
+        .post(format!("http://{addr}/ui/queries?worksheetId={wid}"))
         .header("Content-Type", "application/json")
         .body(
             json!({
@@ -164,7 +164,7 @@ async fn test_parallel_queries() {
     insert_query.push_str("(200, 1, 'test', 1, 1, 1, 1, 1);");
 
     let query2 = client2
-        .post(format!("http://{addr}/ui/queries?worksheet_id={wid}"))
+        .post(format!("http://{addr}/ui/queries?worksheetId={wid}"))
         .header("Content-Type", "application/json")
         .body(
             json!({

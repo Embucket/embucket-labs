@@ -131,11 +131,11 @@ pub async fn create_worksheet(
 
 #[utoipa::path(
     get,
-    path = "/ui/worksheets/{worksheet_id}",
+    path = "/ui/worksheets/{worksheetId}",
     operation_id = "getWorksheet",
     tags = ["worksheets"],
     params(
-        ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
+        ("worksheetId" = WorksheetId, Path, description = "Worksheet id")
     ),
     responses(
         (status = 200, description = "Returns worksheet", body = WorksheetResponse),
@@ -159,11 +159,11 @@ pub async fn worksheet(
 
 #[utoipa::path(
     delete,
-    path = "/ui/worksheets/{worksheet_id}",
+    path = "/ui/worksheets/{worksheetId}",
     operation_id = "deleteWorksheet",
     tags = ["worksheets"],
     params(
-        ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
+        ("worksheetId" = WorksheetId, Path, description = "Worksheet id")
     ),
     responses(
         (status = 200, description = "Worksheet deleted"),
@@ -188,11 +188,11 @@ pub async fn delete_worksheet(
 
 #[utoipa::path(
     patch,
-    path = "/ui/worksheets/{worksheet_id}",
+    path = "/ui/worksheets/{worksheetId}",
     operation_id = "updateWorksheet",
     tags = ["worksheets"],
     params(
-        ("worksheet_id" = WorksheetId, Path, description = "Worksheet id")
+        ("worksheetId" = WorksheetId, Path, description = "Worksheet id")
     ),
     request_body(
         content(

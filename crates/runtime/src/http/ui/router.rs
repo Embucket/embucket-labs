@@ -127,7 +127,7 @@ pub fn create_router() -> Router<AppState> {
         )
         .route("/worksheets", get(worksheets).post(create_worksheet))
         .route(
-            "/worksheets/{worksheet_id}",
+            "/worksheets/{worksheetId}",
             get(worksheet)
                 .delete(delete_worksheet)
                 .patch(update_worksheet),
