@@ -102,6 +102,21 @@ impl ExecutionService {
         // Perhaps this can be moved closer to Snowflake API layer
         let (records, columns) = convert_record_batches(records, data_format)
             .context(ex_error::DataFusionQuerySnafu { query })?;
+
+        // TODO: Perhaps it's better to return a schema as a result of `execute` method
+        let columns = if columns.is_empty() {
+            query_obj
+                .get_custom_logical_plan(&query_obj.query)
+                .await?
+                .schema()
+                .fields()
+                .iter()
+                .map(|field| ColumnInfo::from_field(field))
+                .collect::<Vec<_>>()
+        } else {
+            columns
+        };
+
         Ok((records, columns))
     }
 

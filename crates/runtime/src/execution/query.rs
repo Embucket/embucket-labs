@@ -361,10 +361,7 @@ impl UserQuery {
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn drop_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
         let Statement::Drop {
-            names,
-            if_exists,
-            object_type,
-            ..
+            names, object_type, ..
         } = statement.clone()
         else {
             return Err(ExecutionError::DataFusion {
@@ -394,7 +391,7 @@ impl UserQuery {
             .load_tabular(&ident.to_iceberg_ident())
             .await
             .is_ok();
-        if table_exists && if_exists {
+        if table_exists {
             match object_type {
                 ObjectType::Table => {
                     iceberg_catalog
