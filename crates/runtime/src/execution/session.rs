@@ -20,7 +20,7 @@ use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
-use super::error::{self as ex_error, ExecutionResult};
+use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::query::{QueryContext, UserQuery};
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::provider::SharedCredentialsProvider;
@@ -35,8 +35,9 @@ use datafusion::sql::planner::IdentNormalizer;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
+use embucket_metastore::error::MetastoreError;
 use embucket_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
-use embucket_utils::list_config::ListConfig;
+use embucket_utils::scan_iterator::ScanIterator;
 use geodatafusion::udf::native::register_native as register_geo_native;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
@@ -104,9 +105,12 @@ impl UserSession {
     pub async fn register_external_catalogs(&self) -> ExecutionResult<()> {
         let volumes = self
             .metastore
-            .list_volumes(ListConfig::default())
+            .iter_volumes()
+            .collect()
             .await
-            .context(ex_error::MetastoreSnafu)?
+            .map_err(|e| ExecutionError::Metastore {
+                source: MetastoreError::UtilSlateDB { source: e },
+            })?
             .into_iter()
             .filter_map(|volume| {
                 if let MetastoreVolumeType::S3Tables(s3_volume) = volume.volume.clone() {

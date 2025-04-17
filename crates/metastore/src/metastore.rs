@@ -17,14 +17,14 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use crate::error::{self as metastore_error, MetastoreResult};
+use crate::error::{self as metastore_error, MetastoreError, MetastoreResult};
 #[allow(clippy::wildcard_imports)]
 use crate::models::*;
 use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::Utc;
 use dashmap::DashMap;
-use embucket_utils::list_config::ListConfig;
+use embucket_utils::scan_iterator::{ScanIterator, VecScanIterator};
 use embucket_utils::Db;
 use futures::{StreamExt, TryStreamExt};
 use iceberg_rust::catalog::commit::apply_table_updates;
@@ -36,8 +36,7 @@ use uuid::Uuid;
 
 #[async_trait]
 pub trait Metastore: std::fmt::Debug + Send + Sync {
-    async fn list_volumes(&self, list_config: ListConfig)
-        -> MetastoreResult<Vec<RwObject<Volume>>>;
+    fn iter_volumes(&self) -> VecScanIterator<RwObject<Volume>>;
     async fn create_volume(
         &self,
         name: &VolumeIdent,
@@ -55,10 +54,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
         name: &VolumeIdent,
     ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>>;
 
-    async fn list_databases(
-        &self,
-        list_config: ListConfig,
-    ) -> MetastoreResult<Vec<RwObject<Database>>>;
+    fn iter_databases(&self) -> VecScanIterator<RwObject<Database>>;
     async fn create_database(
         &self,
         name: &DatabaseIdent,
@@ -75,11 +71,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     ) -> MetastoreResult<RwObject<Database>>;
     async fn delete_database(&self, name: &DatabaseIdent, cascade: bool) -> MetastoreResult<()>;
 
-    async fn list_schemas(
-        &self,
-        database: &DatabaseIdent,
-        list_config: ListConfig,
-    ) -> MetastoreResult<Vec<RwObject<Schema>>>;
+    fn iter_schemas(&self, database: &DatabaseIdent) -> VecScanIterator<RwObject<Schema>>;
     async fn create_schema(
         &self,
         ident: &SchemaIdent,
@@ -93,11 +85,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     ) -> MetastoreResult<RwObject<Schema>>;
     async fn delete_schema(&self, ident: &SchemaIdent, cascade: bool) -> MetastoreResult<()>;
 
-    async fn list_tables(
-        &self,
-        schema: &SchemaIdent,
-        list_config: ListConfig,
-    ) -> MetastoreResult<Vec<RwObject<Table>>>;
+    fn iter_tables(&self, schema: &SchemaIdent) -> VecScanIterator<RwObject<Table>>;
     async fn create_table(
         &self,
         ident: &TableIdent,
@@ -169,20 +157,11 @@ impl SlateDBMetastore {
         &self.db
     }
 
-    async fn list_objects<T>(
-        &self,
-        list_key: &str,
-        list_config: ListConfig,
-    ) -> MetastoreResult<Vec<RwObject<T>>>
+    fn iter_objects<T>(&self, iter_key: String) -> VecScanIterator<RwObject<T>>
     where
         T: serde::Serialize + DeserializeOwned + Eq + PartialEq + Send + Sync,
     {
-        let entities = self
-            .db
-            .list_objects(list_key, list_config)
-            .await
-            .context(metastore_error::UtilSlateDBSnafu)?;
-        Ok(entities)
+        self.db.iter_objects(iter_key)
     }
 
     async fn create_object<T>(
@@ -263,11 +242,8 @@ impl SlateDBMetastore {
 
 #[async_trait]
 impl Metastore for SlateDBMetastore {
-    async fn list_volumes(
-        &self,
-        list_config: ListConfig,
-    ) -> MetastoreResult<Vec<RwObject<Volume>>> {
-        self.list_objects(KEY_VOLUME, list_config).await
+    fn iter_volumes(&self) -> VecScanIterator<RwObject<Volume>> {
+        self.iter_objects(KEY_VOLUME.to_string())
     }
 
     async fn create_volume(
@@ -320,8 +296,10 @@ impl Metastore for SlateDBMetastore {
     async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> MetastoreResult<()> {
         let key = format!("{KEY_VOLUME}/{name}");
         let databases_using = self
-            .list_databases(ListConfig::default())
-            .await?
+            .iter_databases()
+            .collect()
+            .await
+            .map_err(|e| MetastoreError::UtilSlateDB { source: e })?
             .into_iter()
             .filter(|db| db.volume == *name)
             .map(|db| db.ident.clone())
@@ -363,11 +341,8 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    async fn list_databases(
-        &self,
-        list_config: ListConfig,
-    ) -> MetastoreResult<Vec<RwObject<Database>>> {
-        self.list_objects(KEY_DATABASE, list_config).await
+    fn iter_databases(&self) -> VecScanIterator<RwObject<Database>> {
+        self.iter_objects(KEY_DATABASE.to_string())
     }
 
     async fn create_database(
@@ -405,7 +380,11 @@ impl Metastore for SlateDBMetastore {
     }
 
     async fn delete_database(&self, name: &DatabaseIdent, cascade: bool) -> MetastoreResult<()> {
-        let schemas = self.list_schemas(name, ListConfig::default()).await?;
+        let schemas = self
+            .iter_schemas(name)
+            .collect()
+            .await
+            .map_err(|e| MetastoreError::UtilSlateDB { source: e })?;
         if cascade {
             let futures = schemas
                 .iter()
@@ -417,13 +396,9 @@ impl Metastore for SlateDBMetastore {
         self.delete_object(&key).await
     }
 
-    async fn list_schemas(
-        &self,
-        database: &DatabaseIdent,
-        list_config: ListConfig,
-    ) -> MetastoreResult<Vec<RwObject<Schema>>> {
+    fn iter_schemas(&self, database: &DatabaseIdent) -> VecScanIterator<RwObject<Schema>> {
         let key = format!("{KEY_SCHEMA}/{database}");
-        self.list_objects(&key, list_config).await
+        self.iter_objects(key)
     }
 
     async fn create_schema(
@@ -459,8 +434,11 @@ impl Metastore for SlateDBMetastore {
     }
 
     async fn delete_schema(&self, ident: &SchemaIdent, cascade: bool) -> MetastoreResult<()> {
-        let tables = self.list_tables(ident, ListConfig::default()).await?;
-
+        let tables = self
+            .iter_tables(ident)
+            .collect()
+            .await
+            .map_err(|e| MetastoreError::UtilSlateDB { source: e })?;
         if cascade {
             let futures = tables
                 .iter()
@@ -472,13 +450,9 @@ impl Metastore for SlateDBMetastore {
         self.delete_object(&key).await
     }
 
-    async fn list_tables(
-        &self,
-        schema: &SchemaIdent,
-        list_config: ListConfig,
-    ) -> MetastoreResult<Vec<RwObject<Table>>> {
+    fn iter_tables(&self, schema: &SchemaIdent) -> VecScanIterator<RwObject<Table>> {
         let key = format!("{KEY_TABLE}/{}/{}", schema.database, schema.schema);
-        self.list_objects(&key, list_config).await
+        self.iter_objects(key)
     }
 
     #[allow(clippy::too_many_lines)]
@@ -866,7 +840,8 @@ mod tests {
             .await
             .expect("create volume failed");
         let all_volumes = ms
-            .list_volumes(ListConfig::default())
+            .iter_volumes()
+            .collect()
             .await
             .expect("list volumes failed");
 
@@ -910,7 +885,8 @@ mod tests {
             .await
             .expect("create volume failed");
         let all_volumes = ms
-            .list_volumes(ListConfig::default())
+            .iter_volumes()
+            .collect()
             .await
             .expect("list volumes failed");
         let get_volume = ms
@@ -921,7 +897,8 @@ mod tests {
             .await
             .expect("delete volume failed");
         let all_volumes_after = ms
-            .list_volumes(ListConfig::default())
+            .iter_volumes()
+            .collect()
             .await
             .expect("list volumes failed");
 
@@ -987,7 +964,8 @@ mod tests {
             .await
             .expect("create database failed");
         let all_databases = ms
-            .list_databases(ListConfig::default())
+            .iter_databases()
+            .collect()
             .await
             .expect("list databases failed");
 
@@ -1004,7 +982,8 @@ mod tests {
             .await
             .expect("delete database failed");
         let all_dbs_after = ms
-            .list_databases(ListConfig::default())
+            .iter_databases()
+            .collect()
             .await
             .expect("list databases failed");
 
@@ -1050,7 +1029,8 @@ mod tests {
             .expect("create schema failed");
 
         let schema_list = ms
-            .list_schemas(&schema.ident.database, ListConfig::default())
+            .iter_schemas(&schema.ident.database)
+            .collect()
             .await
             .expect("list schemas failed");
         let schema_get = ms
@@ -1061,7 +1041,8 @@ mod tests {
             .await
             .expect("delete schema failed");
         let schema_list_after = ms
-            .list_schemas(&schema.ident.database, ListConfig::default())
+            .iter_schemas(&schema.ident.database)
+            .collect()
             .await
             .expect("list schemas failed");
 
@@ -1168,7 +1149,8 @@ mod tests {
             .collect();
 
         let table_list = ms
-            .list_tables(&table.ident.clone().into(), ListConfig::default())
+            .iter_tables(&table.ident.clone().into())
+            .collect()
             .await
             .expect("list tables failed");
         let table_get = ms.get_table(&table.ident).await.expect("get table failed");
@@ -1176,7 +1158,8 @@ mod tests {
             .await
             .expect("delete table failed");
         let table_list_after = ms
-            .list_tables(&table.ident.into(), ListConfig::default())
+            .iter_tables(&table.ident.into())
+            .collect()
             .await
             .expect("list tables failed");
 

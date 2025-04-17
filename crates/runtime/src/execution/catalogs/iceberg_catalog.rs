@@ -24,7 +24,7 @@ use embucket_metastore::{
     TableCreateRequest as MetastoreTableCreateRequest, TableIdent as MetastoreTableIdent,
     TableUpdate as MetastoreTableUpdate,
 };
-use embucket_utils::list_config::ListConfig;
+use embucket_utils::scan_iterator::ScanIterator;
 use futures::executor::block_on;
 use iceberg_rust::{
     catalog::{
@@ -247,9 +247,12 @@ impl IcebergCatalog for IcebergBridge {
         };
         Ok(self
             .metastore
-            .list_tables(&schema_ident, ListConfig::default())
+            .iter_tables(&schema_ident)
+            .collect()
             .await
-            .map_err(|e| IcebergError::External(Box::new(e)))?
+            .map_err(|e| {
+                IcebergError::External(Box::new(MetastoreError::UtilSlateDB { source: e }))
+            })?
             .iter()
             .map(|table| {
                 IcebergIdentifier::new(
@@ -268,15 +271,21 @@ impl IcebergCatalog for IcebergBridge {
         let mut namespaces = Vec::new();
         let databases = self
             .metastore
-            .list_databases(ListConfig::default())
+            .iter_databases()
+            .collect()
             .await
-            .map_err(|e| IcebergError::External(Box::new(e)))?;
+            .map_err(|e| {
+                IcebergError::External(Box::new(MetastoreError::UtilSlateDB { source: e }))
+            })?;
         for database in databases {
             let schemas = self
                 .metastore
-                .list_schemas(&database.ident, ListConfig::default())
+                .iter_schemas(&database.ident)
+                .collect()
                 .await
-                .map_err(|e| IcebergError::External(Box::new(e)))?;
+                .map_err(|e| {
+                    IcebergError::External(Box::new(MetastoreError::UtilSlateDB { source: e }))
+                })?;
             for schema in schemas {
                 namespaces.push(IcebergNamespace::try_new(&[
                     schema.ident.database.clone(),

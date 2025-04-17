@@ -32,7 +32,7 @@ use axum::{
 };
 use embucket_metastore::error::MetastoreError;
 use embucket_metastore::models::Volume as MetastoreVolume;
-use embucket_utils::list_config::ListConfig;
+use embucket_utils::scan_iterator::ScanIterator;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -213,13 +213,15 @@ pub async fn list_volumes(
 ) -> VolumesResult<Json<VolumesResponse>> {
     state
         .metastore
-        .list_volumes(ListConfig::new(
-            parameters.cursor.clone(),
-            parameters.limit,
-            parameters.search,
-        ))
+        .iter_volumes()
+        .cursor(parameters.cursor.clone())
+        .limit(parameters.limit)
+        .token(parameters.search)
+        .collect()
         .await
-        .map_err(|e| VolumesAPIError::List { source: e })
+        .map_err(|e| VolumesAPIError::List {
+            source: MetastoreError::UtilSlateDB { source: e },
+        })
         .map(|o| {
             let next_cursor = o
                 .iter()

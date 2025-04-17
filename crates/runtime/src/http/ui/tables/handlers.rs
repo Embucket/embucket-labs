@@ -37,7 +37,7 @@ use axum::{
 use datafusion::arrow::csv::reader::Format;
 use embucket_metastore::error::MetastoreError;
 use embucket_metastore::{SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent};
-use embucket_utils::list_config::ListConfig;
+use embucket_utils::scan_iterator::ScanIterator;
 use snafu::ResultExt;
 use std::time::Instant;
 use utoipa::OpenApi;
@@ -394,16 +394,15 @@ pub async fn get_tables(
     let ident = MetastoreSchemaIdent::new(database_name, schema_name);
     state
         .metastore
-        .list_tables(
-            &ident,
-            ListConfig::new(
-                parameters.cursor.clone(),
-                parameters.limit,
-                parameters.search,
-            ),
-        )
+        .iter_tables(&ident)
+        .cursor(parameters.cursor.clone())
+        .limit(parameters.limit)
+        .token(parameters.search)
+        .collect()
         .await
-        .map_err(|e| TablesAPIError::GetMetastore { source: e })
+        .map_err(|e| TablesAPIError::GetMetastore {
+            source: MetastoreError::UtilSlateDB { source: e },
+        })
         .map(|rw_tables| {
             let next_cursor = rw_tables
                 .iter()

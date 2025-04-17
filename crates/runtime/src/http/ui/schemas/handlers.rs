@@ -33,7 +33,7 @@ use axum::{
 use embucket_metastore::error::MetastoreError;
 use embucket_metastore::models::SchemaIdent as MetastoreSchemaIdent;
 use embucket_metastore::Schema as MetastoreSchema;
-use embucket_utils::list_config::ListConfig;
+use embucket_utils::scan_iterator::ScanIterator;
 use std::collections::HashMap;
 use std::convert::From;
 use std::convert::Into;
@@ -229,16 +229,15 @@ pub async fn list_schemas(
 ) -> SchemasResult<Json<SchemasResponse>> {
     state
         .metastore
-        .list_schemas(
-            &database_name,
-            ListConfig::new(
-                parameters.cursor.clone(),
-                parameters.limit,
-                parameters.search,
-            ),
-        )
+        .iter_schemas(&database_name)
+        .cursor(parameters.cursor.clone())
+        .limit(parameters.limit)
+        .token(parameters.search)
+        .collect()
         .await
-        .map_err(|e| SchemasAPIError::List { source: e })
+        .map_err(|e| SchemasAPIError::List {
+            source: MetastoreError::UtilSlateDB { source: e },
+        })
         .map(|rw_objects| {
             let next_cursor = rw_objects
                 .iter()
