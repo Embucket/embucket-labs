@@ -131,7 +131,7 @@ impl UserQuery {
             .schema
             .clone()
             .or_else(|| self.session.get_session_variable("schema"))
-            .unwrap_or_else(|| "embuckpublicet".to_string())
+            .unwrap_or_else(|| "public".to_string())
     }
 
     async fn refresh_catalog(&self) -> ExecutionResult<()> {
