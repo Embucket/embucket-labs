@@ -1550,7 +1550,7 @@ impl UserQuery {
                     ident: NormalizedIdent(table_ident).to_string(),
                 });
             }
-        };
+        }
         Ok(NormalizedIdent(
             table_ident
                 .iter()
