@@ -16,9 +16,8 @@
 // under the License.
 
 pub mod iterable;
-pub mod list_config;
+pub mod scan_iterator;
 
-use crate::list_config::ListConfig;
 use async_trait::async_trait;
 use bytes::Bytes;
 use iterable::IterableEntity;
