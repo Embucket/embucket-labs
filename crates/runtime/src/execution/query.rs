@@ -118,20 +118,20 @@ impl UserQuery {
         self.session.ctx.state().statement_to_plan(statement).await
     }
 
-    fn current_database(&self) -> Option<String> {
+    fn current_database(&self) -> String {
         self.query_context
             .database
             .clone()
             .or_else(|| self.session.get_session_variable("database"))
-            .or_else(|| Some("embucket".to_string()))
+            .unwrap_or_else(|| "embucket".to_string())
     }
 
-    fn current_schema(&self) -> Option<String> {
+    fn current_schema(&self) -> String {
         self.query_context
             .schema
             .clone()
             .or_else(|| self.session.get_session_variable("schema"))
-            .or_else(|| Some("public".to_string()))
+            .unwrap_or_else(|| "embuckpublicet".to_string())
     }
 
     async fn refresh_catalog(&self) -> ExecutionResult<()> {
@@ -440,6 +440,12 @@ impl UserQuery {
             .location
             .clone()
             .or_else(|| create_table_statement.base_location.clone());
+
+        // Remove all unsupported iceberg params (we already take them into account)
+        create_table_statement.iceberg = false;
+        create_table_statement.external_volume = None;
+        create_table_statement.base_location = None;
+        create_table_statement.catalog = None;
 
         if let Some(ref mut query) = create_table_statement.query {
             self.update_qualify_in_query(query);
@@ -1530,27 +1536,21 @@ impl UserQuery {
         &self,
         mut table_ident: Vec<Ident>,
     ) -> ExecutionResult<NormalizedIdent> {
-        let database = self.current_database();
-        let schema = self.current_schema();
-        if table_ident.len() == 1 {
-            match (database, schema) {
-                (Some(database), Some(schema)) => {
-                    table_ident.insert(0, Ident::new(database));
-                    table_ident.insert(1, Ident::new(schema));
-                }
-                (Some(_), None) | (None, Some(_)) => {
-                    return Err(ExecutionError::InvalidTableIdentifier {
-                        ident: NormalizedIdent(table_ident).to_string(),
-                    });
-                }
-                _ => {}
+        match table_ident.len() {
+            1 => {
+                table_ident.insert(0, Ident::new(self.current_database()));
+                table_ident.insert(1, Ident::new(self.current_schema()));
             }
-        } else if table_ident.len() != 3 {
-            return Err(ExecutionError::InvalidTableIdentifier {
-                ident: NormalizedIdent(table_ident).to_string(),
-            });
-        }
-
+            2 => {
+                table_ident.insert(0, Ident::new(self.current_database()));
+            }
+            3 => {}
+            _ => {
+                return Err(ExecutionError::InvalidTableIdentifier {
+                    ident: NormalizedIdent(table_ident).to_string(),
+                });
+            }
+        };
         Ok(NormalizedIdent(
             table_ident
                 .iter()
@@ -1564,16 +1564,7 @@ impl UserQuery {
         mut schema_ident: Vec<Ident>,
     ) -> ExecutionResult<NormalizedIdent> {
         match schema_ident.len() {
-            1 => match self.current_database() {
-                Some(database) => {
-                    schema_ident.insert(0, Ident::new(database));
-                }
-                None => {
-                    return Err(ExecutionError::InvalidSchemaIdentifier {
-                        ident: NormalizedIdent(schema_ident).to_string(),
-                    });
-                }
-            },
+            1 => schema_ident.insert(0, Ident::new(self.current_database())),
             2 => {}
             _ => {
                 return Err(ExecutionError::InvalidSchemaIdentifier {

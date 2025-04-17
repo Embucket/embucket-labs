@@ -18,6 +18,7 @@
 use crate::execution::query::{QueryContext, UserQuery};
 use crate::execution::session::UserSession;
 
+use crate::execution::error::{ExecutionError, ExecutionResult};
 use crate::execution::service::ExecutionService;
 use crate::execution::utils::{Config, DataSerializationFormat};
 use crate::SlateDBMetastore;
@@ -32,7 +33,7 @@ use embucket_metastore::{
     TableIdent as MetastoreTableIdent, Volume as MetastoreVolume,
 };
 use sqlparser::ast::{
-    Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments,
+    Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
 };
 use sqlparser::ast::{SetExpr, Value};
 use std::ops::ControlFlow;
@@ -392,6 +393,97 @@ async fn test_create_schema() {
         .get_schema(&schema_ident)
         .await
         .expect("Failed to get schema");
+}
+
+#[tokio::test]
+async fn test_resolve_table_ident() {
+    let metastore = SlateDBMetastore::new_in_memory().await;
+    let session = UserSession::new(metastore)
+        .await
+        .expect("Failed to create session");
+    let query = UserQuery::new(Arc::from(session), "", QueryContext::default());
+
+    let test_cases: [(Vec<Ident>, ExecutionResult<String>); 4] = [
+        (
+            vec![Ident::new("table")],
+            Ok("embucket.public.table".to_string()),
+        ),
+        (
+            vec![Ident::new("test_schema"), Ident::new("table")],
+            Ok("embucket.test_schema.table".to_string()),
+        ),
+        (
+            vec![
+                Ident::new("test_db"),
+                Ident::new("test_schema"),
+                Ident::new("table"),
+            ],
+            Ok("test_db.test_schema.table".to_string()),
+        ),
+        (
+            vec![
+                Ident::new("test_db"),
+                Ident::new("test_schema"),
+                Ident::new("table"),
+                Ident::new("col"),
+            ],
+            Err(ExecutionError::InvalidTableIdentifier {
+                ident: "test_db.test_schema.table.col".to_string(),
+            }),
+        ),
+    ];
+    for (test_case, expected) in test_cases {
+        let result = query.resolve_table_ident(test_case.clone());
+        if result.is_err() {
+            assert_eq!(
+                result.err().unwrap().to_string(),
+                expected.err().unwrap().to_string()
+            );
+        } else {
+            assert_eq!(result.unwrap().to_string(), expected.unwrap());
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_resolve_schema_ident() {
+    let metastore = SlateDBMetastore::new_in_memory().await;
+    let session = UserSession::new(metastore)
+        .await
+        .expect("Failed to create session");
+    let query = UserQuery::new(Arc::from(session), "", QueryContext::default());
+
+    let test_cases: [(Vec<Ident>, ExecutionResult<String>); 3] = [
+        (
+            vec![Ident::new("schema")],
+            Ok("embucket.schema".to_string()),
+        ),
+        (
+            vec![Ident::new("test_db"), Ident::new("schema")],
+            Ok("test_db.schema".to_string()),
+        ),
+        (
+            vec![
+                Ident::new("test_db"),
+                Ident::new("test_schema"),
+                Ident::new("table"),
+            ],
+            Err(ExecutionError::InvalidSchemaIdentifier {
+                ident: "test_db.test_schema.table".to_string(),
+            }),
+        ),
+    ];
+    for (test_case, expected) in test_cases {
+        let res = query.resolve_schema_ident(test_case.clone());
+        if res.is_err() {
+            assert_eq!(
+                res.err().unwrap().to_string(),
+                expected.err().unwrap().to_string()
+            );
+        } else {
+            assert_eq!(res.unwrap().to_string(), expected.unwrap());
+        }
+    }
 }
 
 async fn prepare_env() -> (ExecutionService, Arc<SlateDBMetastore>, String) {
