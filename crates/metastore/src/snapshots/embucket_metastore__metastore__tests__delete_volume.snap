@@ -1,12 +1,11 @@
 ---
 source: crates/metastore/src/metastore.rs
 expression: "(all_volumes, get_volume, all_volumes_after)"
-snapshot_kind: text
 ---
 (
     [
         RwObject {
-            data: IceBucketVolume {
+            data: Volume {
                 ident: "test",
                 volume: Memory,
             },
@@ -16,7 +15,7 @@ snapshot_kind: text
     ],
     Some(
         RwObject {
-            data: IceBucketVolume {
+            data: Volume {
                 ident: "test",
                 volume: Memory,
             },

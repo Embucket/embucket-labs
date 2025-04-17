@@ -22,14 +22,14 @@ use crate::http::ui::tests::common::req;
 use crate::http::ui::worksheets::{
     WorksheetCreatePayload, WorksheetResponse, WorksheetUpdatePayload, WorksheetsResponse,
 };
-use crate::tests::run_icebucket_test_server;
+use crate::tests::run_test_server;
 use http::Method;
 use serde_json::json;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_worksheets() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
     let res = req(
@@ -96,7 +96,7 @@ async fn test_ui_worksheets() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_worksheets_ops() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
     // bad payload, None instead of string

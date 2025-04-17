@@ -17,7 +17,7 @@
 
 use crate::{WorksheetId, QueryRecordId};
 use bytes::Bytes;
-use icebucket_utils::iterable::IterableEntity;
+use embucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -33,8 +33,18 @@ pub struct QueryRecordReference {
 impl QueryRecordReference {
     #[must_use]
     pub fn get_key(worksheet_id: WorksheetId, id: QueryRecordId) -> Bytes {
-        Bytes::from(format!("/ws/{worksheet_id}qh/{id}"))
+        Bytes::from(format!("/ws/{worksheet_id}/qh/{id}"))
     }
+
+    pub fn extract_qh_key(data: &Bytes) -> Option<Bytes> {
+        let pattern = b"/qh/";
+        if let Some(pos) = data.windows(pattern.len()).position(|w| w == pattern) {
+            // Slice from the start of "/qh/" to the end
+            Some(data.slice(pos..))
+        } else {
+            None
+        }
+    }    
 }
 
 impl IterableEntity for QueryRecordReference {

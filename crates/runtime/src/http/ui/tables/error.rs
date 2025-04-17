@@ -21,8 +21,8 @@ use crate::http::ui::error::IntoStatusCode;
 use axum::extract::multipart;
 use axum::response::IntoResponse;
 use axum::Json;
+use embucket_metastore::error::MetastoreError;
 use http::StatusCode;
-use icebucket_metastore::error::MetastoreError;
 use snafu::prelude::*;
 
 pub type TablesResult<T> = Result<T, TablesAPIError>;

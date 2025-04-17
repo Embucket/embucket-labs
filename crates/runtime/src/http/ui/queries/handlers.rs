@@ -29,8 +29,8 @@ use axum::{
     extract::{Query, State},
     Json,
 };
-use icebucket_history::{QueryRecordActions, QueryRecord as QueryRecordItem, QueryRecordId, WorksheetId};
-use icebucket_utils::iterable::IterableEntity;
+use embucket_history::{QueryRecordActions, QueryRecord as QueryRecordItem, QueryRecordId, WorksheetId};
+use embucket_utils::iterable::IterableEntity;
 use std::collections::HashMap;
 use utoipa::OpenApi;
 
@@ -104,7 +104,6 @@ pub async fn query(
     };
 
     let mut query_record = QueryRecordItem::query_start(&payload.query, payload.worksheet_id);
-
     let query_res = state
         .execution_svc
         .query(&session_id, &payload.query, query_context)

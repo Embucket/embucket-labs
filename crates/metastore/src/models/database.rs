@@ -20,22 +20,22 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use super::IceBucketVolumeIdent;
+use super::VolumeIdent;
 
 /// A database identifier
-pub type IceBucketDatabaseIdent = String;
+pub type DatabaseIdent = String;
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
-pub struct IceBucketDatabase {
+pub struct Database {
     #[validate(length(min = 1))]
-    pub ident: IceBucketDatabaseIdent,
+    pub ident: DatabaseIdent,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<HashMap<String, String>>,
     /// Volume identifier
-    pub volume: IceBucketVolumeIdent,
+    pub volume: VolumeIdent,
 }
 
-impl IceBucketDatabase {
+impl Database {
     #[must_use]
     pub fn prefix(&self, parent: &str) -> String {
         format!("{}/{}", parent, self.ident)
@@ -48,7 +48,7 @@ mod tests {
 
     #[test]
     fn test_prefix() {
-        let db = IceBucketDatabase {
+        let db = Database {
             ident: "db".to_string(),
             properties: None,
             volume: "vol".to_string(),

@@ -1,7 +1,6 @@
 ---
 source: crates/metastore/src/metastore.rs
 expression: "(no_db_result, schema_create, schema_list, schema_get, schema_list_after)"
-snapshot_kind: text
 ---
 (
     Err(
@@ -10,8 +9,8 @@ snapshot_kind: text
         },
     ),
     RwObject {
-        data: IceBucketSchema {
-            ident: IceBucketSchemaIdent {
+        data: Schema {
+            ident: SchemaIdent {
                 schema: "testschema",
                 database: "testdb",
             },
@@ -22,8 +21,8 @@ snapshot_kind: text
     },
     [
         RwObject {
-            data: IceBucketSchema {
-                ident: IceBucketSchemaIdent {
+            data: Schema {
+                ident: SchemaIdent {
                     schema: "testschema",
                     database: "testdb",
                 },
@@ -35,8 +34,8 @@ snapshot_kind: text
     ],
     Some(
         RwObject {
-            data: IceBucketSchema {
-                ident: IceBucketSchemaIdent {
+            data: Schema {
+                ident: SchemaIdent {
                     schema: "testschema",
                     database: "testdb",
                 },

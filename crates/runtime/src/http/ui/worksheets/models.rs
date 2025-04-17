@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_history::Worksheet;
+use embucket_history::Worksheet;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

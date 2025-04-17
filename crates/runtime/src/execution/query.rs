@@ -37,15 +37,17 @@ use datafusion_expr::logical_plan::dml::WriteOp;
 use datafusion_expr::CreateMemoryTable;
 use datafusion_expr::DdlStatement;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use embucket_metastore::{
+    Metastore, SchemaIdent as MetastoreSchemaIdent,
+    TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
+    TableIdent as MetastoreTableIdent,
+};
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
+use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
-use icebucket_metastore::{
-    IceBucketSchema, IceBucketSchemaIdent, IceBucketTableCreateRequest, IceBucketTableFormat,
-    IceBucketTableIdent, Metastore,
-};
 use object_store::aws::AmazonS3Builder;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
@@ -61,30 +63,26 @@ use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
 
-use super::catalogs::{catalog::IceBucketDFCatalog, metastore::IceBucketDFMetastore};
+use super::catalogs::{catalog::DFCatalog, metastore::DFMetastore};
 use super::datafusion::context_provider::ExtendedSqlToRel;
 use super::datafusion::functions::visit_functions_expressions;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::utils::NormalizedIdent;
 
-use super::session::IceBucketUserSession;
+use super::session::UserSession;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct IceBucketQueryContext {
+pub struct QueryContext {
     pub database: Option<String>,
     pub schema: Option<String>,
 }
 
-pub enum IceBucketQueryState {
-    Raw(String),
-    Preprocessed(String),
-}
-
-pub struct IceBucketQuery {
+pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
+    pub raw_query: String,
     pub query: String,
-    pub session: Arc<IceBucketUserSession>,
-    pub query_context: IceBucketQueryContext,
+    pub session: Arc<UserSession>,
+    pub query_context: QueryContext,
 }
 
 pub enum IcebergCatalogResult {
@@ -92,18 +90,15 @@ pub enum IcebergCatalogResult {
     Result(ExecutionResult<Vec<RecordBatch>>),
 }
 
-impl IceBucketQuery {
-    pub(super) fn new<S>(
-        session: Arc<IceBucketUserSession>,
-        query: S,
-        query_context: IceBucketQueryContext,
-    ) -> Self
+impl UserQuery {
+    pub(super) fn new<S>(session: Arc<UserSession>, query: S, query_context: QueryContext) -> Self
     where
         S: Into<String>,
     {
         let query = Self::preprocess_query(&query.into());
         Self {
             metastore: session.metastore.clone(),
+            raw_query: query.clone(),
             query,
             session,
             query_context,
@@ -113,7 +108,7 @@ impl IceBucketQuery {
     pub fn parse_query(&self) -> Result<DFStatement, DataFusionError> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
-        let mut statement = state.sql_to_statement(&self.query, dialect)?;
+        let mut statement = state.sql_to_statement(&self.raw_query, dialect)?;
         Self::postprocess_query_statement(&mut statement);
         Ok(statement)
     }
@@ -128,7 +123,7 @@ impl IceBucketQuery {
             .database
             .clone()
             .or_else(|| self.session.get_session_variable("database"))
-            .or_else(|| Some("icebucket".to_string()))
+            .or_else(|| Some("embucket".to_string()))
     }
 
     fn current_schema(&self) -> Option<String> {
@@ -146,7 +141,7 @@ impl IceBucketQuery {
             .state()
             .catalog_list()
             .as_any()
-            .downcast_ref::<IceBucketDFMetastore>()
+            .downcast_ref::<DFMetastore>()
         {
             catalog_list_impl.refresh(&self.session.ctx).await
         } else {
@@ -170,11 +165,9 @@ impl IceBucketQuery {
     }
 
     #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
-    pub async fn execute(&self) -> ExecutionResult<Vec<RecordBatch>> {
-        let mut statement = self.parse_query().context(super::error::DataFusionSnafu)?;
-        // TODO: Check if this can be removed since it's called already
-        // in `parse_query`
-        Self::postprocess_query_statement(&mut statement);
+    pub async fn execute(&mut self) -> ExecutionResult<Vec<RecordBatch>> {
+        let statement = self.parse_query().context(super::error::DataFusionSnafu)?;
+        self.query = statement.to_string();
 
         // TODO: Code should be organized in a better way
         // 1. Single place to parse SQL strings into AST
@@ -195,7 +188,7 @@ impl IceBucketQuery {
                         .collect();
 
                     self.session.set_session_variable(set, params)?;
-                    return Ok(vec![]);
+                    return status_response();
                 }
                 Statement::Use(entity) => {
                     let (variable, value) = match entity {
@@ -217,7 +210,7 @@ impl IceBucketQuery {
                     }
                     let params = HashMap::from([(variable.to_string(), value)]);
                     self.session.set_session_variable(true, params)?;
-                    return Ok(vec![]);
+                    return status_response();
                 }
                 Statement::SetVariable {
                     variables, value, ..
@@ -237,13 +230,12 @@ impl IceBucketQuery {
                     let values = values?;
                     let params = keys.into_iter().zip(values.into_iter()).collect();
                     self.session.set_session_variable(true, params)?;
-                    return Ok(vec![]);
+                    return status_response();
                 }
                 Statement::CreateTable { .. } => {
                     let result = Box::pin(self.create_table_query(*s)).await;
                     return result;
                 }
-
                 Statement::CreateDatabase { .. } => {
                     // TODO: Databases are only able to be created through the
                     // metastore API. We need to add Snowflake volume syntax to CREATE DATABASE query
@@ -256,11 +248,8 @@ impl IceBucketQuery {
                     .create_database(db_name, if_not_exists)
                     .await;*/
                 }
-                Statement::CreateSchema {
-                    schema_name,
-                    if_not_exists,
-                } => {
-                    let result = self.create_schema(schema_name, if_not_exists).await;
+                Statement::CreateSchema { .. } => {
+                    let result = Box::pin(self.create_schema(*s)).await;
                     self.refresh_catalog().await?;
                     return result;
                 }
@@ -316,7 +305,6 @@ impl IceBucketQuery {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         // TODO: This regex should be a static allocation
         let re = regex::Regex::new(r"(\w+.\w+)\[(\d+)][:\.](\w+)").unwrap();
-        //date_add processing moved to `postprocess_query_statement`
         let mut query = re
             .replace_all(query, "json_get(json_get($1, $2), '$3')")
             .to_string();
@@ -354,10 +342,8 @@ impl IceBucketQuery {
     ) -> IcebergCatalogResult {
         if let Some(iceberg_catalog) = catalog.as_any().downcast_ref::<IcebergCatalog>() {
             IcebergCatalogResult::Catalog(iceberg_catalog.catalog())
-        } else if let Some(icebucket_catalog) =
-            catalog.as_any().downcast_ref::<IceBucketDFCatalog>()
-        {
-            IcebergCatalogResult::Catalog(icebucket_catalog.catalog())
+        } else if let Some(embucket_catalog) = catalog.as_any().downcast_ref::<DFCatalog>() {
+            IcebergCatalogResult::Catalog(embucket_catalog.catalog())
         } else if catalog
             .as_any()
             .downcast_ref::<MemoryCatalogProvider>()
@@ -374,14 +360,17 @@ impl IceBucketQuery {
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn drop_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
-        let Statement::Drop { names, .. } = statement.clone() else {
+        let Statement::Drop {
+            names, object_type, ..
+        } = statement.clone()
+        else {
             return Err(ExecutionError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only DROP statements are supported".to_string(),
                 ),
             });
         };
-        let ident: IceBucketTableIdent = self.resolve_table_ident(names[0].0.clone())?.into();
+        let ident: MetastoreTableIdent = self.resolve_table_ident(names[0].0.clone())?.into();
         let plan = self.sql_statement_to_plan(statement).await?;
         let catalog = self.get_catalog(ident.database.as_str())?;
         let iceberg_catalog = match self
@@ -391,16 +380,41 @@ impl IceBucketQuery {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
                 return match result {
-                    Ok(_) => Ok(vec![]),
+                    Ok(_) => status_response(),
                     Err(err) => Err(err),
                 }
             }
         };
-        iceberg_catalog
-            .drop_table(&ident.to_iceberg_ident())
+
+        let table_exists = iceberg_catalog
+            .clone()
+            .load_tabular(&ident.to_iceberg_ident())
             .await
-            .context(ex_error::IcebergSnafu)?;
-        Ok(vec![])
+            .is_ok();
+        if table_exists {
+            match object_type {
+                ObjectType::Table => {
+                    iceberg_catalog
+                        .drop_table(&ident.to_iceberg_ident())
+                        .await
+                        .context(ex_error::IcebergSnafu)?;
+                }
+                ObjectType::View => {
+                    iceberg_catalog
+                        .drop_view(&ident.to_iceberg_ident())
+                        .await
+                        .context(ex_error::IcebergSnafu)?;
+                }
+                _ => {
+                    return Err(ExecutionError::DataFusion {
+                        source: DataFusionError::NotImplemented(
+                            "Only DROP TABLE/VIEW statements are supported".to_string(),
+                        ),
+                    });
+                }
+            }
+        }
+        status_response()
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
@@ -419,6 +433,8 @@ impl IceBucketQuery {
 
         let new_table_ident = self.resolve_table_ident(create_table_statement.name.0.clone())?;
         create_table_statement.name = new_table_ident.clone().into();
+        // We don't support transient tables for now
+        create_table_statement.transient = false;
 
         let table_location = create_table_statement
             .location
@@ -432,33 +448,17 @@ impl IceBucketQuery {
             .sql_statement_to_plan(Statement::CreateTable(create_table_statement.clone()))
             .await?;
 
-        // Check if it already exists, if it is - drop it
-        // For now we behave as CREATE OR REPLACE
-        // TODO support CREATE without REPLACE
-        let ident: IceBucketTableIdent = new_table_ident.into();
+        let ident: MetastoreTableIdent = new_table_ident.into();
 
         let catalog = self.get_catalog(ident.database.as_str())?;
-        let schema_provider =
-            catalog
-                .schema(ident.schema.as_str())
-                .ok_or(ExecutionError::SchemaNotFound {
-                    schema: ident.schema.clone(),
-                })?;
-
-        let table_exists = schema_provider.table_exist(ident.table.as_str());
-        if table_exists && create_table_statement.or_replace {
-            schema_provider
-                .deregister_table(&ident.table)
-                .context(ex_error::DataFusionSnafu)?;
-        } else if table_exists && create_table_statement.if_not_exists {
-            return Err(ExecutionError::ObjectAlreadyExists {
-                type_name: "table".to_string(),
-                name: ident.to_string(),
-            });
-        }
-
-        self.create_iceberg_table(catalog, table_location, ident.clone(), plan.clone())
-            .await?;
+        self.create_iceberg_table(
+            catalog,
+            table_location,
+            ident.clone(),
+            create_table_statement,
+            plan.clone(),
+        )
+        .await?;
 
         // Now we have created table in the metastore, we need to register it in the catalog
         self.refresh_catalog().await?;
@@ -466,7 +466,6 @@ impl IceBucketQuery {
         // Insert data to new table
         // Since we don't execute logical plan, and we don't transform it to physical plan and
         // also don't execute it as well, we need somehow to support CTAS
-
         let schema = plan.schema().clone();
         if let LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(CreateMemoryTable {
             name,
@@ -486,14 +485,14 @@ impl IceBucketQuery {
     }
 
     #[allow(unused_variables)]
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_iceberg_table(
         &self,
         catalog: Arc<dyn CatalogProvider>,
         table_location: Option<String>,
-        ident: IceBucketTableIdent,
+        ident: MetastoreTableIdent,
+        statement: CreateTableStatement,
         plan: LogicalPlan,
-    ) -> ExecutionResult<()> {
+    ) -> ExecutionResult<Vec<RecordBatch>> {
         let iceberg_catalog = match self
             .resolve_iceberg_catalog_or_execute(catalog, plan.clone())
             .await
@@ -501,11 +500,31 @@ impl IceBucketQuery {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
                 return match result {
-                    Ok(_) => Ok(()),
+                    Ok(_) => created_entity_response(),
                     Err(err) => Err(err),
                 }
             }
         };
+
+        // Check if it already exists, if exists and CREATE OR REPLACE - drop it
+        let table_exists = iceberg_catalog
+            .clone()
+            .load_tabular(&ident.to_iceberg_ident())
+            .await
+            .is_ok();
+        if table_exists && statement.if_not_exists {
+            return Err(ExecutionError::ObjectAlreadyExists {
+                type_name: "table".to_string(),
+                name: ident.to_string(),
+            });
+        }
+
+        if table_exists && statement.or_replace {
+            iceberg_catalog
+                .drop_table(&ident.to_iceberg_ident())
+                .await
+                .context(ex_error::IcebergSnafu)?;
+        }
         let fields_with_ids = StructType::try_from(&new_fields_with_ids(
             plan.schema().as_arrow().fields(),
             &mut 0,
@@ -528,7 +547,7 @@ impl IceBucketQuery {
             .build(&[ident.schema], iceberg_catalog)
             .await
             .context(ex_error::IcebergSnafu)?;
-        Ok(())
+        created_entity_response()
     }
 
     pub async fn create_external_table_query(
@@ -536,7 +555,7 @@ impl IceBucketQuery {
         statement: CreateExternalTable,
     ) -> ExecutionResult<Vec<RecordBatch>> {
         let table_location = statement.location.clone();
-        let table_format = IceBucketTableFormat::from(statement.file_type);
+        let table_format = MetastoreTableFormat::from(statement.file_type);
         let session_context = HashMap::new();
         let session_context_planner = SessionContextProvider {
             state: &self.session.ctx.state(),
@@ -556,9 +575,9 @@ impl IceBucketQuery {
 
         // TODO: Use the options with the table format in the future
         let _table_options = statement.options.clone();
-        let table_ident: IceBucketTableIdent = self.resolve_table_ident(statement.name.0)?.into();
+        let table_ident: MetastoreTableIdent = self.resolve_table_ident(statement.name.0)?.into();
 
-        let table_create_request = IceBucketTableCreateRequest {
+        let table_create_request = MetastoreTableCreateRequest {
             ident: table_ident.clone(),
             schema: Schema::builder()
                 .with_schema_id(0)
@@ -586,7 +605,7 @@ impl IceBucketQuery {
     }
 
     /// This is experimental CREATE STAGE support
-    /// Current limitations    
+    /// Current limitations
     /// TODO
     /// - Prepare object storage depending on the URL. Currently we support only s3 public buckets    ///   with public access with default eu-central-1 region
     /// - Parse credentials from specified config
@@ -695,7 +714,7 @@ impl IceBucketQuery {
             )
             .await
             .context(ex_error::DataFusionSnafu)?;
-        Ok(vec![])
+        status_response()
     }
 
     pub async fn copy_into_snowflake_query(
@@ -811,54 +830,55 @@ impl IceBucketQuery {
     }
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
-    pub async fn create_schema(
-        &self,
-        name: SchemaName,
-        if_not_exists: bool,
-    ) -> ExecutionResult<Vec<RecordBatch>> {
-        match name {
-            SchemaName::Simple(schema_name) => {
-                let object_name = self.resolve_schema_ident(schema_name.0)?;
+    pub async fn create_schema(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
+        let Statement::CreateSchema {
+            schema_name,
+            if_not_exists,
+        } = statement.clone()
+        else {
+            return Err(ExecutionError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only CREATE SCHEMA statements are supported".to_string(),
+                ),
+            });
+        };
 
-                let database_name = object_name.0[0].clone().to_string();
-                let schema_name = object_name.0[1].clone().to_string();
+        let SchemaName::Simple(schema_name) = schema_name else {
+            return Err(ExecutionError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only simple schema names are supported".to_string(),
+                ),
+            });
+        };
 
-                let icebucket_schema_ident = IceBucketSchemaIdent {
-                    database: database_name.clone(),
-                    schema: schema_name.clone(),
-                };
+        let ident: MetastoreSchemaIdent = self.resolve_schema_ident(schema_name.0)?.into();
+        let catalog = self.get_catalog(ident.database.as_str())?;
+        if catalog.schema(ident.schema.as_str()).is_some() && if_not_exists {
+            return Err(ExecutionError::ObjectAlreadyExists {
+                type_name: "schema".to_string(),
+                name: ident.schema,
+            });
+        }
 
-                let exists = self
-                    .metastore
-                    .get_schema(&icebucket_schema_ident)
-                    .await
-                    .context(ex_error::MetastoreSnafu)?
-                    .is_some();
-
-                if exists && if_not_exists {
-                    return Err(ExecutionError::ObjectAlreadyExists {
-                        type_name: "schema".to_string(),
-                        name: schema_name.to_string(),
-                    });
-                } else if !exists {
-                    let icebucket_schema = IceBucketSchema {
-                        ident: icebucket_schema_ident.clone(),
-                        properties: None,
-                    };
-                    self.metastore
-                        .create_schema(&icebucket_schema_ident, icebucket_schema)
-                        .await
-                        .context(ex_error::MetastoreSnafu)?;
+        let plan = self.sql_statement_to_plan(statement).await?;
+        let downcast_result = self.resolve_iceberg_catalog_or_execute(catalog, plan).await;
+        let iceberg_catalog = match downcast_result {
+            IcebergCatalogResult::Catalog(catalog) => catalog,
+            IcebergCatalogResult::Result(result) => {
+                return match result {
+                    Ok(_) => created_entity_response(),
+                    Err(err) => Err(err),
                 }
             }
-            _ => {
-                return Err(ExecutionError::DataFusion {
-                    source: DataFusionError::NotImplemented(
-                        "Only simple schema names are supported".to_string(),
-                    ),
-                });
-            }
-        }
+        };
+
+        let namespace = Namespace::try_new(&[ident.schema])
+            .map_err(|err| DataFusionError::External(Box::new(err)))
+            .context(ex_error::DataFusionSnafu)?;
+        iceberg_catalog
+            .create_namespace(&namespace, None)
+            .await
+            .context(ex_error::IcebergSnafu)?;
         created_entity_response()
     }
 
@@ -1458,7 +1478,7 @@ impl IceBucketQuery {
                         self.update_tables_in_query(&mut query)?;
                         // TODO: Removing all iceberg properties is temporary solution. It should be
                         // implemented properly in future.
-                        // https://github.com/Embucket/control-plane-v2/issues/199
+                        // https://github.com/Embucket/embucket/issues/199
                         let modified_statement = CreateTableStatement {
                             query: Some(query),
                             iceberg: false,
@@ -1543,21 +1563,24 @@ impl IceBucketQuery {
         &self,
         mut schema_ident: Vec<Ident>,
     ) -> ExecutionResult<NormalizedIdent> {
-        let database = self.current_database();
-        if schema_ident.len() == 1 {
-            if let Some(database) = database {
-                schema_ident.insert(0, Ident::new(database));
-            } else {
+        match schema_ident.len() {
+            1 => match self.current_database() {
+                Some(database) => {
+                    schema_ident.insert(0, Ident::new(database));
+                }
+                None => {
+                    return Err(ExecutionError::InvalidSchemaIdentifier {
+                        ident: NormalizedIdent(schema_ident).to_string(),
+                    });
+                }
+            },
+            2 => {}
+            _ => {
                 return Err(ExecutionError::InvalidSchemaIdentifier {
                     ident: NormalizedIdent(schema_ident).to_string(),
                 });
             }
-        } else {
-            return Err(ExecutionError::InvalidSchemaIdentifier {
-                ident: NormalizedIdent(schema_ident).to_string(),
-            });
         }
-
         Ok(NormalizedIdent(
             schema_ident
                 .iter()
@@ -1669,4 +1692,13 @@ pub fn created_entity_response() -> ExecutionResult<Vec<RecordBatch>> {
         vec![Arc::new(Int64Array::from(vec![0]))],
     )
     .context(ex_error::ArrowSnafu)?])
+}
+
+pub fn status_response() -> ExecutionResult<Vec<RecordBatch>> {
+    let schema = Arc::new(ArrowSchema::new(vec![Field::new(
+        "status",
+        DataType::Utf8,
+        false,
+    )]));
+    Ok(vec![RecordBatch::new_empty(schema)])
 }

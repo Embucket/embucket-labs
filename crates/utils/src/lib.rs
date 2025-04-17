@@ -35,7 +35,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Snafu, Debug)]
-//#[snafu(visibility(pub(crate)))]
+#[snafu(visibility(pub))]
 pub enum Error {
     #[snafu(display("SlateDB error: {source}"))]
     Database { source: SlateDBError },

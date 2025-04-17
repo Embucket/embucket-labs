@@ -1,7 +1,6 @@
 ---
 source: crates/runtime/src/execution/tests/query.rs
 expression: "(from1, from2, from3, from4)"
-snapshot_kind: text
 ---
 (
     [

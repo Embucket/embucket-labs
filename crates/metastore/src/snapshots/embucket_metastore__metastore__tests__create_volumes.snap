@@ -1,22 +1,22 @@
 ---
 source: crates/metastore/src/metastore.rs
-expression: "(volumes_key, test_volume, all_volumes)"
-snapshot_kind: text
+expression: "(test_volume, all_volumes)"
 ---
 (
-    [
-        "vol/test",
-    ],
     Some(
         Object {
             "created_at: "TIMESTAMP",
+            "ident": String("test"),
             "type": String("memory"),
             "updated_at: "TIMESTAMP",
         },
     ),
     [
         RwObject {
-            data: Memory,
+            data: Volume {
+                ident: "test",
+                volume: Memory,
+            },
             created_at: "TIMESTAMP",
             updated_at: "TIMESTAMP",
         },

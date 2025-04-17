@@ -18,7 +18,7 @@
 use crate::WorksheetId;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use icebucket_utils::iterable::IterableEntity;
+use embucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 #[cfg(test)]
@@ -124,6 +124,6 @@ impl IterableEntity for QueryRecord {
     }
 
     fn key(&self) -> Bytes {
-        Self::get_key(self.worksheet_id, self.id)
+        Self::get_key(self.id)
     }
 }

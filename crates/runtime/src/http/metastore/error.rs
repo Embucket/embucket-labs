@@ -17,7 +17,7 @@
 
 use crate::http::error::ErrorResponse;
 use axum::{response::IntoResponse, Json};
-use icebucket_metastore::error::MetastoreError;
+use embucket_metastore::error::MetastoreError;
 use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]

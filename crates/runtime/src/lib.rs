@@ -17,11 +17,11 @@
 
 use std::sync::Arc;
 
-use config::IceBucketRuntimeConfig;
-use http::{make_icebucket_app, run_icebucket_app};
-use icebucket_history::store::SlateDBWorksheetsStore;
-use icebucket_metastore::SlateDBMetastore;
-use icebucket_utils::Db;
+use config::RuntimeConfig;
+use embucket_history::store::SlateDBWorksheetsStore;
+use embucket_metastore::SlateDBMetastore;
+use embucket_utils::Db;
+use http::{make_app, run_app};
 use object_store::{path::Path, ObjectStore};
 use slatedb::{config::DbOptions, db::Db as SlateDb};
 
@@ -33,9 +33,9 @@ pub mod http;
 pub(crate) mod tests;
 
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
-pub async fn run_icebucket(
+pub async fn run_binary(
     state_store: Arc<dyn ObjectStore>,
-    config: IceBucketRuntimeConfig,
+    config: RuntimeConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = {
         let options = DbOptions::default();
@@ -52,6 +52,6 @@ pub async fn run_icebucket(
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history = Arc::new(SlateDBWorksheetsStore::new(db));
-    let app = make_icebucket_app(metastore, history, &config.web)?;
-    run_icebucket_app(app, &config.web).await
+    let app = make_app(metastore, history, &config.web)?;
+    run_app(app, &config.web).await
 }

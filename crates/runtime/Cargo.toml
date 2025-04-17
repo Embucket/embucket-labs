@@ -1,5 +1,5 @@
 [package]
-name = "icebucket_runtime"
+name = "embucket_runtime"
 version = "0.1.0"
 edition = "2021"
 license-file = { workspace = true }
@@ -46,9 +46,9 @@ iceberg-rest-catalog = { workspace = true }
 iceberg-rust = { workspace = true }
 iceberg-rust-spec = { workspace = true }
 iceberg-s3tables-catalog = { workspace = true }
-icebucket_history = { workspace= true }
-icebucket_metastore = { version = "0.1.0", path = "../metastore" }
-icebucket_utils = { version = "0.1.0", path = "../utils" }
+embucket_history = { workspace= true }
+embucket_metastore = { version = "0.1.0", path = "../metastore" }
+embucket_utils = { version = "0.1.0", path = "../utils" }
 indexmap = { version = "2.7.1" }
 itertools = "0.14.0"
 object_store = { workspace = true }

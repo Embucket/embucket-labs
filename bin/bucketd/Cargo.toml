@@ -7,7 +7,7 @@ license-file = { workspace = true }
 [dependencies]
 clap = { version = "4.5.27", features = ["env", "derive"] }
 dotenv = { version = "0.15.0" }
-icebucket_runtime = { path = "../../crates/runtime" }
+embucket_runtime = { path = "../../crates/runtime" }
 object_store = { workspace = true }
 snmalloc-rs = { workspace = true }
 tokio = { workspace = true }

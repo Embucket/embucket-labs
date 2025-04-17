@@ -122,12 +122,12 @@ pub fn create_router() -> Router<AppState> {
             get(get_table_columns),
         )
         .route(
-            "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/preview",
+            "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows",
             get(get_table_preview_data),
         )
         .route("/worksheets", get(worksheets).post(create_worksheet))
         .route(
-            "/worksheets/{worksheet_id}",
+            "/worksheets/{worksheetId}",
             get(worksheet)
                 .delete(delete_worksheet)
                 .patch(update_worksheet),

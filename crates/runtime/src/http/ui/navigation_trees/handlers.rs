@@ -24,7 +24,7 @@ use crate::http::ui::navigation_trees::models::{
 };
 use axum::extract::Query;
 use axum::{extract::State, Json};
-use icebucket_utils::list_config::ListConfig;
+use embucket_utils::list_config::ListConfig;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]

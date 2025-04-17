@@ -1,7 +1,6 @@
 ---
 source: crates/runtime/src/tests/session.rs
 expression: "(statement, result, all_query, insert_query, select_query)"
-snapshot_kind: text
 ---
 (
     Statement(

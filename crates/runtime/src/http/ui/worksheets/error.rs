@@ -19,8 +19,8 @@ use crate::http::error::ErrorResponse;
 use crate::http::ui::error::IntoStatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
+use embucket_history::store::WorksheetsStoreError;
 use http::status::StatusCode;
-use icebucket_history::store::WorksheetsStoreError;
 use snafu::prelude::*;
 
 pub type WorksheetsResult<T> = Result<T, WorksheetsAPIError>;

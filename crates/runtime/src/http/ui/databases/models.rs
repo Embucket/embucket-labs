@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use icebucket_metastore::models::IceBucketDatabase;
+use embucket_metastore::models::Database as MetastoreDatabase;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -25,8 +25,8 @@ pub struct Database {
     pub volume: String,
 }
 
-impl From<IceBucketDatabase> for Database {
-    fn from(db: IceBucketDatabase) -> Self {
+impl From<MetastoreDatabase> for Database {
+    fn from(db: MetastoreDatabase) -> Self {
         Self {
             name: db.ident,
             volume: db.volume,
@@ -36,9 +36,9 @@ impl From<IceBucketDatabase> for Database {
 
 // TODO: Remove it when found why it can't locate .into() if only From trait implemeted
 #[allow(clippy::from_over_into)]
-impl Into<IceBucketDatabase> for Database {
-    fn into(self) -> IceBucketDatabase {
-        IceBucketDatabase {
+impl Into<MetastoreDatabase> for Database {
+    fn into(self) -> MetastoreDatabase {
+        MetastoreDatabase {
             ident: self.name,
             volume: self.volume,
             properties: None,

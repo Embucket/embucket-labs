@@ -23,9 +23,9 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
+use embucket_history::store::WorksheetsStore;
+use embucket_metastore::Metastore;
 use http_body_util::BodyExt;
-use icebucket_history::store::WorksheetsStore;
-use icebucket_metastore::Metastore;
 use std::sync::Arc;
 use time::Duration;
 use tokio::signal;
@@ -54,13 +54,13 @@ pub mod utils;
 #[cfg(test)]
 mod tests;
 
-use super::http::config::IceBucketWebConfig;
+use super::http::config::WebConfig;
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn make_icebucket_app(
+pub fn make_app(
     metastore: Arc<dyn Metastore>,
     history: Arc<dyn WorksheetsStore>,
-    config: &IceBucketWebConfig,
+    config: &WebConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format)?;
     let execution_svc = Arc::new(ExecutionService::new(metastore.clone(), execution_cfg));
@@ -95,10 +95,7 @@ pub fn make_icebucket_app(
 }
 
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
-pub async fn run_icebucket_app(
-    app: Router,
-    config: &IceBucketWebConfig,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_app(app: Router, config: &WebConfig) -> Result<(), Box<dyn std::error::Error>> {
     let host = config.host.clone();
     let port = config.port;
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;

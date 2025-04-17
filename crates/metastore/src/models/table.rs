@@ -17,7 +17,7 @@
 
 use crate::error::{MetastoreError, MetastoreResult};
 use iceberg_rust::{
-    catalog::commit::{TableRequirement, TableUpdate},
+    catalog::commit::{TableRequirement, TableUpdate as IcebergTableUpdate},
     spec::table_metadata::TableMetadata,
 };
 use iceberg_rust_spec::{
@@ -28,11 +28,11 @@ use std::{collections::HashMap, fmt::Display};
 use utoipa::ToSchema;
 use validator::Validate;
 
-use super::{IceBucketSchemaIdent, IceBucketVolumeIdent};
+use super::{SchemaIdent, VolumeIdent};
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
 /// A table identifier
-pub struct IceBucketTableIdent {
+pub struct TableIdent {
     #[validate(length(min = 1))]
     /// The name of the table
     pub table: String,
@@ -44,7 +44,7 @@ pub struct IceBucketTableIdent {
     pub database: String,
 }
 
-impl IceBucketTableIdent {
+impl TableIdent {
     #[must_use]
     pub fn new(database: &str, schema: &str, table: &str) -> Self {
         Self {
@@ -60,8 +60,8 @@ impl IceBucketTableIdent {
     }
 }
 
-impl From<IceBucketTableIdent> for IceBucketSchemaIdent {
-    fn from(ident: IceBucketTableIdent) -> Self {
+impl From<TableIdent> for SchemaIdent {
+    fn from(ident: TableIdent) -> Self {
         Self {
             database: ident.database,
             schema: ident.schema,
@@ -69,7 +69,7 @@ impl From<IceBucketTableIdent> for IceBucketSchemaIdent {
     }
 }
 
-impl Display for IceBucketTableIdent {
+impl Display for TableIdent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}.{}", self.database, self.schema, self.table)
     }
@@ -79,7 +79,7 @@ impl Display for IceBucketTableIdent {
     Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema, strum::EnumString,
 )]
 #[serde(rename_all = "kebab-case")]
-pub enum IceBucketTableFormat {
+pub enum TableFormat {
     /*
     Avro,
     Orc,
@@ -90,7 +90,7 @@ pub enum IceBucketTableFormat {
     Iceberg,
 }
 
-impl From<String> for IceBucketTableFormat {
+impl From<String> for TableFormat {
     fn from(value: String) -> Self {
         match value.to_lowercase().as_str() {
             "parquet" => Self::Parquet,
@@ -99,80 +99,24 @@ impl From<String> for IceBucketTableFormat {
     }
 }
 
-/*#[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct IceBucketSimpleSchema {
-    pub fields: Vec<NestedFieldRef>,
-    pub schema_id: Option<i32>,
-}
-
-impl TryFrom<IceBucketSimpleSchema> for Schema {
-    type Error = MetastoreError;
-    fn try_from(schema: IceBucketSimpleSchema) -> MetastoreResult<Self> {
-        let mut builder = Self::builder();
-        builder = builder.with_fields(schema.fields);
-        if let Some(schema_id) = schema.schema_id {
-            builder = builder.with_schema_id(schema_id);
-        }
-        builder.build()
-            .context(metastore_error::IcebergSnafu)
-    }
-}
-
-type SimpleOrIcebergSchema = Either<IceBucketSimpleSchema, Schema>;*/
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct IceBucketTable {
-    pub ident: IceBucketTableIdent,
+pub struct Table {
+    pub ident: TableIdent,
     pub metadata: TableMetadata,
     pub metadata_location: String,
     pub properties: HashMap<String, String>,
-    pub volume_ident: Option<IceBucketVolumeIdent>,
+    pub volume_ident: Option<VolumeIdent>,
     pub volume_location: Option<String>,
     pub is_temporary: bool,
-    pub format: IceBucketTableFormat,
+    pub format: TableFormat,
 }
-
-/*impl PartialSchema for IceBucketTable {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-
-        let table_metadata_schema = openapi::ObjectBuilder::new()
-            .property("format_version", openapi::ObjectBuilder::new()
-                .schema_type(openapi::Type::Integer)
-                .format(Some(openapi::SchemaFormat::KnownFormat(openapi::KnownFormat::Int32)))
-                .build()
-            )
-            .property(
-                "table_uuid",
-                openapi::Object::with_type(openapi::Type::String))
-            .property("name", openapi::schema::String::default())
-            .property("schema_id", openapi::schema::Integer::default())
-            .property("current_schema_id", openapi::schema::Integer::default())
-            .property("default_partition_spec_id", openapi::schema::Integer::default())
-            .property("default_sort_order_id", openapi::schema::Integer::default())
-            .property("last_partition_id", openapi::schema::Integer::default())
-            .property("last_column_id", openapi::schema::Integer::default())
-            .property("refs", openapi::schema::Object::default())
-            .property("properties", utoipa_schema::Map::default())
-            .property("schema", openapi::schema::Object::default())
-            .property("partition_spec", openapi::schema::Object::default())
-            .property("sort_order", openapi::schema::Object::default())
-            .build();
-        openapi::ObjectBuilder::default()
-            .property("ident", IceBucketTableIdent::schema())
-            .property("metadata", table_metadata_schema)
-            .property("metadata_location", openapi::schema::String::default())
-            .property("properties", utoipa_schema::Map::default())
-            .build()
-    }
-}
-impl ToSchema for IceBucketTable {}*/
 
 #[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct IceBucketTableCreateRequest {
+pub struct TableCreateRequest {
     #[validate(nested)]
-    pub ident: IceBucketTableIdent,
+    pub ident: TableIdent,
     pub properties: Option<HashMap<String, String>>,
-    pub format: Option<IceBucketTableFormat>,
+    pub format: Option<TableFormat>,
 
     pub location: Option<String>,
     //pub schema: SimpleOrIcebergSchema,
@@ -180,77 +124,9 @@ pub struct IceBucketTableCreateRequest {
     pub partition_spec: Option<PartitionSpec>,
     pub sort_order: Option<SortOrder>,
     pub stage_create: Option<bool>,
-    pub volume_ident: Option<IceBucketVolumeIdent>,
+    pub volume_ident: Option<VolumeIdent>,
     pub is_temporary: Option<bool>,
 }
-
-/*fn type_schema() -> (String, openapi::RefOr<openapi::schema::Schema>) {
-    let primitive_type = openapi::OneOfBuilder::new()
-        .item(openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::String))
-            .enum_values(Some(vec!["boolean", "int", "long", "float", "double", "date", "time", "timestamp", "timestamptz", "string", "uuid", "binary"]))
-        )
-        .item(openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Object))
-            .property("precision", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
-            .build())
-            .property("scale", openapi::schema::Type::Integer)
-        )
-        .item(openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer)))
-        .build();
-    let struct_type = openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("StructType".to_string()).build());
-    let list_type = openapi::ObjectBuilder::new()
-        .property("element_id", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
-            .build()
-        )
-        .property("element_required", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Boolean))
-            .build()
-        )
-        .property("element", openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("Type".to_string()).build()))
-        .build();
-    let map_type = openapi::ObjectBuilder::new()
-        .property("key_id", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
-            .build()
-        )
-        .property("key", openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("Type".to_string()).build()))
-        .property("value_id", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Integer))
-            .build()
-        )
-        .property("value", openapi::RefOr::Ref(openapi::Ref::builder().ref_location_from_schema_name("Type".to_string()).build()))
-        .property("value_required", openapi::ObjectBuilder::new()
-            .schema_type(openapi::schema::SchemaType::new(openapi::schema::Type::Boolean))
-            .build()
-        )
-        .build();
-    let one_of = openapi::OneOf::builder()
-        .item(primitive_type.into())
-        .item(struct_type)
-        .item(list_type)
-        .item(map_type);
-    ("Type".to_string(), one_of.into())
-}
-
-impl ToSchema for IceBucketTableCreateRequest {}
-impl PartialSchema for IceBucketTableCreateRequest {
-    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-
-        let
-        let mut type_schema = openapi::OneOfBuilder::new()
-            .item(primitive_type)
-
-
-        let mut struct_field_type = openapi::OneOfBuilder::new()
-            .item(primitive_type)
-        let struct_field = openapi::ObjectBuilder::new()
-            .property("id", )
-    }
-}*/
 
 #[derive(ToSchema, Deserialize, Serialize)]
 enum MyPrimitive {
@@ -294,33 +170,6 @@ struct MySchema {
     #[serde(flatten)]
     fields: MyStruct,
 }
-/*impl TryFrom<IceBucketTableCreateRequest> for iceberg::TableCreation {
-    type Error = MetastoreError;
-
-    fn try_from(schema: IceBucketTableCreateRequest) -> MetastoreResult<Self> {
-        let mut properties = schema.properties.unwrap_or_default();
-        let utc_now = Utc::now();
-        let utc_now_str = utc_now.to_rfc3339();
-        properties.insert("created_at".to_string(), utc_now_str.clone());
-        properties.insert("updated_at".to_string(), utc_now_str);
-
-        let table_schema = match schema.schema {
-            Either::Left(simple_schema) => {
-                Schema::try_from(simple_schema)?
-            }
-            Either::Right(schema) => schema,
-        };
-
-        Ok(Self {
-            name: schema.ident.table,
-            location: schema.location,
-            schema: table_schema,
-            partition_spec: schema.partition_spec.map(std::convert::Into::into),
-            sort_order: schema.write_order,
-            properties,
-        })
-    }
-}*/
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -329,11 +178,11 @@ pub struct Config {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct IceBucketTableUpdate {
+pub struct TableUpdate {
     /// Commit will fail if the requirements are not met.
     pub requirements: Vec<TableRequirement>,
     /// The updates of the table.
-    pub updates: Vec<TableUpdate>,
+    pub updates: Vec<IcebergTableUpdate>,
 }
 
 pub struct TableRequirementExt(TableRequirement);

@@ -1,11 +1,10 @@
 ---
 source: crates/metastore/src/metastore.rs
 expression: "(rwo1, rwo2)"
-snapshot_kind: text
 ---
 (
     RwObject {
-        data: IceBucketVolume {
+        data: Volume {
             ident: "test",
             volume: Memory,
         },
@@ -13,10 +12,10 @@ snapshot_kind: text
         updated_at: "TIMESTAMP",
     },
     RwObject {
-        data: IceBucketVolume {
+        data: Volume {
             ident: "test",
             volume: File(
-                IceBucketFileVolume {
+                FileVolume {
                     path: "/tmp",
                 },
             ),

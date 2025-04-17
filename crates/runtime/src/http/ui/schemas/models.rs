@@ -16,8 +16,8 @@
 // under the License.
 
 use chrono::NaiveDateTime;
-use icebucket_metastore::models::{IceBucketSchema, IceBucketSchemaIdent};
-use icebucket_metastore::RwObject;
+use embucket_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
+use embucket_metastore::RwObject;
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 use utoipa::{IntoParams, ToSchema};
@@ -30,8 +30,8 @@ pub struct Schema {
     pub updated_at: NaiveDateTime,
 }
 
-impl From<RwObject<IceBucketSchema>> for Schema {
-    fn from(rw_schema: RwObject<IceBucketSchema>) -> Self {
+impl From<RwObject<MetastoreSchema>> for Schema {
+    fn from(rw_schema: RwObject<MetastoreSchema>) -> Self {
         Self {
             name: rw_schema.data.ident.schema,
             database: rw_schema.data.ident.database,
@@ -43,10 +43,10 @@ impl From<RwObject<IceBucketSchema>> for Schema {
 
 // TODO: Remove it when found why it can't locate .into() if only From trait implemeted
 #[allow(clippy::from_over_into)]
-impl Into<IceBucketSchema> for Schema {
-    fn into(self) -> IceBucketSchema {
-        IceBucketSchema {
-            ident: IceBucketSchemaIdent {
+impl Into<MetastoreSchema> for Schema {
+    fn into(self) -> MetastoreSchema {
+        MetastoreSchema {
+            ident: MetastoreSchemaIdent {
                 schema: self.name,
                 database: self.database,
             },

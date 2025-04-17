@@ -23,10 +23,10 @@ use crate::http::ui::databases::models::{
 };
 use crate::http::ui::tests::common::{req, ui_test_op, Entity, Op};
 use crate::http::ui::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
-use crate::tests::run_icebucket_test_server;
+use crate::tests::run_test_server;
+use embucket_metastore::VolumeType as MetastoreVolumeType;
+use embucket_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
 use http::Method;
-use icebucket_metastore::IceBucketVolumeType;
-use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -34,7 +34,7 @@ use icebucket_metastore::{IceBucketDatabase, IceBucketVolume};
     expected = "Failed to get error response: reqwest::Error { kind: Decode, source: Error(\"missing field `message`\", line: 1, column: 32) }"
 )]
 async fn test_ui_databases_metastore_update_bug() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
 
     // Create volume with empty name
     let res = ui_test_op(
@@ -42,9 +42,9 @@ async fn test_ui_databases_metastore_update_bug() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(IceBucketVolume {
+            data: Volume::from(MetastoreVolume {
                 ident: String::from("t"),
-                volume: IceBucketVolumeType::Memory,
+                volume: MetastoreVolumeType::Memory,
             }),
         }),
     )
@@ -56,7 +56,7 @@ async fn test_ui_databases_metastore_update_bug() {
 
     // Create database, Ok
     let expected = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: "test".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
@@ -73,7 +73,7 @@ async fn test_ui_databases_metastore_update_bug() {
 
     // Update database test -> new-test, Ok
     let new_database = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: "new-test".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
@@ -135,7 +135,7 @@ async fn test_ui_databases_metastore_update_bug() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_databases() {
-    let addr = run_icebucket_test_server().await;
+    let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
     // Create volume with empty name
@@ -144,9 +144,9 @@ async fn test_ui_databases() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(IceBucketVolume {
+            data: Volume::from(MetastoreVolume {
                 ident: String::new(),
-                volume: IceBucketVolumeType::Memory,
+                volume: MetastoreVolumeType::Memory,
             }),
         }),
     )
@@ -155,7 +155,7 @@ async fn test_ui_databases() {
 
     // Create database with empty name, error 400
     let expected = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: String::new(),
             properties: None,
             volume: volume.data.name.clone(),
@@ -177,7 +177,7 @@ async fn test_ui_databases() {
 
     // Create database, Ok
     let expected1 = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: "test".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
@@ -190,7 +190,7 @@ async fn test_ui_databases() {
     assert_eq!(expected1.data, created_database.data);
 
     let expected2 = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: "test2".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
@@ -198,7 +198,7 @@ async fn test_ui_databases() {
         .into(),
     };
     let expected3 = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: "test3".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
@@ -206,7 +206,7 @@ async fn test_ui_databases() {
         .into(),
     };
     let expected4 = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: "test4".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
@@ -281,7 +281,7 @@ async fn test_ui_databases() {
 
     // Create database with another name, Ok
     let expected_another = DatabaseCreatePayload {
-        data: IceBucketDatabase {
+        data: MetastoreDatabase {
             ident: "name".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
