@@ -396,7 +396,7 @@ async fn test_create_schema() {
 }
 
 #[tokio::test]
-#[allow(clippy::unwrap-used)]
+#[allow(clippy::unwrap_used)]
 async fn test_resolve_table_ident() {
     let metastore = SlateDBMetastore::new_in_memory().await;
     let session = UserSession::new(metastore)
@@ -447,7 +447,7 @@ async fn test_resolve_table_ident() {
 }
 
 #[tokio::test]
-#[allow(clippy::unwrap-used)]
+#[allow(clippy::unwrap_used)]
 async fn test_resolve_schema_ident() {
     let metastore = SlateDBMetastore::new_in_memory().await;
     let session = UserSession::new(metastore)
