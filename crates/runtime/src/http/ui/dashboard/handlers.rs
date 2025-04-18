@@ -17,13 +17,13 @@
 
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
+use crate::http::ui::dashboard::error::{DashboardAPIError, DashboardResult};
+use crate::http::ui::dashboard::models::{Dashboard, DashboardResponse};
+use crate::http::ui::queries::error::QueryError;
 use axum::{extract::State, Json};
 use embucket_metastore::error::MetastoreError;
 use embucket_utils::scan_iterator::ScanIterator;
 use utoipa::OpenApi;
-use crate::http::ui::dashboard::error::{DashboardAPIError, DashboardResult};
-use crate::http::ui::dashboard::models::{Dashboard, DashboardResponse};
-use crate::http::ui::queries::error::QueryError;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -94,15 +94,17 @@ pub async fn get_dashboard(
         .history
         .get_queries(None, None, None)
         .await
-        .map_err(|e| DashboardAPIError::Queries { source: QueryError::Store { source: e }})?
+        .map_err(|e| DashboardAPIError::Queries {
+            source: QueryError::Store { source: e },
+        })?
         .len();
-    
+
     Ok(Json(DashboardResponse {
         data: Dashboard {
             total_databases,
             total_schemas,
             total_tables,
             total_queries,
-        }
+        },
     }))
 }

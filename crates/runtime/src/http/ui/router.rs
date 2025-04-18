@@ -47,15 +47,12 @@ use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
 
 use crate::http::state::AppState;
+use crate::http::ui::dashboard::handlers::{get_dashboard, ApiDoc as DashboardApiDoc};
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
-use crate::http::ui::dashboard::handlers::{
-    get_dashboard, 
-    ApiDoc as DashboardApiDoc
-};
 
 #[derive(OpenApi)]
 #[openapi(

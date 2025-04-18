@@ -17,6 +17,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use crate::http::ui::dashboard::models::DashboardResponse;
 use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::queries::models::QueryCreatePayload;
 use crate::http::ui::schemas::models::SchemaCreatePayload;
@@ -29,7 +30,6 @@ use embucket_metastore::VolumeType as MetastoreVolumeType;
 use embucket_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
 use http::Method;
 use serde_json::json;
-use crate::http::ui::dashboard::models::DashboardResponse;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -58,7 +58,7 @@ async fn test_ui_dashboard() {
             }),
         }),
     )
-        .await;
+    .await;
     let volume = res.json::<VolumeCreateResponse>().await.unwrap();
 
     // Create database, Ok
@@ -68,7 +68,7 @@ async fn test_ui_dashboard() {
             properties: None,
             volume: volume.data.name.clone(),
         }
-            .into(),
+        .into(),
     };
     let expected2 = DatabaseCreatePayload {
         data: MetastoreDatabase {
@@ -76,7 +76,7 @@ async fn test_ui_dashboard() {
             properties: None,
             volume: volume.data.name.clone(),
         }
-            .into(),
+        .into(),
     };
     let expected3 = DatabaseCreatePayload {
         data: MetastoreDatabase {
@@ -84,7 +84,7 @@ async fn test_ui_dashboard() {
             properties: None,
             volume: volume.data.name.clone(),
         }
-            .into(),
+        .into(),
     };
     let expected4 = DatabaseCreatePayload {
         data: MetastoreDatabase {
@@ -92,7 +92,7 @@ async fn test_ui_dashboard() {
             properties: None,
             volume: volume.data.name.clone(),
         }
-            .into(),
+        .into(),
     };
     //4 DBs
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
@@ -122,11 +122,11 @@ async fn test_ui_dashboard() {
             "http://{addr}/ui/databases/{}/schemas",
             expected1.data.name.clone()
         )
-            .to_string(),
+        .to_string(),
         json!(payload).to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
     let res = req(&client, Method::GET, &url, String::new())
@@ -147,10 +147,10 @@ async fn test_ui_dashboard() {
             name: "test".to_string(),
             content: String::new(),
         })
-            .to_string(),
+        .to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
 
@@ -182,8 +182,8 @@ async fn test_ui_dashboard() {
         &format!("http://{addr}/ui/queries"),
         json!(query_payload).to_string(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
 
     let res = req(&client, Method::GET, &url, String::new())
