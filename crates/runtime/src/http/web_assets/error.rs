@@ -15,16 +15,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use snafu::Snafu;
 use crate::http::error::ErrorResponse;
 use axum::response::IntoResponse;
-use http::StatusCode;
 use axum::Json;
 use http::Error;
+use http::StatusCode;
+use snafu::Snafu;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
-pub enum ArchiveError {   
+pub enum ArchiveError {
     #[snafu(display("File not found: {path}"))]
     NotFound { path: String },
 
@@ -33,7 +33,7 @@ pub enum ArchiveError {
 
     #[snafu(display("Bad archive: {source}"))]
     BadArchive { source: std::io::Error },
-    
+
     #[snafu(display("Entry path is not a valid Unicode: {source}"))]
     NonUnicodeEntryPathInArchive { source: std::io::Error },
 

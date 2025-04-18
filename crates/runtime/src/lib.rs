@@ -21,8 +21,8 @@ use config::RuntimeConfig;
 use embucket_history::store::SlateDBWorksheetsStore;
 use embucket_metastore::SlateDBMetastore;
 use embucket_utils::Db;
-use http::{make_app, run_app};
 use http::web_assets::run_web_assets_server;
+use http::{make_app, run_app};
 use object_store::{path::Path, ObjectStore};
 use slatedb::{config::DbOptions, db::Db as SlateDb};
 
@@ -55,9 +55,7 @@ pub async fn run_binary(
     let history = Arc::new(SlateDBWorksheetsStore::new(db));
     let app = make_app(metastore, history, &config.web)?;
 
-    tokio::spawn(async move {
-        run_web_assets_server(&config.web_assets).await
-    });
+    tokio::spawn(async move { run_web_assets_server(&config.web_assets).await });
 
     run_app(app, &config.web).await
 }

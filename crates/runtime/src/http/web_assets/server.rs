@@ -15,27 +15,35 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use axum::{routing::get, Router};
-
-use crate::http::layers::make_cors_middleware;
-
 use super::config::StaticWebConfig;
-use super::handler::WEB_ASSETS_MOUNT_PATH;
 use super::handler::tar_handler;
-use crate::http::shutdown_signal;
+use super::handler::WEB_ASSETS_MOUNT_PATH;
+use crate::http::{layers::make_cors_middleware, shutdown_signal};
+use axum::{routing::get, Router};
 use tower_http::trace::TraceLayer;
 
-pub async fn run_web_assets_server(config: &StaticWebConfig) -> Result<(), Box<dyn std::error::Error + Send>> {
-    let StaticWebConfig { host, port, allow_origin } = config;
+#[allow(clippy::unwrap_used, clippy::as_conversions)]
+pub async fn run_web_assets_server(
+    config: &StaticWebConfig,
+) -> Result<(), Box<dyn std::error::Error + Send>> {
+    let StaticWebConfig {
+        host,
+        port,
+        allow_origin,
+    } = config;
 
     let mut app = Router::new()
-        .route(format!("{WEB_ASSETS_MOUNT_PATH}{{*path}}").as_str(), get(tar_handler))
+        .route(
+            format!("{WEB_ASSETS_MOUNT_PATH}{{*path}}").as_str(),
+            get(tar_handler),
+        )
         .layer(TraceLayer::new_for_http());
 
     if let Some(allow_origin) = allow_origin.as_ref() {
-        app = app
-            .layer(make_cors_middleware(allow_origin)
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?);
+        app = app.layer(
+            make_cors_middleware(allow_origin)
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?,
+        );
     }
 
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}"))

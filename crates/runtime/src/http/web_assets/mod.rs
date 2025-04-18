@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-mod error;
-mod handler;
 pub mod config;
+pub mod error;
+pub mod handler;
 pub mod server;
 
 pub use server::*;
