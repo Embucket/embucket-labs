@@ -22,27 +22,31 @@ use axum::Json;
 use embucket_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::prelude::*;
+use crate::http::ui::queries::error::QueryError;
 
-pub type NavigationTreesResult<T> = Result<T, NavigationTreesAPIError>;
+pub type DashboardResult<T> = Result<T, DashboardAPIError>;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
-pub enum NavigationTreesAPIError {
-    #[snafu(display("Get navigation trees error: {source}"))]
-    Get { source: MetastoreError },
+pub enum DashboardAPIError {
+    #[snafu(display("Get total: {source}"))]
+    Metastore { source: MetastoreError },
+    #[snafu(display("Get total: {source}"))]
+    Queries { source: QueryError },
 }
 
 // Select which status code to return.
-impl IntoStatusCode for NavigationTreesAPIError {
+impl IntoStatusCode for DashboardAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::Get { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Metastore { .. } 
+            | Self::Queries { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
 
 // generic
-impl IntoResponse for NavigationTreesAPIError {
+impl IntoResponse for DashboardAPIError {
     fn into_response(self) -> axum::response::Response {
         let code = self.status_code();
         let error = ErrorResponse {

@@ -15,12 +15,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod common;
-pub mod databases;
-pub mod navigation_trees;
-pub mod queries;
-pub mod schemas;
-pub mod tables;
-pub mod volumes;
-pub mod worksheets;
-pub mod dashboard;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DashboardResponse {
+    #[serde(flatten)]
+    pub(crate) data: Dashboard,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Dashboard {
+    pub total_databases: usize,
+    pub total_schemas: usize,
+    pub total_tables: usize,
+    pub total_queries: usize,
+}

@@ -14,13 +14,6 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-
-pub mod common;
-pub mod databases;
-pub mod navigation_trees;
-pub mod queries;
-pub mod schemas;
-pub mod tables;
-pub mod volumes;
-pub mod worksheets;
-pub mod dashboard;
+pub mod error;
+pub mod handlers;
+pub mod models;

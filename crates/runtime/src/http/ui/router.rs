@@ -52,6 +52,10 @@ use axum::routing::{delete, get, post};
 use axum::Router;
 use tower_http::sensitive_headers::SetSensitiveHeadersLayer;
 use utoipa::OpenApi;
+use crate::http::ui::dashboard::handlers::{
+    get_dashboard, 
+    ApiDoc as DashboardApiDoc
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -80,12 +84,14 @@ pub fn ui_open_api_spec() -> utoipa::openapi::OpenApi {
         .merge_from(WorksheetsApiDoc::openapi())
         .merge_from(QueryApiDoc::openapi())
         .merge_from(DatabasesNavigationApiDoc::openapi())
+        .merge_from(DashboardApiDoc::openapi())
 }
 
 pub fn create_router() -> Router<AppState> {
     Router::new()
         // .route("/navigation_trees", get(navigation_trees))
         .route("/navigation-trees", get(get_navigation_trees))
+        .route("/dashboard", get(get_dashboard))
         .route(
             "/databases/{databaseName}/schemas/{schemaName}",
             delete(delete_schema),
