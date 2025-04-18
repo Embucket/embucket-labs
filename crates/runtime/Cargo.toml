@@ -51,6 +51,7 @@ embucket_metastore = { version = "0.1.0", path = "../metastore" }
 embucket_utils = { version = "0.1.0", path = "../utils" }
 indexmap = { version = "2.7.1" }
 itertools = "0.14.0"
+mime_guess = "2.0.5"
 object_store = { workspace = true }
 
 
@@ -74,6 +75,7 @@ swagger = { version = "6.1", features = [
   "tls",
   "tcp",
 ] }
+tar = "0.4.44"
 time = "0.3.37"
 tokio = { workspace = true }
 tokio-stream = "0.1.17"

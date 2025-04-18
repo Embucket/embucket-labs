@@ -4,7 +4,7 @@
 CARGO ?= cargo
 
 # Default target
-all: build
+all: build_web_assets build
 
 # Build the project in debug mode
 build:
@@ -14,10 +14,13 @@ build:
 release:
 	$(CARGO) build --release
 
+# Create frontend dist.tar archive
+build_web_assets:
+	echo '(cd dist && tar -cf ../dist.tar * )'
+
 # Run tests
 test:
 	$(CARGO) test
-
 
 integration-test: build
 	cd tests && \

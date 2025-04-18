@@ -22,6 +22,7 @@ use dotenv::dotenv;
 use embucket_runtime::{
     config::{DbConfig, RuntimeConfig},
     http::config::WebConfig,
+    http::web_assets::config::StaticWebConfig,
     run_binary,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -71,11 +72,16 @@ async fn main() {
                     slatedb_prefix: slatedb_prefix.clone(),
                 },
                 web: WebConfig {
-                    host,
+                    host: host.clone(),
                     port,
-                    allow_origin,
-                    data_format: dbt_serialization_format.clone(),
+                    allow_origin: allow_origin.clone(),
+                    data_format: dbt_serialization_format,
                     iceberg_catalog_url,
+                },
+                web_assets: StaticWebConfig {
+                    host,
+                    port: 8080,
+                    allow_origin,
                 },
             };
 

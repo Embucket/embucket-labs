@@ -43,6 +43,7 @@ pub mod catalog;
 pub mod dbt;
 pub mod metastore;
 pub mod ui;
+pub mod web_assets;
 
 pub mod config;
 pub mod layers;
