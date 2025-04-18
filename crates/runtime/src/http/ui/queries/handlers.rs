@@ -29,7 +29,9 @@ use axum::{
     extract::{Query, State},
     Json,
 };
-use embucket_history::{QueryRecordActions, QueryRecord as QueryRecordItem, QueryRecordId, WorksheetId};
+use embucket_history::{
+    QueryRecord as QueryRecordItem, QueryRecordActions, QueryRecordId, WorksheetId,
+};
 use embucket_utils::iterable::IterableEntity;
 use std::collections::HashMap;
 use utoipa::OpenApi;

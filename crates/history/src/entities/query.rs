@@ -19,10 +19,10 @@ use crate::WorksheetId;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use embucket_utils::iterable::IterableEntity;
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 #[cfg(test)]
 use mockall::automock;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -52,16 +52,9 @@ pub struct QueryRecord {
 
 #[cfg_attr(test, automock)]
 pub trait QueryRecordActions {
-    fn query_start(
-        query: &str,
-        worksheet_id: Option<WorksheetId>,
-    ) -> QueryRecord;
+    fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
 
-    fn query_finished(
-        &mut self,
-        result_count: i64,
-        result: Option<String>,
-    );
+    fn query_finished(&mut self, result_count: i64, result: Option<String>);
 
     fn query_finished_with_error(&mut self, error: String);
 }
@@ -75,10 +68,7 @@ impl QueryRecord {
 
 impl QueryRecordActions for QueryRecord {
     #[must_use]
-    fn query_start(
-        query: &str,
-        worksheet_id: Option<WorksheetId>,
-    ) -> Self {
+    fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
         let start_time = Utc::now();
         // id, start_time have the same value
         Self {
@@ -95,11 +85,7 @@ impl QueryRecordActions for QueryRecord {
         }
     }
 
-    fn query_finished(
-        &mut self,
-        result_count: i64,
-        result: Option<String>,
-    ) {
+    fn query_finished(&mut self, result_count: i64, result: Option<String>) {
         self.result_count = result_count;
         self.result = result;
         self.end_time = Utc::now();

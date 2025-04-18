@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::{WorksheetId, QueryRecordId};
+use crate::{QueryRecordId, WorksheetId};
 use bytes::Bytes;
 use embucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
@@ -38,13 +38,10 @@ impl QueryRecordReference {
 
     pub fn extract_qh_key(data: &Bytes) -> Option<Bytes> {
         let pattern = b"/qh/";
-        if let Some(pos) = data.windows(pattern.len()).position(|w| w == pattern) {
-            // Slice from the start of "/qh/" to the end
-            Some(data.slice(pos..))
-        } else {
-            None
-        }
-    }    
+        data.windows(pattern.len())
+            .position(|w| w == pattern)
+            .map(|pos| data.slice(pos..))
+    }
 }
 
 impl IterableEntity for QueryRecordReference {
