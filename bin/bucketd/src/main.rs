@@ -48,6 +48,7 @@ async fn main() {
     let host = opts.host.clone().unwrap();
     let iceberg_catalog_url = opts.catalog_url.clone().unwrap();
     let port = opts.port.unwrap();
+    let web_assets_port = opts.assets_port.unwrap();
     let allow_origin = if opts.cors_enabled.unwrap_or(false) {
         opts.cors_allow_origin.clone()
     } else {
@@ -80,7 +81,7 @@ async fn main() {
                 },
                 web_assets: StaticWebConfig {
                     host,
-                    port: 8080,
+                    port: web_assets_port,
                     allow_origin,
                 },
             };

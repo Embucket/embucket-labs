@@ -14,9 +14,11 @@ build:
 release:
 	$(CARGO) build --release
 
-# Create frontend dist.tar archive
+# Create frontend dist.tar archive (temporary stub so far)
 build_web_assets:
-	echo '(cd dist && tar -cf ../dist.tar * )'
+	mkdir -p dist
+	echo 1 > dist/index.html
+	cd dist && tar -cf ../dist.tar *
 
 # Run tests
 test:
@@ -43,4 +45,4 @@ uninstall:
 
 
 # PHONY targets
-.PHONY: all build release run run-release test test-verbose clean format format-check lint doc update install uninstall bench examples
+.PHONY: all build release run run-release test test-verbose clean format format-check lint doc update install uninstall bench examples build_web_assets

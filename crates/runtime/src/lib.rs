@@ -55,7 +55,7 @@ pub async fn run_binary(
     let history = Arc::new(SlateDBWorksheetsStore::new(db));
     let app = make_app(metastore, history, &config.web)?;
 
-    tokio::spawn(async move { run_web_assets_server(&config.web_assets).await });
+    let _ = run_web_assets_server(&config.web_assets).await?;
 
     run_app(app, &config.web).await
 }

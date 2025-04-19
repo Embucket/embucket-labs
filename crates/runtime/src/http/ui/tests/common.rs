@@ -20,7 +20,6 @@
 use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::volumes::models::VolumeCreatePayload;
 use http::Method;
-use reqwest::Response;
 use serde_json::json;
 use std::net::SocketAddr;
 
@@ -87,7 +86,12 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
 
 // op list expects empty entity - stub
 // op update require two entities: t_from ,t
-pub async fn ui_test_op(addr: SocketAddr, op: Op, t_from: Option<&Entity>, t: &Entity) -> Response {
+pub async fn ui_test_op(
+    addr: SocketAddr,
+    op: Op,
+    t_from: Option<&Entity>,
+    t: &Entity,
+) -> reqwest::Response {
     let ui_url = match t_from {
         Some(t_from) => ui_op_endpoint(addr, t_from, &op),
         None => ui_op_endpoint(addr, t, &op),

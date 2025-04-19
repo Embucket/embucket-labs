@@ -113,6 +113,14 @@ pub struct CliOpts {
 
     #[arg(
         long,
+        env = "WEB_ASSETS_PORT",
+        default_value = "8080",
+        help = "Port of web assets server to bind to"
+    )]
+    pub assets_port: Option<u16>,
+
+    #[arg(
+        long,
         env = "CATALOG_URL",
         default_value = "http://127.0.0.1:3000",
         help = "Iceberg catalog url"

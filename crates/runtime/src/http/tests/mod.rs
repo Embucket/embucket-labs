@@ -15,7 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-pub mod query;
+mod query;
+mod web_assets;
 
 //#[cfg(test)]
 //pub mod router_tests;

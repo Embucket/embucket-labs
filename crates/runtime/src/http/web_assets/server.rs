@@ -20,12 +20,13 @@ use super::handler::tar_handler;
 use super::handler::WEB_ASSETS_MOUNT_PATH;
 use crate::http::{layers::make_cors_middleware, shutdown_signal};
 use axum::{routing::get, Router};
+use core::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
 pub async fn run_web_assets_server(
     config: &StaticWebConfig,
-) -> Result<(), Box<dyn std::error::Error + Send>> {
+) -> Result<SocketAddr, Box<dyn std::error::Error>> {
     let StaticWebConfig {
         host,
         port,
@@ -40,20 +41,19 @@ pub async fn run_web_assets_server(
         .layer(TraceLayer::new_for_http());
 
     if let Some(allow_origin) = allow_origin.as_ref() {
-        app = app.layer(
-            make_cors_middleware(allow_origin)
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?,
-        );
+        app = app.layer(make_cors_middleware(allow_origin)?);
     }
 
-    let listener = tokio::net::TcpListener::bind(format!("{host}:{port}"))
-        .await
-        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
+    let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
+    let addr = listener.local_addr().unwrap();
 
-    tracing::info!("Listening on {}", listener.local_addr().unwrap());
+    tracing::info!("Listening on {}", addr);
 
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)
+    tokio::spawn(async move {
+        axum::serve(listener, app)
+            .with_graceful_shutdown(shutdown_signal())
+            .await
+    });
+
+    Ok(addr)
 }
