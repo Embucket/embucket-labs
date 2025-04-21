@@ -4,7 +4,7 @@
 CARGO ?= cargo
 
 # Default target
-all: build_web_assets build
+all: build
 
 # Build the project in debug mode
 build:
@@ -13,12 +13,6 @@ build:
 # Build the project in release mode
 release:
 	$(CARGO) build --release
-
-# Create frontend dist.tar archive (temporary stub so far)
-build_web_assets:
-	mkdir -p dist
-	echo 1 > dist/index.html
-	cd dist && tar -cf ../dist.tar *
 
 # Run tests
 test:
@@ -45,4 +39,4 @@ uninstall:
 
 
 # PHONY targets
-.PHONY: all build release run run-release test test-verbose clean format format-check lint doc update install uninstall bench examples build_web_assets
+.PHONY: all build release run run-release test test-verbose clean format format-check lint doc update install uninstall bench examples

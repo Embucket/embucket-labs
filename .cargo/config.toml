@@ -1,4 +1,3 @@
 [env]
-WORKSPACE_ROOT = { value = ".", absolute = true }
-WEB_ASSETS_SOURCE_PATH = { value = "dist", relative = true }
-WEB_ASSETS_TARBALL_PATH = { value = "dist.tar", relative = true }
+WEB_ASSETS_SOURCE_PATH = { value = "ui/dist", relative = true }
+WEB_ASSETS_TARBALL_PATH = { value = "ui/dist.tar", relative = true }
