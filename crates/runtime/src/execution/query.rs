@@ -21,9 +21,7 @@ use datafusion::catalog_common::CatalogProvider;
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
-use datafusion::logical_expr::sqlparser::ast::Insert;
-use datafusion::logical_expr::LogicalPlan;
-use datafusion::logical_expr::TableSource;
+use datafusion::logical_expr::{sqlparser::ast::Insert, LogicalPlan, TableSource};
 use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
@@ -31,11 +29,8 @@ use datafusion::sql::sqlparser::ast::{
     TableFactor, TableWithJoins,
 };
 use datafusion_common::{DataFusionError, ResolvedTableReference, TableReference};
-use datafusion_expr::logical_plan::dml::DmlStatement;
-use datafusion_expr::logical_plan::dml::InsertOp;
-use datafusion_expr::logical_plan::dml::WriteOp;
-use datafusion_expr::CreateMemoryTable;
-use datafusion_expr::DdlStatement;
+use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
+use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use embucket_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
@@ -56,7 +51,6 @@ use sqlparser::ast::{
     visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind,
     MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use,
 };
-use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ops::ControlFlow;
@@ -430,30 +424,30 @@ impl UserQuery {
                 ),
             });
         };
+        let table_location = create_table_statement
+            .location
+            .clone()
+            .or_else(|| create_table_statement.base_location.clone());
 
         let new_table_ident = self.resolve_table_ident(create_table_statement.name.0.clone())?;
         create_table_statement.name = new_table_ident.clone().into();
         // We don't support transient tables for now
         create_table_statement.transient = false;
 
-        let table_location = create_table_statement
-            .location
-            .clone()
-            .or_else(|| create_table_statement.base_location.clone());
-
         // Remove all unsupported iceberg params (we already take them into account)
         create_table_statement.iceberg = false;
-        create_table_statement.external_volume = None;
         create_table_statement.base_location = None;
+        create_table_statement.external_volume = None;
         create_table_statement.catalog = None;
-
+        create_table_statement.catalog_sync = None;
+        create_table_statement.storage_serialization_policy = None;
         if let Some(ref mut query) = create_table_statement.query {
             self.update_qualify_in_query(query);
         }
-        let plan = self
-            .sql_statement_to_plan(Statement::CreateTable(create_table_statement.clone()))
-            .await?;
 
+        let plan = self
+            .get_custom_logical_plan(&create_table_statement.to_string())
+            .await?;
         let ident: MetastoreTableIdent = new_table_ident.into();
 
         let catalog = self.get_catalog(ident.database.as_str())?;
@@ -895,10 +889,9 @@ impl UserQuery {
 
         // We turn a query to SQL only to turn it back into a statement
         // TODO: revisit this pattern
-        let mut statement = state
+        let statement = state
             .sql_to_statement(query, dialect)
             .context(super::error::DataFusionSnafu)?;
-        statement = self.update_statement_references(statement)?;
 
         if let DFStatement::Statement(s) = statement.clone() {
             self.sql_statement_to_plan(*s).await
@@ -998,11 +991,7 @@ impl UserQuery {
                         inner_select.qualify = None;
                         inner_select.projection.push(SelectItem::ExprWithAlias {
                             expr: *(left.clone()),
-                            alias: Ident {
-                                value: "qualify_alias".to_string(),
-                                quote_style: None,
-                                span: Span::empty(),
-                            },
+                            alias: Ident::new("qualify_alias".to_string()),
                         });
                         let subquery = Query {
                             with: None,
@@ -1022,11 +1011,9 @@ impl UserQuery {
                             distinct: None,
                             top: None,
                             top_before_distinct: false,
-                            projection: vec![SelectItem::UnnamedExpr(Expr::Identifier(Ident {
-                                value: "*".to_string(),
-                                quote_style: None,
-                                span: Span::empty(),
-                            }))],
+                            projection: vec![SelectItem::UnnamedExpr(Expr::Identifier(
+                                Ident::new("*"),
+                            ))],
                             into: None,
                             from: vec![TableWithJoins {
                                 relation: TableFactor::Derived {
@@ -1039,11 +1026,7 @@ impl UserQuery {
                             lateral_views: vec![],
                             prewhere: None,
                             selection: Some(Expr::BinaryOp {
-                                left: Box::new(Expr::Identifier(Ident {
-                                    value: "qualify_alias".to_string(),
-                                    quote_style: None,
-                                    span: Span::empty(),
-                                })),
+                                left: Box::new(Expr::Identifier(Ident::new("qualify_alias"))),
                                 op: op.clone(),
                                 right: Box::new(*right.clone()),
                             }),
@@ -1477,30 +1460,20 @@ impl UserQuery {
                     self.update_tables_in_query(query.as_mut())?;
                     Ok(DFStatement::Statement(Box::new(Statement::Query(query))))
                 }
-                Statement::CreateTable(create_table_statement) => {
-                    if create_table_statement.query.is_some() {
-                        #[allow(clippy::unwrap_used)]
-                        let mut query = create_table_statement.query.unwrap();
-                        self.update_tables_in_query(&mut query)?;
-                        // TODO: Removing all iceberg properties is temporary solution. It should be
-                        // implemented properly in future.
-                        // https://github.com/Embucket/embucket/issues/199
-                        let modified_statement = CreateTableStatement {
-                            query: Some(query),
-                            iceberg: false,
-                            base_location: None,
-                            external_volume: None,
-                            catalog: None,
-                            catalog_sync: None,
-                            storage_serialization_policy: None,
-                            ..create_table_statement
-                        };
-                        Ok(DFStatement::Statement(Box::new(Statement::CreateTable(
-                            modified_statement,
-                        ))))
-                    } else {
-                        Ok(statement)
+                Statement::CreateTable(mut create_table_statement) => {
+                    // Remove all unsupported iceberg params (we already take them into account)
+                    create_table_statement.iceberg = false;
+                    create_table_statement.base_location = None;
+                    create_table_statement.external_volume = None;
+                    create_table_statement.catalog = None;
+                    create_table_statement.catalog_sync = None;
+                    create_table_statement.storage_serialization_policy = None;
+                    if let Some(ref mut query) = create_table_statement.query {
+                        self.update_tables_in_query(query)?;
                     }
+                    Ok(DFStatement::Statement(Box::new(Statement::CreateTable(
+                        create_table_statement,
+                    ))))
                 }
                 Statement::Update {
                     mut table,

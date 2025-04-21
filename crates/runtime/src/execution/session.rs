@@ -22,6 +22,7 @@ use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
 use super::error::{self as ex_error, ExecutionResult};
 use super::query::{QueryContext, UserQuery};
+use crate::execution::datafusion::analyzer::IcebergTypesAnalyzer;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::provider::SharedCredentialsProvider;
 use aws_credential_types::Credentials;
@@ -29,10 +30,10 @@ use datafusion::catalog_common::CatalogProvider;
 use datafusion::common::error::Result as DFResult;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::execution::SessionStateBuilder;
-use datafusion::functions::register_all;
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
+use datafusion_functions_json::register_all as register_json_udfs;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use embucket_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
@@ -80,10 +81,11 @@ impl UserSession {
             .with_catalog_list(catalog_list_impl.clone())
             .with_query_planner(Arc::new(IcebergQueryPlanner {}))
             .with_type_planner(Arc::new(CustomTypePlanner {}))
+            .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
             .build();
         let mut ctx = SessionContext::new_with_state(state);
         register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
-        register_all(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
+        register_json_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         register_geo_native(&ctx);
         register_geo_udfs(&ctx);
 
