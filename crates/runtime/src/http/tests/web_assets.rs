@@ -87,4 +87,21 @@ async fn test_web_assets_server_redirect() {
         .to_str()
         .expect("Failed to get str from Location header");
     assert_eq!(redirect, "/index.html");
+
+    // redirect from root to index.html
+    let res = client
+        .request(Method::GET, format!("http://{addr}/"))
+        .send()
+        .await
+        .expect("Failed to send request to web assets server");
+
+    assert_eq!(http::StatusCode::SEE_OTHER, res.status());
+
+    let redirect = res
+        .headers()
+        .get(header::LOCATION)
+        .expect("Location header not found")
+        .to_str()
+        .expect("Failed to get str from Location header");
+    assert_eq!(redirect, "/index.html");
 }

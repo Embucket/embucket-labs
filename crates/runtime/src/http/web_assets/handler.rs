@@ -77,6 +77,10 @@ fn get_file_from_tar(file_name: &str) -> Result<Vec<u8>> {
     ))
 }
 
+pub async fn root_handler() -> Result<Response> {
+    Ok(Redirect::to("/index.html").into_response())
+}
+
 pub async fn tar_handler(Path(path): Path<String>) -> Result<Response> {
     let file_name = path.trim_start_matches(WEB_ASSETS_MOUNT_PATH); // changeable mount path
 
