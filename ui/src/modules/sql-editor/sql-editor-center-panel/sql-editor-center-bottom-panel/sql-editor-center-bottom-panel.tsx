@@ -55,7 +55,7 @@ export function SqlEditorCenterBottomPanel({
             </div>
           </div>
           <TabsContent value="results" className="m-0">
-            <ScrollArea className="size-full">
+            <ScrollArea className="size-full max-w-[calc(100vw-256px-8px-256px-256px-16px-2px)]">
               <QueryResultDataTable columns={columns} rows={rows} isLoading={isLoading} />
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
