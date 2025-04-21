@@ -90,7 +90,7 @@ export function SqlEditorLeftPanelTableFields({ selectedTree }: TableFieldsProps
           <div key={index} className="flex items-center justify-between text-xs select-none">
             <div className="flex items-center py-2">
               <Hash className="text-foreground size-4" />
-              <span className="ml-2">{column.name}</span>
+              <span className="ml-2 max-w-32 truncate">{column.name}</span>
             </div>
             <span className="text-muted-foreground">{column.type}</span>
           </div>
