@@ -33,9 +33,9 @@ fn create_web_assets_tarball() -> Result<(), std::io::Error> {
     Ok(())
 }
 
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
 fn main() {
-    create_web_assets_tarball().unwrap();
+    create_web_assets_tarball().expect("Failed to create web assets tarball");
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed={}", env!("WEB_ASSETS_SOURCE_PATH"));
     println!(

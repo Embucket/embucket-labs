@@ -20,6 +20,7 @@ use http::Method;
 use reqwest;
 use reqwest::header;
 
+#[allow(clippy::expect_used)]
 #[tokio::test]
 async fn test_web_assets_server() {
     let addr = run_web_assets_server(&StaticWebConfig {
@@ -32,7 +33,7 @@ async fn test_web_assets_server() {
     assert!(addr.is_ok());
 
     let client = reqwest::Client::new();
-    let addr = addr.unwrap();
+    let addr = addr.expect("Failed to run web assets server");
     let res = client
         .request(Method::GET, format!("http://{addr}/index.html"))
         .send()
@@ -53,6 +54,7 @@ async fn test_web_assets_server() {
     assert!(content_length > 0);
 }
 
+#[allow(clippy::expect_used)]
 #[tokio::test]
 async fn test_web_assets_server_redirect() {
     let addr = run_web_assets_server(&StaticWebConfig {
@@ -67,9 +69,9 @@ async fn test_web_assets_server_redirect() {
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .unwrap();
+        .expect("Failed to build client for redirect");
 
-    let addr = addr.unwrap();
+    let addr = addr.expect("Failed to run web assets server");
     let res = client
         .request(Method::GET, format!("http://{addr}/deadbeaf"))
         .send()
