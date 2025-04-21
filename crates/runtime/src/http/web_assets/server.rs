@@ -16,8 +16,8 @@
 // under the License.
 
 use super::config::StaticWebConfig;
-use super::handler::tar_handler;
 use super::handler::WEB_ASSETS_MOUNT_PATH;
+use super::handler::{root_handler, tar_handler};
 use crate::http::{layers::make_cors_middleware, shutdown_signal};
 use axum::{routing::get, Router};
 use core::net::SocketAddr;
@@ -34,6 +34,7 @@ pub async fn run_web_assets_server(
     } = config;
 
     let mut app = Router::new()
+        .route(WEB_ASSETS_MOUNT_PATH, get(root_handler))
         .route(
             format!("{WEB_ASSETS_MOUNT_PATH}{{*path}}").as_str(),
             get(tar_handler),
@@ -45,9 +46,8 @@ pub async fn run_web_assets_server(
     }
 
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
-    let addr = listener.local_addr().unwrap();
-
-    tracing::info!("Listening on {}", addr);
+    let addr = listener.local_addr()?;
+    tracing::info!("Listening on http://{}", addr);
 
     tokio::spawn(async move {
         axum::serve(listener, app)

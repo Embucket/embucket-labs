@@ -95,12 +95,13 @@ pub fn make_app(
     Ok(app)
 }
 
-#[allow(clippy::unwrap_used, clippy::as_conversions)]
+#[allow(clippy::as_conversions)]
 pub async fn run_app(app: Router, config: &WebConfig) -> Result<(), Box<dyn std::error::Error>> {
     let host = config.host.clone();
     let port = config.port;
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
-    tracing::info!("Listening on {}", listener.local_addr().unwrap());
+    let addr = listener.local_addr()?;
+    tracing::info!("Listening on http://{}", addr);
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
