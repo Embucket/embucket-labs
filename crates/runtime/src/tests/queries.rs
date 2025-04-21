@@ -382,6 +382,30 @@ test_query!(select_date_add_diff, "SELECT dateadd(day, 5, '2025-06-01')");
 // test_query!(show_tables, "SHOW TABLES");
 // test_query!(show_tables_like, "SHOW TABLES LIKE '%TESTING%'");
 
+// TODO:
+// Plain CTEs just not working
+test_query!(
+    select_with_cte,
+    "
+    with sales_with_adjustment as (
+        select 'my_new_sale' name, s.* from sales s
+        qualify row_number() over (partition by product_id order by retail_price) = 1
+)
+    select sa.* from sales_with_adjustment sa"
+);
+
+// TODO: CTAS with qualify statement doesn't respect wildcard (or it doesn't recognize rewritten query wildcard)
+test_query!(
+    select_query_with_qualify,
+    "create table test_123 as (
+    with sales_with_adjustment as (
+        select 'my_new_sale' name, s.* from sales s
+        qualify row_number() over (partition by product_id order by retail_price) = 1
+)
+    select sa.* from sales_with_adjustment sa
+);"
+);
+
 // test_query!(show_views, "SHOW VIEWS");
 // test_query!(show_views_like, "SHOW VIEWS LIKE '%TESTING%'");
 
@@ -508,3 +532,31 @@ test_query!(select_date_add_diff, "SELECT dateadd(day, 5, '2025-06-01')");
 //     type_map_contains_key,
 //     "SELECT MAP_CONTAINS_KEY('key_to_find', {'my_key':'my_value'}::MAP(VARCHAR,VARCHAR));"
 // );
+
+test_query!(
+    select_information_schema,
+    "SELECT * FROM information_schema.tables"
+);
+
+test_query!(
+    show_iceberg_tables,
+    r#"select all_objects.*, is_iceberg
+      from table(result_scan(last_query_id(-1))) all_objects
+      left join INFORMATION_SCHEMA.tables as all_tables
+        on all_tables.table_name = all_objects."name"
+        and all_tables.table_schema = all_objects."schema_name"
+        and all_tables.table_catalog = all_objects."database_name""#
+);
+
+test_query!(
+    create_or_replace_iceberg_table,
+    r"create or replace iceberg table snowplow.public_snowplow_manifest.snowplow_web_base_quarantined_sessions
+    external_volume = '' catalog = '' base_location = '' as (
+    with prep as (select cast(null as TEXT) session_identifier) 
+    select * from prep where false);"
+);
+
+test_query!(
+    select_wildcard,
+    "SELECT sales.*, 1 as TEXT FROM embucket.public.sales;"
+);

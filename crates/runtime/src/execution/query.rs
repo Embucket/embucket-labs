@@ -56,7 +56,6 @@ use sqlparser::ast::{
     visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind,
     MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use,
 };
-use sqlparser::tokenizer::Span;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ops::ControlFlow;
@@ -976,6 +975,7 @@ impl UserQuery {
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query).await?;
+
         self.execute_logical_plan(plan).await
     }
 
@@ -998,11 +998,7 @@ impl UserQuery {
                         inner_select.qualify = None;
                         inner_select.projection.push(SelectItem::ExprWithAlias {
                             expr: *(left.clone()),
-                            alias: Ident {
-                                value: "qualify_alias".to_string(),
-                                quote_style: None,
-                                span: Span::empty(),
-                            },
+                            alias: Ident::new("qualify_alias"),
                         });
                         let subquery = Query {
                             with: None,
@@ -1022,11 +1018,9 @@ impl UserQuery {
                             distinct: None,
                             top: None,
                             top_before_distinct: false,
-                            projection: vec![SelectItem::UnnamedExpr(Expr::Identifier(Ident {
-                                value: "*".to_string(),
-                                quote_style: None,
-                                span: Span::empty(),
-                            }))],
+                            projection: vec![SelectItem::UnnamedExpr(Expr::Identifier(
+                                Ident::new("*"),
+                            ))],
                             into: None,
                             from: vec![TableWithJoins {
                                 relation: TableFactor::Derived {
@@ -1039,11 +1033,7 @@ impl UserQuery {
                             lateral_views: vec![],
                             prewhere: None,
                             selection: Some(Expr::BinaryOp {
-                                left: Box::new(Expr::Identifier(Ident {
-                                    value: "qualify_alias".to_string(),
-                                    quote_style: None,
-                                    span: Span::empty(),
-                                })),
+                                left: Box::new(Expr::Identifier(Ident::new("qualify_alias"))),
                                 op: op.clone(),
                                 right: Box::new(*right.clone()),
                             }),
@@ -1655,6 +1645,10 @@ impl UserQuery {
     fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor) -> ExecutionResult<()> {
         match table_factor {
             TableFactor::Table { name, .. } => {
+                // TODO This feels incorrect, we prematurely update table name to include
+                // default database and schema in case it is not FQN
+                // But this definitely leads to misbehaviour in case of CTE
+                // It shouldn't happen on AST stage, but during logical planning (where we resolve naming to TableProviders)
                 let compressed_name = self.resolve_table_ident(name.clone().0)?;
                 *name = ObjectName(compressed_name.0);
             }
