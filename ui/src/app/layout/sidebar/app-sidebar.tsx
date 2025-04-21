@@ -65,7 +65,7 @@ const sidebarNavItems: SidebarNavOption[] = [
     Icon: Activity,
   },
   {
-    name: 'Sql Editor',
+    name: 'SQL',
     linkProps: {
       to: '/sql-editor/$worksheetId',
       params: {

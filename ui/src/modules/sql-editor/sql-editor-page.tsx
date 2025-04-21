@@ -14,6 +14,7 @@ import { SqlEditorCenterPanelTabs } from './sql-editor-center-panel/sql-editor-c
 import { SqlEditorCenterPanelToolbar } from './sql-editor-center-panel/sql-editor-center-panel-toolbar';
 import { SqlEditorFooter } from './sql-editor-footer';
 import { SqlEditorLeftPanel } from './sql-editor-left-panel/sql-editor-left-panel';
+import { useSqlEditorPanelsState } from './sql-editor-panels-state-provider';
 import { SqlEditorRightPanel } from './sql-editor-right-panel/sql-editor-right-panel';
 
 // const DATA: QueryRecord = {
@@ -42,6 +43,7 @@ import { SqlEditorRightPanel } from './sql-editor-right-panel/sql-editor-right-p
 export function SqlEditorPage() {
   const [selectedQueryRecord, setSelectedQueryRecord] = useState<QueryRecord>();
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
+  const { isRightPanelExpanded, toggleRightPanel } = useSqlEditorPanelsState();
 
   const queryClient = useQueryClient();
 
@@ -60,13 +62,16 @@ export function SqlEditorPage() {
     },
   });
 
-  const handleRunQuery = (query: string) => {
-    mutateAsync({
+  const handleRunQuery = async (query: string) => {
+    await mutateAsync({
       data: {
         query,
         worksheetId: +worksheetId,
       },
     });
+    if (!isRightPanelExpanded) {
+      toggleRightPanel();
+    }
   };
 
   return (

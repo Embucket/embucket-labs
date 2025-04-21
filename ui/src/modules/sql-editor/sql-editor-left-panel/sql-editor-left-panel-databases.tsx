@@ -26,7 +26,7 @@ import type {
   NavigationTreeTable,
 } from '@/orval/models';
 
-import { CreateDatabaseDialog } from '../sql-editor-upload-dropzone/sql-editor-upload-dialog';
+import { SqlEditorUploadDialog } from '../sql-editor-upload-dropzone/sql-editor-upload-dialog';
 
 export interface SelectedTree {
   databaseName: string;
@@ -70,7 +70,7 @@ function Databases({
               >
                 <ChevronRight className="transition-transform" />
                 <Database />
-                {database.name}
+                <span className="truncate">{database.name}</span>
               </SidebarMenuButton>
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -139,7 +139,7 @@ function Schemas({
               >
                 <ChevronRight className="transition-transform" />
                 <FolderTree />
-                {schema.name}
+                <span className="truncate">{schema.name}</span>
               </SidebarMenuSubButton>
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -226,7 +226,7 @@ function Tables({
                 onMouseLeave={() => setHoveredTable(null)}
               >
                 <Table />
-                {table.name}
+                <span className="max-w-21 truncate">{table.name}</span>
               </SidebarMenuSubButton>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild className={cn(hoveredTable === table && 'visible')}>
@@ -283,7 +283,7 @@ export function SqlEditorLeftPanelDatabases({
 
   return (
     <>
-      <SidebarMenu className="w-full px-4 select-none">
+      <SidebarMenu className="w-full max-w-[256px] px-4 select-none">
         <Databases
           selectedTree={selectedTree}
           onSetSelectedTree={onSetSelectedTree}
@@ -292,7 +292,7 @@ export function SqlEditorLeftPanelDatabases({
         />
       </SidebarMenu>
       {selectedTree && (
-        <CreateDatabaseDialog
+        <SqlEditorUploadDialog
           opened={isDialogOpen}
           onSetOpened={setIsDialogOpen}
           selectedTree={selectedTree}
