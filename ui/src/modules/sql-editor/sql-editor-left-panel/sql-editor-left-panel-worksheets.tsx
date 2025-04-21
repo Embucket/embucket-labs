@@ -20,7 +20,7 @@ function Worksheets({ worksheets }: WorksheetsProps) {
                 isActive={isActive}
               >
                 <Scroll />
-                {worksheet.name}
+                <span className="truncate">{worksheet.name}</span>
               </SidebarMenuButton>
             )}
           </Link>

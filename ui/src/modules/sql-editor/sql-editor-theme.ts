@@ -78,7 +78,7 @@ const theme = EditorView.theme(
       display: 'none !important',
     },
     '.cm-completionLabel': {
-      marginLeft: '8px !important',
+      margin: '0px 8px !important',
     },
     '.cm-autocomplete-item .type': {
       marginLeft: 'auto !important',

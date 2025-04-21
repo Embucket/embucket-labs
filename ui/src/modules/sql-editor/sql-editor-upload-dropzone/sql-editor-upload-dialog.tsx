@@ -8,17 +8,17 @@ import { useUploadFile } from '@/orval/tables';
 import type { SelectedTree } from '../sql-editor-left-panel/sql-editor-left-panel-databases';
 import { TableDataUploadDropzone } from './sql-editor-upload-dropzone';
 
-interface CreateDatabaseDialogProps {
+interface SqlEditorUploadDialogProps {
   opened: boolean;
   selectedTree: SelectedTree;
   onSetOpened: (opened: boolean) => void;
 }
 
-export function CreateDatabaseDialog({
+export function SqlEditorUploadDialog({
   opened,
   onSetOpened,
   selectedTree,
-}: CreateDatabaseDialogProps) {
+}: SqlEditorUploadDialogProps) {
   const { mutate, isPending } = useUploadFile({
     mutation: {
       onSuccess: () => {
@@ -45,7 +45,7 @@ export function CreateDatabaseDialog({
           <DialogTitle>Load Data into Table</DialogTitle>
           <div className="text-muted-foreground mt-2 flex items-center gap-2 text-sm">
             <Table className="size-4" />
-            <span>
+            <span className="max-w-[500px] truncate">
               {`${selectedTree.databaseName}.${selectedTree.schemaName}.${selectedTree.tableName}`}
             </span>
           </div>
@@ -60,7 +60,7 @@ export function CreateDatabaseDialog({
           <Button disabled variant="outline" onClick={() => onSetOpened(false)}>
             Cancel
           </Button>
-          <Button disabled form="createDatabaseDialogForm" type="submit">
+          <Button disabled form="sqlEditorUploadDialogForm" type="submit">
             Upload
           </Button>
         </DialogFooter> */}
