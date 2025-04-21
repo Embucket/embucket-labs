@@ -39,6 +39,11 @@ pub struct IcebergTypesAnalyzer;
 /// columns with an explicit `CAST(... AS Int64)` expression. This ensures the input
 /// data conforms to the table schema expected by Iceberg.
 ///
+/// ⚠️ Note: Converting from `UInt64` to `Int64` may result in **integer overflow**
+/// if the original values exceed the maximum value of `Int64` (i.e., values > `i64::MAX`).
+/// This rule does not check for overflow at compile time and assumes that upstream logic
+/// ensures value safety or that overflow behavior is acceptable in the target context.
+///
 /// This is a temporary workaround until the Iceberg specification officially
 /// supports `UInt64` in a future release.
 ///
