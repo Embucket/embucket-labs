@@ -35,9 +35,16 @@ interface DataTableProps<T> {
   data: T[];
   onRowClick?: (row: T) => void;
   isLoading: boolean;
+  removeXBorders?: boolean;
 }
 
-export function DataTable<T>({ columns, data, onRowClick, isLoading }: DataTableProps<T>) {
+export function DataTable<T>({
+  columns,
+  data,
+  onRowClick,
+  isLoading,
+  removeXBorders,
+}: DataTableProps<T>) {
   const table = useReactTable({
     data,
     columns,
@@ -46,11 +53,17 @@ export function DataTable<T>({ columns, data, onRowClick, isLoading }: DataTable
 
   return (
     <Table>
-      <TableHeader>
+      <TableHeader className={cn(removeXBorders && '[&_tr]:border-x-0')}>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id} className="text-nowrap hover:bg-inherit">
             {headerGroup.headers.map((header) => (
-              <TableHead key={header.id} className={header.column.columnDef.meta?.headerClassName}>
+              <TableHead
+                key={header.id}
+                className={cn(
+                  removeXBorders && '[&:not(:last-child)]:border-l-0',
+                  header.column.columnDef.meta?.headerClassName,
+                )}
+              >
                 {flexRender(header.column.columnDef.header, header.getContext())}
               </TableHead>
             ))}
@@ -71,7 +84,13 @@ export function DataTable<T>({ columns, data, onRowClick, isLoading }: DataTable
               data-state={row.getIsSelected() && 'selected'}
             >
               {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id} className={cell.column.columnDef.meta?.cellClassName}>
+                <TableCell
+                  key={cell.id}
+                  className={cn(
+                    removeXBorders && 'border-r-0 [&:not(:last-child)]:border-l-0',
+                    cell.column.columnDef.meta?.cellClassName,
+                  )}
+                >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}

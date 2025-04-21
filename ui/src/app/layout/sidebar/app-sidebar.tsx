@@ -64,6 +64,9 @@ const sidebarNavItems: SidebarNavOption[] = [
     },
     Icon: Activity,
   },
+];
+
+const sqlNavItems: SidebarNavOption[] = [
   {
     name: 'Sql Editor',
     linkProps: {
@@ -95,6 +98,37 @@ const helpNavItems: SidebarNavOption[] = [
   },
 ];
 
+function SidebarGroupComponent({ items, open }: { items: SidebarNavOption[]; open: boolean }) {
+  return (
+    <SidebarGroup>
+      <SidebarGroupContent className="px-0">
+        <SidebarMenu>
+          {items.map((item) => (
+            <SidebarMenuItem key={item.name}>
+              <Link to={item.linkProps.to} disabled={item.disabled} className="cursor-auto">
+                {({ isActive }) => (
+                  <SidebarMenuButton
+                    disabled={item.disabled}
+                    className={cn(!isActive && 'hover:bg-sidebar-secondary-accent!', 'text-nowrap')}
+                    tooltip={{
+                      children: item.name,
+                      hidden: open,
+                    }}
+                    isActive={isActive}
+                  >
+                    <item.Icon />
+                    {item.name}
+                  </SidebarMenuButton>
+                )}
+              </Link>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { open } = useSidebar();
 
@@ -120,64 +154,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent className="px-0">
-            <SidebarMenu>
-              {sidebarNavItems.map((item) => (
-                <SidebarMenuItem key={item.name}>
-                  <Link to={item.linkProps.to} className="cursor-auto">
-                    {({ isActive }) => (
-                      <SidebarMenuButton
-                        disabled={item.disabled}
-                        className={cn(
-                          !isActive && 'hover:bg-sidebar-secondary-accent!',
-                          'text-nowrap',
-                        )}
-                        tooltip={{
-                          children: item.name,
-                          hidden: open,
-                        }}
-                        isActive={isActive}
-                      >
-                        <item.Icon />
-                        {item.name}
-                      </SidebarMenuButton>
-                    )}
-                  </Link>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupContent className="px-0">
-            <SidebarMenu>
-              {helpNavItems.map((item) => (
-                <SidebarMenuItem key={item.name}>
-                  <Link to={item.linkProps.to} className="cursor-auto">
-                    {({ isActive }) => (
-                      <SidebarMenuButton
-                        disabled={item.disabled}
-                        className={cn(
-                          !isActive && 'hover:bg-sidebar-secondary-accent!',
-                          'text-nowrap',
-                        )}
-                        tooltip={{
-                          children: item.name,
-                          hidden: false,
-                        }}
-                        isActive={isActive}
-                      >
-                        <item.Icon />
-                        {item.name}
-                      </SidebarMenuButton>
-                    )}
-                  </Link>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarGroupComponent items={sidebarNavItems} open={open} />
+        <SidebarGroupComponent items={sqlNavItems} open={open} />
+        <SidebarGroupComponent items={helpNavItems} open={open} />
         {!open && (
           <SidebarGroup>
             <SidebarGroupContent>

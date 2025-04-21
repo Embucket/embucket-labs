@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0.2
  */
 import type { I64 } from './i64';
+import type { QueryRecordWorksheetId } from './queryRecordWorksheetId';
 import type { QueryStatus } from './queryStatus';
 import type { ResultSet } from './resultSet';
 
@@ -19,5 +20,5 @@ export interface QueryRecord {
   resultCount: number;
   startTime: string;
   status: QueryStatus;
-  worksheetId: I64;
+  worksheetId?: QueryRecordWorksheetId;
 }
