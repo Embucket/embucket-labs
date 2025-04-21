@@ -75,7 +75,7 @@ swagger = { version = "6.1", features = [
   "tls",
   "tcp",
 ] }
-tar = "0.4.44"
+tar = { workspace = true }
 time = "0.3.37"
 tokio = { workspace = true }
 tokio-stream = "0.1.17"

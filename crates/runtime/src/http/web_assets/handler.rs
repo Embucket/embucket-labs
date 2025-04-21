@@ -31,8 +31,7 @@ use std::io::Cursor;
 use std::io::Read;
 
 // Alternative to using tarball is the rust-embed package
-
-const WEB_ASSETS_TARBALL: &[u8] = include_bytes!("../../../../../dist.tar");
+const WEB_ASSETS_TARBALL: &[u8] = include_bytes!(env!("WEB_ASSETS_TARBALL_PATH"));
 pub const WEB_ASSETS_MOUNT_PATH: &str = "/";
 
 fn get_file_from_tar(file_name: &str) -> Result<Vec<u8>> {
