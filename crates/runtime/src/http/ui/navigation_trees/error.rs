@@ -28,41 +28,15 @@ pub type NavigationTreesResult<T> = Result<T, NavigationTreesAPIError>;
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
 pub enum NavigationTreesAPIError {
-    // #[snafu(display("Create table error: {source}"))]
-    // Create { source: MetastoreError },
-    #[snafu(display("Get table error: {source}"))]
+    #[snafu(display("Get navigation trees error: {source}"))]
     Get { source: MetastoreError },
-    // #[snafu(display("Delete table error: {source}"))]
-    // Delete { source: MetastoreError },
-    // #[snafu(display("Update table error: {source}"))]
-    // Update { source: MetastoreError },
-    // #[snafu(display("Get table error: {source}"))]
-    // List { source: MetastoreError },
 }
 
 // Select which status code to return.
 impl IntoStatusCode for NavigationTreesAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
-            // Self::Create { source } => match &source {
-            //     MetastoreError::SchemaAlreadyExists { .. }
-            //     | MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
-            //     MetastoreError::DatabaseNotFound { .. } | MetastoreError::Validation { .. } => {
-            //         StatusCode::BAD_REQUEST
-            //     }
-            //     _ => StatusCode::INTERNAL_SERVER_ERROR,
-            // },
             Self::Get { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            // Self::Delete { source } => match &source {
-            //     MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
-            //     _ => StatusCode::INTERNAL_SERVER_ERROR,
-            // },
-            // Self::Update { source } => match &source {
-            //     MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
-            //     MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
-            //     _ => StatusCode::INTERNAL_SERVER_ERROR,
-            // },
-            // Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

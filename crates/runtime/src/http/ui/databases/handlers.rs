@@ -32,7 +32,7 @@ use axum::{
 };
 use embucket_metastore::error::MetastoreError;
 use embucket_metastore::Database as MetastoreDatabase;
-use embucket_utils::list_config::ListConfig;
+use embucket_utils::scan_iterator::ScanIterator;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -211,13 +211,15 @@ pub async fn list_databases(
 ) -> DatabasesResult<Json<DatabasesResponse>> {
     state
         .metastore
-        .list_databases(ListConfig::new(
-            parameters.cursor.clone(),
-            parameters.limit,
-            parameters.search,
-        ))
+        .iter_databases()
+        .cursor(parameters.cursor.clone())
+        .limit(parameters.limit)
+        .token(parameters.search)
+        .collect()
         .await
-        .map_err(|e| DatabasesAPIError::List { source: e })
+        .map_err(|e| DatabasesAPIError::List {
+            source: MetastoreError::UtilSlateDB { source: e },
+        })
         .map(|o| {
             let next_cursor = o
                 .iter()

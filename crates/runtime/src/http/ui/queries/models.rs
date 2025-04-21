@@ -117,7 +117,8 @@ pub struct QueryCreateResponse {
 #[serde(rename_all = "camelCase")]
 pub struct QueryRecord {
     pub id: QueryRecordId,
-    pub worksheet_id: WorksheetId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub worksheet_id: Option<WorksheetId>,
     pub query: String,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,

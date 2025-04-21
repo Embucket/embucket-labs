@@ -52,7 +52,7 @@ async fn test_ui_queries_no_worksheet() {
     let res = req(
         &client,
         Method::GET,
-        &format!("http://{addr}/ui/queries?worksheetId={}", 0),
+        &format!("http://{addr}/ui/queries"),
         String::new(),
     )
     .await
@@ -95,7 +95,7 @@ async fn test_ui_queries() {
     .unwrap();
     assert_eq!(http::StatusCode::METHOD_NOT_ALLOWED, res.status());
 
-    // Bad key - not found
+    // Bad payload
     let res = req(
         &client,
         Method::POST,
@@ -236,9 +236,9 @@ async fn test_ui_queries() {
     // println!("{:?}", res.bytes().await);
     let history_resp = res.json::<QueriesResponse>().await.unwrap();
     assert_eq!(history_resp.items.len(), 2);
-    assert_eq!(history_resp.items[0].status, QueryStatus::Ok);
+    assert_eq!(history_resp.items[0].status, QueryStatus::Successful);
     assert_eq!(history_resp.items[0].result, query_run_resp.data.result);
-    assert_eq!(history_resp.items[1].status, QueryStatus::Ok);
+    assert_eq!(history_resp.items[1].status, QueryStatus::Successful);
     assert_eq!(history_resp.items[1].result, query_run_resp2.data.result);
 
     // get rest
@@ -257,6 +257,6 @@ async fn test_ui_queries() {
     // println!("{:?}", res.bytes().await);
     let history_resp = res.json::<QueriesResponse>().await.unwrap();
     assert_eq!(history_resp.items.len(), 2);
-    assert_eq!(history_resp.items[0].status, QueryStatus::Error);
-    assert_eq!(history_resp.items[1].status, QueryStatus::Error);
+    assert_eq!(history_resp.items[0].status, QueryStatus::Failed);
+    assert_eq!(history_resp.items[1].status, QueryStatus::Failed);
 }

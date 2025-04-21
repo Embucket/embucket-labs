@@ -29,7 +29,9 @@ use axum::{
     extract::{Query, State},
     Json,
 };
-use embucket_history::{QueryRecord as QueryRecordItem, QueryRecordId, WorksheetId};
+use embucket_history::{
+    QueryRecord as QueryRecordItem, QueryRecordActions, QueryRecordId, WorksheetId,
+};
 use embucket_utils::iterable::IterableEntity;
 use std::collections::HashMap;
 use utoipa::OpenApi;
@@ -90,11 +92,7 @@ pub async fn query(
 ) -> QueriesResult<Json<QueryCreateResponse>> {
     //
     // Note: This handler allowed to return error from a designated place only,
-    // after query record successfull saved result or error.
-
-    // Here we use worksheet_id = 0 if worksheet_id is not defined,
-    // we still can get queries records for non existing worksheet
-    let worksheet_id = payload.worksheet_id.unwrap_or_default();
+    // after query record successfuly saved result or error.
 
     let query_context = ExecutionContext {
         database: payload
@@ -107,9 +105,7 @@ pub async fn query(
             .and_then(|c| c.get("schema").cloned()),
     };
 
-    // TODO: save query record even if no related worksheet
-    let mut query_record = QueryRecordItem::query_start(worksheet_id, &payload.query, None);
-
+    let mut query_record = QueryRecordItem::query_start(&payload.query, payload.worksheet_id);
     let query_res = state
         .execution_svc
         .query(&session_id, &payload.query, query_context)
@@ -124,7 +120,7 @@ pub async fn query(
 
                     if let Ok(encoded_res) = encoded_res {
                         let result_count = i64::try_from(records.len()).unwrap_or(0);
-                        query_record.query_finished(result_count, Some(encoded_res), None);
+                        query_record.query_finished(result_count, Some(encoded_res));
                     }
                     // failed to wrap query results
                     else if let Err(err) = encoded_res {
@@ -183,13 +179,9 @@ pub async fn queries(
     Query(params): Query<GetQueriesParams>,
     State(state): State<AppState>,
 ) -> QueriesResult<Json<QueriesResponse>> {
-    // Here we use worksheet_id = 0 if worksheet_id is not defined,
-    // we still can get queries records for non existing worksheet
-    let worksheet_id = params.worksheet_id.unwrap_or_default();
-
     let result = state
         .history
-        .get_queries(worksheet_id, params.cursor, params.limit)
+        .get_queries(params.worksheet_id, params.cursor, params.limit)
         .await;
 
     match result {

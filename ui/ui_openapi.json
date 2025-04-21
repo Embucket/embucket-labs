@@ -1,0 +1,1351 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UI Router API",
+    "description": "Defines the specification for the UI Catalog API",
+    "contact": { "name": "Embucket, Inc.", "url": "https://embucket.com" },
+    "license": { "name": "Apache 2.0", "url": "https://www.apache.org/licenses/LICENSE-2.0.html" },
+    "version": "1.0.2"
+  },
+  "paths": {
+    "/ui/databases": {
+      "get": {
+        "tags": ["databases"],
+        "operationId": "getDatabases",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Databases cursor",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Databases limit",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0 }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Databases search (start with)",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/DatabasesResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["databases"],
+        "operationId": "createDatabase",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DatabaseCreatePayload" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DatabaseCreateResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "409": {
+            "description": "Already Exists",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/databases/{databaseName}": {
+      "get": {
+        "tags": ["databases"],
+        "operationId": "getDatabase",
+        "parameters": [
+          {
+            "name": "databaseName",
+            "in": "path",
+            "description": "Database name",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/DatabaseResponse" } }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["databases"],
+        "operationId": "deleteDatabase",
+        "parameters": [
+          {
+            "name": "databaseName",
+            "in": "path",
+            "description": "Database name",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response" },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/databases/{databaseName}/schemas": {
+      "get": {
+        "tags": ["schemas"],
+        "operationId": "getSchemas",
+        "parameters": [
+          {
+            "name": "databaseName",
+            "in": "path",
+            "description": "Database Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Schemas cursor",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Schemas limit",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0 }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Schemas search (start with)",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SchemasResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["schemas"],
+        "operationId": "createSchema",
+        "parameters": [
+          {
+            "name": "databaseName",
+            "in": "path",
+            "description": "Database Name",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/SchemaCreatePayload" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SchemaCreateResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/databases/{databaseName}/schemas/{schemaName}": {
+      "delete": {
+        "tags": ["schemas"],
+        "operationId": "deleteSchema",
+        "parameters": [
+          {
+            "name": "databaseName",
+            "in": "path",
+            "description": "Database Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "schemaName",
+            "in": "path",
+            "description": "Schema Name",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "404": {
+            "description": "Schema not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns": {
+      "get": {
+        "tags": ["tables"],
+        "operationId": "getTableColumns",
+        "parameters": [
+          {
+            "name": "databaseName",
+            "in": "path",
+            "description": "Database Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "schemaName",
+            "in": "path",
+            "description": "Schema Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "tableName",
+            "in": "path",
+            "description": "Table Name",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TableColumnsResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Table not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows": {
+      "get": {
+        "tags": ["tables"],
+        "operationId": "getTablePreviewData",
+        "parameters": [
+          {
+            "name": "databaseName",
+            "in": "path",
+            "description": "Database Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "schemaName",
+            "in": "path",
+            "description": "Schema Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "tableName",
+            "in": "path",
+            "description": "Table Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Table preview offset",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Table preview limit",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TablePreviewDataResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Table not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["tables"],
+        "operationId": "uploadFile",
+        "parameters": [
+          {
+            "name": "databaseName",
+            "in": "path",
+            "description": "Database Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "schemaName",
+            "in": "path",
+            "description": "Schema Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "tableName",
+            "in": "path",
+            "description": "Table Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "header",
+            "in": "query",
+            "description": "Has header",
+            "required": false,
+            "schema": { "type": "boolean" },
+            "example": true
+          },
+          {
+            "name": "delimiter",
+            "in": "query",
+            "description": "an optional column delimiter, defaults to comma `','`",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          {
+            "name": "escape",
+            "in": "query",
+            "description": "an escape character",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          {
+            "name": "quote",
+            "in": "query",
+            "description": "a custom quote character, defaults to double quote `'\"'`",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          {
+            "name": "terminator",
+            "in": "query",
+            "description": "a custom terminator character, defaults to CRLF",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          {
+            "name": "comment",
+            "in": "query",
+            "description": "a comment character",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          }
+        ],
+        "requestBody": {
+          "description": "Upload data to the table in multipart/form-data format",
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/TableUploadPayload" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TableUploadResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "409": {
+            "description": "Already exists",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Unprocessable content",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/statistics": {
+      "get": {
+        "tags": ["tables"],
+        "operationId": "getTableStatistics",
+        "parameters": [
+          {
+            "name": "databaseName",
+            "in": "path",
+            "description": "Database Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "schemaName",
+            "in": "path",
+            "description": "Schema Name",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "tableName",
+            "in": "path",
+            "description": "Table Name",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TableStatisticsResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Table not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/navigation-trees": {
+      "get": {
+        "tags": ["navigation-trees"],
+        "operationId": "getNavigationTrees",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Navigation trees cursor",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Navigation trees limit",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NavigationTreesResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/queries": {
+      "get": {
+        "tags": ["queries"],
+        "operationId": "getQueries",
+        "parameters": [
+          {
+            "name": "worksheetId",
+            "in": "query",
+            "description": "Worksheet id",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/i64" }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Cursor",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/i64" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Queries limit",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns queries history",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/QueriesResponse" } }
+            }
+          },
+          "400": {
+            "description": "Bad worksheet key",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["queries"],
+        "operationId": "createQuery",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/QueryCreatePayload" },
+              "examples": {
+                "with context": {
+                  "value": {
+                    "context": { "database": "my_database", "schema": "public" },
+                    "query": "CREATE TABLE test(a INT);",
+                    "worksheetId": null
+                  }
+                },
+                "with fully qualified name": {
+                  "value": {
+                    "context": null,
+                    "query": "CREATE TABLE my_database.public.test(a INT);",
+                    "worksheetId": null
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Returns result of the query",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QueryCreateResponse" }
+              }
+            }
+          },
+          "409": {
+            "description": "Bad request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/volumes": {
+      "get": {
+        "tags": ["volumes"],
+        "operationId": "getVolumes",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Volumes cursor",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Volumes limit",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0 }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Volumes search (start with)",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/VolumesResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/volumes/{volumeName}": {
+      "get": {
+        "tags": ["volumes"],
+        "operationId": "getVolume",
+        "parameters": [
+          {
+            "name": "volumeName",
+            "in": "path",
+            "description": "Volume name",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/VolumeResponse" } }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/worksheets": {
+      "get": {
+        "tags": ["worksheets"],
+        "operationId": "getWorksheets",
+        "responses": {
+          "200": {
+            "description": "Get list of worksheets",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WorksheetsResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["worksheets"],
+        "operationId": "createWorksheet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WorksheetCreatePayload" },
+              "examples": {
+                "empty name": { "value": { "content": "select 1", "name": "" } },
+                "with name": { "value": { "content": "select 1", "name": "worksheet1" } }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Created worksheet",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WorksheetCreateResponse" }
+              }
+            }
+          },
+          "409": {
+            "description": "Already Exists",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": { "description": "Unprocessable Entity" },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/ui/worksheets/{worksheetId}": {
+      "get": {
+        "tags": ["worksheets"],
+        "operationId": "getWorksheet",
+        "parameters": [
+          {
+            "name": "worksheetId",
+            "in": "path",
+            "description": "Worksheet id",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/i64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns worksheet",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WorksheetResponse" } }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Worksheet not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["worksheets"],
+        "operationId": "deleteWorksheet",
+        "parameters": [
+          {
+            "name": "worksheetId",
+            "in": "path",
+            "description": "Worksheet id",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/i64" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Worksheet deleted" },
+          "404": {
+            "description": "Worksheet not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["worksheets"],
+        "operationId": "updateWorksheet",
+        "parameters": [
+          {
+            "name": "worksheetId",
+            "in": "path",
+            "description": "Worksheet id",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/i64" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WorksheetUpdatePayload" },
+              "examples": {
+                "rename": { "value": { "name": "new-worksheet" } },
+                "update content": { "value": { "content": "SELECT * from test;" } }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": { "description": "Worksheet updated" },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Worksheet not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AwsAccessKeyCredentials": {
+        "type": "object",
+        "required": ["aws-access-key-id", "aws-secret-access-key"],
+        "properties": {
+          "aws-access-key-id": { "type": "string" },
+          "aws-secret-access-key": { "type": "string" }
+        }
+      },
+      "AwsCredentials": {
+        "oneOf": [
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/AwsAccessKeyCredentials" },
+              {
+                "type": "object",
+                "required": ["credential_type"],
+                "properties": { "credential_type": { "type": "string", "enum": ["access_key"] } }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "required": ["credential_type"],
+            "properties": { "credential_type": { "type": "string", "enum": ["token"] } }
+          }
+        ]
+      },
+      "Column": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": { "name": { "type": "string" }, "type": { "type": "string" } }
+      },
+      "Database": {
+        "type": "object",
+        "required": ["name", "volume"],
+        "properties": { "name": { "type": "string" }, "volume": { "type": "string" } }
+      },
+      "DatabaseCreatePayload": { "allOf": [{ "$ref": "#/components/schemas/Database" }] },
+      "DatabaseCreateResponse": { "allOf": [{ "$ref": "#/components/schemas/Database" }] },
+      "DatabaseResponse": { "allOf": [{ "$ref": "#/components/schemas/Database" }] },
+      "DatabasesResponse": {
+        "type": "object",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "currentCursor": { "type": ["string", "null"] },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Database" } },
+          "nextCursor": { "type": "string" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["message", "status_code"],
+        "properties": {
+          "message": { "type": "string" },
+          "status_code": { "type": "integer", "format": "int32", "minimum": 0 }
+        }
+      },
+      "FileVolume": {
+        "type": "object",
+        "required": ["path"],
+        "properties": { "path": { "type": "string" } }
+      },
+      "NavigationTreeDatabase": {
+        "type": "object",
+        "required": ["name", "schemas"],
+        "properties": {
+          "name": { "type": "string" },
+          "schemas": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/NavigationTreeSchema" }
+          }
+        }
+      },
+      "NavigationTreeSchema": {
+        "type": "object",
+        "required": ["name", "tables"],
+        "properties": {
+          "name": { "type": "string" },
+          "tables": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/NavigationTreeTable" }
+          }
+        }
+      },
+      "NavigationTreeTable": {
+        "type": "object",
+        "required": ["name"],
+        "properties": { "name": { "type": "string" } }
+      },
+      "NavigationTreesResponse": {
+        "type": "object",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "currentCursor": { "type": ["string", "null"] },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/NavigationTreeDatabase" }
+          },
+          "nextCursor": { "type": "string" }
+        }
+      },
+      "QueriesResponse": {
+        "type": "object",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "currentCursor": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/i64" }]
+          },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/QueryRecord" } },
+          "nextCursor": { "$ref": "#/components/schemas/i64" }
+        }
+      },
+      "QueryCreatePayload": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "context": {
+            "type": ["object", "null"],
+            "additionalProperties": { "type": "string" },
+            "propertyNames": { "type": "string" }
+          },
+          "query": { "type": "string" },
+          "worksheetId": { "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/i64" }] }
+        }
+      },
+      "QueryCreateResponse": { "allOf": [{ "$ref": "#/components/schemas/QueryRecord" }] },
+      "QueryRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "worksheetId",
+          "query",
+          "startTime",
+          "endTime",
+          "durationMs",
+          "resultCount",
+          "result",
+          "status",
+          "error"
+        ],
+        "properties": {
+          "durationMs": { "type": "integer", "format": "int64" },
+          "endTime": { "type": "string", "format": "date-time" },
+          "error": { "type": "string" },
+          "id": { "$ref": "#/components/schemas/i64" },
+          "query": { "type": "string" },
+          "result": { "$ref": "#/components/schemas/ResultSet" },
+          "resultCount": { "type": "integer", "format": "int64" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "status": { "$ref": "#/components/schemas/QueryStatus" },
+          "worksheetId": { "$ref": "#/components/schemas/i64" }
+        }
+      },
+      "QueryStatus": { "type": "string", "enum": ["Ok", "Error"] },
+      "ResultSet": {
+        "type": "object",
+        "required": ["columns", "rows"],
+        "properties": {
+          "columns": { "type": "array", "items": { "$ref": "#/components/schemas/Column" } },
+          "rows": { "type": "array", "items": { "$ref": "#/components/schemas/Row" } }
+        }
+      },
+      "Row": { "type": "array", "items": {} },
+      "S3TablesVolume": {
+        "type": "object",
+        "required": ["region", "endpoint", "credentials", "name", "arn"],
+        "properties": {
+          "arn": { "type": "string" },
+          "bucket": { "type": ["string", "null"] },
+          "credentials": { "$ref": "#/components/schemas/AwsCredentials" },
+          "endpoint": { "type": "string" },
+          "name": { "type": "string" },
+          "region": { "type": "string" }
+        }
+      },
+      "S3Volume": {
+        "type": "object",
+        "properties": {
+          "bucket": { "type": ["string", "null"] },
+          "credentials": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/AwsCredentials" }]
+          },
+          "endpoint": { "type": ["string", "null"] },
+          "metadata_endpoint": { "type": ["string", "null"] },
+          "region": { "type": ["string", "null"] },
+          "skip_signature": { "type": ["boolean", "null"] }
+        }
+      },
+      "Schema": {
+        "type": "object",
+        "required": ["name", "database", "created_at", "updated_at"],
+        "properties": {
+          "created_at": { "type": "string", "format": "date-time" },
+          "database": { "type": "string" },
+          "name": { "type": "string" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SchemaCreatePayload": {
+        "type": "object",
+        "required": ["name"],
+        "properties": { "name": { "type": "string" } }
+      },
+      "SchemaCreateResponse": { "allOf": [{ "$ref": "#/components/schemas/Schema" }] },
+      "SchemasResponse": {
+        "type": "object",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "currentCursor": { "type": ["string", "null"] },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Schema" } },
+          "nextCursor": { "type": "string" }
+        }
+      },
+      "TableColumn": {
+        "type": "object",
+        "required": ["name", "type", "description", "nullable", "default"],
+        "properties": {
+          "default": { "type": "string" },
+          "description": { "type": "string" },
+          "name": { "type": "string" },
+          "nullable": { "type": "string" },
+          "type": { "type": "string" }
+        }
+      },
+      "TableColumnsResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/TableColumn" } }
+        }
+      },
+      "TablePreviewDataColumn": {
+        "type": "object",
+        "required": ["name", "rows"],
+        "properties": {
+          "name": { "type": "string" },
+          "rows": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TablePreviewDataRow" }
+          }
+        }
+      },
+      "TablePreviewDataResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TablePreviewDataColumn" }
+          }
+        }
+      },
+      "TablePreviewDataRow": {
+        "type": "object",
+        "required": ["data"],
+        "properties": { "data": { "type": "string" } }
+      },
+      "TableStatistics": {
+        "type": "object",
+        "required": ["name", "totalRows", "totalBytes", "createdAt", "updatedAt"],
+        "properties": {
+          "createdAt": { "type": "string", "format": "date-time" },
+          "name": { "type": "string" },
+          "totalBytes": { "type": "integer", "format": "int64" },
+          "totalRows": { "type": "integer", "format": "int64" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "TableStatisticsResponse": { "allOf": [{ "$ref": "#/components/schemas/TableStatistics" }] },
+      "TableUploadPayload": {
+        "type": "object",
+        "required": ["uploadFile"],
+        "properties": { "uploadFile": { "type": "string", "format": "binary" } }
+      },
+      "TableUploadResponse": {
+        "type": "object",
+        "required": ["count", "durationMs"],
+        "properties": {
+          "count": { "type": "integer", "minimum": 0 },
+          "durationMs": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "UploadParameters": {
+        "type": "object",
+        "properties": {
+          "comment": { "type": ["integer", "null"], "format": "int32", "minimum": 0 },
+          "delimiter": { "type": ["integer", "null"], "format": "int32", "minimum": 0 },
+          "escape": { "type": ["integer", "null"], "format": "int32", "minimum": 0 },
+          "header": { "type": ["boolean", "null"] },
+          "quote": { "type": ["integer", "null"], "format": "int32", "minimum": 0 },
+          "terminator": { "type": ["integer", "null"], "format": "int32", "minimum": 0 }
+        }
+      },
+      "Volume": {
+        "allOf": [
+          { "$ref": "#/components/schemas/VolumeType" },
+          { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" } } }
+        ]
+      },
+      "VolumeResponse": { "allOf": [{ "$ref": "#/components/schemas/Volume" }] },
+      "VolumeType": {
+        "oneOf": [
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/S3Volume" },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": { "type": { "type": "string", "enum": ["s3"] } }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/S3TablesVolume" },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": { "type": { "type": "string", "enum": ["s3Tables"] } }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/FileVolume" },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": { "type": { "type": "string", "enum": ["file"] } }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "type": "string", "enum": ["memory"] } }
+          }
+        ]
+      },
+      "VolumesResponse": {
+        "type": "object",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "currentCursor": { "type": ["string", "null"] },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Volume" } },
+          "nextCursor": { "type": "string" }
+        }
+      },
+      "Worksheet": {
+        "type": "object",
+        "required": ["id", "name", "content", "createdAt", "updatedAt"],
+        "properties": {
+          "content": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "id": { "$ref": "#/components/schemas/i64" },
+          "name": { "type": "string" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "WorksheetCreatePayload": {
+        "type": "object",
+        "required": ["name", "content"],
+        "properties": { "content": { "type": "string" }, "name": { "type": "string" } }
+      },
+      "WorksheetCreateResponse": { "allOf": [{ "$ref": "#/components/schemas/Worksheet" }] },
+      "WorksheetResponse": { "allOf": [{ "$ref": "#/components/schemas/Worksheet" }] },
+      "WorksheetUpdatePayload": {
+        "type": "object",
+        "properties": {
+          "content": { "type": ["string", "null"] },
+          "name": { "type": ["string", "null"] }
+        }
+      },
+      "WorksheetsResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Worksheet" } }
+        }
+      },
+      "i64": { "type": "integer", "format": "int64" }
+    }
+  },
+  "tags": [
+    { "name": "volumes", "description": "Volumes endpoints" },
+    { "name": "databases", "description": "Databases endpoints" },
+    { "name": "schemas", "description": "Schemas endpoints" },
+    { "name": "tables", "description": "Tables endpoints." },
+    { "name": "worksheets", "description": "Worksheets endpoints" },
+    { "name": "queries", "description": "Queries endpoints" },
+    { "name": "navigation-trees", "description": "Navigation trees endpoints." }
+  ]
+}

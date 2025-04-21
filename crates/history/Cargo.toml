@@ -20,6 +20,7 @@ async-trait = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true }
 object_store = { workspace = true }
+mockall = "0.13.1"
 
 [lints]
 workspace = true

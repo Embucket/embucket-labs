@@ -20,13 +20,13 @@ pub mod error;
 // pub mod old_models;
 pub mod router;
 
+pub mod dashboard;
 pub mod databases;
+pub mod navigation_trees;
 pub mod queries;
 pub mod schemas;
 pub mod tables;
-pub mod volumes;
-pub mod worksheets;
-
-pub mod navigation_trees;
 #[cfg(test)]
 pub mod tests;
+pub mod volumes;
+pub mod worksheets;

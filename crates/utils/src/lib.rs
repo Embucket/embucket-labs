@@ -16,9 +16,9 @@
 // under the License.
 
 pub mod iterable;
-pub mod list_config;
+pub mod scan_iterator;
 
-use crate::list_config::ListConfig;
+use crate::scan_iterator::{ScanIterator, VecScanIterator};
 use async_trait::async_trait;
 use bytes::Bytes;
 use iterable::IterableEntity;
@@ -35,7 +35,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Snafu, Debug)]
-//#[snafu(visibility(pub(crate)))]
+#[snafu(visibility(pub))]
 pub enum Error {
     #[snafu(display("SlateDB error: {source}"))]
     Database { source: SlateDBError },
@@ -141,47 +141,55 @@ impl Db {
         )
     }
 
-    /// Retrieves a list of objects from the database.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `DbError` if the underlying database operation fails.
-    /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
-    #[allow(clippy::unwrap_used)]
-    pub async fn list_objects<T: Send + for<'de> serde::de::Deserialize<'de>>(
+    // /// Retrieves a list of objects from the database.
+    // ///
+    // /// # Errors
+    // ///
+    // /// Returns a `DbError` if the underlying database operation fails.
+    // /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
+    // #[allow(clippy::unwrap_used)]
+    // pub async fn list_objects<T: Send + for<'de> serde::de::Deserialize<'de>>(
+    //     &self,
+    //     key: &str,
+    //     list_config: ListConfig,
+    // ) -> Result<Vec<T>> {
+    //     //We can look with respect to limit
+    //     // from start to end (full scan),
+    //     // from starts_with to start_with (search),
+    //     // from cursor to end (looking not from the start)
+    //     // and from cursor to prefix (search without starting at the start and looking to the end (no full scan))
+    //     // more info in `list_config` file
+    //     let start = list_config.token.clone().map_or_else(
+    //         || format!("{key}/"),
+    //         |search_prefix| format!("{key}/{search_prefix}"),
+    //     );
+    //     let start = list_config
+    //         .cursor
+    //         .map_or_else(|| start, |cursor| format!("{key}/{cursor}\x00"));
+    //     let end = list_config.token.map_or_else(
+    //         || format!("{key}/\x7F"),
+    //         |search_prefix| format!("{key}/{search_prefix}\x7F"),
+    //     );
+    //     let range = Bytes::from(start)..Bytes::from(end);
+    //     let limit = list_config.limit.unwrap_or(usize::MAX);
+    //     let mut iter = self.0.scan(range).await.context(ScanFailedSnafu)?;
+    //     let mut objects: Vec<T> = vec![];
+    //     while let Ok(Some(value)) = iter.next().await {
+    //         let value = de::from_slice(&value.value).context(DeserializeValueSnafu)?;
+    //         objects.push(value);
+    //         if objects.len() >= limit {
+    //             break;
+    //         }
+    //     }
+    //     Ok(objects)
+    // }
+
+    #[must_use]
+    pub fn iter_objects<T: Send + for<'de> serde::de::Deserialize<'de>>(
         &self,
-        key: &str,
-        list_config: ListConfig,
-    ) -> Result<Vec<T>> {
-        //We can look with respect to limit
-        // from start to end (full scan),
-        // from starts_with to start_with (search),
-        // from cursor to end (looking not from the start)
-        // and from cursor to prefix (search without starting at the start and looking to the end (no full scan))
-        // more info in `list_config` file
-        let start = list_config.token.clone().map_or_else(
-            || format!("{key}/"),
-            |search_prefix| format!("{key}/{search_prefix}"),
-        );
-        let start = list_config
-            .cursor
-            .map_or_else(|| start, |cursor| format!("{key}/{cursor}\x00"));
-        let end = list_config.token.map_or_else(
-            || format!("{key}/\x7F"),
-            |search_prefix| format!("{key}/{search_prefix}\x7F"),
-        );
-        let range = Bytes::from(start)..Bytes::from(end);
-        let limit = list_config.limit.unwrap_or(usize::MAX);
-        let mut iter = self.0.scan(range).await.context(ScanFailedSnafu)?;
-        let mut objects: Vec<T> = vec![];
-        while let Ok(Some(value)) = iter.next().await {
-            let value = de::from_slice(&value.value).context(DeserializeValueSnafu)?;
-            objects.push(value);
-            if objects.len() >= limit {
-                break;
-            }
-        }
-        Ok(objects)
+        key: String,
+    ) -> VecScanIterator<T> {
+        VecScanIterator::new(self.0.clone(), key)
     }
 
     /// Stores template object in the database.
@@ -281,13 +289,14 @@ pub trait Repository {
     async fn _list(&self) -> Result<Vec<Self::Entity>> {
         let entities = self
             .db()
-            .list_objects(Self::collection_key(), ListConfig::default())
+            .iter_objects(Self::collection_key())
+            .collect()
             .await?;
         Ok(entities)
     }
 
     fn prefix() -> &'static str;
-    fn collection_key() -> &'static str;
+    fn collection_key() -> String;
 }
 
 #[cfg(test)]
@@ -321,14 +330,16 @@ mod test {
             .expect("Failed to put entity");
         let get_after_put = db.get::<TestEntity>("test/abc").await;
         let list_after_append = db
-            .list_objects::<TestEntity>("test", ListConfig::default())
+            .iter_objects::<TestEntity>("test".to_string())
+            .collect()
             .await;
         db.delete("test/abc")
             .await
             .expect("Failed to delete entity");
         let get_after_delete = db.get::<TestEntity>("test/abc").await;
         let list_after_remove = db
-            .list_objects::<TestEntity>("test", ListConfig::default())
+            .iter_objects::<TestEntity>("test".to_string())
+            .collect()
             .await;
 
         insta::assert_debug_snapshot!((

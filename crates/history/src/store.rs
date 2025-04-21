@@ -15,11 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::{QueryRecord, QueryRecordId, Worksheet, WorksheetId};
+use crate::{QueryRecord, QueryRecordId, QueryRecordReference, Worksheet, WorksheetId};
 use async_trait::async_trait;
 use embucket_utils::iterable::{IterableCursor, IterableEntity};
-use embucket_utils::Db;
+use embucket_utils::{Db, Error};
+use serde_json::de;
+use slatedb::error::SlateDBError;
 use snafu::{ResultExt, Snafu};
+use std::str;
 use std::sync::Arc;
 
 #[derive(Snafu, Debug)]
@@ -45,11 +48,26 @@ pub enum WorksheetsStoreError {
     #[snafu(display("Error adding query record: {source}"))]
     QueryAdd { source: embucket_utils::Error },
 
+    #[snafu(display("Error adding query record reference: {source}"))]
+    QueryReferenceAdd { source: embucket_utils::Error },
+
     #[snafu(display("Error getting query history: {source}"))]
     QueryGet { source: embucket_utils::Error },
 
     #[snafu(display("Can't locate worksheet by key: {message}"))]
     WorksheetNotFound { message: String },
+
+    #[snafu(display("Bad query record reference key: {key}"))]
+    QueryReferenceKey { key: String },
+
+    #[snafu(display("Error getting worksheet queries: {source}"))]
+    GetWorksheetQueries { source: Error },
+
+    #[snafu(display("Query item seek error: {source}"))]
+    Seek { source: SlateDBError },
+
+    #[snafu(display("Deserialize error: {source}"))]
+    DeserializeValue { source: serde_json::Error },
 }
 
 pub type WorksheetsStoreResult<T> = std::result::Result<T, WorksheetsStoreError>;
@@ -65,7 +83,7 @@ pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
     async fn add_query(&self, item: &QueryRecord) -> WorksheetsStoreResult<()>;
     async fn get_queries(
         &self,
-        worksheet_id: WorksheetId,
+        worksheet_id: Option<WorksheetId>,
         cursor: Option<i64>,
         limit: Option<u16>,
     ) -> WorksheetsStoreResult<Vec<QueryRecord>>;
@@ -157,6 +175,18 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
     }
 
     async fn add_query(&self, item: &QueryRecord) -> WorksheetsStoreResult<()> {
+        if let Some(worksheet_id) = item.worksheet_id {
+            // add query reference to worksheet
+            self.db
+                .put_iterable_entity(&QueryRecordReference {
+                    id: item.id,
+                    worksheet_id,
+                })
+                .await
+                .context(QueryReferenceAddSnafu)?;
+        }
+
+        // add query record
         Ok(self
             .db
             .put_iterable_entity(item)
@@ -166,22 +196,63 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 
     async fn get_queries(
         &self,
-        worksheet_id: WorksheetId,
+        worksheet_id: Option<WorksheetId>,
         cursor: Option<i64>,
         limit: Option<u16>,
     ) -> WorksheetsStoreResult<Vec<QueryRecord>> {
-        // TODO: add worksheet_id to key prefix
-        let start_key = if let Some(cursor) = cursor {
-            QueryRecord::get_key(worksheet_id, cursor)
+        if let Some(worksheet_id) = worksheet_id {
+            let start_key = QueryRecord::get_key(cursor.unwrap_or(QueryRecordId::CURSOR_MIN));
+            let end_key = QueryRecord::get_key(QueryRecordId::CURSOR_MAX);
+            let mut iter = self
+                .db
+                .range_iterator(start_key..end_key)
+                .await
+                .context(GetWorksheetQueriesSnafu)?;
+
+            // get queries references related to worksheet
+            let refs_start_key = QueryRecordReference::get_key(
+                worksheet_id,
+                cursor.unwrap_or(QueryRecordId::CURSOR_MIN),
+            );
+            let refs_end_key =
+                QueryRecordReference::get_key(worksheet_id, QueryRecordId::CURSOR_MAX);
+            let mut refs_iter = self
+                .db
+                .range_iterator(refs_start_key..refs_end_key)
+                .await
+                .context(GetWorksheetQueriesSnafu)?;
+
+            let mut items: Vec<QueryRecord> = vec![];
+            while let Ok(Some(item)) = refs_iter.next().await {
+                let qh_key = QueryRecordReference::extract_qh_key(&item.key).ok_or(
+                    WorksheetsStoreError::QueryReferenceKey {
+                        key: format!("{:?}", item.key),
+                    },
+                )?;
+                iter.seek(qh_key).await.context(SeekSnafu)?;
+                match iter.next().await {
+                    Ok(Some(query_record_kv)) => {
+                        items.push(
+                            de::from_slice(&query_record_kv.value)
+                                .context(DeserializeValueSnafu)?,
+                        );
+                        if items.len() >= usize::from(limit.unwrap_or(u16::MAX)) {
+                            break;
+                        }
+                    }
+                    _ => break,
+                };
+            }
+            Ok(items)
         } else {
-            QueryRecord::get_key(worksheet_id, QueryRecordId::CURSOR_MIN)
-        };
-        let end_key = QueryRecord::get_key(worksheet_id, QueryRecordId::CURSOR_MAX);
-        Ok(self
-            .db
-            .items_from_range(start_key..end_key, limit)
-            .await
-            .context(QueryGetSnafu)?)
+            let start_key = QueryRecord::get_key(cursor.unwrap_or(QueryRecordId::CURSOR_MIN));
+            let end_key = QueryRecord::get_key(QueryRecordId::CURSOR_MAX);
+            Ok(self
+                .db
+                .items_from_range(start_key..end_key, limit)
+                .await
+                .context(QueryGetSnafu)?)
+        }
     }
 }
 
@@ -189,9 +260,58 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::*;
     use chrono::{Duration, TimeZone, Utc};
     use embucket_utils::iterable::{IterableCursor, IterableEntity};
     use tokio;
+
+    fn create_query_records(templates: &[(Option<i64>, QueryStatus)]) -> Vec<QueryRecord> {
+        let mut created: Vec<QueryRecord> = vec![];
+        for (i, (worksheet_id, query_status)) in templates.iter().enumerate() {
+            let ctx = MockQueryRecordActions::query_start_context();
+            ctx.expect().returning(move |query, worksheet_id| {
+                let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
+                    + Duration::milliseconds(i.try_into().unwrap());
+                QueryRecord {
+                    id: start_time.timestamp_millis(),
+                    worksheet_id,
+                    query: query.to_string(),
+                    start_time,
+                    end_time: start_time,
+                    duration_ms: 0,
+                    result_count: 0,
+                    result: None,
+                    status: QueryStatus::Running,
+                    error: None,
+                }
+            });
+            let query_record = match query_status {
+                QueryStatus::Running => MockQueryRecordActions::query_start(
+                    format!("select {i}").as_str(),
+                    *worksheet_id,
+                ),
+                QueryStatus::Successful => {
+                    let mut item = MockQueryRecordActions::query_start(
+                        format!("select {i}").as_str(),
+                        *worksheet_id,
+                    );
+                    item.query_finished(1, Some(String::from("pseudo result")));
+                    item
+                }
+                QueryStatus::Failed => {
+                    let mut item = MockQueryRecordActions::query_start(
+                        format!("select {i}").as_str(),
+                        *worksheet_id,
+                    );
+                    item.query_finished_with_error(String::from("Test query pseudo error"));
+                    item
+                }
+            };
+            created.push(query_record);
+        }
+
+        created
+    }
 
     #[tokio::test]
     async fn test_history() {
@@ -200,41 +320,35 @@ mod tests {
         // create worksheet first
         let worksheet = Worksheet::new(String::new(), String::new());
 
-        let n: u16 = 2;
-        let mut created: Vec<QueryRecord> = vec![];
-        for i in 0..n {
-            let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
-                + Duration::milliseconds(i.into());
-            let mut item = QueryRecord::query_start(
-                worksheet.id,
-                format!("select {i}").as_str(),
-                Some(start_time),
-            );
-            if i == 0 {
-                item.query_finished(
-                    1,
-                    Some(String::from("pseudo result")),
-                    Some(item.start_time),
-                );
-            } else {
-                item.query_finished_with_error("Test query pseudo error".to_string());
-            }
-            created.push(item.clone());
+        let created = create_query_records(&[
+            (Some(worksheet.id), QueryStatus::Successful),
+            (Some(worksheet.id), QueryStatus::Failed),
+            (Some(worksheet.id), QueryStatus::Running),
+            (None, QueryStatus::Running),
+        ]);
+
+        for item in &created {
             eprintln!("added {:?}", item.key());
-            db.add_query(&item).await.unwrap();
+            db.add_query(item).await.unwrap();
         }
 
         let cursor = <QueryRecord as IterableEntity>::Cursor::CURSOR_MIN;
         eprintln!("cursor: {cursor}");
         let retrieved = db
-            .get_queries(worksheet.id, Some(cursor), Some(10))
+            .get_queries(Some(worksheet.id), Some(cursor), Some(10))
             .await
             .unwrap();
-        for item in &retrieved {
-            eprintln!("retrieved: {:?}", item.key());
-        }
+        // queries belong to worksheet
+        assert_eq!(3, retrieved.len());
 
-        assert_eq!(usize::from(n), retrieved.len());
-        assert_eq!(created, retrieved);
+        let retrieved_all = db.get_queries(None, Some(cursor), Some(10)).await.unwrap();
+        // all queries
+        for item in &retrieved_all {
+            eprintln!("retrieved_all: {:?}", item.key());
+        }
+        assert_eq!(created.len(), retrieved_all.len());
+        assert_eq!(created, retrieved_all);
+
+        // TODO: delete worksheet & check history
     }
 }

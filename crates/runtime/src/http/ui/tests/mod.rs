@@ -16,6 +16,7 @@
 // under the License.
 
 pub mod common;
+pub mod dashboard;
 pub mod databases;
 pub mod navigation_trees;
 pub mod queries;

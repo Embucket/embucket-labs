@@ -25,7 +25,7 @@ use axum::http::StatusCode;
 use axum::{extract::Path, extract::Query, extract::State, Json};
 use embucket_metastore::error::{self as metastore_error, MetastoreError};
 use embucket_metastore::{SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent};
-use embucket_utils::list_config::ListConfig;
+use embucket_utils::scan_iterator::ScanIterator;
 use iceberg_rest_catalog::models::{
     CatalogConfig, CommitTableResponse, CreateNamespaceRequest, CreateNamespaceResponse,
     CreateTableRequest, GetNamespaceResponse, ListNamespacesResponse, ListTablesResponse,
@@ -96,9 +96,10 @@ pub async fn list_namespaces(
 ) -> MetastoreAPIResult<Json<ListNamespacesResponse>> {
     let schemas = state
         .metastore
-        .list_schemas(&database_name, ListConfig::default())
+        .iter_schemas(&database_name)
+        .collect()
         .await
-        .map_err(MetastoreAPIError)?;
+        .map_err(|e| MetastoreAPIError(MetastoreError::UtilSlateDB { source: e }))?;
     Ok(Json(from_schemas_list(schemas)))
 }
 
@@ -219,9 +220,10 @@ pub async fn list_tables(
     let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
     let tables = state
         .metastore
-        .list_tables(&schema_ident, ListConfig::default())
+        .iter_tables(&schema_ident)
+        .collect()
         .await
-        .map_err(MetastoreAPIError)?;
+        .map_err(|e| MetastoreAPIError(MetastoreError::UtilSlateDB { source: e }))?;
     Ok(Json(from_tables_list(tables)))
 }
 

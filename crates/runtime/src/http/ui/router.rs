@@ -47,6 +47,7 @@ use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
 
 use crate::http::state::AppState;
+use crate::http::ui::dashboard::handlers::{get_dashboard, ApiDoc as DashboardApiDoc};
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
 use axum::Router;
@@ -80,12 +81,14 @@ pub fn ui_open_api_spec() -> utoipa::openapi::OpenApi {
         .merge_from(WorksheetsApiDoc::openapi())
         .merge_from(QueryApiDoc::openapi())
         .merge_from(DatabasesNavigationApiDoc::openapi())
+        .merge_from(DashboardApiDoc::openapi())
 }
 
 pub fn create_router() -> Router<AppState> {
     Router::new()
         // .route("/navigation_trees", get(navigation_trees))
         .route("/navigation-trees", get(get_navigation_trees))
+        .route("/dashboard", get(get_dashboard))
         .route(
             "/databases/{databaseName}/schemas/{schemaName}",
             delete(delete_schema),

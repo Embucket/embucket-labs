@@ -23,7 +23,7 @@ use std::{
 
 use crate::execution::catalogs::catalog::DFCatalog;
 use crate::execution::catalogs::iceberg_catalog::IcebergBridge;
-use crate::execution::error::{self as ex_error, ExecutionResult};
+use crate::execution::error::{self as ex_error, ExecutionError, ExecutionResult};
 use dashmap::DashMap;
 use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList, TableProvider},
@@ -34,7 +34,7 @@ use datafusion::{
 use datafusion_common::DataFusionError;
 use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
 use embucket_metastore::{error::MetastoreError, Metastore};
-use embucket_utils::list_config::ListConfig;
+use embucket_utils::scan_iterator::ScanIterator;
 use iceberg_rust::{
     catalog::Catalog as IcebergCatalog, spec::identifier::Identifier as IcebergIdentifier,
 };
@@ -75,9 +75,12 @@ impl DFMetastore {
 
         let databases = self
             .metastore
-            .list_databases(ListConfig::default())
+            .iter_databases()
+            .collect()
             .await
-            .context(ex_error::MetastoreSnafu)?;
+            .map_err(|e| ExecutionError::Metastore {
+                source: MetastoreError::UtilSlateDB { source: e },
+            })?;
         for database in databases {
             let db_entry = self
                 .mirror
@@ -86,9 +89,12 @@ impl DFMetastore {
             let db_seen_entry = seen.entry(database.ident.clone()).or_default();
             let schemas = self
                 .metastore
-                .list_schemas(&database.ident, ListConfig::default())
+                .iter_schemas(&database.ident)
+                .collect()
                 .await
-                .context(ex_error::MetastoreSnafu)?;
+                .map_err(|e| ExecutionError::Metastore {
+                    source: MetastoreError::UtilSlateDB { source: e },
+                })?;
             for schema in schemas {
                 let schema_entry = db_entry
                     .entry(schema.ident.schema.clone())
@@ -98,9 +104,12 @@ impl DFMetastore {
                     .or_default();
                 let tables = self
                     .metastore
-                    .list_tables(&schema.ident, ListConfig::default())
+                    .iter_tables(&schema.ident)
+                    .collect()
                     .await
-                    .context(ex_error::MetastoreSnafu)?;
+                    .map_err(|e| ExecutionError::Metastore {
+                        source: MetastoreError::UtilSlateDB { source: e },
+                    })?;
                 for table in tables {
                     let table_url = self
                         .metastore

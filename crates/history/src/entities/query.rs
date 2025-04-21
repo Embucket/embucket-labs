@@ -19,13 +19,17 @@ use crate::WorksheetId;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use embucket_utils::iterable::IterableEntity;
+#[cfg(test)]
+use mockall::automock;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub enum QueryStatus {
-    Ok,
-    Error,
+    Running,
+    Successful,
+    Failed,
 }
 
 pub type QueryRecordId = i64;
@@ -35,7 +39,7 @@ pub type QueryRecordId = i64;
 #[serde(rename_all = "camelCase")]
 pub struct QueryRecord {
     pub id: QueryRecordId,
-    pub worksheet_id: WorksheetId,
+    pub worksheet_id: Option<WorksheetId>,
     pub query: String,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
@@ -46,19 +50,26 @@ pub struct QueryRecord {
     pub error: Option<String>,
 }
 
+#[cfg_attr(test, automock)]
+pub trait QueryRecordActions {
+    fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
+
+    fn query_finished(&mut self, result_count: i64, result: Option<String>);
+
+    fn query_finished_with_error(&mut self, error: String);
+}
+
 impl QueryRecord {
     #[must_use]
-    pub fn get_key(worksheet_id: WorksheetId, id: QueryRecordId) -> Bytes {
-        Bytes::from(format!("/qh/{worksheet_id}/{id}"))
+    pub fn get_key(id: QueryRecordId) -> Bytes {
+        Bytes::from(format!("/qh/{id}"))
     }
+}
 
+impl QueryRecordActions for QueryRecord {
     #[must_use]
-    pub fn query_start(
-        worksheet_id: WorksheetId,
-        query: &str,
-        start_time: Option<DateTime<Utc>>,
-    ) -> Self {
-        let start_time = start_time.unwrap_or_else(Utc::now);
+    fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
+        let start_time = Utc::now();
         // id, start_time have the same value
         Self {
             id: start_time.timestamp_millis(),
@@ -69,17 +80,12 @@ impl QueryRecord {
             duration_ms: 0,
             result_count: 0,
             result: None,
-            status: QueryStatus::Ok,
+            status: QueryStatus::Successful,
             error: None,
         }
     }
 
-    pub fn query_finished(
-        &mut self,
-        result_count: i64,
-        result: Option<String>,
-        end_time: Option<DateTime<Utc>>,
-    ) {
+    fn query_finished(&mut self, result_count: i64, result: Option<String>) {
         self.result_count = result_count;
         self.result = result;
         self.end_time = Utc::now();
@@ -87,14 +93,11 @@ impl QueryRecord {
             .end_time
             .signed_duration_since(self.start_time)
             .num_milliseconds();
-        if let Some(end_time) = end_time {
-            self.end_time = end_time;
-        }
     }
 
-    pub fn query_finished_with_error(&mut self, error: String) {
-        self.query_finished(0, None, None);
-        self.status = QueryStatus::Error;
+    fn query_finished_with_error(&mut self, error: String) {
+        self.query_finished(0, None);
+        self.status = QueryStatus::Failed;
         self.error = Some(error);
     }
 }
@@ -107,6 +110,6 @@ impl IterableEntity for QueryRecord {
     }
 
     fn key(&self) -> Bytes {
-        Self::get_key(self.worksheet_id, self.id)
+        Self::get_key(self.id)
     }
 }
