@@ -15,11 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//! Defines the ANY_VALUE aggregation function.
+//! Defines the `ANY_VALUE` aggregation function.
 
 use super::macros::make_udaf_function;
 use arrow::array::{ArrayRef, AsArray};
 use arrow::datatypes::{DataType, Field};
+use arrow_array::Array;
 use datafusion_common::utils::get_row_at_idx;
 use datafusion_common::{Result, ScalarValue};
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
@@ -29,13 +30,12 @@ use datafusion_macros::user_doc;
 use std::any::Any;
 use std::fmt::Debug;
 use std::mem::size_of_val;
-use arrow_array::Array;
 
 #[user_doc(
     doc_section(label = "General Functions"),
     description = "Returns any value from the group. The function is non-deterministic and can return different values each time it is used. It is typically used to retrieve a sample value when any value from the group would suffice.",
     syntax_example = "any_value(expression)",
-    sql_example = r#"```sql
+    sql_example = r"```sql
 > SELECT department, any_value(employee_name) FROM employees GROUP BY department;
 +------------+-------------------------+
 | department | any_value(employee_name)|
@@ -44,7 +44,7 @@ use arrow_array::Array;
 | Engineering| Jane Doe                |
 | Marketing  | Sam Johnson             |
 +------------+-------------------------+
-```"#,
+```",
     standard_argument(name = "expression",)
 )]
 pub struct AnyValue {
@@ -93,7 +93,9 @@ impl AggregateUDFImpl for AnyValue {
     }
 
     fn accumulator(&self, acc_args: AccumulatorArgs) -> Result<Box<dyn Accumulator>> {
-        AnyValueAccumulator::try_new(acc_args.return_type).map(|acc| Box::new(acc) as _)
+        Ok(Box::new(AnyValueAccumulator::try_new(
+            acc_args.return_type,
+        )?))
     }
 
     fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<Field>> {
