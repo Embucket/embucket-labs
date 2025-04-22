@@ -1,5 +1,6 @@
 //use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
 use super::datafusion::functions::register_udfs;
+use super::datafusion::functions::aggregate::register_udafs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
@@ -70,6 +71,7 @@ impl UserSession {
             .build();
         let mut ctx = SessionContext::new_with_state(state);
         register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
+        register_udafs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         register_json_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         //register_geo_native(&ctx);
         //register_geo_udfs(&ctx);
