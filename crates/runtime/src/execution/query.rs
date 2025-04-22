@@ -48,22 +48,21 @@ use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    visit_expressions_mut, BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind,
-    MergeInsertKind, ObjectType, Query as AstQuery, Select, SelectItem, Use,
+    BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType,
+    Query as AstQuery, Select, SelectItem, Use,
 };
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::ops::ControlFlow;
 use std::sync::Arc;
 use url::Url;
 
 use super::catalogs::{catalog::DFCatalog, metastore::DFMetastore};
 use super::datafusion::context_provider::ExtendedSqlToRel;
-use super::datafusion::functions::visit_functions_expressions;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
-use super::utils::NormalizedIdent;
-
 use super::session::UserSession;
+use super::utils::NormalizedIdent;
+use crate::execution::datafusion::visitors::{functions_rewriter, json_element};
+use tracing_attributes::instrument;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct QueryContext {
@@ -146,19 +145,15 @@ impl UserQuery {
     }
 
     #[allow(clippy::unwrap_used)]
-    #[tracing::instrument(level = "trace", ret)]
+    #[instrument(level = "trace", ret)]
     pub fn postprocess_query_statement(statement: &mut DFStatement) {
         if let DFStatement::Statement(value) = statement {
-            visit_expressions_mut(&mut *value, |expr| {
-                if let Expr::Function(ref mut func) = expr {
-                    visit_functions_expressions(func);
-                }
-                ControlFlow::<()>::Continue(())
-            });
+            json_element::visit(value);
+            functions_rewriter::visit(value);
         }
     }
 
-    #[tracing::instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
+    #[instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
     pub async fn execute(&mut self) -> ExecutionResult<Vec<RecordBatch>> {
         let statement = self.parse_query().context(super::error::DataFusionSnafu)?;
         self.query = statement.to_string();
@@ -294,17 +289,13 @@ impl UserQuery {
     /// Panics if .
     #[must_use]
     #[allow(clippy::unwrap_used)]
-    #[tracing::instrument(level = "trace", ret)]
+    #[instrument(level = "trace", ret)]
     pub fn preprocess_query(query: &str) -> String {
         // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         // TODO: This regex should be a static allocation
-        let re = regex::Regex::new(r"(\w+.\w+)\[(\d+)][:\.](\w+)").unwrap();
-        let mut query = re
-            .replace_all(query, "json_get(json_get($1, $2), '$3')")
-            .to_string();
         let alter_iceberg_table = regex::Regex::new(r"alter\s+iceberg\s+table").unwrap();
-        query = alter_iceberg_table
-            .replace_all(&query, "alter table")
+        let mut query = alter_iceberg_table
+            .replace_all(query, "alter table")
             .to_string();
         // TODO remove this check after release of https://github.com/Embucket/datafusion-sqlparser-rs/pull/8
         if query.to_lowercase().contains("alter session") {
@@ -352,7 +343,7 @@ impl UserQuery {
         }
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[instrument(level = "trace", skip(self), err, ret)]
     pub async fn drop_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
         let Statement::Drop {
             names, object_type, ..
@@ -412,7 +403,7 @@ impl UserQuery {
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_table_query(
         &self,
         statement: Statement,
@@ -744,7 +735,7 @@ impl UserQuery {
         self.execute_with_custom_plan(&insert_query).await
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[instrument(level = "trace", skip(self), err, ret)]
     pub async fn merge_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
         let Statement::Merge {
             table,
@@ -829,7 +820,7 @@ impl UserQuery {
         self.execute_with_custom_plan(&insert_query).await
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[instrument(level = "trace", skip(self), err, ret)]
     pub async fn create_schema(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
         let Statement::CreateSchema {
             schema_name,
@@ -882,7 +873,7 @@ impl UserQuery {
         created_entity_response()
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[instrument(level = "trace", skip(self), err, ret)]
     pub async fn get_custom_logical_plan(&self, query: &str) -> ExecutionResult<LogicalPlan> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
@@ -966,7 +957,7 @@ impl UserQuery {
         Ok(stream)
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[instrument(level = "trace", skip(self), err, ret)]
     pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
         let plan = self.get_custom_logical_plan(query).await?;
         self.execute_logical_plan(plan).await

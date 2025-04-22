@@ -37,6 +37,8 @@ crates/catalog/prefix/**
 embucket-warehouse-test/
 dummyprefix/
 tests/benchmark/*.json
+ui/dist.tar
+snowplow
 
 *.manifest
 *.sst

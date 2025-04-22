@@ -280,7 +280,7 @@ impl TableRequirementExt {
                     });
                 }
             }
-        };
+        }
         Ok(())
     }
 }

@@ -10,6 +10,12 @@ members = [
 resolver = "2"
 package.license-file = "LICENSE"
 
+[profile.test]
+incremental = true
+opt-level = 1
+debug = true
+codegen-units = 16
+
 [workspace.dependencies]
 chrono = { version = "0.4.39", features = ["serde"] }
 futures = { version = "0.3" }
@@ -36,6 +42,7 @@ utoipa-swagger-ui = { version = "9", features = ["axum"] }
 lazy_static = { version = "1.5" }
 snafu = { version = "0.8.5", features = ["futures"] }
 tracing = { version = "0.1", features = ["attributes"] }
+tracing-attributes = { version = "0.1.28" }
 embucket_history = { version = "0.1.0", path = "crates/history" }
 
 datafusion = { version = "45.0.0" }

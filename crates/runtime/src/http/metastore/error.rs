@@ -46,7 +46,7 @@ impl IntoResponse for MetastoreAPIError {
             | MetastoreError::DatabaseNotFound { .. }
             | MetastoreError::SchemaNotFound { .. }
             | MetastoreError::TableNotFound { .. }
-            | MetastoreError::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
+            | MetastoreError::ObjectNotFound => http::StatusCode::NOT_FOUND,
             MetastoreError::ObjectStore { .. }
             | MetastoreError::ObjectStorePath { .. }
             | MetastoreError::CreateDirectory { .. }

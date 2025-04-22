@@ -18,10 +18,6 @@
 use std::sync::Arc;
 
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
-use sqlparser::ast::Value::SingleQuotedString;
-use sqlparser::ast::{
-    Expr, Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
-};
 
 mod convert_timezone;
 mod date_add;
@@ -71,47 +67,4 @@ mod macros {
 }
 
     pub(crate) use make_udf_function;
-}
-
-pub fn visit_functions_expressions(func: &mut Function) {
-    let func_name_string = func.name.clone().to_string().to_lowercase();
-    let func_name = func_name_string.as_str();
-    let args = &mut func.args;
-    let name = match func_name {
-        "year" | "day" | "dayofmonth" | "dayofweek" | "dayofweekiso" | "dayofyear" | "week"
-        | "weekofyear" | "weekiso" | "month" | "quarter" | "hour" | "minute" | "second" => {
-            if let FunctionArguments::List(arg_list) = args {
-                let arg = match func_name {
-                    "year" | "quarter" | "month" | "week" | "day" | "hour" | "minute"
-                    | "second" => func_name,
-                    "dayofyear" => "doy",
-                    "dayofweek" => "dow",
-                    "dayofmonth" => "day",
-                    "weekofyear" => "week",
-                    _ => "unknown",
-                };
-                arg_list.args.insert(
-                    0,
-                    FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(SingleQuotedString(
-                        arg.to_string(),
-                    )))),
-                );
-            };
-            "date_part"
-        }
-        "dateadd" | "date_add" | "datediff" | "date_diff" => {
-            if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args {
-                if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(ident))) =
-                    args.iter_mut().next()
-                {
-                    if let Expr::Identifier(Ident { value, .. }) = ident {
-                        *ident = Expr::Value(SingleQuotedString(value.clone()));
-                    }
-                }
-            }
-            func_name
-        }
-        _ => func_name,
-    };
-    func.name = sqlparser::ast::ObjectName(vec![sqlparser::ast::Ident::new(name)]);
 }

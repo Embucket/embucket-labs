@@ -118,7 +118,7 @@ pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, Array
     for i in 0..union_array.type_ids().len() {
         let type_id = union_array.type_id(i);
         let child = union_array.child(type_id);
-        if child.len() > 0 {
+        if !child.is_empty() {
             return Some((child.data_type().clone(), Arc::clone(child)));
         }
     }

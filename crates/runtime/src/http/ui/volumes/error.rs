@@ -50,13 +50,13 @@ impl IntoStatusCode for VolumesAPIError {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Get { source } | Self::Delete { source } => match &source {
-                MetastoreError::UtilSlateDB { .. } | MetastoreError::ObjectNotFound { .. } => {
+                MetastoreError::UtilSlateDB { .. } | MetastoreError::ObjectNotFound => {
                     StatusCode::NOT_FOUND
                 }
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Update { source } => match &source {
-                MetastoreError::ObjectNotFound { .. } | MetastoreError::VolumeNotFound { .. } => {
+                MetastoreError::ObjectNotFound | MetastoreError::VolumeNotFound { .. } => {
                     StatusCode::NOT_FOUND
                 }
                 MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,

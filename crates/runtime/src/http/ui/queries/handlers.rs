@@ -138,7 +138,7 @@ pub async fn query(
             // query execution error
             query_record.query_finished_with_error(err.to_string());
         }
-    };
+    }
 
     // add query record
     if let Err(err) = state.history.add_query(&query_record).await {

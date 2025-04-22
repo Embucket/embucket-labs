@@ -90,7 +90,7 @@ fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> Result<String, DbtError> 
         }
         writer.finish().context(dbt_error::ArrowSnafu)?;
         drop(writer);
-    };
+    }
     Ok(engine_base64.encode(buf))
 }
 
