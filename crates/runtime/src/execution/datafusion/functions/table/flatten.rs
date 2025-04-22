@@ -18,6 +18,16 @@ enum Mode {
     Both,
 }
 
+impl Mode {
+    fn is_object(&self) -> bool {
+        matches!(self, Mode::Object | Mode::Both)
+    }
+
+    fn is_array(&self) -> bool {
+        matches!(self, Mode::Array | Mode::Both)
+    }
+}
+
 #[derive(Debug, Clone)]
 enum PathToken {
     Key(String),
@@ -34,7 +44,7 @@ struct Out {
 }
 
 #[derive(Debug, Clone)]
-struct FlattenTableFunc;
+pub struct FlattenTableFunc;
 
 impl FlattenTableFunc {
     pub fn new() -> Self {
@@ -115,7 +125,7 @@ impl TableFunctionImpl for FlattenTableFunc {
         schema_fields.push(Field::new("KEY", DataType::Utf8, true));
         schema_fields.push(Field::new("PATH", DataType::Utf8, false));
         schema_fields.push(Field::new("INDEX", DataType::UInt64, true));
-        schema_fields.push(Field::new("VALUE", DataType::Utf8, false));
+        schema_fields.push(Field::new("VALUE", DataType::Utf8, true));
         schema_fields.push(Field::new("THIS", DataType::Utf8, false));
 
         let mut out = out.borrow_mut();
@@ -144,6 +154,9 @@ fn flatten(
 ) -> DFResult<()> {
     match value {
         Value::Array(v) => {
+            if !mode.is_array() {
+                return Ok(());
+            }
             for (i, v) in v.iter().enumerate() {
                 let mut p = path.clone();
                 p.push(PathToken::Index(i));
@@ -164,6 +177,9 @@ fn flatten(
             }
         }
         Value::Object(v) => {
+            if !mode.is_object() {
+                return Ok(());
+            }
             for (k, v) in v.iter() {
                 let mut p = path.clone();
                 p.push(PathToken::Key(k.to_owned()));
@@ -287,7 +303,6 @@ fn tokenize_path(path: &str) -> Option<Vec<PathToken>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::execution::datafusion::functions::table::flatten::FlattenTableFunc;
     use arrow::util::pretty::print_batches;
     use datafusion::prelude::SessionContext;
     use datafusion_common::assert_batches_eq;
@@ -524,6 +539,59 @@ mod tests {
                 "|     |     |        |       |       |   3  |",
                 "|     |     |        |       |       | ]    |",
                 "+-----+-----+--------+-------+-------+------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_mode() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
+        let sql = r#"SELECT * from flatten('{"a":1, "b":[77,88], "c": {"d":"X"}}','',false,true,'object')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+-----+-----+------+-------+------------+--------------+",
+                "| SEQ | KEY | PATH | INDEX | VALUE      | THIS         |",
+                "+-----+-----+------+-------+------------+--------------+",
+                "| 1   | a   | a    |       | 1          | {            |",
+                "|     |     |      |       |            |   \"a\": 1,    |",
+                "|     |     |      |       |            |   \"b\": [     |",
+                "|     |     |      |       |            |     77,      |",
+                "|     |     |      |       |            |     88       |",
+                "|     |     |      |       |            |   ],         |",
+                "|     |     |      |       |            |   \"c\": {     |",
+                "|     |     |      |       |            |     \"d\": \"X\" |",
+                "|     |     |      |       |            |   }          |",
+                "|     |     |      |       |            | }            |",
+                "| 1   | b   | b    |       | [          | {            |",
+                "|     |     |      |       |   77,      |   \"a\": 1,    |",
+                "|     |     |      |       |   88       |   \"b\": [     |",
+                "|     |     |      |       | ]          |     77,      |",
+                "|     |     |      |       |            |     88       |",
+                "|     |     |      |       |            |   ],         |",
+                "|     |     |      |       |            |   \"c\": {     |",
+                "|     |     |      |       |            |     \"d\": \"X\" |",
+                "|     |     |      |       |            |   }          |",
+                "|     |     |      |       |            | }            |",
+                "| 1   | c   | c    |       | {          | {            |",
+                "|     |     |      |       |   \"d\": \"X\" |   \"a\": 1,    |",
+                "|     |     |      |       | }          |   \"b\": [     |",
+                "|     |     |      |       |            |     77,      |",
+                "|     |     |      |       |            |     88       |",
+                "|     |     |      |       |            |   ],         |",
+                "|     |     |      |       |            |   \"c\": {     |",
+                "|     |     |      |       |            |     \"d\": \"X\" |",
+                "|     |     |      |       |            |   }          |",
+                "|     |     |      |       |            | }            |",
+                "| 1   | d   | c.d  |       | \"X\"        | {            |",
+                "|     |     |      |       |            |   \"d\": \"X\"   |",
+                "|     |     |      |       |            | }            |",
+                "+-----+-----+------+-------+------------+--------------+",
             ],
             &result
         );

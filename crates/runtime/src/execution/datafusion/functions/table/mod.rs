@@ -1,1 +1,1 @@
-mod flatten;
+pub mod flatten;
