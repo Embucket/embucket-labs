@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { t } from 'i18next';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
