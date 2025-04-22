@@ -54,9 +54,13 @@ impl TableFunctionImpl for FlattenTableFunc {
         };
 
         let path = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[1] {
-            v.to_owned()
+            if let Some(p) = tokenize_path(v) {
+                p
+            } else {
+                return plan_err!("Invalid JSON path");
+            }
         } else {
-            String::new()
+            vec![]
         };
 
         let outer = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[2] {
@@ -89,14 +93,11 @@ impl TableFunctionImpl for FlattenTableFunc {
             ))
         })?;
 
-        let input = if path.is_empty() {
-            &input
-        } else {
-            if let Some(i) = get_json_value(&input, &path) {
-                i
-            } else {
-                return plan_err!("Failed to get JSON path");
+        let input = match get_json_value(&input, &path) {
+            None => {
+                return plan_err!("Invalid JSON path");
             }
+            Some(v) => v,
         };
 
         let out = Rc::new(RefCell::new(Out {
@@ -107,7 +108,7 @@ impl TableFunctionImpl for FlattenTableFunc {
             value: StringBuilder::new(),
             this: StringBuilder::new(),
         }));
-        flatten(input, vec![], outer, recursive, &mode, Rc::clone(&out))?;
+        flatten(input, path, outer, recursive, &mode, Rc::clone(&out))?;
 
         let mut schema_fields = vec![];
         schema_fields.push(Field::new("SEQ", DataType::UInt64, false));
@@ -197,7 +198,6 @@ fn path_to_string(path: &[PathToken]) -> String {
                 if idx == 0 {
                     out.push_str(k);
                 } else {
-                    // out.push_str(&format!(r#"["{k}"]"#))
                     out.push_str(&format!(".{k}"))
                 }
             }
@@ -210,8 +210,7 @@ fn path_to_string(path: &[PathToken]) -> String {
     out
 }
 
-fn get_json_value<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
-    let tokens = tokenize_path(path)?;
+fn get_json_value<'a>(value: &'a Value, tokens: &[PathToken]) -> Option<&'a Value> {
     let mut current = value;
 
     for token in tokens {
@@ -302,6 +301,7 @@ mod tests {
         let sql = r#"SELECT * from flatten('[1,,77]','',false,false,'both')"#;
         let result = ctx.sql(sql).await?.collect().await?;
         print_batches(&result)?;
+
         Ok(())
     }
 
@@ -471,6 +471,63 @@ mod tests {
             ],
             &result
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_path() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
+        let sql = r#"SELECT * from flatten('{"a":1, "b":[77,88]}','b',false,false,'both')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+-----+-----+------+-------+-------+-------+",
+                "| SEQ | KEY | PATH | INDEX | VALUE | THIS  |",
+                "+-----+-----+------+-------+-------+-------+",
+                "| 1   |     | b[0] | 0     | 77    | [     |",
+                "|     |     |      |       |       |   77, |",
+                "|     |     |      |       |       |   88  |",
+                "|     |     |      |       |       | ]     |",
+                "| 1   |     | b[1] | 1     | 88    | [     |",
+                "|     |     |      |       |       |   77, |",
+                "|     |     |      |       |       |   88  |",
+                "|     |     |      |       |       | ]     |",
+                "+-----+-----+------+-------+-------+-------+",
+            ],
+            &result
+        );
+
+        let sql = r#"SELECT * from flatten('{"a":1, "b":{"c":[1,2,3]}}','b.c',false,false,'both')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+-----+-----+--------+-------+-------+------+",
+                "| SEQ | KEY | PATH   | INDEX | VALUE | THIS |",
+                "+-----+-----+--------+-------+-------+------+",
+                "| 1   |     | b.c[0] | 0     | 1     | [    |",
+                "|     |     |        |       |       |   1, |",
+                "|     |     |        |       |       |   2, |",
+                "|     |     |        |       |       |   3  |",
+                "|     |     |        |       |       | ]    |",
+                "| 1   |     | b.c[1] | 1     | 2     | [    |",
+                "|     |     |        |       |       |   1, |",
+                "|     |     |        |       |       |   2, |",
+                "|     |     |        |       |       |   3  |",
+                "|     |     |        |       |       | ]    |",
+                "| 1   |     | b.c[2] | 2     | 3     | [    |",
+                "|     |     |        |       |       |   1, |",
+                "|     |     |        |       |       |   2, |",
+                "|     |     |        |       |       |   3  |",
+                "|     |     |        |       |       | ]    |",
+                "+-----+-----+--------+-------+-------+------+",
+            ],
+            &result
+        );
+
         Ok(())
     }
 }
