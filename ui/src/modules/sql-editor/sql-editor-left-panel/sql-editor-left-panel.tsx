@@ -79,7 +79,11 @@ export const SqlEditorLeftPanel = () => {
     setIsRefreshing(false);
   };
 
-  if (!isFetchingWorksheets && worksheets?.length && worksheetId === 'undefined') {
+  if (
+    !isFetchingWorksheets &&
+    worksheets?.length &&
+    !worksheets.find((worksheet) => worksheet.id.toString() === worksheetId)
+  ) {
     return (
       <Navigate
         to="/sql-editor/$worksheetId"

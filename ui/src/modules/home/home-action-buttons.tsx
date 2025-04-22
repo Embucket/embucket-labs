@@ -1,10 +1,46 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { Database, Plus, Upload } from 'lucide-react';
 
+import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
+
 export default function HomeActionButtons() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const { mutateAsync, isPending } = useCreateWorksheet({
+    mutation: {
+      onSuccess: (worksheet) => {
+        queryClient.invalidateQueries({
+          queryKey: getGetWorksheetsQueryKey(),
+        });
+        navigate({
+          to: '/sql-editor/$worksheetId/',
+          params: {
+            worksheetId: worksheet.id.toString(),
+          },
+        });
+      },
+    },
+  });
+
+  const handleCreateWorksheet = () => {
+    mutateAsync({
+      data: {
+        name: '',
+        content: '',
+      },
+    });
+  };
+
   return (
     <div className="w-full p-4 pb-0">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <button className="hover:bg-sidebar-secondary-accent bg-muted flex cursor-pointer items-center gap-3 rounded-md border p-6 text-white transition-colors">
+        <button
+          onClick={handleCreateWorksheet}
+          disabled={isPending}
+          className="hover:bg-sidebar-secondary-accent bg-muted flex cursor-pointer items-center gap-3 rounded-md border p-6 text-white transition-colors"
+        >
           <Plus className="text-muted-foreground size-5" />
           <span className="text-sm font-medium">Create SQL Worksheet</span>
         </button>

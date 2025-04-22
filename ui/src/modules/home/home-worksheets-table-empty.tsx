@@ -6,11 +6,10 @@ export const HomeWorksheetsTableEmpty = () => {
   return (
     <EmptyContainer
       Icon={FileText}
-      title="No Worksheets Created Yet"
+      title="No SQL Worksheets Created Yet"
       description="Create your first worksheet to start querying data"
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      onCtaClick={() => {}}
-      ctaText="Create Worksheet"
+      // onCtaClick={() => {}}
+      // ctaText="Create Worksheet"
     />
   );
 };
