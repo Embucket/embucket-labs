@@ -2,40 +2,56 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Embucket is an **Apache-Licensed**, **Snowflake-compatible** lakehouse platform designed with **openness** and **standardization** in mind. It provides a **Snowflake-compatible API**, supports **Iceberg REST catalogs**, and runs with **zero-disk architecture**—all in a lightweight, easy-to-deploy package.  
-
-## Quickstart  
-
-Get started with Embucket in minutes using our pre-built **Docker image** available on [Quay.io](https://quay.io/repository/embucket/embucket).  
-
-```sh
-docker pull 767397688925.dkr.ecr.us-east-2.amazonaws.com/embucket/control-plane
-docker run -p 3000:3000 embucket/control-plane
-```
-
-Once the container is running, open:  
-
-- **[localhost:8888](http://localhost:8888)** → UI Dashboard  
-- **[localhost:3000/catalog](http://localhost:3000/catalog)** → Iceberg REST Catalog API  
+Embucket is an Apache‑2.0‑licensed, Snowflake‑compatible lakehouse platform built for radical simplicity and full openness. It delivers:  
+- A **Snowflake‑style** REST API and SQL dialect  
+- **Apache Iceberg** table format under the hood  
+- **Iceberg REST API** for both internal and external engines  
+- **Zero‑disk**, object‑store‑only architecture (S3 or memory)  
+- **Statically linked single‑binary** for effortless deployment  
+- **SlateDB** for metadata persistence  
+- **Apache DataFusion** as the query engine  
 
 ## Features  
 
-- **Snowflake-compatible** API & SQL syntax  
-- **Iceberg REST Catalog API**  
-- **Zero-disk** architecture—no separate storage layer required  
-- **Upcoming**: Table maintenance  
+- **Snowflake compatible API**  
+  - Snowflake SQL syntax dialect
+  - Snowflake v1 wire compatible REST API
 
-## Demo: Running dbt with Embucket  
+- **Apache Iceberg**  
+  - Data stored in Iceberg format on object storage  
+  - Built-in internal catalog
+  - Exposes Iceberg REST Catalog API
 
-This demo showcases how to use Embucket with **dbt** and execute the `snowplow_web` dbt project, treating Embucket as a Snowflake-compatible database.
+- **Zero disk architecture**  
+  - All state (data + metadata) lives in your s3 buckets
+  - No other dependencies required
 
-Prerequisites:
-* Install Rust (https://www.rust-lang.org/tools/install)
-* Install Python (https://www.python.org/downloads/)
-* Install our test dataset (REDACTED, seriously though github probaly won't allow big files)
-* Install virtualenv (https://virtualenv.pypa.io/en/latest/)
-* (Optional) Install NodeJS LTS (https://nodejs.org/en/download)
-* (Optional) Install PNPM (https://pnpm.io/installation)
+- **Scalable "query-per-node" parallelism**  
+  - Spin up multiple Embucket instances against the same bucket
+  - Each node handles queries independently for horizontal scale  
+
+- **Single statically linked binary**  
+  - One `embucket` executable with zero external dependencies  
+
+- **Iceberg catalog federation**  
+  - Connect to external Iceberg REST catalogs  
+  - Read/write across catalogs
+
+## Architecture
+
+![Embucket Architecture](architecture.png)
+
+Embucket is designed with radical simplicity in mind: it is a single binary that runs as a server and provides a REST API for interacting with the lakehouse. It has single dependency - object storage - for both data and metadata.
+
+It is built on top of several open source projects:
+
+- [Apache DataFusion](https://github.com/apache/datafusion) - query engine
+- [Apache Iceberg](https://github.com/apache/iceberg) - data storage
+- [SlateDB](https://github.com/slatedb/slatedb) - metadata persistence
+
+Embucket has deep integration with AWS S3 table buckets and relies on them for proper table maintenance.
+
+
 
 ### Install Embucket  
 
@@ -48,7 +64,7 @@ cargo build
 
 ### Configure and run Embucket  
 
-You can configure Embucket via **CLI arguments** or **environment variables**:
+You can configure Embucket via CLI arguments or environment variables:
 
 ```sh
 # Create a .env configuration file
@@ -59,17 +75,20 @@ FILE_STORAGE_PATH=data
 SLATEDB_PREFIX=sdb
 
 # Optional: AWS S3 storage (leave blank if using local storage)
-AWS_ACCESS_KEY_ID="1"
-AWS_SECRET_ACCESS_KEY="2"
-AWS_REGION=
-S3_BUCKET=
+AWS_ACCESS_KEY_ID="<your_aws_access_key_id>"
+AWS_SECRET_ACCESS_KEY="<your_aws_secret_access_key>"
+AWS_REGION="<your_aws_region>"
+S3_BUCKET="<your_s3_bucket>"
 S3_ALLOW_HTTP=
 
 # Iceberg Catalog settings
-CONTROL_PLANE_URL=http://127.0.0.1:3000
+# Set to your catalog url
+CATALOG_URL=http://127.0.0.1:3000
 
-# Dialect
-SQL_PARSER_DIALECT=snowflake
+# Optional: CORS settings
+CORS_ENABLED=true
+CORS_ALLOW_ORIGIN=http://localhost:3000
+
 EOF
 
 # Load environment variables (optional)
@@ -79,24 +98,20 @@ export $(grep -v '^#' .env | xargs)
 ./target/debug/bucketd
 ```
 
-### (Optional) Configure and run the UI  
+Once embucket is running, open:  
 
-To enable the web-based UI, run:  
+- [localhost:8080](http://localhost:8080) → UI Dashboard  
+- [localhost:3000/catalog](http://localhost:3000/catalog) → Iceberg REST Catalog API  
 
-```sh
-# (UI setup instructions go here)
-cp .env.example .env
 
-pnpm i
+## Demo: running dbt project with Embucket  
 
-pnpm codegen
+This demo showcases how to use Embucket with `dbt` and execute the `snowplow_web` dbt project, treating Embucket as a Snowflake-compatible database.
 
-pnpm dev
+### Prerequisites
 
-open http://localhost:5173
-```
-
-**Note**: `bucketd` must be run with `--cors-enabled` and `--cors-allow-origin=http://localhost:5173` in order for the UI to be able to authenticate properly.
+* python 3.9+ installed
+* virtualenv installed
 
 ### Run dbt workflow  
 
@@ -130,10 +145,8 @@ python3 upload.py
 dbt seed
 
 # Run dbt transformations
-dbt run
+dbt run -m snowplow_web
 ```
-
----
 
 ## Contributing  
 
@@ -145,19 +158,7 @@ We welcome contributions! To get involved:
 
 For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).  
 
-## Contributors
-
-<!-- readme: contributors -start -->
-<!-- readme: contributors -end -->
-
 ## License  
 
 This project is licensed under the **Apache 2.0 License**. See [LICENSE](LICENSE) for details.  
-
----
-
-### Useful links  
-
-- [Official Documentation](https://github.com/Embucket/embucket/docs)  
-- [Report Issues](https://github.com/Embucket/embucket/issues)  
 
