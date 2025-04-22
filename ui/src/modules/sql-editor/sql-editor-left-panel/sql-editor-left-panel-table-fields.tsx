@@ -9,19 +9,19 @@ import { Button } from '@/components/ui/button';
 //   DropdownMenuItem,
 //   DropdownMenuTrigger,
 // } from '@/components/ui/dropdown-menu';
-import type { TableColumn } from '@/orval/models';
+// import type { TableColumn } from '@/orval/models';
 import { useGetTableColumns } from '@/orval/tables';
 
 import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { SqlEditorPreviewDialog } from '../sql-editor-preview-dialog/sql-editor-preview-dialog';
 import type { SelectedTree } from './sql-editor-left-panel-databases';
 
-const DATA: TableColumn[] = [
-  { name: 'ID', type: 'VARCHAR(255)', nullable: 'true', default: 'NULL', description: '' },
-  { name: 'EMAIL', type: 'VARCHAR(255)', nullable: 'true', default: 'NULL', description: '' },
-  { name: 'AMOUNT', type: 'NUMBER(38, 10)', nullable: 'true', default: 'NULL', description: '' },
-  { name: 'DATE', type: 'DATE', nullable: 'true', default: 'NULL', description: '' },
-];
+// const DATA: TableColumn[] = [
+//   { name: 'ID', type: 'VARCHAR(255)', nullable: 'true', default: 'NULL', description: '' },
+//   { name: 'EMAIL', type: 'VARCHAR(255)', nullable: 'true', default: 'NULL', description: '' },
+//   { name: 'AMOUNT', type: 'NUMBER(38, 10)', nullable: 'true', default: 'NULL', description: '' },
+//   { name: 'DATE', type: 'DATE', nullable: 'true', default: 'NULL', description: '' },
+// ];
 
 interface TableFieldsProps {
   selectedTree?: SelectedTree;
@@ -32,14 +32,14 @@ export function SqlEditorLeftPanelTableFields({ selectedTree }: TableFieldsProps
 
   const { toggleLeftBottomPanel } = useSqlEditorPanelsState();
 
-  const { data: { items: columns = DATA } = {} } = useGetTableColumns(
+  const { data: { items: columns } = {} } = useGetTableColumns(
     selectedTree?.databaseName ?? '',
     selectedTree?.schemaName ?? '',
     selectedTree?.tableName ?? '',
     { query: { enabled: !!selectedTree } },
   );
 
-  if (!columns.length) {
+  if (!columns?.length) {
     return null;
   }
 

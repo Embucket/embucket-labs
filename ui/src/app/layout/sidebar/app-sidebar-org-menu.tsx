@@ -38,8 +38,8 @@ export function AppSidebarOrgMenu() {
                 <Building2 className="size-4" />
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="truncate font-semibold">Mauseflow Inc.</span>
-                <span className="text-muted-foreground truncate text-xs">Free forever</span>
+                <span className="truncate font-semibold">Booster Inc.</span>
+                <span className="text-muted-foreground truncate text-xs">Premium</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>

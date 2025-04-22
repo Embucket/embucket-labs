@@ -10,7 +10,7 @@ export function DataPage() {
         <InputIcon>
           <Search />
         </InputIcon>
-        <Input disabled placeholder="Search" />
+        <Input className="min-w-80" disabled placeholder="Search" />
       </InputRoot>
     </div>
   );

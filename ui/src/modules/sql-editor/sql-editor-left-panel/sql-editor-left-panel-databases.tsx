@@ -277,6 +277,9 @@ export function SqlEditorLeftPanelDatabases({
         Icon={Database}
         title="No Databases Available"
         description="Create a database to start organizing your data."
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        onCtaClick={() => {}}
+        ctaText="Create database"
       />
     );
   }

@@ -31,7 +31,7 @@ export function SqlEditorCenterBottomPanel({
       {isIdle && !queryRecord && <QueryResultDataTableEmpty />}
 
       {!noFields && (
-        <Tabs defaultValue="results">
+        <Tabs defaultValue="results" className="h-full">
           <TabsList className="px-4">
             <TabsTrigger value="results">Results</TabsTrigger>
             <TabsTrigger disabled value="chart">
@@ -54,7 +54,7 @@ export function SqlEditorCenterBottomPanel({
               </Button>
             </div>
           </div>
-          <TabsContent value="results" className="m-0">
+          <TabsContent value="results" className="m-0 h-full">
             <ScrollArea className="size-full max-w-[calc(100vw-256px-8px-256px-256px-16px-2px)]">
               <QueryResultDataTable columns={columns} rows={rows} isLoading={isLoading} />
               <ScrollBar orientation="horizontal" />

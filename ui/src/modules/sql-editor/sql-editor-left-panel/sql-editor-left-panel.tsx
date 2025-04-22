@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import type { Worksheet } from '@/orval/models';
+// import type { Worksheet } from '@/orval/models';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
 import { useGetWorksheets } from '@/orval/worksheets';
 
@@ -23,37 +23,37 @@ import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { SqlEditorResizablePanel } from '../sql-editor-resizable';
 import type { SelectedTree } from './sql-editor-left-panel-databases';
 import { SqlEditorLeftPanelDatabases } from './sql-editor-left-panel-databases';
-import { DATA as DATA_NAVIGATION_TREES } from './sql-editor-left-panel-databases-data';
+// import { DATA as DATA_NAVIGATION_TREES } from './sql-editor-left-panel-databases-data';
 import { SqlEditorLeftPanelTableFields } from './sql-editor-left-panel-table-fields';
 import { SqlEditorLeftPanelWorksheets } from './sql-editor-left-panel-worksheets';
 
-const DATA: Worksheet[] = [
-  {
-    content: 'SELECT * FROM users',
-    createdAt: '2023-10-01T12:00:00Z',
-    id: 1,
-    name: 'Users',
-    updatedAt: '2023-10-01T12:00:05Z',
-  },
-  {
-    content: 'SELECT * FROM orders',
-    createdAt: '2023-10-01T12:05:00Z',
-    id: 2,
-    name: 'Orders',
-    updatedAt: '2023-10-01T12:05:10Z',
-  },
-];
+// const DATA: Worksheet[] = [
+//   {
+//     content: 'SELECT * FROM users',
+//     createdAt: '2023-10-01T12:00:00Z',
+//     id: 1,
+//     name: 'Users',
+//     updatedAt: '2023-10-01T12:00:05Z',
+//   },
+//   {
+//     content: 'SELECT * FROM orders',
+//     createdAt: '2023-10-01T12:05:00Z',
+//     id: 2,
+//     name: 'Orders',
+//     updatedAt: '2023-10-01T12:05:10Z',
+//   },
+// ];
 
 export const SqlEditorLeftPanel = () => {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
 
   const {
-    data: { items: navigationTrees = DATA_NAVIGATION_TREES } = {},
+    data: { items: navigationTrees } = {},
     refetch: refetchNavigationTrees,
     isFetching: isFetchingNavigationTrees,
   } = useGetNavigationTrees();
   const {
-    data: { items: worksheets = DATA } = {},
+    data: { items: worksheets } = {},
     refetch: refetchWorksheets,
     isFetching: isFetchingWorksheets,
   } = useGetWorksheets();
@@ -79,7 +79,7 @@ export const SqlEditorLeftPanel = () => {
     setIsRefreshing(false);
   };
 
-  if (!isFetchingWorksheets && worksheets.length && worksheetId === 'undefined') {
+  if (!isFetchingWorksheets && worksheets?.length && worksheetId === 'undefined') {
     return (
       <Navigate
         to="/sql-editor/$worksheetId"
@@ -104,7 +104,7 @@ export const SqlEditorLeftPanel = () => {
         </SidebarHeader>
 
         <SidebarContent className="gap-0">
-          {!!navigationTrees.length && (
+          {!!navigationTrees?.length && (
             <SidebarGroup className="px-4">
               <div className="justify flex items-center justify-between gap-2">
                 <InputRoot>
@@ -133,7 +133,7 @@ export const SqlEditorLeftPanel = () => {
           <SidebarGroup className="h-full px-0 pb-0">
             <SidebarGroupContent className="h-full">
               <TabsContent value="worksheets" className="h-full">
-                <SqlEditorLeftPanelWorksheets worksheets={worksheets} />
+                <SqlEditorLeftPanelWorksheets worksheets={worksheets ?? []} />
               </TabsContent>
 
               <TabsContent value="databases" className="h-full">
@@ -146,7 +146,7 @@ export const SqlEditorLeftPanel = () => {
                   >
                     <ScrollArea className="h-full">
                       <SqlEditorLeftPanelDatabases
-                        navigationTrees={navigationTrees}
+                        navigationTrees={navigationTrees ?? []}
                         selectedTree={selectedNavigationTreeDatabase}
                         onSetSelectedTree={(tree: SelectedTree) => {
                           setSelectedNavigationTreeDatabase(tree);

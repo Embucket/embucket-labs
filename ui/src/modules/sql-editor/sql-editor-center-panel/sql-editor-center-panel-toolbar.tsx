@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SidebarGroup } from '@/components/ui/sidebar';
-import type { Volume } from '@/orval/models';
+// import type { Volume } from '@/orval/models';
 import { useGetVolumes } from '@/orval/volumes';
 
 interface RunSQLButtonProps {
@@ -79,19 +79,19 @@ const BeautifyButton = () => {
   );
 };
 
-const DATA: Volume[] = [
-  {
-    type: 'memory',
-    name: 'myvolume',
-  },
-];
+// const DATA: Volume[] = [
+//   {
+//     type: 'memory',
+//     name: 'myvolume',
+//   },
+// ];
 
 const VolumeSelect = () => {
   const [selectedOption, setSelectedOption] = useState<string | undefined>();
-  const { data: { items: volumes = DATA } = {}, isPending } = useGetVolumes();
+  const { data: { items: volumes } = {}, isPending } = useGetVolumes();
 
   useEffect(() => {
-    if (volumes.length && !isPending && !selectedOption) {
+    if (volumes?.length && !isPending && !selectedOption) {
       setSelectedOption(volumes[0].name);
     }
   }, [volumes, selectedOption, isPending]);
@@ -112,7 +112,7 @@ const VolumeSelect = () => {
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
-          {volumes.map((volume) => (
+          {volumes?.map((volume) => (
             <SelectItem key={volume.name} value={volume.name}>
               {volume.name}
             </SelectItem>

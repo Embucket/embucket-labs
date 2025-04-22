@@ -1,7 +1,7 @@
 export default {
   '*.{ts,tsx}': () => [
-    'tsc -p ./tsconfig.app.json',
-    'eslint --fix -c ./eslint.config.mjs --max-warnings 0 --report-unused-disable-directives --ignore-pattern "**/*.{mjs,cjs,js}"',
+    'cd ui && tsc -p ./tsconfig.app.json',
+    'cd ui &&  eslint --fix -c ./eslint.config.mjs --max-warnings 0 --report-unused-disable-directives --ignore-pattern "**/*.{mjs,cjs,js}"',
   ],
-  '*': 'prettier --write --ignore-unknown',
+  '*': 'cd ui && prettier --write --ignore-unknown',
 };

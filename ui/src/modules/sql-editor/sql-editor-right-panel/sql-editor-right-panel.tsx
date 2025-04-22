@@ -19,48 +19,48 @@ import { useGetQueries } from '@/orval/queries';
 import { SQLEditor } from '../sql-editor';
 import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 
-const DATA: QueryRecord[] = [
-  {
-    id: 1,
-    query: 'SELECT * FROM users',
-    error: '',
-    result: {
-      columns: [
-        { name: 'id', type: 'INT' },
-        { name: 'name', type: 'VARCHAR(255)' },
-      ],
-      rows: [
-        [1, 'John'],
-        [2, 'Charlie'],
-        [3, 'Bob'],
-      ],
-    },
-    resultCount: 0,
-    startTime: '11:55:00 AM',
-    endTime: '2023-10-01T12:00:05Z',
-    durationMs: 5000,
-    status: 'Ok',
-    worksheetId: 1,
-  },
-  {
-    id: 2,
-    query: 'SELECT * FROM orders',
-    error: '',
-    result: {
-      columns: [],
-      rows: [],
-    },
-    resultCount: 0,
-    startTime: '12:00:05 AM',
-    endTime: '2023-10-01T12:05:10Z',
-    durationMs: 10000,
-    status: 'Error',
-    worksheetId: 1,
-  },
-];
+// const DATA: QueryRecord[] = [
+//   {
+//     id: 1,
+//     query: 'SELECT * FROM users',
+//     error: '',
+//     result: {
+//       columns: [
+//         { name: 'id', type: 'INT' },
+//         { name: 'name', type: 'VARCHAR(255)' },
+//       ],
+//       rows: [
+//         [1, 'John'],
+//         [2, 'Charlie'],
+//         [3, 'Bob'],
+//       ],
+//     },
+//     resultCount: 0,
+//     startTime: '11:55:00 AM',
+//     endTime: '2023-10-01T12:00:05Z',
+//     durationMs: 5000,
+//     status: 'successful',
+//     worksheetId: 1,
+//   },
+//   {
+//     id: 2,
+//     query: 'SELECT * FROM orders',
+//     error: '',
+//     result: {
+//       columns: [],
+//       rows: [],
+//     },
+//     resultCount: 0,
+//     startTime: '12:00:05 AM',
+//     endTime: '2023-10-01T12:05:10Z',
+//     durationMs: 10000,
+//     status: 'failed',
+//     worksheetId: 1,
+//   },
+// ];
 
 interface QueryItemProps {
-  status: 'success' | 'error';
+  status: QueryRecord['status'];
   query: string;
   time: string;
 }
@@ -72,7 +72,7 @@ function QueryItem({ status, query, time }: QueryItemProps) {
         <span
           className={cn(
             'mx-2 size-1 rounded-full',
-            status === 'success' ? 'bg-green-500' : 'bg-red-500',
+            status === 'successful' ? 'bg-green-500' : 'bg-red-500',
           )}
         />
         <span className="max-w-[124px] truncate text-sm">{query}</span>
@@ -93,9 +93,12 @@ const SqlEditorSidebarQueries = ({
 }: SqlEditorSidebarQueriesProps) => {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
 
-  const { data: { items: queries = DATA } = {} } = useGetQueries({ worksheetId: +worksheetId });
+  const { data: { items: queries } = {} } = useGetQueries(
+    { worksheetId: +worksheetId },
+    { query: { enabled: worksheetId !== 'undefined' } },
+  );
 
-  if (!queries.length) {
+  if (!queries?.length) {
     return (
       <EmptyContainer
         className="absolute text-center text-wrap"
@@ -132,7 +135,7 @@ const SqlEditorSidebarQueries = ({
                       className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent! data-[active=true]:font-light"
                     >
                       <QueryItem
-                        status={query.status === 'Ok' ? 'success' : 'error'}
+                        status={query.status}
                         query={query.query}
                         time={new Date(query.startTime).toLocaleTimeString('en-US', {
                           hour: '2-digit',
@@ -168,7 +171,10 @@ export const SqlEditorRightPanel = ({
 }: SqlEditorRightPanelProps) => {
   const { isRightPanelExpanded, toggleRightPanel } = useSqlEditorPanelsState();
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
-  const { data: { items: queries = DATA } = {} } = useGetQueries({ worksheetId: +worksheetId });
+  const { data: { items: queries } = {} } = useGetQueries(
+    { worksheetId: +worksheetId },
+    { query: { enabled: worksheetId !== 'undefined' } },
+  );
 
   return (
     <div
@@ -189,7 +195,7 @@ export const SqlEditorRightPanel = ({
         </Button>
       </div>
       <div className="text-muted-foreground flex items-center justify-between px-4 py-2 text-sm">
-        All queries ({queries.length})
+        All queries ({queries?.length})
         <Button disabled size="icon" variant="ghost" className="size-8">
           <SlidersHorizontal />
         </Button>
