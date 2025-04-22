@@ -82,8 +82,6 @@ function QueryItem({ status, query, time }: QueryItemProps) {
   );
 }
 
-const a: number = '1';
-
 interface SqlEditorSidebarQueriesProps {
   selectedQueryRecord?: QueryRecord;
   onSetSelectedQueryRecord: (queryRecord: QueryRecord) => void;
