@@ -17,7 +17,6 @@ pub mod table;
 mod time_from_parts;
 mod timestamp_from_parts;
 pub(crate) mod aggregate;
-pub(crate) mod window;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
