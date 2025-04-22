@@ -23,5 +23,5 @@ export function QueryResultDataTable({ isLoading, rows, columns }: QueryResultDa
     }),
   );
 
-  return <DataTable removeXBorders columns={tableColumns} data={rows} isLoading={isLoading} />;
+  return <DataTable removeLRBorders columns={tableColumns} data={rows} isLoading={isLoading} />;
 }

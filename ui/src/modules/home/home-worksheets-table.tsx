@@ -26,5 +26,5 @@ export function HomeWorksheetsTable({ isLoading, worksheets }: HomeWorksheetsTab
     }),
   ];
 
-  return <DataTable columns={columns} data={worksheets} isLoading={isLoading} />;
+  return <DataTable rounded columns={columns} data={worksheets} isLoading={isLoading} />;
 }
