@@ -44,49 +44,43 @@ impl FlattenTableFunc {
 
 impl TableFunctionImpl for FlattenTableFunc {
     fn call(&self, args: &[Expr]) -> DFResult<Arc<dyn TableProvider>> {
-        let mut input_str = String::new();
-        let mut path = String::new();
-        let mut outer = false;
-        let mut recursive = false;
-        let mut mode = Mode::Both;
-
         if args.len() != 5 {
             return plan_err!("flatten() expects 5 args: INPUT, PATH, OUTER, RECURSIVE, MODE");
         }
-        if let Expr::Literal(ScalarValue::Utf8(v)) = args[0].clone() {
-            if let Some(v) = v {
-                input_str = v;
-            }
-        }
+        let input_str = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[0] {
+            v.to_owned()
+        } else {
+            return plan_err!("INPUT must be a string");
+        };
 
-        if let Expr::Literal(ScalarValue::Utf8(v)) = args[1].clone() {
-            if let Some(v) = v {
-                path = v;
-            }
-        }
+        let path = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[1] {
+            v.to_owned()
+        } else {
+            String::new()
+        };
 
-        if let Expr::Literal(ScalarValue::Boolean(v)) = args[2].clone() {
-            if let Some(v) = v {
-                outer = v;
-            }
-        }
+        let outer = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[2] {
+            *v
+        } else {
+            false
+        };
 
-        if let Expr::Literal(ScalarValue::Boolean(v)) = args[3].clone() {
-            if let Some(v) = v {
-                recursive = v;
-            }
-        }
+        let recursive = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[3] {
+            *v
+        } else {
+            false
+        };
 
-        if let Expr::Literal(ScalarValue::Utf8(v)) = args[4].clone() {
-            if let Some(v) = v {
-                mode = match v.to_lowercase().as_str() {
-                    "object" => Mode::Object,
-                    "array" => Mode::Array,
-                    "both" => Mode::Both,
-                    _ => return plan_err!("MODE must be one of: object, array, both"),
-                }
+        let mode = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[4] {
+            match v.to_lowercase().as_str() {
+                "object" => Mode::Object,
+                "array" => Mode::Array,
+                "both" => Mode::Both,
+                _ => return plan_err!("MODE must be one of: object, array, both"),
             }
-        }
+        } else {
+            Mode::Both
+        };
 
         let input: Value = serde_json::from_str(&input_str).map_err(|e| {
             datafusion_common::error::DataFusionError::Plan(format!(
