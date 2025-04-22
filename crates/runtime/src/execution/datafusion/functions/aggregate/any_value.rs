@@ -29,6 +29,7 @@ use datafusion_macros::user_doc;
 use std::any::Any;
 use std::fmt::Debug;
 use std::mem::size_of_val;
+use arrow_array::Array;
 
 #[user_doc(
     doc_section(label = "General Functions"),
@@ -147,7 +148,7 @@ impl Accumulator for AnyValueAccumulator {
             return Ok(());
         }
 
-        if !values.is_empty() && values[0].len() > 0 {
+        if !values.is_empty() && !values[0].is_empty() {
             let row = get_row_at_idx(values, 0)?;
             self.update_with_new_row(&row);
         }
@@ -171,7 +172,7 @@ impl Accumulator for AnyValueAccumulator {
     }
 
     fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
-        if states.is_empty() || states[0].len() == 0 {
+        if states.is_empty() || states[0].is_empty() {
             return Ok(());
         }
 
