@@ -80,7 +80,7 @@ impl AggregateUDFImpl for AnyValue {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "any_value"
     }
 
@@ -205,6 +205,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::as_conversions)]
     fn test_any_value() -> Result<()> {
         let mut accumulator = AnyValueAccumulator::try_new(&DataType::Int64)?;
         let arr = Arc::new(Int64Array::from(vec![1, 2, 3, 4, 5])) as ArrayRef;
@@ -222,6 +223,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::as_conversions)]
     fn test_any_value_merge() -> Result<()> {
         let mut acc1 = AnyValueAccumulator::try_new(&DataType::Int64)?;
         let arr1 = Arc::new(Int64Array::from(vec![1, 2, 3])) as ArrayRef;
@@ -243,9 +245,9 @@ mod tests {
 
         let result = merge_acc.evaluate()?;
         if let ScalarValue::Int64(Some(val)) = result {
-            assert!(val == 1 || val == 4, "Expected 1 or 4, got {}", val);
+            assert!(val == 1 || val == 4, "Expected 1 or 4, got {val}");
         } else {
-            panic!("Expected Int64, got {:?}", result);
+            panic!("Expected Int64, got {result:?}");
         }
 
         Ok(())
