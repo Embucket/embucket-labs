@@ -103,10 +103,17 @@ impl TableFunctionImpl for FlattenTableFunc {
             ))
         })?;
 
+        let mut schema_fields = vec![];
+        schema_fields.push(Field::new("SEQ", DataType::UInt64, false));
+        schema_fields.push(Field::new("KEY", DataType::Utf8, true));
+        schema_fields.push(Field::new("PATH", DataType::Utf8, false));
+        schema_fields.push(Field::new("INDEX", DataType::UInt64, true));
+        schema_fields.push(Field::new("VALUE", DataType::Utf8, true));
+        schema_fields.push(Field::new("THIS", DataType::Utf8, false));
+        let schema = Arc::new(Schema::new(schema_fields));
+
         let input = match get_json_value(&input, &path) {
-            None => {
-                return plan_err!("Invalid JSON path");
-            }
+            None => return Ok(empty_table(schema, outer)),
             Some(v) => v,
         };
 
@@ -118,15 +125,8 @@ impl TableFunctionImpl for FlattenTableFunc {
             value: StringBuilder::new(),
             this: StringBuilder::new(),
         }));
-        flatten(input, path, outer, recursive, &mode, Rc::clone(&out))?;
 
-        let mut schema_fields = vec![];
-        schema_fields.push(Field::new("SEQ", DataType::UInt64, false));
-        schema_fields.push(Field::new("KEY", DataType::Utf8, true));
-        schema_fields.push(Field::new("PATH", DataType::Utf8, false));
-        schema_fields.push(Field::new("INDEX", DataType::UInt64, true));
-        schema_fields.push(Field::new("VALUE", DataType::Utf8, true));
-        schema_fields.push(Field::new("THIS", DataType::Utf8, false));
+        flatten(input, path, outer, recursive, &mode, Rc::clone(&out))?;
 
         let mut out = out.borrow_mut();
         let mut cols: Vec<ArrayRef> = vec![];
@@ -136,12 +136,46 @@ impl TableFunctionImpl for FlattenTableFunc {
         cols.push(Arc::new(out.index.finish()));
         cols.push(Arc::new(out.value.finish()));
         cols.push(Arc::new(out.this.finish()));
-        let schema = Arc::new(Schema::new(schema_fields));
-        let batch = RecordBatch::try_new(schema.clone(), cols)?;
-        let table = MemTable::try_new(schema, vec![vec![batch]])?;
 
-        Ok(Arc::new(table))
+        let batch = RecordBatch::try_new(schema.clone(), cols)?;
+        Ok(if batch.num_rows() == 0 {
+            empty_table(schema, outer)
+        } else {
+            Arc::new(MemTable::try_new(schema, vec![vec![batch]])?)
+        })
     }
+}
+
+fn empty_table(schema: SchemaRef, null: bool) -> Arc<MemTable> {
+    let batch = if null {
+        RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(UInt64Array::from(vec![1])) as ArrayRef,
+                Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
+                Arc::new(StringArray::from(vec![""])) as ArrayRef,
+                Arc::new(UInt64Array::from(vec![None])) as ArrayRef,
+                Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
+                Arc::new(StringArray::from(vec![""])) as ArrayRef, // todo
+            ],
+        )
+        .unwrap()
+    } else {
+        RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+            ],
+        )
+        .unwrap()
+    };
+
+    Arc::new(MemTable::try_new(schema, vec![vec![batch]]).unwrap())
 }
 
 fn flatten(
@@ -596,6 +630,53 @@ mod tests {
             &result
         );
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_outer() -> DFResult<()> {
+        // outer = true
+        let exp = [
+            "+-----+-----+------+-------+-------+------+",
+            "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
+            "+-----+-----+------+-------+-------+------+",
+            "| 1   |     |      |       |       |      |",
+            "+-----+-----+------+-------+-------+------+",
+        ];
+
+        let ctx = SessionContext::new();
+        ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
+
+        let sql = r#"SELECT * from flatten('{"a":1}','b',true,false,'both')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(exp, &result);
+
+        let sql = r#"SELECT * from flatten('[]','',true,false,'both')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(exp, &result);
+
+        // outer = false
+        let exp = [
+            "+-----+-----+------+-------+-------+------+",
+            "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
+            "+-----+-----+------+-------+-------+------+",
+            "+-----+-----+------+-------+-------+------+",
+        ];
+
+        let ctx = SessionContext::new();
+        ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
+
+        let sql = r#"SELECT * from flatten('{"a":1}','b',false,false,'both')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(exp, &result);
+
+        let sql = r#"SELECT * from flatten('[]','',false,false,'both')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(exp, &result);
         Ok(())
     }
 }
