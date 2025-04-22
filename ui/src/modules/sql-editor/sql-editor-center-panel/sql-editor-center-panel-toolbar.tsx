@@ -37,9 +37,9 @@ function RunSQLButton({ onRunQuery, disabled }: RunSQLButtonProps) {
     } else {
       targetStatement = curStatements.at(-1);
     }
-    // eslint-disable-next-line no-console
-    console.log(targetStatement?.content);
-    onRunQuery(targetStatement?.content ?? '');
+    if (!targetStatement?.content) return;
+
+    onRunQuery(targetStatement.content);
   }
 
   return (

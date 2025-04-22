@@ -31,7 +31,7 @@ export function HomePage() {
       </div>
       <div className="p-4">
         <p className="mb-2 text-3xl font-semibold">Welcome!</p>
-        <p className="text-muted-foreground font-light">Fancy seeing you here 😎</p>
+        <p className="text-muted-foreground font-light">Nice seeing you here 😎</p>
       </div>
       <HomeActionButtons />
       <div className="flex size-full flex-col p-4">

@@ -27,7 +27,7 @@ export function SqlEditorPreviewDialog({
 
   return (
     <Dialog open={opened} onOpenChange={onSetOpened}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Preview Table Data</DialogTitle>
         </DialogHeader>

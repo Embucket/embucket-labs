@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import { EditorCacheProvider } from '@tidbcloud/tisqleditor-react';
 
+import { getGetDashboardQueryKey } from '@/orval/dashboard';
 // import { useSqlEditorPanelsState } from '@/modules/sql-editor/sql-editor-panels-state-provider';
 import type { QueryRecord } from '@/orval/models';
 import { getGetQueriesQueryKey, useCreateQuery } from '@/orval/queries';
@@ -54,10 +55,15 @@ export function SqlEditorPage() {
     isIdle,
   } = useCreateQuery({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: getGetQueriesQueryKey({ worksheetId: +worksheetId }),
-        });
+      onSuccess: async () => {
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: getGetQueriesQueryKey({ worksheetId: +worksheetId }),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: getGetDashboardQueryKey(),
+          }),
+        ]);
       },
     },
   });
