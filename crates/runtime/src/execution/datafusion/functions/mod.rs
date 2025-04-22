@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
-use datafusion_expr::AggregateUDF;
 use sqlparser::ast::Value::SingleQuotedString;
 use sqlparser::ast::{
     Expr, Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
 };
 
+pub(crate) mod aggregate;
 mod convert_timezone;
 mod date_add;
 mod date_diff;
@@ -16,7 +16,6 @@ mod parse_json;
 pub mod table;
 mod time_from_parts;
 mod timestamp_from_parts;
-pub(crate) mod aggregate;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![

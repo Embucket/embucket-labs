@@ -17,9 +17,6 @@
 
 //! Defines the ANY_VALUE aggregation function.
 
-use std::any::Any;
-use std::fmt::Debug;
-use std::mem::size_of_val;
 use super::macros::make_udaf_function;
 use arrow::array::{ArrayRef, AsArray};
 use arrow::datatypes::{DataType, Field};
@@ -27,10 +24,11 @@ use datafusion_common::utils::get_row_at_idx;
 use datafusion_common::{Result, ScalarValue};
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
 use datafusion_expr::utils::format_state_name;
-use datafusion_expr::{
-    Accumulator, AggregateUDFImpl, Documentation, Expr, Signature, Volatility,
-};
+use datafusion_expr::{Accumulator, AggregateUDFImpl, Documentation, Signature, Volatility};
 use datafusion_macros::user_doc;
+use std::any::Any;
+use std::fmt::Debug;
+use std::mem::size_of_val;
 
 #[user_doc(
     doc_section(label = "General Functions"),
@@ -194,13 +192,12 @@ impl Accumulator for AnyValueAccumulator {
     }
 }
 
-
 make_udaf_function!(AnyValue);
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use arrow::array::Int64Array;
+    use std::sync::Arc;
 
     use super::*;
 

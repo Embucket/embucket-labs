@@ -15,17 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use std::sync::Arc;
-use datafusion_expr::AggregateUDF;
 use datafusion_expr::registry::FunctionRegistry;
-use crate::execution::datafusion::functions::aggregate;
+use datafusion_expr::AggregateUDF;
+use std::sync::Arc;
 
 pub mod any_value;
 
 pub fn register_udafs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
-    let aggregate_functions: Vec<Arc<AggregateUDF>> = vec![
-        any_value::get_udaf(),
-    ];
+    let aggregate_functions: Vec<Arc<AggregateUDF>> = vec![any_value::get_udaf()];
 
     for func in aggregate_functions {
         registry.register_udaf(func)?;
@@ -56,4 +53,3 @@ mod macros {
 
     pub(crate) use make_udaf_function;
 }
-
