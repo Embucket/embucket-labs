@@ -147,7 +147,7 @@ const SqlEditorSidebarQueries = ({
                   </SidebarMenuItem>
                 </HoverCardTrigger>
                 <HoverCardContent className="p-1">
-                  <div className="rounded bg-[#1F1F1F] p-2">
+                  <div className="rounded bg-[#1F1F1F]">
                     <SQLEditor readonly content={query.query} />
                   </div>
                 </HoverCardContent>

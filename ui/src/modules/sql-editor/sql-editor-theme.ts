@@ -44,10 +44,13 @@ const theme = EditorView.theme(
     },
     '&.readonly': {
       padding: '0px !important',
-      // background: 'transparent !important',
+      background: 'transparent !important',
     },
     '&.readonly .cm-content': {
       padding: '8px !important',
+    },
+    '&.readonly .cm-line': {
+      padding: '0px !important',
     },
     '.cm-gutterElement': {
       padding: '0px !important',
