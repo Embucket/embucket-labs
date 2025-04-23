@@ -28,7 +28,8 @@ use datafusion_expr::Expr;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 #[derive(Debug)]
 enum Mode {
@@ -38,12 +39,12 @@ enum Mode {
 }
 
 impl Mode {
-    fn is_object(&self) -> bool {
-        matches!(self, Mode::Object | Mode::Both)
+    const fn is_object(&self) -> bool {
+        matches!(self, Self::Object | Self::Both)
     }
 
-    fn is_array(&self) -> bool {
-        matches!(self, Mode::Array | Mode::Both)
+    const fn is_array(&self) -> bool {
+        matches!(self, Self::Array | Self::Both)
     }
 }
 
@@ -63,13 +64,13 @@ struct Out {
     last_outer: Option<Value>,
 }
 
-/// flatten function
+/// Flatten function
 /// Flattens (explodes) compound values into multiple rows
-/// 
+///
 /// Syntax: flatten(\<expr\>,\<path\>,\<outer\>,\<recursive\>,\<mode\>)
-/// 
-/// sql_example:
-/// 
+///
+/// sql example:
+///
 ///  SELECT * from flatten(\'{"a":1, "b":\[77,88\]}\',\'b\',false,false,'both')
 ///
 /// ```
@@ -87,45 +88,53 @@ struct Out {
 ///  +-----+-----+------+-------+-------+-------+
 ///```
 /// - \<input\>
-/// Input expression. Must be a JSON string
+///   Input expression. Must be a JSON string
 ///
 /// - \<path\>
-/// The path to the element within a JSON data structure that needs to be flattened
-/// 
+///   The path to the element within a JSON data structure that needs to be flattened
+///
 /// DEFAULT ''
-/// 
+///
 /// - \<outer\>
-/// If FALSE, any input rows that cannot be expanded, either because they cannot be accessed in the path or because they have zero fields or entries, are completely omitted from the output.
-/// 
+///    If FALSE, any input rows that cannot be expanded, either because they cannot be accessed in the path or because they have zero fields or entries, are completely omitted from the output.
+///
 /// If TRUE, exactly one row is generated for zero-row expansions (with NULL in the KEY, INDEX, and VALUE columns).
-/// 
+///
 /// DEFAULT FALSE
 ///
 /// - \<recursive\>
-/// If FALSE, only the element referenced by PATH is expanded.
-/// 
+///    If FALSE, only the element referenced by PATH is expanded.
+///
 /// If TRUE, the expansion is performed for all sub-elements recursively.
-/// 
+///
 /// Default FALSE
 ///
 /// - \<mode\>
-/// MODE => 'OBJECT' | 'ARRAY' | 'BOTH'
-/// Specifies whether only objects, arrays, or both should be flattened.
-/// 
+///    MODE => 'OBJECT' | 'ARRAY' | 'BOTH'
+///    Specifies whether only objects, arrays, or both should be flattened.
+///
 /// Default: BOTH
 
 #[derive(Debug, Clone)]
 pub struct FlattenTableFunc {
-    row_id: Arc<Mutex<u64>>,
+    row_id: Arc<AtomicU64>,
+}
+
+impl Default for FlattenTableFunc {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FlattenTableFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
-            row_id: Arc::new(Mutex::new(0)),
+            row_id: Arc::new(AtomicU64::new(0)),
         }
     }
 
+    #[allow(clippy::unwrap_used, clippy::as_conversions)]
     fn empty_table(
         &self,
         schema: SchemaRef,
@@ -134,21 +143,18 @@ impl FlattenTableFunc {
         null: bool,
     ) -> Arc<MemTable> {
         let batch = if null {
-            let last_outer_ = if let Some(v) = last_outer {
-                Some(serde_json::to_string_pretty(&v).unwrap())
-            } else {
-                None
-            };
+            let last_outer_ = last_outer.map(|v| serde_json::to_string_pretty(&v).unwrap());
 
             RecordBatch::try_new(
                 schema.clone(),
                 vec![
-                    Arc::new(UInt64Array::from(vec![*self.row_id.lock().unwrap()])) as ArrayRef,
+                    Arc::new(UInt64Array::from(vec![self.row_id.load(Ordering::Acquire)]))
+                        as ArrayRef,
                     Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
                     Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
                     Arc::new(UInt64Array::from(vec![None])) as ArrayRef,
                     Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
-                    Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef, // todo
+                    Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef,
                 ],
             )
             .unwrap()
@@ -170,14 +176,15 @@ impl FlattenTableFunc {
         Arc::new(MemTable::try_new(schema, vec![vec![batch]]).unwrap())
     }
 
+    #[allow(clippy::unwrap_used, clippy::as_conversions, clippy::only_used_in_recursion)]
     fn flatten(
         &self,
         value: &Value,
-        path: Vec<PathToken>,
+        path: &[PathToken],
         outer: bool,
         recursive: bool,
         mode: &Mode,
-        out: Rc<RefCell<Out>>,
+        out: &Rc<RefCell<Out>>,
     ) -> DFResult<()> {
         match value {
             Value::Array(v) => {
@@ -186,11 +193,11 @@ impl FlattenTableFunc {
                 }
                 out.borrow_mut().last_outer = Some(value.clone());
                 for (i, v) in v.iter().enumerate() {
-                    let mut p = path.clone();
+                    let mut p = path.to_owned();
                     p.push(PathToken::Index(i));
                     {
                         let mut o = out.borrow_mut();
-                        o.seq.append_value(*self.row_id.lock().unwrap());
+                        o.seq.append_value(self.row_id.load(Ordering::Acquire));
                         o.key.append_null();
                         o.path.append_value(path_to_string(&p));
                         o.index.append_value(i as u64);
@@ -200,7 +207,7 @@ impl FlattenTableFunc {
                             .append_value(serde_json::to_string_pretty(value).unwrap());
                     }
                     if recursive {
-                        self.flatten(v, p.clone(), outer, recursive, mode, Rc::clone(&out))?;
+                        self.flatten(v, &p, outer, recursive, mode, out)?;
                     }
                 }
             }
@@ -209,13 +216,13 @@ impl FlattenTableFunc {
                     return Ok(());
                 }
                 out.borrow_mut().last_outer = Some(value.clone());
-                for (k, v) in v.iter() {
-                    let mut p = path.clone();
+                for (k, v) in v {
+                    let mut p = path.to_owned();
                     p.push(PathToken::Key(k.to_owned()));
                     {
                         let mut o = out.borrow_mut();
-                        o.seq.append_value(*self.row_id.lock().unwrap());
-                        o.key.append_value(k.to_owned());
+                        o.seq.append_value(self.row_id.load(Ordering::Acquire));
+                        o.key.append_value(k);
                         o.path.append_value(path_to_string(&p));
                         o.index.append_null();
                         o.value
@@ -224,7 +231,7 @@ impl FlattenTableFunc {
                             .append_value(serde_json::to_string_pretty(value).unwrap());
                     }
                     if recursive {
-                        self.flatten(v, p.clone(), outer, recursive, mode, Rc::clone(&out))?;
+                        self.flatten(v, &p, outer, recursive, mode, out)?;
                     }
                 }
             }
@@ -241,11 +248,8 @@ impl TableFunctionImpl for FlattenTableFunc {
             return plan_err!("flatten() expects 5 args: INPUT, PATH, OUTER, RECURSIVE, MODE");
         }
 
-        *self.row_id.lock().unwrap() += 1;
-
-        let input_str = if let ScalarValue::Utf8(Some(v)) = eval_expr(&args[0])? {
-            v
-        } else {
+        self.row_id.fetch_add(1, Ordering::Acquire);
+        let ScalarValue::Utf8(Some(input_str)) = eval_expr(&args[0])? else {
             return plan_err!("INPUT must be a string");
         };
 
@@ -284,18 +288,19 @@ impl TableFunctionImpl for FlattenTableFunc {
 
         let input: Value = serde_json::from_str(&input_str).map_err(|e| {
             datafusion_common::error::DataFusionError::Plan(format!(
-                "Failed to parse array JSON: {}",
-                e
+                "Failed to parse array JSON: {e}"
             ))
         })?;
 
-        let mut schema_fields = vec![];
-        schema_fields.push(Field::new("SEQ", DataType::UInt64, false));
-        schema_fields.push(Field::new("KEY", DataType::Utf8, true));
-        schema_fields.push(Field::new("PATH", DataType::Utf8, true));
-        schema_fields.push(Field::new("INDEX", DataType::UInt64, true));
-        schema_fields.push(Field::new("VALUE", DataType::Utf8, true));
-        schema_fields.push(Field::new("THIS", DataType::Utf8, true));
+        let schema_fields = vec![
+            Field::new("SEQ", DataType::UInt64, false),
+            Field::new("KEY", DataType::Utf8, true),
+            Field::new("PATH", DataType::Utf8, true),
+            Field::new("INDEX", DataType::UInt64, true),
+            Field::new("VALUE", DataType::Utf8, true),
+            Field::new("THIS", DataType::Utf8, true)
+        ];
+
         let schema = Arc::new(Schema::new(schema_fields));
 
         let input = match get_json_value(&input, &path) {
@@ -313,24 +318,18 @@ impl TableFunctionImpl for FlattenTableFunc {
             last_outer: None,
         }));
 
-        self.flatten(
-            input,
-            path.clone(),
-            is_outer,
-            is_recursive,
-            &mode,
-            Rc::clone(&out),
-        )?;
+        self.flatten(input, &path, is_outer, is_recursive, &mode, &out)?;
 
         let mut out = out.borrow_mut();
-        let mut cols: Vec<ArrayRef> = vec![];
-        cols.push(Arc::new(out.seq.finish()));
-        cols.push(Arc::new(out.key.finish()));
-        cols.push(Arc::new(out.path.finish()));
-        cols.push(Arc::new(out.index.finish()));
-        cols.push(Arc::new(out.value.finish()));
-        cols.push(Arc::new(out.this.finish()));
-
+        let  cols: Vec<ArrayRef> = vec![
+            Arc::new(out.seq.finish()),
+            Arc::new(out.key.finish()),
+            Arc::new(out.path.finish()),
+            Arc::new(out.index.finish()),
+            Arc::new(out.value.finish()),
+            Arc::new(out.this.finish())
+        ];
+        
         let batch = RecordBatch::try_new(schema.clone(), cols)?;
         Ok(if batch.num_rows() == 0 {
             self.empty_table(schema, &path, out.last_outer.clone(), is_outer)
@@ -349,7 +348,7 @@ fn path_to_string(path: &[PathToken]) -> String {
                 if idx == 0 {
                     out.push_str(k);
                 } else {
-                    out.push_str(&format!(".{k}"))
+                    out.push_str(&format!(".{k}"));
                 }
             }
             PathToken::Index(idx) => {
@@ -367,7 +366,7 @@ fn get_json_value<'a>(value: &'a Value, tokens: &[PathToken]) -> Option<&'a Valu
     for token in tokens {
         match token {
             PathToken::Key(k) => {
-                current = current.get(&k)?;
+                current = current.get(k)?;
             }
             PathToken::Index(i) => {
                 current = current.get(i)?;
@@ -378,6 +377,7 @@ fn get_json_value<'a>(value: &'a Value, tokens: &[PathToken]) -> Option<&'a Valu
     Some(current)
 }
 
+#[allow(clippy::while_let_on_iterator)]
 fn tokenize_path(path: &str) -> Option<Vec<PathToken>> {
     let mut tokens = Vec::new();
     let mut chars = path.chars().peekable();
@@ -461,7 +461,7 @@ mod tests {
     async fn test_invalid_json() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
-        let sql = r#"SELECT * from flatten('[1,,77]','',false,false,'both')"#;
+        let sql = "SELECT * from flatten('[1,,77]','',false,false,'both')";
         let result = ctx.sql(sql).await?.collect().await?;
         print_batches(&result)?;
 
@@ -472,7 +472,7 @@ mod tests {
     async fn test_array() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
-        let sql = r#"SELECT * from flatten('[1,77]','',false,false,'both')"#;
+        let sql = "SELECT * from flatten('[1,77]','',false,false,'both')";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
@@ -777,7 +777,7 @@ mod tests {
         ];
         assert_batches_eq!(exp, &result);
 
-        let sql = r#"SELECT * from flatten('[]','',true,false,'both')"#;
+        let sql = "SELECT * from flatten('[]','',true,false,'both')";
         let result = ctx.sql(sql).await?.collect().await?;
 
         let exp = [
@@ -789,7 +789,7 @@ mod tests {
         ];
         assert_batches_eq!(exp, &result);
 
-        let sql = r#"SELECT * from flatten('{}','',true,false,'both')"#;
+        let sql = "SELECT * from flatten('{}','',true,false,'both')";
         let result = ctx.sql(sql).await?.collect().await?;
 
         let exp = [
@@ -821,7 +821,7 @@ mod tests {
         let ctx = SessionContext::new();
         ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
         ctx.register_udf(ParseJsonFunc::new().into());
-        let sql = r#"SELECT * from flatten(parse_json('[1,77]'),'',false,false,'both')"#;
+        let sql = "SELECT * from flatten(parse_json('[1,77]'),'',false,false,'both')";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
