@@ -41,6 +41,7 @@ struct Out {
     index: UInt64Builder,
     value: StringBuilder,
     this: StringBuilder,
+    last_outer: Option<Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -73,13 +74,13 @@ impl TableFunctionImpl for FlattenTableFunc {
             vec![]
         };
 
-        let outer = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[2] {
+        let is_outer = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[2] {
             *v
         } else {
             false
         };
 
-        let recursive = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[3] {
+        let is_recursive = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[3] {
             *v
         } else {
             false
@@ -106,14 +107,14 @@ impl TableFunctionImpl for FlattenTableFunc {
         let mut schema_fields = vec![];
         schema_fields.push(Field::new("SEQ", DataType::UInt64, false));
         schema_fields.push(Field::new("KEY", DataType::Utf8, true));
-        schema_fields.push(Field::new("PATH", DataType::Utf8, false));
+        schema_fields.push(Field::new("PATH", DataType::Utf8, true));
         schema_fields.push(Field::new("INDEX", DataType::UInt64, true));
         schema_fields.push(Field::new("VALUE", DataType::Utf8, true));
-        schema_fields.push(Field::new("THIS", DataType::Utf8, false));
+        schema_fields.push(Field::new("THIS", DataType::Utf8, true));
         let schema = Arc::new(Schema::new(schema_fields));
 
         let input = match get_json_value(&input, &path) {
-            None => return Ok(empty_table(schema, outer)),
+            None => return Ok(empty_table(schema, &[], None, is_outer)),
             Some(v) => v,
         };
 
@@ -124,9 +125,17 @@ impl TableFunctionImpl for FlattenTableFunc {
             index: UInt64Builder::new(),
             value: StringBuilder::new(),
             this: StringBuilder::new(),
+            last_outer: None,
         }));
 
-        flatten(input, path, outer, recursive, &mode, Rc::clone(&out))?;
+        flatten(
+            input,
+            path.clone(),
+            is_outer,
+            is_recursive,
+            &mode,
+            Rc::clone(&out),
+        )?;
 
         let mut out = out.borrow_mut();
         let mut cols: Vec<ArrayRef> = vec![];
@@ -139,24 +148,35 @@ impl TableFunctionImpl for FlattenTableFunc {
 
         let batch = RecordBatch::try_new(schema.clone(), cols)?;
         Ok(if batch.num_rows() == 0 {
-            empty_table(schema, outer)
+            empty_table(schema, &path, out.last_outer.clone(), is_outer)
         } else {
             Arc::new(MemTable::try_new(schema, vec![vec![batch]])?)
         })
     }
 }
 
-fn empty_table(schema: SchemaRef, null: bool) -> Arc<MemTable> {
+fn empty_table(
+    schema: SchemaRef,
+    path: &[PathToken],
+    last_outer: Option<Value>,
+    null: bool,
+) -> Arc<MemTable> {
     let batch = if null {
+        let last_outer_ = if let Some(v) = last_outer {
+            Some(serde_json::to_string_pretty(&v).unwrap())
+        } else {
+            None
+        };
+
         RecordBatch::try_new(
             schema.clone(),
             vec![
                 Arc::new(UInt64Array::from(vec![1])) as ArrayRef,
                 Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
-                Arc::new(StringArray::from(vec![""])) as ArrayRef,
+                Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
                 Arc::new(UInt64Array::from(vec![None])) as ArrayRef,
                 Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
-                Arc::new(StringArray::from(vec![""])) as ArrayRef, // todo
+                Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef, // todo
             ],
         )
         .unwrap()
@@ -191,6 +211,7 @@ fn flatten(
             if !mode.is_array() {
                 return Ok(());
             }
+            out.borrow_mut().last_outer = Some(value.clone());
             for (i, v) in v.iter().enumerate() {
                 let mut p = path.clone();
                 p.push(PathToken::Index(i));
@@ -214,6 +235,7 @@ fn flatten(
             if !mode.is_object() {
                 return Ok(());
             }
+            out.borrow_mut().last_outer = Some(value.clone());
             for (k, v) in v.iter() {
                 let mut p = path.clone();
                 p.push(PathToken::Key(k.to_owned()));
@@ -632,17 +654,9 @@ mod tests {
 
         Ok(())
     }
-
     #[tokio::test]
     async fn test_outer() -> DFResult<()> {
         // outer = true
-        let exp = [
-            "+-----+-----+------+-------+-------+------+",
-            "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
-            "+-----+-----+------+-------+-------+------+",
-            "| 1   |     |      |       |       |      |",
-            "+-----+-----+------+-------+-------+------+",
-        ];
 
         let ctx = SessionContext::new();
         ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
@@ -650,33 +664,51 @@ mod tests {
         let sql = r#"SELECT * from flatten('{"a":1}','b',true,false,'both')"#;
         let result = ctx.sql(sql).await?.collect().await?;
 
+        let exp = [
+            "+-----+-----+------+-------+-------+------+",
+            "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
+            "+-----+-----+------+-------+-------+------+",
+            "| 1   |     |      |       |       |      |",
+            "+-----+-----+------+-------+-------+------+",
+        ];
+        assert_batches_eq!(exp, &result);
+
+        let sql = r#"SELECT * from flatten('{"a":[]}','a',true,false,'both')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        let exp = [
+            "+-----+-----+------+-------+-------+------+",
+            "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
+            "+-----+-----+------+-------+-------+------+",
+            "| 1   |     | a    |       |       | []   |",
+            "+-----+-----+------+-------+-------+------+",
+        ];
         assert_batches_eq!(exp, &result);
 
         let sql = r#"SELECT * from flatten('[]','',true,false,'both')"#;
         let result = ctx.sql(sql).await?.collect().await?;
 
-        assert_batches_eq!(exp, &result);
-
-        // outer = false
         let exp = [
             "+-----+-----+------+-------+-------+------+",
             "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
             "+-----+-----+------+-------+-------+------+",
+            "| 1   |     |      |       |       | []   |",
             "+-----+-----+------+-------+-------+------+",
         ];
-
-        let ctx = SessionContext::new();
-        ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
-
-        let sql = r#"SELECT * from flatten('{"a":1}','b',false,false,'both')"#;
-        let result = ctx.sql(sql).await?.collect().await?;
-
         assert_batches_eq!(exp, &result);
 
-        let sql = r#"SELECT * from flatten('[]','',false,false,'both')"#;
+        let sql = r#"SELECT * from flatten('{}','',true,false,'both')"#;
         let result = ctx.sql(sql).await?.collect().await?;
 
+        let exp = [
+            "+-----+-----+------+-------+-------+------+",
+            "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
+            "+-----+-----+------+-------+-------+------+",
+            "| 1   |     |      |       |       | {}   |",
+            "+-----+-----+------+-------+-------+------+",
+        ];
         assert_batches_eq!(exp, &result);
+
         Ok(())
     }
 }
