@@ -54,18 +54,19 @@ const sidebarNavItems: SidebarNavOption[] = [
     Icon: Home,
   },
   {
-    name: 'Data',
-    linkProps: {
-      to: '/data',
-    },
-    Icon: Database,
-  },
-  {
     name: 'Query History',
     linkProps: {
       to: '/query-history',
     },
     Icon: Activity,
+  },
+  {
+    name: 'Data',
+    linkProps: {
+      to: '/data',
+    },
+    Icon: Database,
+    disabled: true,
   },
 ];
 
