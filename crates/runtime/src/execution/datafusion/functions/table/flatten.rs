@@ -176,7 +176,11 @@ impl FlattenTableFunc {
         Arc::new(MemTable::try_new(schema, vec![vec![batch]]).unwrap())
     }
 
-    #[allow(clippy::unwrap_used, clippy::as_conversions, clippy::only_used_in_recursion)]
+    #[allow(
+        clippy::unwrap_used,
+        clippy::as_conversions,
+        clippy::only_used_in_recursion
+    )]
     fn flatten(
         &self,
         value: &Value,
@@ -298,7 +302,7 @@ impl TableFunctionImpl for FlattenTableFunc {
             Field::new("PATH", DataType::Utf8, true),
             Field::new("INDEX", DataType::UInt64, true),
             Field::new("VALUE", DataType::Utf8, true),
-            Field::new("THIS", DataType::Utf8, true)
+            Field::new("THIS", DataType::Utf8, true),
         ];
 
         let schema = Arc::new(Schema::new(schema_fields));
@@ -321,15 +325,15 @@ impl TableFunctionImpl for FlattenTableFunc {
         self.flatten(input, &path, is_outer, is_recursive, &mode, &out)?;
 
         let mut out = out.borrow_mut();
-        let  cols: Vec<ArrayRef> = vec![
+        let cols: Vec<ArrayRef> = vec![
             Arc::new(out.seq.finish()),
             Arc::new(out.key.finish()),
             Arc::new(out.path.finish()),
             Arc::new(out.index.finish()),
             Arc::new(out.value.finish()),
-            Arc::new(out.this.finish())
+            Arc::new(out.this.finish()),
         ];
-        
+
         let batch = RecordBatch::try_new(schema.clone(), cols)?;
         Ok(if batch.num_rows() == 0 {
             self.empty_table(schema, &path, out.last_outer.clone(), is_outer)
