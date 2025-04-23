@@ -96,22 +96,22 @@ struct Out {
 /// DEFAULT ''
 ///
 /// - \<outer\>
-///    If FALSE, any input rows that cannot be expanded, either because they cannot be accessed in the path or because they have zero fields or entries, are completely omitted from the output.
+///   If FALSE, any input rows that cannot be expanded, either because they cannot be accessed in the path or because they have zero fields or entries, are completely omitted from the output.
 ///
 /// If TRUE, exactly one row is generated for zero-row expansions (with NULL in the KEY, INDEX, and VALUE columns).
 ///
 /// DEFAULT FALSE
 ///
 /// - \<recursive\>
-///    If FALSE, only the element referenced by PATH is expanded.
+///   If FALSE, only the element referenced by PATH is expanded.
 ///
 /// If TRUE, the expansion is performed for all sub-elements recursively.
 ///
 /// Default FALSE
 ///
 /// - \<mode\>
-///    MODE => 'OBJECT' | 'ARRAY' | 'BOTH'
-///    Specifies whether only objects, arrays, or both should be flattened.
+///   MODE => 'OBJECT' | 'ARRAY' | 'BOTH'
+///   Specifies whether only objects, arrays, or both should be flattened.
 ///
 /// Default: BOTH
 
@@ -343,6 +343,7 @@ impl TableFunctionImpl for FlattenTableFunc {
     }
 }
 
+#[allow(clippy::format_push_string)]
 fn path_to_string(path: &[PathToken]) -> String {
     let mut out = String::new();
 
