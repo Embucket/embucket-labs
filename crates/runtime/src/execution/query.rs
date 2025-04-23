@@ -291,7 +291,6 @@ impl UserQuery {
     #[allow(clippy::unwrap_used)]
     #[instrument(level = "trace", ret)]
     pub fn preprocess_query(query: &str) -> String {
-        // Replace field[0].subfield -> json_get(json_get(field, 0), 'subfield')
         // TODO: This regex should be a static allocation
         let alter_iceberg_table = regex::Regex::new(r"alter\s+iceberg\s+table").unwrap();
         let mut query = alter_iceberg_table
@@ -464,6 +463,9 @@ impl UserQuery {
             ..
         })) = plan
         {
+            if matches!(*input, LogicalPlan::EmptyRelation(_)) {
+                return created_entity_response();
+            }
             let insert_plan = LogicalPlan::Dml(DmlStatement::new(
                 name,
                 schema,
@@ -524,7 +526,6 @@ impl UserQuery {
         .context(super::error::DataFusionSnafu)?;
         let schema = Schema::builder()
             .with_schema_id(0)
-            .with_identifier_field_ids(vec![])
             .with_fields(fields_with_ids)
             .build()
             .map_err(|err| DataFusionError::External(Box::new(err)))
@@ -843,15 +844,9 @@ impl UserQuery {
         };
 
         let ident: MetastoreSchemaIdent = self.resolve_schema_ident(schema_name.0)?.into();
-        let catalog = self.get_catalog(ident.database.as_str())?;
-        if catalog.schema(ident.schema.as_str()).is_some() && if_not_exists {
-            return Err(ExecutionError::ObjectAlreadyExists {
-                type_name: "schema".to_string(),
-                name: ident.schema,
-            });
-        }
-
         let plan = self.sql_statement_to_plan(statement).await?;
+        let catalog = self.get_catalog(ident.database.as_str())?;
+
         let downcast_result = self.resolve_iceberg_catalog_or_execute(catalog, plan).await;
         let iceberg_catalog = match downcast_result {
             IcebergCatalogResult::Catalog(catalog) => catalog,
@@ -863,6 +858,19 @@ impl UserQuery {
             }
         };
 
+        let schema_exists = iceberg_catalog
+            .list_namespaces(None)
+            .await
+            .context(ex_error::IcebergSnafu)?
+            .iter()
+            .any(|namespace| namespace.to_string() == ident.schema);
+
+        if schema_exists && if_not_exists {
+            return Err(ExecutionError::ObjectAlreadyExists {
+                type_name: "schema".to_string(),
+                name: ident.schema,
+            });
+        }
         let namespace = Namespace::try_new(&[ident.schema])
             .map_err(|err| DataFusionError::External(Box::new(err)))
             .context(ex_error::DataFusionSnafu)?;
