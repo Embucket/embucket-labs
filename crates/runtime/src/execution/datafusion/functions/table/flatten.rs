@@ -20,12 +20,10 @@ use arrow_array::{ArrayRef, RecordBatch, StringArray, UInt64Array};
 use arrow_schema::{DataType, Field, Schema, SchemaRef};
 use datafusion::catalog::{TableFunctionImpl, TableProvider};
 use datafusion::datasource::MemTable;
-use datafusion::execution::SessionState;
 use datafusion::physical_expr::create_physical_expr;
 use datafusion::physical_plan::ColumnarValue;
 use datafusion_common::{plan_err, DFSchema, Result as DFResult, ScalarValue};
 use datafusion_expr::execution_props::ExecutionProps;
-use datafusion_expr::expr::ScalarFunction;
 use datafusion_expr::Expr;
 use datafusion_macros::user_doc;
 use serde_json::Value;
@@ -33,12 +31,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-#[user_doc(
-    doc_section(label = "Table Functions"),
-    description = "sdf",
-    syntax_example = "",
-    sql_example = ""
-)]
 #[derive(Debug)]
 enum Mode {
     Object,
