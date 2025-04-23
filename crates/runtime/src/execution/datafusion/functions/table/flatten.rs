@@ -20,13 +20,25 @@ use arrow_array::{ArrayRef, RecordBatch, StringArray, UInt64Array};
 use arrow_schema::{DataType, Field, Schema, SchemaRef};
 use datafusion::catalog::{TableFunctionImpl, TableProvider};
 use datafusion::datasource::MemTable;
-use datafusion_common::{plan_err, Result as DFResult, ScalarValue};
+use datafusion::execution::SessionState;
+use datafusion::physical_expr::create_physical_expr;
+use datafusion::physical_plan::ColumnarValue;
+use datafusion_common::{plan_err, DFSchema, Result as DFResult, ScalarValue};
+use datafusion_expr::execution_props::ExecutionProps;
+use datafusion_expr::expr::ScalarFunction;
 use datafusion_expr::Expr;
+use datafusion_macros::user_doc;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
+#[user_doc(
+    doc_section(label = "Table Functions"),
+    description = "sdf",
+    syntax_example = "",
+    sql_example = ""
+)]
 #[derive(Debug)]
 enum Mode {
     Object,
@@ -189,8 +201,8 @@ impl TableFunctionImpl for FlattenTableFunc {
 
         *self.row_id.lock().unwrap() += 1;
 
-        let input_str = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[0] {
-            v.to_owned()
+        let input_str = if let ScalarValue::Utf8(Some(v)) = eval_expr(&args[0])? {
+            v
         } else {
             return plan_err!("INPUT must be a string");
         };
@@ -381,9 +393,22 @@ fn tokenize_path(path: &str) -> Option<Vec<PathToken>> {
     Some(tokens)
 }
 
+fn eval_expr(expr: &Expr) -> DFResult<ScalarValue> {
+    let exec_props = ExecutionProps::new();
+    let phys_expr = create_physical_expr(expr, &DFSchema::empty(), &exec_props)?;
+    let batch = RecordBatch::new_empty(Arc::new(Schema::empty()));
+    let result = phys_expr.evaluate(&batch)?;
+
+    match result {
+        ColumnarValue::Scalar(s) => Ok(s),
+        ColumnarValue::Array(arr) => ScalarValue::try_from_array(&arr, 0),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::execution::datafusion::functions::parse_json::ParseJsonFunc;
     use arrow::util::pretty::print_batches;
     use datafusion::prelude::SessionContext;
     use datafusion_common::assert_batches_eq;
@@ -522,7 +547,7 @@ mod tests {
                 "+-----+-----+------+-------+------------+--------------+",
                 "| SEQ | KEY | PATH | INDEX | VALUE      | THIS         |",
                 "+-----+-----+------+-------+------------+--------------+",
-                "| 1   | a   | a    |       | 1          | {            |",
+                "| 2   | a   | a    |       | 1          | {            |",
                 "|     |     |      |       |            |   \"a\": 1,    |",
                 "|     |     |      |       |            |   \"b\": [     |",
                 "|     |     |      |       |            |     77,      |",
@@ -532,7 +557,7 @@ mod tests {
                 "|     |     |      |       |            |     \"d\": \"X\" |",
                 "|     |     |      |       |            |   }          |",
                 "|     |     |      |       |            | }            |",
-                "| 1   | b   | b    |       | [          | {            |",
+                "| 2   | b   | b    |       | [          | {            |",
                 "|     |     |      |       |   77,      |   \"a\": 1,    |",
                 "|     |     |      |       |   88       |   \"b\": [     |",
                 "|     |     |      |       | ]          |     77,      |",
@@ -542,15 +567,15 @@ mod tests {
                 "|     |     |      |       |            |     \"d\": \"X\" |",
                 "|     |     |      |       |            |   }          |",
                 "|     |     |      |       |            | }            |",
-                "| 1   |     | b[0] | 0     | 77         | [            |",
+                "| 2   |     | b[0] | 0     | 77         | [            |",
                 "|     |     |      |       |            |   77,        |",
                 "|     |     |      |       |            |   88         |",
                 "|     |     |      |       |            | ]            |",
-                "| 1   |     | b[1] | 1     | 88         | [            |",
+                "| 2   |     | b[1] | 1     | 88         | [            |",
                 "|     |     |      |       |            |   77,        |",
                 "|     |     |      |       |            |   88         |",
                 "|     |     |      |       |            | ]            |",
-                "| 1   | c   | c    |       | {          | {            |",
+                "| 2   | c   | c    |       | {          | {            |",
                 "|     |     |      |       |   \"d\": \"X\" |   \"a\": 1,    |",
                 "|     |     |      |       | }          |   \"b\": [     |",
                 "|     |     |      |       |            |     77,      |",
@@ -560,7 +585,7 @@ mod tests {
                 "|     |     |      |       |            |     \"d\": \"X\" |",
                 "|     |     |      |       |            |   }          |",
                 "|     |     |      |       |            | }            |",
-                "| 1   | d   | c.d  |       | \"X\"        | {            |",
+                "| 2   | d   | c.d  |       | \"X\"        | {            |",
                 "|     |     |      |       |            |   \"d\": \"X\"   |",
                 "|     |     |      |       |            | }            |",
                 "+-----+-----+------+-------+------------+--------------+",
@@ -604,17 +629,17 @@ mod tests {
                 "+-----+-----+--------+-------+-------+------+",
                 "| SEQ | KEY | PATH   | INDEX | VALUE | THIS |",
                 "+-----+-----+--------+-------+-------+------+",
-                "| 1   |     | b.c[0] | 0     | 1     | [    |",
+                "| 2   |     | b.c[0] | 0     | 1     | [    |",
                 "|     |     |        |       |       |   1, |",
                 "|     |     |        |       |       |   2, |",
                 "|     |     |        |       |       |   3  |",
                 "|     |     |        |       |       | ]    |",
-                "| 1   |     | b.c[1] | 1     | 2     | [    |",
+                "| 2   |     | b.c[1] | 1     | 2     | [    |",
                 "|     |     |        |       |       |   1, |",
                 "|     |     |        |       |       |   2, |",
                 "|     |     |        |       |       |   3  |",
                 "|     |     |        |       |       | ]    |",
-                "| 1   |     | b.c[2] | 2     | 3     | [    |",
+                "| 2   |     | b.c[2] | 2     | 3     | [    |",
                 "|     |     |        |       |       |   1, |",
                 "|     |     |        |       |       |   2, |",
                 "|     |     |        |       |       |   3  |",
@@ -705,7 +730,7 @@ mod tests {
             "+-----+-----+------+-------+-------+------+",
             "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
             "+-----+-----+------+-------+-------+------+",
-            "| 1   |     | a    |       |       | []   |",
+            "| 2   |     | a    |       |       | []   |",
             "+-----+-----+------+-------+-------+------+",
         ];
         assert_batches_eq!(exp, &result);
@@ -717,7 +742,7 @@ mod tests {
             "+-----+-----+------+-------+-------+------+",
             "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
             "+-----+-----+------+-------+-------+------+",
-            "| 1   |     |      |       |       | []   |",
+            "| 3   |     |      |       |       | []   |",
             "+-----+-----+------+-------+-------+------+",
         ];
         assert_batches_eq!(exp, &result);
@@ -729,7 +754,7 @@ mod tests {
             "+-----+-----+------+-------+-------+------+",
             "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
             "+-----+-----+------+-------+-------+------+",
-            "| 1   |     |      |       |       | {}   |",
+            "| 4   |     |      |       |       | {}   |",
             "+-----+-----+------+-------+-------+------+",
         ];
         assert_batches_eq!(exp, &result);
@@ -741,10 +766,39 @@ mod tests {
             "+-----+-----+------+-------+-------+------+",
             "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
             "+-----+-----+------+-------+-------+------+",
-            "| 1   |     | a    |       |       | {}   |",
+            "| 5   |     | a    |       |       | {}   |",
             "+-----+-----+------+-------+-------+------+",
         ];
         assert_batches_eq!(exp, &result);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_inner_func() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
+        ctx.register_udf(ParseJsonFunc::new().into());
+        let sql = r#"SELECT * from flatten(parse_json('[1,77]'),'',false,false,'both')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+-----+-----+------+-------+-------+------+",
+                "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
+                "+-----+-----+------+-------+-------+------+",
+                "| 1   |     | [0]  | 0     | 1     | [    |",
+                "|     |     |      |       |       |   1, |",
+                "|     |     |      |       |       |   77 |",
+                "|     |     |      |       |       | ]    |",
+                "| 1   |     | [1]  | 1     | 77    | [    |",
+                "|     |     |      |       |       |   1, |",
+                "|     |     |      |       |       |   77 |",
+                "|     |     |      |       |       | ]    |",
+                "+-----+-----+------+-------+-------+------+",
+            ],
+            &result
+        );
 
         Ok(())
     }
