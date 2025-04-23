@@ -1,5 +1,5 @@
-use arrow_array::builder::{ArrayBuilder, StringBuilder, UInt64Builder};
-use arrow_array::{Array, ArrayRef, RecordBatch, StringArray, UInt64Array};
+use arrow_array::builder::{StringBuilder, UInt64Builder};
+use arrow_array::{ArrayRef, RecordBatch, StringArray, UInt64Array};
 use arrow_schema::{DataType, Field, Schema, SchemaRef};
 use datafusion::catalog::{TableFunctionImpl, TableProvider};
 use datafusion::datasource::MemTable;
@@ -9,7 +9,6 @@ use serde_json::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use utoipa::Path;
 
 #[derive(Debug)]
 enum Mode {
@@ -705,6 +704,18 @@ mod tests {
             "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
             "+-----+-----+------+-------+-------+------+",
             "| 1   |     |      |       |       | {}   |",
+            "+-----+-----+------+-------+-------+------+",
+        ];
+        assert_batches_eq!(exp, &result);
+
+        let sql = r#"SELECT * from flatten('{"a":{}}','a',true,false,'both')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        let exp = [
+            "+-----+-----+------+-------+-------+------+",
+            "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
+            "+-----+-----+------+-------+-------+------+",
+            "| 1   |     | a    |       |       | {}   |",
             "+-----+-----+------+-------+-------+------+",
         ];
         assert_batches_eq!(exp, &result);
