@@ -212,7 +212,7 @@
   /* Icons - Muted foreground */
 
   /* Secondary bg hover + Active bg */
-  --sidebar-secondary-accent: #2e2e2e;
+  --sidebar-secondary-accent: #333333;
 }
 
 @layer base {

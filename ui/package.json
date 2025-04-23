@@ -53,6 +53,7 @@
     "@tidbcloud/codemirror-extension-cur-sql-gutter": "^0.0.6",
     "@tidbcloud/codemirror-extension-events": "^0.0.7",
     "@tidbcloud/codemirror-extension-linters": "^0.0.6",
+    "@tidbcloud/codemirror-extension-save-helper": "^0.0.6",
     "@tidbcloud/codemirror-extension-sql-parser": "^0.0.6",
     "@tidbcloud/tisqleditor-react": "^0.0.6",
     "axios": "^1.8.4",
