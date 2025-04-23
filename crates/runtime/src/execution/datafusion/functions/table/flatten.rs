@@ -25,7 +25,6 @@ use datafusion::physical_plan::ColumnarValue;
 use datafusion_common::{plan_err, DFSchema, Result as DFResult, ScalarValue};
 use datafusion_expr::execution_props::ExecutionProps;
 use datafusion_expr::Expr;
-use datafusion_macros::user_doc;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -63,6 +62,57 @@ struct Out {
     this: StringBuilder,
     last_outer: Option<Value>,
 }
+
+/// flatten function
+/// Flattens (explodes) compound values into multiple rows
+/// 
+/// Syntax: flatten(\<expr\>,\<path\>,\<outer\>,\<recursive\>,\<mode\>)
+/// 
+/// sql_example:
+/// 
+///  SELECT * from flatten(\'{"a":1, "b":\[77,88\]}\',\'b\',false,false,'both')
+///
+/// ```
+///  +-----+-----+------+-------+-------+-------+
+///  | SEQ | KEY | PATH | INDEX | VALUE | THIS  |
+///  +-----+-----+------+-------+-------+-------+
+///  | 1   |     | b[0] | 0     | 77    | [     |
+///  |     |     |      |       |       |   77, |
+///  |     |     |      |       |       |   88  |
+///  |     |     |      |       |       | ]     |
+///  | 1   |     | b[1] | 1     | 88    | [     |
+///  |     |     |      |       |       |   77, |
+///  |     |     |      |       |       |   88  |
+///  |     |     |      |       |       | ]     |
+///  +-----+-----+------+-------+-------+-------+
+///```
+/// - \<input\>
+/// Input expression. Must be a JSON string
+///
+/// - \<path\>
+/// The path to the element within a JSON data structure that needs to be flattened
+/// 
+/// DEFAULT ''
+/// 
+/// - \<outer\>
+/// If FALSE, any input rows that cannot be expanded, either because they cannot be accessed in the path or because they have zero fields or entries, are completely omitted from the output.
+/// 
+/// If TRUE, exactly one row is generated for zero-row expansions (with NULL in the KEY, INDEX, and VALUE columns).
+/// 
+/// DEFAULT FALSE
+///
+/// - \<recursive\>
+/// If FALSE, only the element referenced by PATH is expanded.
+/// 
+/// If TRUE, the expansion is performed for all sub-elements recursively.
+/// 
+/// Default FALSE
+///
+/// - \<mode\>
+/// MODE => 'OBJECT' | 'ARRAY' | 'BOTH'
+/// Specifies whether only objects, arrays, or both should be flattened.
+/// 
+/// Default: BOTH
 
 #[derive(Debug, Clone)]
 pub struct FlattenTableFunc {
