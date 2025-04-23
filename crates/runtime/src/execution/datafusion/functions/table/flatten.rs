@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 use arrow_array::builder::{StringBuilder, UInt64Builder};
 use arrow_array::{ArrayRef, RecordBatch, StringArray, UInt64Array};
 use arrow_schema::{DataType, Field, Schema, SchemaRef};
@@ -8,7 +25,7 @@ use datafusion_expr::Expr;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 enum Mode {
@@ -44,11 +61,123 @@ struct Out {
 }
 
 #[derive(Debug, Clone)]
-pub struct FlattenTableFunc;
+pub struct FlattenTableFunc {
+    row_id: Arc<Mutex<u64>>,
+}
 
 impl FlattenTableFunc {
     pub fn new() -> Self {
-        Self
+        Self {
+            row_id: Arc::new(Mutex::new(0)),
+        }
+    }
+
+    fn empty_table(
+        &self,
+        schema: SchemaRef,
+        path: &[PathToken],
+        last_outer: Option<Value>,
+        null: bool,
+    ) -> Arc<MemTable> {
+        let batch = if null {
+            let last_outer_ = if let Some(v) = last_outer {
+                Some(serde_json::to_string_pretty(&v).unwrap())
+            } else {
+                None
+            };
+
+            RecordBatch::try_new(
+                schema.clone(),
+                vec![
+                    Arc::new(UInt64Array::from(vec![*self.row_id.lock().unwrap()])) as ArrayRef,
+                    Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
+                    Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
+                    Arc::new(UInt64Array::from(vec![None])) as ArrayRef,
+                    Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
+                    Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef, // todo
+                ],
+            )
+            .unwrap()
+        } else {
+            RecordBatch::try_new(
+                schema.clone(),
+                vec![
+                    Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+                    Arc::new(StringArray::new_null(0)) as ArrayRef,
+                    Arc::new(StringArray::new_null(0)) as ArrayRef,
+                    Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+                    Arc::new(StringArray::new_null(0)) as ArrayRef,
+                    Arc::new(StringArray::new_null(0)) as ArrayRef,
+                ],
+            )
+            .unwrap()
+        };
+
+        Arc::new(MemTable::try_new(schema, vec![vec![batch]]).unwrap())
+    }
+
+    fn flatten(
+        &self,
+        value: &Value,
+        path: Vec<PathToken>,
+        outer: bool,
+        recursive: bool,
+        mode: &Mode,
+        out: Rc<RefCell<Out>>,
+    ) -> DFResult<()> {
+        match value {
+            Value::Array(v) => {
+                if !mode.is_array() {
+                    return Ok(());
+                }
+                out.borrow_mut().last_outer = Some(value.clone());
+                for (i, v) in v.iter().enumerate() {
+                    let mut p = path.clone();
+                    p.push(PathToken::Index(i));
+                    {
+                        let mut o = out.borrow_mut();
+                        o.seq.append_value(*self.row_id.lock().unwrap());
+                        o.key.append_null();
+                        o.path.append_value(path_to_string(&p));
+                        o.index.append_value(i as u64);
+                        o.value
+                            .append_value(serde_json::to_string_pretty(v).unwrap());
+                        o.this
+                            .append_value(serde_json::to_string_pretty(value).unwrap());
+                    }
+                    if recursive {
+                        self.flatten(v, p.clone(), outer, recursive, mode, Rc::clone(&out))?;
+                    }
+                }
+            }
+            Value::Object(v) => {
+                if !mode.is_object() {
+                    return Ok(());
+                }
+                out.borrow_mut().last_outer = Some(value.clone());
+                for (k, v) in v.iter() {
+                    let mut p = path.clone();
+                    p.push(PathToken::Key(k.to_owned()));
+                    {
+                        let mut o = out.borrow_mut();
+                        o.seq.append_value(*self.row_id.lock().unwrap());
+                        o.key.append_value(k.to_owned());
+                        o.path.append_value(path_to_string(&p));
+                        o.index.append_null();
+                        o.value
+                            .append_value(serde_json::to_string_pretty(v).unwrap());
+                        o.this
+                            .append_value(serde_json::to_string_pretty(value).unwrap());
+                    }
+                    if recursive {
+                        self.flatten(v, p.clone(), outer, recursive, mode, Rc::clone(&out))?;
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        Ok(())
     }
 }
 
@@ -57,6 +186,9 @@ impl TableFunctionImpl for FlattenTableFunc {
         if args.len() != 5 {
             return plan_err!("flatten() expects 5 args: INPUT, PATH, OUTER, RECURSIVE, MODE");
         }
+
+        *self.row_id.lock().unwrap() += 1;
+
         let input_str = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[0] {
             v.to_owned()
         } else {
@@ -113,7 +245,7 @@ impl TableFunctionImpl for FlattenTableFunc {
         let schema = Arc::new(Schema::new(schema_fields));
 
         let input = match get_json_value(&input, &path) {
-            None => return Ok(empty_table(schema, &[], None, is_outer)),
+            None => return Ok(self.empty_table(schema, &[], None, is_outer)),
             Some(v) => v,
         };
 
@@ -127,7 +259,7 @@ impl TableFunctionImpl for FlattenTableFunc {
             last_outer: None,
         }));
 
-        flatten(
+        self.flatten(
             input,
             path.clone(),
             is_outer,
@@ -147,117 +279,11 @@ impl TableFunctionImpl for FlattenTableFunc {
 
         let batch = RecordBatch::try_new(schema.clone(), cols)?;
         Ok(if batch.num_rows() == 0 {
-            empty_table(schema, &path, out.last_outer.clone(), is_outer)
+            self.empty_table(schema, &path, out.last_outer.clone(), is_outer)
         } else {
             Arc::new(MemTable::try_new(schema, vec![vec![batch]])?)
         })
     }
-}
-
-fn empty_table(
-    schema: SchemaRef,
-    path: &[PathToken],
-    last_outer: Option<Value>,
-    null: bool,
-) -> Arc<MemTable> {
-    let batch = if null {
-        let last_outer_ = if let Some(v) = last_outer {
-            Some(serde_json::to_string_pretty(&v).unwrap())
-        } else {
-            None
-        };
-
-        RecordBatch::try_new(
-            schema.clone(),
-            vec![
-                Arc::new(UInt64Array::from(vec![1])) as ArrayRef,
-                Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
-                Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
-                Arc::new(UInt64Array::from(vec![None])) as ArrayRef,
-                Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
-                Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef, // todo
-            ],
-        )
-        .unwrap()
-    } else {
-        RecordBatch::try_new(
-            schema.clone(),
-            vec![
-                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-            ],
-        )
-        .unwrap()
-    };
-
-    Arc::new(MemTable::try_new(schema, vec![vec![batch]]).unwrap())
-}
-
-fn flatten(
-    value: &Value,
-    path: Vec<PathToken>,
-    outer: bool,
-    recursive: bool,
-    mode: &Mode,
-    out: Rc<RefCell<Out>>,
-) -> DFResult<()> {
-    match value {
-        Value::Array(v) => {
-            if !mode.is_array() {
-                return Ok(());
-            }
-            out.borrow_mut().last_outer = Some(value.clone());
-            for (i, v) in v.iter().enumerate() {
-                let mut p = path.clone();
-                p.push(PathToken::Index(i));
-                {
-                    let mut o = out.borrow_mut();
-                    o.seq.append_value(1);
-                    o.key.append_null();
-                    o.path.append_value(path_to_string(&p));
-                    o.index.append_value(i as u64);
-                    o.value
-                        .append_value(serde_json::to_string_pretty(v).unwrap());
-                    o.this
-                        .append_value(serde_json::to_string_pretty(value).unwrap());
-                }
-                if recursive {
-                    flatten(v, p.clone(), outer, recursive, mode, Rc::clone(&out))?;
-                }
-            }
-        }
-        Value::Object(v) => {
-            if !mode.is_object() {
-                return Ok(());
-            }
-            out.borrow_mut().last_outer = Some(value.clone());
-            for (k, v) in v.iter() {
-                let mut p = path.clone();
-                p.push(PathToken::Key(k.to_owned()));
-                {
-                    let mut o = out.borrow_mut();
-                    o.seq.append_value(1);
-                    o.key.append_value(k.to_owned());
-                    o.path.append_value(path_to_string(&p));
-                    o.index.append_null();
-                    o.value
-                        .append_value(serde_json::to_string_pretty(v).unwrap());
-                    o.this
-                        .append_value(serde_json::to_string_pretty(value).unwrap());
-                }
-                if recursive {
-                    flatten(v, p.clone(), outer, recursive, mode, Rc::clone(&out))?;
-                }
-            }
-        }
-        _ => {}
-    }
-
-    Ok(())
 }
 
 fn path_to_string(path: &[PathToken]) -> String {
