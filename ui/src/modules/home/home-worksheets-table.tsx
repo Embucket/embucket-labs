@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router';
 import { createColumnHelper } from '@tanstack/react-table';
 
 import { DataTable } from '@/components/data-table/data-table';
@@ -9,6 +10,11 @@ interface HomeWorksheetsTableProps {
 }
 
 export function HomeWorksheetsTable({ isLoading, worksheets }: HomeWorksheetsTableProps) {
+  const navigate = useNavigate();
+
+  const handleRowClick = (row: Worksheet) => {
+    navigate({ to: `/sql-editor/$worksheetId`, params: { worksheetId: row.id.toString() } });
+  };
   const columnHelper = createColumnHelper<Worksheet>();
 
   const columns = [
@@ -20,11 +26,35 @@ export function HomeWorksheetsTable({ isLoading, worksheets }: HomeWorksheetsTab
     }),
     columnHelper.accessor('updatedAt', {
       header: 'Updated At',
+      cell: (info) => {
+        const date = new Date(info.getValue()).toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        return <span>{date}</span>;
+      },
     }),
     columnHelper.accessor('createdAt', {
       header: 'Created At',
+      cell: (info) => {
+        const date = new Date(info.getValue()).toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        return <span>{date}</span>;
+      },
     }),
   ];
 
-  return <DataTable rounded columns={columns} data={worksheets} isLoading={isLoading} />;
+  return (
+    <DataTable
+      rounded
+      columns={columns}
+      onRowClick={handleRowClick}
+      data={worksheets}
+      isLoading={isLoading}
+    />
+  );
 }
