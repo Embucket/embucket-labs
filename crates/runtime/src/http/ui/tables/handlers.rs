@@ -237,7 +237,9 @@ pub async fn get_table_preview_data(
     let column_names = column_names
         .iter()
         //UNSUPPORTED TYPES: ListArray, StructArray, Binary (Arrow Cast for Datafusion)
-        .map(|column_name| format!("COALESCE(CAST({column_name} AS STRING), 'Unsupported')"))
+        .map(|column_name| {
+            format!("COALESCE(CAST({column_name} AS STRING), 'Unsupported') AS {column_name}")
+        })
         .collect::<Vec<_>>();
     let sql_string = format!(
         "SELECT {} FROM {database_name}.{schema_name}.{table_name}",

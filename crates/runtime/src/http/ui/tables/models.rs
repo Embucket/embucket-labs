@@ -72,7 +72,13 @@ pub struct TablePreviewDataRow {
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct TablePreviewDataParameters {
     pub offset: Option<u32>,
+    #[serde(default = "default_limit")]
     pub limit: Option<u16>,
+}
+
+#[allow(clippy::unnecessary_wraps)]
+const fn default_limit() -> Option<u16> {
+    Some(10)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
