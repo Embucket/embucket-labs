@@ -3,21 +3,12 @@ import { SlidersHorizontal, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import type { QueryRecord } from '@/orval/models';
 import { useGetQueries } from '@/orval/queries';
 
 import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { SqlEditorRightPanelQueries } from './sql-editor-right-panel-queries';
 
-interface SqlEditorRightPanelProps {
-  selectedQueryRecord?: QueryRecord;
-  onSetSelectedQueryRecord: (queryRecord: QueryRecord) => void;
-}
-
-export const SqlEditorRightPanel = ({
-  selectedQueryRecord,
-  onSetSelectedQueryRecord,
-}: SqlEditorRightPanelProps) => {
+export const SqlEditorRightPanel = () => {
   const { toggleRightPanel } = useSqlEditorPanelsState();
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
   const { data: { items: queries } = {} } = useGetQueries(
@@ -46,10 +37,7 @@ export const SqlEditorRightPanel = ({
       </div>
       {/* TODO: Hardcode */}
       <ScrollArea className="h-[calc(100vh-136px)]">
-        <SqlEditorRightPanelQueries
-          selectedQueryRecord={selectedQueryRecord}
-          onSetSelectedQueryRecord={onSetSelectedQueryRecord}
-        />
+        <SqlEditorRightPanelQueries />
         <ScrollBar orientation="vertical" />
       </ScrollArea>
     </>

@@ -14,18 +14,14 @@ import type { QueryRecord } from '@/orval/models';
 import { useGetQueries } from '@/orval/queries';
 
 import { SQLEditor } from '../sql-editor';
+import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
 import { SqlEditorRightPanelQueryItem } from './sql-editor-right-panel-query-item';
 
-interface SqlEditorRightPanelQueriesProps {
-  selectedQueryRecord?: QueryRecord;
-  onSetSelectedQueryRecord: (queryRecord: QueryRecord) => void;
-}
-
-export const SqlEditorRightPanelQueries = ({
-  selectedQueryRecord,
-  onSetSelectedQueryRecord,
-}: SqlEditorRightPanelQueriesProps) => {
+export const SqlEditorRightPanelQueries = () => {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
+
+  const queryRecord = useSqlEditorSettingsStore((state) => state.queryRecord);
+  const setQueryRecord = useSqlEditorSettingsStore((state) => state.setQueryRecord);
 
   const { data: { items: queries } = {} } = useGetQueries(
     { worksheetId: +worksheetId },
@@ -64,8 +60,8 @@ export const SqlEditorRightPanelQueries = ({
                 <HoverCardTrigger>
                   <SidebarMenuItem>
                     <SidebarMenuButton
-                      isActive={query.id === selectedQueryRecord?.id}
-                      onClick={() => onSetSelectedQueryRecord(query)}
+                      isActive={query.id === queryRecord?.id}
+                      onClick={() => setQueryRecord(query)}
                       className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent! data-[active=true]:font-light"
                     >
                       <SqlEditorRightPanelQueryItem

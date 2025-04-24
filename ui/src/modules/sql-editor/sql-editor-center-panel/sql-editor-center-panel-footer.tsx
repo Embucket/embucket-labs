@@ -2,9 +2,9 @@ import { PanelBottom, PanelLeft, PanelRight, PanelTop, Rows2 } from 'lucide-reac
 
 import { Toggle } from '@/components/ui/toggle';
 
-import { useSqlEditorPanelsState } from './sql-editor-panels-state-provider';
+import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 
-export const SqlEditorFooter = () => {
+export const SqlEditorCenterPanelFooter = () => {
   const {
     isTopPanelExpanded,
     isBottomPanelExpanded,

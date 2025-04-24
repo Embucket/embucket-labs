@@ -1,15 +1,19 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import type { Worksheet } from '@/orval/models';
+import type { QueryRecord, Worksheet } from '@/orval/models';
 
 interface SqlEditorSettingsStore {
   tabs: Worksheet[];
   addTab: (tab: Worksheet) => void;
   removeTab: (tab: Worksheet) => void;
+
+  queryRecord?: QueryRecord;
+  setQueryRecord: (queryRecord: QueryRecord) => void;
 }
 
 const initialState = {
+  queryRecord: undefined,
   tabs: [],
 };
 
@@ -28,6 +32,9 @@ export const useSqlEditorSettingsStore = create<SqlEditorSettingsStore>()(
         const { tabs } = get();
         const updatedTabs = tabs.filter((t) => t.id !== tab.id);
         set({ tabs: updatedTabs });
+      },
+      setQueryRecord: (queryRecord: QueryRecord) => {
+        set({ queryRecord });
       },
     }),
     {

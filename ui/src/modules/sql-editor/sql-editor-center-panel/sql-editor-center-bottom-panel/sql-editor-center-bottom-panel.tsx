@@ -27,7 +27,7 @@ export function SqlEditorCenterBottomPanel({
   const executionTime = queryRecord ? queryRecord.durationMs / 1000 : 0; // Convert ms to seconds
 
   return (
-    <div className="size-full">
+    <>
       {isIdle && !queryRecord && <QueryResultDataTableEmpty />}
 
       {!noFields && (
@@ -55,7 +55,7 @@ export function SqlEditorCenterBottomPanel({
             </div>
           </div>
           <TabsContent value="results" className="m-0 size-full">
-            <ScrollArea className="size-full max-w-[calc(100vw-256px-8px-256px-256px-16px-2px)] min-w-full">
+            <ScrollArea tableViewport className="size-full">
               <QueryResultDataTable columns={columns} rows={rows} isLoading={isLoading} />
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
@@ -63,6 +63,6 @@ export function SqlEditorCenterBottomPanel({
           <TabsContent value="chart"></TabsContent>
         </Tabs>
       )}
-    </div>
+    </>
   );
 }
