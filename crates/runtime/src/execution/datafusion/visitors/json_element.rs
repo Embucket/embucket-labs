@@ -110,19 +110,19 @@ mod tests {
         let cases = vec![
             (
                 "SELECT context[0]::varchar",
-                "SELECT json_get(context, 0)::varchar",
+                "SELECT json_get(context, 0)::VARCHAR",
             ),
             (
                 "SELECT context[0]:id::varchar",
-                "SELECT json_get(json_get(context, 0), 'id')::varchar",
+                "SELECT json_get(json_get(context, 0), 'id')::VARCHAR",
             ),
             (
                 "SELECT context[0].id::varchar",
-                "SELECT json_get(json_get(context, 0), 'id')::varchar",
+                "SELECT json_get(json_get(context, 0), 'id')::VARCHAR",
             ),
             (
                 "SELECT context[0]:id[1]::varchar",
-                "SELECT json_get(json_get(json_get(context, 0), 'id'), 1)::varchar",
+                "SELECT json_get(json_get(json_get(context, 0), 'id'), 1)::VARCHAR",
             ),
         ];
 
