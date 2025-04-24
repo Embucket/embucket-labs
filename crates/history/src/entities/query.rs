@@ -22,9 +22,8 @@ use embucket_utils::iterable::IterableEntity;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum QueryStatus {
     Running,
@@ -35,7 +34,7 @@ pub enum QueryStatus {
 pub type QueryRecordId = i64;
 
 // QueryRecord struct is used for storing QueryRecord History result and also used in http response
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryRecord {
     pub id: QueryRecordId,
@@ -60,9 +59,35 @@ pub trait QueryRecordActions {
 }
 
 impl QueryRecord {
+    // Returns a key with inverted id for descending order
     #[must_use]
     pub fn get_key(id: QueryRecordId) -> Bytes {
         Bytes::from(format!("/qh/{id}"))
+    }
+
+    #[allow(clippy::expect_used)]
+    fn inverted_id(id: QueryRecordId) -> QueryRecordId {
+        let inverted_str: String = id.to_string().chars().map(Self::invert_digit).collect();
+
+        inverted_str
+            .parse()
+            .expect("Failed to parse inverted QueryRecordId")
+    }
+
+    const fn invert_digit(digit: char) -> char {
+        match digit {
+            '0' => '9',
+            '1' => '8',
+            '2' => '7',
+            '3' => '6',
+            '4' => '5',
+            '5' => '4',
+            '6' => '3',
+            '7' => '2',
+            '8' => '1',
+            '9' => '0',
+            _ => digit, // Return the digit unchanged if it's not a number (just in case)
+        }
     }
 }
 
@@ -70,9 +95,8 @@ impl QueryRecordActions for QueryRecord {
     #[must_use]
     fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
         let start_time = Utc::now();
-        // id, start_time have the same value
         Self {
-            id: start_time.timestamp_millis(),
+            id: Self::inverted_id(start_time.timestamp_millis()),
             worksheet_id,
             query: String::from(query),
             start_time,
@@ -106,7 +130,7 @@ impl IterableEntity for QueryRecord {
     type Cursor = i64;
 
     fn cursor(&self) -> Self::Cursor {
-        self.start_time.timestamp_millis()
+        self.id
     }
 
     fn key(&self) -> Bytes {

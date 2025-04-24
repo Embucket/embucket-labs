@@ -20,6 +20,7 @@ use async_trait::async_trait;
 use embucket_utils::iterable::{IterableCursor, IterableEntity};
 use embucket_utils::{Db, Error};
 use serde_json::de;
+use slatedb::db_iter::DbIterator;
 use slatedb::error::SlateDBError;
 use snafu::{ResultExt, Snafu};
 use std::str;
@@ -63,6 +64,9 @@ pub enum WorksheetsStoreError {
     #[snafu(display("Error getting worksheet queries: {source}"))]
     GetWorksheetQueries { source: Error },
 
+    #[snafu(display("Error adding query inverted key: {source}"))]
+    QueryInvertedKeyAdd { source: Error },
+
     #[snafu(display("Query item seek error: {source}"))]
     Seek { source: SlateDBError },
 
@@ -71,6 +75,59 @@ pub enum WorksheetsStoreError {
 }
 
 pub type WorksheetsStoreResult<T> = std::result::Result<T, WorksheetsStoreError>;
+
+#[derive(Default, Clone, Debug)]
+pub enum SortOrder {
+    Ascending,
+    #[default]
+    Descending,
+}
+
+#[derive(Default)]
+pub struct GetQueries {
+    pub worksheet_id: Option<WorksheetId>,
+    pub sql_text: Option<String>,     // filter by SQL Text
+    pub min_duration_ms: Option<i64>, // filter Duration greater than
+    pub cursor: Option<QueryRecordId>,
+    pub limit: Option<u16>,
+}
+
+impl GetQueries {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[must_use]
+    pub const fn with_worksheet_id(mut self, worksheet_id: WorksheetId) -> Self {
+        self.worksheet_id = Some(worksheet_id);
+        self
+    }
+
+    #[must_use]
+    pub fn with_sql_text(mut self, sql_text: String) -> Self {
+        self.sql_text = Some(sql_text);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_min_duration_ms(mut self, min_duration_ms: i64) -> Self {
+        self.min_duration_ms = Some(min_duration_ms);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_cursor(mut self, cursor: QueryRecordId) -> Self {
+        self.cursor = Some(cursor);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_limit(mut self, limit: u16) -> Self {
+        self.limit = Some(limit);
+        self
+    }
+}
 
 #[async_trait]
 pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
@@ -81,12 +138,7 @@ pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
     async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>>;
 
     async fn add_query(&self, item: &QueryRecord) -> WorksheetsStoreResult<()>;
-    async fn get_queries(
-        &self,
-        worksheet_id: Option<WorksheetId>,
-        cursor: Option<i64>,
-        limit: Option<u16>,
-    ) -> WorksheetsStoreResult<Vec<QueryRecord>>;
+    async fn get_queries(&self, params: GetQueries) -> WorksheetsStoreResult<Vec<QueryRecord>>;
 }
 
 pub struct SlateDBWorksheetsStore {
@@ -113,6 +165,34 @@ impl SlateDBWorksheetsStore {
     #[must_use]
     pub const fn db(&self) -> &Db {
         &self.db
+    }
+
+    async fn queries_iterator(
+        &self,
+        cursor: Option<QueryRecordId>,
+    ) -> WorksheetsStoreResult<DbIterator<'_>> {
+        let start_key = QueryRecord::get_key(cursor.unwrap_or(QueryRecordId::CURSOR_MIN));
+        let end_key = QueryRecord::get_key(QueryRecordId::CURSOR_MAX);
+        self.db
+            .range_iterator(start_key..end_key)
+            .await
+            .context(GetWorksheetQueriesSnafu)
+    }
+
+    async fn worksheet_queries_references_iterator(
+        &self,
+        worksheet_id: WorksheetId,
+        cursor: Option<QueryRecordId>,
+    ) -> WorksheetsStoreResult<DbIterator<'_>> {
+        let refs_start_key = QueryRecordReference::get_key(
+            worksheet_id,
+            cursor.unwrap_or(QueryRecordId::CURSOR_MIN),
+        );
+        let refs_end_key = QueryRecordReference::get_key(worksheet_id, QueryRecordId::CURSOR_MAX);
+        self.db
+            .range_iterator(refs_start_key..refs_end_key)
+            .await
+            .context(GetWorksheetQueriesSnafu)
     }
 }
 
@@ -194,33 +274,26 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
             .context(QueryAddSnafu)?)
     }
 
-    async fn get_queries(
-        &self,
-        worksheet_id: Option<WorksheetId>,
-        cursor: Option<i64>,
-        limit: Option<u16>,
-    ) -> WorksheetsStoreResult<Vec<QueryRecord>> {
-        if let Some(worksheet_id) = worksheet_id {
-            let start_key = QueryRecord::get_key(cursor.unwrap_or(QueryRecordId::CURSOR_MIN));
-            let end_key = QueryRecord::get_key(QueryRecordId::CURSOR_MAX);
-            let mut iter = self
-                .db
-                .range_iterator(start_key..end_key)
-                .await
-                .context(GetWorksheetQueriesSnafu)?;
+    async fn get_queries(&self, params: GetQueries) -> WorksheetsStoreResult<Vec<QueryRecord>> {
+        let GetQueries {
+            worksheet_id,
+            sql_text: _,
+            min_duration_ms: _,
+            cursor,
+            limit,
+        } = params;
 
-            // get queries references related to worksheet
-            let refs_start_key = QueryRecordReference::get_key(
-                worksheet_id,
-                cursor.unwrap_or(QueryRecordId::CURSOR_MIN),
-            );
-            let refs_end_key =
-                QueryRecordReference::get_key(worksheet_id, QueryRecordId::CURSOR_MAX);
+        if let Some(worksheet_id) = worksheet_id {
+            // 1. Get iterator over all queries references related to a worksheet_id (QueryRecordReference)
             let mut refs_iter = self
-                .db
-                .range_iterator(refs_start_key..refs_end_key)
-                .await
-                .context(GetWorksheetQueriesSnafu)?;
+                .worksheet_queries_references_iterator(worksheet_id, cursor)
+                .await?;
+
+            // 2. Get iterator over all queries (QueryRecord)
+            let mut queries_iter = self.queries_iterator(cursor).await?;
+
+            // 3. Loop over query record references, get record keys by their references
+            // 4. Extract records by their keys
 
             let mut items: Vec<QueryRecord> = vec![];
             while let Ok(Some(item)) = refs_iter.next().await {
@@ -229,8 +302,8 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
                         key: format!("{:?}", item.key),
                     },
                 )?;
-                iter.seek(qh_key).await.context(SeekSnafu)?;
-                match iter.next().await {
+                queries_iter.seek(qh_key).await.context(SeekSnafu)?;
+                match queries_iter.next().await {
                     Ok(Some(query_record_kv)) => {
                         items.push(
                             de::from_slice(&query_record_kv.value)
@@ -247,6 +320,7 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
         } else {
             let start_key = QueryRecord::get_key(cursor.unwrap_or(QueryRecordId::CURSOR_MIN));
             let end_key = QueryRecord::get_key(QueryRecordId::CURSOR_MAX);
+
             Ok(self
                 .db
                 .items_from_range(start_key..end_key, limit)
@@ -334,14 +408,16 @@ mod tests {
 
         let cursor = <QueryRecord as IterableEntity>::Cursor::CURSOR_MIN;
         eprintln!("cursor: {cursor}");
-        let retrieved = db
-            .get_queries(Some(worksheet.id), Some(cursor), Some(10))
-            .await
-            .unwrap();
+        let get_queries_params = GetQueries::new()
+            .with_worksheet_id(worksheet.id)
+            .with_cursor(cursor)
+            .with_limit(10);
+        let retrieved = db.get_queries(get_queries_params).await.unwrap();
         // queries belong to worksheet
         assert_eq!(3, retrieved.len());
 
-        let retrieved_all = db.get_queries(None, Some(cursor), Some(10)).await.unwrap();
+        let get_queries_params = GetQueries::new().with_cursor(cursor).with_limit(10);
+        let retrieved_all = db.get_queries(get_queries_params).await.unwrap();
         // all queries
         for item in &retrieved_all {
             eprintln!("retrieved_all: {:?}", item.key());

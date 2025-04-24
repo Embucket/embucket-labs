@@ -19,12 +19,11 @@
 
 use crate::http::error::ErrorResponse;
 use crate::http::ui::queries::models::{
-    Column, QueriesResponse, QueryCreatePayload, QueryCreateResponse, ResultSet,
+    Column, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryStatus, ResultSet,
 };
 use crate::http::ui::tests::common::req;
 use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use crate::tests::run_test_server;
-use embucket_history::QueryStatus;
 use http::Method;
 use serde_json::json;
 
@@ -236,10 +235,9 @@ async fn test_ui_queries() {
     // println!("{:?}", res.bytes().await);
     let history_resp = res.json::<QueriesResponse>().await.unwrap();
     assert_eq!(history_resp.items.len(), 2);
-    assert_eq!(history_resp.items[0].status, QueryStatus::Successful);
-    assert_eq!(history_resp.items[0].result, query_run_resp.data.result);
-    assert_eq!(history_resp.items[1].status, QueryStatus::Successful);
-    assert_eq!(history_resp.items[1].result, query_run_resp2.data.result);
+    // items returned in descending order
+    assert_eq!(history_resp.items[0].status, QueryStatus::Failed);
+    assert_eq!(history_resp.items[1].status, QueryStatus::Failed);
 
     // get rest
     let res = req(
@@ -257,6 +255,8 @@ async fn test_ui_queries() {
     // println!("{:?}", res.bytes().await);
     let history_resp = res.json::<QueriesResponse>().await.unwrap();
     assert_eq!(history_resp.items.len(), 2);
-    assert_eq!(history_resp.items[0].status, QueryStatus::Failed);
-    assert_eq!(history_resp.items[1].status, QueryStatus::Failed);
+    assert_eq!(history_resp.items[0].status, QueryStatus::Successful);
+    assert_eq!(history_resp.items[0].result, query_run_resp2.data.result);
+    assert_eq!(history_resp.items[1].status, QueryStatus::Successful);
+    assert_eq!(history_resp.items[1].result, query_run_resp.data.result);
 }

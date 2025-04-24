@@ -22,7 +22,7 @@ use crate::execution::models::ColumnInfo;
 use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use chrono::{DateTime, Utc};
-use embucket_history::{QueryRecord as QueryRecordItem, QueryRecordId, QueryStatus, WorksheetId};
+use embucket_history::{QueryRecordId, QueryStatus as QueryStatusItem, WorksheetId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -113,6 +113,24 @@ pub struct QueryCreateResponse {
     pub data: QueryRecord,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum QueryStatus {
+    Running,
+    Successful,
+    Failed,
+}
+
+impl From<QueryStatusItem> for QueryStatus {
+    fn from(value: QueryStatusItem) -> Self {
+        match value {
+            QueryStatusItem::Running => Self::Running,
+            QueryStatusItem::Successful => Self::Successful,
+            QueryStatusItem::Failed => Self::Failed,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryRecord {
@@ -129,10 +147,10 @@ pub struct QueryRecord {
     pub error: String, // empty error - ok
 }
 
-impl TryFrom<QueryRecordItem> for QueryRecord {
+impl TryFrom<embucket_history::QueryRecord> for QueryRecord {
     type Error = QueryError;
 
-    fn try_from(query: QueryRecordItem) -> QueryRecordResult<Self> {
+    fn try_from(query: embucket_history::QueryRecord) -> QueryRecordResult<Self> {
         let query_result = query.result.unwrap_or_default();
         let query_error = query.error.unwrap_or_default();
         let result_set = if query_result.is_empty() {
@@ -151,7 +169,7 @@ impl TryFrom<QueryRecordItem> for QueryRecord {
             end_time: query.end_time,
             duration_ms: query.duration_ms,
             result_count: query.result_count,
-            status: query.status,
+            status: query.status.into(),
             result: result_set,
             error: query_error,
         })
@@ -166,10 +184,32 @@ pub struct QueriesResponse {
     pub next_cursor: QueryRecordId,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum SortOrder {
+    Ascending,
+    Descending,
+}
+
 #[derive(Debug, Deserialize, utoipa::ToSchema, utoipa::IntoParams)]
 #[serde(rename_all = "camelCase")]
 pub struct GetQueriesParams {
     pub worksheet_id: Option<WorksheetId>,
+    pub sql_text: Option<String>,     // filter by SQL Text
+    pub min_duration_ms: Option<i64>, // filter Duration greater than
     pub cursor: Option<QueryRecordId>,
     pub limit: Option<u16>,
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<embucket_history::GetQueries> for GetQueriesParams {
+    fn into(self) -> embucket_history::GetQueries {
+        embucket_history::GetQueries {
+            worksheet_id: self.worksheet_id,
+            sql_text: self.sql_text,
+            min_duration_ms: self.min_duration_ms,
+            cursor: self.cursor,
+            limit: self.limit,
+        }
+    }
 }

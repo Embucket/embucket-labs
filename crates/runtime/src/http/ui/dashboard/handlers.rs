@@ -21,6 +21,7 @@ use crate::http::ui::dashboard::error::{DashboardAPIError, DashboardResult};
 use crate::http::ui::dashboard::models::{Dashboard, DashboardResponse};
 use crate::http::ui::queries::error::QueryError;
 use axum::{extract::State, Json};
+use embucket_history::GetQueries;
 use embucket_metastore::error::MetastoreError;
 use embucket_utils::scan_iterator::ScanIterator;
 use utoipa::OpenApi;
@@ -92,7 +93,7 @@ pub async fn get_dashboard(
 
     let total_queries = state
         .history
-        .get_queries(None, None, None)
+        .get_queries(GetQueries::new())
         .await
         .map_err(|e| DashboardAPIError::Queries {
             source: QueryError::Store { source: e },

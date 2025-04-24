@@ -29,9 +29,7 @@ use axum::{
     extract::{Query, State},
     Json,
 };
-use embucket_history::{
-    QueryRecord as QueryRecordItem, QueryRecordActions, QueryRecordId, WorksheetId,
-};
+use embucket_history::{QueryRecordActions, QueryRecordId, WorksheetId};
 use embucket_utils::iterable::IterableEntity;
 use std::collections::HashMap;
 use utoipa::OpenApi;
@@ -105,7 +103,8 @@ pub async fn query(
             .and_then(|c| c.get("schema").cloned()),
     };
 
-    let mut query_record = QueryRecordItem::query_start(&payload.query, payload.worksheet_id);
+    let mut query_record =
+        embucket_history::QueryRecord::query_start(&payload.query, payload.worksheet_id);
     let query_res = state
         .execution_svc
         .query(&session_id, &payload.query, query_context)
@@ -165,6 +164,7 @@ pub async fn query(
     tags = ["queries"],
     params(
         ("worksheetId" = Option<WorksheetId>, Query, description = "Worksheet id"),
+        ("sqlText" = Option<String>, Query, description = "Sql text filter"),
         ("cursor" = Option<QueryRecordId>, Query, description = "Cursor"),
         ("limit" = Option<u16>, Query, description = "Queries limit"),
     ),
@@ -179,17 +179,15 @@ pub async fn queries(
     Query(params): Query<GetQueriesParams>,
     State(state): State<AppState>,
 ) -> QueriesResult<Json<QueriesResponse>> {
-    let result = state
-        .history
-        .get_queries(params.worksheet_id, params.cursor, params.limit)
-        .await;
+    let cursor = params.cursor;
+    let result = state.history.get_queries(params.into()).await;
 
     match result {
         Ok(recs) => {
             let next_cursor = if let Some(last_item) = recs.last() {
                 last_item.next_cursor()
             } else {
-                QueryRecordItem::min_cursor() // no items in range -> go to beginning
+                embucket_history::QueryRecord::min_cursor() // no items in range -> go to beginning
             };
             let queries: Vec<QueryRecord> = recs
                 .clone()
@@ -210,7 +208,7 @@ pub async fn queries(
 
             Ok(Json(QueriesResponse {
                 items: queries,
-                current_cursor: params.cursor,
+                current_cursor: cursor,
                 next_cursor,
             }))
         }

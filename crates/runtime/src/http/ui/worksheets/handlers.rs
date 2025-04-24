@@ -19,15 +19,16 @@ use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use crate::http::ui::worksheets::{
     error::{WorksheetUpdateError, WorksheetsAPIError, WorksheetsResult},
-    WorksheetCreatePayload, WorksheetCreateResponse, WorksheetResponse, WorksheetUpdatePayload,
-    WorksheetsResponse,
+    Worksheet, WorksheetCreatePayload, WorksheetCreateResponse, WorksheetResponse,
+    WorksheetUpdatePayload, WorksheetsResponse,
 };
 use axum::{
     extract::{Path, State},
     Json,
 };
 use chrono::Utc;
-use embucket_history::{Worksheet, WorksheetId};
+use embucket_history::WorksheetId;
+use std::convert::From;
 use tracing;
 use utoipa::OpenApi;
 
@@ -69,11 +70,17 @@ pub struct ApiDoc;
 pub async fn worksheets(
     State(state): State<AppState>,
 ) -> WorksheetsResult<Json<WorksheetsResponse>> {
-    let items = state
+    let history_worksheets = state
         .history
         .get_worksheets()
         .await
         .map_err(|e| WorksheetsAPIError::List { source: e })?;
+
+    let items = history_worksheets
+        .into_iter()
+        .map(Worksheet::from)
+        .collect::<Vec<Worksheet>>();
+
     Ok(Json(WorksheetsResponse { items }))
 }
 
@@ -120,12 +127,16 @@ pub async fn create_worksheet(
     } else {
         payload.name
     };
-    let request = Worksheet::new(name, payload.content);
+
+    let history_worksheet = embucket_history::Worksheet::new(name, payload.content);
+
     let worksheet = state
         .history
-        .add_worksheet(request)
+        .add_worksheet(history_worksheet)
         .await
-        .map_err(|e| WorksheetsAPIError::Create { source: e })?;
+        .map_err(|e| WorksheetsAPIError::Create { source: e })?
+        .into();
+
     Ok(Json(WorksheetCreateResponse { data: worksheet }))
 }
 
@@ -149,12 +160,15 @@ pub async fn worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
 ) -> WorksheetsResult<Json<WorksheetResponse>> {
-    let worksheet = state
+    let history_worksheet = state
         .history
         .get_worksheet(worksheet_id)
         .await
         .map_err(|e| WorksheetsAPIError::Get { source: e })?;
-    Ok(Json(WorksheetResponse { data: worksheet }))
+
+    Ok(Json(WorksheetResponse {
+        data: Worksheet::from(history_worksheet),
+    }))
 }
 
 #[utoipa::path(

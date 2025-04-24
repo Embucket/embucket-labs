@@ -19,12 +19,11 @@ use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use embucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 pub type WorksheetId = i64;
 
 // Worksheet struct is used for storing Query History result and also used in http response
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Worksheet {
     pub id: WorksheetId,
@@ -67,7 +66,7 @@ impl IterableEntity for Worksheet {
     type Cursor = WorksheetId;
 
     fn cursor(&self) -> Self::Cursor {
-        self.created_at.timestamp_millis()
+        self.id
     }
 
     fn key(&self) -> Bytes {

@@ -19,10 +19,9 @@ use crate::{QueryRecordId, WorksheetId};
 use bytes::Bytes;
 use embucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 // QueryRecordReference struct is used for referencing QueryRecord from worksheet
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct QueryRecordReference {
     #[serde(skip_serializing)]
     pub id: QueryRecordId,
