@@ -5,7 +5,8 @@
 - [ ] Error boundary
 - [ ] Oops page
 - [ ] Bundle analyzer
-- [ ] Load i18n translations from CDN?
+- [ ] i18n
+- [ ] Load i18n translations from cloud?
 - [ ] Add File names & folders convention (https://github.com/alan2207/bulletproof-react/blob/master/docs/project-standards.md)
 - [ ] Sync with Figma https://www.figma.com/design/bDT4FNxKdQFjQlIZqAZqlD/Embucket?node-id=154-5637&node-type=canvas&t=EiFvZcXY51vquBPz-0
 - [ ] Typography component

@@ -1,6 +1,6 @@
 import type { NavigationTreeDatabase } from '@/orval/models';
 
-export const DATA: NavigationTreeDatabase[] = [
+export const NAVIGATION_TREES_MOCK: NavigationTreeDatabase[] = [
   {
     name: 'database1',
     schemas: [

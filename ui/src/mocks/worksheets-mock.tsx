@@ -1,6 +1,6 @@
 import type { Worksheet } from '@/orval/models';
 
-export const DATA: Worksheet[] = [
+export const WORKSHEETS_MOCK: Worksheet[] = [
   {
     content: 'SELECT * FROM users',
     createdAt: '2023-10-01T12:00:00Z',

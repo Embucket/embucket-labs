@@ -1,25 +1,25 @@
 import type { ReactNode } from 'react';
 
+import { SidebarInset } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
-export const Layout = ({ children }: LayoutProps) => {
+// TODO: Use layout.css
+export function Layout({ children }: LayoutProps) {
   return (
-    <div className="flex min-h-screen w-full">
-      <div className="flex w-full flex-col">
-        <main
-          className={cn(
-            'flex min-h-screen flex-col',
-            'pt-(--layout-content-pt) pr-(--layout-content-pr) pb-(--layout-content-pb) pl-(--layout-content-pl)',
-            'md:pl-[calc(var(--sidebar-w)+var(--sidebar-ml)+var(--layout-content-pl))]',
-          )}
-        >
-          {children}
-        </main>
-      </div>
-    </div>
+    <SidebarInset
+      className={cn(
+        'my-4 max-h-[calc(100vh-16px-16px)]',
+        'mr-4 ml-2 w-[calc(100vw-var(--sidebar-width)-16px-8px)]',
+      )}
+    >
+      {
+        // TODO: Use css variable
+      }
+      <div className="relative size-full rounded-lg border bg-[#1F1F1F]">{children}</div>
+    </SidebarInset>
   );
-};
+}

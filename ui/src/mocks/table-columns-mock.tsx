@@ -1,6 +1,6 @@
 import type { TableColumn } from '@/orval/models';
 
-export const DATA: TableColumn[] = [
+export const TABLE_COLUMNS_MOCK: TableColumn[] = [
   { name: 'ID', type: 'VARCHAR(255)', nullable: 'true', default: 'NULL', description: '' },
   { name: 'EMAIL', type: 'VARCHAR(255)', nullable: 'true', default: 'NULL', description: '' },
   { name: 'AMOUNT', type: 'NUMBER(38, 10)', nullable: 'true', default: 'NULL', description: '' },

@@ -6,11 +6,11 @@ import {
   useMatch,
 } from '@tanstack/react-router';
 
-import { SidebarInset, SidebarProvider, useSidebar } from '@/components/ui/sidebar';
-import { cn } from '@/lib/utils';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import type { AuthContext } from '@/modules/auth/AuthProvider';
 import { SqlEditorPanelsStateProvider } from '@/modules/sql-editor/sql-editor-panels-state-provider';
 
+import { Layout } from '../layout/layout';
 import { AppSidebar } from '../layout/sidebar/app-sidebar';
 // import { TanStackRouterDevtoolsProvider } from '../providers/tanstack-router-devtools-provider';
 import type { FileRoutesByTo } from '../routeTree.gen';
@@ -44,29 +44,6 @@ export const Route = createRootRouteWithContext<{
 
 function NotFound() {
   return <Navigate to="/" />;
-}
-
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
-// TODO: Move this to a separate file
-function Layout({ children }: LayoutProps) {
-  const { open } = useSidebar();
-
-  return (
-    <SidebarInset
-      className={cn(
-        'my-4 max-h-[calc(100vh-16px-16px)]',
-        'mr-4 ml-2 w-[calc(100vw-var(--sidebar-width)-16px-8px)]',
-      )}
-    >
-      {
-        // TODO: Use css variable
-      }
-      <div className="relative size-full rounded-lg border bg-[#1F1F1F]">{children}</div>
-    </SidebarInset>
-  );
 }
 
 interface AuthenticatedLayoutProps {

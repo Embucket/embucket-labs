@@ -79,13 +79,6 @@ const BeautifyButton = () => {
   );
 };
 
-// const DATA: Volume[] = [
-//   {
-//     type: 'memory',
-//     name: 'myvolume',
-//   },
-// ];
-
 const VolumeSelect = () => {
   const [selectedOption, setSelectedOption] = useState<string | undefined>();
   const { data: { items: volumes } = {}, isPending } = useGetVolumes();

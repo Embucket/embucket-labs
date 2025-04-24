@@ -14,7 +14,7 @@ import { useGetWorksheets } from '@/orval/worksheets';
 import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { SqlEditorResizablePanel } from '../sql-editor-resizable';
 import { SqlEditorLeftPanelDatabasesToolbar } from './sql-editor-left-panel-databases-toolbar';
-import { SqlEditorLeftPanelTableColumns } from './sql-editor-left-panel-table-columns/sql-editor-left-panel-table-columns';
+import { SqlEditorLeftPanelBottomPanel } from './sql-editor-left-panel-table-columns/sql-editor-left-panel-bottom-panel';
 import { SqlEditorLeftPanelTrees } from './sql-editor-left-panel-trees/sql-editor-left-panel-trees';
 import type { SelectedTree } from './sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
 import { SqlEditorLeftPanelWorksheetsToolbar } from './sql-editor-left-panel-worksheets-toolbar';
@@ -41,28 +41,32 @@ export const SqlEditorLeftPanel = () => {
   return (
     <>
       <Tabs defaultValue="databases" className="size-full gap-0 text-nowrap">
+        {/* Tabs */}
         <SidebarHeader className="h-[60px] p-4 pb-2">
-          <TabsList className="w-full text-nowrap">
+          <TabsList className="w-full min-w-50 text-nowrap">
             <TabsTrigger value="databases">Databases</TabsTrigger>
             <TabsTrigger value="worksheets">Worksheets</TabsTrigger>
           </TabsList>
         </SidebarHeader>
 
         <SidebarContent className="gap-0 overflow-hidden">
+          {/* Databases Toolbar */}
+          <TabsContent value="databases" className="h-full">
+            <SqlEditorLeftPanelDatabasesToolbar
+              isFetchingNavigationTrees={isFetchingNavigationTrees}
+              onRefetchNavigationTrees={refetchNavigationTrees}
+            />
+          </TabsContent>
+          {/* Worksheets Toolbar */}
+          <TabsContent value="worksheets" className="h-full">
+            <SqlEditorLeftPanelWorksheetsToolbar
+              isFetchingWorksheets={isFetchingWorksheets}
+              onRefetchWorksheets={refetchWorksheets}
+            />
+          </TabsContent>
           <SidebarGroup className="h-full p-0">
-            <TabsContent value="databases">
-              <SqlEditorLeftPanelDatabasesToolbar
-                isFetchingNavigationTrees={isFetchingNavigationTrees}
-                onRefetchNavigationTrees={refetchNavigationTrees}
-              />
-            </TabsContent>
-            <TabsContent value="worksheets">
-              <SqlEditorLeftPanelWorksheetsToolbar
-                isFetchingWorksheets={isFetchingWorksheets}
-                onRefetchWorksheets={refetchWorksheets}
-              />
-            </TabsContent>
             <SidebarGroupContent className="h-full">
+              {/* Databases */}
               <TabsContent value="databases" className="h-full">
                 <ResizablePanelGroup direction="vertical">
                   <SqlEditorResizablePanel minSize={10} order={1} defaultSize={100}>
@@ -94,11 +98,11 @@ export const SqlEditorLeftPanel = () => {
                     defaultSize={selectedNavigationTreeDatabase ? 25 : 0}
                     minSize={20}
                   >
-                    <SqlEditorLeftPanelTableColumns selectedTree={selectedNavigationTreeDatabase} />
+                    <SqlEditorLeftPanelBottomPanel selectedTree={selectedNavigationTreeDatabase} />
                   </SqlEditorResizablePanel>
                 </ResizablePanelGroup>
               </TabsContent>
-
+              {/* Worksheets */}
               <TabsContent value="worksheets" className="h-full">
                 <SqlEditorLeftPanelWorksheets worksheets={worksheets ?? []} />
               </TabsContent>

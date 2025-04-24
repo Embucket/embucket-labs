@@ -21,42 +21,40 @@ export function SqlEditorCenterPanel({
     useSqlEditorPanelsState();
 
   return (
-    <>
-      <ResizablePanelGroup direction="vertical" ref={groupRef}>
-        <SqlEditorResizablePanel
-          collapsible
-          defaultSize={30}
-          minSize={25}
-          onCollapse={() => setTopPanelExpanded(false)}
-          onExpand={() => setTopPanelExpanded(true)}
-          order={1}
-          ref={topRef}
-        >
-          <ScrollArea className="size-full [&>*>*:first-child]:h-full [&>*>*>*:first-child]:h-full">
-            <SQLEditor />
-            <ScrollBar orientation="horizontal" />
-            <ScrollBar orientation="vertical" />
-          </ScrollArea>
-        </SqlEditorResizablePanel>
+    <ResizablePanelGroup direction="vertical" ref={groupRef}>
+      <SqlEditorResizablePanel
+        collapsible
+        defaultSize={30}
+        minSize={25}
+        onCollapse={() => setTopPanelExpanded(false)}
+        onExpand={() => setTopPanelExpanded(true)}
+        order={1}
+        ref={topRef}
+      >
+        <ScrollArea className="size-full [&>*>*:first-child]:h-full [&>*>*>*:first-child]:h-full">
+          <SQLEditor />
+          <ScrollBar orientation="horizontal" />
+          <ScrollBar orientation="vertical" />
+        </ScrollArea>
+      </SqlEditorResizablePanel>
 
-        <SqlEditorResizableHandle />
+      <SqlEditorResizableHandle />
 
-        <SqlEditorResizablePanel
-          collapsible
-          defaultSize={70}
-          minSize={25}
-          onCollapse={() => setBottomPanelExpanded(false)}
-          onExpand={() => setBottomPanelExpanded(true)}
-          order={2}
-          ref={bottomRef}
-        >
-          <SqlEditorCenterBottomPanel
-            queryRecord={queryRecord}
-            isLoading={!!isLoading}
-            isIdle={!!isIdle}
-          />
-        </SqlEditorResizablePanel>
-      </ResizablePanelGroup>
-    </>
+      <SqlEditorResizablePanel
+        collapsible
+        defaultSize={70}
+        minSize={25}
+        onCollapse={() => setBottomPanelExpanded(false)}
+        onExpand={() => setBottomPanelExpanded(true)}
+        order={2}
+        ref={bottomRef}
+      >
+        <SqlEditorCenterBottomPanel
+          queryRecord={queryRecord}
+          isLoading={!!isLoading}
+          isIdle={!!isIdle}
+        />
+      </SqlEditorResizablePanel>
+    </ResizablePanelGroup>
   );
 }

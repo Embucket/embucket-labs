@@ -1,4 +1,3 @@
-// import { useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
@@ -7,7 +6,6 @@ import { EditorCacheProvider } from '@tidbcloud/tisqleditor-react';
 
 import { ResizablePanelGroup } from '@/components/ui/resizable';
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
-// import { useSqlEditorPanelsState } from '@/modules/sql-editor/sql-editor-panels-state-provider';
 import type { QueryRecord } from '@/orval/models';
 import { getGetQueriesQueryKey, useCreateQuery } from '@/orval/queries';
 
@@ -20,33 +18,17 @@ import { useSqlEditorPanelsState } from './sql-editor-panels-state-provider';
 import { SqlEditorResizableHandle, SqlEditorResizablePanel } from './sql-editor-resizable';
 import { SqlEditorRightPanel } from './sql-editor-right-panel/sql-editor-right-panel';
 
-// const DATA: QueryRecord = {
-//   durationMs: 0,
-//   endTime: '2023-10-01T12:00:05Z',
-//   error: 'error',
-//   id: 1,
-//   query: 'SELECT * FROM users',
-//   result: {
-//     columns: [
-//       { name: 'id', type: 'INT' },
-//       { name: 'name', type: 'VARCHAR(255)' },
-//     ],
-//     rows: [
-//       [1, 'John'],
-//       [2, 'Charlie'],
-//       [3, 'Bob'],
-//     ],
-//   },
-//   resultCount: 0,
-//   startTime: '2023-10-01T12:00:00Z',
-//   status: 'Ok',
-//   worksheetId: 1,
-// };
-
 export function SqlEditorPage() {
   const [selectedQueryRecord, setSelectedQueryRecord] = useState<QueryRecord>();
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
-  const { isRightPanelExpanded, toggleRightPanel } = useSqlEditorPanelsState();
+  const {
+    isRightPanelExpanded,
+    toggleRightPanel,
+    leftRef,
+    rightRef,
+    setLeftPanelExpanded,
+    setRightPanelExpanded,
+  } = useSqlEditorPanelsState();
 
   const queryClient = useQueryClient();
 
@@ -88,12 +70,12 @@ export function SqlEditorPage() {
         <SqlEditorResizablePanel
           collapsible
           defaultSize={20}
-          // maxSize={40}
-          // minSize={20}
-          // onCollapse={() => setLeftPanelExpanded(false)}
-          // onExpand={() => setLeftPanelExpanded(true)}
+          maxSize={40}
+          minSize={20}
+          onCollapse={() => setLeftPanelExpanded(false)}
+          onExpand={() => setLeftPanelExpanded(true)}
           order={1}
-          // ref={leftRef}
+          ref={leftRef}
         >
           <SqlEditorLeftPanel />
         </SqlEditorResizablePanel>
@@ -101,7 +83,7 @@ export function SqlEditorPage() {
         <SqlEditorResizableHandle />
 
         <SqlEditorResizablePanel collapsible defaultSize={60} order={2}>
-          {/* <div className="flex size-full flex-col">
+          <div className="flex size-full flex-col">
             <SqlEditorCenterPanelTabs />
             <EditorCacheProvider>
               <SqlEditorCenterPanelToolbar onRunQuery={handleRunQuery} />
@@ -112,7 +94,7 @@ export function SqlEditorPage() {
               />
             </EditorCacheProvider>
             <SqlEditorFooter />
-          </div> */}
+          </div>
         </SqlEditorResizablePanel>
 
         <SqlEditorResizableHandle />
@@ -120,18 +102,17 @@ export function SqlEditorPage() {
         <SqlEditorResizablePanel
           collapsible
           defaultSize={20}
-          maxSize={20}
-          // maxSize={40}
-          // minSize={20}
-          // onCollapse={() => setRightPanelExpanded(false)}
-          // onExpand={() => setRightPanelExpanded(true)}
+          maxSize={40}
+          minSize={20}
+          onCollapse={() => setRightPanelExpanded(false)}
+          onExpand={() => setRightPanelExpanded(true)}
           order={3}
-          // ref={rightRef}
+          ref={rightRef}
         >
-          {/* <SqlEditorRightPanel
+          <SqlEditorRightPanel
             selectedQueryRecord={selectedQueryRecord}
             onSetSelectedQueryRecord={setSelectedQueryRecord}
-          /> */}
+          />
         </SqlEditorResizablePanel>
       </ResizablePanelGroup>
     </>
