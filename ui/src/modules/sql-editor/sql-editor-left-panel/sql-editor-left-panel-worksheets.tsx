@@ -42,7 +42,7 @@ interface SqlEditorLeftPanelWorksheetsProps {
 
 export function SqlEditorLeftPanelWorksheets({ worksheets }: SqlEditorLeftPanelWorksheetsProps) {
   return (
-    <ScrollArea className="h-[calc(100vh-306px)] px-4">
+    <ScrollArea className="h-[calc(100vh-164px)] px-4">
       <SidebarMenu className="flex w-full flex-col">
         <Worksheets worksheets={worksheets} />
       </SidebarMenu>
