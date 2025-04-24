@@ -19,7 +19,7 @@ export function HomePage() {
   }
 
   return (
-    <div className="flex size-full flex-col">
+    <>
       <div className="flex items-center justify-between border-b p-4">
         <h1 className="text-xl font-semibold">Home</h1>
         <InputRoot>
@@ -50,6 +50,6 @@ export function HomePage() {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

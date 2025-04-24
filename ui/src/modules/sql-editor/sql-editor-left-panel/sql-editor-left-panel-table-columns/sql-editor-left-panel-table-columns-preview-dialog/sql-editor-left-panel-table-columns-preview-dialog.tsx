@@ -1,20 +1,20 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useGetTablePreviewData } from '@/orval/tables';
 
-import type { SelectedTree } from '../sql-editor-left-panel/sql-editor-left-panel-databases';
-import { SqlEditorPreviewDialogTable } from './sql-editor-preview-dialog-table';
+import type { SelectedTree } from '../../sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
+import { SqlEditorLeftPanelTableColumnsPreviewDialogTable } from './sql-editor-left-panel-table-columns-preview-dialog-table';
 
-interface SqlEditorPreviewDialogProps {
+interface SqlEditorLeftPanelTableColumnsPreviewDialogProps {
   opened: boolean;
   selectedTree: SelectedTree;
   onSetOpened: (opened: boolean) => void;
 }
 
-export function SqlEditorPreviewDialog({
+export function SqlEditorLeftPanelTableColumnsPreviewDialog({
   opened,
   onSetOpened,
   selectedTree,
-}: SqlEditorPreviewDialogProps) {
+}: SqlEditorLeftPanelTableColumnsPreviewDialogProps) {
   const { data: { items: columns } = {}, isFetching } = useGetTablePreviewData(
     selectedTree.databaseName,
     selectedTree.schemaName,
@@ -31,7 +31,10 @@ export function SqlEditorPreviewDialog({
         <DialogHeader>
           <DialogTitle>Preview Table Data</DialogTitle>
         </DialogHeader>
-        <SqlEditorPreviewDialogTable columns={columns} isLoading={isFetching} />
+        <SqlEditorLeftPanelTableColumnsPreviewDialogTable
+          columns={columns}
+          isLoading={isFetching}
+        />
       </DialogContent>
     </Dialog>
   );

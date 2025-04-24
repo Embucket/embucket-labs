@@ -7,7 +7,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { Worksheet } from '@/orval/models';
 
-import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
+import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 
 interface WorksheetsProps {
   worksheets: Worksheet[];
@@ -51,8 +51,9 @@ interface SqlEditorLeftPanelWorksheetsProps {
 
 export function SqlEditorLeftPanelWorksheets({ worksheets }: SqlEditorLeftPanelWorksheetsProps) {
   return (
-    <ScrollArea className="h-[calc(100vh-164px)] px-4">
-      <SidebarMenu className="flex w-full flex-col">
+    // TODO: Hardcode
+    <ScrollArea className="h-[calc(100%-48px)] py-2">
+      <SidebarMenu className="flex w-full flex-col px-4">
         <Worksheets worksheets={worksheets} />
       </SidebarMenu>
       <ScrollBar orientation="vertical" />

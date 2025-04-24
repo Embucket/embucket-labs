@@ -4,15 +4,15 @@ import { createColumnHelper } from '@tanstack/react-table';
 import { DataTable } from '@/components/data-table/data-table';
 import type { TablePreviewDataColumn } from '@/orval/models';
 
-interface SqlEditorPreviewDialogTableProps {
+interface SqlEditorLeftPanelTableColumnsPreviewDialogTableProps {
   isLoading: boolean;
   columns: TablePreviewDataColumn[];
 }
 
-export function SqlEditorPreviewDialogTable({
+export function SqlEditorLeftPanelTableColumnsPreviewDialogTable({
   isLoading,
   columns,
-}: SqlEditorPreviewDialogTableProps) {
+}: SqlEditorLeftPanelTableColumnsPreviewDialogTableProps) {
   const columnHelper = createColumnHelper<Record<string, string>>();
 
   const tableColumns: ColumnDef<Record<string, string>, string>[] = columns.map((column) =>
@@ -20,7 +20,7 @@ export function SqlEditorPreviewDialogTable({
       header: column.name,
       cell: (info) => info.getValue(),
       meta: {
-        headerClassName: 'capitalize max-w-40 truncate',
+        headerClassName: 'capitalize truncate',
       },
     }),
   );

@@ -6,7 +6,8 @@ import {
   useMatch,
 } from '@tanstack/react-router';
 
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarInset, SidebarProvider, useSidebar } from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
 import type { AuthContext } from '@/modules/auth/AuthProvider';
 import { SqlEditorPanelsStateProvider } from '@/modules/sql-editor/sql-editor-panels-state-provider';
 
@@ -45,6 +46,29 @@ function NotFound() {
   return <Navigate to="/" />;
 }
 
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+// TODO: Move this to a separate file
+function Layout({ children }: LayoutProps) {
+  const { open } = useSidebar();
+
+  return (
+    <SidebarInset
+      className={cn(
+        'my-4 max-h-[calc(100vh-16px-16px)]',
+        'mr-4 ml-2 w-[calc(100vw-var(--sidebar-width)-16px-8px)]',
+      )}
+    >
+      {
+        // TODO: Use css variable
+      }
+      <div className="relative size-full rounded-lg border bg-[#1F1F1F]">{children}</div>
+    </SidebarInset>
+  );
+}
+
 interface AuthenticatedLayoutProps {
   children: React.ReactNode;
 }
@@ -54,11 +78,7 @@ function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     <SidebarProvider>
       <AppSidebar />
       <SqlEditorPanelsStateProvider>
-        <SidebarInset className="overflow-hidden">
-          <div className="my-4 mr-4 ml-2 h-full w-auto rounded-lg border bg-[#1F1F1F]">
-            {children}
-          </div>
-        </SidebarInset>
+        <Layout>{children}</Layout>
       </SqlEditorPanelsStateProvider>
     </SidebarProvider>
   );
