@@ -4,7 +4,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { getGetWorksheetsQueryKey, useCreateWorksheet, useGetWorksheets } from '@/orval/worksheets';
+import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
 import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
@@ -12,7 +12,7 @@ import EditorTabs from '../sql-editor-tabs';
 
 export const SqlEditorCenterPanelTabs = () => {
   const { isLeftPanelExpanded, isRightPanelExpanded } = useSqlEditorPanelsState();
-  const { data: { items: worksheets } = {}, isFetching } = useGetWorksheets();
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const addTab = useSqlEditorSettingsStore((state) => state.addTab);
@@ -62,7 +62,7 @@ export const SqlEditorCenterPanelTabs = () => {
               'max-w-[calc(100vw-256px-8px-256px-36px-24px-256px-14px)]',
           )}
         >
-          {!isFetching && <EditorTabs worksheets={worksheets} />}
+          <EditorTabs />
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </div>
