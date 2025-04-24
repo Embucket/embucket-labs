@@ -30,6 +30,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
+import { useSqlEditorSettingsStore } from '@/modules/sql-editor/sql-editor-settings-store';
 import { getGetWorksheetsQueryKey, useCreateWorksheet, useGetWorksheets } from '@/orval/worksheets';
 
 import { AppSidebarAvatarMenu } from './app-sidebar-avatar-menu';
@@ -138,12 +139,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
+  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
+
   const { mutateAsync, isPending } = useCreateWorksheet({
     mutation: {
       onSuccess: (worksheet) => {
         queryClient.invalidateQueries({
           queryKey: getGetWorksheetsQueryKey(),
         });
+        addTab(worksheet);
         navigate({
           to: '/sql-editor/$worksheetId',
           params: {
@@ -164,6 +168,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       });
       return;
     }
+    addTab(worksheets[0]);
     navigate({
       to: '/sql-editor/$worksheetId',
       params: {

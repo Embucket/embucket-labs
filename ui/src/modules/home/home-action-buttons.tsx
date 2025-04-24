@@ -6,10 +6,12 @@ import { Database, Plus, Upload } from 'lucide-react';
 
 import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
+import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
 import { CreateDatabaseDialog } from './create-database-dialog';
 
 export default function HomeActionButtons() {
   const [opened, setOpened] = useState(false);
+  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -17,6 +19,7 @@ export default function HomeActionButtons() {
   const { mutateAsync, isPending } = useCreateWorksheet({
     mutation: {
       onSuccess: (worksheet) => {
+        addTab(worksheet);
         navigate({
           to: '/sql-editor/$worksheetId',
           params: {

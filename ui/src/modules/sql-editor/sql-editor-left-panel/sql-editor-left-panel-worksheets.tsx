@@ -1,14 +1,19 @@
 import { Link } from '@tanstack/react-router';
 import { Scroll } from 'lucide-react';
 
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { Worksheet } from '@/orval/models';
+
+import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
 
 interface WorksheetsProps {
   worksheets: Worksheet[];
 }
 
 function Worksheets({ worksheets }: WorksheetsProps) {
+  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
+
   return (
     <>
       {worksheets.map((worksheet, index) => (
@@ -16,6 +21,7 @@ function Worksheets({ worksheets }: WorksheetsProps) {
           <Link to="/sql-editor/$worksheetId" params={{ worksheetId: worksheet.id.toString() }}>
             {({ isActive }) => (
               <SidebarMenuButton
+                onClick={() => addTab(worksheet)}
                 className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
                 isActive={isActive}
               >
@@ -36,8 +42,11 @@ interface SqlEditorLeftPanelWorksheetsProps {
 
 export function SqlEditorLeftPanelWorksheets({ worksheets }: SqlEditorLeftPanelWorksheetsProps) {
   return (
-    <SidebarMenu className="w-full px-4">
-      <Worksheets worksheets={worksheets} />
-    </SidebarMenu>
+    <ScrollArea className="h-[calc(100vh-306px)] px-4">
+      <SidebarMenu className="flex w-full flex-col">
+        <Worksheets worksheets={worksheets} />
+      </SidebarMenu>
+      <ScrollBar orientation="vertical" />
+    </ScrollArea>
   );
 }

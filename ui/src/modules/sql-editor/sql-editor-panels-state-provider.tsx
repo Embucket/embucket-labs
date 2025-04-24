@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import type { ImperativePanelGroupHandle, ImperativePanelHandle } from 'react-resizable-panels';
+import useLocalStorage from 'use-local-storage';
 
 interface SqlEditorPanelsStateType {
   groupRef: RefObject<ImperativePanelGroupHandle | null>;
@@ -53,17 +54,26 @@ export const SqlEditorPanelsStateProvider = ({ children }: SqlEditorPanelsStateP
   const groupRef = useRef<ImperativePanelGroupHandle>(null);
 
   const topRef = useRef<ImperativePanelHandle>(null);
-  const [isTopPanelExpanded, setTopPanelExpanded] = useState(false);
+  const [isTopPanelExpanded, setTopPanelExpanded] = useLocalStorage('isTopPanelExpanded', false);
 
-  const [isBottomPanelExpanded, setBottomPanelExpanded] = useState(false);
+  const [isBottomPanelExpanded, setBottomPanelExpanded] = useLocalStorage(
+    'isBottomPanelExpanded',
+    false,
+  );
   const bottomRef = useRef<ImperativePanelHandle>(null);
 
-  const [isLeftPanelExpanded, setLeftPanelExpanded] = useState(true);
+  const [isLeftPanelExpanded, setLeftPanelExpanded] = useLocalStorage('isLeftPanelExpanded', true);
 
   const leftBottomRef = useRef<ImperativePanelHandle>(null);
-  const [isLeftBottomPanelExpanded, setLeftBottomPanelExpanded] = useState(false);
+  const [isLeftBottomPanelExpanded, setLeftBottomPanelExpanded] = useLocalStorage(
+    'isLeftBottomPanelExpanded',
+    false,
+  );
 
-  const [isRightPanelExpanded, setRightPanelExpanded] = useState(false);
+  const [isRightPanelExpanded, setRightPanelExpanded] = useLocalStorage(
+    'isRightPanelExpanded',
+    false,
+  );
 
   const [isDragging, setIsResizing] = useState(false);
   const [isAnyPanelCollapsing, setIsAnyPanelCollapsing] = useState(false);

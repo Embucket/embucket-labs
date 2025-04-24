@@ -4,6 +4,8 @@ import { createColumnHelper } from '@tanstack/react-table';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Worksheet } from '@/orval/models';
 
+import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
+
 interface HomeWorksheetsTableProps {
   isLoading: boolean;
   worksheets: Worksheet[];
@@ -11,8 +13,10 @@ interface HomeWorksheetsTableProps {
 
 export function HomeWorksheetsTable({ isLoading, worksheets }: HomeWorksheetsTableProps) {
   const navigate = useNavigate();
+  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
 
   const handleRowClick = (row: Worksheet) => {
+    addTab(row);
     navigate({ to: `/sql-editor/$worksheetId`, params: { worksheetId: row.id.toString() } });
   };
   const columnHelper = createColumnHelper<Worksheet>();

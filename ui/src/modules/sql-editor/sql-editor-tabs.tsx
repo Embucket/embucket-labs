@@ -1,54 +1,40 @@
-import { useState } from 'react';
-
-import { Link, useNavigate, useParams } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { SquareTerminal, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import type { Worksheet } from '@/orval/models';
 
-interface EditorTabsProps {
-  worksheets: Worksheet[];
-  onTabChange?: (tabId: number) => void;
-  onTabClose?: (tabId: number) => void;
-  onTabAdd?: () => void;
-}
+import { useSqlEditorSettingsStore } from './sql-editor-settings-store';
 
-export default function EditorTabs({
-  worksheets = [],
-  onTabChange,
-  onTabClose,
-  onTabAdd,
-}: EditorTabsProps) {
-  const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
+export default function EditorTabs() {
   const navigate = useNavigate();
+  const tabs = useSqlEditorSettingsStore((state) => state.tabs);
+  const removeTab = useSqlEditorSettingsStore((state) => state.removeTab);
 
-  const [tabs, setTabs] = useState<Worksheet[]>([
-    worksheets.find((w) => w.id === +worksheetId) ?? worksheets[0],
-  ]);
-
-  const handleTabClose = (e: React.MouseEvent, tabId: number) => {
+  const handleTabClose = (e: React.MouseEvent, tab: Worksheet) => {
     e.stopPropagation();
     e.preventDefault();
+    const tabIndex = tabs.findIndex((t) => t.id === tab.id);
+    removeTab(tab);
 
-    const newTabs = tabs.filter((tab) => tab.id !== tabId);
-    setTabs(newTabs);
-
-    // If we closed the active tab, activate the first available tab
-    if (+worksheetId === tabId && newTabs.length > 0) {
-      onTabChange?.(newTabs[0].id);
+    if (tabs.length === 1) {
+      navigate({ to: '/home' });
+      return;
     }
-
-    onTabClose?.(tabId);
+    if (tabIndex === 0 && tabs.length > 1) {
+      // If the first tab is closed, navigate to the next tab
+      navigate({
+        to: '/sql-editor/$worksheetId',
+        params: { worksheetId: tabs[1]?.id.toString() },
+      });
+    } else if (tabs.length > 1) {
+      // Otherwise, navigate to the first tab
+      navigate({
+        to: '/sql-editor/$worksheetId',
+        params: { worksheetId: tabs[0]?.id.toString() },
+      });
+    }
   };
-
-  // const handleAddTab = () => {
-  //   const newTabId = `tab-${Date.now()}`;
-  //   const newTab = { id: newTabId, title: 'New Tab' };
-  //   setTabs([...tabs, newTab]);
-  //   setActiveTab(newTabId);
-  //   onTabChange?.(newTabId);
-  //   onTabAdd?.();
-  // };
 
   return (
     <div className="relative ml-4 flex items-center gap-1">
@@ -76,7 +62,7 @@ export default function EditorTabs({
               />
               <span className="max-w-28 truncate">{tab.name}</span>
               <button
-                onClick={(e) => handleTabClose(e, tab.id)}
+                onClick={(e) => handleTabClose(e, tab)}
                 className="ml-auto rounded-sm p-0.5 hover:bg-[#333333]"
               >
                 <X size={14} />
@@ -85,12 +71,6 @@ export default function EditorTabs({
           )}
         </Link>
       ))}
-      {/* <button
-        onClick={handleAddTab}
-        className="fixed right-8 flex h-10 w-10 items-center justify-center bg-red-500 text-gray-400 hover:bg-[#1e1e1e] hover:text-gray-300"
-      >
-        <Plus size={18} />
-      </button> */}
     </div>
   );
 }

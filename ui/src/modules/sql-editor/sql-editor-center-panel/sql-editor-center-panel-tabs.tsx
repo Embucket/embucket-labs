@@ -1,14 +1,53 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
+
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useGetWorksheets } from '@/orval/worksheets';
+import { getGetWorksheetsQueryKey, useCreateWorksheet, useGetWorksheets } from '@/orval/worksheets';
 
 import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
+import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
 import EditorTabs from '../sql-editor-tabs';
 
 export const SqlEditorCenterPanelTabs = () => {
   const { isLeftPanelExpanded, isRightPanelExpanded } = useSqlEditorPanelsState();
   const { data: { items: worksheets } = {}, isFetching } = useGetWorksheets();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
+
+  const { mutateAsync, isPending } = useCreateWorksheet({
+    mutation: {
+      onSuccess: (worksheet) => {
+        queryClient.invalidateQueries({
+          queryKey: getGetWorksheetsQueryKey(),
+        });
+        navigate({
+          to: '/sql-editor/$worksheetId',
+          params: {
+            worksheetId: worksheet.id.toString(),
+          },
+        });
+      },
+    },
+  });
+
+  const handleAddTab = async () => {
+    const worksheet = await mutateAsync({
+      data: {
+        name: '',
+        content: '',
+      },
+    });
+    addTab(worksheet);
+    navigate({
+      to: '/sql-editor/$worksheetId',
+      params: {
+        worksheetId: worksheet.id.toString(),
+      },
+    });
+  };
 
   return (
     <div className="flex items-center gap-1 border-b">
@@ -28,9 +67,11 @@ export const SqlEditorCenterPanelTabs = () => {
         </ScrollArea>
       </div>
       <Button
+        disabled={isPending}
+        onClick={handleAddTab}
         variant="outline"
         size="icon"
-        className="mt-auto mr-4 size-9 rounded-tl-md rounded-tr-md rounded-b-none border-b-0 transition-all"
+        className="hover:bg-sidebar-secondary-accent! mt-auto mr-4 size-9 rounded-tl-md rounded-tr-md rounded-b-none border-b-0 border-none transition-all"
       >
         +
       </Button>
