@@ -19,6 +19,7 @@ use crate::{QueryRecord, QueryRecordId, QueryRecordReference, Worksheet, Workshe
 use async_trait::async_trait;
 use embucket_utils::iterable::{IterableCursor, IterableEntity};
 use embucket_utils::{Db, Error};
+use futures::future::join_all;
 use serde_json::de;
 use slatedb::db_iter::DbIterator;
 use slatedb::error::SlateDBError;
@@ -237,6 +238,14 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
         // raise error if can't locate
         self.get_worksheet(id).await?;
 
+        let mut ref_iter = self.worksheet_queries_references_iterator(id, None).await?;
+
+        let mut fut = Vec::new();
+        while let Ok(Some(item)) = ref_iter.next().await {
+            fut.push(self.db.delete_key(item.key));
+        }
+        join_all(fut).await;
+
         Ok(self
             .db
             .delete(key_str)
@@ -345,7 +354,9 @@ mod tests {
             let ctx = MockQueryRecordActions::query_start_context();
             ctx.expect().returning(move |query, worksheet_id| {
                 let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
-                    + Duration::milliseconds(i.try_into().unwrap());
+                    + Duration::milliseconds(
+                        i.try_into().expect("Failed convert idx to miliseconds"),
+                    );
                 QueryRecord {
                     id: start_time.timestamp_millis(),
                     worksheet_id,
@@ -393,6 +404,10 @@ mod tests {
 
         // create worksheet first
         let worksheet = Worksheet::new(String::new(), String::new());
+        let worksheet = db
+            .add_worksheet(worksheet)
+            .await
+            .expect("Failed creating worksheet");
 
         let created = create_query_records(&[
             (Some(worksheet.id), QueryStatus::Successful),
@@ -403,7 +418,7 @@ mod tests {
 
         for item in &created {
             eprintln!("added {:?}", item.key());
-            db.add_query(item).await.unwrap();
+            db.add_query(item).await.expect("Failed adding query");
         }
 
         let cursor = <QueryRecord as IterableEntity>::Cursor::CURSOR_MIN;
@@ -412,12 +427,18 @@ mod tests {
             .with_worksheet_id(worksheet.id)
             .with_cursor(cursor)
             .with_limit(10);
-        let retrieved = db.get_queries(get_queries_params).await.unwrap();
+        let retrieved = db
+            .get_queries(get_queries_params)
+            .await
+            .expect("Failed gettting queries");
         // queries belong to worksheet
         assert_eq!(3, retrieved.len());
 
         let get_queries_params = GetQueries::new().with_cursor(cursor).with_limit(10);
-        let retrieved_all = db.get_queries(get_queries_params).await.unwrap();
+        let retrieved_all = db
+            .get_queries(get_queries_params)
+            .await
+            .expect("Failed gettting queries");
         // all queries
         for item in &retrieved_all {
             eprintln!("retrieved_all: {:?}", item.key());
@@ -426,5 +447,17 @@ mod tests {
         assert_eq!(created, retrieved_all);
 
         // TODO: delete worksheet & check history
+        let _ = db
+            .delete_worksheet(worksheet.id)
+            .await
+            .expect("Failed deleting worksheet");
+        let mut worksheet_refs_iter = db
+            .worksheet_queries_references_iterator(worksheet.id, None)
+            .await
+            .expect("Error getting worksheets queries references iterator");
+        if let Ok(Some(item)) = worksheet_refs_iter.next().await {
+            eprintln!("rudiment key left after worksheet deletion: {:?}", item.key);
+            assert!(false);
+        }
     }
 }

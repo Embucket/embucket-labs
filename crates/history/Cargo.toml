@@ -16,6 +16,7 @@ snafu = { workspace = true }
 tracing = { workspace = true }
 slatedb = { workspace = true }
 async-trait = { workspace = true }
+futures = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

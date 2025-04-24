@@ -105,6 +105,17 @@ impl Db {
         })
     }
 
+    /// Deletes a key-value pair from the database.
+    ///
+    /// # Errors
+    ///
+    /// This function will return a `DbError` if the underlying database operation fails.
+    pub async fn delete_key(&self, key: Bytes) -> Result<()> {
+        self.0.delete(key.as_ref()).await.context(KeyDeleteSnafu {
+            key: format!("{key:?}"),
+        })
+    }
+
     /// Stores a key-value pair in the database.
     ///
     /// # Errors
