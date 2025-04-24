@@ -441,23 +441,24 @@ mod tests {
             .expect("Failed gettting queries");
         // all queries
         for item in &retrieved_all {
-            eprintln!("retrieved_all: {:?}", item.key());
+            eprintln!("retrieved_all : {:?}", item.key());
         }
         assert_eq!(created.len(), retrieved_all.len());
         assert_eq!(created, retrieved_all);
 
-        // TODO: delete worksheet & check history
-        let _ = db
-            .delete_worksheet(worksheet.id)
+        // Delete worksheet & check related keys
+        db.delete_worksheet(worksheet.id)
             .await
             .expect("Failed deleting worksheet");
         let mut worksheet_refs_iter = db
             .worksheet_queries_references_iterator(worksheet.id, None)
             .await
             .expect("Error getting worksheets queries references iterator");
-        if let Ok(Some(item)) = worksheet_refs_iter.next().await {
-            eprintln!("rudiment key left after worksheet deletion: {:?}", item.key);
-            assert!(false);
+        let mut rudiment_keys = vec![];
+        while let Ok(Some(item)) = worksheet_refs_iter.next().await {
+            eprintln!("rudiment key left after worksheet deleted: {:?}", item.key);
+            rudiment_keys.push(item.key);
         }
+        assert_eq!(rudiment_keys.len(), 0);
     }
 }
