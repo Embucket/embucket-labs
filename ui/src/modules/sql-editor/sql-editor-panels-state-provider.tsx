@@ -114,7 +114,7 @@ export const SqlEditorPanelsStateProvider = ({ children }: SqlEditorPanelsStateP
 
   const toggleRightPanel = useCallback(() => {
     setRightPanelExpanded((prev) => !prev);
-  }, []);
+  }, [setRightPanelExpanded]);
 
   const alignPanels = useCallback(() => {
     if (!bottomRef.current) return;
