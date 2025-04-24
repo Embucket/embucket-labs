@@ -254,7 +254,7 @@ expression: "(statement, result, all_query, insert_query, select_query)"
                 fields: [
                     Field {
                         name: "count",
-                        data_type: UInt64,
+                        data_type: Int64,
                         nullable: false,
                         dict_id: 0,
                         dict_is_ordered: false,
@@ -264,7 +264,7 @@ expression: "(statement, result, all_query, insert_query, select_query)"
                 metadata: {},
             },
             columns: [
-                PrimitiveArray<UInt64>
+                PrimitiveArray<Int64>
                 [
                   0,
                 ],
