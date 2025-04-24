@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::http::ui::default_limit;
 use embucket_metastore::models::Database as MetastoreDatabase;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -93,6 +94,7 @@ pub struct DatabasesResponse {
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct DatabasesParameters {
     pub cursor: Option<String>,
-    pub limit: Option<usize>,
+    #[serde(default = "default_limit")]
+    pub limit: Option<u16>,
     pub search: Option<String>,
 }

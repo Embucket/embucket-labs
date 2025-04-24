@@ -30,3 +30,9 @@ pub mod tables;
 pub mod tests;
 pub mod volumes;
 pub mod worksheets;
+
+//Default limit for pagination
+#[allow(clippy::unnecessary_wraps)]
+const fn default_limit() -> Option<u16> {
+    Some(250)
+}

@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::http::ui::default_limit;
 use chrono::NaiveDateTime;
 use embucket_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
 use embucket_metastore::RwObject;
@@ -100,6 +101,7 @@ pub struct SchemasResponse {
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct SchemasParameters {
     pub cursor: Option<String>,
-    pub limit: Option<usize>,
+    #[serde(default = "default_limit")]
+    pub limit: Option<u16>,
     pub search: Option<String>,
 }

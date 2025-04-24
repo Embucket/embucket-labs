@@ -19,6 +19,7 @@ use super::error::{
     CreateResultSetSnafu, QueryError, QueryRecordResult, ResultParseSnafu, Utf8Snafu,
 };
 use crate::execution::models::ColumnInfo;
+use crate::http::ui::default_limit;
 use arrow::array::RecordBatch;
 use arrow_json::{writer::JsonArray, WriterBuilder};
 use chrono::{DateTime, Utc};
@@ -171,5 +172,6 @@ pub struct QueriesResponse {
 pub struct GetQueriesParams {
     pub worksheet_id: Option<WorksheetId>,
     pub cursor: Option<QueryRecordId>,
+    #[serde(default = "default_limit")]
     pub limit: Option<u16>,
 }

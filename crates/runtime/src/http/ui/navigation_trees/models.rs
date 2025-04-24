@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::http::ui::default_limit;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
@@ -50,5 +51,6 @@ pub struct NavigationTreeTable {
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct NavigationTreesParameters {
     pub cursor: Option<String>,
-    pub limit: Option<usize>,
+    #[serde(default = "default_limit")]
+    pub limit: Option<u16>,
 }

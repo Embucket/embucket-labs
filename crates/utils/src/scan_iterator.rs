@@ -59,7 +59,7 @@ pub struct VecScanIterator<T: Send + for<'de> serde::de::Deserialize<'de>> {
     // (`\x7F` is the largest ASCII char to find anything before it)
     // if there are 4 tables `tested1..tested4` which would yield us "tested3" and "tested4" including other names if any exist
     cursor: Option<String>,
-    limit: Option<usize>,
+    limit: Option<u16>,
     //Search string, from where (and to where in lexicographical sort order) to do the search
     // ex: if we want to find all the test tables it could be "tes" (if there are 4 tables `tested1..tested4`)
     // the range would be `tes..tes\x7F` tables
@@ -90,7 +90,7 @@ impl<T: Send + for<'de> serde::de::Deserialize<'de>> VecScanIterator<T> {
         Self { token, ..self }
     }
     #[must_use]
-    pub fn limit(self, limit: Option<usize>) -> Self {
+    pub fn limit(self, limit: Option<u16>) -> Self {
         Self { limit, ..self }
     }
 }
@@ -117,7 +117,7 @@ impl<T: Send + for<'de> serde::de::Deserialize<'de>> ScanIterator for VecScanIte
             || format!("{}/\x7F", self.key),
             |search_prefix| format!("{}/{search_prefix}\x7F", self.key),
         );
-        let limit = self.limit.unwrap_or(usize::MAX);
+        let limit = self.limit.unwrap_or(u16::MAX) as usize;
 
         let range = Bytes::from(start)..Bytes::from(end);
         let mut iter = self.db.scan(range).await.context(ScanFailedSnafu)?;

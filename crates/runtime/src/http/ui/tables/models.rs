@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::http::ui::default_limit;
 use chrono::NaiveDateTime;
 use datafusion::arrow::csv::reader::Format;
 use serde::{Deserialize, Serialize};
@@ -74,11 +75,6 @@ pub struct TablePreviewDataParameters {
     pub offset: Option<u32>,
     #[serde(default = "default_limit")]
     pub limit: Option<u16>,
-}
-
-#[allow(clippy::unnecessary_wraps)]
-const fn default_limit() -> Option<u16> {
-    Some(10)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -177,6 +173,7 @@ pub struct Table {
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct TablesParameters {
     pub cursor: Option<String>,
-    pub limit: Option<usize>,
+    #[serde(default = "default_limit")]
+    pub limit: Option<u16>,
     pub search: Option<String>,
 }

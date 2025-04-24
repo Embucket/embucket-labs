@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::http::ui::default_limit;
 use embucket_metastore::models::{
     AwsCredentials, FileVolume as MetastoreFileVolume, S3Volume as MetastoreS3Volume,
     Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
@@ -172,6 +173,7 @@ pub struct VolumesResponse {
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct VolumesParameters {
     pub cursor: Option<String>,
-    pub limit: Option<usize>,
+    #[serde(default = "default_limit")]
+    pub limit: Option<u16>,
     pub search: Option<String>,
 }
