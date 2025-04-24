@@ -77,6 +77,8 @@ pub fn make_cors_middleware(origin: &str) -> Result<CorsLayer, error::RuntimeHtt
             Method::POST,
             Method::DELETE,
             Method::HEAD,
+            Method::PUT,
+            Method::PATCH,
         ])
         .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE])
         .allow_credentials(true))
