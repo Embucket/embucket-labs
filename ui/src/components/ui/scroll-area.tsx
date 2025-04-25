@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 interface ScrollAreaProps extends React.ComponentProps<typeof ScrollAreaPrimitive.Root> {
   children: React.ReactNode;
-  // TODO: Not good
+  // TODO: Not good, better do Viewport className
   tableViewport?: boolean;
 }
 

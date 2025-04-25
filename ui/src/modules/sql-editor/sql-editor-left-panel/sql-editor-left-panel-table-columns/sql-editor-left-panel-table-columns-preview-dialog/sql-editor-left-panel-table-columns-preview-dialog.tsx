@@ -1,6 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { TABLE_PREVIEW_DATA_COLUMNS_MOCK } from '@/mocks/table-preview-data-columns-mock';
 import { useGetTablePreviewData } from '@/orval/tables';
 
 import type { SelectedTree } from '../../sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';

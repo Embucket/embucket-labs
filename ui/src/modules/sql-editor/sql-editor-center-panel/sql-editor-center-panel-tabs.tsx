@@ -3,16 +3,12 @@ import { useNavigate } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
-import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
 import EditorTabs from '../sql-editor-tabs';
 
 export const SqlEditorCenterPanelTabs = () => {
-  const { isLeftPanelExpanded, isRightPanelExpanded } = useSqlEditorPanelsState();
-
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const addTab = useSqlEditorSettingsStore((state) => state.addTab);
@@ -50,18 +46,9 @@ export const SqlEditorCenterPanelTabs = () => {
   };
 
   return (
-    <div className="flex items-center gap-1 border-b">
-      <div className="flex min-h-13 flex-col">
-        <ScrollArea
-          className={cn(
-            'mt-auto flex min-w-full flex-col transition-all duration-500',
-            (isLeftPanelExpanded || isRightPanelExpanded) &&
-              'max-w-[calc(100vw-256px-8px-256px-36px-24px-15px)]',
-            isLeftPanelExpanded &&
-              isRightPanelExpanded &&
-              'max-w-[calc(100vw-256px-8px-256px-36px-24px-256px-14px)]',
-          )}
-        >
+    <div className="flex h-13 items-center gap-1 border-b">
+      <div className="mt-auto max-w-[calc(100%-4px-16px-36px)]">
+        <ScrollArea className="mt-auto flex size-full min-w-full flex-col">
           <EditorTabs />
           <ScrollBar orientation="horizontal" />
         </ScrollArea>

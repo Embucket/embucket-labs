@@ -62,7 +62,7 @@ export function SqlEditorCenterPanel() {
   };
 
   return (
-    <div className="flex size-full flex-col">
+    <>
       <SqlEditorCenterPanelTabs />
       <EditorCacheProvider>
         <SqlEditorCenterPanelToolbar onRunQuery={handleRunQuery} />
@@ -103,6 +103,6 @@ export function SqlEditorCenterPanel() {
         </ResizablePanelGroup>
       </EditorCacheProvider>
       <SqlEditorCenterPanelFooter />
-    </div>
+    </>
   );
 }
