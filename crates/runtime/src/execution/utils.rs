@@ -28,6 +28,8 @@ use chrono::DateTime;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DataFusionResult;
+use datafusion_common::ScalarValue;
+use datafusion_expr::{Expr, LogicalPlan};
 use embucket_metastore::SchemaIdent as MetastoreSchemaIdent;
 use embucket_metastore::TableIdent as MetastoreTableIdent;
 use sqlparser::ast::{Ident, ObjectName};
@@ -53,6 +55,23 @@ impl Config {
 pub enum DataSerializationFormat {
     Arrow,
     Json,
+}
+
+#[must_use]
+pub fn is_logical_plan_effectively_empty(plan: &LogicalPlan) -> bool {
+    match plan {
+        LogicalPlan::EmptyRelation(e) => !e.produce_one_row,
+        LogicalPlan::Projection(proj) => is_logical_plan_effectively_empty(&proj.input),
+        LogicalPlan::SubqueryAlias(alias) => is_logical_plan_effectively_empty(&alias.input),
+        LogicalPlan::Filter(filter) => {
+            let is_false_predicate = matches!(
+                filter.predicate,
+                Expr::Literal(ScalarValue::Boolean(Some(false)))
+            );
+            is_false_predicate || is_logical_plan_effectively_empty(&filter.input)
+        }
+        _ => false,
+    }
 }
 
 /*#[async_trait::async_trait]

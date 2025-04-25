@@ -60,7 +60,7 @@ use super::catalogs::{catalog::DFCatalog, metastore::DFMetastore};
 use super::datafusion::context_provider::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::session::UserSession;
-use super::utils::NormalizedIdent;
+use super::utils::{is_logical_plan_effectively_empty, NormalizedIdent};
 use crate::execution::datafusion::visitors::{functions_rewriter, json_element};
 use tracing_attributes::instrument;
 
@@ -463,7 +463,7 @@ impl UserQuery {
             ..
         })) = plan
         {
-            if matches!(*input, LogicalPlan::EmptyRelation(_)) {
+            if is_logical_plan_effectively_empty(&input) {
                 return created_entity_response();
             }
             let insert_plan = LogicalPlan::Dml(DmlStatement::new(
@@ -814,7 +814,7 @@ impl UserQuery {
             }
         }
         let select_query =
-            format!("SELECT {values} FROM {source_query} JOIN {target_table} {target_alias} ON {on}{where_clause_str}");
+            format!("SELECT {values} FROM {source_query} LEFT JOIN {target_table} {target_alias} ON {on}{where_clause_str}");
 
         // Construct the INSERT statement
         let insert_query = format!("INSERT INTO {target_table} ({columns}) {select_query}");
