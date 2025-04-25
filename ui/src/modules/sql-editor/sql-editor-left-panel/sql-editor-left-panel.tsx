@@ -1,6 +1,4 @@
-import { useState } from 'react';
-
-import { ResizableHandle, ResizablePanelGroup } from '@/components/ui/resizable';
+import { ResizablePanelGroup } from '@/components/ui/resizable';
 import {
   SidebarContent,
   SidebarGroup,
@@ -12,15 +10,17 @@ import { useGetNavigationTrees } from '@/orval/navigation-trees';
 import { useGetWorksheets } from '@/orval/worksheets';
 
 import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
-import { SqlEditorResizablePanel } from '../sql-editor-resizable';
+import { SqlEditorResizableHandle, SqlEditorResizablePanel } from '../sql-editor-resizable';
+import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
 import { SqlEditorLeftPanelDatabasesToolbar } from './sql-editor-left-panel-databases-toolbar';
 import { SqlEditorLeftPanelBottomPanel } from './sql-editor-left-panel-table-columns/sql-editor-left-panel-bottom-panel';
 import { SqlEditorLeftPanelTrees } from './sql-editor-left-panel-trees/sql-editor-left-panel-trees';
-import type { SelectedTree } from './sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
 import { SqlEditorLeftPanelWorksheetsToolbar } from './sql-editor-left-panel-worksheets-toolbar';
 import { SqlEditorLeftPanelWorksheets } from './sql-editor-left-panel-worksheets/sql-editor-left-panel-worksheets';
 
 export const SqlEditorLeftPanel = () => {
+  const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
+
   const {
     data: { items: navigationTrees } = {},
     refetch: refetchNavigationTrees,
@@ -32,11 +32,7 @@ export const SqlEditorLeftPanel = () => {
     isFetching: isFetchingWorksheets,
   } = useGetWorksheets();
 
-  const [selectedNavigationTreeDatabase, setSelectedNavigationTreeDatabase] =
-    useState<SelectedTree>();
-
-  const { leftBottomRef, setIsResizing, setLeftBottomPanelExpanded, isLeftBottomPanelExpanded } =
-    useSqlEditorPanelsState();
+  const { leftBottomRef, setLeftBottomPanelExpanded } = useSqlEditorPanelsState();
 
   return (
     <>
@@ -73,18 +69,9 @@ export const SqlEditorLeftPanel = () => {
                     <SqlEditorLeftPanelTrees
                       navigationTrees={navigationTrees ?? []}
                       isFetchingNavigationTrees={isFetchingNavigationTrees}
-                      selectedTree={selectedNavigationTreeDatabase}
-                      onSetSelectedTree={(tree: SelectedTree) => {
-                        setSelectedNavigationTreeDatabase(tree);
-                        if (!isLeftBottomPanelExpanded) {
-                          leftBottomRef.current?.resize(20);
-                        }
-                      }}
                     />
                   </SqlEditorResizablePanel>
-                  {selectedNavigationTreeDatabase && (
-                    <ResizableHandle withHandle onDragging={setIsResizing} />
-                  )}
+                  {selectedTree && <SqlEditorResizableHandle />}
                   <SqlEditorResizablePanel
                     ref={leftBottomRef}
                     order={2}
@@ -95,10 +82,10 @@ export const SqlEditorLeftPanel = () => {
                       setLeftBottomPanelExpanded(true);
                     }}
                     collapsible
-                    defaultSize={selectedNavigationTreeDatabase ? 25 : 0}
+                    defaultSize={selectedTree ? 25 : 0}
                     minSize={20}
                   >
-                    <SqlEditorLeftPanelBottomPanel selectedTree={selectedNavigationTreeDatabase} />
+                    <SqlEditorLeftPanelBottomPanel />
                   </SqlEditorResizablePanel>
                 </ResizablePanelGroup>
               </TabsContent>

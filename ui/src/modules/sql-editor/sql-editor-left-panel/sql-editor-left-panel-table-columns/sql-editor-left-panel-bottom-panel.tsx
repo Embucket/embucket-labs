@@ -2,18 +2,13 @@ import { useState } from 'react';
 
 import { useGetTableColumns } from '@/orval/tables';
 
-import type { SelectedTree } from '../sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
+import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 import { SqlEditorLeftPanelTableColumns } from './sql-editor-left-panel-table-columns';
 import { SqlEditorLeftPanelTableColumnsPreviewDialog } from './sql-editor-left-panel-table-columns-preview-dialog/sql-editor-left-panel-table-columns-preview-dialog';
 import { SqlEditorLeftPanelTableColumnsToolbar } from './sql-editor-left-panel-table-columns-toolbar';
 
-interface SqlEditorLeftPanelBottomPanelProps {
-  selectedTree?: SelectedTree;
-}
-
-export function SqlEditorLeftPanelBottomPanel({
-  selectedTree,
-}: SqlEditorLeftPanelBottomPanelProps) {
+export function SqlEditorLeftPanelBottomPanel() {
+  const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
   const [open, setOpen] = useState(false);
 
   const { data: { items: columns } = {} } = useGetTableColumns(

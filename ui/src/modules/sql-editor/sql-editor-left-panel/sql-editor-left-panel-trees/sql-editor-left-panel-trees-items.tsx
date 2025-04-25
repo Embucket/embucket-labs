@@ -22,8 +22,11 @@ import type {
   NavigationTreeTable,
 } from '@/orval/models';
 
+import { useSqlEditorPanelsState } from '../../sql-editor-panels-state-provider';
+import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 import { SqlEditorLeftPanelTreeCollapsibleItem } from './sql-editor-left-panel-trees-collapsible-item';
 
+// TODO: Need more specific name
 export interface SelectedTree {
   databaseName: string;
   schemaName: string;
@@ -34,20 +37,22 @@ interface TablesProps {
   tables: NavigationTreeTable[];
   database: NavigationTreeDatabase;
   schema: NavigationTreeSchema;
-  selectedTree?: SelectedTree;
-  onSetSelectedTree: (tree: SelectedTree) => void;
   onOpenUploadDialog: () => void;
 }
 
-function Tables({
-  tables,
-  schema,
-  database,
-  selectedTree,
-  onSetSelectedTree,
-  onOpenUploadDialog,
-}: TablesProps) {
+function Tables({ tables, schema, database, onOpenUploadDialog }: TablesProps) {
   const [hoveredTable, setHoveredTable] = useState<NavigationTreeTable | null>(null);
+  const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
+  const setSelectedTree = useSqlEditorSettingsStore((state) => state.setSelectedTree);
+
+  const { isLeftBottomPanelExpanded, leftBottomRef } = useSqlEditorPanelsState();
+
+  const handleSelectTree = (tree: SelectedTree) => {
+    if (!isLeftBottomPanelExpanded) {
+      leftBottomRef.current?.resize(20);
+    }
+    setSelectedTree(tree);
+  };
 
   return (
     <SqlEditorLeftPanelTreeCollapsibleItem
@@ -66,7 +71,7 @@ function Tables({
               selectedTree.databaseName === database.name
             }
             onClick={() =>
-              onSetSelectedTree({
+              handleSelectTree({
                 databaseName: database.name,
                 schemaName: schema.name,
                 tableName: table.name,
@@ -95,7 +100,7 @@ function Tables({
             <DropdownMenuContent side="right" align="start">
               <DropdownMenuItem
                 onClick={() => {
-                  onSetSelectedTree({
+                  handleSelectTree({
                     databaseName: database.name,
                     schemaName: schema.name,
                     tableName: table.name,
@@ -116,18 +121,18 @@ function Tables({
 interface SchemasProps {
   schemas: NavigationTreeSchema[];
   database: NavigationTreeDatabase;
-  selectedTree?: SelectedTree;
-  onSetSelectedTree: (tree: SelectedTree) => void;
+
   onOpenUploadDialog: () => void;
 }
 
 function Schemas({
   schemas,
   database,
-  selectedTree,
-  onSetSelectedTree,
+
   onOpenUploadDialog,
 }: SchemasProps) {
+  // const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
+
   return (
     <>
       {schemas.map((schema, index) => (
@@ -142,8 +147,6 @@ function Schemas({
               tables={schema.tables}
               database={database}
               schema={schema}
-              selectedTree={selectedTree}
-              onSetSelectedTree={onSetSelectedTree}
               onOpenUploadDialog={onOpenUploadDialog}
             />
           </SqlEditorLeftPanelTreeCollapsibleItem>
@@ -155,17 +158,16 @@ function Schemas({
 
 interface DatabasesProps {
   databases: NavigationTreeDatabase[];
-  selectedTree?: SelectedTree;
-  onSetSelectedTree: (tree: SelectedTree) => void;
+
   onOpenUploadDialog: () => void;
 }
 
 export function SqlEditorLeftPanelTreesDatabases({
   databases,
-  selectedTree,
-  onSetSelectedTree,
   onOpenUploadDialog,
 }: DatabasesProps) {
+  // const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
+
   return (
     <>
       {databases.map((database, index) => (
@@ -185,8 +187,6 @@ export function SqlEditorLeftPanelTreesDatabases({
             <Schemas
               schemas={database.schemas}
               database={database}
-              selectedTree={selectedTree}
-              onSetSelectedTree={onSetSelectedTree}
               onOpenUploadDialog={onOpenUploadDialog}
             />
           </SqlEditorLeftPanelTreeCollapsibleItem>

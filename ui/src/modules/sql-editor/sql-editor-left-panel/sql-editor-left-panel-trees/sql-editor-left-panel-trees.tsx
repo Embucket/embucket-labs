@@ -7,29 +7,21 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { SidebarMenu } from '@/components/ui/sidebar';
 import type { NavigationTreeDatabase } from '@/orval/models';
 
+import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 import { SqlEditorUploadDialog } from '../../sql-editor-upload-dropzone/sql-editor-upload-dialog';
-import {
-  SqlEditorLeftPanelTreesDatabases,
-  type SelectedTree,
-} from './sql-editor-left-panel-trees-items';
+import { SqlEditorLeftPanelTreesDatabases } from './sql-editor-left-panel-trees-items';
 
 interface SqlEditorLeftPanelTreesProps {
-  selectedTree?: SelectedTree;
   isFetchingNavigationTrees: boolean;
   navigationTrees: NavigationTreeDatabase[];
-  onSetSelectedTree: (tree: SelectedTree) => void;
 }
 
 export function SqlEditorLeftPanelTrees({
-  selectedTree,
   isFetchingNavigationTrees,
   navigationTrees,
-  onSetSelectedTree,
 }: SqlEditorLeftPanelTreesProps) {
+  const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const handleSetSelectedTree = (tree: SelectedTree) => {
-    onSetSelectedTree(tree);
-  };
 
   const handleOpenUploadDialog = () => {
     setIsDialogOpen(true);
@@ -55,13 +47,12 @@ export function SqlEditorLeftPanelTrees({
         <SidebarMenu className="block w-full px-4 select-none">
           <SqlEditorLeftPanelTreesDatabases
             databases={navigationTrees}
-            selectedTree={selectedTree}
-            onSetSelectedTree={handleSetSelectedTree}
             onOpenUploadDialog={handleOpenUploadDialog}
           />
         </SidebarMenu>
         <ScrollBar orientation="vertical" />
       </ScrollArea>
+
       {selectedTree && (
         <SqlEditorUploadDialog
           opened={isDialogOpen}

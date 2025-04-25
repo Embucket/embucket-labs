@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 
 import type { QueryRecord, Worksheet } from '@/orval/models';
 
+import type { SelectedTree } from './sql-editor-left-panel/sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
+
 interface SqlEditorSettingsStore {
   tabs: Worksheet[];
   addTab: (tab: Worksheet) => void;
@@ -10,10 +12,14 @@ interface SqlEditorSettingsStore {
 
   queryRecord?: QueryRecord;
   setQueryRecord: (queryRecord: QueryRecord) => void;
+
+  selectedTree?: SelectedTree;
+  setSelectedTree: (selectedTree: SelectedTree) => void;
 }
 
 const initialState = {
   queryRecord: undefined,
+  selectedTree: undefined,
   tabs: [],
 };
 
@@ -35,6 +41,9 @@ export const useSqlEditorSettingsStore = create<SqlEditorSettingsStore>()(
       },
       setQueryRecord: (queryRecord: QueryRecord) => {
         set({ queryRecord });
+      },
+      setSelectedTree: (selectedTree: SelectedTree) => {
+        set({ selectedTree });
       },
     }),
     {
