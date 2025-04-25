@@ -1,4 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { TABLE_PREVIEW_DATA_COLUMNS_MOCK } from '@/mocks/table-preview-data-columns-mock';
 import { useGetTablePreviewData } from '@/orval/tables';
 
 import type { SelectedTree } from '../../sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
@@ -27,14 +29,23 @@ export function SqlEditorLeftPanelTableColumnsPreviewDialog({
 
   return (
     <Dialog open={opened} onOpenChange={onSetOpened}>
-      <DialogContent className="sm:max-w-4xl">
+      {/* TODO: Hardcode */}
+      <DialogContent className="max-h-[calc(100vh-32px)]! w-fit max-w-[calc(100vw-32px)]!">
         <DialogHeader>
           <DialogTitle>Preview Table Data</DialogTitle>
         </DialogHeader>
-        <SqlEditorLeftPanelTableColumnsPreviewDialogTable
-          columns={columns}
-          isLoading={isFetching}
-        />
+        {/* <div className="size-[500px] bg-blue-500"></div> */}
+        <ScrollArea
+          tableViewport
+          className="size-full max-h-[calc(100vh-32px-48px-18px-24px)]! max-w-[calc(100vw-32px-48px)]!"
+        >
+          <SqlEditorLeftPanelTableColumnsPreviewDialogTable
+            columns={columns}
+            isLoading={isFetching}
+          />
+          <ScrollBar orientation="horizontal" />
+          <ScrollBar orientation="vertical" />
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
