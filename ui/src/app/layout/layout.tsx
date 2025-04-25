@@ -7,18 +7,15 @@ interface LayoutProps {
   children: ReactNode;
 }
 
-// TODO: Use layout.css
 export function Layout({ children }: LayoutProps) {
+  // TODO: Use layout.css and css variables
   return (
     <SidebarInset
       className={cn(
         'my-4 max-h-[calc(100vh-16px-16px)]',
-        'mr-4 ml-2 w-[calc(100vw-var(--sidebar-width)-16px-8px)]',
+        'mr-4 w-[calc(100vw-(var(--sidebar-width))-16px)]',
       )}
     >
-      {
-        // TODO: Use css variable
-      }
       <div className="relative size-full rounded-lg border bg-[#1F1F1F]">{children}</div>
     </SidebarInset>
   );

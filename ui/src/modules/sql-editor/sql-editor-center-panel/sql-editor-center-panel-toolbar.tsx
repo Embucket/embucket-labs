@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { SqlStatement } from '@tidbcloud/codemirror-extension-sql-parser';
 import { useEditorCacheContext } from '@tidbcloud/tisqleditor-react';
@@ -26,7 +26,7 @@ interface RunSQLButtonProps {
 function RunSQLButton({ onRunQuery, disabled }: RunSQLButtonProps) {
   const cacheCtx = useEditorCacheContext();
 
-  function handleRunQuery() {
+  const handleRunQuery = useCallback(() => {
     const activeEditor = cacheCtx.getEditor('MySQLEditor');
     if (!activeEditor) return;
     let targetStatement: SqlStatement | undefined;
@@ -40,7 +40,21 @@ function RunSQLButton({ onRunQuery, disabled }: RunSQLButtonProps) {
     if (!targetStatement?.content) return;
 
     onRunQuery(targetStatement.content);
-  }
+  }, [cacheCtx, onRunQuery]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.metaKey && event.key === 'Enter') {
+        event.preventDefault();
+        handleRunQuery();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleRunQuery]);
 
   return (
     <div className="w-fit">

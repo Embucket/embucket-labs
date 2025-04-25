@@ -8,7 +8,6 @@ import {
 
 import { SidebarProvider } from '@/components/ui/sidebar';
 import type { AuthContext } from '@/modules/auth/AuthProvider';
-import { SqlEditorPanelsStateProvider } from '@/modules/sql-editor/sql-editor-panels-state-provider';
 
 import { Layout } from '../layout/layout';
 import { AppSidebar } from '../layout/sidebar/app-sidebar';
@@ -54,9 +53,7 @@ function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SqlEditorPanelsStateProvider>
-        <Layout>{children}</Layout>
-      </SqlEditorPanelsStateProvider>
+      <Layout>{children}</Layout>
     </SidebarProvider>
   );
 }

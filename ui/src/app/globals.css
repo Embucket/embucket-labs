@@ -225,6 +225,10 @@
   }
 }
 
+/* ::-webkit-scrollbar {
+  display: none;
+} */
+
 .recharts-wrapper {
   margin: 0 auto;
 }

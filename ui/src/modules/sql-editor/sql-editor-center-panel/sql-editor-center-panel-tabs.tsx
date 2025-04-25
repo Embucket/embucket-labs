@@ -46,7 +46,8 @@ export const SqlEditorCenterPanelTabs = () => {
   };
 
   return (
-    <div className="flex h-13 items-center gap-1 border-b">
+    <div className="flex min-h-13 items-center gap-1 border-b">
+      {/* TODO: Hardcode */}
       <div className="mt-auto max-w-[calc(100%-4px-16px-36px)]">
         <ScrollArea className="mt-auto flex size-full min-w-full flex-col">
           <EditorTabs />

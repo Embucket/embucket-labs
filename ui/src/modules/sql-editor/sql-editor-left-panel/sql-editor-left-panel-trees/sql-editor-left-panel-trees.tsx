@@ -44,7 +44,7 @@ export function SqlEditorLeftPanelTrees({
   return (
     <>
       <ScrollArea className="size-full py-2">
-        <SidebarMenu className="block w-full px-4 select-none">
+        <SidebarMenu className="w-full px-2 select-none">
           <SqlEditorLeftPanelTreesDatabases
             databases={navigationTrees}
             onOpenUploadDialog={handleOpenUploadDialog}

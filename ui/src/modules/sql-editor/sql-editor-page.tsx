@@ -16,7 +16,7 @@ export function SqlEditorPage() {
         <SqlEditorResizablePanel
           collapsible
           defaultSize={20}
-          maxSize={40}
+          maxSize={30}
           minSize={20}
           onCollapse={() => setLeftPanelExpanded(false)}
           onExpand={() => setLeftPanelExpanded(true)}
@@ -37,7 +37,7 @@ export function SqlEditorPage() {
         <SqlEditorResizablePanel
           collapsible
           defaultSize={20}
-          maxSize={40}
+          maxSize={30}
           minSize={20}
           onCollapse={() => setRightPanelExpanded(false)}
           onExpand={() => setRightPanelExpanded(true)}

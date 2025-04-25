@@ -18,7 +18,7 @@ export const SqlEditorRightPanel = () => {
 
   return (
     <>
-      <div className="flex h-[53px] items-center justify-between border-b px-4 text-sm">
+      <div className="flex h-13 items-center justify-between border-b px-4 text-sm">
         History
         <Button
           onClick={toggleRightPanel}
@@ -30,7 +30,7 @@ export const SqlEditorRightPanel = () => {
         </Button>
       </div>
       <div className="text-muted-foreground flex items-center justify-between px-4 py-2 text-sm text-nowrap">
-        All queries ({queries?.length})
+        <p className="mr-2">All queries ({queries?.length})</p>
         <Button disabled size="icon" variant="ghost" className="size-8">
           <SlidersHorizontal />
         </Button>

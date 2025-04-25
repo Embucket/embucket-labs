@@ -17,7 +17,7 @@ export function SqlEditorRightPanelQueryItem({
       <div className="flex items-center overflow-hidden">
         <span
           className={cn(
-            'mr-0 ml-2 size-1.5 flex-shrink-0 rounded-full',
+            'size-1.5 flex-shrink-0 rounded-full',
             status === 'successful' ? 'bg-green-500' : 'bg-red-500',
           )}
         />

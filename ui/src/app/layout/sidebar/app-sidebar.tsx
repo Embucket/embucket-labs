@@ -178,8 +178,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   return (
-    <Sidebar side="left" collapsible="icon" className="bg-muted h-auto rounded-md" {...props}>
-      <SidebarHeader className="flex flex-row items-center justify-between pt-4">
+    <Sidebar
+      variant="floating"
+      side="left"
+      collapsible="icon"
+      className="h-auto rounded-md border-none"
+      {...props}
+    >
+      <SidebarHeader className="flex flex-row items-center justify-between">
         <Link to="/">
           <div className={cn('flex items-center gap-1 transition-all', open && 'ml-2')}>
             <EmbucketLogo />

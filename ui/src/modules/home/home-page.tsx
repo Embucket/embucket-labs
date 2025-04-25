@@ -29,27 +29,30 @@ export function HomePage() {
           <Input className="min-w-80" disabled placeholder="Search" />
         </InputRoot>
       </div>
-      <div className="p-4">
-        <p className="mb-2 text-3xl font-semibold">Welcome!</p>
-        <p className="text-muted-foreground font-light">Nice seeing you here 😎</p>
-      </div>
-      <HomeActionButtons />
-      <div className="flex size-full flex-col p-4">
-        <p className="mb-4 font-semibold">Overview</p>
-        <HomeDashboardMetrics dashboardData={dashboardData} />
-
-        <div className="mt-4 flex size-full flex-col">
-          <p className="mb-4 font-semibold">Worksheets</p>
-          {worksheets?.length ? (
-            <ScrollArea>
-              <HomeWorksheetsTable worksheets={worksheets} isLoading={isLoading} />
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
-          ) : (
-            <HomeWorksheetsTableEmpty />
-          )}
+      <ScrollArea className="h-[calc(100vh-65px-32px)]">
+        <div className="p-4">
+          <p className="mb-2 text-3xl font-semibold">Welcome!</p>
+          <p className="text-muted-foreground font-light">Nice seeing you here 😎</p>
         </div>
-      </div>
+        <HomeActionButtons />
+        <div className="flex size-full flex-col p-4">
+          <p className="mb-4 font-semibold">Overview</p>
+          <HomeDashboardMetrics dashboardData={dashboardData} />
+
+          <div className="mt-4 flex size-full flex-col">
+            <p className="mb-4 font-semibold">Worksheets</p>
+            {worksheets?.length ? (
+              <ScrollArea tableViewport>
+                <HomeWorksheetsTable worksheets={worksheets} isLoading={isLoading} />
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            ) : (
+              <HomeWorksheetsTableEmpty />
+            )}
+          </div>
+        </div>
+        <ScrollBar orientation="vertical" />
+      </ScrollArea>
     </>
   );
 }

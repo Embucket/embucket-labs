@@ -53,7 +53,7 @@ export function SqlEditorLeftPanelWorksheets({ worksheets }: SqlEditorLeftPanelW
   return (
     // TODO: Hardcode
     <ScrollArea className="h-[calc(100%-48px)] py-2">
-      <SidebarMenu className="flex w-full flex-col px-4">
+      <SidebarMenu className="flex w-full flex-col px-2">
         <Worksheets worksheets={worksheets} />
       </SidebarMenu>
       <ScrollBar orientation="vertical" />
