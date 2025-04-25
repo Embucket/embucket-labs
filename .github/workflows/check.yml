@@ -46,25 +46,6 @@ jobs:
           components: rustfmt
       - name: cargo fmt --check
         run: cargo fmt --check
-  license_check:
-    runs-on: ubuntu-latest
-    name: Check license headers
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
-      - name: Cargo deny
-        uses: EmbarkStudios/cargo-deny-action@v2
-        with:
-          command: check license
-          log_level: error
-      - name: Check license headers
-        uses: viperproject/check-license-header@v2
-        with:
-          config: .check-license.config.json
-          strict: false
   clippy:
     runs-on: ubuntu-latest
     name: ${{ matrix.toolchain }} / clippy

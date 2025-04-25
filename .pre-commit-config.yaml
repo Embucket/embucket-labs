@@ -14,4 +14,4 @@ repos:
         name: check license header
         entry: ./check_license.sh
         language: script
-        files: \.rs$
+        files: \.[rs,js,ts]$
