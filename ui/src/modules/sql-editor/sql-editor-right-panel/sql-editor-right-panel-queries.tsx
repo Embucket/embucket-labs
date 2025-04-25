@@ -2,26 +2,14 @@ import { useParams } from '@tanstack/react-router';
 import { Database } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import {
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar';
+import { SidebarGroup, SidebarGroupLabel, SidebarMenu } from '@/components/ui/sidebar';
 import type { QueryRecord } from '@/orval/models';
 import { useGetQueries } from '@/orval/queries';
 
-import { SQLEditor } from '../sql-editor';
-import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
-import { SqlEditorRightPanelQueryItem } from './sql-editor-right-panel-query-item';
+import { SqlEditorRightPanelQuery } from './sql-editor-right-panel-query/sql-editor-right-panel-query';
 
 export const SqlEditorRightPanelQueries = () => {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
-
-  const queryRecord = useSqlEditorSettingsStore((state) => state.queryRecord);
-  const setQueryRecord = useSqlEditorSettingsStore((state) => state.setQueryRecord);
 
   const { data: { items: queries } = {} } = useGetQueries(
     { worksheetId: +worksheetId },
@@ -56,32 +44,7 @@ export const SqlEditorRightPanelQueries = () => {
           <SidebarGroupLabel className="text-nowrap">{dateLabel}</SidebarGroupLabel>
           <SidebarMenu>
             {queries.map((query) => (
-              <HoverCard key={query.id} openDelay={100} closeDelay={10}>
-                <HoverCardTrigger>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      isActive={query.id === queryRecord?.id}
-                      onClick={() => setQueryRecord(query)}
-                      className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent! data-[active=true]:font-light"
-                    >
-                      <SqlEditorRightPanelQueryItem
-                        status={query.status}
-                        query={query.query}
-                        time={new Date(query.startTime).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                        })}
-                      />
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </HoverCardTrigger>
-                <HoverCardContent className="p-1">
-                  <div className="rounded bg-[#1F1F1F]">
-                    <SQLEditor readonly content={query.query} />
-                  </div>
-                </HoverCardContent>
-              </HoverCard>
+              <SqlEditorRightPanelQuery key={query.id} query={query} />
             ))}
           </SidebarMenu>
         </SidebarGroup>
