@@ -10,7 +10,11 @@ interface QueryResultDataTableProps {
   columns: Column[];
 }
 
-export function QueryResultDataTable({ isLoading, rows, columns }: QueryResultDataTableProps) {
+export function SqlEditorCenterBottomPanelQueryResultTable({
+  isLoading,
+  rows,
+  columns,
+}: QueryResultDataTableProps) {
   const columnHelper = createColumnHelper<unknown[]>();
 
   const tableColumns: ColumnDef<Row, string>[] = columns.map((column) =>

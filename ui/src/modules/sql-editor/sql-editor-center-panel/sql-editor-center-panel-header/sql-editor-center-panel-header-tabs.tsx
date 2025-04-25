@@ -1,12 +1,15 @@
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { SquareTerminal, X } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Worksheet } from '@/orval/models';
 
-import { useSqlEditorSettingsStore } from './sql-editor-settings-store';
+import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 
-export default function EditorTabs() {
+export function SqlEditorCenterPanelHeaderTabs() {
+  const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
+
   const navigate = useNavigate();
   const tabs = useSqlEditorSettingsStore((state) => state.tabs);
   const removeTab = useSqlEditorSettingsStore((state) => state.removeTab);
@@ -27,7 +30,7 @@ export default function EditorTabs() {
         to: '/sql-editor/$worksheetId',
         params: { worksheetId: tabs[1]?.id.toString() },
       });
-    } else if (tabs.length > 1) {
+    } else if (tabs.length > 1 && tab.id.toString() === worksheetId) {
       // Otherwise, navigate to the first tab
       navigate({
         to: '/sql-editor/$worksheetId',
@@ -37,7 +40,7 @@ export default function EditorTabs() {
   };
 
   return (
-    <div className="relative ml-4 flex items-center gap-1">
+    <div className="relative flex items-center gap-1">
       {tabs.map((tab) => (
         <Link
           key={tab.id}
@@ -56,17 +59,18 @@ export default function EditorTabs() {
             >
               <SquareTerminal
                 className={cn(
-                  'text-muted-foreground mr-2 size-4 justify-start',
+                  'text-muted-foreground mr-2 size-4 min-h-4 min-w-4 justify-start',
                   isActive && 'text-primary-foreground',
                 )}
               />
-              <span className="max-w-28 truncate">{tab.name}</span>
-              <button
+              <span className="mr-2 max-w-28 truncate">{tab.name}</span>
+              <Button
+                variant="ghost"
                 onClick={(e) => handleTabClose(e, tab)}
-                className="ml-auto rounded-sm p-0.5 hover:bg-[#333333]"
+                className="ml-auto size-6"
               >
-                <X size={14} />
-              </button>
+                <X />
+              </Button>
             </div>
           )}
         </Link>

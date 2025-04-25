@@ -1,5 +1,6 @@
-import { Search } from 'lucide-react';
+import { FileText, Search } from 'lucide-react';
 
+import { EmptyContainer } from '@/components/empty-container';
 import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useGetDashboard } from '@/orval/dashboard';
@@ -8,7 +9,6 @@ import { useGetWorksheets } from '@/orval/worksheets';
 import HomeActionButtons from './home-action-buttons';
 import { HomeDashboardMetrics } from './home-dashboard-metrics';
 import { HomeWorksheetsTable } from './home-worksheets-table';
-import { HomeWorksheetsTableEmpty } from './home-worksheets-table-empty';
 
 export function HomePage() {
   const { data: { items: worksheets } = {}, isLoading } = useGetWorksheets();
@@ -47,7 +47,13 @@ export function HomePage() {
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
             ) : (
-              <HomeWorksheetsTableEmpty />
+              <EmptyContainer
+                Icon={FileText}
+                title="No SQL Worksheets Created Yet"
+                description="Create your first worksheet to start querying data"
+                // onCtaClick={() => {}}
+                // ctaText="Create Worksheet"
+              />
             )}
           </div>
         </div>

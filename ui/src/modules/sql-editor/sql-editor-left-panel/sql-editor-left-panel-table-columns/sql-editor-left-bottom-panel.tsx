@@ -7,7 +7,7 @@ import { SqlEditorLeftPanelTableColumns } from './sql-editor-left-panel-table-co
 import { SqlEditorLeftPanelTableColumnsPreviewDialog } from './sql-editor-left-panel-table-columns-preview-dialog/sql-editor-left-panel-table-columns-preview-dialog';
 import { SqlEditorLeftPanelTableColumnsToolbar } from './sql-editor-left-panel-table-columns-toolbar';
 
-export function SqlEditorLeftPanelBottomPanel() {
+export function SqlEditorLeftBottomPanel() {
   const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
   const [open, setOpen] = useState(false);
 

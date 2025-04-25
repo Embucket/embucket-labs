@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useUploadFile } from '@/orval/tables';
 
-import type { SelectedTree } from '../sql-editor-left-panel/sql-editor-left-panel-trees/sql-editor-left-panel-trees';
+import type { SelectedTree } from '../sql-editor-left-panel/sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
 import { TableDataUploadDropzone } from './sql-editor-upload-dropzone';
 
 interface SqlEditorUploadDialogProps {

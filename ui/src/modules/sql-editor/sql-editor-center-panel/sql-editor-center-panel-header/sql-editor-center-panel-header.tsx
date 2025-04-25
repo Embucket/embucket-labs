@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
-import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
-import EditorTabs from '../sql-editor-tabs';
+import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
+import { SqlEditorCenterPanelHeaderTabs } from './sql-editor-center-panel-header-tabs';
 
-export const SqlEditorCenterPanelTabs = () => {
+export const SqlEditorCenterPanelHeader = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const addTab = useSqlEditorSettingsStore((state) => state.addTab);
@@ -46,11 +46,11 @@ export const SqlEditorCenterPanelTabs = () => {
   };
 
   return (
-    <div className="flex min-h-13 items-center gap-1 border-b">
+    <div className="flex min-h-13 items-center gap-1 border-b pl-4">
       {/* TODO: Hardcode */}
       <div className="mt-auto max-w-[calc(100%-4px-16px-36px)]">
         <ScrollArea className="mt-auto flex size-full min-w-full flex-col">
-          <EditorTabs />
+          <SqlEditorCenterPanelHeaderTabs />
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </div>

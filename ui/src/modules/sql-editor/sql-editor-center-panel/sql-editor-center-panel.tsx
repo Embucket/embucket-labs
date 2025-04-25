@@ -13,8 +13,8 @@ import { SqlEditorResizableHandle, SqlEditorResizablePanel } from '../sql-editor
 import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
 import { SqlEditorCenterBottomPanel } from './sql-editor-center-bottom-panel/sql-editor-center-bottom-panel';
 import { SqlEditorCenterPanelFooter } from './sql-editor-center-panel-footer';
-import { SqlEditorCenterPanelTabs } from './sql-editor-center-panel-tabs';
-import { SqlEditorCenterPanelToolbar } from './sql-editor-center-panel-toolbar';
+import { SqlEditorCenterPanelHeader } from './sql-editor-center-panel-header/sql-editor-center-panel-header';
+import { SqlEditorCenterPanelToolbar } from './sql-editor-center-panel-toolbar/sql-editor-center-panel-toolbar';
 
 export function SqlEditorCenterPanel() {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
@@ -63,7 +63,7 @@ export function SqlEditorCenterPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <SqlEditorCenterPanelTabs />
+      <SqlEditorCenterPanelHeader />
       <EditorCacheProvider>
         <SqlEditorCenterPanelToolbar onRunQuery={handleRunQuery} />
         <ResizablePanelGroup direction="vertical" ref={groupRef}>

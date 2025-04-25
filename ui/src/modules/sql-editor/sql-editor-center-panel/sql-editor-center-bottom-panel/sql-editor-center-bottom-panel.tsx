@@ -1,11 +1,12 @@
-import { ArrowDownToLine, Search } from 'lucide-react';
+import { ArrowDownToLine, Search, TextSearch } from 'lucide-react';
 
+import { EmptyContainer } from '@/components/empty-container';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs2';
-import { QueryResultDataTable } from '@/modules/sql-editor/sql-editor-center-panel/sql-editor-center-bottom-panel/query-result-data-table';
-import { QueryResultDataTableEmpty } from '@/modules/sql-editor/sql-editor-center-panel/sql-editor-center-bottom-panel/query-result-data-table-empty';
 import type { QueryRecord } from '@/orval/models';
+
+import { SqlEditorCenterBottomPanelQueryResultTable } from './sql-editor-center-bottom-panel-query-result-table';
 
 interface SqlEditorCenterPanelQueryColumnsProps {
   isLoading: boolean;
@@ -28,7 +29,13 @@ export function SqlEditorCenterBottomPanel({
 
   return (
     <>
-      {isIdle && !queryRecord && <QueryResultDataTableEmpty />}
+      {isIdle && !queryRecord && (
+        <EmptyContainer
+          Icon={TextSearch}
+          title="No Results Yet"
+          description="Once you run a query, results will be displayed here."
+        />
+      )}
 
       {!noFields && (
         <Tabs defaultValue="results" className="size-full">
@@ -56,7 +63,11 @@ export function SqlEditorCenterBottomPanel({
           </div>
           <TabsContent value="results" className="m-0 size-full">
             <ScrollArea tableViewport className="size-full">
-              <QueryResultDataTable columns={columns} rows={rows} isLoading={isLoading} />
+              <SqlEditorCenterBottomPanelQueryResultTable
+                columns={columns}
+                rows={rows}
+                isLoading={isLoading}
+              />
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
           </TabsContent>

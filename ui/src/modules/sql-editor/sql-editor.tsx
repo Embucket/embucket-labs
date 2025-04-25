@@ -12,8 +12,8 @@ import { useGetWorksheet, useUpdateWorksheet } from '@/orval/worksheets';
 
 import { sqlAutoCompletion } from './sql-editor-extensions/sql-editor-autocomplete/sql-auto-completion';
 import { setCustomKeymaps } from './sql-editor-extensions/sql-editor-custom-keymaps';
-import { transformNavigationTreeToSqlConfigSchema } from './sql-editor-schema';
 import { SQL_EDITOR_THEME } from './sql-editor-theme';
+import { transformNavigationTreeToSqlConfigSchema } from './sql-editor-utils';
 
 interface SQLEditorProps {
   readonly?: boolean;

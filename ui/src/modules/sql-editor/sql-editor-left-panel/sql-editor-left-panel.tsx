@@ -13,7 +13,7 @@ import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { SqlEditorResizableHandle, SqlEditorResizablePanel } from '../sql-editor-resizable';
 import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
 import { SqlEditorLeftPanelDatabasesToolbar } from './sql-editor-left-panel-databases-toolbar';
-import { SqlEditorLeftPanelBottomPanel } from './sql-editor-left-panel-table-columns/sql-editor-left-panel-bottom-panel';
+import { SqlEditorLeftBottomPanel } from './sql-editor-left-panel-table-columns/sql-editor-left-bottom-panel';
 import { SqlEditorLeftPanelTrees } from './sql-editor-left-panel-trees/sql-editor-left-panel-trees';
 import { SqlEditorLeftPanelWorksheetsToolbar } from './sql-editor-left-panel-worksheets-toolbar';
 import { SqlEditorLeftPanelWorksheets } from './sql-editor-left-panel-worksheets/sql-editor-left-panel-worksheets';
@@ -85,7 +85,7 @@ export const SqlEditorLeftPanel = () => {
                     defaultSize={selectedTree ? 25 : 0}
                     minSize={20}
                   >
-                    <SqlEditorLeftPanelBottomPanel />
+                    <SqlEditorLeftBottomPanel />
                   </SqlEditorResizablePanel>
                 </ResizablePanelGroup>
               </TabsContent>
