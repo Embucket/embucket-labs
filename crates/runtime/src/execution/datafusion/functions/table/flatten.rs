@@ -459,7 +459,7 @@ mod tests {
     use datafusion::prelude::{SessionConfig, SessionContext};
     use datafusion_common::assert_batches_eq;
     use std::sync::Arc;
-    
+
     #[tokio::test]
     async fn test_array() -> DFResult<()> {
         let ctx = SessionContext::new();
@@ -495,7 +495,7 @@ mod tests {
         let ctx = SessionContext::new_with_config(config);
         let sql = "SELECT * from flatten(INPUT=>'[1,77]')";
         ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
-        
+
         let lp = ctx.state().sql_to_statement(sql, "snowflake")?;
         dbg!(&lp);
         let p = ctx.state().statement_to_plan(lp).await?;
