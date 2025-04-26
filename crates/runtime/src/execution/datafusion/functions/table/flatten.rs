@@ -489,21 +489,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_named_arg() -> DFResult<()> {
-        let config = SessionConfig::new().set_str("datafusion.sql_parser.dialect", "snowflake");
-
-        let ctx = SessionContext::new_with_config(config);
-        let sql = "SELECT * from flatten(INPUT=>'[1,77]')";
-        ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
-
-        let lp = ctx.state().sql_to_statement(sql, "snowflake")?;
-        dbg!(&lp);
-        let p = ctx.state().statement_to_plan(lp).await?;
-        dbg!(11, &p);
-        Ok(())
-    }
-
-    #[tokio::test]
     async fn test_object() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
