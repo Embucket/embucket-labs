@@ -86,7 +86,7 @@ pub async fn http_req<T: serde::de::DeserializeOwned>(
         let headers = response.headers().clone();
         let status = response.status();
         let text = response.text().await.expect("Failed to get response text");
-        if text.len() == 0 {
+        if text.is_empty() {
             // If no actual type retuned we emulate unit, by "null" value in json
             Ok(serde_json::from_str::<T>("null").expect("Failed to parse response"))
         } else {

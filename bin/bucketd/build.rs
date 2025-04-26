@@ -18,6 +18,7 @@
 use std::env;
 use std::fs::File;
 use std::path::Path;
+use std::time::Duration;
 use tar::Builder;
 
 fn create_web_assets_tarball() -> Result<(), std::io::Error> {
@@ -33,15 +34,22 @@ fn create_web_assets_tarball() -> Result<(), std::io::Error> {
     let mut tar = Builder::new(tar);
     tar.append_dir_all("", source_path)?;
     tar.finish()?;
+
     Ok(())
 }
 
 #[allow(clippy::expect_used)]
-fn main() {
-    let res = create_web_assets_tarball();
-    if let Err(err) = res {
-        panic!("Error creating web assets tarball: {err}");
-    }
+#[tokio::main]
+async fn main() {
+    let tar_file_task = tokio::spawn(async {
+        let res = create_web_assets_tarball();
+        if let Err(err) = res {
+            panic!("Error creating web assets tarball: {err}");
+        }
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        eprintln!("Web assets tarball created");
+    });
+    let _ = tokio::try_join!(tar_file_task);
 
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed={}", env!("WEB_ASSETS_SOURCE_PATH"));

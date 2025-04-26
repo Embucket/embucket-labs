@@ -16,6 +16,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [build-dependencies]
 tar = { workspace = true }
+tokio = { workspace = true }
 
 [lints]
 workspace = true

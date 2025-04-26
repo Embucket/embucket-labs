@@ -38,7 +38,7 @@ async fn create_worksheets(
     for (name, query) in templates {
         eprintln!("Creating worksheet: {name}, {query}");
         let worksheet = http_req::<Worksheet>(
-            &client,
+            client,
             Method::POST,
             &format!("http://{addr}/ui/worksheets"),
             json!(WorksheetCreatePayload {
@@ -63,7 +63,7 @@ async fn get_worksheets(
     sort_by: SortBy,
 ) -> Vec<Worksheet> {
     http_req::<WorksheetsResponse>(
-        &client,
+        client,
         Method::GET,
         &format!("http://{addr}/ui/worksheets?sortBy={sort_by}&sortOrder={sort_order}"),
         String::new(),
@@ -80,7 +80,7 @@ async fn update_worksheet(
     payload: WorksheetUpdatePayload,
 ) {
     http_req::<()>(
-        &client,
+        client,
         Method::PATCH,
         &format!("http://{addr}/ui/worksheets/{id}"),
         json!(payload).to_string(),
