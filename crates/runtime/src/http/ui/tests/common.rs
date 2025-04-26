@@ -19,9 +19,19 @@
 
 use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::volumes::models::VolumeCreatePayload;
-use http::Method;
+use http::{HeaderMap, HeaderValue, Method, StatusCode};
 use serde_json::json;
 use std::net::SocketAddr;
+
+#[derive(Debug)]
+pub struct TestHttpError {
+    pub method: Method,
+    pub url: String,
+    pub headers: HeaderMap<HeaderValue>,
+    pub status: StatusCode,
+    pub body: String,
+    pub error: String,
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -56,6 +66,60 @@ pub async fn req(
     eprintln!("req: {method} {url}, {res:?}");
 
     res
+}
+
+pub async fn http_req<T: serde::de::DeserializeOwned>(
+    client: &reqwest::Client,
+    method: Method,
+    url: &String,
+    payload: String,
+) -> Result<T, TestHttpError> {
+    let res = client
+        .request(method.clone(), url)
+        .header("Content-Type", "application/json")
+        .body(payload)
+        .send()
+        .await;
+
+    let response = res.unwrap();
+    if response.status() == StatusCode::OK {
+        let headers = response.headers().clone();
+        let status = response.status();
+        let text = response.text().await.expect("Failed to get response text");
+        if text.len() == 0 {
+            // If no actual type retuned we emulate unit, by "null" value in json
+            Ok(serde_json::from_str::<T>("null").expect("Failed to parse response"))
+        } else {
+            let json = serde_json::from_str::<T>(&text);
+            match json {
+                Ok(json) => Ok(json),
+                Err(err) => {
+                    // Normally we don't expect error here, and only have http related error to return
+                    Err(TestHttpError {
+                        method,
+                        url: url.clone(),
+                        headers,
+                        status,
+                        body: text,
+                        error: err.to_string(),
+                    })
+                }
+            }
+        }
+    } else {
+        let error = response
+            .error_for_status_ref()
+            .expect_err("Expected error, http code not OK");
+        // Return custom error as reqwest error has no body contents
+        Err(TestHttpError {
+            method,
+            url: url.clone(),
+            headers: response.headers().clone(),
+            status: response.status(),
+            body: response.text().await.expect("Failed to get response text"),
+            error: format!("{error:?}"),
+        })
+    }
 }
 
 fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {

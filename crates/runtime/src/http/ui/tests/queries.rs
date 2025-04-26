@@ -19,10 +19,10 @@
 
 use crate::http::error::ErrorResponse;
 use crate::http::ui::queries::models::{
-    Column, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryStatus, ResultSet,
+    Column, QueriesResponse, QueryCreatePayload, QueryRecord, QueryStatus, ResultSet,
 };
-use crate::http::ui::tests::common::req;
-use crate::http::ui::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
+use crate::http::ui::tests::common::http_req;
+use crate::http::ui::worksheets::models::{Worksheet, WorksheetCreatePayload};
 use crate::tests::run_test_server;
 use http::Method;
 use serde_json::json;
@@ -33,7 +33,7 @@ async fn test_ui_queries_no_worksheet() {
     let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
-    let res = req(
+    let _ = http_req::<QueryRecord>(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/queries"),
@@ -46,9 +46,8 @@ async fn test_ui_queries_no_worksheet() {
     )
     .await
     .expect("Create query error");
-    assert_eq!(http::StatusCode::OK, res.status());
 
-    let res = req(
+    let history_resp = http_req::<QueriesResponse>(
         &client,
         Method::GET,
         &format!("http://{addr}/ui/queries"),
@@ -56,9 +55,6 @@ async fn test_ui_queries_no_worksheet() {
     )
     .await
     .unwrap();
-    assert_eq!(http::StatusCode::OK, res.status());
-    // println!("{:?}", res.bytes().await);
-    let history_resp = res.json::<QueriesResponse>().await.unwrap();
     assert_eq!(history_resp.items.len(), 1);
 }
 
@@ -68,7 +64,7 @@ async fn test_ui_queries() {
     let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
-    let res = req(
+    let worksheet = http_req::<Worksheet>(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/worksheets"),
@@ -79,33 +75,31 @@ async fn test_ui_queries() {
         .to_string(),
     )
     .await
-    .unwrap();
-    assert_eq!(http::StatusCode::OK, res.status());
-    let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
+    .expect("Error creating worksheet");
     assert!(worksheet.id > 0);
 
-    let res = req(
+    let res = http_req::<()>(
         &client,
         Method::DELETE,
         &format!("http://{addr}/ui/queries?worksheetId={}", worksheet.id),
         String::new(),
     )
     .await
-    .unwrap();
-    assert_eq!(http::StatusCode::METHOD_NOT_ALLOWED, res.status());
+    .expect_err("Error expected METHOD_NOT_ALLOWED");
+    assert_eq!(http::StatusCode::METHOD_NOT_ALLOWED, res.status);
 
     // Bad payload
-    let res = req(
+    let res = http_req::<()>(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/queries"),
         String::new(),
     )
     .await
-    .unwrap();
-    assert_eq!(http::StatusCode::BAD_REQUEST, res.status());
+    .expect_err("Error expected: BAD_REQUEST");
+    assert_eq!(http::StatusCode::BAD_REQUEST, res.status);
 
-    let res = req(
+    let query = http_req::<QueryRecord>(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/queries"),
@@ -118,12 +112,8 @@ async fn test_ui_queries() {
     )
     .await
     .expect("Create query error");
-    //println!("{:?}", res.bytes().await);
-
-    let query_run_resp = res.json::<QueryCreateResponse>().await.unwrap();
-    // println!("query_run_resp: {query_run_resp:?}");
     assert_eq!(
-        query_run_resp.data.result,
+        query.result,
         ResultSet {
             columns: vec![
                 Column {
@@ -138,9 +128,8 @@ async fn test_ui_queries() {
             rows: serde_json::from_str("[[1,2]]").unwrap()
         }
     );
-    // assert_eq!(query_run_resp.result, "[{\"Int64(1)\":1}]");
 
-    let res = req(
+    let query2 = http_req::<QueryRecord>(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/queries"),
@@ -153,12 +142,9 @@ async fn test_ui_queries() {
     )
     .await
     .expect("Create query error");
-    assert_eq!(http::StatusCode::OK, res.status());
-    // println!("{:?}", res.bytes().await);
-    let query_run_resp2 = res.json::<QueryCreateResponse>().await.unwrap();
-    // println!("query_run_resp2: {query_run_resp2:?}");
+
     assert_eq!(
-        query_run_resp2.data.result,
+        query2.result,
         ResultSet {
             columns: vec![Column {
                 name: "Int64(2)".to_string(),
@@ -169,7 +155,7 @@ async fn test_ui_queries() {
     );
     // assert_eq!(query_run_resp2.result, "[{\"Int64(2)\":2}]");
 
-    let res = req(
+    let res = http_req::<()>(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/queries"),
@@ -181,13 +167,17 @@ async fn test_ui_queries() {
         .to_string(),
     )
     .await
-    .unwrap();
-    assert_eq!(http::StatusCode::UNPROCESSABLE_ENTITY, res.status());
-    let err = res.json::<ErrorResponse>().await.unwrap();
-    assert_eq!(err.status_code, http::StatusCode::UNPROCESSABLE_ENTITY);
+    .expect_err("Error expected: UNPROCESSABLE_ENTITY");
+    assert_eq!(http::StatusCode::UNPROCESSABLE_ENTITY, res.status);
+    let error_response =
+        serde_json::from_str::<ErrorResponse>(&res.body).expect("Failed to parse ErrorResponse");
+    assert_eq!(
+        error_response.status_code,
+        http::StatusCode::UNPROCESSABLE_ENTITY
+    );
 
     // second fail
-    let res = req(
+    let res = http_req::<()>(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/queries"),
@@ -199,28 +189,29 @@ async fn test_ui_queries() {
         .to_string(),
     )
     .await
-    .expect("Create query error");
-    // println!("err resp: {:?}", res.text().await.expect("Can't get response text"));
-    assert_eq!(http::StatusCode::UNPROCESSABLE_ENTITY, res.status());
-    let err = res.json::<ErrorResponse>().await.unwrap();
-    assert_eq!(err.status_code, http::StatusCode::UNPROCESSABLE_ENTITY);
+    .expect_err("Error expected: UNPROCESSABLE_ENTITY");
+    assert_eq!(http::StatusCode::UNPROCESSABLE_ENTITY, res.status);
+    let error_response =
+        serde_json::from_str::<ErrorResponse>(&res.body).expect("Failed to parse ErrorResponse");
+    assert_eq!(
+        error_response.status_code,
+        http::StatusCode::UNPROCESSABLE_ENTITY
+    );
 
     // get all=4
-    let res = req(
+    let queries = http_req::<QueriesResponse>(
         &client,
         Method::GET,
         &format!("http://{addr}/ui/queries?worksheetId={}", worksheet.id),
         String::new(),
     )
     .await
-    .expect("Error getting queries");
-    assert_eq!(http::StatusCode::OK, res.status());
-    // println!("{:?}", res.bytes().await);
-    let history_resp = res.json::<QueriesResponse>().await.unwrap();
-    assert_eq!(history_resp.items.len(), 4);
+    .expect("Error getting queries")
+    .items;
+    assert_eq!(queries.len(), 4);
 
     // get 2
-    let res = req(
+    let queries_response = http_req::<QueriesResponse>(
         &client,
         Method::GET,
         &format!(
@@ -230,33 +221,32 @@ async fn test_ui_queries() {
         String::new(),
     )
     .await
-    .unwrap();
-    assert_eq!(http::StatusCode::OK, res.status());
-    // println!("{:?}", res.bytes().await);
-    let history_resp = res.json::<QueriesResponse>().await.unwrap();
-    assert_eq!(history_resp.items.len(), 2);
-    // items returned in descending order
-    assert_eq!(history_resp.items[0].status, QueryStatus::Failed);
-    assert_eq!(history_resp.items[1].status, QueryStatus::Failed);
+    .expect("Failed to get queries");
+    let queries = queries_response.items;
+    assert_eq!(queries.len(), 2);
+
+    // check items returned in descending order
+    assert_eq!(queries[0].status, QueryStatus::Failed);
+    assert_eq!(queries[1].status, QueryStatus::Failed);
 
     // get rest
-    let res = req(
+    let queries2 = http_req::<QueriesResponse>(
         &client,
         Method::GET,
         &format!(
             "http://{addr}/ui/queries?worksheetId={}&cursor={}",
-            worksheet.id, history_resp.next_cursor
+            worksheet.id, queries_response.next_cursor
         ),
         String::new(),
     )
     .await
-    .unwrap();
-    assert_eq!(http::StatusCode::OK, res.status());
-    // println!("{:?}", res.bytes().await);
-    let history_resp = res.json::<QueriesResponse>().await.unwrap();
-    assert_eq!(history_resp.items.len(), 2);
-    assert_eq!(history_resp.items[0].status, QueryStatus::Successful);
-    assert_eq!(history_resp.items[0].result, query_run_resp2.data.result);
-    assert_eq!(history_resp.items[1].status, QueryStatus::Successful);
-    assert_eq!(history_resp.items[1].result, query_run_resp.data.result);
+    .expect("Failed to get queries")
+    .items;
+
+    assert_eq!(queries2.len(), 2);
+    // check items returned in descending order
+    assert_eq!(queries2[0].status, QueryStatus::Successful);
+    assert_eq!(queries2[0].result, query2.result);
+    assert_eq!(queries2[1].status, QueryStatus::Successful);
+    assert_eq!(queries2[1].result, query.result);
 }

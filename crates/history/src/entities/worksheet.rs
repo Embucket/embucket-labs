@@ -60,6 +60,10 @@ impl Worksheet {
     pub fn set_content(&mut self, content: String) {
         self.content = content;
     }
+
+    pub fn set_updated_at(&mut self, updated_at: Option<DateTime<Utc>>) {
+        self.updated_at = updated_at.unwrap_or_else(Utc::now);
+    }
 }
 
 impl IterableEntity for Worksheet {

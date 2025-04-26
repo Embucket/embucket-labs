@@ -17,7 +17,7 @@
 
 use crate::{QueryRecord, QueryRecordId, QueryRecordReference, Worksheet, WorksheetId};
 use async_trait::async_trait;
-use embucket_utils::iterable::{IterableCursor, IterableEntity};
+use embucket_utils::iterable::IterableCursor;
 use embucket_utils::{Db, Error};
 use futures::future::join_all;
 use serde_json::de;
@@ -135,7 +135,7 @@ pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
     async fn add_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<Worksheet>;
     async fn get_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet>;
     async fn delete_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<()>;
-    async fn update_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<()>;
+    async fn update_worksheet(&self, mut worksheet: Worksheet) -> WorksheetsStoreResult<()>;
     async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>>;
 
     async fn add_query(&self, item: &QueryRecord) -> WorksheetsStoreResult<()>;
@@ -218,23 +218,17 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
         })
     }
 
-    async fn update_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<()> {
-        // convert from Bytes to &str, for .get method to convert it back to Bytes
-        let key_bytes = worksheet.key();
-        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
+    async fn update_worksheet(&self, mut worksheet: Worksheet) -> WorksheetsStoreResult<()> {
+        worksheet.set_updated_at(None);
 
         Ok(self
             .db
-            .put(key_str, &worksheet)
+            .put_iterable_entity(&worksheet)
             .await
             .context(WorksheetUpdateSnafu)?)
     }
 
     async fn delete_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<()> {
-        // convert from Bytes to &str, for .get method to convert it back to Bytes
-        let key_bytes = Worksheet::get_key(id);
-        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
-
         // raise error if can't locate
         self.get_worksheet(id).await?;
 
@@ -248,7 +242,7 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 
         Ok(self
             .db
-            .delete(key_str)
+            .delete_key(Worksheet::get_key(id))
             .await
             .context(WorksheetDeleteSnafu)?)
     }

@@ -185,13 +185,6 @@ pub struct QueriesResponse {
     pub next_cursor: QueryRecordId,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum SortOrder {
-    Ascending,
-    Descending,
-}
-
 #[derive(Debug, Deserialize, utoipa::ToSchema, utoipa::IntoParams)]
 #[serde(rename_all = "camelCase")]
 pub struct GetQueriesParams {
