@@ -456,23 +456,10 @@ fn eval_expr(expr: &Expr) -> DFResult<ScalarValue> {
 mod tests {
     use super::*;
     use crate::execution::datafusion::functions::parse_json::ParseJsonFunc;
-    use arrow::util::pretty::print_batches;
-    use datafusion::prelude::SessionContext;
+    use datafusion::prelude::{SessionConfig, SessionContext};
     use datafusion_common::assert_batches_eq;
     use std::sync::Arc;
-
-    // fixme
-    #[tokio::test]
-    async fn test_invalid_json() -> DFResult<()> {
-        let ctx = SessionContext::new();
-        ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
-        let sql = "SELECT * from flatten('[1,,77]','',false,false,'both')";
-        let result = ctx.sql(sql).await?.collect().await?;
-        print_batches(&result)?;
-
-        Ok(())
-    }
-
+    
     #[tokio::test]
     async fn test_array() -> DFResult<()> {
         let ctx = SessionContext::new();
@@ -498,6 +485,21 @@ mod tests {
             &result
         );
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_named_arg() -> DFResult<()> {
+        let config = SessionConfig::new().set_str("datafusion.sql_parser.dialect", "snowflake");
+
+        let ctx = SessionContext::new_with_config(config);
+        let sql = "SELECT * from flatten(INPUT=>'[1,77]')";
+        ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
+        
+        let lp = ctx.state().sql_to_statement(sql, "snowflake")?;
+        dbg!(&lp);
+        let p = ctx.state().statement_to_plan(lp).await?;
+        dbg!(11, &p);
         Ok(())
     }
 
