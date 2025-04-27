@@ -8,7 +8,8 @@ import type { SelectedTree } from './sql-editor-left-panel/sql-editor-left-panel
 interface SqlEditorSettingsStore {
   tabs: Worksheet[];
   addTab: (tab: Worksheet) => void;
-  removeTab: (tab: Worksheet) => void;
+  removeTab: (tabId: Worksheet['id']) => void;
+  setTabs: (tabs: Worksheet[]) => void;
 
   queryRecord?: QueryRecord;
   setQueryRecord: (queryRecord: QueryRecord) => void;
@@ -34,10 +35,13 @@ export const useSqlEditorSettingsStore = create<SqlEditorSettingsStore>()(
           set({ tabs: [...tabs, tab] });
         }
       },
-      removeTab: (tab: Worksheet) => {
+      removeTab: (tabId: Worksheet['id']) => {
         const { tabs } = get();
-        const updatedTabs = tabs.filter((t) => t.id !== tab.id);
+        const updatedTabs = tabs.filter((t) => t.id !== tabId);
         set({ tabs: updatedTabs });
+      },
+      setTabs: (tabs: Worksheet[]) => {
+        set({ tabs });
       },
       setQueryRecord: (queryRecord: QueryRecord) => {
         set({ queryRecord });

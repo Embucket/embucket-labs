@@ -45,6 +45,7 @@ export function SqlEditorUploadDialog({
           <DialogTitle>Load Data into Table</DialogTitle>
           <div className="text-muted-foreground mt-2 flex items-center gap-2 text-sm">
             <Table className="size-4" />
+            {/* TODO: Hardcode */}
             <span className="max-w-[500px] truncate">
               {`${selectedTree.databaseName}.${selectedTree.schemaName}.${selectedTree.tableName}`}
             </span>

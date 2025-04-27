@@ -33,6 +33,7 @@ export function SqlEditorLeftPanelTableColumnsPreviewDialog({
         <DialogHeader>
           <DialogTitle>Preview Table Data</DialogTitle>
         </DialogHeader>
+        {/* TODO: Hardcode */}
         <ScrollArea
           tableViewport
           className="size-full max-h-[calc(100vh-32px-48px-18px-24px)]! max-w-[calc(100vw-32px-48px)]!"

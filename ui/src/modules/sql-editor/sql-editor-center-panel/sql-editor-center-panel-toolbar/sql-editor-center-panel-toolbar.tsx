@@ -16,9 +16,9 @@ export const SqlEditorCenterPanelToolbar = ({ onRunQuery }: SqlEditorToolbarProp
         <div className="flex items-center gap-2">
           <SqlEditorCenterPanelToolbarRunSqlButton onRunQuery={onRunQuery} />
           <SqlEditorCenterPanelToolbarVolumeSelect />
-          <div className="ml-auto flex items-center gap-2">
-            <SqlEditorCenterPanelToolbarShareButton />
+          <div className="ml-auto flex items-center gap-1">
             <SqlEditorCenterPanelToolbarBeautifyButton />
+            <SqlEditorCenterPanelToolbarShareButton />
           </div>
         </div>
       </SidebarGroup>

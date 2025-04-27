@@ -42,6 +42,7 @@ export const SqlEditorRightPanelQuery = ({ query }: SqlEditorRightPanelQueriesPr
           <div className="flex items-center justify-end p-2 pb-0">
             <SqlEditorRightPanelQueryCopyButton query={query} />
           </div>
+          {/* TODO: Hardcode */}
           <ScrollArea className="p-2 [&>[data-radix-scroll-area-viewport]]:max-h-[calc(200px-16px-36px-12px)]">
             <SQLEditor readonly content={query.query} />
             <ScrollBar orientation="vertical" />

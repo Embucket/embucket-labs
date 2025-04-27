@@ -29,6 +29,7 @@ export function HomePage() {
           <Input className="min-w-80" disabled placeholder="Search" />
         </InputRoot>
       </div>
+      {/* TODO: Hardcode */}
       <ScrollArea className="h-[calc(100vh-65px-32px)]">
         <div className="p-4">
           <p className="mb-2 text-3xl font-semibold">Welcome!</p>

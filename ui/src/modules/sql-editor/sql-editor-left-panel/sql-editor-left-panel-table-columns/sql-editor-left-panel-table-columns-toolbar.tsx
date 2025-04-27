@@ -23,7 +23,7 @@ export const SqlEditorLeftPanelTableColumnsToolbar = ({
         <p className="mx-2 truncate text-sm font-medium">{selectedTree?.tableName}</p>
       </div>
 
-      <div className="flex flex-shrink-0 items-center gap-px">
+      <div className="flex flex-shrink-0 items-center gap-1">
         {/* <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="icon" variant="ghost" className="text-muted-foreground size-8">

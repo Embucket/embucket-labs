@@ -1,5 +1,3 @@
-import { useEffect } from 'react';
-
 import { Link } from '@tanstack/react-router';
 import { Scroll } from 'lucide-react';
 
@@ -15,13 +13,6 @@ interface WorksheetsProps {
 
 function Worksheets({ worksheets }: WorksheetsProps) {
   const addTab = useSqlEditorSettingsStore((state) => state.addTab);
-  const tabs = useSqlEditorSettingsStore((state) => state.tabs);
-
-  useEffect(() => {
-    if (worksheets.length && !tabs.length) {
-      addTab(worksheets[0]);
-    }
-  }, [worksheets, addTab, tabs]);
 
   return (
     <>

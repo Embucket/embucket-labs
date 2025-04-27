@@ -12,6 +12,7 @@ import { useGetWorksheets } from '@/orval/worksheets';
 import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { SqlEditorResizableHandle, SqlEditorResizablePanel } from '../sql-editor-resizable';
 import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
+import { useSqlEditorTabsSync } from '../use-sql-editor-tabs-sync';
 import { SqlEditorLeftPanelDatabasesToolbar } from './sql-editor-left-panel-databases-toolbar';
 import { SqlEditorLeftBottomPanel } from './sql-editor-left-panel-table-columns/sql-editor-left-bottom-panel';
 import { SqlEditorLeftPanelTrees } from './sql-editor-left-panel-trees/sql-editor-left-panel-trees';
@@ -33,6 +34,9 @@ export const SqlEditorLeftPanel = () => {
   } = useGetWorksheets();
 
   const { leftBottomRef, setLeftBottomPanelExpanded } = useSqlEditorPanelsState();
+
+  // TODO: Move to another place (not related to left panel itself). Also there should be centralized tabs handler
+  useSqlEditorTabsSync({ isFetchingWorksheets, worksheets });
 
   return (
     <>

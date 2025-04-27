@@ -76,7 +76,10 @@ export function SqlEditorCenterPanel() {
             order={1}
             ref={topRef}
           >
-            <ScrollArea className="size-full [&>*>*:first-child]:h-full [&>*>*>*:first-child]:h-full">
+            <ScrollArea
+              tableViewport
+              className="size-full [&>*>*:first-child]:h-full [&>*>*>*:first-child]:h-full"
+            >
               <SQLEditor />
               <ScrollBar orientation="horizontal" />
               <ScrollBar orientation="vertical" />

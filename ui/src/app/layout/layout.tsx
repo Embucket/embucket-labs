@@ -9,6 +9,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   // TODO: Use layout.css and css variables
+  // TODO: Hardcode
   return (
     <SidebarInset
       className={cn(
