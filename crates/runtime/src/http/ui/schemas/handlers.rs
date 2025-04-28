@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::execution::query::QueryContext;
+use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::schemas::models::SchemasParameters;
 use crate::http::{
@@ -32,14 +34,10 @@ use axum::{
 };
 use embucket_metastore::error::MetastoreError;
 use embucket_metastore::models::SchemaIdent as MetastoreSchemaIdent;
-use embucket_metastore::Schema as MetastoreSchema;
 use embucket_utils::scan_iterator::ScanIterator;
-use std::collections::HashMap;
 use std::convert::From;
 use std::convert::Into;
 use utoipa::OpenApi;
-use crate::execution::query::QueryContext;
-use crate::http::session::DFSessionId;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -92,14 +90,18 @@ pub async fn create_schema(
         database: Some(database_name.clone()),
         schema: Some(payload.name.clone()),
     };
-    let sql_string = format!("CREATE SCHEMA {}.{}", database_name.clone(), payload.name.clone());
+    let sql_string = format!(
+        "CREATE SCHEMA {}.{}",
+        database_name.clone(),
+        payload.name.clone()
+    );
     let _ = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
         .map_err(|e| SchemasAPIError::Query { source: e })?;
     Ok(Json(SchemaCreateResponse {
-        data: Schema::new(payload.name, database_name),       
+        data: Schema::new(payload.name, database_name),
     }))
 }
 

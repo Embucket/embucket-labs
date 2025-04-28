@@ -32,6 +32,7 @@ pub struct Schema {
 }
 
 impl Schema {
+    #[must_use]
     pub fn new(name: String, database: String) -> Self {
         Self {
             name,
