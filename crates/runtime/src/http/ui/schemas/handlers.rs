@@ -5,7 +5,6 @@ use crate::http::ui::queries::models::ResultSet;
 use crate::http::ui::schemas::models::SchemasParameters;
 use crate::http::{
     error::ErrorResponse,
-    metastore::handlers::QueryParameters,
     ui::schemas::error::{SchemasAPIError, SchemasResult},
     ui::schemas::models::{
         Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaResponse, SchemaUpdatePayload,
@@ -144,7 +143,6 @@ pub async fn create_schema(
 pub async fn delete_schema(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
-    Query(query): Query<QueryParameters>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> SchemasResult<()> {
     let context = QueryContext {
