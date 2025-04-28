@@ -1,10 +1,10 @@
-use super::catalogs::metastore::{DFMetastore, DEFAULT_CATALOG};
 use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::query::{QueryContext, UserQuery};
+use crate::execution::catalog::catalog_list::{EmbucketCatalogList, DEFAULT_CATALOG};
 use crate::execution::datafusion::analyzer::IcebergTypesAnalyzer;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::provider::SharedCredentialsProvider;
@@ -43,7 +43,7 @@ impl UserSession {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
 
-        let catalog_list_impl = Arc::new(DFMetastore::new(metastore.clone()));
+        let catalog_list_impl = Arc::new(EmbucketCatalogList::new(metastore.clone()));
 
         let runtime_config = RuntimeEnvBuilder::new()
             .with_object_store_registry(catalog_list_impl.clone())

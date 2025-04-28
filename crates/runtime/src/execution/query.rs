@@ -40,7 +40,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
 
-use super::catalogs::{catalog::DFCatalog, metastore::DFMetastore};
+use super::catalog::{
+    catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
+};
 use super::datafusion::context_provider::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::session::UserSession;
@@ -118,7 +120,7 @@ impl UserQuery {
             .state()
             .catalog_list()
             .as_any()
-            .downcast_ref::<DFMetastore>()
+            .downcast_ref::<EmbucketCatalogList>()
         {
             catalog_list_impl.refresh(&self.session.ctx).await
         } else {
@@ -310,7 +312,7 @@ impl UserQuery {
     ) -> IcebergCatalogResult {
         if let Some(iceberg_catalog) = catalog.as_any().downcast_ref::<IcebergCatalog>() {
             IcebergCatalogResult::Catalog(iceberg_catalog.catalog())
-        } else if let Some(embucket_catalog) = catalog.as_any().downcast_ref::<DFCatalog>() {
+        } else if let Some(embucket_catalog) = catalog.as_any().downcast_ref::<EmbucketCatalog>() {
             IcebergCatalogResult::Catalog(embucket_catalog.catalog())
         } else if catalog
             .as_any()

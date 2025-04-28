@@ -1,4 +1,4 @@
-pub mod catalogs;
+pub mod catalog;
 pub mod datafusion;
 pub mod dedicated_executor;
 pub mod error;
