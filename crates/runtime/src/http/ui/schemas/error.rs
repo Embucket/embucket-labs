@@ -22,6 +22,7 @@ use axum::Json;
 use embucket_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::prelude::*;
+use crate::execution::error::ExecutionError;
 
 pub type SchemasResult<T> = Result<T, SchemasAPIError>;
 
@@ -38,6 +39,8 @@ pub enum SchemasAPIError {
     Update { source: MetastoreError },
     #[snafu(display("Get schemas error: {source}"))]
     List { source: MetastoreError },
+    #[snafu(display("Query engine error: {source}"))]
+    Query { source: ExecutionError },
 }
 
 // Select which status code to return.
@@ -62,6 +65,7 @@ impl IntoStatusCode for SchemasAPIError {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Query { .. } => StatusCode::INTERNAL_SERVER_ERROR,       
         }
     }
 }

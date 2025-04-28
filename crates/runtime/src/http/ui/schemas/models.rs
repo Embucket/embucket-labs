@@ -31,6 +31,17 @@ pub struct Schema {
     pub updated_at: NaiveDateTime,
 }
 
+impl Schema {
+    pub fn new(name: String, database: String) -> Self {
+        Self {
+            name,
+            database,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        }
+    }
+}
+
 impl From<RwObject<MetastoreSchema>> for Schema {
     fn from(rw_schema: RwObject<MetastoreSchema>) -> Self {
         Self {

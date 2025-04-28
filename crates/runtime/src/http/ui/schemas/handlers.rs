@@ -38,6 +38,8 @@ use std::collections::HashMap;
 use std::convert::From;
 use std::convert::Into;
 use utoipa::OpenApi;
+use crate::execution::query::QueryContext;
+use crate::http::session::DFSessionId;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -81,25 +83,24 @@ pub struct ApiDoc;
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_schema(
+    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path(database_name): Path<String>,
     Json(payload): Json<SchemaCreatePayload>,
 ) -> SchemasResult<Json<SchemaCreateResponse>> {
-    let ident = MetastoreSchemaIdent::new(database_name, payload.name);
-    let schema = MetastoreSchema {
-        ident,
-        properties: Some(HashMap::new()),
+    let context = QueryContext {
+        database: Some(database_name.clone()),
+        schema: Some(payload.name.clone()),
     };
-    state
-        .metastore
-        .create_schema(&schema.ident.clone(), schema)
+    let sql_string = format!("CREATE SCHEMA {}.{}", database_name.clone(), payload.name.clone());
+    let _ = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| SchemasAPIError::Create { source: e })
-        .map(|rw_object| {
-            Json(SchemaCreateResponse {
-                data: Schema::from(rw_object),
-            })
-        })
+        .map_err(|e| SchemasAPIError::Query { source: e })?;
+    Ok(Json(SchemaCreateResponse {
+        data: Schema::new(payload.name, database_name),       
+    }))
 }
 
 #[utoipa::path(
