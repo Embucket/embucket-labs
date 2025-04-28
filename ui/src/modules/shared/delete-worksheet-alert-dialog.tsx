@@ -28,6 +28,7 @@ export const DeleteWorksheetAlertDialog = ({
   opened,
   onSetOpened,
 }: DeleteWorksheetAlertDialogProps) => {
+  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
   const removeTab = useSqlEditorSettingsStore((state) => state.removeTab);
   const navigate = useNavigate();
 
@@ -52,6 +53,7 @@ export const DeleteWorksheetAlertDialog = ({
           });
           return;
         }
+        addTab(nextWorksheet);
         navigate({
           to: '/sql-editor/$worksheetId',
           params: {
