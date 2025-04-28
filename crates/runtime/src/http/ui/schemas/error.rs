@@ -23,7 +23,6 @@ use axum::Json;
 use embucket_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::prelude::*;
-use crate::execution::error::ExecutionError;
 
 pub type SchemasResult<T> = Result<T, SchemasAPIError>;
 
@@ -31,11 +30,11 @@ pub type SchemasResult<T> = Result<T, SchemasAPIError>;
 #[snafu(visibility(pub(crate)))]
 pub enum SchemasAPIError {
     #[snafu(display("Create schema error: {source}"))]
-    Create { source: ExecutionError },
+    Create { source: MetastoreError },
     #[snafu(display("Get schema error: {source}"))]
     Get { source: MetastoreError },
     #[snafu(display("Delete schema error: {source}"))]
-    Delete { source: ExecutionError },
+    Delete { source: MetastoreError },
     #[snafu(display("Update schema error: {source}"))]
     Update { source: MetastoreError },
     #[snafu(display("Get schemas error: {source}"))]
@@ -49,24 +48,15 @@ impl IntoStatusCode for SchemasAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Create { source } => match &source {
-                ExecutionError::Metastore { source } => match source {
-                    MetastoreError::SchemaAlreadyExists { .. }
-                    | MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
-                    MetastoreError::DatabaseNotFound { .. } | MetastoreError::Validation { .. } => {
-                        StatusCode::BAD_REQUEST
-                    }
-                    _ => StatusCode::INTERNAL_SERVER_ERROR,
-                },
+                MetastoreError::SchemaAlreadyExists { .. }
+                | MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
+                MetastoreError::DatabaseNotFound { .. } | MetastoreError::Validation { .. } => {
+                    StatusCode::BAD_REQUEST
+                }
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Get { source } => match &source {
+            Self::Get { source } | Self::Delete { source } => match &source {
                 MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
-            Self::Delete { source } => match &source {
-                ExecutionError::Metastore {
-                    source: MetastoreError::SchemaNotFound { .. },
-                } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Update { source } => match &source {
@@ -74,8 +64,7 @@ impl IntoStatusCode for SchemasAPIError {
                 MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::Query { .. } => StatusCode::INTERNAL_SERVER_ERROR,       
+            Self::List { .. } | Self::Query { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
