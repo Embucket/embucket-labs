@@ -5,6 +5,7 @@ use crate::http::ui::queries::models::ResultSet;
 use crate::http::ui::schemas::models::SchemasParameters;
 use crate::http::{
     error::ErrorResponse,
+    metastore::handlers::QueryParameters,
     ui::schemas::error::{SchemasAPIError, SchemasResult},
     ui::schemas::models::{
         Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaResponse, SchemaUpdatePayload,
@@ -18,7 +19,9 @@ use axum::{
 use embucket_history::{QueryRecord, QueryRecordActions};
 use embucket_metastore::error::MetastoreError;
 use embucket_metastore::models::SchemaIdent as MetastoreSchemaIdent;
+use embucket_metastore::Schema as MetastoreSchema;
 use embucket_utils::scan_iterator::ScanIterator;
+use std::collections::HashMap;
 use std::convert::From;
 use std::convert::Into;
 use utoipa::OpenApi;
@@ -141,6 +144,7 @@ pub async fn create_schema(
 pub async fn delete_schema(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
+    Query(query): Query<QueryParameters>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> SchemasResult<()> {
     let context = QueryContext {
