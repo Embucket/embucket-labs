@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::execution::error::ExecutionError;
 use crate::http::error::ErrorResponse;
 use crate::http::ui::error::IntoStatusCode;
 use axum::response::IntoResponse;
@@ -22,7 +23,6 @@ use axum::Json;
 use embucket_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::prelude::*;
-use crate::execution::error::ExecutionError;
 
 pub type SchemasResult<T> = Result<T, SchemasAPIError>;
 
@@ -64,8 +64,7 @@ impl IntoStatusCode for SchemasAPIError {
                 MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::Query { .. } => StatusCode::INTERNAL_SERVER_ERROR,       
+            Self::List { .. } | Self::Query { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
