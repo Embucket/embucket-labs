@@ -46,12 +46,15 @@ impl SchemaProvider for EmbucketSchema {
         if let Some(table) = self.tables_cache.get(name) {
             return Ok(Some(table.clone()));
         }
-        let tabular = self
+
+        let Ok(tabular) = self
             .iceberg_catalog
             .clone()
             .load_tabular(&Identifier::new(&[self.schema.clone()], name))
             .await
-            .map_err(|err| DataFusionError::External(Box::new(err)))?;
+        else {
+            return Ok(None);
+        };
 
         let table_provider: Arc<dyn TableProvider> =
             Arc::new(IcebergDataFusionTable::new(tabular, None, None, None));
