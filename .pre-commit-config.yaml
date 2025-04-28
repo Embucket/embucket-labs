@@ -7,11 +7,3 @@ repos:
       - id: fmt
         args: [ "--", "--check"]
       - id: clippy
-  - repo: local
-    # chmod +x check_license.sh
-    hooks:
-      - id: check-license-header
-        name: check license header
-        entry: ./check_license.sh
-        language: script
-        files: \.rs$

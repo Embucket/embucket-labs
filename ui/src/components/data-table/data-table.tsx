@@ -73,7 +73,7 @@ export function DataTable<T>({
           table.getRowModel().rows.map((row) => (
             <TableRow
               className={cn('text-left text-nowrap', {
-                'cursor-pointer': Boolean(onRowClick),
+                'hover:bg-sidebar-secondary-accent cursor-pointer': Boolean(onRowClick),
               })}
               onClick={() => onRowClick?.(row.original)}
               key={row.id}

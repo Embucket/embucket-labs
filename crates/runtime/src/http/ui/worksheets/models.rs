@@ -1,24 +1,9 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use chrono::{DateTime, Utc};
 use embucket_history::WorksheetId;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use std::fmt;
+use std::fmt::Display;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -69,6 +54,59 @@ impl Into<embucket_history::Worksheet> for Worksheet {
             updated_at: self.updated_at,
         }
     }
+}
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum SortOrder {
+    Ascending,
+    #[default]
+    Descending,
+}
+
+impl Display for SortOrder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match *self {
+            Self::Ascending => "ascending",
+            Self::Descending => "descending",
+        };
+        write!(f, "{s}")
+    }
+}
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum SortBy {
+    Name,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
+
+impl Display for SortBy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match *self {
+            Self::Name => "name",
+            Self::CreatedAt => "createdAt",
+            Self::UpdatedAt => "updatedAt",
+        };
+        write!(f, "{s}")
+    }
+}
+
+// Use inline attribute as a workaround, for https://github.com/juhaku/utoipa/issues/1284
+// as otherwise it doesn't create schema for enum variants in Query
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema, IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(default, rename_all = "camelCase")]
+pub struct GetWorksheetsParams {
+    /// Sort order
+    #[param(inline)]
+    pub sort_order: Option<SortOrder>,
+    /// Sort by
+    #[param(inline)]
+    pub sort_by: Option<SortBy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

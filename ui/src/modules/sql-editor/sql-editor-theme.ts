@@ -47,7 +47,7 @@ const theme = EditorView.theme(
       background: 'transparent !important',
     },
     '&.readonly .cm-content': {
-      padding: '8px !important',
+      padding: '0px !important',
     },
     '&.readonly .cm-line': {
       padding: '0px !important',

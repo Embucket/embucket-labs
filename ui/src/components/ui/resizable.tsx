@@ -9,6 +9,8 @@ function ResizablePanelGroup({
 }: React.ComponentProps<typeof ResizablePrimitive.PanelGroup>) {
   return (
     <ResizablePrimitive.PanelGroup
+      autoSaveId="persistence"
+      storage={localStorage}
       data-slot="resizable-panel-group"
       className={cn('flex h-full w-full data-[panel-group-direction=vertical]:flex-col', className)}
       {...props}

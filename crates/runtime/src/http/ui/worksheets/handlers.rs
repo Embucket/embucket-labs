@@ -1,29 +1,12 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use crate::http::ui::worksheets::{
     error::{WorksheetUpdateError, WorksheetsAPIError, WorksheetsResult},
-    Worksheet, WorksheetCreatePayload, WorksheetCreateResponse, WorksheetResponse,
-    WorksheetUpdatePayload, WorksheetsResponse,
+    GetWorksheetsParams, SortBy, SortOrder, Worksheet, WorksheetCreatePayload,
+    WorksheetCreateResponse, WorksheetResponse, WorksheetUpdatePayload, WorksheetsResponse,
 };
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     Json,
 };
 use chrono::Utc;
@@ -60,6 +43,7 @@ pub struct ApiDoc;
     path = "/ui/worksheets",
     operation_id = "getWorksheets",
     tags = ["worksheets"],
+    params(GetWorksheetsParams),
     responses(
         (status = 200, description = "Get list of worksheets", body = WorksheetsResponse),
         (status = 400, description = "Unknown", body = ErrorResponse),
@@ -69,6 +53,10 @@ pub struct ApiDoc;
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn worksheets(
     State(state): State<AppState>,
+    Query(GetWorksheetsParams {
+        sort_order,
+        sort_by,
+    }): Query<GetWorksheetsParams>,
 ) -> WorksheetsResult<Json<WorksheetsResponse>> {
     let history_worksheets = state
         .history
@@ -76,10 +64,31 @@ pub async fn worksheets(
         .await
         .map_err(|e| WorksheetsAPIError::List { source: e })?;
 
-    let items = history_worksheets
+    let mut items = history_worksheets
         .into_iter()
         .map(Worksheet::from)
         .collect::<Vec<Worksheet>>();
+
+    let sort_order = sort_order.unwrap_or_default();
+    let sort_by = sort_by.unwrap_or_default();
+
+    items.sort_by(|w1, w2| {
+        let cmp_res = match sort_by {
+            SortBy::Name => w1.name.clone().cmp(&w2.name),
+            SortBy::CreatedAt => w1
+                .created_at
+                .timestamp_millis()
+                .cmp(&w2.created_at.timestamp_millis()),
+            SortBy::UpdatedAt => w1
+                .updated_at
+                .timestamp_millis()
+                .cmp(&w2.updated_at.timestamp_millis()),
+        };
+        match sort_order {
+            SortOrder::Ascending => cmp_res,
+            SortOrder::Descending => cmp_res.reverse(),
+        }
+    });
 
     Ok(Json(WorksheetsResponse { items }))
 }
@@ -190,9 +199,6 @@ pub async fn delete_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
 ) -> WorksheetsResult<()> {
-    //
-    // TODO: Decide what to do with queries records related to deleting worksheet, delete it too?
-    //
     state
         .history
         .delete_worksheet(worksheet_id)

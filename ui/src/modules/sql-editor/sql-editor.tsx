@@ -7,26 +7,13 @@ import { curSqlGutter } from '@tidbcloud/codemirror-extension-cur-sql-gutter';
 import { saveHelper } from '@tidbcloud/codemirror-extension-save-helper';
 import { SQLEditor as TiSQLEditor, useEditorCacheContext } from '@tidbcloud/tisqleditor-react';
 
-// import type { Worksheet } from '@/orval/models';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
 import { useGetWorksheet, useUpdateWorksheet } from '@/orval/worksheets';
 
 import { sqlAutoCompletion } from './sql-editor-extensions/sql-editor-autocomplete/sql-auto-completion';
 import { setCustomKeymaps } from './sql-editor-extensions/sql-editor-custom-keymaps';
-import { transformNavigationTreeToSqlConfigSchema } from './sql-editor-schema';
 import { SQL_EDITOR_THEME } from './sql-editor-theme';
-
-// const CONTENT = `-- Example:
-
-// SELECT * FROM mydb.myschema.mytable;`;
-
-// const DATA: Worksheet = {
-//   id: 1,
-//   content: CONTENT,
-//   createdAt: '2023-10-01T12:00:00Z',
-//   name: 'Users',
-//   updatedAt: '2023-10-01T12:00:05Z',
-// };
+import { transformNavigationTreeToSqlConfigSchema } from './sql-editor-utils';
 
 interface SQLEditorProps {
   readonly?: boolean;

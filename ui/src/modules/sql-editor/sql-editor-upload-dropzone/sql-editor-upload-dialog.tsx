@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useUploadFile } from '@/orval/tables';
 
-import type { SelectedTree } from '../sql-editor-left-panel/sql-editor-left-panel-databases';
+import type { SelectedTree } from '../sql-editor-left-panel/sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
 import { TableDataUploadDropzone } from './sql-editor-upload-dropzone';
 
 interface SqlEditorUploadDialogProps {
@@ -45,6 +45,7 @@ export function SqlEditorUploadDialog({
           <DialogTitle>Load Data into Table</DialogTitle>
           <div className="text-muted-foreground mt-2 flex items-center gap-2 text-sm">
             <Table className="size-4" />
+            {/* TODO: Hardcode */}
             <span className="max-w-[500px] truncate">
               {`${selectedTree.databaseName}.${selectedTree.schemaName}.${selectedTree.tableName}`}
             </span>

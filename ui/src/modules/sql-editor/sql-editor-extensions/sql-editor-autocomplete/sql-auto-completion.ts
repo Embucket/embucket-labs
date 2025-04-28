@@ -13,6 +13,7 @@ import {
   Functions,
   Keyword,
   Numberic,
+  Schema,
   String,
   Table,
   Types,
@@ -72,6 +73,9 @@ const customAutoCompletion = (config: AutoCompletionConfig) => {
               break;
             case 'VARIABLE':
               src = Variable;
+              break;
+            case 'SCHEMA':
+              src = Schema;
               break;
             case 'TYPE':
               src = Types;

@@ -6,10 +6,10 @@ import {
   useMatch,
 } from '@tanstack/react-router';
 
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import type { AuthContext } from '@/modules/auth/AuthProvider';
-import { SqlEditorPanelsStateProvider } from '@/modules/sql-editor/sql-editor-panels-state-provider';
 
+import { Layout } from '../layout/layout';
 import { AppSidebar } from '../layout/sidebar/app-sidebar';
 // import { TanStackRouterDevtoolsProvider } from '../providers/tanstack-router-devtools-provider';
 import type { FileRoutesByTo } from '../routeTree.gen';
@@ -53,13 +53,7 @@ function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SqlEditorPanelsStateProvider>
-        <SidebarInset className="overflow-hidden">
-          <div className="my-4 mr-4 ml-2 h-full w-auto rounded-lg border bg-[#1F1F1F]">
-            {children}
-          </div>
-        </SidebarInset>
-      </SqlEditorPanelsStateProvider>
+      <Layout>{children}</Layout>
     </SidebarProvider>
   );
 }

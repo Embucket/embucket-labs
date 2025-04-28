@@ -1,11 +1,12 @@
-import { ArrowDownToLine, Search } from 'lucide-react';
+import { ArrowDownToLine, Search, TextSearch } from 'lucide-react';
 
+import { EmptyContainer } from '@/components/empty-container';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs2';
-import { QueryResultDataTable } from '@/modules/sql-editor/sql-editor-center-panel/sql-editor-center-bottom-panel/query-result-data-table';
-import { QueryResultDataTableEmpty } from '@/modules/sql-editor/sql-editor-center-panel/sql-editor-center-bottom-panel/query-result-data-table-empty';
 import type { QueryRecord } from '@/orval/models';
+
+import { SqlEditorCenterBottomPanelQueryResultTable } from './sql-editor-center-bottom-panel-query-result-table';
 
 interface SqlEditorCenterPanelQueryColumnsProps {
   isLoading: boolean;
@@ -27,8 +28,14 @@ export function SqlEditorCenterBottomPanel({
   const executionTime = queryRecord ? queryRecord.durationMs / 1000 : 0; // Convert ms to seconds
 
   return (
-    <div className="size-full">
-      {isIdle && !queryRecord && <QueryResultDataTableEmpty />}
+    <>
+      {isIdle && !queryRecord && (
+        <EmptyContainer
+          Icon={TextSearch}
+          title="No Results Yet"
+          description="Once you run a query, results will be displayed here."
+        />
+      )}
 
       {!noFields && (
         <Tabs defaultValue="results" className="size-full">
@@ -55,14 +62,18 @@ export function SqlEditorCenterBottomPanel({
             </div>
           </div>
           <TabsContent value="results" className="m-0 size-full">
-            <ScrollArea className="size-full max-w-[calc(100vw-256px-8px-256px-256px-16px-2px)] min-w-full">
-              <QueryResultDataTable columns={columns} rows={rows} isLoading={isLoading} />
+            <ScrollArea tableViewport className="size-full">
+              <SqlEditorCenterBottomPanelQueryResultTable
+                columns={columns}
+                rows={rows}
+                isLoading={isLoading}
+              />
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
           </TabsContent>
           <TabsContent value="chart"></TabsContent>
         </Tabs>
       )}
-    </div>
+    </>
   );
 }

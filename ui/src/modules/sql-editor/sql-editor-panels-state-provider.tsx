@@ -27,15 +27,19 @@ interface SqlEditorPanelsStateType {
   toggleBottomPanel: () => void;
   toggleLeftBottomPanel: () => void;
 
+  leftRef: RefObject<ImperativePanelHandle | null>;
   isLeftPanelExpanded: boolean;
   toggleLeftPanel: () => void;
+  setLeftPanelExpanded: (expanded: boolean) => void;
 
   leftBottomRef: RefObject<ImperativePanelHandle | null>;
   isLeftBottomPanelExpanded: boolean;
   setLeftBottomPanelExpanded: (expanded: boolean) => void;
 
+  rightRef: RefObject<ImperativePanelHandle | null>;
   isRightPanelExpanded: boolean;
   toggleRightPanel: () => void;
+  setRightPanelExpanded: (expanded: boolean) => void;
 
   isDragging: boolean;
   setIsResizing: (resizing: boolean) => void;
@@ -62,6 +66,7 @@ export const SqlEditorPanelsStateProvider = ({ children }: SqlEditorPanelsStateP
   );
   const bottomRef = useRef<ImperativePanelHandle>(null);
 
+  const leftRef = useRef<ImperativePanelHandle>(null);
   const [isLeftPanelExpanded, setLeftPanelExpanded] = useLocalStorage('isLeftPanelExpanded', true);
 
   const leftBottomRef = useRef<ImperativePanelHandle>(null);
@@ -70,6 +75,7 @@ export const SqlEditorPanelsStateProvider = ({ children }: SqlEditorPanelsStateP
     false,
   );
 
+  const rightRef = useRef<ImperativePanelHandle>(null);
   const [isRightPanelExpanded, setRightPanelExpanded] = useLocalStorage(
     'isRightPanelExpanded',
     false,
@@ -109,12 +115,24 @@ export const SqlEditorPanelsStateProvider = ({ children }: SqlEditorPanelsStateP
   }, [leftBottomRef, isLeftBottomPanelExpanded]);
 
   const toggleLeftPanel = useCallback(() => {
-    setLeftPanelExpanded((prev) => !prev);
-  }, [setLeftPanelExpanded]);
+    if (!leftRef.current) return;
+
+    if (isLeftPanelExpanded) {
+      leftRef.current.collapse();
+    } else {
+      leftRef.current.expand();
+    }
+  }, [leftRef, isLeftPanelExpanded]);
 
   const toggleRightPanel = useCallback(() => {
-    setRightPanelExpanded((prev) => !prev);
-  }, [setRightPanelExpanded]);
+    if (!rightRef.current) return;
+
+    if (isRightPanelExpanded) {
+      rightRef.current.collapse();
+    } else {
+      rightRef.current.expand();
+    }
+  }, [rightRef, isRightPanelExpanded]);
 
   const alignPanels = useCallback(() => {
     if (!bottomRef.current) return;
@@ -145,6 +163,10 @@ export const SqlEditorPanelsStateProvider = ({ children }: SqlEditorPanelsStateP
       setTopPanelExpanded,
       setBottomPanelExpanded,
       toggleLeftBottomPanel,
+      leftRef,
+      rightRef,
+      setLeftPanelExpanded,
+      setRightPanelExpanded,
     }),
     [
       isAnyPanelCollapsing,
@@ -169,6 +191,10 @@ export const SqlEditorPanelsStateProvider = ({ children }: SqlEditorPanelsStateP
       setTopPanelExpanded,
       setBottomPanelExpanded,
       toggleLeftBottomPanel,
+      leftRef,
+      rightRef,
+      setLeftPanelExpanded,
+      setRightPanelExpanded,
     ],
   );
 
