@@ -5,7 +5,12 @@ import type { QueryRecord, Worksheet } from '@/orval/models';
 
 import type { SelectedTree } from './sql-editor-left-panel/sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
 
+export type LeftPanelTab = 'databases' | 'worksheets';
+
 interface SqlEditorSettingsStore {
+  leftPanelTab: LeftPanelTab;
+  setLeftPanelTab: (tab: LeftPanelTab) => void;
+
   tabs: Worksheet[];
   addTab: (tab: Worksheet) => void;
   removeTab: (tabId: Worksheet['id']) => void;
@@ -19,6 +24,7 @@ interface SqlEditorSettingsStore {
 }
 
 const initialState = {
+  leftPanelTab: 'databases' as LeftPanelTab,
   queryRecord: undefined,
   selectedTree: undefined,
   tabs: [],
@@ -28,6 +34,7 @@ export const useSqlEditorSettingsStore = create<SqlEditorSettingsStore>()(
   persist(
     (set, get) => ({
       ...initialState,
+
       addTab: (tab: Worksheet) => {
         const { tabs } = get();
         const existingTab = tabs.find((t) => t.id === tab.id);
@@ -48,6 +55,10 @@ export const useSqlEditorSettingsStore = create<SqlEditorSettingsStore>()(
       },
       setSelectedTree: (selectedTree: SelectedTree) => {
         set({ selectedTree });
+      },
+
+      setLeftPanelTab: (leftPanelTab: LeftPanelTab) => {
+        set({ leftPanelTab });
       },
     }),
     {

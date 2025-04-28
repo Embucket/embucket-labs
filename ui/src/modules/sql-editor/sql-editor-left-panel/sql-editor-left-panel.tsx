@@ -11,6 +11,7 @@ import { useGetWorksheets } from '@/orval/worksheets';
 
 import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { SqlEditorResizableHandle, SqlEditorResizablePanel } from '../sql-editor-resizable';
+import type { LeftPanelTab } from '../sql-editor-settings-store';
 import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
 import { useSqlEditorTabsSync } from '../use-sql-editor-tabs-sync';
 import { SqlEditorLeftPanelDatabasesToolbar } from './sql-editor-left-panel-databases-toolbar';
@@ -21,6 +22,8 @@ import { SqlEditorLeftPanelWorksheets } from './sql-editor-left-panel-worksheets
 
 export const SqlEditorLeftPanel = () => {
   const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
+  const leftPanelTab = useSqlEditorSettingsStore((state) => state.leftPanelTab);
+  const setLeftPanelTab = useSqlEditorSettingsStore((state) => state.setLeftPanelTab);
 
   const {
     data: { items: navigationTrees } = {},
@@ -35,12 +38,16 @@ export const SqlEditorLeftPanel = () => {
 
   const { leftBottomRef, setLeftBottomPanelExpanded } = useSqlEditorPanelsState();
 
-  // TODO: Move to another place (not related to left panel itself). Also there should be centralized tabs handler
-  useSqlEditorTabsSync({ isFetchingWorksheets, worksheets });
+  useSqlEditorTabsSync();
 
   return (
     <>
-      <Tabs defaultValue="databases" className="size-full gap-0 text-nowrap">
+      <Tabs
+        defaultValue="worksheets"
+        className="size-full gap-0 text-nowrap"
+        value={leftPanelTab}
+        onValueChange={(value) => setLeftPanelTab(value as LeftPanelTab)}
+      >
         {/* Tabs */}
         <SidebarHeader className="h-[60px] p-4 pb-2">
           <TabsList className="w-full min-w-50 text-nowrap">

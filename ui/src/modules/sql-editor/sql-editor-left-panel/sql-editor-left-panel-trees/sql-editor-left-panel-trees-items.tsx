@@ -41,7 +41,7 @@ interface TablesProps {
 }
 
 function Tables({ tables, schema, database, onOpenUploadDialog }: TablesProps) {
-  const [hoveredTable, setHoveredTable] = useState<NavigationTreeTable | null>(null);
+  const [hoveredTable, setHoveredTable] = useState<NavigationTreeTable>();
   const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
   const setSelectedTree = useSqlEditorSettingsStore((state) => state.setSelectedTree);
 
@@ -59,7 +59,7 @@ function Tables({ tables, schema, database, onOpenUploadDialog }: TablesProps) {
       icon={Folder}
       label="Tables"
       triggerComponent={SidebarMenuSubButton}
-      // defaultOpen={tables.some((table) => table.name === selectedTree?.tableName)}
+      defaultOpen={tables.some((table) => table.name === selectedTree?.tableName)}
     >
       {tables.map((table, index) => (
         <SidebarMenuSubItem key={index}>
@@ -78,7 +78,7 @@ function Tables({ tables, schema, database, onOpenUploadDialog }: TablesProps) {
               })
             }
             onMouseEnter={() => setHoveredTable(table)}
-            onMouseLeave={() => setHoveredTable(null)}
+            onMouseLeave={() => setHoveredTable(undefined)}
           >
             <Table />
             <span className="truncate" title={table.name}>
@@ -131,7 +131,7 @@ function Schemas({
 
   onOpenUploadDialog,
 }: SchemasProps) {
-  // const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
+  const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
 
   return (
     <>
@@ -141,7 +141,7 @@ function Schemas({
             icon={FolderTree}
             label={schema.name}
             triggerComponent={SidebarMenuSubButton}
-            // defaultOpen={schema.tables.some((table) => table.name === selectedTree?.tableName)}
+            defaultOpen={schema.tables.some((table) => table.name === selectedTree?.tableName)}
           >
             <Tables
               tables={schema.tables}
@@ -166,7 +166,7 @@ export function SqlEditorLeftPanelTreesDatabases({
   databases,
   onOpenUploadDialog,
 }: DatabasesProps) {
-  // const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
+  const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
 
   return (
     <>
@@ -177,12 +177,12 @@ export function SqlEditorLeftPanelTreesDatabases({
             label={database.name}
             triggerComponent={SidebarMenuButton}
             triggerClassName="hover:bg-sidebar-secondary-accent! pr-2!"
-            // defaultOpen={
-            //   database.name === 'database1' ||
-            //   database.schemas.some((schema) =>
-            //     schema.tables.some((table) => table.name === selectedTree?.tableName),
-            //   )
-            // }
+            defaultOpen={
+              database.name === 'database1' ||
+              database.schemas.some((schema) =>
+                schema.tables.some((table) => table.name === selectedTree?.tableName),
+              )
+            }
           >
             <Schemas
               schemas={database.schemas}

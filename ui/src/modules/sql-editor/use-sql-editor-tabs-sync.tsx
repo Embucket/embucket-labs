@@ -1,28 +1,23 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { useNavigate, useParams } from '@tanstack/react-router';
 
 import { useSqlEditorSettingsStore } from '@/modules/sql-editor/sql-editor-settings-store';
-import type { Worksheet } from '@/orval/models';
+import { useGetWorksheets } from '@/orval/worksheets';
 
-interface UseSqlEditorTabsSyncProps {
-  isFetchingWorksheets: boolean;
-  worksheets?: Worksheet[];
-}
-
-export const useSqlEditorTabsSync = ({
-  isFetchingWorksheets,
-  worksheets,
-}: UseSqlEditorTabsSyncProps) => {
+export const useSqlEditorTabsSync = () => {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
+
+  const { data: { items: worksheets } = {}, isFetching: isFetchingWorksheets } = useGetWorksheets();
+
   const navigate = useNavigate();
   const tabs = useSqlEditorSettingsStore((state) => state.tabs);
-  const setTabs = useSqlEditorSettingsStore((state) => state.setTabs); // Assuming a `setTabs` method exists
+  const setTabs = useSqlEditorSettingsStore((state) => state.setTabs);
 
   const isInitialRender = useRef(true);
 
-  useEffect(() => {
-    if (!isFetchingWorksheets && worksheets?.length && isInitialRender.current) {
+  const syncSqlEditorTabs = useCallback(() => {
+    if (worksheets?.length) {
       let updatedTabs = [...tabs];
 
       // Remove old tabs that are not in the current worksheets
@@ -50,8 +45,15 @@ export const useSqlEditorTabsSync = ({
 
       // Update the tabs state in a single operation
       setTabs(updatedTabs);
-
-      isInitialRender.current = false;
     }
-  }, [worksheetId, tabs, worksheets, isFetchingWorksheets, navigate, setTabs]);
+    isInitialRender.current = false;
+  }, [navigate, setTabs, tabs, worksheetId, worksheets]);
+
+  useEffect(() => {
+    if (!isFetchingWorksheets && isInitialRender.current) {
+      syncSqlEditorTabs();
+    }
+  }, [syncSqlEditorTabs, isFetchingWorksheets]);
+
+  return { syncSqlEditorTabs };
 };

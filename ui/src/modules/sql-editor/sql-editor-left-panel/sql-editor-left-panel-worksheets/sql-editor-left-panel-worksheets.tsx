@@ -1,39 +1,17 @@
-import { Link } from '@tanstack/react-router';
-import { Scroll } from 'lucide-react';
-
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { SidebarMenu } from '@/components/ui/sidebar';
 import type { Worksheet } from '@/orval/models';
 
-import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
+import { SqlEditorLeftPanelWorksheet } from './sql-editor-left-panel-worksheet';
 
 interface WorksheetsProps {
   worksheets: Worksheet[];
 }
 
 function Worksheets({ worksheets }: WorksheetsProps) {
-  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
-
-  return (
-    <>
-      {worksheets.map((worksheet, index) => (
-        <SidebarMenuItem key={index}>
-          <Link to="/sql-editor/$worksheetId" params={{ worksheetId: worksheet.id.toString() }}>
-            {({ isActive }) => (
-              <SidebarMenuButton
-                onClick={() => addTab(worksheet)}
-                className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
-                isActive={isActive}
-              >
-                <Scroll />
-                <span className="truncate">{worksheet.name}</span>
-              </SidebarMenuButton>
-            )}
-          </Link>
-        </SidebarMenuItem>
-      ))}
-    </>
-  );
+  return worksheets.map((worksheet) => (
+    <SqlEditorLeftPanelWorksheet key={worksheet.id} worksheet={worksheet} />
+  ));
 }
 
 interface SqlEditorLeftPanelWorksheetsProps {
