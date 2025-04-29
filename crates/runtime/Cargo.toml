@@ -46,7 +46,7 @@ iceberg-rest-catalog = { workspace = true }
 iceberg-rust = { workspace = true }
 iceberg-rust-spec = { workspace = true }
 iceberg-s3tables-catalog = { workspace = true }
-embucket_history = { workspace= true }
+embucket_history = { workspace = true }
 embucket_metastore = { version = "0.1.0", path = "../metastore" }
 embucket_utils = { version = "0.1.0", path = "../utils" }
 indexmap = { version = "2.7.1" }
