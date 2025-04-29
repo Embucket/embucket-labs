@@ -1,8 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import type { SelectedTree } from '@/modules/shared/trees/trees-items';
 import { useGetTablePreviewData } from '@/orval/tables';
 
-import type { SelectedTree } from '../../sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
 import { SqlEditorLeftPanelTableColumnsPreviewDialogTable } from './sql-editor-left-panel-table-columns-preview-dialog-table';
 
 interface SqlEditorLeftPanelTableColumnsPreviewDialogProps {

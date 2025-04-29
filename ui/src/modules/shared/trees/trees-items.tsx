@@ -16,15 +16,15 @@ import {
   SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
+import { useSqlEditorPanelsState } from '@/modules/sql-editor/sql-editor-panels-state-provider';
+import { useSqlEditorSettingsStore } from '@/modules/sql-editor/sql-editor-settings-store';
 import type {
   NavigationTreeDatabase,
   NavigationTreeSchema,
   NavigationTreeTable,
 } from '@/orval/models';
 
-import { useSqlEditorPanelsState } from '../../sql-editor-panels-state-provider';
-import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
-import { SqlEditorLeftPanelTreeCollapsibleItem } from './sql-editor-left-panel-trees-collapsible-item';
+import { TreeCollapsibleItem } from './trees-collapsible-item';
 
 // TODO: Need more specific name
 export interface SelectedTree {
@@ -55,7 +55,7 @@ function Tables({ tables, schema, database, onOpenUploadDialog }: TablesProps) {
   };
 
   return (
-    <SqlEditorLeftPanelTreeCollapsibleItem
+    <TreeCollapsibleItem
       icon={Folder}
       label="Tables"
       triggerComponent={SidebarMenuSubButton}
@@ -114,7 +114,7 @@ function Tables({ tables, schema, database, onOpenUploadDialog }: TablesProps) {
           </DropdownMenu>
         </SidebarMenuSubItem>
       ))}
-    </SqlEditorLeftPanelTreeCollapsibleItem>
+    </TreeCollapsibleItem>
   );
 }
 
@@ -137,7 +137,7 @@ function Schemas({
     <>
       {schemas.map((schema, index) => (
         <SidebarMenuSubItem key={index}>
-          <SqlEditorLeftPanelTreeCollapsibleItem
+          <TreeCollapsibleItem
             icon={FolderTree}
             label={schema.name}
             triggerComponent={SidebarMenuSubButton}
@@ -149,7 +149,7 @@ function Schemas({
               schema={schema}
               onOpenUploadDialog={onOpenUploadDialog}
             />
-          </SqlEditorLeftPanelTreeCollapsibleItem>
+          </TreeCollapsibleItem>
         </SidebarMenuSubItem>
       ))}
     </>
@@ -162,17 +162,14 @@ interface DatabasesProps {
   onOpenUploadDialog: () => void;
 }
 
-export function SqlEditorLeftPanelTreesDatabases({
-  databases,
-  onOpenUploadDialog,
-}: DatabasesProps) {
+export function TreesDatabases({ databases, onOpenUploadDialog }: DatabasesProps) {
   const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
 
   return (
     <>
       {databases.map((database, index) => (
         <SidebarMenuItem key={index}>
-          <SqlEditorLeftPanelTreeCollapsibleItem
+          <TreeCollapsibleItem
             icon={Database}
             label={database.name}
             triggerComponent={SidebarMenuButton}
@@ -189,7 +186,7 @@ export function SqlEditorLeftPanelTreesDatabases({
               database={database}
               onOpenUploadDialog={onOpenUploadDialog}
             />
-          </SqlEditorLeftPanelTreeCollapsibleItem>
+          </TreeCollapsibleItem>
         </SidebarMenuItem>
       ))}
     </>

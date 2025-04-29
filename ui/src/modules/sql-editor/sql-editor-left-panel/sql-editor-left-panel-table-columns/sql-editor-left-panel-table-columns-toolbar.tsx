@@ -1,9 +1,9 @@
 import { Eye, Table, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import type { SelectedTree } from '@/modules/shared/trees/trees-items';
 
 import { useSqlEditorPanelsState } from '../../sql-editor-panels-state-provider';
-import type { SelectedTree } from '../sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
 
 interface SqlEditorLeftPanelTableColumnsToolbarProps {
   selectedTree?: SelectedTree;

@@ -5,7 +5,7 @@ import type { SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { SidebarMenuButton, SidebarMenuSub } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
-interface SqlEditorLeftPanelTreeCollapsibleItemProps {
+interface TreeCollapsibleItemProps {
   icon: LucideIcon;
   label: string;
   triggerComponent?: typeof SidebarMenuButton | typeof SidebarMenuSubButton;
@@ -16,7 +16,7 @@ interface SqlEditorLeftPanelTreeCollapsibleItemProps {
   contentClassName?: string;
 }
 
-export function SqlEditorLeftPanelTreeCollapsibleItem({
+export function TreeCollapsibleItem({
   icon: Icon,
   label,
   triggerComponent: TriggerComponent = SidebarMenuButton,
@@ -25,7 +25,7 @@ export function SqlEditorLeftPanelTreeCollapsibleItem({
   className,
   triggerClassName,
   contentClassName,
-}: SqlEditorLeftPanelTreeCollapsibleItemProps) {
+}: TreeCollapsibleItemProps) {
   return (
     <Collapsible
       defaultOpen={defaultOpen}

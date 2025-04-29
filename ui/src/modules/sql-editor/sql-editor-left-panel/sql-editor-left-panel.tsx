@@ -6,6 +6,7 @@ import {
   SidebarHeader,
 } from '@/components/ui/sidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Trees } from '@/modules/shared/trees/trees';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
 import { useGetWorksheets } from '@/orval/worksheets';
 
@@ -16,7 +17,6 @@ import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
 import { useSqlEditorTabsSync } from '../use-sql-editor-tabs-sync';
 import { SqlEditorLeftPanelDatabasesToolbar } from './sql-editor-left-panel-databases-toolbar';
 import { SqlEditorLeftBottomPanel } from './sql-editor-left-panel-table-columns/sql-editor-left-bottom-panel';
-import { SqlEditorLeftPanelTrees } from './sql-editor-left-panel-trees/sql-editor-left-panel-trees';
 import { SqlEditorLeftPanelWorksheetsToolbar } from './sql-editor-left-panel-worksheets-toolbar';
 import { SqlEditorLeftPanelWorksheets } from './sql-editor-left-panel-worksheets/sql-editor-left-panel-worksheets';
 
@@ -77,7 +77,7 @@ export const SqlEditorLeftPanel = () => {
               <TabsContent value="databases" className="h-full">
                 <ResizablePanelGroup direction="vertical">
                   <SqlEditorResizablePanel minSize={10} order={1} defaultSize={100}>
-                    <SqlEditorLeftPanelTrees
+                    <Trees
                       navigationTrees={navigationTrees ?? []}
                       isFetchingNavigationTrees={isFetchingNavigationTrees}
                     />

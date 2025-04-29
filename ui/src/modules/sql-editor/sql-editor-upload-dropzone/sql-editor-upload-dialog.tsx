@@ -3,9 +3,9 @@ import { Table } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { SelectedTree } from '@/modules/shared/trees/trees-items';
 import { useUploadFile } from '@/orval/tables';
 
-import type { SelectedTree } from '../sql-editor-left-panel/sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
 import { TableDataUploadDropzone } from './sql-editor-upload-dropzone';
 
 interface SqlEditorUploadDialogProps {
