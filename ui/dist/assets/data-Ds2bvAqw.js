@@ -1,0 +1,1 @@
+import{j as t}from"./index-GBwEtJuF.js";import{P as o}from"./page-header-7M0ToyMb.js";import"./input-O-OiTQX6.js";import"./search-Byy_WJWN.js";function r(){return t.jsx(o,{title:"Data"})}const p=r;export{p as component};

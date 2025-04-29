@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenuAction, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
-import { DeleteWorksheetAlertDialog } from '@/modules/shared/delete-worksheet-alert-dialog';
+import { DeleteWorksheetAlertDialog } from '@/modules/shared/delete-worksheet-alert-dialog/delete-worksheet-alert-dialog';
 import type { Worksheet } from '@/orval/models';
 
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';

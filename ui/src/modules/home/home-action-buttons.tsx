@@ -6,7 +6,7 @@ import { Database, Plus, Upload } from 'lucide-react';
 
 import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
-import { CreateDatabaseDialog } from '../shared/create-database-dialog';
+import { CreateDatabaseDialog } from '../shared/create-database-dialog/create-database-dialog';
 import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
 
 export default function HomeActionButtons() {

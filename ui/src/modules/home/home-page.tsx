@@ -1,11 +1,12 @@
-import { FileText, Search } from 'lucide-react';
+import { FileText } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
-import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useGetDashboard } from '@/orval/dashboard';
 import { useGetWorksheets } from '@/orval/worksheets';
 
+import { PageContent } from '../shared/page/page-content';
+import { PageHeader } from '../shared/page/page-header';
 import HomeActionButtons from './home-action-buttons';
 import { HomeDashboardMetrics } from './home-dashboard-metrics';
 import { HomeWorksheetsTable } from './home-worksheets-table';
@@ -20,17 +21,8 @@ export function HomePage() {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b p-4">
-        <h1 className="text-xl font-semibold">Home</h1>
-        <InputRoot>
-          <InputIcon>
-            <Search />
-          </InputIcon>
-          <Input className="min-w-80" disabled placeholder="Search" />
-        </InputRoot>
-      </div>
-      {/* TODO: Hardcode */}
-      <ScrollArea className="h-[calc(100vh-65px-32px)]">
+      <PageHeader title="Home" />
+      <PageContent>
         <div className="p-4">
           <p className="mb-2 text-3xl font-semibold">Welcome!</p>
           <p className="text-muted-foreground font-light">Nice seeing you here 😎</p>
@@ -58,8 +50,7 @@ export function HomePage() {
             )}
           </div>
         </div>
-        <ScrollBar orientation="vertical" />
-      </ScrollArea>
+      </PageContent>
     </>
   );
 }
