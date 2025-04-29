@@ -18,7 +18,8 @@ use tower_sessions::{Expiry, SessionManagerLayer};
 use layers::make_cors_middleware;
 use session::{RequestSessionMemory, RequestSessionStore};
 
-use crate::execution::{self, service::CoreExecutionService};
+use crate::execution::history::History;
+use crate::execution::{self, service::Execution};
 
 pub mod error;
 
@@ -47,7 +48,8 @@ pub fn make_app(
     config: &WebConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format)?;
-    let execution_svc = Arc::new(CoreExecutionService::new(metastore.clone(), execution_cfg));
+    let execution = Arc::new(Execution::new(metastore.clone(), execution_cfg));
+    let execution_svc = Arc::new(History::new(execution, history_store.clone()));
 
     let session_memory = RequestSessionMemory::default();
     let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());

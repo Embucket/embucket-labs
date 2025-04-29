@@ -11,22 +11,19 @@ use tower_sessions::{
     session_store, ExpiredDeletion, Session, SessionStore,
 };
 
-use crate::execution::service::ExecutionService;
+use crate::execution::service::Service;
 
 pub type RequestSessionMemory = Arc<Mutex<HashMap<Id, Record>>>;
 
 #[derive(Clone)]
 pub struct RequestSessionStore {
     store: Arc<Mutex<HashMap<Id, Record>>>,
-    execution_svc: Arc<dyn ExecutionService>,
+    execution_svc: Arc<dyn Service>,
 }
 
 #[allow(clippy::missing_const_for_fn)]
 impl RequestSessionStore {
-    pub fn new(
-        store: Arc<Mutex<HashMap<Id, Record>>>,
-        execution_svc: Arc<dyn ExecutionService>,
-    ) -> Self {
+    pub fn new(store: Arc<Mutex<HashMap<Id, Record>>>, execution_svc: Arc<dyn Service>) -> Self {
         Self {
             store,
             execution_svc,
