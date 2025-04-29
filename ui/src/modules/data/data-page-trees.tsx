@@ -16,14 +16,17 @@ export function DataPageTrees() {
     useGetNavigationTrees();
 
   const handleDatabaseClick = (database: NavigationTreeDatabase) => {
+    // eslint-disable-next-line no-console
     console.log(database);
   };
 
   const handleSchemaClick = (schema: NavigationTreeSchema) => {
+    // eslint-disable-next-line no-console
     console.log(schema);
   };
 
   const handleTableClick = (table: NavigationTreeTable) => {
+    // eslint-disable-next-line no-console
     console.log(table);
   };
 
