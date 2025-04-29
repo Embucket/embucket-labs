@@ -2,7 +2,7 @@ use crate::execution::query::{QueryContext, UserQuery};
 use crate::execution::session::UserSession;
 
 use crate::execution::error::{ExecutionError, ExecutionResult};
-use crate::execution::service::{Execution, Service};
+use crate::execution::service::{CoreExecutionService, ExecutionService};
 use crate::execution::utils::{Config, DataSerializationFormat};
 use crate::SlateDBMetastore;
 use datafusion::assert_batches_eq;
@@ -468,7 +468,7 @@ async fn test_resolve_schema_ident() {
     }
 }
 
-async fn prepare_env() -> (Execution, Arc<SlateDBMetastore>, String) {
+async fn prepare_env() -> (CoreExecutionService, Arc<SlateDBMetastore>, String) {
     let metastore = SlateDBMetastore::new_in_memory().await;
     metastore
         .create_volume(
@@ -506,7 +506,7 @@ async fn prepare_env() -> (Execution, Arc<SlateDBMetastore>, String) {
         .await
         .expect("Failed to create schema");
 
-    let execution_svc = Execution::new(
+    let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         Config {
             dbt_serialization_format: DataSerializationFormat::Json,
