@@ -122,7 +122,7 @@ impl UserQuery {
             .as_any()
             .downcast_ref::<EmbucketCatalogList>()
         {
-            catalog_list_impl.refresh(&self.session.ctx).await
+            catalog_list_impl.refresh().await
         } else {
             Err(ExecutionError::RefreshCatalogList {
                 message: "Catalog list implementation is not castable".to_string(),
