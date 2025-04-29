@@ -18,8 +18,8 @@ use tower_sessions::{Expiry, SessionManagerLayer};
 use layers::make_cors_middleware;
 use session::{RequestSessionMemory, RequestSessionStore};
 
-use crate::execution::{self, service::Execution};
 use crate::execution::history::History;
+use crate::execution::{self, service::Execution};
 
 pub mod error;
 
@@ -65,8 +65,12 @@ pub fn make_app(
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
     // Create the application state
-    let app_state =
-        state::AppState::new(metastore, history_store, execution_svc, Arc::new(config.clone()));
+    let app_state = state::AppState::new(
+        metastore,
+        history_store,
+        execution_svc,
+        Arc::new(config.clone()),
+    );
 
     let mut app = router::create_app(app_state)
         .layer(session_layer)

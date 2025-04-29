@@ -120,7 +120,7 @@ async fn test_ui_dashboard() {
     assert_eq!(4, dashboard.data.total_databases);
     assert_eq!(1, dashboard.data.total_schemas);
     assert_eq!(0, dashboard.data.total_tables);
-    //Since we create schemas with the query engine
+    //Since we create schemas with the query engine it will be atleast non zero
     assert_eq!(1, dashboard.data.total_queries);
 
     let res = req(
@@ -178,5 +178,5 @@ async fn test_ui_dashboard() {
     assert_eq!(4, dashboard.data.total_databases);
     assert_eq!(1, dashboard.data.total_schemas);
     assert_eq!(1, dashboard.data.total_tables);
-    assert_eq!(1, dashboard.data.total_queries);
+    assert_eq!(2, dashboard.data.total_queries);
 }

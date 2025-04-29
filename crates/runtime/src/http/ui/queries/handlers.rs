@@ -1,8 +1,9 @@
+use crate::execution::query::QueryContext;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::queries::models::{
-    ExecutionContext, GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse,
-    QueryRecord, ResultSet,
+    GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryRecord,
+    ResultSet,
 };
 use crate::http::{
     error::ErrorResponse,
@@ -16,8 +17,6 @@ use embucket_history::{QueryRecordActions, QueryRecordId, WorksheetId};
 use embucket_utils::iterable::IterableEntity;
 use std::collections::HashMap;
 use utoipa::OpenApi;
-use crate::execution::query::QueryContext;
-use crate::execution::service::Service;
 
 #[derive(OpenApi)]
 #[openapi(
