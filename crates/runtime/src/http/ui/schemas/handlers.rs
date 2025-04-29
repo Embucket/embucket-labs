@@ -1,6 +1,7 @@
 use crate::execution::query::QueryContext;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
+use crate::http::ui::queries::models::ResultSet;
 use crate::http::ui::schemas::models::SchemasParameters;
 use crate::http::{
     error::ErrorResponse,
@@ -14,14 +15,13 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use embucket_history::{QueryRecord, QueryRecordActions};
 use embucket_metastore::error::MetastoreError;
 use embucket_metastore::models::SchemaIdent as MetastoreSchemaIdent;
 use embucket_utils::scan_iterator::ScanIterator;
 use std::convert::From;
 use std::convert::Into;
 use utoipa::OpenApi;
-use embucket_history::{QueryRecord, QueryRecordActions};
-use crate::http::ui::queries::models::ResultSet;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -70,10 +70,10 @@ pub async fn create_schema(
     Path(database_name): Path<String>,
     Json(payload): Json<SchemaCreatePayload>,
 ) -> SchemasResult<Json<SchemaCreateResponse>> {
-    let context = QueryContext::new(
-        Some(database_name.clone()),
-        Some(payload.name.clone()),
-    );
+    let context = QueryContext {
+        database: Some(database_name.clone()),
+        schema: Some(payload.name.clone()),
+    };
     let sql_string = format!(
         "CREATE SCHEMA {}.{}",
         database_name.clone(),
@@ -143,10 +143,10 @@ pub async fn delete_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> SchemasResult<()> {
-    let context = QueryContext::new(
-        Some(database_name.clone()), 
-        Some(schema_name.clone())
-    );
+    let context = QueryContext {
+        database: Some(database_name.clone()),
+        schema: Some(schema_name.clone()),
+    };
     let sql_string = format!(
         "DROP SCHEMA {}.{}",
         database_name.clone(),
