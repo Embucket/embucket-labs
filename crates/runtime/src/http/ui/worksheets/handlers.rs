@@ -59,7 +59,7 @@ pub async fn worksheets(
     }): Query<GetWorksheetsParams>,
 ) -> WorksheetsResult<Json<WorksheetsResponse>> {
     let history_worksheets = state
-        .history
+        .history_store
         .get_worksheets()
         .await
         .map_err(|e| WorksheetsAPIError::List { source: e })?;
@@ -140,7 +140,7 @@ pub async fn create_worksheet(
     let history_worksheet = embucket_history::Worksheet::new(name, payload.content);
 
     let worksheet = state
-        .history
+        .history_store
         .add_worksheet(history_worksheet)
         .await
         .map_err(|e| WorksheetsAPIError::Create { source: e })?
@@ -170,7 +170,7 @@ pub async fn worksheet(
     Path(worksheet_id): Path<WorksheetId>,
 ) -> WorksheetsResult<Json<WorksheetResponse>> {
     let history_worksheet = state
-        .history
+        .history_store
         .get_worksheet(worksheet_id)
         .await
         .map_err(|e| WorksheetsAPIError::Get { source: e })?;
@@ -200,7 +200,7 @@ pub async fn delete_worksheet(
     Path(worksheet_id): Path<WorksheetId>,
 ) -> WorksheetsResult<()> {
     state
-        .history
+        .history_store
         .delete_worksheet(worksheet_id)
         .await
         .map_err(|e| WorksheetsAPIError::Delete { source: e })
@@ -255,7 +255,7 @@ pub async fn update_worksheet(
     }
 
     let mut worksheet = state
-        .history
+        .history_store
         .get_worksheet(worksheet_id)
         .await
         .map_err(|e| WorksheetsAPIError::Update {
@@ -271,7 +271,7 @@ pub async fn update_worksheet(
     }
 
     state
-        .history
+        .history_store
         .update_worksheet(worksheet)
         .await
         .map_err(|e| WorksheetsAPIError::Update {

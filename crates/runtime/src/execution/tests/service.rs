@@ -1,5 +1,5 @@
 use crate::execution::query::QueryContext;
-use crate::execution::service::ExecutionService;
+use crate::execution::service::{Execution, Service};
 use crate::execution::utils::{Config, DataSerializationFormat};
 use crate::SlateDBMetastore;
 use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
@@ -14,7 +14,7 @@ use embucket_metastore::{
 #[allow(clippy::expect_used)]
 async fn test_execute_always_returns_schema() {
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let execution_svc = ExecutionService::new(
+    let execution_svc = Execution::new(
         metastore.clone(),
         Config {
             dbt_serialization_format: DataSerializationFormat::Json,
@@ -92,7 +92,7 @@ async fn test_service_upload_file() {
     let csv_content = "id,name,value\n1,test1,100\n2,test2,200\n3,test3,300";
     let data = csv_content.as_bytes().to_vec();
 
-    let execution_svc = ExecutionService::new(
+    let execution_svc = Execution::new(
         metastore.clone(),
         Config {
             dbt_serialization_format: DataSerializationFormat::Json,
@@ -219,7 +219,7 @@ async fn test_service_create_table_file_volume() {
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };
-    let execution_svc = ExecutionService::new(
+    let execution_svc = Execution::new(
         metastore.clone(),
         Config {
             dbt_serialization_format: DataSerializationFormat::Json,

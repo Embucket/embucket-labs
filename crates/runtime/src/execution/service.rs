@@ -23,13 +23,35 @@ use uuid::Uuid;
 
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
-pub struct ExecutionService {
+#[async_trait::async_trait]
+pub trait Service: Send + Sync {
+    async fn create_session(&self, session_id: String) -> ExecutionResult<()>;
+    async fn delete_session(&self, session_id: String) -> ExecutionResult<()>;
+    async fn query(
+        &self,
+        session_id: &str,
+        query: &str,
+        query_context: QueryContext,
+    ) -> ExecutionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
+    async fn upload_data_to_table(
+        &self,
+        session_id: &str,
+        table_ident: &MetastoreTableIdent,
+        data: Bytes,
+        file_name: &str,
+        format: Format,
+    ) -> ExecutionResult<usize>;
+    //Can't be const in trait
+    fn config(&self) -> &Config;
+}
+
+pub struct Execution {
     metastore: Arc<dyn Metastore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<UserSession>>>>,
     config: Config,
 }
 
-impl ExecutionService {
+impl Execution {
     pub fn new(metastore: Arc<dyn Metastore>, config: Config) -> Self {
         Self {
             metastore,
@@ -37,9 +59,11 @@ impl ExecutionService {
             config,
         }
     }
-
+}
+#[async_trait::async_trait]
+impl Service for Execution {
     #[tracing::instrument(level = "debug", skip(self))]
-    pub async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
+    async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
         let session_exists = { self.df_sessions.read().await.contains_key(&session_id) };
         if !session_exists {
             let user_session = UserSession::new(self.metastore.clone()).await?;
@@ -52,7 +76,7 @@ impl ExecutionService {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    pub async fn delete_session(&self, session_id: String) -> ExecutionResult<()> {
+    async fn delete_session(&self, session_id: String) -> ExecutionResult<()> {
         // TODO: Need to have a timeout for the lock
         let mut session_list = self.df_sessions.write().await;
         session_list.remove(&session_id);
@@ -61,7 +85,7 @@ impl ExecutionService {
 
     #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
-    pub async fn query(
+    async fn query(
         &self,
         session_id: &str,
         query: &str,
@@ -104,7 +128,7 @@ impl ExecutionService {
     }
 
     #[tracing::instrument(level = "debug", skip(self, data))]
-    pub async fn upload_data_to_table(
+    async fn upload_data_to_table(
         &self,
         session_id: &str,
         table_ident: &MetastoreTableIdent,
@@ -210,7 +234,7 @@ impl ExecutionService {
     }
 
     #[must_use]
-    pub const fn config(&self) -> &Config {
+    fn config(&self) -> &Config {
         &self.config
     }
 }

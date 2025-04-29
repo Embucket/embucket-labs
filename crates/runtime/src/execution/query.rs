@@ -49,11 +49,23 @@ use super::session::UserSession;
 use super::utils::{is_logical_plan_effectively_empty, NormalizedIdent};
 use crate::execution::datafusion::visitors::{functions_rewriter, json_element};
 use tracing_attributes::instrument;
+use embucket_history::WorksheetId;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct QueryContext {
     pub database: Option<String>,
     pub schema: Option<String>,
+    pub worksheet_id: Option<WorksheetId>,
+}
+
+impl QueryContext {
+    pub fn new(database: Option<String>, schema: Option<String>, worksheet_id: Option<WorksheetId>) -> Self {
+        Self {
+            database,
+            schema,
+            worksheet_id,
+        }
+    }
 }
 
 pub struct UserQuery {

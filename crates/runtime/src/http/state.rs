@@ -4,15 +4,15 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::execution::service::ExecutionService;
+use crate::execution::service::Service;
 use crate::http::config::WebConfig;
 
 // Define a State struct that contains shared services or repositories
 #[derive(Clone)]
 pub struct AppState {
     pub metastore: Arc<dyn Metastore + Send + Sync>,
-    pub history: Arc<dyn WorksheetsStore + Send + Sync>,
-    pub execution_svc: Arc<ExecutionService>,
+    pub history_store: Arc<dyn WorksheetsStore + Send + Sync>,
+    pub execution_svc: Arc<dyn Service>,
     pub dbt_sessions: Arc<Mutex<HashMap<String, String>>>,
     pub config: Arc<WebConfig>,
 }
@@ -21,13 +21,13 @@ impl AppState {
     // You can add helper methods for state initialization if needed
     pub fn new(
         metastore: Arc<dyn Metastore + Send + Sync>,
-        history: Arc<dyn WorksheetsStore + Send + Sync>,
-        execution_svc: Arc<ExecutionService>,
+        history_store: Arc<dyn WorksheetsStore + Send + Sync>,
+        execution_svc: Arc<dyn Service>,
         config: Arc<WebConfig>,
     ) -> Self {
         Self {
             metastore,
-            history,
+            history_store,
             execution_svc,
             dbt_sessions: Arc::new(Mutex::default()),
             config,

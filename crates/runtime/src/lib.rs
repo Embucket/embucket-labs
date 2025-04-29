@@ -35,8 +35,8 @@ pub async fn run_binary(
     };
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history = Arc::new(SlateDBWorksheetsStore::new(db));
-    let app = make_app(metastore, history, &config.web)?;
+    let history_store = Arc::new(SlateDBWorksheetsStore::new(db));
+    let app = make_app(metastore, history_store, &config.web)?;
 
     let _ = run_web_assets_server(&config.web_assets).await?;
 
