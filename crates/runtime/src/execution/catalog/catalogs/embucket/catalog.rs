@@ -44,7 +44,7 @@ impl CatalogProvider for EmbucketCatalog {
 
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
         self.schemas_cache.get(name).map(|tables_cache| {
-            let tables_cache = Arc::new(tables_cache.clone());
+            let tables_cache = Arc::clone(tables_cache.value());
             let provider: Arc<dyn SchemaProvider> = Arc::new(EmbucketSchema {
                 database: self.database.clone(),
                 schema: name.to_string(),

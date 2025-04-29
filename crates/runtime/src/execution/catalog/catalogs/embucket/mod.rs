@@ -7,5 +7,5 @@ pub mod iceberg_catalog;
 pub mod schema;
 
 pub type TableProviderCache = DashMap<String, Arc<dyn TableProvider>>;
-pub type SchemaProviderCache = DashMap<String, TableProviderCache>;
-pub type CatalogProviderCache = DashMap<String, SchemaProviderCache>;
+pub type SchemaProviderCache = DashMap<String, Arc<TableProviderCache>>;
+pub type CatalogProviderCache = DashMap<String, Arc<SchemaProviderCache>>;

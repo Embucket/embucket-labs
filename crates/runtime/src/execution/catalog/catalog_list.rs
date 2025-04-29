@@ -32,7 +32,7 @@ pub const DEFAULT_CATALOG: &str = "embucket";
 pub struct EmbucketCatalogList {
     pub metastore: Arc<dyn Metastore>,
     pub table_object_store: Arc<DashMap<String, Arc<dyn ObjectStore>>>,
-    pub cache: CatalogProviderCache,
+    pub cache: Arc<CatalogProviderCache>,
     pub catalogs: DashMap<String, Arc<dyn CatalogProvider>>,
 }
 
@@ -43,7 +43,7 @@ impl EmbucketCatalogList {
         Self {
             metastore,
             table_object_store: Arc::new(table_object_store),
-            cache: DashMap::default(),
+            cache: Arc::new(DashMap::default()),
             catalogs: DashMap::default(),
         }
     }
@@ -64,7 +64,7 @@ impl EmbucketCatalogList {
             let db_entry = self
                 .cache
                 .entry(database.ident.clone())
-                .or_insert(SchemaProviderCache::default());
+                .or_insert(Arc::new(SchemaProviderCache::default()));
             let db_seen_entry = seen.entry(database.ident.clone()).or_default();
             let schemas = self
                 .metastore
@@ -77,7 +77,7 @@ impl EmbucketCatalogList {
             for schema in schemas {
                 let schema_entry = db_entry
                     .entry(schema.ident.schema.clone())
-                    .insert(TableProviderCache::default());
+                    .insert(Arc::new(TableProviderCache::default()));
                 let schema_seen_entry = db_seen_entry
                     .entry(schema.ident.schema.clone())
                     .or_default();
@@ -191,11 +191,11 @@ impl EmbucketCatalogList {
         let schemas_cache = self
             .cache
             .get(name)
-            .map_or_else(DashMap::new, |v| v.clone());
+            .map_or_else(|| Arc::new(DashMap::new()), |v| Arc::clone(v.value()));
         let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog {
             database: name.to_string(),
             metastore: self.metastore.clone(),
-            schemas_cache: Arc::new(schemas_cache),
+            schemas_cache,
             iceberg_catalog: Arc::new(iceberg_catalog),
         });
         Ok(catalog)
