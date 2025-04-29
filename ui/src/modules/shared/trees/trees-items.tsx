@@ -1,23 +1,18 @@
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 
-import { Database, Folder, FolderTree, MoreHorizontal, Table } from 'lucide-react';
+import { ScrollArea } from '@radix-ui/react-scroll-area';
+import { Database, Folder, FolderTree, Table } from 'lucide-react';
 
+import { EmptyContainer } from '@/components/empty-container';
+import { ScrollBar } from '@/components/ui/scroll-area';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  SidebarMenuAction,
+  SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
-import { cn } from '@/lib/utils';
-import { useSqlEditorPanelsState } from '@/modules/sql-editor/sql-editor-panels-state-provider';
-import { useSqlEditorSettingsStore } from '@/modules/sql-editor/sql-editor-settings-store';
 import type {
   NavigationTreeDatabase,
   NavigationTreeSchema,
@@ -26,129 +21,101 @@ import type {
 
 import { TreeCollapsibleItem } from './trees-collapsible-item';
 
-// TODO: Need more specific name
+interface TreeItemProps<T> {
+  isActive?: (item: T) => boolean;
+  onClick?: (item: T) => void;
+}
+
 export interface SelectedTree {
   databaseName: string;
   schemaName: string;
   tableName: string;
 }
 
-interface TablesProps {
-  tables: NavigationTreeTable[];
+interface TreesTablesProps extends TreeItemProps<NavigationTreeTable> {
   database: NavigationTreeDatabase;
   schema: NavigationTreeSchema;
-  onOpenUploadDialog: () => void;
+  tables: NavigationTreeTable[];
+  defaultOpen?: boolean;
+  renderDropdownMenu?: (tree: SelectedTree, hovered: boolean) => ReactNode;
 }
 
-function Tables({ tables, schema, database, onOpenUploadDialog }: TablesProps) {
+export function TreesTables({
+  database,
+  schema,
+  tables,
+  onClick,
+  isActive,
+  renderDropdownMenu,
+  defaultOpen,
+}: TreesTablesProps) {
   const [hoveredTable, setHoveredTable] = useState<NavigationTreeTable>();
-  const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
-  const setSelectedTree = useSqlEditorSettingsStore((state) => state.setSelectedTree);
-
-  const { isLeftBottomPanelExpanded, leftBottomRef } = useSqlEditorPanelsState();
-
-  const handleSelectTree = (tree: SelectedTree) => {
-    if (!isLeftBottomPanelExpanded) {
-      leftBottomRef.current?.resize(20);
-    }
-    setSelectedTree(tree);
-  };
 
   return (
     <TreeCollapsibleItem
       icon={Folder}
       label="Tables"
       triggerComponent={SidebarMenuSubButton}
-      defaultOpen={tables.some((table) => table.name === selectedTree?.tableName)}
+      defaultOpen={defaultOpen}
     >
-      {tables.map((table, index) => (
-        <SidebarMenuSubItem key={index}>
-          <SidebarMenuSubButton
-            className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
-            isActive={
-              selectedTree?.tableName === table.name &&
-              selectedTree.schemaName === schema.name &&
-              selectedTree.databaseName === database.name
-            }
-            onClick={() =>
-              handleSelectTree({
-                databaseName: database.name,
-                schemaName: schema.name,
-                tableName: table.name,
-              })
-            }
-            onMouseEnter={() => setHoveredTable(table)}
-            onMouseLeave={() => setHoveredTable(undefined)}
-          >
-            <Table />
-            <span className="truncate" title={table.name}>
-              {table.name}
-            </span>
-          </SidebarMenuSubButton>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              asChild
-              className={cn(
-                'invisible group-hover/subitem:visible',
-                hoveredTable === table && 'visible',
-              )}
+      {tables.map((table) => {
+        const tree = {
+          databaseName: database.name,
+          schemaName: schema.name,
+          tableName: table.name,
+        };
+        return (
+          <SidebarMenuSubItem key={table.name}>
+            <SidebarMenuSubButton
+              className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
+              isActive={isActive?.(table)}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onClick?.(table);
+              }}
+              onMouseEnter={() => setHoveredTable(table)}
+              onMouseLeave={() => setHoveredTable(undefined)}
             >
-              <SidebarMenuAction className="size-7">
-                <MoreHorizontal />
-              </SidebarMenuAction>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start">
-              <DropdownMenuItem
-                onClick={() => {
-                  handleSelectTree({
-                    databaseName: database.name,
-                    schemaName: schema.name,
-                    tableName: table.name,
-                  });
-                  onOpenUploadDialog();
-                }}
-              >
-                <span>Load data</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarMenuSubItem>
-      ))}
+              <Table />
+              <span className="truncate" title={table.name}>
+                {table.name}
+              </span>
+            </SidebarMenuSubButton>
+            {renderDropdownMenu?.(tree, hoveredTable === table)}
+          </SidebarMenuSubItem>
+        );
+      })}
     </TreeCollapsibleItem>
   );
 }
 
-interface SchemasProps {
+interface TreesSchemasProps extends TreeItemProps<NavigationTreeSchema> {
   schemas: NavigationTreeSchema[];
-  database: NavigationTreeDatabase;
-
-  onOpenUploadDialog: () => void;
+  defaultOpen?: (schema: NavigationTreeSchema) => boolean;
+  children: (schema: NavigationTreeSchema) => React.ReactNode;
 }
 
-function Schemas({
+export function TreesSchemas({
   schemas,
-  database,
-
-  onOpenUploadDialog,
-}: SchemasProps) {
-  const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
-
+  onClick,
+  isActive,
+  defaultOpen,
+  children,
+}: TreesSchemasProps) {
   return (
     <>
-      {schemas.map((schema, index) => (
-        <SidebarMenuSubItem key={index}>
+      {schemas.map((schema) => (
+        <SidebarMenuSubItem key={schema.name}>
           <TreeCollapsibleItem
             icon={FolderTree}
             label={schema.name}
             triggerComponent={SidebarMenuSubButton}
-            defaultOpen={schema.tables.some((table) => table.name === selectedTree?.tableName)}
+            isActive={isActive?.(schema)}
+            onClick={() => onClick?.(schema)}
+            defaultOpen={defaultOpen?.(schema)}
           >
-            <Tables
-              tables={schema.tables}
-              database={database}
-              schema={schema}
-              onOpenUploadDialog={onOpenUploadDialog}
-            />
+            {children(schema)}
           </TreeCollapsibleItem>
         </SidebarMenuSubItem>
       ))}
@@ -156,39 +123,64 @@ function Schemas({
   );
 }
 
-interface DatabasesProps {
-  databases: NavigationTreeDatabase[];
-
-  onOpenUploadDialog: () => void;
+interface TreesDatabasesProps extends TreeItemProps<NavigationTreeDatabase> {
+  isFetchingDatabases: boolean;
+  databases?: NavigationTreeDatabase[];
+  defaultOpen?: (database: NavigationTreeDatabase) => boolean;
+  children: (database: NavigationTreeDatabase) => React.ReactNode;
 }
 
-export function TreesDatabases({ databases, onOpenUploadDialog }: DatabasesProps) {
-  const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
+export function TreesDatabases({
+  isFetchingDatabases,
+  databases,
+  isActive,
+  defaultOpen,
+  onClick,
+  children,
+}: TreesDatabasesProps) {
+  if (isFetchingDatabases) {
+    return null;
+  }
+
+  if (!databases?.length) {
+    return (
+      <EmptyContainer
+        className="absolute text-center text-wrap"
+        Icon={Database}
+        title="No Databases Available"
+        description="Create a database to start organizing your data."
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        onCtaClick={() => {}}
+        ctaText="Create database"
+      />
+    );
+  }
 
   return (
     <>
-      {databases.map((database, index) => (
-        <SidebarMenuItem key={index}>
+      {databases.map((database) => (
+        <SidebarMenuItem key={database.name}>
           <TreeCollapsibleItem
             icon={Database}
             label={database.name}
             triggerComponent={SidebarMenuButton}
-            triggerClassName="hover:bg-sidebar-secondary-accent! pr-2!"
-            defaultOpen={
-              database.name === 'database1' ||
-              database.schemas.some((schema) =>
-                schema.tables.some((table) => table.name === selectedTree?.tableName),
-              )
-            }
+            isActive={isActive?.(database)}
+            defaultOpen={defaultOpen?.(database)}
+            onClick={() => onClick?.(database)}
           >
-            <Schemas
-              schemas={database.schemas}
-              database={database}
-              onOpenUploadDialog={onOpenUploadDialog}
-            />
+            {children(database)}
           </TreeCollapsibleItem>
         </SidebarMenuItem>
       ))}
     </>
+  );
+}
+
+export function TreesLayout({ children }: { children: ReactNode }) {
+  return (
+    <ScrollArea className="size-full py-2">
+      <SidebarMenu className="w-full px-2 select-none">{children}</SidebarMenu>
+      <ScrollBar orientation="vertical" />
+    </ScrollArea>
   );
 }

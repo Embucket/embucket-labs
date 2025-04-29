@@ -11,9 +11,11 @@ interface TreeCollapsibleItemProps {
   triggerComponent?: typeof SidebarMenuButton | typeof SidebarMenuSubButton;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  isActive?: boolean;
   className?: string;
   triggerClassName?: string;
   contentClassName?: string;
+  onClick?: () => void;
 }
 
 export function TreeCollapsibleItem({
@@ -22,9 +24,11 @@ export function TreeCollapsibleItem({
   triggerComponent: TriggerComponent = SidebarMenuButton,
   children,
   defaultOpen = true,
+  isActive,
   className,
   triggerClassName,
   contentClassName,
+  onClick,
 }: TreeCollapsibleItemProps) {
   return (
     <Collapsible
@@ -35,7 +39,14 @@ export function TreeCollapsibleItem({
       )}
     >
       <CollapsibleTrigger asChild>
-        <TriggerComponent className={cn('hover:bg-sidebar-secondary-accent', triggerClassName)}>
+        <TriggerComponent
+          className={cn(
+            'hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!',
+            triggerClassName,
+          )}
+          onClick={onClick}
+          isActive={isActive}
+        >
           <ChevronRight className="transition-transform" />
           <Icon />
           <span className="truncate">{label}</span>
