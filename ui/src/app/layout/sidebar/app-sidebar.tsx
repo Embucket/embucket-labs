@@ -60,6 +60,7 @@ const sidebarNavItems: SidebarNavOption[] = [
       to: '/data',
     },
     Icon: Database,
+    disabled: true,
   },
 ];
 
@@ -214,7 +215,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               isActive: pathname.includes('/sql-editor'),
             },
             {
-              name: 'Queries History',
+              name: 'Queries',
               linkProps: {
                 to: '/queries-history',
               },
