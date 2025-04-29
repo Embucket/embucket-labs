@@ -70,7 +70,8 @@ impl ScalarUDFImpl for MakeLine {
         Ok(LINE_STRING_TYPE.into())
     }
 
-    fn invoke_batch(&self, args: &[ColumnarValue], _number_rows: usize) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
         unsafe { make_line(args) }
     }
 

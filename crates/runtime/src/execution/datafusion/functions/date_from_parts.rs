@@ -90,7 +90,8 @@ impl ScalarUDFImpl for DateFromPartsFunc {
         Ok(Date32)
     }
 
-    fn invoke_batch(&self, args: &[ColumnarValue], _number_rows: usize) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
         let array_size = args
             .iter()
             .find_map(|arg| match arg {

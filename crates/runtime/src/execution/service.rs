@@ -6,7 +6,7 @@ use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::csv::reader::Format;
 use datafusion::arrow::csv::ReaderBuilder;
 use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
-use datafusion::catalog_common::CatalogProvider;
+use datafusion::catalog::CatalogProvider;
 use datafusion::datasource::memory::MemTable;
 use datafusion_common::TableReference;
 use snafu::ResultExt;

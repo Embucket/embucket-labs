@@ -62,7 +62,8 @@ impl ScalarUDFImpl for MakePolygon {
         Ok(POLYGON_2D_TYPE.into())
     }
 
-    fn invoke_batch(&self, args: &[ColumnarValue], _number_rows: usize) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
         unsafe { make_polygon(args) }
     }
 

@@ -1,7 +1,7 @@
 use arrow::array::{Int64Array, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::catalog::MemoryCatalogProvider;
-use datafusion::catalog_common::CatalogProvider;
+use datafusion::catalog::CatalogProvider;
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;

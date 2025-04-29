@@ -6,10 +6,10 @@ license-file = { workspace = true }
 
 [dependencies]
 
-arrow = { version = "54.1.0" }
-arrow-array = { version = "54.1.0" }
-arrow-json = { version = "54.1.0" }
-arrow-schema = { version = "54.1.0", default-features = false }
+arrow = { version = "55.0.0" }
+arrow-array = { version = "55.0.0" }
+arrow-json = { version = "55.0.0" }
+arrow-schema = { version = "55.0.0", default-features = false }
 async-trait = { workspace = true }
 axum = { workspace = true }
 axum-macros = { workspace = true }
@@ -63,7 +63,7 @@ serde_yaml = { workspace = true }
 slatedb = { workspace = true }
 snafu = { workspace = true }
 
-sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "53c291e3e95f176daea954f614409e5f674ec561", features = [
+sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "ed416548dcfe4a73a3240bbf625fb9010a4925c8", features = [
   "visitor",
 ] }
 strum = { version = "0.27.1", features = ["derive"] }

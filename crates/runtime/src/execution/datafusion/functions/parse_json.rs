@@ -59,16 +59,8 @@ impl ScalarUDFImpl for ParseJsonFunc {
         Ok(DataType::Utf8)
     }
 
-    fn return_type_from_exprs(
-        &self,
-        _args: &[Expr],
-        _schema: &dyn ExprSchema,
-        arg_types: &[DataType],
-    ) -> Result<DataType> {
-        self.return_type(arg_types)
-    }
-
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
         if args.len() != 1 {
             return exec_err!(
                 "parse_json function requires one argument, got {}",

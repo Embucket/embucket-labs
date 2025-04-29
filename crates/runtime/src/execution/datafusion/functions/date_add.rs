@@ -9,6 +9,7 @@ use datafusion::scalar::ScalarValue;
 use datafusion_common::types::{logical_int64, logical_string};
 use std::any::Any;
 use std::sync::Arc;
+use datafusion_expr::Coercion;
 
 #[derive(Debug)]
 pub struct DateAddFunc {
@@ -30,19 +31,19 @@ impl DateAddFunc {
             signature: Signature::one_of(
                 vec![
                     Coercible(vec![
-                        TypeSignatureClass::Native(logical_string()),
-                        TypeSignatureClass::Native(logical_int64()),
-                        TypeSignatureClass::Timestamp,
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_int64())),
+                        Coercion::new_exact(TypeSignatureClass::Timestamp),
                     ]),
                     Coercible(vec![
-                        TypeSignatureClass::Native(logical_string()),
-                        TypeSignatureClass::Native(logical_int64()),
-                        TypeSignatureClass::Time,
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_int64())),
+                        Coercion::new_exact(TypeSignatureClass::Time),
                     ]),
                     Coercible(vec![
-                        TypeSignatureClass::Native(logical_string()),
-                        TypeSignatureClass::Native(logical_int64()),
-                        TypeSignatureClass::Date,
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_int64())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
                     ]),
                 ],
                 Volatility::Immutable,

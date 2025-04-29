@@ -125,7 +125,9 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
     //TODO: select convert_timezone('America/New_York, 'UTC', v3) with v3 a timestamp with value = '2025-01-06 08:00:00 America/New_York',
     //should be parsed as the timezone None variant timestamp
     #[allow(clippy::too_many_lines)]
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
+
         match args.len() {
             2 => {
                 let target_tz = match &args[0] {

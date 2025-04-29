@@ -28,7 +28,7 @@ serde = { version = "1.0", features = ["derive"] }
 slatedb = { version = "0.4.0" }
 bytes = { version = "1.8.0" }
 snmalloc-rs = { version = "0.3" }
-object_store = { version = "0.11.1", features = ["aws", "gcp", "azure"] }
+object_store = { version = "0.12.0", features = ["aws", "gcp", "azure"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
 tar = "0.4.44"
@@ -45,27 +45,27 @@ tracing = { version = "0.1", features = ["attributes"] }
 tracing-attributes = { version = "0.1.28" }
 embucket_history = { version = "0.1.0", path = "crates/history" }
 
-datafusion = { version = "45.0.0" }
-datafusion-common = { version = "45.0.0" }
-datafusion-expr = { version = "45.0.0" }
-datafusion-physical-plan = { version = "45.0.0" }
-datafusion-doc = { version = "45.0.0" }
-datafusion-macros = { version = "45.0.0" }
+datafusion = { version = "47.0.0" }
+datafusion-common = { version = "47.0.0" }
+datafusion-expr = { version = "47.0.0" }
+datafusion-physical-plan = { version = "47.0.0" }
+datafusion-doc = { version = "47.0.0" }
+datafusion-macros = { version = "47.0.0" }
 
-datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "f2b9b88cd9b4282bc0286a970333e8c01cec177b" }
-iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "8b57339b0df82a5dddc7d489bd6ab3ea2a7d6d1d" }
-iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "8b57339b0df82a5dddc7d489bd6ab3ea2a7d6d1d" }
-iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "8b57339b0df82a5dddc7d489bd6ab3ea2a7d6d1d" }
-iceberg-s3tables-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "8b57339b0df82a5dddc7d489bd6ab3ea2a7d6d1d" }
-datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "8b57339b0df82a5dddc7d489bd6ab3ea2a7d6d1d" }
+datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "4a431bc89fb88731685609618799d392cb0a74e7" }
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b7934f3a3915f4344b2d6f941bd4e7795c04949e" }
+iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b7934f3a3915f4344b2d6f941bd4e7795c04949e" }
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b7934f3a3915f4344b2d6f941bd4e7795c04949e" }
+iceberg-s3tables-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b7934f3a3915f4344b2d6f941bd4e7795c04949e" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b7934f3a3915f4344b2d6f941bd4e7795c04949e" }
 
 [patch.crates-io]
-datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
-datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
-datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
-datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
-datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
-datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "eecc47ec20fec83158bd71611e799cb7d373646f" }
+datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "6f50fcbce4358cee8ec66b3e34fb97c3494eea37" }
+datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "6f50fcbce4358cee8ec66b3e34fb97c3494eea37" }
+datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "6f50fcbce4358cee8ec66b3e34fb97c3494eea37" }
+datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "6f50fcbce4358cee8ec66b3e34fb97c3494eea37" }
+datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "6f50fcbce4358cee8ec66b3e34fb97c3494eea37" }
+datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "6f50fcbce4358cee8ec66b3e34fb97c3494eea37" }
 
 # issue #309
 chrono = { git = "https://github.com/chronotope/chrono.git", rev = "8b863490d88ba098038392c8aa930012ffd0c439" }
