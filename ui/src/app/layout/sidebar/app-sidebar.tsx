@@ -55,13 +55,6 @@ const sidebarNavItems: SidebarNavOption[] = [
     Icon: Home,
   },
   {
-    name: 'Query History',
-    linkProps: {
-      to: '/query-history',
-    },
-    Icon: Activity,
-  },
-  {
     name: 'Data',
     linkProps: {
       to: '/data',
@@ -220,6 +213,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               disabled: isFetchingWorksheets || isPending,
               onClick: handleCreateWorksheet,
               isActive: pathname.includes('/sql-editor'),
+            },
+            {
+              name: 'Queries History',
+              linkProps: {
+                to: '/queries-history',
+              },
+              Icon: Activity,
             },
           ]}
           open={open}

@@ -11,7 +11,7 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root';
-import { Route as QueryHistoryImport } from './routes/query-history';
+import { Route as QueriesHistoryImport } from './routes/queries-history';
 import { Route as HomeImport } from './routes/home';
 import { Route as DataImport } from './routes/data';
 import { Route as IndexImport } from './routes/index';
@@ -20,9 +20,9 @@ import { Route as SqlEditorWorksheetIdIndexImport } from './routes/sql-editor/$w
 
 // Create/Update Routes
 
-const QueryHistoryRoute = QueryHistoryImport.update({
-  id: '/query-history',
-  path: '/query-history',
+const QueriesHistoryRoute = QueriesHistoryImport.update({
+  id: '/queries-history',
+  path: '/queries-history',
   getParentRoute: () => rootRoute,
 } as any);
 
@@ -81,11 +81,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HomeImport;
       parentRoute: typeof rootRoute;
     };
-    '/query-history': {
-      id: '/query-history';
-      path: '/query-history';
-      fullPath: '/query-history';
-      preLoaderRoute: typeof QueryHistoryImport;
+    '/queries-history': {
+      id: '/queries-history';
+      path: '/queries-history';
+      fullPath: '/queries-history';
+      preLoaderRoute: typeof QueriesHistoryImport;
       parentRoute: typeof rootRoute;
     };
     '/profile-settings/': {
@@ -111,7 +111,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute;
   '/data': typeof DataRoute;
   '/home': typeof HomeRoute;
-  '/query-history': typeof QueryHistoryRoute;
+  '/queries-history': typeof QueriesHistoryRoute;
   '/profile-settings': typeof ProfileSettingsIndexRoute;
   '/sql-editor/$worksheetId': typeof SqlEditorWorksheetIdIndexRoute;
 }
@@ -120,7 +120,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute;
   '/data': typeof DataRoute;
   '/home': typeof HomeRoute;
-  '/query-history': typeof QueryHistoryRoute;
+  '/queries-history': typeof QueriesHistoryRoute;
   '/profile-settings': typeof ProfileSettingsIndexRoute;
   '/sql-editor/$worksheetId': typeof SqlEditorWorksheetIdIndexRoute;
 }
@@ -130,7 +130,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute;
   '/data': typeof DataRoute;
   '/home': typeof HomeRoute;
-  '/query-history': typeof QueryHistoryRoute;
+  '/queries-history': typeof QueriesHistoryRoute;
   '/profile-settings/': typeof ProfileSettingsIndexRoute;
   '/sql-editor/$worksheetId/': typeof SqlEditorWorksheetIdIndexRoute;
 }
@@ -141,7 +141,7 @@ export interface FileRouteTypes {
     | '/'
     | '/data'
     | '/home'
-    | '/query-history'
+    | '/queries-history'
     | '/profile-settings'
     | '/sql-editor/$worksheetId';
   fileRoutesByTo: FileRoutesByTo;
@@ -149,7 +149,7 @@ export interface FileRouteTypes {
     | '/'
     | '/data'
     | '/home'
-    | '/query-history'
+    | '/queries-history'
     | '/profile-settings'
     | '/sql-editor/$worksheetId';
   id:
@@ -157,7 +157,7 @@ export interface FileRouteTypes {
     | '/'
     | '/data'
     | '/home'
-    | '/query-history'
+    | '/queries-history'
     | '/profile-settings/'
     | '/sql-editor/$worksheetId/';
   fileRoutesById: FileRoutesById;
@@ -167,7 +167,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
   DataRoute: typeof DataRoute;
   HomeRoute: typeof HomeRoute;
-  QueryHistoryRoute: typeof QueryHistoryRoute;
+  QueriesHistoryRoute: typeof QueriesHistoryRoute;
   ProfileSettingsIndexRoute: typeof ProfileSettingsIndexRoute;
   SqlEditorWorksheetIdIndexRoute: typeof SqlEditorWorksheetIdIndexRoute;
 }
@@ -176,7 +176,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DataRoute: DataRoute,
   HomeRoute: HomeRoute,
-  QueryHistoryRoute: QueryHistoryRoute,
+  QueriesHistoryRoute: QueriesHistoryRoute,
   ProfileSettingsIndexRoute: ProfileSettingsIndexRoute,
   SqlEditorWorksheetIdIndexRoute: SqlEditorWorksheetIdIndexRoute,
 };
@@ -194,7 +194,7 @@ export const routeTree = rootRoute
         "/",
         "/data",
         "/home",
-        "/query-history",
+        "/queries-history",
         "/profile-settings/",
         "/sql-editor/$worksheetId/"
       ]
@@ -208,8 +208,8 @@ export const routeTree = rootRoute
     "/home": {
       "filePath": "home.tsx"
     },
-    "/query-history": {
-      "filePath": "query-history.tsx"
+    "/queries-history": {
+      "filePath": "queries-history.tsx"
     },
     "/profile-settings/": {
       "filePath": "profile-settings/index.tsx"
