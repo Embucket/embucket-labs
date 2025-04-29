@@ -251,7 +251,9 @@ impl CatalogProviderList for EmbucketCatalogList {
             should_refresh: false,
             name,
         };
-        Some(catalog.catalog)
+        self.catalogs
+            .insert(catalog.name.clone(), catalog)
+            .map(|c| c.catalog)
     }
 
     fn catalog_names(&self) -> Vec<String> {
