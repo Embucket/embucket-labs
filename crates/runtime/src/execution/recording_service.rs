@@ -1,7 +1,7 @@
 use crate::execution::error::ExecutionResult;
 use crate::execution::models::ColumnInfo;
 use crate::execution::query::QueryContext;
-use crate::execution::service::{Execution, Service};
+use crate::execution::service::{CoreExecutionService, ExecutionService};
 use crate::execution::utils::Config;
 use crate::http::ui::queries::models::ResultSet;
 use arrow::csv::reader::Format;
@@ -11,19 +11,19 @@ use embucket_history::{QueryRecord, QueryRecordActions, WorksheetsStore};
 use embucket_metastore::TableIdent as MetastoreTableIdent;
 use std::sync::Arc;
 
-pub struct History {
-    pub execution: Arc<Execution>,
+pub struct RecordingExecutionService {
+    pub execution: Arc<CoreExecutionService>,
     pub store: Arc<dyn WorksheetsStore>,
 }
 
-impl History {
-    pub fn new(execution: Arc<Execution>, store: Arc<dyn WorksheetsStore>) -> Self {
+impl RecordingExecutionService {
+    pub fn new(execution: Arc<CoreExecutionService>, store: Arc<dyn WorksheetsStore>) -> Self {
         Self { execution, store }
     }
 }
 
 #[async_trait::async_trait]
-impl Service for History {
+impl ExecutionService for RecordingExecutionService {
     async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
         self.execution.create_session(session_id).await
     }

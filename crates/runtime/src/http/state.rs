@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::execution::service::Service;
+use crate::execution::service::ExecutionService;
 use crate::http::config::WebConfig;
 
 // Define a State struct that contains shared services or repositories
@@ -12,7 +12,7 @@ use crate::http::config::WebConfig;
 pub struct AppState {
     pub metastore: Arc<dyn Metastore + Send + Sync>,
     pub history_store: Arc<dyn WorksheetsStore + Send + Sync>,
-    pub execution_svc: Arc<dyn Service>,
+    pub execution_svc: Arc<dyn ExecutionService>,
     pub dbt_sessions: Arc<Mutex<HashMap<String, String>>>,
     pub config: Arc<WebConfig>,
 }
@@ -22,7 +22,7 @@ impl AppState {
     pub fn new(
         metastore: Arc<dyn Metastore + Send + Sync>,
         history_store: Arc<dyn WorksheetsStore + Send + Sync>,
-        execution_svc: Arc<dyn Service>,
+        execution_svc: Arc<dyn ExecutionService>,
         config: Arc<WebConfig>,
     ) -> Self {
         Self {

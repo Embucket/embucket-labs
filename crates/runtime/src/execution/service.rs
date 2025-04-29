@@ -24,7 +24,7 @@ use uuid::Uuid;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 #[async_trait::async_trait]
-pub trait Service: Send + Sync {
+pub trait ExecutionService: Send + Sync {
     async fn create_session(&self, session_id: String) -> ExecutionResult<()>;
     async fn delete_session(&self, session_id: String) -> ExecutionResult<()>;
     async fn query(
@@ -45,13 +45,13 @@ pub trait Service: Send + Sync {
     fn config(&self) -> &Config;
 }
 
-pub struct Execution {
+pub struct CoreExecutionService {
     metastore: Arc<dyn Metastore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<UserSession>>>>,
     config: Config,
 }
 
-impl Execution {
+impl CoreExecutionService {
     pub fn new(metastore: Arc<dyn Metastore>, config: Config) -> Self {
         Self {
             metastore,
@@ -61,7 +61,7 @@ impl Execution {
     }
 }
 #[async_trait::async_trait]
-impl Service for Execution {
+impl ExecutionService for CoreExecutionService {
     #[tracing::instrument(level = "debug", skip(self))]
     async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
         let session_exists = { self.df_sessions.read().await.contains_key(&session_id) };
