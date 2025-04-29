@@ -8,6 +8,6 @@ pub mod service;
 pub mod session;
 pub mod utils;
 
+pub mod history;
 #[cfg(test)]
 pub mod tests;
-pub mod history;
