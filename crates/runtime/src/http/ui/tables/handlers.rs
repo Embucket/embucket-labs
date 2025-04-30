@@ -138,7 +138,7 @@ pub async fn get_table_columns(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> TablesResult<Json<TableColumnsResponse>> {
-    let context = QueryContext::new(Some(database_name.clone()), Some(schema_name.clone()));
+    let context = QueryContext::new(Some(database_name.clone()), Some(schema_name.clone()), None);
     let sql_string = format!("SELECT * FROM {database_name}.{schema_name}.{table_name} LIMIT 0");
     let (_, column_infos) = state
         .execution_svc
@@ -191,7 +191,7 @@ pub async fn get_table_preview_data(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> TablesResult<Json<TablePreviewDataResponse>> {
-    let context = QueryContext::new(Some(database_name.clone()), Some(schema_name.clone()));
+    let context = QueryContext::new(Some(database_name.clone()), Some(schema_name.clone()), None);
     let ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     let column_names = match state.metastore.get_table(&ident).await {
         Ok(Some(rw_object)) => {

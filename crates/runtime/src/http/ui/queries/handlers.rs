@@ -85,6 +85,7 @@ pub async fn query(
             .context
             .as_ref()
             .and_then(|c| c.get("schema").cloned()),
+        payload.worksheet_id,
     );
 
     //TODO: map to result correctly without using duplicate code
@@ -124,11 +125,11 @@ pub async fn query(
         }
     }
 
-    // add query record
-    if let Err(err) = state.history_store.add_query(&query_record).await {
-        // do not raise error, just log ?
-        tracing::error!("{err}");
-    }
+    // // add query record
+    // if let Err(err) = state.history_store.add_query(&query_record).await {
+    //     // do not raise error, just log ?
+    //     tracing::error!("{err}");
+    // }
 
     if let Err(err) = query_res {
         Err(QueriesAPIError::Query {
