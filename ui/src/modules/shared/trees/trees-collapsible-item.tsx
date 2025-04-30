@@ -5,27 +5,31 @@ import type { SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { SidebarMenuButton, SidebarMenuSub } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
-interface SqlEditorLeftPanelTreeCollapsibleItemProps {
+interface TreeCollapsibleItemProps {
   icon: LucideIcon;
   label: string;
   triggerComponent?: typeof SidebarMenuButton | typeof SidebarMenuSubButton;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  isActive?: boolean;
   className?: string;
   triggerClassName?: string;
   contentClassName?: string;
+  onClick?: () => void;
 }
 
-export function SqlEditorLeftPanelTreeCollapsibleItem({
+export function TreeCollapsibleItem({
   icon: Icon,
   label,
   triggerComponent: TriggerComponent = SidebarMenuButton,
   children,
   defaultOpen = true,
+  isActive,
   className,
   triggerClassName,
   contentClassName,
-}: SqlEditorLeftPanelTreeCollapsibleItemProps) {
+  onClick,
+}: TreeCollapsibleItemProps) {
   return (
     <Collapsible
       defaultOpen={defaultOpen}
@@ -35,7 +39,14 @@ export function SqlEditorLeftPanelTreeCollapsibleItem({
       )}
     >
       <CollapsibleTrigger asChild>
-        <TriggerComponent className={cn('hover:bg-sidebar-secondary-accent', triggerClassName)}>
+        <TriggerComponent
+          className={cn(
+            'hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!',
+            triggerClassName,
+          )}
+          onClick={onClick}
+          isActive={isActive}
+        >
           <ChevronRight className="transition-transform" />
           <Icon />
           <span className="truncate">{label}</span>

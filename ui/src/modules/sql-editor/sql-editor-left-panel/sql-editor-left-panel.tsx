@@ -25,11 +25,8 @@ export const SqlEditorLeftPanel = () => {
   const leftPanelTab = useSqlEditorSettingsStore((state) => state.leftPanelTab);
   const setLeftPanelTab = useSqlEditorSettingsStore((state) => state.setLeftPanelTab);
 
-  const {
-    data: { items: navigationTrees } = {},
-    refetch: refetchNavigationTrees,
-    isFetching: isFetchingNavigationTrees,
-  } = useGetNavigationTrees();
+  const { refetch: refetchNavigationTrees, isFetching: isFetchingNavigationTrees } =
+    useGetNavigationTrees();
   const {
     data: { items: worksheets } = {},
     refetch: refetchWorksheets,
@@ -77,10 +74,7 @@ export const SqlEditorLeftPanel = () => {
               <TabsContent value="databases" className="h-full">
                 <ResizablePanelGroup direction="vertical">
                   <SqlEditorResizablePanel minSize={10} order={1} defaultSize={100}>
-                    <SqlEditorLeftPanelTrees
-                      navigationTrees={navigationTrees ?? []}
-                      isFetchingNavigationTrees={isFetchingNavigationTrees}
-                    />
+                    <SqlEditorLeftPanelTrees />
                   </SqlEditorResizablePanel>
                   {selectedTree && <SqlEditorResizableHandle />}
                   <SqlEditorResizablePanel
