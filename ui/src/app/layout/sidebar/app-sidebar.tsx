@@ -57,10 +57,9 @@ const sidebarNavItems: SidebarNavOption[] = [
   {
     name: 'Data',
     linkProps: {
-      to: '/data',
+      to: '/databases',
     },
     Icon: Database,
-    disabled: true,
   },
 ];
 
