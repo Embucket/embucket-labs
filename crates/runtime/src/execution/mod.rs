@@ -8,5 +8,6 @@ pub mod service;
 pub mod session;
 pub mod utils;
 
+pub mod recording_service;
 #[cfg(test)]
 pub mod tests;

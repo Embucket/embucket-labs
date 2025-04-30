@@ -198,7 +198,7 @@ async fn test_context_name_injection() {
 
     let query2 = session.query(
         "SELECT * from table2",
-        QueryContext::new(Some("db2".to_string()), Some("sch2".to_string())),
+        QueryContext::new(Some("db2".to_string()), Some("sch2".to_string()), None),
     );
     let query_statement2 = if let DFStatement::Statement(statement) =
         query2.parse_query().expect("Failed to parse query")
