@@ -48,7 +48,6 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::session::UserSession;
 use super::utils::{is_logical_plan_effectively_empty, NormalizedIdent};
 use crate::execution::datafusion::visitors::{functions_rewriter, json_element};
-use embucket_history::WorksheetId;
 use tracing_attributes::instrument;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -59,14 +58,8 @@ pub struct QueryContext {
 
 impl QueryContext {
     #[must_use]
-    pub const fn new(
-        database: Option<String>,
-        schema: Option<String>,
-    ) -> Self {
-        Self {
-            database,
-            schema,
-        }
+    pub const fn new(database: Option<String>, schema: Option<String>) -> Self {
+        Self { database, schema }
     }
 }
 
