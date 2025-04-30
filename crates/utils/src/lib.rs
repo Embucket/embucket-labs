@@ -8,9 +8,9 @@ use iterable::IterableEntity;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::de;
 use serde_json::ser;
-use slatedb::db::Db as SlateDb;
-use slatedb::db_iter::DbIterator;
-use slatedb::error::SlateDBError;
+use slatedb::Db as SlateDb;
+use slatedb::DbIterator;
+use slatedb::SlateDBError;
 use snafu::prelude::*;
 use std::ops::RangeBounds;
 use std::string::ToString;
@@ -108,7 +108,7 @@ impl Db {
     pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
         let serialized = ser::to_vec(value).context(SerializeValueSnafu)?;
         self.0
-            .put(key.as_bytes(), serialized.as_ref())
+            .put::<&[u8], &[u8]>(key.as_bytes(), serialized.as_ref())
             .await
             .context(KeyPutSnafu {
                 key: key.to_string(),
@@ -198,7 +198,7 @@ impl Db {
     ) -> Result<()> {
         let serialized = ser::to_vec(entity).context(SerializeValueSnafu)?;
         self.0
-            .put(entity.key().as_ref(), serialized.as_ref())
+            .put::<&[u8], &[u8]>(entity.key().as_ref(), serialized.as_ref())
             .await
             .context(DatabaseSnafu)
     }

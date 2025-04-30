@@ -21,7 +21,6 @@ use iceberg_rust::{
     },
     error::Error as IcebergError,
     materialized_view::MaterializedView as IcebergMaterializedView,
-    object_store::Bucket as IcebergBucket,
     spec::identifier::Identifier as IcebergIdentifier,
     table::Table as IcebergTable,
     view::View as IcebergView,
@@ -332,7 +331,7 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         match table {
             Some(table) => {
                 let iceberg_table =
-                    IcebergTable::new(identifier.clone(), self.clone(), table.metadata.clone())
+                    IcebergTable::new(identifier.clone(), self.clone(), self.object_store.clone(), table.metadata.clone())
                         .await?;
 
                 Ok(IcebergTabular::Table(iceberg_table))
@@ -370,7 +369,7 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .await
             .context(crate::execution::error::MetastoreSnafu)
             .map_err(|e| IcebergError::External(Box::new(e)))?;
-        Ok(IcebergTable::new(identifier.clone(), self.clone(), table.metadata.clone()).await?)
+        Ok(IcebergTable::new(identifier.clone(), self.clone(), self.object_store.clone(), table.metadata.clone()).await?)
     }
 
     /// Create a view with the catalog if it doesn't exist.
@@ -415,6 +414,7 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         let iceberg_table = IcebergTable::new(
             commit.identifier.clone(),
             self.clone(),
+            self.object_store.clone(),
             rwobject.metadata.clone(),
         )
         .await?;
@@ -448,10 +448,5 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         _metadata_location: &str,
     ) -> Result<IcebergTable, IcebergError> {
         todo!()
-    }
-
-    /// Return the associated object store for a bucket
-    fn object_store(&self, _bucket: IcebergBucket) -> Arc<dyn ObjectStore> {
-        self.object_store.clone()
     }
 }

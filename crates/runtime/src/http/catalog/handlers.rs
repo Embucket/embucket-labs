@@ -235,6 +235,8 @@ pub async fn get_config(
             ("uri".into(), format!("{catalog_url}/catalog")),
             ("prefix".into(), params.warehouse.unwrap_or_default()),
         ]),
+        // TODO: I think it can be useful and should be utilized somehow
+        endpoints: None,
     };
     Ok(Json(config))
 }

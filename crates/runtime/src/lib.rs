@@ -7,7 +7,7 @@ use embucket_utils::Db;
 use http::web_assets::run_web_assets_server;
 use http::{make_app, run_app};
 use object_store::{path::Path, ObjectStore};
-use slatedb::{config::DbOptions, db::Db as SlateDb};
+use slatedb::{config::DbOptions, Db as SlateDb};
 
 pub mod config;
 pub mod execution;

@@ -17,7 +17,7 @@ debug = true
 codegen-units = 16
 
 [workspace.dependencies]
-chrono = { version = "0.4.39", features = ["serde"] }
+chrono = { version = "0.4.41", default-features = false, features = ["serde",  "clock"] }
 futures = { version = "0.3" }
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
 axum = { version = "0.8.1", features = ["multipart", "macros"] }
@@ -25,16 +25,19 @@ axum-macros = "0.5"
 tokio = { version = "1", features = ["full"] }
 async-trait = { version = "0.1.84" }
 serde = { version = "1.0", features = ["derive"] }
-slatedb = { version = "0.4.0" }
+slatedb = { version = "0.6.1" }
 bytes = { version = "1.8.0" }
 snmalloc-rs = { version = "0.3" }
+# Should be updated to 0.12.0 after slate db update
 object_store = { version = "0.12.0", features = ["aws", "gcp", "azure"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
 tar = "0.4.44"
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1.0"
-iceberg = { git = "https://github.com/hansetag/iceberg-rust.git", branch = "ct/builder-upstream-20241002" }
+#iceberg = { git = "https://github.com/hansetag/iceberg-rust.git", branch = "ct/builder-upstream-20241002" }
+#iceberg = { version = "0.4.0" }
+iceberg = { git = "https://github.com/apache/iceberg-rust.git", rev="7a5ad1fcaf00d4638857812bab788105f6c60573"}
 tempfile = { version = "3" }
 utoipa = { version = "5.3.1", features = ["uuid", "chrono"] }
 utoipa-axum = { version = "0.2.0" }
@@ -53,11 +56,11 @@ datafusion-doc = { version = "47.0.0" }
 datafusion-macros = { version = "47.0.0" }
 
 datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "4a431bc89fb88731685609618799d392cb0a74e7" }
-iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b7934f3a3915f4344b2d6f941bd4e7795c04949e" }
-iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b7934f3a3915f4344b2d6f941bd4e7795c04949e" }
-iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b7934f3a3915f4344b2d6f941bd4e7795c04949e" }
-iceberg-s3tables-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b7934f3a3915f4344b2d6f941bd4e7795c04949e" }
-datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "b7934f3a3915f4344b2d6f941bd4e7795c04949e" }
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
+iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
+iceberg-s3tables-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
 
 [patch.crates-io]
 datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "6f50fcbce4358cee8ec66b3e34fb97c3494eea37" }
@@ -68,7 +71,10 @@ datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "6f
 datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "6f50fcbce4358cee8ec66b3e34fb97c3494eea37" }
 
 # issue #309
-chrono = { git = "https://github.com/chronotope/chrono.git", rev = "8b863490d88ba098038392c8aa930012ffd0c439" }
+#chrono = { git = "https://github.com/chronotope/chrono.git", rev = "8b863490d88ba098038392c8aa930012ffd0c439" }
+#chrono = { version = "0.4.38", default-features = false }
+#chrono = { version = "0.4.41", features = ["serde"] }
+
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }

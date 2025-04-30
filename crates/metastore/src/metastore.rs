@@ -786,7 +786,7 @@ mod tests {
         schema::Schema as IcebergSchema,
         types::{PrimitiveType, StructField, StructType, Type},
     };
-    use slatedb::db::Db as SlateDb;
+    use slatedb::Db as SlateDb;
     use std::sync::Arc;
 
     fn insta_filters() -> Vec<(&'static str, &'static str)> {

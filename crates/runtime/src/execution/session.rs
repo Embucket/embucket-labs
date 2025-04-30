@@ -17,9 +17,13 @@ use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_functions_json::register_all as register_json_udfs;
+use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
-use embucket_metastore::Metastore;
-use geodatafusion::udf::native::register_native as register_geo_native;
+use embucket_metastore::error::MetastoreError;
+use embucket_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
+use embucket_utils::scan_iterator::ScanIterator;
+// TODO: We need to fix this after geodatafusion is updated to datafusion 47
+//use geodatafusion::udf::native::register_native as register_geo_native;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
 use snafu::ResultExt;
@@ -60,15 +64,15 @@ impl UserSession {
             .with_default_features()
             .with_runtime_env(Arc::new(runtime_config))
             .with_catalog_list(catalog_list_impl.clone())
-            .with_query_planner(Arc::new(IcebergQueryPlanner {}))
+            .with_query_planner(Arc::new(IcebergQueryPlanner::new()))
             .with_type_planner(Arc::new(CustomTypePlanner {}))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
             .build();
         let mut ctx = SessionContext::new_with_state(state);
         register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         register_json_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
-        register_geo_native(&ctx);
-        register_geo_udfs(&ctx);
+        //register_geo_native(&ctx);
+        //register_geo_udfs(&ctx);
 
         catalog_list_impl.register_catalogs().await?;
         catalog_list_impl.refresh().await?;

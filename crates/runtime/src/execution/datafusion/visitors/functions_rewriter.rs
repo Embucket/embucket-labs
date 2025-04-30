@@ -67,7 +67,7 @@ impl VisitorMut for FunctionsRewriter {
                         arg_list.args.insert(
                             0,
                             FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                                SingleQuotedString(arg.to_string()),
+                                SingleQuotedString(arg.to_string()).into(),
                             ))),
                         );
                     }
@@ -79,7 +79,7 @@ impl VisitorMut for FunctionsRewriter {
                             args.iter_mut().next()
                         {
                             if let Expr::Identifier(Ident { value, .. }) = ident {
-                                *ident = Expr::Value(SingleQuotedString(value.clone()));
+                                *ident = Expr::Value(SingleQuotedString(value.clone()).into());
                             }
                         }
                     }
@@ -87,7 +87,7 @@ impl VisitorMut for FunctionsRewriter {
                 }
                 _ => func_name,
             };
-            func.name = ObjectName(vec![Ident::new(name)]);
+            func.name = ObjectName::from(vec![Ident::new(name)]);
         }
         std::ops::ControlFlow::Continue(())
     }

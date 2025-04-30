@@ -35,7 +35,7 @@ pub enum MetastoreError {
 
     #[snafu(display("SlateDB error: {source}"))]
     SlateDB {
-        source: slatedb::error::SlateDBError,
+        source: slatedb::SlateDBError,
     },
 
     #[snafu(display("SlateDB error: {source}"))]

@@ -62,13 +62,13 @@ fn convert_json_access(expr: ASTExpr) -> ASTExpr {
             for elem in path.path {
                 let key_expr = match elem {
                     JsonPathElem::Dot { key, .. } => {
-                        ASTExpr::Value(ASTValue::SingleQuotedString(key))
+                        ASTExpr::Value(ASTValue::SingleQuotedString(key).into())
                     }
                     JsonPathElem::Bracket { key } => key,
                 };
 
                 base = ASTExpr::Function(Function {
-                    name: ObjectName(vec![Ident::new("json_get")]),
+                    name: ObjectName::from(vec![Ident::new("json_get")]),
                     args: FunctionArguments::List(FunctionArgumentList {
                         args: vec![
                             FunctionArg::Unnamed(FunctionArgExpr::Expr(base)),

@@ -12,9 +12,10 @@ use datafusion_doc::Documentation;
 use datafusion_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use geo_traits::{LineStringTrait, MultiPointTrait, PointTrait};
 use geoarrow::array::{
-    AsNativeArray, CoordType, LineStringArray, LineStringBuilder, MultiPointArray, PointArray,
+    AsNativeArray, LineStringArray, LineStringBuilder, MultiPointArray, PointArray,
 };
-use geoarrow::datatypes::{Dimension, NativeType};
+use geoarrow_schema::{CoordType, Dimension};
+use geoarrow::datatypes::{NativeType};
 use geoarrow::error::GeoArrowError;
 use geoarrow::trait_::ArrayAccessor;
 use geoarrow::ArrayBase;
