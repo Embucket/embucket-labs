@@ -12,13 +12,13 @@ use embucket_metastore::TableIdent as MetastoreTableIdent;
 use std::sync::Arc;
 
 pub struct RecordingExecutionService {
-    pub execution: Arc<CoreExecutionService>,
+    pub execution: Arc<dyn ExecutionService>,
     pub store: Arc<dyn WorksheetsStore>,
 }
 
 //TODO: add tests
 impl RecordingExecutionService {
-    pub fn new(execution: Arc<CoreExecutionService>, store: Arc<dyn WorksheetsStore>) -> Self {
+    pub fn new(execution: Arc<dyn ExecutionService>, store: Arc<dyn WorksheetsStore>) -> Self {
         Self { execution, store }
     }
 }
