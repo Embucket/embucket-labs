@@ -1,4 +1,4 @@
-use crate::execution::catalog::catalogs::embucket::block_on_with_fallback;
+use crate::execution::catalog::catalogs::embucket::block_in_new_runtime;
 use async_trait::async_trait;
 use datafusion::catalog::{SchemaProvider, TableProvider};
 use datafusion_common::DataFusionError;
@@ -40,7 +40,7 @@ impl SchemaProvider for EmbucketSchema {
         let database = self.database.clone();
         let schema = self.schema.to_string();
 
-        block_on_with_fallback(async move {
+        block_in_new_runtime(async move {
             match metastore
                 .iter_tables(&SchemaIdent::new(database, schema))
                 .collect()
@@ -80,7 +80,7 @@ impl SchemaProvider for EmbucketSchema {
         let schema = self.schema.clone();
         let table = name.to_string();
 
-        block_on_with_fallback(async move {
+        block_in_new_runtime(async move {
             let ident = TableIdent::new(&database, &schema, &table);
             iceberg_catalog
                 .tabular_exists(&ident.to_iceberg_ident())
