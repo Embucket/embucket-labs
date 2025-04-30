@@ -1,11 +1,6 @@
-use std::{
-    any::Any,
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
-
-use crate::execution::catalogs::catalog::DFCatalog;
-use crate::execution::catalogs::iceberg_catalog::IcebergBridge;
+use super::catalogs::embucket::catalog::EmbucketCatalog;
+use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
+use super::catalogs::embucket::{CatalogProviderCache, SchemaProviderCache, TableProviderCache};
 use crate::execution::error::{self as ex_error, ExecutionError, ExecutionResult};
 use dashmap::DashMap;
 use datafusion::{
@@ -24,30 +19,31 @@ use iceberg_rust::{
 use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
 use snafu::ResultExt;
+use std::any::Any;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use url::Url;
 
 pub const DEFAULT_CATALOG: &str = "embucket";
 
-pub type TableProviderCache = DashMap<String, Arc<dyn TableProvider>>;
-pub type SchemaProviderCache = DashMap<String, TableProviderCache>;
-pub type CatalogProviderCache = DashMap<String, SchemaProviderCache>;
-
 #[derive(Clone)]
-pub struct DFMetastore {
+pub struct EmbucketCatalogList {
     pub metastore: Arc<dyn Metastore>,
-    pub mirror: Arc<CatalogProviderCache>,
     pub table_object_store: Arc<DashMap<String, Arc<dyn ObjectStore>>>,
+    pub cache: Arc<CatalogProviderCache>,
     pub catalogs: DashMap<String, Arc<dyn CatalogProvider>>,
 }
 
-impl DFMetastore {
+impl EmbucketCatalogList {
     pub fn new(metastore: Arc<dyn Metastore>) -> Self {
         let table_object_store: DashMap<String, Arc<dyn ObjectStore>> = DashMap::new();
         table_object_store.insert("file://".to_string(), Arc::new(LocalFileSystem::new()));
         Self {
             metastore,
-            mirror: Arc::new(DashMap::new()),
             table_object_store: Arc::new(table_object_store),
+            cache: Arc::new(DashMap::default()),
             catalogs: DashMap::default(),
         }
     }
@@ -66,9 +62,9 @@ impl DFMetastore {
             })?;
         for database in databases {
             let db_entry = self
-                .mirror
+                .cache
                 .entry(database.ident.clone())
-                .or_insert(SchemaProviderCache::default());
+                .or_insert(Arc::new(SchemaProviderCache::default()));
             let db_seen_entry = seen.entry(database.ident.clone()).or_default();
             let schemas = self
                 .metastore
@@ -81,7 +77,7 @@ impl DFMetastore {
             for schema in schemas {
                 let schema_entry = db_entry
                     .entry(schema.ident.schema.clone())
-                    .insert(TableProviderCache::default());
+                    .insert(Arc::new(TableProviderCache::default()));
                 let schema_seen_entry = db_seen_entry
                     .entry(schema.ident.schema.clone())
                     .or_default();
@@ -138,7 +134,7 @@ impl DFMetastore {
                             ) as Arc<dyn TableProvider>
                         }
                         embucket_metastore::TableFormat::Iceberg => {
-                            let bridge = Arc::new(IcebergBridge {
+                            let bridge = Arc::new(EmbucketIcebergCatalog {
                                 metastore: self.metastore.clone(),
                                 database: table.ident.clone().database,
                                 object_store: table_object_store.clone(),
@@ -164,7 +160,7 @@ impl DFMetastore {
             }
         }
 
-        for db in self.mirror.iter_mut() {
+        for db in self.cache.iter_mut() {
             if seen.contains_key(db.key()) {
                 for schema in db.iter_mut() {
                     if seen[db.key()].contains_key(schema.key()) {
@@ -183,14 +179,30 @@ impl DFMetastore {
                     }
                 }
             } else {
-                self.mirror.remove(db.key());
+                self.cache.remove(db.key());
             }
         }
         Ok(())
     }
+
+    pub fn embucket_catalog(&self, name: &str) -> ExecutionResult<Arc<dyn CatalogProvider>> {
+        let iceberg_catalog = EmbucketIcebergCatalog::new(self.metastore.clone(), name.to_string())
+            .context(ex_error::MetastoreSnafu)?;
+        let schemas_cache = self
+            .cache
+            .get(name)
+            .map_or_else(|| Arc::new(DashMap::new()), |v| Arc::clone(v.value()));
+        let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog {
+            database: name.to_string(),
+            metastore: self.metastore.clone(),
+            schemas_cache,
+            iceberg_catalog: Arc::new(iceberg_catalog),
+        });
+        Ok(catalog)
+    }
 }
 
-impl std::fmt::Debug for DFMetastore {
+impl std::fmt::Debug for EmbucketCatalogList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DFMetastore").finish()
     }
@@ -207,7 +219,7 @@ fn get_url_key(url: &Url) -> String {
     )
 }
 
-impl ObjectStoreRegistry for DFMetastore {
+impl ObjectStoreRegistry for EmbucketCatalogList {
     fn register_store(
         &self,
         url: &Url,
@@ -229,8 +241,7 @@ impl ObjectStoreRegistry for DFMetastore {
     }
 }
 
-// Explore using AsyncCatalogProviderList alongside CatalogProviderList
-impl CatalogProviderList for DFMetastore {
+impl CatalogProviderList for EmbucketCatalogList {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -244,31 +255,22 @@ impl CatalogProviderList for DFMetastore {
     }
 
     fn catalog_names(&self) -> Vec<String> {
-        let mut catalog_names = self
-            .catalogs
-            .iter()
-            .map(|c| c.key().clone())
-            .collect::<Vec<String>>();
-        catalog_names.extend(self.mirror.iter().map(|e| e.key().clone()));
-        catalog_names
+        let mut catalog_names: HashSet<String> =
+            self.catalogs.iter().map(|c| c.key().clone()).collect();
+        catalog_names.extend(self.cache.iter().map(|e| e.key().clone()));
+        catalog_names.into_iter().collect()
     }
 
     fn catalog(&self, name: &str) -> Option<Arc<dyn CatalogProvider>> {
         if let Some(catalog) = self.catalogs.get(name) {
             return Some(catalog.value().clone());
         }
-        if !self.mirror.contains_key(name) {
-            return None;
+        if self.cache.contains_key(name) {
+            if let Ok(catalog) = self.embucket_catalog(name) {
+                self.catalogs.insert(name.to_string(), catalog.clone());
+                return Some(catalog);
+            }
         }
-        let iceberg_catalog = IcebergBridge::new(self.metastore.clone(), name.to_string())
-            .ok()
-            .map(Arc::new)?;
-        let catalog: Arc<dyn CatalogProvider> = Arc::new(DFCatalog {
-            ident: name.to_string(),
-            metastore: self.metastore.clone(),
-            mirror: self.mirror.clone(),
-            iceberg_catalog,
-        });
-        Some(catalog)
+        None
     }
 }
