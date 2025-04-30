@@ -276,13 +276,13 @@ async fn test_recording_service() {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history_store = Arc::new(SlateDBWorksheetsStore::new(db));
-    let execution = Arc::new(CoreExecutionService::new(
+    let execution_svc = Arc::new(CoreExecutionService::new(
         metastore.clone(),
         Config {
             dbt_serialization_format: DataSerializationFormat::Json,
         },
     ));
-    let execution_svc = RecordingExecutionService::new(execution.clone(), history_store.clone());
+    let execution_svc = RecordingExecutionService::new(execution_svc.clone(), history_store.clone());
 
     metastore
         .create_volume(
