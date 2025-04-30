@@ -14,7 +14,6 @@ import { Route as rootRoute } from './routes/__root';
 import { Route as QueriesHistoryImport } from './routes/queries-history';
 import { Route as HomeImport } from './routes/home';
 import { Route as IndexImport } from './routes/index';
-import { Route as ProfileSettingsIndexImport } from './routes/profile-settings/index';
 import { Route as DatabasesIndexImport } from './routes/databases/index';
 import { Route as SqlEditorWorksheetIdIndexImport } from './routes/sql-editor/$worksheetId.index';
 import { Route as DatabasesDatabaseIdSchemasIndexImport } from './routes/databases/$databaseId.schemas.index';
@@ -38,12 +37,6 @@ const HomeRoute = HomeImport.update({
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
-} as any);
-
-const ProfileSettingsIndexRoute = ProfileSettingsIndexImport.update({
-  id: '/profile-settings/',
-  path: '/profile-settings/',
   getParentRoute: () => rootRoute,
 } as any);
 
@@ -112,13 +105,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DatabasesIndexImport;
       parentRoute: typeof rootRoute;
     };
-    '/profile-settings/': {
-      id: '/profile-settings/';
-      path: '/profile-settings';
-      fullPath: '/profile-settings';
-      preLoaderRoute: typeof ProfileSettingsIndexImport;
-      parentRoute: typeof rootRoute;
-    };
     '/sql-editor/$worksheetId/': {
       id: '/sql-editor/$worksheetId/';
       path: '/sql-editor/$worksheetId';
@@ -157,7 +143,6 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRoute;
   '/queries-history': typeof QueriesHistoryRoute;
   '/databases': typeof DatabasesIndexRoute;
-  '/profile-settings': typeof ProfileSettingsIndexRoute;
   '/sql-editor/$worksheetId': typeof SqlEditorWorksheetIdIndexRoute;
   '/databases/$databaseId/schemas': typeof DatabasesDatabaseIdSchemasIndexRoute;
   '/databases/$databaseId/schemas/$schemaId/tables': typeof DatabasesDatabaseIdSchemasSchemaIdTablesIndexRoute;
@@ -169,7 +154,6 @@ export interface FileRoutesByTo {
   '/home': typeof HomeRoute;
   '/queries-history': typeof QueriesHistoryRoute;
   '/databases': typeof DatabasesIndexRoute;
-  '/profile-settings': typeof ProfileSettingsIndexRoute;
   '/sql-editor/$worksheetId': typeof SqlEditorWorksheetIdIndexRoute;
   '/databases/$databaseId/schemas': typeof DatabasesDatabaseIdSchemasIndexRoute;
   '/databases/$databaseId/schemas/$schemaId/tables': typeof DatabasesDatabaseIdSchemasSchemaIdTablesIndexRoute;
@@ -182,7 +166,6 @@ export interface FileRoutesById {
   '/home': typeof HomeRoute;
   '/queries-history': typeof QueriesHistoryRoute;
   '/databases/': typeof DatabasesIndexRoute;
-  '/profile-settings/': typeof ProfileSettingsIndexRoute;
   '/sql-editor/$worksheetId/': typeof SqlEditorWorksheetIdIndexRoute;
   '/databases/$databaseId/schemas/': typeof DatabasesDatabaseIdSchemasIndexRoute;
   '/databases/$databaseId/schemas/$schemaId/tables/': typeof DatabasesDatabaseIdSchemasSchemaIdTablesIndexRoute;
@@ -196,7 +179,6 @@ export interface FileRouteTypes {
     | '/home'
     | '/queries-history'
     | '/databases'
-    | '/profile-settings'
     | '/sql-editor/$worksheetId'
     | '/databases/$databaseId/schemas'
     | '/databases/$databaseId/schemas/$schemaId/tables'
@@ -207,7 +189,6 @@ export interface FileRouteTypes {
     | '/home'
     | '/queries-history'
     | '/databases'
-    | '/profile-settings'
     | '/sql-editor/$worksheetId'
     | '/databases/$databaseId/schemas'
     | '/databases/$databaseId/schemas/$schemaId/tables'
@@ -218,7 +199,6 @@ export interface FileRouteTypes {
     | '/home'
     | '/queries-history'
     | '/databases/'
-    | '/profile-settings/'
     | '/sql-editor/$worksheetId/'
     | '/databases/$databaseId/schemas/'
     | '/databases/$databaseId/schemas/$schemaId/tables/'
@@ -231,7 +211,6 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRoute;
   QueriesHistoryRoute: typeof QueriesHistoryRoute;
   DatabasesIndexRoute: typeof DatabasesIndexRoute;
-  ProfileSettingsIndexRoute: typeof ProfileSettingsIndexRoute;
   SqlEditorWorksheetIdIndexRoute: typeof SqlEditorWorksheetIdIndexRoute;
   DatabasesDatabaseIdSchemasIndexRoute: typeof DatabasesDatabaseIdSchemasIndexRoute;
   DatabasesDatabaseIdSchemasSchemaIdTablesIndexRoute: typeof DatabasesDatabaseIdSchemasSchemaIdTablesIndexRoute;
@@ -243,7 +222,6 @@ const rootRouteChildren: RootRouteChildren = {
   HomeRoute: HomeRoute,
   QueriesHistoryRoute: QueriesHistoryRoute,
   DatabasesIndexRoute: DatabasesIndexRoute,
-  ProfileSettingsIndexRoute: ProfileSettingsIndexRoute,
   SqlEditorWorksheetIdIndexRoute: SqlEditorWorksheetIdIndexRoute,
   DatabasesDatabaseIdSchemasIndexRoute: DatabasesDatabaseIdSchemasIndexRoute,
   DatabasesDatabaseIdSchemasSchemaIdTablesIndexRoute:
@@ -266,7 +244,6 @@ export const routeTree = rootRoute
         "/home",
         "/queries-history",
         "/databases/",
-        "/profile-settings/",
         "/sql-editor/$worksheetId/",
         "/databases/$databaseId/schemas/",
         "/databases/$databaseId/schemas/$schemaId/tables/",
@@ -284,9 +261,6 @@ export const routeTree = rootRoute
     },
     "/databases/": {
       "filePath": "databases/index.tsx"
-    },
-    "/profile-settings/": {
-      "filePath": "profile-settings/index.tsx"
     },
     "/sql-editor/$worksheetId/": {
       "filePath": "sql-editor/$worksheetId.index.tsx"
