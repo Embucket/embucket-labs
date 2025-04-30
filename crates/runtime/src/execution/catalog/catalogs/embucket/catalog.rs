@@ -1,15 +1,14 @@
-use std::{any::Any, sync::Arc};
-
 use super::schema::EmbucketSchema;
-use super::SchemaProviderCache;
+use crate::execution::catalog::catalogs::embucket::block_on_with_fallback;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
-use embucket_metastore::Metastore;
+use embucket_metastore::{Metastore, SchemaIdent};
+use embucket_utils::scan_iterator::ScanIterator;
 use iceberg_rust::catalog::Catalog as IcebergCatalog;
+use std::{any::Any, sync::Arc};
 
 pub struct EmbucketCatalog {
     pub database: String,
     pub metastore: Arc<dyn Metastore>,
-    pub schemas_cache: Arc<SchemaProviderCache>,
     pub iceberg_catalog: Arc<dyn IcebergCatalog>,
 }
 
@@ -36,23 +35,45 @@ impl CatalogProvider for EmbucketCatalog {
     }
 
     fn schema_names(&self) -> Vec<String> {
-        self.schemas_cache
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect()
+        let metastore = self.metastore.clone();
+        let database = self.database.clone();
+
+        block_on_with_fallback(async move {
+            match metastore.iter_schemas(&database).collect().await {
+                Ok(schemas) => schemas
+                    .into_iter()
+                    .map(|s| s.ident.schema.clone())
+                    .collect(),
+                Err(_) => vec![],
+            }
+        })
+        .unwrap_or_else(|_| vec![])
     }
 
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
-        self.schemas_cache.get(name).map(|tables_cache| {
-            let tables_cache = Arc::clone(tables_cache.value());
-            let provider: Arc<dyn SchemaProvider> = Arc::new(EmbucketSchema {
-                database: self.database.clone(),
-                schema: name.to_string(),
-                metastore: self.metastore.clone(),
-                tables_cache,
-                iceberg_catalog: self.iceberg_catalog.clone(),
-            });
-            provider
+        let metastore = self.metastore.clone();
+        let iceberg_catalog = self.iceberg_catalog.clone();
+        let database = self.database.clone();
+        let schema_name = name.to_string();
+
+        block_on_with_fallback(async move {
+            match metastore
+                .get_schema(&SchemaIdent::new(database.clone(), schema_name.clone()))
+                .await
+            {
+                Ok(_) => {
+                    let schema = EmbucketSchema {
+                        database,
+                        schema: schema_name,
+                        metastore,
+                        iceberg_catalog,
+                    };
+                    let arc: Arc<dyn SchemaProvider> = Arc::new(schema);
+                    Some(arc)
+                }
+                Err(_) => None,
+            }
         })
+        .unwrap_or(None)
     }
 }
