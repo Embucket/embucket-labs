@@ -1,3 +1,4 @@
+use crate::execution::catalog::catalogs::embucket::block_on_with_fallback;
 use async_trait::async_trait;
 use datafusion::catalog::{SchemaProvider, TableProvider};
 use datafusion_common::DataFusionError;
@@ -39,62 +40,38 @@ impl SchemaProvider for EmbucketSchema {
         let database = self.database.clone();
         let schema = self.schema.to_string();
 
-        std::thread::spawn(move || {
-            let Ok(rt) = tokio::runtime::Runtime::new() else {
-                return vec![];
-            };
-            rt.block_on(async {
-                match metastore
-                    .iter_tables(&SchemaIdent::new(database, schema))
-                    .collect()
-                    .await
-                {
-                    Ok(tables) => tables.into_iter().map(|s| s.ident.table.clone()).collect(),
-                    Err(_) => vec![],
-                }
-            })
+        block_on_with_fallback(async move {
+            match metastore
+                .iter_tables(&SchemaIdent::new(database, schema))
+                .collect()
+                .await
+            {
+                Ok(tables) => tables.into_iter().map(|s| s.ident.table.clone()).collect(),
+                Err(_) => vec![],
+            }
         })
-        .join()
         .unwrap_or_else(|_| vec![])
     }
 
     async fn table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
-        let metastore = self.metastore.clone();
-        let iceberg_catalog = self.iceberg_catalog.clone();
-        let database = self.database.clone();
-        let schema = self.schema.clone();
-        let table = name.to_string();
-
-        std::thread::spawn(move || {
-            let Ok(rt) = tokio::runtime::Runtime::new() else {
-                return Err(DataFusionError::Execution(
-                    "Failed to create Tokio runtime".to_string(),
-                ));
-            };
-            rt.block_on(async move {
-                let ident = &TableIdent::new(&database, &schema, &table);
-
-                match metastore.get_table(ident).await {
-                    Ok(Some(table)) => {
-                        let iceberg_table = IcebergTable::new(
-                            ident.to_iceberg_ident(),
-                            iceberg_catalog,
-                            table.metadata.clone(),
-                        )
-                        .await
-                        .map_err(|e| DataFusionError::External(Box::new(e)))?;
-                        let tabular = IcebergTabular::Table(iceberg_table);
-                        let table_provider: Arc<dyn TableProvider> =
-                            Arc::new(IcebergDataFusionTable::new(tabular, None, None, None));
-                        Ok(Some(table_provider))
-                    }
-                    Ok(None) => Ok(None),
-                    Err(e) => Err(DataFusionError::External(Box::new(e))),
-                }
-            })
-        })
-        .join()
-        .map_err(|_| DataFusionError::Execution("Failed to join thread".to_string()))?
+        let ident = &TableIdent::new(&self.database.clone(), &self.schema.clone(), name);
+        match self.metastore.get_table(ident).await {
+            Ok(Some(table)) => {
+                let iceberg_table = IcebergTable::new(
+                    ident.to_iceberg_ident(),
+                    self.iceberg_catalog.clone(),
+                    table.metadata.clone(),
+                )
+                .await
+                .map_err(|e| DataFusionError::External(Box::new(e)))?;
+                let tabular = IcebergTabular::Table(iceberg_table);
+                let table_provider: Arc<dyn TableProvider> =
+                    Arc::new(IcebergDataFusionTable::new(tabular, None, None, None));
+                Ok(Some(table_provider))
+            }
+            Ok(None) => Ok(None),
+            Err(e) => Err(DataFusionError::External(Box::new(e))),
+        }
     }
 
     fn table_exist(&self, name: &str) -> bool {
@@ -103,19 +80,13 @@ impl SchemaProvider for EmbucketSchema {
         let schema = self.schema.clone();
         let table = name.to_string();
 
-        std::thread::spawn(move || {
-            let Ok(rt) = tokio::runtime::Runtime::new() else {
-                return false;
-            };
-            rt.block_on(async move {
-                let ident = TableIdent::new(&database, &schema, &table);
-                iceberg_catalog
-                    .tabular_exists(&ident.to_iceberg_ident())
-                    .await
-                    .unwrap_or(false)
-            })
+        block_on_with_fallback(async move {
+            let ident = TableIdent::new(&database, &schema, &table);
+            iceberg_catalog
+                .tabular_exists(&ident.to_iceberg_ident())
+                .await
+                .unwrap_or(false)
         })
-        .join()
         .unwrap_or(false)
     }
 }

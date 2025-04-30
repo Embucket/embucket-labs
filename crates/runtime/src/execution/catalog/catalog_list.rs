@@ -1,7 +1,7 @@
 use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
-use crate::execution::catalog::catalog::Catalog;
-use crate::execution::catalog::schema::Schema;
+use crate::execution::catalog::catalog::CachingCatalog;
+use crate::execution::catalog::schema::CachingSchema;
 use crate::execution::error::{self as ex_error, ExecutionError, ExecutionResult};
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::provider::SharedCredentialsProvider;
@@ -32,7 +32,7 @@ pub const DEFAULT_CATALOG: &str = "embucket";
 pub struct EmbucketCatalogList {
     pub metastore: Arc<dyn Metastore>,
     pub table_object_store: Arc<DashMap<String, Arc<dyn ObjectStore>>>,
-    pub catalogs: DashMap<String, Catalog>,
+    pub catalogs: DashMap<String, CachingCatalog>,
 }
 
 impl EmbucketCatalogList {
@@ -67,7 +67,7 @@ impl EmbucketCatalogList {
         let mut catalogs = self.internal_catalogs().await?;
 
         // S3 tables catalogs
-        catalogs.extend(self.s3_tables_catalogs().await?);
+        catalogs.extend(self.external_catalogs().await?);
 
         for catalog in catalogs {
             self.catalogs.insert(catalog.name.clone(), catalog);
@@ -75,7 +75,7 @@ impl EmbucketCatalogList {
         Ok(())
     }
 
-    pub async fn internal_catalogs(&self) -> ExecutionResult<Vec<Catalog>> {
+    pub async fn internal_catalogs(&self) -> ExecutionResult<Vec<CachingCatalog>> {
         self.metastore
             .iter_databases()
             .collect()
@@ -93,7 +93,7 @@ impl EmbucketCatalogList {
                     metastore: self.metastore.clone(),
                     iceberg_catalog: Arc::new(iceberg_catalog),
                 });
-                Ok(Catalog {
+                Ok(CachingCatalog {
                     catalog,
                     schemas_cache: DashMap::default(),
                     should_refresh: true,
@@ -103,7 +103,7 @@ impl EmbucketCatalogList {
             .collect()
     }
 
-    pub async fn s3_tables_catalogs(&self) -> ExecutionResult<Vec<Catalog>> {
+    pub async fn external_catalogs(&self) -> ExecutionResult<Vec<CachingCatalog>> {
         let volumes = self
             .metastore
             .iter_volumes()
@@ -150,7 +150,7 @@ impl EmbucketCatalogList {
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await
                 .context(ex_error::DataFusionSnafu)?;
-            catalogs.push(Catalog {
+            catalogs.push(CachingCatalog {
                 catalog: Arc::new(catalog),
                 schemas_cache: DashMap::new(),
                 should_refresh: false,
@@ -169,7 +169,7 @@ impl EmbucketCatalogList {
 
                 for schema in schemas {
                     if let Some(schema_provider) = catalog.catalog.schema(&schema) {
-                        let schema = Schema {
+                        let schema = CachingSchema {
                             schema: schema_provider,
                             tables_cache: DashMap::default(),
                             name: schema.to_string(),
@@ -245,7 +245,7 @@ impl CatalogProviderList for EmbucketCatalogList {
         name: String,
         catalog: Arc<dyn CatalogProvider>,
     ) -> Option<Arc<dyn CatalogProvider>> {
-        let catalog = Catalog {
+        let catalog = CachingCatalog {
             catalog,
             schemas_cache: DashMap::default(),
             should_refresh: false,

@@ -1,18 +1,18 @@
-use crate::execution::catalog::schema::Schema;
+use crate::execution::catalog::schema::CachingSchema;
 use dashmap::DashMap;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use std::{any::Any, sync::Arc};
 
 #[derive(Clone)]
-pub struct Catalog {
+pub struct CachingCatalog {
     pub catalog: Arc<dyn CatalogProvider>,
-    pub schemas_cache: DashMap<String, Arc<Schema>>,
+    pub schemas_cache: DashMap<String, Arc<CachingSchema>>,
     pub should_refresh: bool,
     pub name: String,
 }
 
 #[allow(clippy::missing_fields_in_debug)]
-impl std::fmt::Debug for Catalog {
+impl std::fmt::Debug for CachingCatalog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Catalog")
             .field("name", &self.name)
@@ -23,7 +23,7 @@ impl std::fmt::Debug for Catalog {
     }
 }
 
-impl CatalogProvider for Catalog {
+impl CatalogProvider for CachingCatalog {
     fn as_any(&self) -> &dyn Any {
         self
     }

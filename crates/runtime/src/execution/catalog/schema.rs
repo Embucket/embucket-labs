@@ -5,14 +5,14 @@ use datafusion_common::DataFusionError;
 use std::any::Any;
 use std::sync::Arc;
 
-pub struct Schema {
+pub struct CachingSchema {
     pub schema: Arc<dyn SchemaProvider>,
     pub name: String,
     pub tables_cache: DashMap<String, Arc<dyn TableProvider>>,
 }
 
 #[allow(clippy::missing_fields_in_debug)]
-impl std::fmt::Debug for Schema {
+impl std::fmt::Debug for CachingSchema {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Schema")
             .field("schema", &"")
@@ -23,7 +23,7 @@ impl std::fmt::Debug for Schema {
 }
 
 #[async_trait]
-impl SchemaProvider for Schema {
+impl SchemaProvider for CachingSchema {
     fn as_any(&self) -> &dyn Any {
         self
     }
