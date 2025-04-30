@@ -282,7 +282,8 @@ async fn test_recording_service() {
             dbt_serialization_format: DataSerializationFormat::Json,
         },
     ));
-    let execution_svc = RecordingExecutionService::new(execution_svc.clone(), history_store.clone());
+    let execution_svc =
+        RecordingExecutionService::new(execution_svc.clone(), history_store.clone());
 
     metastore
         .create_volume(
