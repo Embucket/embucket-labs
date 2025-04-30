@@ -15,7 +15,7 @@ export function QueriesHistoryPage() {
     <>
       <PageHeader title="Queries History" />
       <PageContent>
-        <div className="flex size-full flex-col p-4">
+        <div className="flex size-full flex-col">
           {queries?.length ? (
             <ScrollArea tableViewport>
               <QueriesHistoryTable queries={queries} isLoading={isFetching} />
@@ -23,6 +23,8 @@ export function QueriesHistoryPage() {
             </ScrollArea>
           ) : (
             <EmptyContainer
+              // TODO: Hardcode
+              className="min-h-[calc(100vh-32px-65px-32px)]"
               Icon={DatabaseZap}
               title="No Queries Found"
               description="No queries have been executed yet. Start querying data to see your history here."

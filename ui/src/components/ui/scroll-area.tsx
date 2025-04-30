@@ -4,11 +4,18 @@ import { cn } from '@/lib/utils';
 
 interface ScrollAreaProps extends React.ComponentProps<typeof ScrollAreaPrimitive.Root> {
   children: React.ReactNode;
-  // TODO: Not good, better do Viewport className
+  // TODO: Better to use viewportClassName instead of custom prop
   tableViewport?: boolean;
+  // viewportClassName?: string;
 }
 
-function ScrollArea({ className, children, tableViewport, ...props }: ScrollAreaProps) {
+function ScrollArea({
+  className,
+  children,
+  tableViewport,
+  // viewportClassName,
+  ...props
+}: ScrollAreaProps) {
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
@@ -20,6 +27,7 @@ function ScrollArea({ className, children, tableViewport, ...props }: ScrollArea
         className={cn(
           'ring-ring/10 dark:ring-ring/20 dark:outline-ring/40 outline-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] focus-visible:ring-4 focus-visible:outline-1',
           !tableViewport && '[&>div]:!block',
+          // viewportClassName,
         )}
       >
         {children}

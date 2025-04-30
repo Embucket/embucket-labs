@@ -23,12 +23,12 @@ export function HomePage() {
     <>
       <PageHeader title="Home" />
       <PageContent>
-        <div className="p-4">
+        <div className="mb-4">
           <p className="mb-2 text-3xl font-semibold">Welcome!</p>
           <p className="text-muted-foreground font-light">Nice seeing you here 😎</p>
         </div>
         <HomeActionButtons />
-        <div className="flex size-full flex-col p-4">
+        <div className="flex size-full flex-col">
           <p className="mb-4 font-semibold">Overview</p>
           <HomeDashboardMetrics dashboardData={dashboardData} />
 
@@ -41,6 +41,8 @@ export function HomePage() {
               </ScrollArea>
             ) : (
               <EmptyContainer
+                // TODO: Hardcode
+                className="min-h-[calc(100vh-200px-344px)]"
                 Icon={FileText}
                 title="No SQL Worksheets Created Yet"
                 description="Create your first worksheet to start querying data"

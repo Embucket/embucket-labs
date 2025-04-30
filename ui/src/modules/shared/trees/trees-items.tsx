@@ -1,11 +1,10 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 
-import { ScrollArea } from '@radix-ui/react-scroll-area';
 import { Database, Folder, FolderTree, Table } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
-import { ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   SidebarMenu,
   SidebarMenuButton,
