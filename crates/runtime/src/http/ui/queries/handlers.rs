@@ -84,8 +84,7 @@ pub async fn query(
         payload
             .context
             .as_ref()
-            .and_then(|c| c.get("schema").cloned()),
-        payload.worksheet_id,
+            .and_then(|c| c.get("schema").cloned())
     );
 
     //TODO: map to result correctly without using duplicate code

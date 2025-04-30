@@ -53,7 +53,6 @@ use tracing_attributes::instrument;
 pub struct QueryContext {
     pub database: Option<String>,
     pub schema: Option<String>,
-    pub worksheet_id: Option<WorksheetId>,
 }
 
 impl QueryContext {
@@ -61,12 +60,10 @@ impl QueryContext {
     pub const fn new(
         database: Option<String>,
         schema: Option<String>,
-        worksheet_id: Option<WorksheetId>,
     ) -> Self {
         Self {
             database,
             schema,
-            worksheet_id,
         }
     }
 }
