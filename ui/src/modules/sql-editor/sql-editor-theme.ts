@@ -127,7 +127,7 @@ export const color = {
   cursor,
 };
 
-export const oneDarkHighlightStyle = HighlightStyle.define([
+const oneDarkHighlightStyle = HighlightStyle.define([
   { tag: t.keyword, color: violet },
   { tag: [t.name, t.deleted, t.character, t.propertyName, t.macroName], color: chalky },
   { tag: [t.function(t.variableName), t.labelName], color: malibu },
