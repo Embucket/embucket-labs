@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use crate::execution::query::QueryContext;
+use crate::execution::recording_service::RecordingExecutionService;
 use crate::execution::service::{CoreExecutionService, ExecutionService};
 use crate::execution::utils::{Config, DataSerializationFormat};
 use crate::SlateDBMetastore;
@@ -12,7 +12,7 @@ use embucket_metastore::{
     Volume as MetastoreVolume,
 };
 use embucket_utils::Db;
-use crate::execution::recording_service::RecordingExecutionService;
+use std::sync::Arc;
 
 #[tokio::test]
 #[allow(clippy::expect_used)]
@@ -284,6 +284,17 @@ async fn test_recording_service() {
     ));
     let execution_svc = RecordingExecutionService::new(execution.clone(), history_store.clone());
 
+    let session_id = "test_session_id";
+    execution_svc
+        .create_session(session_id.to_string())
+        .await
+        .expect("Failed to create session");
+
+    let database_name = "embucket".to_string();
+    let schema_name = "public".to_string();
+
+    let context = QueryContext::new(Some(database_name.clone()), Some(schema_name.clone()), None);
+
     metastore
         .create_volume(
             &"test_volume".to_string(),
@@ -294,9 +305,7 @@ async fn test_recording_service() {
         )
         .await
         .expect("Failed to create volume");
-    
-    let database_name = "embucket".to_string();
-    
+
     metastore
         .create_database(
             &database_name.clone(),
@@ -309,20 +318,26 @@ async fn test_recording_service() {
         .await
         .expect("Failed to create database");
 
-    let session_id = "test_session_id";
     execution_svc
-        .create_session(session_id.to_string())
-        .await
-        .expect("Failed to create session");
-    
-    let schema_name = "public".to_string();
-    
-    let context = QueryContext::new(Some(database_name.clone()), Some(schema_name.clone()), None);
-    
-    execution_svc
-        .query(&session_id, format!("CREATE SCHEMA {}.{}", database_name.clone(), schema_name.clone()).as_str(), context)
+        .query(
+            session_id,
+            format!(
+                "CREATE SCHEMA {}.{}",
+                database_name.clone(),
+                schema_name.clone()
+            )
+            .as_str(),
+            context,
+        )
         .await
         .expect("Failed to add schema");
-    
-    assert_eq!(1, history_store.get_queries(GetQueries::default()).await.expect("Failed to get queries").len());
+
+    assert_eq!(
+        1,
+        history_store
+            .get_queries(GetQueries::default())
+            .await
+            .expect("Failed to get queries")
+            .len()
+    );
 }
