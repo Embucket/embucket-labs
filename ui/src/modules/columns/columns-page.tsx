@@ -1,0 +1,20 @@
+import { Link } from '@tanstack/react-router';
+
+import { PageContent } from '../shared/page/page-content';
+import { PageHeader } from '../shared/page/page-header';
+
+export function ColumnsPage() {
+  return (
+    <>
+      <PageHeader title="Columns" />
+      <PageContent>
+        <Link
+          to="/databases/$databaseId/schemas/$schemaId/tables"
+          params={{ databaseId: '1', schemaId: '1' }}
+        >
+          Tables
+        </Link>
+      </PageContent>
+    </>
+  );
+}

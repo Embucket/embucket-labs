@@ -11,7 +11,7 @@ import type {
 } from '@/orval/models';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
 
-export function DataPageTrees() {
+export function DatabasesPageTrees() {
   const { data: { items: navigationTrees } = {}, isFetching: isFetchingNavigationTrees } =
     useGetNavigationTrees();
 
