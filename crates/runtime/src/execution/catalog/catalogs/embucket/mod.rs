@@ -1,26 +1,27 @@
 use datafusion_common::DataFusionError;
 use std::future::Future;
+use tokio::runtime::Builder;
 
 pub mod catalog;
 pub mod iceberg_catalog;
 pub mod schema;
 
-fn block_on_with_fallback<F, R>(future: F) -> Result<R, DataFusionError>
+pub fn block_in_new_runtime<F, R>(future: F) -> Result<R, DataFusionError>
 where
     F: Future<Output = R> + Send + 'static,
     R: Send + 'static,
 {
-    if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        Ok(handle.block_on(future))
-    } else {
-        std::thread::spawn(move || {
-            tokio::runtime::Runtime::new()
-                .map(|rt| rt.block_on(future))
-                .map_err(|_| {
-                    DataFusionError::Execution("failed to create Tokio runtime".to_string())
-                })
-        })
-        .join()
-        .unwrap_or_else(|_| Err(DataFusionError::Execution("thread panicked".to_string())))
-    }
+    std::thread::spawn(move || {
+        Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|_| DataFusionError::Execution("Failed to create Tokio runtime".to_string()))
+            .map(|rt| rt.block_on(future))
+    })
+    .join()
+    .unwrap_or_else(|_| {
+        Err(DataFusionError::Execution(
+            "Thread panicked while executing future".to_string(),
+        ))
+    })
 }

@@ -1,5 +1,5 @@
 use super::schema::EmbucketSchema;
-use crate::execution::catalog::catalogs::embucket::block_on_with_fallback;
+use crate::execution::catalog::catalogs::embucket::block_in_new_runtime;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use embucket_metastore::{Metastore, SchemaIdent};
 use embucket_utils::scan_iterator::ScanIterator;
@@ -38,7 +38,7 @@ impl CatalogProvider for EmbucketCatalog {
         let metastore = self.metastore.clone();
         let database = self.database.clone();
 
-        block_on_with_fallback(async move {
+        block_in_new_runtime(async move {
             match metastore.iter_schemas(&database).collect().await {
                 Ok(schemas) => schemas
                     .into_iter()
@@ -56,7 +56,7 @@ impl CatalogProvider for EmbucketCatalog {
         let database = self.database.clone();
         let schema_name = name.to_string();
 
-        block_on_with_fallback(async move {
+        block_in_new_runtime(async move {
             match metastore
                 .get_schema(&SchemaIdent::new(database.clone(), schema_name.clone()))
                 .await
