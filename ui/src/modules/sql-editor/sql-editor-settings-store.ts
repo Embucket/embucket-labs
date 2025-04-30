@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 
 import type { QueryRecord, Worksheet } from '@/orval/models';
 
-import type { SelectedTree } from './sql-editor-left-panel/sql-editor-left-panel-trees/sql-editor-left-panel-trees-items';
+import type { SelectedTree } from '../shared/trees/trees-items';
 
 export type LeftPanelTab = 'databases' | 'worksheets';
 

@@ -1,62 +1,94 @@
 import { useState } from 'react';
 
-import { Database } from 'lucide-react';
+import type { SelectedTree } from '@/modules/shared/trees/trees-items';
+import {
+  TreesDatabases,
+  TreesLayout,
+  TreesSchemas,
+  TreesTables,
+} from '@/modules/shared/trees/trees-items';
+import { useGetNavigationTrees } from '@/orval/navigation-trees';
 
-import { EmptyContainer } from '@/components/empty-container';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { SidebarMenu } from '@/components/ui/sidebar';
-import type { NavigationTreeDatabase } from '@/orval/models';
-
+import { useSqlEditorPanelsState } from '../../sql-editor-panels-state-provider';
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 import { SqlEditorUploadDialog } from '../../sql-editor-upload-dropzone/sql-editor-upload-dialog';
-import { SqlEditorLeftPanelTreesDatabases } from './sql-editor-left-panel-trees-items';
+import { SqlEditorLeftPanelTreesTableDropdown } from './sql-editor-left-panel-trees-table-dropdown';
 
-interface SqlEditorLeftPanelTreesProps {
-  isFetchingNavigationTrees: boolean;
-  navigationTrees: NavigationTreeDatabase[];
-}
+export function SqlEditorLeftPanelTrees() {
+  const [isLoadDataDialogOpened, setIsLoadDataDialogOpened] = useState(false);
 
-export function SqlEditorLeftPanelTrees({
-  isFetchingNavigationTrees,
-  navigationTrees,
-}: SqlEditorLeftPanelTreesProps) {
+  const { data: { items: navigationTrees } = {}, isFetching: isFetchingNavigationTrees } =
+    useGetNavigationTrees();
+
   const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const setSelectedTree = useSqlEditorSettingsStore((state) => state.setSelectedTree);
+  const { isLeftBottomPanelExpanded, leftBottomRef } = useSqlEditorPanelsState();
 
-  const handleOpenUploadDialog = () => {
-    setIsDialogOpen(true);
+  const handleTableClick = (tree: SelectedTree) => {
+    if (!isLeftBottomPanelExpanded) {
+      leftBottomRef.current?.resize(20);
+    }
+    setSelectedTree(tree);
   };
-
-  if (!isFetchingNavigationTrees && !navigationTrees.length) {
-    return (
-      <EmptyContainer
-        className="absolute text-center text-wrap"
-        Icon={Database}
-        title="No Databases Available"
-        description="Create a database to start organizing your data."
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onCtaClick={() => {}}
-        ctaText="Create database"
-      />
-    );
-  }
 
   return (
     <>
-      <ScrollArea className="size-full py-2">
-        <SidebarMenu className="w-full px-2 select-none">
-          <SqlEditorLeftPanelTreesDatabases
-            databases={navigationTrees}
-            onOpenUploadDialog={handleOpenUploadDialog}
-          />
-        </SidebarMenu>
-        <ScrollBar orientation="vertical" />
-      </ScrollArea>
-
+      <TreesLayout>
+        <TreesDatabases
+          databases={navigationTrees}
+          isFetchingDatabases={isFetchingNavigationTrees}
+          defaultOpen={(db) =>
+            db.schemas.some((schema) =>
+              schema.tables.some((table) => table.name === selectedTree?.tableName),
+            )
+          }
+        >
+          {(database) => (
+            <TreesSchemas
+              schemas={database.schemas}
+              defaultOpen={(schema) =>
+                schema.tables.some((table) => table.name === selectedTree?.tableName)
+              }
+            >
+              {(schema) => (
+                <TreesTables
+                  tables={schema.tables}
+                  database={database}
+                  schema={schema}
+                  onClick={(table) =>
+                    handleTableClick({
+                      databaseName: database.name,
+                      schemaName: schema.name,
+                      tableName: table.name,
+                    })
+                  }
+                  isActive={(table) =>
+                    selectedTree?.tableName === table.name &&
+                    selectedTree.schemaName === schema.name &&
+                    selectedTree.databaseName === database.name
+                  }
+                  defaultOpen={schema.tables.some(
+                    (table) => table.name === selectedTree?.tableName,
+                  )}
+                  renderDropdownMenu={(tree, hovered) => (
+                    <SqlEditorLeftPanelTreesTableDropdown
+                      onLoadDataClick={() => {
+                        setIsLoadDataDialogOpened(true);
+                        setSelectedTree(tree);
+                      }}
+                      hovered={hovered}
+                    />
+                  )}
+                />
+              )}
+            </TreesSchemas>
+          )}
+        </TreesDatabases>
+      </TreesLayout>
       {selectedTree && (
         <SqlEditorUploadDialog
-          opened={isDialogOpen}
-          onSetOpened={setIsDialogOpen}
+          opened={isLoadDataDialogOpened}
+          onSetOpened={setIsLoadDataDialogOpened}
           selectedTree={selectedTree}
         />
       )}

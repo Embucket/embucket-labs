@@ -12,10 +12,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useSqlEditorSettingsStore } from '@/modules/sql-editor/sql-editor-settings-store';
 import type { WorksheetsResponse } from '@/orval/models';
 import { getGetWorksheetsQueryKey, useDeleteWorksheet } from '@/orval/worksheets';
-
-import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
 
 interface DeleteWorksheetAlertDialogProps {
   worksheetId: number;
