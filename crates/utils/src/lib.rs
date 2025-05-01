@@ -304,6 +304,8 @@ mod test {
     use iterable::IterableEntity;
     use serde::{Deserialize, Serialize};
     use std::time::SystemTime;
+    use std::ops::Bound;
+
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
     struct TestEntity {
@@ -441,7 +443,8 @@ mod test {
             SystemTime::now().duration_since(started)
         );
 
-        let mut iter = db.0.scan(..).await.unwrap();
+        let full_range: (Bound<Bytes>, Bound<Bytes>) = (Bound::Unbounded, Bound::Unbounded);
+        let mut iter = db.0.scan(full_range).await.unwrap();
         let mut i = 0;
         while let Ok(Some(item)) = iter.next().await {
             assert_eq!(item.key, items[i].key());
