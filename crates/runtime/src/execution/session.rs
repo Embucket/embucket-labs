@@ -1,8 +1,8 @@
-use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
+//use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
-use super::error::{self as ex_error, ExecutionResult};
+use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::query::{QueryContext, UserQuery};
 use crate::execution::catalog::catalog_list::{EmbucketCatalogList, DEFAULT_CATALOG};
 use crate::execution::datafusion::analyzer::IcebergTypesAnalyzer;
