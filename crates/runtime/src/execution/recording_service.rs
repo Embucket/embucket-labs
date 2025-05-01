@@ -2,11 +2,13 @@ use crate::execution::error::ExecutionResult;
 use crate::execution::models::ColumnInfo;
 use crate::execution::query::QueryContext;
 use crate::execution::service::ExecutionService;
+use crate::execution::session::UserSession;
 use crate::execution::utils::Config;
 use crate::http::ui::queries::models::ResultSet;
 use arrow::csv::reader::Format;
 use arrow_array::RecordBatch;
 use bytes::Bytes;
+use datafusion::dataframe::DataFrame;
 use embucket_history::{QueryRecord, QueryRecordActions, WorksheetsStore};
 use embucket_metastore::TableIdent as MetastoreTableIdent;
 use std::sync::Arc;
@@ -25,7 +27,7 @@ impl RecordingExecutionService {
 
 #[async_trait::async_trait]
 impl ExecutionService for RecordingExecutionService {
-    async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
+    async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>> {
         self.execution.create_session(session_id).await
     }
 
@@ -75,6 +77,13 @@ impl ExecutionService for RecordingExecutionService {
             tracing::error!("{err}");
         }
         query_res
+    }
+    async fn table(
+        &self,
+        session_id: &str,
+        table_ident: &MetastoreTableIdent,
+    ) -> ExecutionResult<DataFrame> {
+        self.execution.table(session_id, table_ident).await
     }
 
     async fn upload_data_to_table(

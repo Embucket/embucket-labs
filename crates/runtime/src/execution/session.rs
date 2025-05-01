@@ -29,6 +29,8 @@ pub struct UserSession {
     pub executor: DedicatedExecutor,
 }
 
+pub type CatalogsTree = HashMap<String, HashMap<String, Vec<String>>>;
+
 impl UserSession {
     pub async fn new(metastore: Arc<dyn Metastore>) -> ExecutionResult<Self> {
         let sql_parser_dialect =
@@ -82,6 +84,41 @@ impl UserSession {
         S: Into<String>,
     {
         UserQuery::new(self.clone(), query.into(), query_context)
+    }
+
+    /// Returns a tree of available catalogs, schemas, and table names.
+    ///
+    /// The structure of the result:
+    ///
+    /// ```json
+    /// {
+    ///   "catalog1": {
+    ///     "schema1": ["table1", "table2"],
+    ///     "schema2": ["table3"]
+    ///   },
+    ///   "catalog2": { ... }
+    /// }
+    /// ```
+    ///
+    /// Note: Only table names are retrieved — the actual table metadata is not loaded.
+    ///
+    /// Returns a [`CatalogsTree`] mapping catalog names to schemas and their tables.
+    #[must_use]
+    pub fn fetch_catalogs_tree(&self) -> CatalogsTree {
+        let mut tree: CatalogsTree = HashMap::new();
+
+        for catalog_name in self.ctx.catalog_names() {
+            if let Some(catalog) = self.ctx.catalog(&catalog_name) {
+                let mut schemas = HashMap::new();
+                for schema_name in catalog.schema_names() {
+                    if let Some(schema) = catalog.schema(&schema_name) {
+                        schemas.insert(schema_name, schema.table_names());
+                    }
+                }
+                tree.insert(catalog_name, schemas);
+            }
+        }
+        tree
     }
 
     pub fn set_session_variable(

@@ -131,36 +131,27 @@ pub async fn get_table_statistics(
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-#[allow(clippy::unwrap_used)]
 pub async fn get_table_columns(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> TablesResult<Json<TableColumnsResponse>> {
-    let context = QueryContext::new(Some(database_name.clone()), Some(schema_name.clone()), None);
-    let sql_string = format!("SELECT * FROM {database_name}.{schema_name}.{table_name} LIMIT 0");
-    let (_, column_infos) = state
+    let ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
+    let table = state
         .execution_svc
-        .query(&session_id, sql_string.as_str(), context)
+        .table(&session_id, &ident)
         .await
-        .map_err(|e| TablesAPIError::GetExecution { source: e })?;
-    let items: Vec<TableColumn> = column_infos
+        .map_err(|e| TablesAPIError::Execution { source: e })?;
+
+    let items: Vec<TableColumn> = table
+        .schema()
         .iter()
-        .map(|column_info| TableColumn {
-            name: column_info.name.clone(),
-            r#type: column_info.r#type.clone(),
+        .map(|(_, column)| TableColumn {
+            name: column.name().to_string(),
+            r#type: column.data_type().to_string(),
             description: String::new(),
-            nullable: if column_info.nullable {
-                "Y".to_string()
-            } else {
-                "N".to_string()
-            },
-            default: if column_info.nullable {
-                "NULL".to_string()
-            } else {
-                String::new()
-            },
+            nullable: if column.is_nullable() { "Y" } else { "N" }.to_string(),
+            default: if column.is_nullable() { "NULL" } else { "" }.to_string(),
         })
         .collect();
     Ok(Json(TableColumnsResponse { items }))
@@ -183,7 +174,6 @@ pub async fn get_table_columns(
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
 pub async fn get_table_preview_data(
     DFSessionId(session_id): DFSessionId,
@@ -193,35 +183,24 @@ pub async fn get_table_preview_data(
 ) -> TablesResult<Json<TablePreviewDataResponse>> {
     let context = QueryContext::new(Some(database_name.clone()), Some(schema_name.clone()), None);
     let ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
-    let column_names = match state.metastore.get_table(&ident).await {
-        Ok(Some(rw_object)) => {
-            if let Ok(schema) = rw_object.metadata.current_schema(None) {
-                let items: Vec<String> = schema.iter().map(|field| field.name.clone()).collect();
-                Ok(items)
-            } else {
-                Ok(vec![])
-            }
-        }
-        Ok(None) => Err(TablesAPIError::GetMetastore {
-            source: MetastoreError::TableNotFound {
-                table: database_name.clone(),
-                schema: schema_name.clone(),
-                db: table_name.clone(),
-            },
-        }),
-        Err(e) => Err(TablesAPIError::GetMetastore { source: e }),
-    }?;
-    let column_names = column_names
+    let table = state
+        .execution_svc
+        .table(&session_id, &ident)
+        .await
+        .map_err(|e| TablesAPIError::Execution { source: e })?;
+
+    let projection = table
+        .schema()
+        .fields()
         .iter()
-        //UNSUPPORTED TYPES: ListArray, StructArray, Binary (Arrow Cast for Datafusion)
-        .map(|column_name| {
-            format!("COALESCE(CAST({column_name} AS STRING), 'Unsupported') AS {column_name}")
+        .map(|field| {
+            let name = field.name();
+            format!("COALESCE(CAST({name} AS STRING), 'Unsupported') AS {name}")
         })
-        .collect::<Vec<_>>();
-    let sql_string = format!(
-        "SELECT {} FROM {database_name}.{schema_name}.{table_name}",
-        column_names.join(", ")
-    );
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let sql_string = format!("SELECT {projection} FROM {database_name}.{schema_name}.{table_name}");
     let sql_string = parameters.offset.map_or(sql_string.clone(), |offset| {
         format!("{sql_string} OFFSET {offset}")
     });
@@ -232,7 +211,8 @@ pub async fn get_table_preview_data(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| TablesAPIError::GetExecution { source: e })?;
+        .map_err(|e| TablesAPIError::Execution { source: e })?;
+
     let mut preview_data_columns: Vec<TablePreviewDataColumn> = vec![];
     for batch in &batches {
         for (i, column) in batch.columns().iter().enumerate() {

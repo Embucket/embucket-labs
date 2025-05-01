@@ -7,6 +7,7 @@ use datafusion::arrow::csv::reader::Format;
 use datafusion::arrow::csv::ReaderBuilder;
 use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
 use datafusion::catalog_common::CatalogProvider;
+use datafusion::dataframe::DataFrame;
 use datafusion::datasource::memory::MemTable;
 use datafusion_common::TableReference;
 use snafu::ResultExt;
@@ -25,7 +26,7 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 #[async_trait::async_trait]
 pub trait ExecutionService: Send + Sync {
-    async fn create_session(&self, session_id: String) -> ExecutionResult<()>;
+    async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>>;
     async fn delete_session(&self, session_id: String) -> ExecutionResult<()>;
     async fn query(
         &self,
@@ -33,6 +34,11 @@ pub trait ExecutionService: Send + Sync {
         query: &str,
         query_context: QueryContext,
     ) -> ExecutionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
+    async fn table(
+        &self,
+        session_id: &str,
+        table_ident: &MetastoreTableIdent,
+    ) -> ExecutionResult<DataFrame>;
     async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -63,16 +69,21 @@ impl CoreExecutionService {
 #[async_trait::async_trait]
 impl ExecutionService for CoreExecutionService {
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
-        let session_exists = { self.df_sessions.read().await.contains_key(&session_id) };
-        if !session_exists {
-            let user_session = UserSession::new(self.metastore.clone()).await?;
-            tracing::trace!("Acuiring write lock for df_sessions");
-            let mut session_list_mut = self.df_sessions.write().await;
-            tracing::trace!("Acquired write lock for df_sessions");
-            session_list_mut.insert(session_id, Arc::new(user_session));
+    async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>> {
+        {
+            let sessions = self.df_sessions.read().await;
+            if let Some(session) = sessions.get(&session_id) {
+                return Ok(session.clone());
+            }
         }
-        Ok(())
+        let user_session = Arc::new(UserSession::new(self.metastore.clone()).await?);
+        {
+            tracing::trace!("Acquiring write lock for df_sessions");
+            let mut sessions = self.df_sessions.write().await;
+            tracing::trace!("Acquired write lock for df_sessions");
+            sessions.insert(session_id.clone(), user_session.clone());
+        }
+        Ok(user_session)
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
@@ -125,6 +136,29 @@ impl ExecutionService for CoreExecutionService {
         };
 
         Ok((records, columns))
+    }
+
+    async fn table(
+        &self,
+        session_id: &str,
+        table_ident: &MetastoreTableIdent,
+    ) -> ExecutionResult<DataFrame> {
+        let sessions = self.df_sessions.read().await;
+        let user_session =
+            sessions
+                .get(session_id)
+                .ok_or(ExecutionError::MissingDataFusionSession {
+                    id: session_id.to_string(),
+                })?;
+        user_session
+            .ctx
+            .table(TableReference::full(
+                table_ident.database.clone(),
+                table_ident.schema.clone(),
+                table_ident.table.clone(),
+            ))
+            .await
+            .context(ex_error::DataFusionSnafu)
     }
 
     #[tracing::instrument(level = "debug", skip(self, data))]
