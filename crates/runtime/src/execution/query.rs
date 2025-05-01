@@ -460,7 +460,6 @@ impl UserQuery {
         // Insert data to new table
         // Since we don't execute logical plan, and we don't transform it to physical plan and
         // also don't execute it as well, we need somehow to support CTAS
-        let schema = plan.schema().clone();
         if let LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(CreateMemoryTable {
             name,
             input,
@@ -470,7 +469,7 @@ impl UserQuery {
             if is_logical_plan_effectively_empty(&input) {
                 return created_entity_response();
             }
-            let target_table = catalog.schema(name.schema().unwrap_or_default()).expect("REASONTODO")
+            let target_table = catalog.schema(name.schema().unwrap()).expect("Schema not found")
                 .table(&name.table())
                 .await
                 .context(super::error::DataFusionSnafu)?
@@ -540,7 +539,8 @@ impl UserQuery {
         // Create builder and configure it
         let mut builder = Schema::builder();
         builder.with_schema_id(0);
-
+        builder.with_identifier_field_ids(vec![]);
+        
         // Add each struct field individually
         for field in fields_with_ids.iter() {
             builder.with_struct_field(field.clone());
@@ -1077,7 +1077,6 @@ impl UserQuery {
                                 window_before_qualify: false,
                                 value_table_mode: None,
                                 connect_by: None,
-                                // TODO: THIS was changed during the refactoring of ObjectName
                                 flavor: sqlparser::ast::SelectFlavor::Standard,
                             };
 
@@ -1451,11 +1450,11 @@ impl UserQuery {
                         let obj_name = match &insert_statement.table {
                             TableObject::TableName(obj_name) => obj_name.clone(),
                             TableObject::TableFunction(_) => {
-                                // TODO: Return proper error here
-                               /* return Err(ExecutionError::DataFusion(DataFusionError::SQL(
-                                    "Table functions are not supported in INSERT statements".to_string()),
-                                ))*/
-                                ObjectName(vec![])
+                                return Err(ExecutionError::DataFusion {
+                                    source: DataFusionError::NotImplemented(
+                                        "Table functions are not supported in INSERT statements".to_string()
+                                    ),
+                                })
                             },
                         };
 
@@ -1546,10 +1545,9 @@ impl UserQuery {
                         or,
                     } => {
                         self.update_tables_in_table_with_joins(&mut table)?;
-                        /* TODO: Write function to update UpdateTableFromKind
                         if let Some(from) = from.as_mut() {
-                            self.update_tables_in_table_with_joins(from)?;
-                        }*/
+                            self.update_tables_in_update_table_from_kind(from)?;
+                        }
                         let modified_statement = Statement::Update {
                             table,
                             assignments,
@@ -1742,6 +1740,20 @@ impl UserQuery {
                 self.update_tables_in_table_with_joins(table_with_joins)?;
             }
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn update_tables_in_update_table_from_kind(
+        &self,
+        from_kind: &mut UpdateTableFromKind,
+    ) -> ExecutionResult<()> {
+        match from_kind {
+            UpdateTableFromKind::BeforeSet(tables) | UpdateTableFromKind::AfterSet(tables) => {
+                for table_with_joins in tables {
+                    self.update_tables_in_table_with_joins(table_with_joins)?;
+                }
+            }
         }
         Ok(())
     }
