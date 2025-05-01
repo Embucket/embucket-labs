@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
 use config::RuntimeConfig;
-use embucket_history::store::SlateDBWorksheetsStore;
+use embucket_history::history_store::SlateDBWorksheetsStore;
 use embucket_metastore::SlateDBMetastore;
 use embucket_utils::Db;
 use http::web_assets::run_web_assets_server;
 use http::{make_app, run_app};
 use object_store::{path::Path, ObjectStore};
 use slatedb::{config::DbOptions, db::Db as SlateDb};
+use config::AuthConfig;
 
 pub mod config;
 pub mod execution;
@@ -20,6 +21,7 @@ pub(crate) mod tests;
 pub async fn run_binary(
     state_store: Arc<dyn ObjectStore>,
     config: RuntimeConfig,
+    auth_config: AuthConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = {
         let options = DbOptions::default();
@@ -35,8 +37,8 @@ pub async fn run_binary(
     };
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history = Arc::new(SlateDBWorksheetsStore::new(db));
-    let app = make_app(metastore, history, &config.web)?;
+    let history = Arc::new(SlateDBWorksheetsStore::new(db.clone()));
+    let app = make_app(metastore, history, &config.web, auth_config)?;
 
     let _ = run_web_assets_server(&config.web_assets).await?;
 

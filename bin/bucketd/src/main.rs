@@ -42,6 +42,7 @@ async fn main() {
         .clone()
         .unwrap_or_else(|| "json".to_string());
     let object_store = opts.object_store_backend();
+    let auth_config = AuthConfig::new(opts.jwt_secret());
 
     match object_store {
         Err(e) => {
@@ -69,7 +70,7 @@ async fn main() {
                 },
             };
 
-            if let Err(e) = run_binary(object_store, runtime_config).await {
+            if let Err(e) = run_binary(object_store, runtime_config, auth_config).await {
                 tracing::error!("Error while running: {:?}", e);
             }
         }

@@ -134,6 +134,15 @@ pub struct CliOpts {
         help = "Data serialization format in Snowflake v1 API"
     )]
     pub data_format: Option<String>,
+
+    // should unset JWT_SECRET env var after loading
+    #[arg(
+        long,
+        env = "JWT_SECRET",
+        hide_env_values = true,
+        help = "JWT secret"
+    )]
+    jwt_secret: String,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -180,5 +189,10 @@ impl CliOpts {
             }
             StoreBackend::Memory => Ok(Arc::new(InMemory::new()) as Arc<dyn ObjectStore>),
         }
+    }
+
+    pub fn jwt_secret(self) -> String {
+        std::env::remove_var("JWT_SECRET");
+        self.jwt_secret
     }
 }

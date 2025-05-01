@@ -1,24 +1,31 @@
 use bytes::Bytes;
 
 pub trait IterableCursor {
-    const CURSOR_MIN: Self;
-    const CURSOR_MAX: Self;
-
     #[must_use]
     fn next_cursor(&self) -> Self;
+    #[must_use]
+    fn min_cursor() -> Self;
+    #[must_use]
+    fn max_cursor() -> Self;
+    
     fn as_bytes(&self) -> Bytes;
 }
 
 #[allow(clippy::trait_duplication_in_bounds)]
 impl IterableCursor for i64 {
-    const CURSOR_MIN: Self = 0;
-    const CURSOR_MAX: Self = Self::MAX;
+    fn min_cursor() -> Self {
+        0
+    }
+
+    fn max_cursor() -> Self {
+        Self::MAX
+    }
 
     fn next_cursor(&self) -> Self {
-        if self < &Self::CURSOR_MAX {
+        if *self < Self::max_cursor() {
             self + 1
         } else {
-            Self::CURSOR_MIN
+            Self::min_cursor()
         }
     }
 
@@ -27,6 +34,26 @@ impl IterableCursor for i64 {
     }
 }
 
+#[allow(clippy::trait_duplication_in_bounds)]
+impl IterableCursor for String {
+    fn min_cursor() -> Self {
+        String::from("")
+    }
+
+    fn max_cursor() -> Self {
+        String::from("\x7F") // lexicographically max value
+    }
+
+    // Not used with paging
+    fn next_cursor(&self) -> Self {
+        panic!("Not implemented");
+    }
+
+    fn as_bytes(&self) -> Bytes {
+        // can't use str.as_bytes to avoid recursion
+        Bytes::from(self.to_string())
+    }
+}
 pub trait IterableEntity {
     type Cursor: IterableCursor + ToString;
 
@@ -36,12 +63,12 @@ pub trait IterableEntity {
 
     #[must_use]
     fn min_cursor() -> Self::Cursor {
-        Self::Cursor::CURSOR_MIN
+        Self::Cursor::min_cursor()
     }
 
     #[must_use]
     fn max_cursor() -> Self::Cursor {
-        Self::Cursor::CURSOR_MAX
+        Self::Cursor::max_cursor()
     }
 
     fn next_cursor(&self) -> Self::Cursor {

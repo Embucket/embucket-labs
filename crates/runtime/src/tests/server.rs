@@ -1,5 +1,5 @@
-use crate::http::{config::WebConfig, make_app};
-use embucket_history::store::SlateDBWorksheetsStore;
+use crate::{AuthConfig, http::{make_app, config::WebConfig}};
+use embucket_history::history_store::SlateDBWorksheetsStore;
 use embucket_metastore::SlateDBMetastore;
 use embucket_utils::Db;
 use std::net::SocketAddr;
@@ -24,6 +24,7 @@ pub async fn run_test_server() -> SocketAddr {
             data_format: "json".to_string(),
             iceberg_catalog_url: "http://127.0.0.1".to_string(),
         },
+        AuthConfig::new("test".into()),
     )
     .unwrap();
 

@@ -6,8 +6,9 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
-use embucket_history::store::WorksheetsStore;
-use embucket_metastore::Metastore;
+use embucket_history::history_store::{WorksheetsStore, SlateDBWorksheetsStore};
+use embucket_history::auth_store::AuthStore;
+use embucket_metastore::{Metastore, SlateDBMetastore};
 use http_body_util::BodyExt;
 use std::sync::Arc;
 use time::Duration;
@@ -27,6 +28,7 @@ pub mod dbt;
 pub mod metastore;
 pub mod ui;
 pub mod web_assets;
+pub mod auth;
 
 pub mod config;
 pub mod layers;
@@ -39,12 +41,14 @@ pub mod utils;
 mod tests;
 
 use super::http::config::WebConfig;
+use crate::config::AuthConfig;
 
 #[allow(clippy::needless_pass_by_value)]
 pub fn make_app(
-    metastore: Arc<dyn Metastore>,
-    history: Arc<dyn WorksheetsStore>,
+    metastore: Arc<SlateDBMetastore>,
+    history: Arc<SlateDBWorksheetsStore>,
     config: &WebConfig,
+    auth_config: AuthConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format)?;
     let execution_svc = Arc::new(ExecutionService::new(metastore.clone(), execution_cfg));
@@ -64,7 +68,7 @@ pub fn make_app(
 
     // Create the application state
     let app_state =
-        state::AppState::new(metastore, history, execution_svc, Arc::new(config.clone()));
+        state::AppState::new(metastore, history, history, execution_svc, Arc::new(config.clone()), Arc::new(auth_config));
 
     let mut app = router::create_app(app_state)
         .layer(session_layer)
