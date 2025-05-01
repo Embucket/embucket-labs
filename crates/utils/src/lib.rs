@@ -108,7 +108,7 @@ impl Db {
     pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
         let serialized = ser::to_vec(value).context(SerializeValueSnafu)?;
         self.0
-            .put::<&[u8], &[u8]>(key.as_bytes(), serialized.as_ref())
+            .put(key.as_bytes(), serialized)
             .await
             .context(KeyPutSnafu {
                 key: key.to_string(),
@@ -198,7 +198,7 @@ impl Db {
     ) -> Result<()> {
         let serialized = ser::to_vec(entity).context(SerializeValueSnafu)?;
         self.0
-            .put::<&[u8], &[u8]>(entity.key().as_ref(), serialized.as_ref())
+            .put(entity.key().as_ref(), serialized)
             .await
             .context(DatabaseSnafu)
     }
