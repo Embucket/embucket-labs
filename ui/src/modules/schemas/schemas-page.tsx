@@ -1,4 +1,7 @@
 import { Link } from '@tanstack/react-router';
+import { FolderTree } from 'lucide-react';
+
+import { EmptyContainer } from '@/components/empty-container';
 
 import { PageContent } from '../shared/page/page-content';
 import { PageHeader } from '../shared/page/page-header';
@@ -6,8 +9,7 @@ import { PageHeader } from '../shared/page/page-header';
 export function SchemasPage() {
   return (
     <>
-      <PageHeader title="Schemas" />
-      <PageContent>
+      <PageHeader title="Schemas">
         <Link to="/databases" params={{ databaseId: '1' }}>
           Databases
         </Link>
@@ -17,6 +19,15 @@ export function SchemasPage() {
         >
           Tables
         </Link>
+      </PageHeader>
+      <PageContent>
+        <EmptyContainer
+          // TODO: Hardcode
+          className="min-h-[calc(100vh-32px-65px-32px)]"
+          Icon={FolderTree}
+          title="No Schemas Found"
+          description="No schemas have been created yet. Create a schema to get started."
+        />
       </PageContent>
     </>
   );
