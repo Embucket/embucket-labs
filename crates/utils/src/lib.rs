@@ -303,9 +303,8 @@ mod test {
     use futures::future::join_all;
     use iterable::IterableEntity;
     use serde::{Deserialize, Serialize};
-    use std::time::SystemTime;
     use std::ops::Bound;
-
+    use std::time::SystemTime;
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
     struct TestEntity {
