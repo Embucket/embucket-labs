@@ -7,9 +7,9 @@ use datafusion::logical_expr::TypeSignatureClass;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion_common::types::{logical_int64, logical_string};
+use datafusion_expr::Coercion;
 use std::any::Any;
 use std::sync::Arc;
-use datafusion_expr::Coercion;
 
 #[derive(Debug)]
 pub struct DateAddFunc {

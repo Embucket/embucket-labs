@@ -151,10 +151,9 @@ where
                         schema,
                     };
                     let plan = LogicalPlan::EmptyRelation(plan);
-                    let constraints = self.inner.new_constraint_from_table_constraints(
-                        &all_constraints,
-                        plan.schema(),
-                    )?;
+                    let constraints = self
+                        .inner
+                        .new_constraint_from_table_constraints(&all_constraints, plan.schema())?;
                     Ok(LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(
                         CreateMemoryTable {
                             name: object_name_to_table_reference(name, true)?,

@@ -13,9 +13,11 @@ use chrono::prelude::*;
 use chrono::{Duration, Months};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
-use datafusion_common::types::{logical_int64, logical_string, logical_date};
+use datafusion_common::types::{logical_date, logical_int64, logical_string};
 use datafusion_common::{exec_err, internal_err, Result, ScalarValue, _exec_datafusion_err};
-use datafusion_expr::{Coercion, ColumnarValue, ReturnInfo, ReturnTypeArgs, ScalarUDFImpl, Signature, Volatility};
+use datafusion_expr::{
+    Coercion, ColumnarValue, ReturnInfo, ReturnTypeArgs, ScalarUDFImpl, Signature, Volatility,
+};
 use datafusion_macros::user_doc;
 
 pub const UNIX_DAYS_FROM_CE: i32 = 719_163;
@@ -96,7 +98,8 @@ impl Default for TimestampFromPartsFunc {
 
 impl TimestampFromPartsFunc {
     pub fn new() -> Self {
-        let basic_signature = vec![Coercion::new_exact(TypeSignatureClass::Native(logical_int64())); 6];
+        let basic_signature =
+            vec![Coercion::new_exact(TypeSignatureClass::Native(logical_int64())); 6];
         Self {
             signature: Signature::one_of(
                 vec![
@@ -105,7 +108,9 @@ impl TimestampFromPartsFunc {
                     Coercible(
                         [
                             basic_signature.clone(),
-                            vec![Coercion::new_exact(TypeSignatureClass::Native(logical_int64()))],
+                            vec![Coercion::new_exact(TypeSignatureClass::Native(
+                                logical_int64(),
+                            ))],
                         ]
                         .concat(),
                     ),
@@ -120,7 +125,10 @@ impl TimestampFromPartsFunc {
                         .concat(),
                     ),
                     // TIMESTAMP_FROM_PARTS( <date_expr>, <time_expr> )
-                    Coercible(vec![Coercion::new_exact(TypeSignatureClass::Native(logical_date())), Coercion::new_exact(TypeSignatureClass::Time)]),
+                    Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
+                        Coercion::new_exact(TypeSignatureClass::Time),
+                    ]),
                 ],
                 Volatility::Immutable,
             ),

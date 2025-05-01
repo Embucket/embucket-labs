@@ -330,9 +330,13 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         match table {
             Some(table) => {
-                let iceberg_table =
-                    IcebergTable::new(identifier.clone(), self.clone(), self.object_store.clone(), table.metadata.clone())
-                        .await?;
+                let iceberg_table = IcebergTable::new(
+                    identifier.clone(),
+                    self.clone(),
+                    self.object_store.clone(),
+                    table.metadata.clone(),
+                )
+                .await?;
 
                 Ok(IcebergTabular::Table(iceberg_table))
             }
@@ -369,7 +373,13 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .await
             .context(crate::execution::error::MetastoreSnafu)
             .map_err(|e| IcebergError::External(Box::new(e)))?;
-        Ok(IcebergTable::new(identifier.clone(), self.clone(), self.object_store.clone(), table.metadata.clone()).await?)
+        Ok(IcebergTable::new(
+            identifier.clone(),
+            self.clone(),
+            self.object_store.clone(),
+            table.metadata.clone(),
+        )
+        .await?)
     }
 
     /// Create a view with the catalog if it doesn't exist.

@@ -7,12 +7,12 @@ use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
+use datafusion_common::types::logical_date;
 use datafusion_common::{internal_err, types::logical_string};
+use datafusion_expr::Coercion;
 use std::any::Any;
 use std::sync::Arc;
 use std::vec;
-use datafusion_common::types::logical_date;
-use datafusion_expr::Coercion;
 
 #[derive(Debug)]
 pub struct DateDiffFunc {
@@ -121,7 +121,7 @@ impl ScalarUDFImpl for DateDiffFunc {
 
     fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
         let args = &args.args;
-        
+
         if args.len() != 3 {
             return plan_err!("function requires three arguments");
         }

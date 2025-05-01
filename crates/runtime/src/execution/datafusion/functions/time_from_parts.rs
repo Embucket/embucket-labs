@@ -63,8 +63,18 @@ impl TimeFromPartsFunc {
         Self {
             signature: Signature::one_of(
                 vec![
-                    Coercible(vec![Coercion::new_exact(TypeSignatureClass::Native(logical_int64())); 4]),
-                    Coercible(vec![Coercion::new_exact(TypeSignatureClass::Native(logical_int64())); 3]),
+                    Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(
+                            logical_int64()
+                        ));
+                        4
+                    ]),
+                    Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(
+                            logical_int64()
+                        ));
+                        3
+                    ]),
                 ],
                 Volatility::Immutable,
             ),
