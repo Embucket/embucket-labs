@@ -1655,27 +1655,6 @@ impl UserQuery {
         Ok(NormalizedIdent(normalized_idents))
     }
 
-    pub fn resolve_schema_ident(
-        &self,
-        mut schema_ident: Vec<Ident>,
-    ) -> ExecutionResult<NormalizedIdent> {
-        match schema_ident.len() {
-            1 => schema_ident.insert(0, Ident::new(self.current_database())),
-            2 => {}
-            _ => {
-                return Err(ExecutionError::InvalidSchemaIdentifier {
-                    ident: NormalizedIdent(schema_ident).to_string(),
-                });
-            }
-        }
-        Ok(NormalizedIdent(
-            schema_ident
-                .iter()
-                .map(|ident| Ident::new(self.session.ident_normalizer.normalize(ident.clone())))
-                .collect(),
-        ))
-    }
-
     #[allow(clippy::only_used_in_recursion)]
     fn get_table_with_alias(factor: TableFactor) -> (ObjectName, String) {
         match factor {

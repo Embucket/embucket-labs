@@ -143,9 +143,8 @@ mod test {
     };
     use arrow::datatypes::Date32Type;
     use chrono::NaiveDate;
-    use datafusion::logical_expr::ColumnarValue;
     use datafusion_common::ScalarValue;
-    use datafusion_expr::ScalarUDFImpl;
+    use datafusion_expr::{ColumnarValue, ScalarUDFImpl};
 
     #[allow(clippy::unwrap_used)]
     fn columnar_value_fn<T>(is_scalar: bool, v: T) -> ColumnarValue
@@ -183,7 +182,13 @@ mod test {
                     columnar_value_fn(is_scalar, *m),
                     columnar_value_fn(is_scalar, *d),
                 ];
-                let result = DateFromPartsFunc::new().invoke_batch(&fn_args, 1).unwrap();
+                let result = DateFromPartsFunc::new()
+                    .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
+                        args: fn_args,
+                        number_rows: 1,
+                        return_type: &arrow::datatypes::DataType::Date32,
+                    })
+                    .unwrap();
                 let result = to_primitive_array::<Date32Type>(&result).unwrap();
                 let result =
                     NaiveDate::from_num_days_from_ce_opt(result.value(0) + UNIX_DAYS_FROM_CE)

@@ -211,7 +211,15 @@ mod test {
                 if let Some(nano) = n {
                     fn_args.push(columnar_value_fn(is_scalar, *nano));
                 };
-                let result = TimeFromPartsFunc::new().invoke_batch(&fn_args, 1).unwrap();
+                let result = TimeFromPartsFunc::new()
+                    .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
+                        args: fn_args,
+                        number_rows: 1,
+                        return_type: &arrow::datatypes::DataType::Time64(
+                            arrow_schema::TimeUnit::Nanosecond,
+                        ),
+                    })
+                    .unwrap();
                 let result = to_primitive_array::<Time64NanosecondType>(&result).unwrap();
                 let seconds = result.value(0) / 1_000_000_000;
                 let nanoseconds = result.value(0) % 1_000_000_000;

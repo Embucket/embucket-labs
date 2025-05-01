@@ -555,7 +555,14 @@ mod test {
                     fn_args.push(columnar_value_fn(is_scalar, t.to_string()));
                 };
                 let result = TimestampFromPartsFunc::new()
-                    .invoke_batch(&fn_args, 1)
+                    .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
+                        args: fn_args,
+                        number_rows: 1,
+                        return_type: &arrow::datatypes::DataType::Timestamp(
+                            arrow_schema::TimeUnit::Nanosecond,
+                            None,
+                        ),
+                    })
                     .unwrap();
                 let result = to_primitive_array::<TimestampNanosecondType>(&result).unwrap();
                 let ts = DateTime::from_timestamp_nanos(result.value(0))
@@ -583,7 +590,14 @@ mod test {
                     columnar_value_fn(is_scalar, ScalarValue::Time64Nanosecond(Some(*time))),
                 ];
                 let result = TimestampFromPartsFunc::new()
-                    .invoke_batch(&fn_args, 1)
+                    .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
+                        args: fn_args,
+                        number_rows: 1,
+                        return_type: &arrow::datatypes::DataType::Timestamp(
+                            arrow_schema::TimeUnit::Nanosecond,
+                            None,
+                        ),
+                    })
                     .unwrap();
                 let result = to_primitive_array::<TimestampNanosecondType>(&result).unwrap();
                 assert_eq!(result.value(0), *exp, "failed at index {i}");
