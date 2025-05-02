@@ -94,31 +94,30 @@ impl Accumulator for BoolAndAggAccumulator {
         }
 
         let arr = &values[0];
-
+        let mut is_null = true;
         match arr.data_type() {
             DataType::Boolean => {
                 let barr = downcast_value!(arr, BooleanArray);
-                let mut non_null = false;
                 for val in barr {
                     if val.is_some() {
-                        non_null = true;
+                        is_null = false;
                     }
                     if matches!(val, Some(true)) {
-                        if self.state.is_some() {
+                        if matches!(self.state, Some(true)) {
                             self.state = Some(false);
                             return Ok(());
                         }
                         self.state = Some(true);
-                        return Ok(());
                     }
-                }
-                if non_null {
-                    self.state = Some(false);
                 }
             }
             _ => {
                 unimplemented!()
             }
+        }
+
+        if !is_null && !matches!(self.state, Some(true)) {
+            self.state = Some(false);
         }
 
         Ok(())
@@ -141,19 +140,23 @@ impl Accumulator for BoolAndAggAccumulator {
             return Ok(());
         }
 
-        let mut non_null = false;
+        let mut is_null = true;
         for state in states {
             let v = ScalarValue::try_from_array(state, 0)?;
             if !v.is_null() {
-                non_null = true;
+                is_null = false;
             }
             if matches!(v, ScalarValue::Boolean(Some(true))) {
+                if matches!(self.state, Some(true)) {
+                    self.state = Some(false);
+                    return Ok(());
+                }
+
                 self.state = Some(true);
-                return Ok(());
             }
         }
 
-        if non_null {
+        if !is_null && !matches!(self.state, Some(true)) {
             self.state = Some(false);
         }
 
@@ -175,7 +178,7 @@ mod tests {
             Arc::new(BooleanArray::from(vec![Some(true)])),
             Arc::new(BooleanArray::from(vec![Some(true)])),
         ])?;
-        assert_eq!(acc.state, Some(true));
+        assert_eq!(acc.state, Some(false));
 
         let mut acc = BoolAndAggAccumulator::new();
         acc.merge_batch(&[
@@ -247,15 +250,15 @@ mod tests {
 
         assert_batches_eq!(
             &[
-                "+----+--------------------------------+",
-                "| id | boolor_agg(test_boolean_agg.c) |",
-                "+----+--------------------------------+",
-                "| 1  | false                          |",
-                "| 2  | true                           |",
-                "| 3  | true                           |",
-                "| 4  | false                          |",
-                "| 5  |                                |",
-                "+----+--------------------------------+",
+                "+----+---------------------------------+",
+                "| id | boolxor_agg(test_boolean_agg.c) |",
+                "+----+---------------------------------+",
+                "| 1  | false                           |",
+                "| 2  | true                            |",
+                "| 3  | true                            |",
+                "| 4  | false                           |",
+                "| 5  |                                 |",
+                "+----+---------------------------------+",
             ],
             &result
         );
