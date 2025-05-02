@@ -1604,7 +1604,7 @@ impl UserQuery {
                 return Err(ExecutionError::InvalidTableIdentifier {
                     ident: table_ident
                         .iter()
-                        .map(|p| p.to_string())
+                        .map(ToString::to_string)
                         .collect::<Vec<_>>()
                         .join("."),
                 });
@@ -1640,7 +1640,7 @@ impl UserQuery {
                 return Err(ExecutionError::InvalidSchemaIdentifier {
                     ident: schema_ident
                         .iter()
-                        .map(|p| p.to_string())
+                        .map(ToString::to_string)
                         .collect::<Vec<_>>()
                         .join("."),
                 });
