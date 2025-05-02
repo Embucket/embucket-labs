@@ -469,10 +469,14 @@ impl UserQuery {
             if is_logical_plan_effectively_empty(&input) {
                 return created_entity_response();
             }
+            let schema_name = name.schema()
+                .ok_or(ExecutionError::InvalidTableIdentifier {
+                    ident: name.to_string(),
+                })?;
+                
             let target_table = catalog
-                .schema(name.schema().unwrap())
-                .expect("Schema not found")
-                .table(&name.table())
+                .schema(schema_name).ok_or(ExecutionError::SchemaNotFound { schema:schema_name.to_string() })?
+                .table(name.table())
                 .await
                 .context(super::error::DataFusionSnafu)?
                 .ok_or(ExecutionError::TableProviderNotFound {
@@ -1609,10 +1613,10 @@ impl UserQuery {
 
         let normalized_idents = table_ident
             .iter()
-            .filter_map(|part| match part {
-                ObjectNamePart::Identifier(ident) => Some(Ident::new(
+            .map(|part| match part {
+                ObjectNamePart::Identifier(ident) => Ident::new(
                     self.session.ident_normalizer.normalize(ident.clone()),
-                )),
+                ),
             })
             .collect();
 
@@ -1645,10 +1649,10 @@ impl UserQuery {
 
         let normalized_idents = schema_ident
             .iter()
-            .filter_map(|part| match part {
-                ObjectNamePart::Identifier(ident) => Some(Ident::new(
+            .map(|part| match part {
+                ObjectNamePart::Identifier(ident) => Ident::new(
                     self.session.ident_normalizer.normalize(ident.clone()),
-                )),
+                ),
             })
             .collect();
 

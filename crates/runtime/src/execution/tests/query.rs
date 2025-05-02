@@ -138,7 +138,6 @@ async fn test_timestamp_keywords_postprocess() {
                             }
                             _ => {}
                         },
-                        _ => {}
                     }
                 }
                 ControlFlow::<()>::Continue(())
