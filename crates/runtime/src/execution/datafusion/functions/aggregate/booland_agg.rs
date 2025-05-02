@@ -15,7 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use arrow_array::{Array, ArrayRef, BooleanArray};
+use arrow_array::{
+    ArrayRef, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int16Array, Int32Array,
+    Int64Array, Int8Array, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
+};
 use arrow_schema::DataType;
 use datafusion::common::DataFusionError;
 use datafusion::error::Result as DFResult;
@@ -92,28 +95,19 @@ impl Accumulator for BoolAndAggAccumulator {
             return Ok(());
         }
 
-        let arr = &values[0];
-
-        match arr.data_type() {
-            DataType::Boolean => {
-                let barr = downcast_value!(arr, BooleanArray);
-                let mut non_null = false;
-                for val in barr {
-                    if val.is_some() {
-                        non_null = true;
-                    }
-                    if matches!(val, Some(false)) {
-                        self.state = Some(false);
-                        return Ok(());
-                    }
-                }
-                if non_null {
-                    self.state = Some(true);
-                }
+        let barr = array_to_boolean(&values[0])?;
+        let mut non_null = false;
+        for val in &barr {
+            if val.is_some() {
+                non_null = true;
             }
-            _ => {
-                unimplemented!()
+            if matches!(val, Some(false)) {
+                self.state = Some(false);
+                return Ok(());
             }
+        }
+        if non_null {
+            self.state = Some(true);
         }
 
         Ok(())
@@ -155,6 +149,40 @@ impl Accumulator for BoolAndAggAccumulator {
         Ok(())
     }
 }
+
+fn array_to_boolean(arr: &ArrayRef) -> DFResult<BooleanArray> {
+    let arr = arr.as_ref();
+    let mut boolean_array = BooleanArray::builder(arr.len());
+    for i in 0..arr.len() {
+        if arr.is_null(i) {
+            boolean_array.append_null();
+        } else {
+            let b = match arr.data_type() {
+                DataType::Boolean => downcast_value!(arr, BooleanArray).value(i),
+                DataType::Int8 => downcast_value!(arr, Int8Array).value(i) != 0,
+                DataType::Int16 => downcast_value!(arr, Int16Array).value(i) != 0,
+                DataType::Int32 => downcast_value!(arr, Int32Array).value(i) != 0,
+                DataType::Int64 => downcast_value!(arr, Int64Array).value(i) != 0,
+                DataType::UInt8 => downcast_value!(arr, UInt8Array).value(i) != 0,
+                DataType::UInt16 => downcast_value!(arr, UInt16Array).value(i) != 0,
+                DataType::UInt32 => downcast_value!(arr, UInt32Array).value(i) != 0,
+                DataType::UInt64 => downcast_value!(arr, UInt64Array).value(i) != 0,
+                DataType::Float32 => downcast_value!(arr, Float32Array).value(i) != 0.,
+                DataType::Float64 => downcast_value!(arr, Float64Array).value(i) != 0.,
+                DataType::Decimal128(_, _) => downcast_value!(arr, Decimal128Array).value(i) != 0,
+                _ => {
+                    return Err(DataFusionError::Internal(
+                        "only supports boolean, numeric, decimal, float types".to_string(),
+                    ))
+                }
+            };
+
+            boolean_array.append_value(b);
+        }
+    }
+    Ok(boolean_array.finish())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -228,6 +256,54 @@ mod tests {
     (3, true),
     (3, null),
     (4, false),
+    (4, null),
+    (5, null),
+    (5, null);",
+        )
+        .await?;
+
+        let result = ctx
+            .sql("select id, booland_agg(c) from test_boolean_agg group by id order by id;")
+            .await?
+            .collect()
+            .await?;
+
+        assert_batches_eq!(
+            &[
+                "+----+---------------------------------+",
+                "| id | booland_agg(test_boolean_agg.c) |",
+                "+----+---------------------------------+",
+                "| 1  | true                            |",
+                "| 2  | false                           |",
+                "| 3  | true                            |",
+                "| 4  | false                           |",
+                "| 5  |                                 |",
+                "+----+---------------------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_numeric() -> DFResult<()> {
+        let config = SessionConfig::new();
+        let ctx = SessionContext::new_with_config(config);
+        ctx.register_udaf(AggregateUDF::from(BoolAndAggUDAF::new()));
+        ctx.sql(
+            "create table test_boolean_agg
+(
+    id integer,
+    c  integer
+) as values
+    (1, 1),
+    (1, 1),
+    (2, 1),
+    (2, 0),
+    (3, 1),
+    (3, null),
+    (4, 0),
     (4, null),
     (5, null),
     (5, null);",
