@@ -40,5 +40,5 @@ pub async fn run_binary(
 
     let _ = run_web_assets_server(&config.web_assets).await?;
 
-    run_app(app, &config.web, db).await
+    run_app(app, &config.web, Arc::new(db)).await
 }

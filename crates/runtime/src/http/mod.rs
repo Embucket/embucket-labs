@@ -92,7 +92,7 @@ pub fn make_app(
 pub async fn run_app(
     app: Router,
     config: &WebConfig,
-    db: Db,
+    db: Arc<Db>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let host = config.host.clone();
     let port = config.port;
@@ -115,7 +115,7 @@ pub async fn run_app(
     clippy::redundant_pub_crate,
     clippy::cognitive_complexity
 )]
-async fn shutdown_signal(db: Db) {
+async fn shutdown_signal(db: Arc<Db>) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
