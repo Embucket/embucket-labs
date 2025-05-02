@@ -247,17 +247,17 @@ impl FlattenTableFunc {
 }
 
 impl TableFunctionImpl for FlattenTableFunc {
-    fn call(&self, args: &[Expr]) -> DFResult<Arc<dyn TableProvider>> {
+    fn call(&self, args: &[(Expr, Option<String>)]) -> DFResult<Arc<dyn TableProvider>> {
         if args.len() != 5 {
             return plan_err!("flatten() expects 5 args: INPUT, PATH, OUTER, RECURSIVE, MODE");
         }
 
         self.row_id.fetch_add(1, Ordering::Acquire);
-        let ScalarValue::Utf8(Some(input_str)) = eval_expr(&args[0])? else {
+        let ScalarValue::Utf8(Some(input_str)) = eval_expr(&args[0].0)? else {
             return plan_err!("INPUT must be a string");
         };
 
-        let path = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[1] {
+        let path = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[1].0 {
             if let Some(p) = tokenize_path(v) {
                 p
             } else {
@@ -267,19 +267,19 @@ impl TableFunctionImpl for FlattenTableFunc {
             vec![]
         };
 
-        let is_outer = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[2] {
+        let is_outer = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[2].0 {
             *v
         } else {
             false
         };
 
-        let is_recursive = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[3] {
+        let is_recursive = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[3].0 {
             *v
         } else {
             false
         };
 
-        let mode = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[4] {
+        let mode = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[4].0 {
             match v.to_lowercase().as_str() {
                 "object" => Mode::Object,
                 "array" => Mode::Array,
