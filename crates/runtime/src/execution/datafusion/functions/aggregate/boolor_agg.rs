@@ -27,7 +27,7 @@ use std::any::Any;
 
 /// Boolor function
 /// Returns TRUE if at least one Boolean record in a group evaluates to TRUE.
-/// 
+///
 /// If all records in the group are NULL, or if the group is empty, the function returns NULL.
 ///
 /// Syntax: `boolor_agg(<expr>)`
@@ -109,7 +109,7 @@ impl Accumulator for BoolAndAggAccumulator {
                     }
                 }
                 if non_null {
-                    self.state = Some(true);
+                    self.state = Some(false);
                 }
             }
             _ => {
@@ -150,7 +150,7 @@ impl Accumulator for BoolAndAggAccumulator {
         }
 
         if non_null {
-            self.state = Some(true);
+            self.state = Some(false);
         }
 
         Ok(())
@@ -243,15 +243,15 @@ mod tests {
 
         assert_batches_eq!(
             &[
-                "+----+---------------------------------+",
-                "| id | booland_agg(test_boolean_agg.c) |",
-                "+----+---------------------------------+",
-                "| 1  | true                            |",
-                "| 2  | true                            |",
-                "| 3  | true                            |",
-                "| 4  | false                           |",
-                "| 5  |                                 |",
-                "+----+---------------------------------+",
+                "+----+--------------------------------+",
+                "| id | boolor_agg(test_boolean_agg.c) |",
+                "+----+--------------------------------+",
+                "| 1  | true                           |",
+                "| 2  | true                           |",
+                "| 3  | true                           |",
+                "| 4  | false                          |",
+                "| 5  |                                |",
+                "+----+--------------------------------+",
             ],
             &result
         );
