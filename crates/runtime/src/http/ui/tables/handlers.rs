@@ -32,6 +32,7 @@ use utoipa::OpenApi;
         get_table_columns,
         get_table_preview_data,
         upload_file,
+        get_tables,
     ),
     components(
         schemas(
@@ -40,11 +41,14 @@ use utoipa::OpenApi;
             TableColumnsResponse,
             TableColumn,
             TablePreviewDataResponse,
+            TablePreviewDataParameters,
             TablePreviewDataColumn,
             TablePreviewDataRow,
             UploadParameters,
             TableUploadPayload,
             TableUploadResponse,
+            TablesResponse,
+            TablesParameters,
             ErrorResponse,
         )
     ),
