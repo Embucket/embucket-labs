@@ -25,7 +25,7 @@ use datafusion_expr::function::AccumulatorArgs;
 use datafusion_expr::{AggregateUDFImpl, Signature, Volatility};
 use std::any::Any;
 
-/// Boolean Or function
+/// Boolor function
 /// Returns TRUE if at least one Boolean record in a group evaluates to TRUE.
 /// 
 /// If all records in the group are NULL, or if the group is empty, the function returns NULL.
@@ -33,17 +33,17 @@ use std::any::Any;
 /// Syntax: `boolor_agg(<expr>)`
 
 #[derive(Debug, Clone)]
-pub struct BoolAndAggUDAF {
+pub struct BoolOrAggUDAF {
     signature: Signature,
 }
 
-impl Default for BoolAndAggUDAF {
+impl Default for BoolOrAggUDAF {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl BoolAndAggUDAF {
+impl BoolOrAggUDAF {
     pub fn new() -> Self {
         Self {
             signature: Signature::any(1, Volatility::Immutable),
@@ -51,13 +51,13 @@ impl BoolAndAggUDAF {
     }
 }
 
-impl AggregateUDFImpl for BoolAndAggUDAF {
+impl AggregateUDFImpl for BoolOrAggUDAF {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &'static str {
-        "booland_agg"
+        "boolor_agg"
     }
 
     fn signature(&self) -> &Signature {
@@ -103,8 +103,8 @@ impl Accumulator for BoolAndAggAccumulator {
                     if val.is_some() {
                         non_null = true;
                     }
-                    if matches!(val, Some(false)) {
-                        self.state = Some(false);
+                    if matches!(val, Some(true)) {
+                        self.state = Some(true);
                         return Ok(());
                     }
                 }
@@ -143,8 +143,8 @@ impl Accumulator for BoolAndAggAccumulator {
             if !v.is_null() {
                 non_null = true;
             }
-            if matches!(v, ScalarValue::Boolean(Some(false))) {
-                self.state = Some(false);
+            if matches!(v, ScalarValue::Boolean(Some(true))) {
+                self.state = Some(true);
                 return Ok(());
             }
         }
@@ -178,7 +178,7 @@ mod tests {
             Arc::new(BooleanArray::from(vec![Some(true)])),
             Arc::new(BooleanArray::from(vec![Some(false)])),
         ])?;
-        assert_eq!(acc.state, Some(false));
+        assert_eq!(acc.state, Some(true));
 
         let mut acc = BoolAndAggAccumulator::new();
         acc.merge_batch(&[
@@ -215,7 +215,7 @@ mod tests {
     async fn test_sql() -> DFResult<()> {
         let config = SessionConfig::new();
         let ctx = SessionContext::new_with_config(config);
-        ctx.register_udaf(AggregateUDF::from(BoolAndAggUDAF::new()));
+        ctx.register_udaf(AggregateUDF::from(BoolOrAggUDAF::new()));
         ctx.sql(
             "create table test_boolean_agg
 (
@@ -236,7 +236,7 @@ mod tests {
         .await?;
 
         let result = ctx
-            .sql("select id, booland_agg(c) from test_boolean_agg group by id order by id;")
+            .sql("select id, boolor_agg(c) from test_boolean_agg group by id order by id;")
             .await?
             .collect()
             .await?;
@@ -247,7 +247,7 @@ mod tests {
                 "| id | booland_agg(test_boolean_agg.c) |",
                 "+----+---------------------------------+",
                 "| 1  | true                            |",
-                "| 2  | false                           |",
+                "| 2  | true                            |",
                 "| 3  | true                            |",
                 "| 4  | false                           |",
                 "| 5  |                                 |",
