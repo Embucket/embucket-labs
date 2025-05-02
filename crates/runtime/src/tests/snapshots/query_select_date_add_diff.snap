@@ -28,11 +28,13 @@ description: "\"SELECT dateadd(day, 5, '2025-06-01')\""
                                     Function {
                                         name: ObjectName(
                                             [
-                                                Ident {
-                                                    value: "dateadd",
-                                                    quote_style: None,
-                                                    span: Span(Location(0,0)..Location(0,0)),
-                                                },
+                                                Identifier(
+                                                    Ident {
+                                                        value: "dateadd",
+                                                        quote_style: None,
+                                                        span: Span(Location(0,0)..Location(0,0)),
+                                                    },
+                                                ),
                                             ],
                                         ),
                                         uses_odbc_syntax: false,
@@ -44,28 +46,37 @@ description: "\"SELECT dateadd(day, 5, '2025-06-01')\""
                                                     Unnamed(
                                                         Expr(
                                                             Value(
-                                                                SingleQuotedString(
-                                                                    "day",
-                                                                ),
+                                                                ValueWithSpan {
+                                                                    value: SingleQuotedString(
+                                                                        "day",
+                                                                    ),
+                                                                    span: Span(Location(0,0)..Location(0,0)),
+                                                                },
                                                             ),
                                                         ),
                                                     ),
                                                     Unnamed(
                                                         Expr(
                                                             Value(
-                                                                Number(
-                                                                    "5",
-                                                                    false,
-                                                                ),
+                                                                ValueWithSpan {
+                                                                    value: Number(
+                                                                        "5",
+                                                                        false,
+                                                                    ),
+                                                                    span: Span(Location(1,21)..Location(1,22)),
+                                                                },
                                                             ),
                                                         ),
                                                     ),
                                                     Unnamed(
                                                         Expr(
                                                             Value(
-                                                                SingleQuotedString(
-                                                                    "2025-06-01",
-                                                                ),
+                                                                ValueWithSpan {
+                                                                    value: SingleQuotedString(
+                                                                        "2025-06-01",
+                                                                    ),
+                                                                    span: Span(Location(1,24)..Location(1,36)),
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -99,6 +110,7 @@ description: "\"SELECT dateadd(day, 5, '2025-06-01')\""
                         window_before_qualify: false,
                         value_table_mode: None,
                         connect_by: None,
+                        flavor: Standard,
                     },
                 ),
                 order_by: None,
