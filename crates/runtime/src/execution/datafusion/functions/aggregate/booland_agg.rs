@@ -25,11 +25,11 @@ use datafusion_expr::function::AccumulatorArgs;
 use datafusion_expr::{AggregateUDFImpl, Signature, Volatility};
 use std::any::Any;
 
-/// Boolean Agg function
+/// Booland Agg function
 /// Returns TRUE if all non-NULL Boolean records in a group evaluate to TRUE.
 /// If all records in the group are NULL, or if the group is empty, the function returns NULL.
 ///
-/// Syntax: `boolean_agg(<expr>)`
+/// Syntax: `booland_agg(<expr>)`
 
 #[derive(Debug, Clone)]
 pub struct BoolAndAggUDAF {
