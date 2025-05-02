@@ -6,7 +6,7 @@ use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
-use datafusion_common::types::{logical_int64, logical_string};
+use datafusion_common::types::{logical_int64, logical_string, logical_date};
 use datafusion_expr::Coercion;
 use std::any::Any;
 use std::sync::Arc;
@@ -43,7 +43,7 @@ impl DateAddFunc {
                     Coercible(vec![
                         Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
                         Coercion::new_exact(TypeSignatureClass::Native(logical_int64())),
-                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
                     ]),
                 ],
                 Volatility::Immutable,
