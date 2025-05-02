@@ -16,17 +16,17 @@ use std::any::Any;
 // - False if both expressions are zero or one expression is zero and the other expression is non-zero or NULL.
 // - NULL if both expressions are NULL or one expression is NULL and the other expression is non-zero.
 #[derive(Debug)]
-pub struct BoolAnd {
+pub struct BoolAndFunc {
     signature: Signature,
 }
 
-impl Default for BoolAnd {
+impl Default for BoolAndFunc {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl BoolAnd {
+impl BoolAndFunc {
     pub fn new() -> Self {
         Self {
             signature: Signature::comparable(2, Volatility::Immutable),
@@ -34,7 +34,7 @@ impl BoolAnd {
     }
 }
 
-impl ScalarUDFImpl for BoolAnd {
+impl ScalarUDFImpl for BoolAndFunc {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -85,17 +85,17 @@ impl ScalarUDFImpl for BoolAnd {
 // - False if both expressions are zero.
 // - NULL if both expressions are NULL or one expression is NULL and the other expression is zero.
 #[derive(Debug)]
-pub struct BoolOr {
+pub struct BoolOrFunc {
     signature: Signature,
 }
 
-impl Default for BoolOr {
+impl Default for BoolOrFunc {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl BoolOr {
+impl BoolOrFunc {
     pub fn new() -> Self {
         Self {
             signature: Signature::comparable(2, Volatility::Immutable),
@@ -103,7 +103,7 @@ impl BoolOr {
     }
 }
 
-impl ScalarUDFImpl for BoolOr {
+impl ScalarUDFImpl for BoolOrFunc {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -154,17 +154,17 @@ impl ScalarUDFImpl for BoolOr {
 // - False if both expressions are non-zero or both expressions are zero.
 // - NULL if one or both expressions are NULL.
 #[derive(Debug)]
-pub struct BoolXor {
+pub struct BoolXorFunc {
     signature: Signature,
 }
 
-impl Default for BoolXor {
+impl Default for BoolXorFunc {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl BoolXor {
+impl BoolXorFunc {
     pub fn new() -> Self {
         Self {
             signature: Signature::comparable(2, Volatility::Immutable),
@@ -172,7 +172,7 @@ impl BoolXor {
     }
 }
 
-impl ScalarUDFImpl for BoolXor {
+impl ScalarUDFImpl for BoolXorFunc {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -254,7 +254,7 @@ mod tests {
     #[tokio::test]
     async fn test_bool_and() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(BoolAnd::new()));
+        ctx.register_udf(ScalarUDF::from(BoolAndFunc::new()));
         let q = "SELECT BOOLAND(1, -2), BOOLAND(0, 2.35), BOOLAND(0, 0), BOOLAND(0, NULL), BOOLAND(NULL, 3), BOOLAND(NULL, NULL);";
         let result = ctx.sql(q).await?.collect().await?;
 
@@ -275,7 +275,7 @@ mod tests {
     #[tokio::test]
     async fn test_bool_or() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(BoolOr::new()));
+        ctx.register_udf(ScalarUDF::from(BoolOrFunc::new()));
         let q = "SELECT BOOLOR(1, 2), BOOLOR(-1.35, 0), BOOLOR(3, NULL), BOOLOR(0, 0), BOOLOR(NULL, 0), BOOLOR(NULL, NULL);
 ";
         let result = ctx.sql(q).await?.collect().await?;
@@ -296,7 +296,7 @@ mod tests {
     #[tokio::test]
     async fn test_bool_xor() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(BoolXor::new()));
+        ctx.register_udf(ScalarUDF::from(BoolXorFunc::new()));
         let q = "SELECT BOOLXOR(2, 0), BOOLXOR(1, -1), BOOLXOR(0, 0), BOOLXOR(NULL, 3), BOOLXOR(NULL, 0), BOOLXOR(NULL, NULL);
 ";
         let result = ctx.sql(q).await?.collect().await?;

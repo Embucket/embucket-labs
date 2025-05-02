@@ -22,6 +22,9 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         timestamp_from_parts::get_udf(),
         time_from_parts::get_udf(),
         date_from_parts::get_udf(),
+        Arc::new(ScalarUDF::from(bool::BoolAndFunc::new())),
+        Arc::new(ScalarUDF::from(bool::BoolOrFunc::new())),
+        Arc::new(ScalarUDF::from(bool::BoolXorFunc::new()))
     ];
 
     for func in functions {
