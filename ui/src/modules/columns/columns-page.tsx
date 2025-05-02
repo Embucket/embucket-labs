@@ -11,10 +11,11 @@ export function ColumnsPage() {
     <>
       <PageHeader title="Columns">
         <Link
+          className="text-blue-500"
           to="/databases/$databaseId/schemas/$schemaId/tables"
           params={{ databaseId: '1', schemaId: '1' }}
         >
-          Tables
+          ← Tables
         </Link>
       </PageHeader>
       <PageContent>

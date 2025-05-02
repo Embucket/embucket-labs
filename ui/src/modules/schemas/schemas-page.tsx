@@ -10,14 +10,15 @@ export function SchemasPage() {
   return (
     <>
       <PageHeader title="Schemas">
-        <Link to="/databases" params={{ databaseId: '1' }}>
-          Databases
+        <Link className="text-blue-500" to="/databases" params={{ databaseId: '1' }}>
+          ← Databases
         </Link>
         <Link
+          className="text-blue-500"
           to="/databases/$databaseId/schemas/$schemaId/tables"
           params={{ databaseId: '1', schemaId: '1' }}
         >
-          Tables
+          Tables →
         </Link>
       </PageHeader>
       <PageContent>

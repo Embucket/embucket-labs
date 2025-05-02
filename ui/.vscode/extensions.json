@@ -24,6 +24,7 @@
     "vincaslt.highlight-matching-tag",
     "sirtori.indenticator",
     "meganrogge.template-string-converter",
-    "codeandstuff.package-json-upgrade"
+    "codeandstuff.package-json-upgrade",
+    "christian-kohler.path-intellisense"
   ]
 }
