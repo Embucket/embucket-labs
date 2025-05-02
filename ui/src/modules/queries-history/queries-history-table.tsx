@@ -1,6 +1,10 @@
 import { createColumnHelper } from '@tanstack/react-table';
 
 import { DataTable } from '@/components/data-table/data-table';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import dayjs from '@/lib/dayjs';
+import { cn } from '@/lib/utils';
 import type { QueryRecord } from '@/orval/models';
 
 interface QueriesHistoryTableProps {
@@ -13,30 +17,54 @@ export function QueriesHistoryTable({ isLoading, queries }: QueriesHistoryTableP
 
   const columns = [
     columnHelper.accessor('id', {
-      header: 'Id',
+      header: 'ID',
     }),
     columnHelper.accessor('query', {
-      header: 'Query',
+      header: 'SQL',
       meta: {
         cellClassName: 'max-w-[300px] truncate',
       },
     }),
     columnHelper.accessor('status', {
       header: 'Status',
+      cell: (info) => {
+        const status = info.getValue();
+        return (
+          <Badge variant="outline">
+            <span
+              className={cn(
+                status === 'successful' && 'text-green-500',
+                status === 'failed' && 'text-red-500',
+              )}
+            >
+              {status}
+            </span>
+          </Badge>
+        );
+      },
     }),
     columnHelper.accessor('startTime', {
       header: 'Start Time',
       cell: (info) => {
-        const date = new Date(info.getValue()).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        });
+        const startTime = dayjs(info.getValue());
+        const diff = dayjs().diff(startTime, 'minute');
+        const date =
+          diff < 24 ? dayjs(startTime).fromNow() : dayjs(startTime).format('DD/MM/YYYY HH:mm');
         return <span>{date}</span>;
       },
     }),
     columnHelper.accessor('durationMs', {
       header: 'Duration',
+      cell: (info) => {
+        const maxDuration = Math.max(...queries.map((query) => query.durationMs));
+        const percentageFromMaxDuration = (info.getValue() / maxDuration) * 100;
+        return (
+          <div className="flex min-w-[100px] items-center gap-2">
+            <Progress value={percentageFromMaxDuration} />
+            <span>{info.getValue()}ms</span>
+          </div>
+        );
+      },
     }),
   ];
 
