@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use config::RuntimeConfig;
-use embucket_history::history_store::SlateDBWorksheetsStore;
+use embucket_history::store::SlateDBWorksheetsStore;
 use embucket_metastore::SlateDBMetastore;
 use embucket_utils::Db;
 use http::web_assets::run_web_assets_server;

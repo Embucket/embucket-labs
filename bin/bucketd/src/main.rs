@@ -3,7 +3,7 @@ pub(crate) mod cli;
 use clap::Parser;
 use dotenv::dotenv;
 use embucket_runtime::{
-    config::{DbConfig, RuntimeConfig},
+    config::{AuthConfig, DbConfig, RuntimeConfig},
     http::config::WebConfig,
     http::web_assets::config::StaticWebConfig,
     run_binary,
@@ -37,12 +37,13 @@ async fn main() {
     } else {
         None
     };
+    let jwt_secret = opts.jwt_secret();
     let dbt_serialization_format = opts
         .data_format
         .clone()
         .unwrap_or_else(|| "json".to_string());
     let object_store = opts.object_store_backend();
-    let auth_config = AuthConfig::new(opts.jwt_secret());
+    let auth_config = AuthConfig::new(jwt_secret);
 
     match object_store {
         Err(e) => {

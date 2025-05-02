@@ -12,7 +12,7 @@ use crate::http::dbt::router::create_router as create_dbt_router;
 use crate::http::state::AppState;
 use crate::http::ui::router::{create_router as create_ui_router, ui_open_api_spec};
 use tower_http::timeout::TimeoutLayer;
-
+use crate::http::auth::router::create_router as create_auth_router;
 use super::metastore::router::create_router as create_metastore_router;
 
 // TODO: Fix OpenAPI spec generation
@@ -34,10 +34,12 @@ pub fn create_app(state: AppState) -> Router {
     let ui_router = create_ui_router();
     let dbt_router = create_dbt_router();
     let iceberg_catalog = create_iceberg_router();
+    let auth_router = create_auth_router();
 
     Router::new()
         .merge(dbt_router)
         .merge(metastore_router)
+        .merge(auth_router)
         .nest("/ui", ui_router)
         .nest("/catalog", iceberg_catalog)
         .merge(

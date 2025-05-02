@@ -1,5 +1,5 @@
 use crate::{AuthConfig, http::{make_app, config::WebConfig}};
-use embucket_history::history_store::SlateDBWorksheetsStore;
+use embucket_history::store::SlateDBWorksheetsStore;
 use embucket_metastore::SlateDBMetastore;
 use embucket_utils::Db;
 use std::net::SocketAddr;

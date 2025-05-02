@@ -4,8 +4,11 @@ use std::error::Error;
 use rand::rand_core::{TryRngCore, OsRng};
 use embucket_history::auth_store::AuthStoreError;
 use jsonwebtoken::errors::Error as JwtError;
+use http::header::MaxSizeReached;
 
 use crate::http::error::ErrorResponse;
+use http::HeaderMap;
+use crate::http::auth::models::LoginResponse;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
@@ -18,6 +21,10 @@ pub enum AuthError {
     Rand { source: <OsRng as TryRngCore>::Error },
     #[snafu(display("Store error: {source}"))]
     Store { source: AuthStoreError},
+    #[snafu(display("Response Header error: {source}"))]
+    ResponseHeader { source: MaxSizeReached },
+    #[snafu(display("Unauthorized"))]
+    Unauthorized,
 }
 
 impl IntoResponse for AuthError {
@@ -34,4 +41,6 @@ impl IntoResponse for AuthError {
     }
 }
 
-pub type AuthResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+//  pub type AuthResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+pub type AuthResult<T> = std::result::Result<T, AuthError>;
+

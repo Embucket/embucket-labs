@@ -6,9 +6,8 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
-use embucket_history::history_store::{WorksheetsStore, SlateDBWorksheetsStore};
-use embucket_history::auth_store::AuthStore;
-use embucket_metastore::{Metastore, SlateDBMetastore};
+use embucket_history::store::SlateDBWorksheetsStore;
+use embucket_metastore::SlateDBMetastore;
 use http_body_util::BodyExt;
 use std::sync::Arc;
 use time::Duration;
@@ -68,7 +67,7 @@ pub fn make_app(
 
     // Create the application state
     let app_state =
-        state::AppState::new(metastore, history, history, execution_svc, Arc::new(config.clone()), Arc::new(auth_config));
+        state::AppState::new(metastore, history.clone(), history, execution_svc, Arc::new(config.clone()), Arc::new(auth_config));
 
     let mut app = router::create_app(app_state)
         .layer(session_layer)

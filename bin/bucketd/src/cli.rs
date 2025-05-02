@@ -191,8 +191,8 @@ impl CliOpts {
         }
     }
 
-    pub fn jwt_secret(self) -> String {
+    pub fn jwt_secret(&self) -> String {
         std::env::remove_var("JWT_SECRET");
-        self.jwt_secret
+        self.jwt_secret.clone()
     }
 }
