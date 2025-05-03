@@ -73,7 +73,12 @@ export const SqlEditorLeftPanel = () => {
               {/* Databases */}
               <TabsContent value="databases" className="h-full">
                 <ResizablePanelGroup direction="vertical">
-                  <SqlEditorResizablePanel minSize={10} order={1} defaultSize={100}>
+                  <SqlEditorResizablePanel
+                    minSize={10}
+                    order={1}
+                    defaultSize={100}
+                    className="py-2"
+                  >
                     <SqlEditorLeftPanelTrees />
                   </SqlEditorResizablePanel>
                   {selectedTree && <SqlEditorResizableHandle />}

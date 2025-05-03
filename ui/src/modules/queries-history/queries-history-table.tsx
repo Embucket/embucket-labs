@@ -33,6 +33,7 @@ export function QueriesHistoryTable({ isLoading, queries }: QueriesHistoryTableP
           <Badge variant="outline">
             <span
               className={cn(
+                'capitalize',
                 status === 'successful' && 'text-green-500',
                 status === 'failed' && 'text-red-500',
               )}

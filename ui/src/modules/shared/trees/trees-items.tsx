@@ -177,7 +177,7 @@ export function TreesDatabases({
 
 export function TreesLayout({ children }: { children: ReactNode }) {
   return (
-    <ScrollArea className="size-full py-2">
+    <ScrollArea className="size-full">
       <SidebarMenu className="w-full px-2 select-none">{children}</SidebarMenu>
       <ScrollBar orientation="vertical" />
     </ScrollArea>
