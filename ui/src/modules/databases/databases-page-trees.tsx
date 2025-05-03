@@ -32,17 +32,17 @@ export function DatabasesPageTrees() {
 
   return (
     <>
-      <TreesLayout>
+      <TreesLayout scrollAreaClassName="h-[calc(100vh-56px-32px-2px)]">
         <TreesDatabases
           databases={navigationTrees}
           isFetchingDatabases={isFetchingNavigationTrees}
-          defaultOpen={() => false}
+          defaultOpen={() => true}
           onClick={handleDatabaseClick}
         >
           {(database) => (
             <TreesSchemas
               schemas={database.schemas}
-              defaultOpen={() => false}
+              defaultOpen={() => true}
               onClick={handleSchemaClick}
             >
               {(schema) => (
@@ -50,7 +50,7 @@ export function DatabasesPageTrees() {
                   tables={schema.tables}
                   database={database}
                   schema={schema}
-                  defaultOpen={false}
+                  defaultOpen={true}
                   onClick={handleTableClick}
                 />
               )}

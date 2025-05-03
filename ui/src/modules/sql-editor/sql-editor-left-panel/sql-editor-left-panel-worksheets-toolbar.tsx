@@ -26,7 +26,7 @@ export const SqlEditorLeftPanelWorksheetsToolbar = ({
   };
 
   return (
-    <SidebarGroup className="px-4">
+    <SidebarGroup className="px-4 pt-4">
       <div className="justify flex items-center justify-between gap-2">
         <InputRoot className="w-full">
           <InputIcon>

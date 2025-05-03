@@ -33,21 +33,23 @@ export function SqlEditorLeftPanelTrees() {
 
   return (
     <>
-      <TreesLayout>
+      <TreesLayout scrollAreaClassName="h-[calc(100%-56px-2px)]">
         <TreesDatabases
           databases={navigationTrees}
           isFetchingDatabases={isFetchingNavigationTrees}
-          defaultOpen={(db) =>
-            db.schemas.some((schema) =>
-              schema.tables.some((table) => table.name === selectedTree?.tableName),
-            )
+          defaultOpen={
+            (db) => true
+            // db.schemas.some((schema) =>
+            //   schema.tables.some((table) => table.name === selectedTree?.tableName),
+            // )
           }
         >
           {(database) => (
             <TreesSchemas
               schemas={database.schemas}
-              defaultOpen={(schema) =>
-                schema.tables.some((table) => table.name === selectedTree?.tableName)
+              defaultOpen={
+                (schema) => true
+                // schema.tables.some((table) => table.name === selectedTree?.tableName)
               }
             >
               {(schema) => (
@@ -67,9 +69,12 @@ export function SqlEditorLeftPanelTrees() {
                     selectedTree.schemaName === schema.name &&
                     selectedTree.databaseName === database.name
                   }
-                  defaultOpen={schema.tables.some(
-                    (table) => table.name === selectedTree?.tableName,
-                  )}
+                  defaultOpen={
+                    true
+                    //   schema.tables.some(
+                    //   (table) => table.name === selectedTree?.tableName,
+                    // )
+                  }
                   renderDropdownMenu={(tree, hovered) => (
                     <SqlEditorLeftPanelTreesTableDropdown
                       onLoadDataClick={() => {

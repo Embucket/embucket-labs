@@ -29,7 +29,7 @@ export function SqlEditorLeftPanelTableColumnsPreviewDialog({
   return (
     <Dialog open={opened} onOpenChange={onSetOpened}>
       {/* TODO: Hardcode */}
-      <DialogContent className="max-h-[calc(100vh-32px)]! w-fit max-w-[calc(100vw-32px)]!">
+      <DialogContent className="max-h-[calc(100vh-32px)]! w-fit max-w-[calc(100vw-32px)]! min-w-80">
         <DialogHeader>
           <DialogTitle>Preview Table Data</DialogTitle>
         </DialogHeader>
