@@ -1,4 +1,4 @@
-import{d as t,j as e,L as a}from"./index-BWwh_A7U.js";import{E as s}from"./scroll-area-YkEgiJdS.js";import{P as n,a as o}from"./page-header-CHZ0hUb1.js";/**
+import{d as t,j as e,L as a}from"./index-CeDAY7Zn.js";import{E as s}from"./scroll-area-B8QeJ8Hs.js";import{P as o}from"./page-content-DurHNeRR.js";import{P as n}from"./page-header-CaxeGu7I.js";/**
  * @license lucide-react v0.505.0 - ISC
  *
  * This source code is licensed under the ISC license.
