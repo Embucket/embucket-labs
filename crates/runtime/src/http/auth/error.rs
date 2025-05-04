@@ -1,14 +1,10 @@
 use axum::{Json, http, response::IntoResponse};
 use snafu::prelude::*;
-use std::error::Error;
-use rand::rand_core::{TryRngCore, OsRng};
 use embucket_history::auth_store::AuthStoreError;
 use jsonwebtoken::errors::Error as JwtError;
 use http::header::MaxSizeReached;
 
 use crate::http::error::ErrorResponse;
-use http::HeaderMap;
-use crate::http::auth::models::LoginResponse;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
@@ -21,8 +17,6 @@ pub enum AuthError {
     CreateJwt { source: JwtError },
     #[snafu(display("JWT validate error: {source}"))]
     ValidateJwt { source: JwtError },
-    #[snafu(display("Rand error: {source}"))]
-    Rand { source: <OsRng as TryRngCore>::Error },
     #[snafu(display("Store error: {source}"))]
     Store { source: AuthStoreError},
     #[snafu(display("Response Header error: {source}"))]

@@ -1,11 +1,12 @@
 use crate::http::state::AppState;
-use axum::routing::{get, post};
+use axum::routing::post;
 use axum::Router;
 
-use super::handlers::{login, refresh_access_token};
+use super::handlers::{login, refresh_access_token, logout};
 
 pub fn create_router() -> Router<AppState> {
     Router::new()
         .route("/login", post(login))
-        .route("/refresh", get(refresh_access_token))
+        .route("/refresh", post(refresh_access_token))
+        .route("/logout", post(logout))
 }

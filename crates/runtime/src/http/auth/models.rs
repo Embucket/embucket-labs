@@ -26,3 +26,11 @@ pub struct Claims {
     pub iat: i64, // Issued At
     pub exp: i64, // Expiration Time
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct RefreshClaims {
+    pub sub: String, // token issued to a particular user
+    pub aud: String, // validate audience since as it can be deployed on multiple hosts
+    pub iat: i64, // Issued At
+    pub exp: i64, // Expiration Time
+}
