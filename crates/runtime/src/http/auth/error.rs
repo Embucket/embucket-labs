@@ -15,24 +15,31 @@ use crate::http::auth::models::LoginResponse;
 pub enum AuthError {
     #[snafu(display("Login error"))]
     Login,
-    #[snafu(display("JWT error: {source}"))]
-    Jwt { source: JwtError },
+    #[snafu(display("Unauthorized"))]
+    Unauthorized,    
+    #[snafu(display("JWT create error: {source}"))]
+    CreateJwt { source: JwtError },
+    #[snafu(display("JWT validate error: {source}"))]
+    ValidateJwt { source: JwtError },
     #[snafu(display("Rand error: {source}"))]
     Rand { source: <OsRng as TryRngCore>::Error },
     #[snafu(display("Store error: {source}"))]
     Store { source: AuthStoreError},
     #[snafu(display("Response Header error: {source}"))]
     ResponseHeader { source: MaxSizeReached },
-    #[snafu(display("Unauthorized"))]
-    Unauthorized,
+    #[snafu(display("Custom error: {message}"))]
+    Custom { message: String }
 }
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
-        // let status = match self {
-        //     AuthError::Login | AuthError::Jwt { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
-        // };
-        let status = http::StatusCode::INTERNAL_SERVER_ERROR;
+        let status = match self {
+            AuthError::Login
+            | AuthError::CreateJwt { .. }
+            | AuthError::ValidateJwt { .. }
+            | AuthError::Unauthorized => http::StatusCode::UNAUTHORIZED,
+            _ => http::StatusCode::INTERNAL_SERVER_ERROR,
+        };
         let body = Json(ErrorResponse {
             message: self.to_string(),
             status_code: status.as_u16(),

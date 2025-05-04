@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+
+use datafusion::parquet::data_type::AsBytes;
 use tracing;
 use snafu::ResultExt;
 use http::HeaderMap;
@@ -16,7 +19,7 @@ use embucket_history::Token;
 use tower_sessions::cookie::Cookie;
 use axum::response::IntoResponse;
 use axum::response::IntoResponseParts;
-use super::error::JwtSnafu;
+use super::error::{CreateJwtSnafu, ValidateJwtSnafu};
 use http::HeaderName;
 
 fn create_refresh_token() -> Result<String, <OsRng as TryRngCore>::Error> {
@@ -25,20 +28,20 @@ fn create_refresh_token() -> Result<String, <OsRng as TryRngCore>::Error> {
     Ok(general_purpose::URL_SAFE_NO_PAD.encode(&bytes)) // Base64 URL-safe
 }
 
-pub fn validate_jwt_token(token: &str, audience: &str, jwt_secret: &[u8]) -> Result<Claims, jsonwebtoken::errors::Error> {
+pub fn validate_jwt_token(token: &str, audience: &String, jwt_secret: &String) -> Result<Claims, jsonwebtoken::errors::Error> {
     let mut validation = Validation::default();
     validation.leeway = 5;
     validation.set_audience(&[audience]);
     validation.set_required_spec_claims(&["sub", "exp", "iat", "aud"]);
   
-    let decoding_key = DecodingKey::from_secret(jwt_secret);
+    let decoding_key = DecodingKey::from_secret(jwt_secret.as_bytes());
   
     let decoded = decode::<Claims>(token, &decoding_key, &validation)?;
   
     Ok(decoded.claims)
 }
 
-fn create_jwt(username: &String, audience: &String, jwt_secret: &[u8]) -> Result<String, jsonwebtoken::errors::Error> {
+fn create_jwt(username: &String, audience: &String, jwt_secret: &String) -> Result<String, jsonwebtoken::errors::Error> {
     let now = Local::now();
     let iat = now.timestamp();
     let exp = now.timestamp() + Duration::minutes(15).whole_seconds();
@@ -49,6 +52,7 @@ fn create_jwt(username: &String, audience: &String, jwt_secret: &[u8]) -> Result
         iat,
         exp,
     };
+    let jwt_secret = jwt_secret.as_bytes();
     encode(&Header::default(), &claims, &EncodingKey::from_secret(jwt_secret))
 }
 
@@ -63,12 +67,12 @@ pub async fn login(
     }
 
     let audience = &state.config.host;
-
     let jwt_secret = state.auth_config.jwt_secret();
 
-    let access_token = create_jwt(&username, &audience, jwt_secret.as_bytes())
-        .context(JwtSnafu)?;
+    let access_token = create_jwt(&username, &audience, jwt_secret)
+        .context(CreateJwtSnafu)?;
 
+    // TODO: encode refresh token so in /refresh it could be validated
     let refresh_token = create_refresh_token()
         .context(RandSnafu)?;
 
@@ -78,6 +82,7 @@ pub async fn login(
 
     let cookie = Cookie::build(("refresh_token", refresh_token))
         .http_only(true)
+        .secure(true)
         .path("/refresh");
 
     let mut headers = HeaderMap::new();
@@ -90,21 +95,51 @@ pub async fn login(
     ))
 }
 
-async fn refresh_access_token(
+pub async fn refresh_access_token(
+    State(state): State<AppState>,
     headers: HeaderMap,
 ) -> AuthResult<impl IntoResponse> {
     let cookies = headers.get_all(http::header::COOKIE);
-    let refresh_token =cookies.iter().find(|cookie| cookie.starts_with("refresh_token"));
-    if let None = refresh_token {
-        return Err(AuthError::Unauthorized)
+
+    let mut cookies_map = HashMap::new();
+
+    for value in cookies.iter() {
+        match value.to_str() {
+            Ok(cookie_str) => {
+                println!("Cookie header: {}", cookie_str);
+                // parse separate cookes
+                for cookie in cookie_str.split(';') {
+                    let parts: Vec<_> = cookie.trim().split('=').collect();
+                    cookies_map.insert(parts[0], parts[1]);
+                }
+            }
+            Err(_) => {
+                eprintln!("Invalid UTF-8 in cookie header");
+            }
+        }
     }
-    // else if let Some(refresh_token) = cookies.get("refresh_token") {
-    //     match validate_refresh_jwt(refresh_token, &refresh_secret) {
-    //         Ok(user_id) => {
-    //             let new_access_token = create_jwt(user_id, short_exp, &access_secret);
-    //             // Ok(Json(json!({ "access_token": new_access_token })))
-    //         }
-    //         // err
-    //     }
-    // }
+
+    // return Err(AuthError::Custom { message: format!("cookies: {cookies:?}, cookies_map: {cookies_map:?}") });
+    // let refresh_token =cookies.iter().find(|cookie| {
+    //     cookie.to_str().unwrap_or_default().starts_with("refresh_token=")
+    // });
+
+    let refresh_token = cookies_map.get("refresh_token");
+    match refresh_token {
+        None => Err(AuthError::Unauthorized),
+        Some(refresh_token) => {
+            let audience = &state.config.host;
+            let jwt_secret = state.auth_config.jwt_secret();
+    
+            // TODO: ensure refresh token encoded in a right way 
+            let claims = validate_jwt_token(refresh_token, audience, jwt_secret)
+                .context(ValidateJwtSnafu)?;
+    
+            let Claims { sub: username, aud: audience, .. } = claims;
+            let access_token = create_jwt(&username, &audience, jwt_secret)
+                .context(CreateJwtSnafu)?;
+    
+            Ok(Json(LoginResponse { access_token }))
+        }
+    }
 }

@@ -13,6 +13,7 @@ arrow-schema = { version = "54.1.0", default-features = false }
 async-trait = { workspace = true }
 axum = { workspace = true }
 axum-macros = { workspace = true }
+axum-extra = { version = "0.10.1", features = ["cookie", "typed-header"] }
 base64 = { version = "0.22.1" }
 bytes = { workspace = true }
 
