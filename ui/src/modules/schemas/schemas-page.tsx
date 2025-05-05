@@ -18,7 +18,7 @@ export function SchemasPage() {
         <ResizablePanel collapsible defaultSize={20} order={1}>
           <div className="border-b p-4">
             <div className="mb-4 flex items-center justify-between">
-              <h1 className="text-lg">Schemas</h1>
+              <h1 className="text-lg">Database schemas</h1>
               <Button>Add Schema</Button>
             </div>
             <div className="flex items-center justify-between gap-4">
