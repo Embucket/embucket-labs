@@ -1,0 +1,1 @@
+import{j as r}from"./index-Is9gsAA6.js";import{S as o,a as s}from"./scroll-area-DULmC6FW.js";const c=({children:a})=>r.jsxs(o,{className:"h-[calc(100vh-65px-32px)] p-4",children:[a,r.jsx(s,{orientation:"vertical"})]});export{c as P};
