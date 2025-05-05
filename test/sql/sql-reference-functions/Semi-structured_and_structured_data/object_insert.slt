@@ -1,0 +1,54 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE object_insert_examples (object_column OBJECT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO object_insert_examples (object_column)
+  SELECT OBJECT_CONSTRUCT('a', 'value1', 'b', 'value2');
+
+query TT
+UPDATE object_insert_examples
+  SET object_column = OBJECT_INSERT(object_column, 'c', 'value3')
+----
+1	0
+
+query T
+SELECT * FROM object_insert_examples
+----
+'{"a":"value1","b":"value2","c":"value3"}'
+
+query TT
+UPDATE object_insert_examples
+  SET object_column = OBJECT_INSERT(object_column, 'd', PARSE_JSON('null'))
+----
+1	0
+
+query TT
+UPDATE object_insert_examples
+  SET object_column = OBJECT_INSERT(object_column, 'e', NULL)
+----
+1	0
+
+query TT
+UPDATE object_insert_examples
+  SET object_column = OBJECT_INSERT(object_column, 'f', 'null')
+----
+1	0
+
+query T
+SELECT * FROM object_insert_examples
+----
+'{"a":"value1","b":"value2","c":"value3","d":null,"f":"null"}'
+
+query TT
+UPDATE object_insert_examples
+  SET object_column = OBJECT_INSERT(object_column, 'b', 'valuex', TRUE)
+----
+1	0
+
+query T
+SELECT * FROM object_insert_examples
+----
+'{"a":"value1","b":"valuex","c":"value3","d":null,"f":"null"}'
+

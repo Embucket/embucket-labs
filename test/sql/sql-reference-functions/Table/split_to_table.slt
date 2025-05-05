@@ -1,0 +1,55 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE table1 (value STRING);
+
+statement ok
+INSERT INTO table1 (value) SELECT value FROM TABLE(SPLIT_TO_TABLE('a.b', '.'));
+
+query T
+SELECT table1.value  
+  FROM table1  
+  ORDER BY table1.value;
+----
+a
+b
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE splittable (v VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO splittable (v) VALUES ('a.b.c'), ('d'), ('');
+
+query TTTT
+SELECT *  
+  FROM splittable, LATERAL SPLIT_TO_TABLE(splittable.v, '.')  
+  ORDER BY SEQ, INDEX
+----
+a.b.c	1	1	a
+a.b.c	1	2	b
+a.b.c	1	3	c
+d	2	1	d
+''	3	1	''
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE authors_books_test (author VARCHAR, titles VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO authors_books_test (author, titles) VALUES  
+  ('Nathaniel Hawthorne', 'The Scarlet Letter , The House of the Seven Gables,The Blithedale Romance'),  
+  ('Herman Melville', 'Moby Dick,The Confidence-Man');
+
+query TT
+SELECT author, TRIM(value) AS title  
+  FROM authors_books_test, LATERAL SPLIT_TO_TABLE(titles, ',')  
+  ORDER BY author
+----
+Herman Melville	Moby Dick
+Herman Melville	The Confidence-Man
+Nathaniel Hawthorne	The Scarlet Letter
+Nathaniel Hawthorne	The House of the Seven Gables
+Nathaniel Hawthorne	The Blithedale Romance
+

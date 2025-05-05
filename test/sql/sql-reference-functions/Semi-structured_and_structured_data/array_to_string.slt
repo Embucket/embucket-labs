@@ -1,0 +1,33 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE VALUES_TABLE AS
+SELECT column1,
+       ARRAY_TO_STRING(PARSE_JSON(column1), '') AS no_separation,
+       ARRAY_TO_STRING(PARSE_JSON(column1), ', ') AS comma_separated
+  FROM VALUES
+    (NULL),
+    ('[]'),
+    ('[1]'),
+    ('[1, 2]'),
+    ('[true, 1, -1.2e-3, "Abc", ["x","y"], {"a":1}]'),
+    ('[, 1]'),
+    ('[1, ]'),
+    ('[1, , ,2]');
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE test_array_to_string_with_null(a ARRAY);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_array_to_string_with_null
+  SELECT (['A', NULL, 'B']);
+
+query TTT
+SELECT a,
+       ARRAY_TO_STRING(a, ''),
+       ARRAY_TO_STRING(a, ', ')
+  FROM test_array_to_string_with_null
+----
+'["A",null,"B"]'	AB	A, , B
+

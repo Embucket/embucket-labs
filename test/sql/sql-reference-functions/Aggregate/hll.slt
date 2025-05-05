@@ -1,0 +1,10 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE sequence_demo (i INTEGER);
+
+query TTTT
+SELECT COUNT(i), COUNT(DISTINCT i), APPROX_COUNT_DISTINCT(i), HLL(i)
+FROM sequence_demo
+----
+0	0	0	0
+

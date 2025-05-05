@@ -1,0 +1,21 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE aggr(k int, v decimal(10,2), v2 decimal(10, 2));
+
+exclude-from-coverage
+statement ok
+insert into aggr values
+   (1, 10, null),
+   (2, 10, 11),
+   (2, 20, 22),
+   (2, 25, null),
+   (2, 30, 35);
+
+query TTT
+SELECT k, variance(v), variance(v2)
+    FROM aggr
+    GROUP BY k
+    ORDER BY k
+----
+1	NULL	NULL
+2	72.9166666667	144.3333333333

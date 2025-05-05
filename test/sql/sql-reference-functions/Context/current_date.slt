@@ -1,0 +1,5 @@
+query TTT
+SELECT CURRENT_DATE(), CURRENT_TIME(), CURRENT_TIMESTAMP()
+----
+<REGEX>:'\d{4}-\d{2}-\d{2}'	<REGEX>:'\d{2}:\d{2}:\d{2}\.\d{6}'	<REGEX>:'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}[+-]\d{2}:\d{2}'
+

@@ -1,0 +1,38 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE test_table_1_greatest (
+  col_1 INTEGER, 
+  col_2 INTEGER, 
+  col_3 INTEGER, 
+  col_4 FLOAT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_table_1_greatest (col_1, col_2, col_3, col_4) VALUES
+  (1, 2,    3,  4.00),
+  (2, 4,   -1, -2.00),
+  (3, 6, NULL, 13.45);
+
+query TTTT
+SELECT col_1,
+       col_2,
+       col_3,
+       GREATEST(col_1, col_2, col_3) AS greatest
+  FROM test_table_1_greatest
+  ORDER BY col_1
+----
+1	2	3	3
+2	4	-1	4
+3	6	NULL	NULL
+
+query TTT
+SELECT col_1,
+       col_4,
+       GREATEST(col_1, col_4) AS greatest
+  FROM test_table_1_greatest
+  ORDER BY col_1
+----
+1	4.0	4.0
+2	-2.0	2.0
+3	13.45	13.45
+

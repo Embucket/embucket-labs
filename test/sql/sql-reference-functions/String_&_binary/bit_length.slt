@@ -1,0 +1,16 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE bl (v VARCHAR, b BINARY);
+
+exclude-from-coverage
+statement ok
+INSERT INTO bl (v, b) VALUES 
+   ('abc', NULL),
+   ('\u0394', X'A1B2');
+
+query TTTT
+SELECT v, b, BIT_LENGTH(v), BIT_LENGTH(b) FROM bl ORDER BY v
+----
+abc	NULL	24	NULL
+Δ	x'a1b2'	16	16
+

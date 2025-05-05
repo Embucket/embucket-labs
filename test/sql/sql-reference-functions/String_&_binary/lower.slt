@@ -1,0 +1,5 @@
+query T
+SELECT LOWER('I' COLLATE 'tr')
+----
+ı
+

@@ -1,0 +1,44 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE target (k INT, v INT);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE src (k INT, v INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO target (K, V)
+VALUES (0, 10);
+
+exclude-from-coverage
+statement ok
+INSERT INTO src (K, V)
+VALUES
+  (0, 11),
+  (0, 12),
+  (0, 13);
+
+statement ok
+UPDATE target  
+  SET v = src.v  
+  FROM src  
+  WHERE target.k = src.k;
+
+statement ok
+UPDATE target SET v = b.v  
+  FROM (SELECT k, MIN(v) v FROM src GROUP BY k) b  
+  WHERE target.k = b.k
+
+query TT
+SELECT * FROM target;
+----
+0	11
+
+query TT
+SELECT * FROM src;
+----
+0	11
+0	12
+0	13
+

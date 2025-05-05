@@ -1,0 +1,22 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE i (a INT, b INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO i (a, b) VALUES
+    (1, 1),     -- NULLIF returns NULL when a=b
+    (2, 3),     -- NULLIF returns a when a≠b
+    (NULL, 4),  -- NULLIF returns NULL when a is NULL
+    (5, NULL),  -- NULLIF returns a when b is NULL
+    (NULL, NULL); -- NULLIF returns NULL when both are NULL
+
+query TTT
+SELECT a, b, NULLIF(a,b) FROM i
+----
+1	1	NULL
+2	3	2
+NULL	4	NULL
+5	NULL	5
+NULL	NULL	NULL
+

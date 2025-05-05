@@ -1,0 +1,22 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE test_rtrim_function(column1 VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_rtrim_function VALUES ('Trailing Spaces#  ');
+
+query TT
+SELECT CONCAT('>', CONCAT(column1, '<')) AS original_value,
+       CONCAT('>', CONCAT(RTRIM(column1), '<')) AS trimmed_value
+  FROM test_rtrim_function
+----
+>Trailing Spaces#  <	>Trailing Spaces#<
+
+query TT
+SELECT CONCAT('>', CONCAT(column1, '<')) AS original_value,
+       CONCAT('>', CONCAT(RTRIM(column1, '# '), '<')) AS trimmed_value
+  FROM test_rtrim_function
+----
+>Trailing Spaces#  <	>Trailing Spaces<
+

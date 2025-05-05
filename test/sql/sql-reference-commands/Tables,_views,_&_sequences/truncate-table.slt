@@ -1,0 +1,21 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE temp (i number);
+
+exclude-from-coverage
+statement ok
+INSERT INTO temp SELECT seq8() FROM table(generator(rowcount=>20)) v;
+
+query T
+SELECT COUNT (*) FROM temp
+----
+20
+
+statement ok
+TRUNCATE TABLE IF EXISTS temp
+
+query T
+SELECT COUNT (*) FROM temp
+----
+0
+

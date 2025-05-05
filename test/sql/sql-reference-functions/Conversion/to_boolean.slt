@@ -1,0 +1,28 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE test_boolean(
+  b BOOLEAN,
+  n NUMBER,
+  s STRING);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_boolean VALUES
+  (true, 1, 'yes'),
+  (false, 0, 'no'),
+  (null, null, null);
+
+query TT
+SELECT s, TO_BOOLEAN(s) FROM test_boolean
+----
+yes	TRUE
+no	FALSE
+NULL	NULL
+
+query TT
+SELECT n, TO_BOOLEAN(n) FROM test_boolean
+----
+1	TRUE
+0	FALSE
+NULL	NULL
+

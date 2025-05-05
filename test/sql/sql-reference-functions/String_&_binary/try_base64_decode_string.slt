@@ -1,0 +1,19 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE base64 (v VARCHAR, base64_string VARCHAR, garbage VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO base64 (v, base64_string, garbage) 
+  SELECT 'HELLO', BASE64_ENCODE('HELLO'), '127';
+
+query T
+SELECT TRY_BASE64_DECODE_STRING(BASE64_ENCODE('HELLO'))
+----
+HELLO
+
+query TTTT
+SELECT v, base64_string, TRY_BASE64_DECODE_STRING(base64_string), TRY_BASE64_DECODE_STRING(garbage) FROM base64
+----
+HELLO	SEVMTE8=	HELLO	NULL
+

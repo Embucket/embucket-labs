@@ -1,0 +1,39 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE task_history_test_table (id INT);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TASK task_history_test_task
+  WAREHOUSE = COMPUTE_WH
+  SCHEDULE = '1 MINUTE'
+AS
+  INSERT INTO task_history_test_table VALUES (1);
+
+exclude-from-coverage
+statement ok
+ALTER TASK task_history_test_task RESUME;
+
+exclude-from-coverage
+statement ok
+EXECUTE TASK task_history_test_task;
+
+query TTT
+SELECT
+  NAME,
+  STATE,
+  QUERY_TEXT
+FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
+  TASK_NAME => 'TASK_HISTORY_TEST_TASK',
+  RESULT_LIMIT => 1
+));
+----
+TASK_HISTORY_TEST_TASK	SCHEDULED	INSERT INTO task_history_test_table VALUES (1)
+
+exclude-from-coverage
+statement ok
+DROP TASK IF EXISTS task_history_test_task;
+
+exclude-from-coverage
+statement ok
+DROP TABLE IF EXISTS task_history_test_table;

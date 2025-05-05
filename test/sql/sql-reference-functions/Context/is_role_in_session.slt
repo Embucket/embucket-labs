@@ -1,0 +1,21 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE ROLE analyst;
+
+exclude-from-coverage
+statement ok
+EXECUTE IMMEDIATE $$
+DECLARE
+  stmt STRING;
+BEGIN
+  stmt := CONCAT('GRANT ROLE analyst TO USER ', CURRENT_USER(), ';');
+  EXECUTE IMMEDIATE stmt;
+END;
+$$
+;
+
+query T
+SELECT
+  IS_ROLE_IN_SESSION('analyst') AS analyst_in_session,
+----
+TRUE

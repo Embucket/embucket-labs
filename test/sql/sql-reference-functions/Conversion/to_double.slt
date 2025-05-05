@@ -1,0 +1,16 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE double_demo (d DECIMAL(7, 2), v VARCHAR, o VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO double_demo (d, v, o) SELECT 1.1, '2.2', TO_VARIANT(3.14);
+
+statement ok
+SELECT TO_DOUBLE(d), TO_DOUBLE(v), TO_DOUBLE(o) FROM double_demo;
+
+query T
+SELECT TO_DOUBLE(1.1)::NUMBER(38, 18)
+----
+1.100000000000000089
+

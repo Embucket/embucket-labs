@@ -1,0 +1,81 @@
+query TT
+SELECT TO_DATE('2024-05-10'), DATE('2024-05-10')
+----
+'2024-05-10'	'2024-05-10'
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE date_from_timestamp(ts TIMESTAMP);
+
+exclude-from-coverage
+statement ok
+INSERT INTO date_from_timestamp(ts)
+  VALUES (TO_TIMESTAMP('2024.10.02 04:00:00', 'YYYY.MM.DD HH:MI:SS'));
+
+query T
+SELECT ts FROM date_from_timestamp
+----
+'2024-10-02T04:00:00'
+
+query T
+SELECT TO_DATE(ts) FROM date_from_timestamp
+----
+'2024-10-02'
+
+query TT
+SELECT TO_DATE('2024.05.10', 'YYYY.MM.DD'), DATE('2024.05.10', 'YYYY.MM.DD')
+----
+'2024-05-10'	'2024-05-10'
+
+query TT
+SELECT TO_DATE('2024-05-10', 'AUTO'), DATE('2024-05-10', 'AUTO')
+----
+'2024-05-10'	'2024-05-10'
+
+query TT
+SELECT TO_DATE('05/10/2024', 'MM/DD/YYYY'), DATE('05/10/2024', 'MM/DD/YYYY')
+----
+'2024-05-10'	'2024-05-10'
+
+exclude-from-coverage
+statement ok
+ALTER SESSION SET DATE_OUTPUT_FORMAT = 'DD-MON-YYYY';
+
+query TT
+SELECT TO_DATE('2024-05-10', 'YYYY-MM-DD'), DATE('2024-05-10', 'YYYY-MM-DD')
+----
+'2024-05-10'	'2024-05-10'
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE demo1 (
+  description VARCHAR,
+  value VARCHAR -- string rather than bigint
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO demo1 (description, value) VALUES
+  ('Seconds',      '31536000'),
+  ('Milliseconds', '31536000000'),
+  ('Microseconds', '31536000000000'),
+  ('Nanoseconds',  '31536000000000000');
+
+query TTTT
+SELECT description,
+       value,
+       TO_TIMESTAMP(value),
+       TO_DATE(value)
+  FROM demo1
+  ORDER BY value
+----
+Seconds	31536000	'1971-01-01T00:00:00'	'1971-01-01'
+Milliseconds	31536000000	'1971-01-01T00:00:00'	'1971-01-01'
+Microseconds	31536000000000	'1971-01-01T00:00:00'	'1971-01-01'
+Nanoseconds	31536000000000000	'1971-01-01T00:00:00'	'1971-01-01'
+
+query T
+SELECT TO_DATE('3/4/2024', 'dd/mm/yyyy')
+----
+'2024-04-03'
+

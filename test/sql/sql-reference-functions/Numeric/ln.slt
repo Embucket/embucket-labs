@@ -1,0 +1,20 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE tab (x NUMBER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO tab (x) VALUES
+    (1),
+    (10),
+    (100),
+    (NULL);
+
+query TT
+SELECT x, ln(x) FROM tab
+----
+1	0.0
+10	2.302585092994046
+100	4.605170185988092
+NULL	NULL
+

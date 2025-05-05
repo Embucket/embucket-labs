@@ -1,0 +1,47 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE copy_history_test_table (
+  id INT,
+  data STRING
+);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE FILE FORMAT copy_history_test_format
+  TYPE = 'CSV'
+  FIELD_DELIMITER = ','
+  SKIP_HEADER = 0
+  ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE;
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE STAGE copy_history_test_stage
+  FILE_FORMAT = copy_history_test_format;
+
+statement ok
+COPY INTO @copy_history_test_stage/sample_data.csv
+FROM (
+  SELECT 1 AS line
+  UNION ALL
+  SELECT 2
+)
+FILE_FORMAT = copy_history_test_format
+OVERWRITE = TRUE;
+
+statement ok
+COPY INTO copy_history_test_table
+FROM @copy_history_test_stage/sample_data.csv
+FILE_FORMAT = copy_history_test_format
+ON_ERROR = 'CONTINUE';
+
+query TTT
+SELECT
+  file_name,
+  status,
+  row_count
+FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
+  TABLE_NAME => 'COPY_HISTORY_TEST_TABLE',
+  START_TIME => DATEADD(day, -1, CURRENT_TIMESTAMP())
+));
+----
+sample_data.csv_0_0_0.csv.gz	Loaded	2

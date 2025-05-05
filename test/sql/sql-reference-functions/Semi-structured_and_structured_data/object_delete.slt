@@ -1,0 +1,55 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE object_delete_example (
+  id INTEGER,
+  ov OBJECT
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO object_delete_example (id, ov)
+  SELECT
+    1,
+    {
+      'employee_id': 1001,
+      'employee_date_of_birth': '12-10-2003',
+      'employee_contact':
+        {
+          'city': 'San Mateo',
+          'state': 'CA',
+          'phone': '800-555‑0100'
+        }
+    };
+
+exclude-from-coverage
+statement ok
+INSERT INTO object_delete_example (id, ov)
+  SELECT
+    2,
+    {
+      'employee_id': 1002,
+      'employee_date_of_birth': '01-01-1990',
+      'employee_contact':
+        {
+          'city': 'Seattle',
+          'state': 'WA',
+          'phone': '800-555‑0101'
+        }
+    };
+
+query TT
+SELECT id,
+       OBJECT_DELETE(ov, 'employee_date_of_birth') AS contact_without_date_of_birth
+  FROM object_delete_example
+----
+1	'{"employee_contact":{"city":"San Mateo","phone":"800-555\u20110100","state":"CA"},"employee_id":1001}'
+2	'{"employee_contact":{"city":"Seattle","phone":"800-555\u20110101","state":"WA"},"employee_id":1002}'
+
+query TT
+SELECT id,
+       OBJECT_DELETE(ov:"employee_contact", 'phone') AS contact_without_phone
+  FROM object_delete_example
+----
+1	'{"city":"San Mateo","state":"CA"}'
+2	'{"city":"Seattle","state":"WA"}'
+

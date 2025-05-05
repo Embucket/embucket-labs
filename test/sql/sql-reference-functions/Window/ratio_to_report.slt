@@ -1,0 +1,40 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE store_profit (
+    store_ID INTEGER, 
+    province VARCHAR,
+    profit NUMERIC(11, 2));
+
+exclude-from-coverage
+statement ok
+INSERT INTO store_profit (store_ID, province, profit) VALUES
+    (1, 'Ontario', 300),
+    (2, 'Saskatchewan', 250),
+    (3, 'Ontario', 450),
+    (4, 'Ontario', NULL)  -- hasn't opened yet, so no profit yet.
+    ;
+
+query TTT
+SELECT 
+        store_ID, profit, 
+        100 * RATIO_TO_REPORT(profit) OVER () AS percent_profit
+    FROM store_profit
+    ORDER BY store_ID
+----
+1	300.00	30.00000000
+2	250.00	25.00000000
+3	450.00	45.00000000
+4	NULL	NULL
+
+query TTTT
+SELECT 
+        province, store_ID, profit, 
+        100 * RATIO_TO_REPORT(profit) OVER (PARTITION BY province) AS percent_profit
+    FROM store_profit
+    ORDER BY province, store_ID
+----
+Ontario	1	300.00	40.00000000
+Ontario	3	450.00	60.00000000
+Ontario	4	NULL	NULL
+Saskatchewan	2	250.00	100.00000000
+

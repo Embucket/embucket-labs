@@ -1,0 +1,25 @@
+query T
+SELECT 'true' WHERE 1 BETWEEN 0 AND 10
+----
+true
+
+query T
+SELECT 'true' WHERE 1.35 BETWEEN 1 AND 2
+----
+true
+
+query T
+SELECT 'true' WHERE 'the' BETWEEN 'that' AND 'then'
+----
+true
+
+query T
+SELECT 'm' BETWEEN COLLATE('A', 'lower') AND COLLATE('Z', 'lower')
+----
+TRUE
+
+query T
+SELECT COLLATE('m', 'upper') BETWEEN 'A' AND 'Z'
+----
+TRUE
+

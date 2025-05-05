@@ -1,0 +1,45 @@
+exclude-from-coverage
+statement ok
+SET current_db = CURRENT_DATABASE();
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE DATABASE is_db_role_test_db;
+
+exclude-from-coverage
+statement ok
+USE DATABASE is_db_role_test_db;
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE DATABASE ROLE is_db_role_test_role;
+
+exclude-from-coverage
+statement ok
+GRANT DATABASE ROLE is_db_role_test_role TO ROLE SYSADMIN;
+
+query T
+SELECT IS_DATABASE_ROLE_IN_SESSION('IS_DB_ROLE_TEST_ROLE');
+----
+TRUE
+
+exclude-from-coverage
+statement ok
+REVOKE DATABASE ROLE is_db_role_test_role FROM ROLE SYSADMIN;
+
+query T
+SELECT IS_DATABASE_ROLE_IN_SESSION('IS_DB_ROLE_TEST_ROLE');
+----
+FALSE
+
+exclude-from-coverage
+statement ok
+DROP DATABASE ROLE IF EXISTS is_db_role_test_role;
+
+exclude-from-coverage
+statement ok
+DROP DATABASE IF EXISTS is_db_role_test_db;
+
+exclude-from-coverage
+statement ok
+USE DATABASE IDENTIFIER($current_db);

@@ -1,0 +1,37 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE array_append_examples (array_column ARRAY);
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_append_examples (array_column)
+  SELECT ARRAY_CONSTRUCT(1, 2, 3);
+
+query TT
+UPDATE array_append_examples
+  SET array_column = ARRAY_APPEND(array_column, 4)
+----
+1	0
+
+query T
+SELECT * FROM array_append_examples
+----
+'[1,2,3,4]'
+
+query TT
+UPDATE array_append_examples
+  SET array_column = ARRAY_APPEND(array_column, 'five')
+----
+1	0
+
+query TT
+SELECT array_column,
+       ARRAY_CONSTRUCT(
+        TYPEOF(array_column[0]),
+        TYPEOF(array_column[1]),
+        TYPEOF(array_column[2]),
+        TYPEOF(array_column[3]),
+        TYPEOF(array_column[4])) AS type
+  FROM array_append_examples
+----
+'[1,2,3,4,"five"]'	'["INTEGER","INTEGER","INTEGER","INTEGER","VARCHAR"]'

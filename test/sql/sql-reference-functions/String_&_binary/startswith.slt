@@ -1,0 +1,23 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE strings_test (s STRING);
+
+exclude-from-coverage
+statement ok
+INSERT INTO strings_test VALUES
+  ('test'),
+  ('testing'),
+  ('best'),
+  ('rest'),
+  ('tempt'),
+  ('stat'),
+  (null);
+
+query T
+select * from strings_test where startswith(s, 'te')
+----
+test
+testing
+tempt
+
+

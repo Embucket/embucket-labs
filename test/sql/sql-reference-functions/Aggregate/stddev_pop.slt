@@ -1,0 +1,17 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE t1 (c1 INTEGER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO t1 (c1) VALUES
+    (6),
+   (10),
+   (14)
+   ;
+
+query T
+SELECT STDDEV_POP(c1) FROM t1
+----
+3.26598637474194
+

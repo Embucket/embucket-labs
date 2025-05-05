@@ -1,0 +1,49 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE test_data_type_conversion (
+  varchar_value VARCHAR,
+  number_value NUMBER(5, 4),
+  timestamp_value TIMESTAMP);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_data_type_conversion VALUES (
+  '9.8765',
+  1.2345,
+  '2024-05-09 14:32:29.135 -0700');
+
+query TT
+SELECT CAST(varchar_value AS NUMBER(5,2)) AS varchar_to_number1,
+       SYSTEM$TYPEOF(CAST(varchar_value AS NUMBER(5,2))) AS data_type
+  FROM test_data_type_conversion
+----
+9.88	NUMBER(5,2)[SB4]
+
+query TT
+SELECT varchar_value::NUMBER(6,5) AS varchar_to_number2,
+       SYSTEM$TYPEOF(varchar_value::NUMBER(6,5)) AS data_type
+  FROM test_data_type_conversion
+----
+9.87650	NUMBER(6,5)[SB4]
+
+query TT
+SELECT CAST(number_value AS INTEGER) AS number_to_integer,
+       SYSTEM$TYPEOF(CAST(number_value AS INTEGER)) AS data_type
+  FROM test_data_type_conversion
+----
+1	NUMBER(38,0)[SB1]
+
+query TT
+SELECT CAST(number_value AS VARCHAR) AS number_to_varchar,
+       SYSTEM$TYPEOF(CAST(number_value AS VARCHAR)) AS data_type
+  FROM test_data_type_conversion
+----
+1.2345	VARCHAR[LOB]
+
+query TT
+SELECT CAST(timestamp_value AS DATE) AS timestamp_to_date,
+       SYSTEM$TYPEOF(CAST(timestamp_value AS DATE)) AS data_type
+  FROM test_data_type_conversion
+----
+'2024-05-09'	DATE[SB4]
+

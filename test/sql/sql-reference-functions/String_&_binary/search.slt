@@ -1,0 +1,308 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE lines(
+  line_id INT,
+  play VARCHAR(50),
+  speech_num INT,
+  act_scene_line VARCHAR(10),
+  character VARCHAR(30),
+  line VARCHAR(2000)
+  );
+
+exclude-from-coverage
+statement ok
+INSERT INTO lines VALUES
+  (4,'Henry IV Part 1',1,'1.1.1','KING HENRY IV','So shaken as we are, so wan with care,'),
+  (13,'Henry IV Part 1',1,'1.1.10','KING HENRY IV','Which, like the meteors of a troubled heaven,'),
+  (9526,'Henry VI Part 3',1,'1.1.1','WARWICK','I wonder how the king escaped our hands.'),
+  (12664,'All''s Well That Ends Well',1,'1.1.1','COUNTESS','In delivering my son from me, I bury a second husband.'),
+  (15742,'All''s Well That Ends Well',114,'5.3.378','KING','Your gentle hands lend us, and take our hearts.'),
+  (16448,'As You Like It',2,'2.3.6','ADAM','And wherefore are you gentle, strong and valiant?'),
+  (24055,'The Comedy of Errors',14,'5.1.41','AEMELIA','Be quiet, people. Wherefore throng you hither?'),
+  (28487,'Cymbeline',3,'1.1.10','First Gentleman','Is outward sorrow, though I think the king'),
+  (33522,'Hamlet',1,'2.2.1','KING CLAUDIUS','Welcome, dear Rosencrantz and Guildenstern!'),
+  (33556,'Hamlet',5,'2.2.35','KING CLAUDIUS','Thanks, Rosencrantz and gentle Guildenstern.'),
+  (33557,'Hamlet',6,'2.2.36','QUEEN GERTRUDE','Thanks, Guildenstern and gentle Rosencrantz:'),
+  (33776,'Hamlet',67,'2.2.241','HAMLET','Guildenstern? Ah, Rosencrantz! Good lads, how do ye both?'),
+  (34230,'Hamlet',19,'3.1.64','HAMLET','To be, or not to be, that is the question:'),
+  (35672,'Hamlet',7,'4.6.27','HORATIO','where I am. Rosencrantz and Guildenstern hold their'),
+  (36289,'Hamlet',14,'5.2.60','HORATIO','So Guildenstern and Rosencrantz go to''t.'),
+  (36640,'Hamlet',143,'5.2.389','First Ambassador','That Rosencrantz and Guildenstern are dead:'),
+  (43494,'King John',1,'1.1.1','KING JOHN','Now, say, Chatillon, what would France with us?'),
+  (43503,'King John',5,'1.1.10','CHATILLON','To this fair island and the territories,'),
+  (49031,'King Lear',1,'1.1.1','KENT','I thought the king had more affected the Duke of'),
+  (49040,'King Lear',4,'1.1.10','GLOUCESTER','so often blushed to acknowledge him, that now I am'),
+  (52797,'Love''s Labour''s Lost',1,'1.1.1','FERDINAND','Let fame, that all hunt after in their lives,'),
+  (55778,'Love''s Labour''s Lost',405,'5.2.971','ADRIANO DE ARMADO','Apollo. You that way: we this way.'),
+  (67000,'A Midsummer Night''s Dream',1,'1.1.1','THESEUS','Now, fair Hippolyta, our nuptial hour'),
+  (69296,'A Midsummer Night''s Dream',104,'5.1.428','PUCK','And Robin shall restore amends.'),
+  (75787,'Pericles',178,'1.0.21','LODOVICO','This king unto him took a fere,'),
+  (78407,'Richard II',1,'1.1.1','KING RICHARD II','Old John of Gaunt, time-honour''d Lancaster,'),
+  (91998,'The Tempest',108,'1.2.500','FERDINAND','Were I but where ''tis spoken.'),
+  (92454,'The Tempest',150,'2.1.343','ALONSO','Wherefore this ghastly looking?'),
+  (99330,'Troilus and Cressida',30,'1.1.102','AENEAS','How now, Prince Troilus! wherefore not afield?'),
+  (100109,'Troilus and Cressida',31,'2.1.53','ACHILLES','Why, how now, Ajax! wherefore do you thus? How now,'),
+  (108464,'The Winter''s Tale',106,'1.2.500','CAMILLO','As or by oath remove or counsel shake');
+
+query T
+SELECT SEARCH('5.1.33','32')
+----
+FALSE
+
+query TT
+SELECT SEARCH(character, 'king queen'), character
+  FROM lines
+  WHERE line_id=4
+----
+TRUE	KING HENRY IV
+
+query TTTTTT
+SELECT *
+  FROM lines
+  WHERE SEARCH(line, 'wherefore')
+  ORDER BY character LIMIT 5
+----
+100109	Troilus and Cressida	31	2.1.53	ACHILLES	Why, how now, Ajax! wherefore do you thus? How now,
+16448	As You Like It	2	2.3.6	ADAM	And wherefore are you gentle, strong and valiant?
+24055	The Comedy of Errors	14	5.1.41	AEMELIA	Be quiet, people. Wherefore throng you hither?
+99330	Troilus and Cressida	30	1.1.102	AENEAS	How now, Prince Troilus! wherefore not afield?
+92454	The Tempest	150	2.1.343	ALONSO	Wherefore this ghastly looking?
+
+query TT
+SELECT play, character
+  FROM lines
+  WHERE SEARCH((play, character), 'king')
+  ORDER BY play, character LIMIT 10
+----
+All's Well That Ends Well	KING
+Hamlet	KING CLAUDIUS
+Hamlet	KING CLAUDIUS
+Henry IV Part 1	KING HENRY IV
+Henry IV Part 1	KING HENRY IV
+King John	CHATILLON
+King John	KING JOHN
+King Lear	GLOUCESTER
+King Lear	KENT
+Richard II	KING RICHARD II
+
+query TTTT
+SELECT play, character, line, act_scene_line
+  FROM lines
+  WHERE SEARCH((lines.*), 'king')
+  ORDER BY act_scene_line LIMIT 10
+----
+Pericles	LODOVICO	This king unto him took a fere,	1.0.21
+Richard II	KING RICHARD II	Old John of Gaunt, time-honour'd Lancaster,	1.1.1
+Henry VI Part 3	WARWICK	I wonder how the king escaped our hands.	1.1.1
+King John	KING JOHN	Now, say, Chatillon, what would France with us?	1.1.1
+King Lear	KENT	I thought the king had more affected the Duke of	1.1.1
+Henry IV Part 1	KING HENRY IV	So shaken as we are, so wan with care,	1.1.1
+Henry IV Part 1	KING HENRY IV	Which, like the meteors of a troubled heaven,	1.1.10
+King Lear	GLOUCESTER	so often blushed to acknowledge him, that now I am	1.1.10
+Cymbeline	First Gentleman	Is outward sorrow, though I think the king	1.1.10
+King John	CHATILLON	To this fair island and the territories,	1.1.10
+
+query TTTT
+SELECT play, character, line, act_scene_line
+  FROM lines
+  WHERE SEARCH((lines.* ILIKE '%line'), 'king')
+  ORDER BY act_scene_line LIMIT 10
+----
+Pericles	LODOVICO	This king unto him took a fere,	1.0.21
+Henry VI Part 3	WARWICK	I wonder how the king escaped our hands.	1.1.1
+King Lear	KENT	I thought the king had more affected the Duke of	1.1.1
+Cymbeline	First Gentleman	Is outward sorrow, though I think the king	1.1.10
+
+query TTTT
+SELECT play, character, line, act_scene_line
+  FROM lines
+  WHERE SEARCH((lines.* EXCLUDE character), 'king')
+  ORDER BY act_scene_line LIMIT 10
+----
+Pericles	LODOVICO	This king unto him took a fere,	1.0.21
+Henry VI Part 3	WARWICK	I wonder how the king escaped our hands.	1.1.1
+King John	KING JOHN	Now, say, Chatillon, what would France with us?	1.1.1
+King Lear	KENT	I thought the king had more affected the Duke of	1.1.1
+Cymbeline	First Gentleman	Is outward sorrow, though I think the king	1.1.10
+King Lear	GLOUCESTER	so often blushed to acknowledge him, that now I am	1.1.10
+King John	CHATILLON	To this fair island and the territories,	1.1.10
+
+query TTTTTTT
+SELECT SEARCH((*), 'king') result, *
+  FROM lines
+  ORDER BY act_scene_line LIMIT 10
+----
+TRUE	75787	Pericles	178	1.0.21	LODOVICO	This king unto him took a fere,
+TRUE	43494	King John	1	1.1.1	KING JOHN	Now, say, Chatillon, what would France with us?
+TRUE	49031	King Lear	1	1.1.1	KENT	I thought the king had more affected the Duke of
+TRUE	78407	Richard II	1	1.1.1	KING RICHARD II	Old John of Gaunt, time-honour'd Lancaster,
+FALSE	67000	A Midsummer Night's Dream	1	1.1.1	THESEUS	Now, fair Hippolyta, our nuptial hour
+TRUE	4	Henry IV Part 1	1	1.1.1	KING HENRY IV	So shaken as we are, so wan with care,
+FALSE	12664	All's Well That Ends Well	1	1.1.1	COUNTESS	In delivering my son from me, I bury a second husband.
+TRUE	9526	Henry VI Part 3	1	1.1.1	WARWICK	I wonder how the king escaped our hands.
+FALSE	52797	Love's Labour's Lost	1	1.1.1	FERDINAND	Let fame, that all hunt after in their lives,
+TRUE	28487	Cymbeline	3	1.1.10	First Gentleman	Is outward sorrow, though I think the king
+
+query TTTT
+SELECT SEARCH(* ILIKE '%line', 'king') result, play, character, line
+  FROM lines
+  ORDER BY act_scene_line LIMIT 10
+----
+TRUE	Pericles	LODOVICO	This king unto him took a fere,
+FALSE	King John	KING JOHN	Now, say, Chatillon, what would France with us?
+TRUE	King Lear	KENT	I thought the king had more affected the Duke of
+FALSE	Richard II	KING RICHARD II	Old John of Gaunt, time-honour'd Lancaster,
+FALSE	A Midsummer Night's Dream	THESEUS	Now, fair Hippolyta, our nuptial hour
+FALSE	Henry IV Part 1	KING HENRY IV	So shaken as we are, so wan with care,
+FALSE	All's Well That Ends Well	COUNTESS	In delivering my son from me, I bury a second husband.
+TRUE	Henry VI Part 3	WARWICK	I wonder how the king escaped our hands.
+FALSE	Love's Labour's Lost	FERDINAND	Let fame, that all hunt after in their lives,
+TRUE	Cymbeline	First Gentleman	Is outward sorrow, though I think the king
+
+query TTTT
+SELECT SEARCH(* EXCLUDE (play, line), 'king') result, play, character, line
+  FROM lines
+  ORDER BY act_scene_line LIMIT 10
+----
+FALSE	Pericles	LODOVICO	This king unto him took a fere,
+TRUE	King John	KING JOHN	Now, say, Chatillon, what would France with us?
+FALSE	King Lear	KENT	I thought the king had more affected the Duke of
+TRUE	Richard II	KING RICHARD II	Old John of Gaunt, time-honour'd Lancaster,
+FALSE	A Midsummer Night's Dream	THESEUS	Now, fair Hippolyta, our nuptial hour
+TRUE	Henry IV Part 1	KING HENRY IV	So shaken as we are, so wan with care,
+FALSE	All's Well That Ends Well	COUNTESS	In delivering my son from me, I bury a second husband.
+FALSE	Henry VI Part 3	WARWICK	I wonder how the king escaped our hands.
+FALSE	Love's Labour's Lost	FERDINAND	Let fame, that all hunt after in their lives,
+FALSE	Cymbeline	First Gentleman	Is outward sorrow, though I think the king
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE t1 (col1 INT, col2 VARCHAR(20), col3 VARCHAR(20));
+
+exclude-from-coverage
+statement ok
+INSERT INTO t1 VALUES
+  (1,'Mini','Cooper'),
+  (2,'Mini','Cooper S'),
+  (3,'Mini','Countryman'),
+  (4,'Mini','Countryman S');
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE t2 (col1 INT, col2 VARCHAR(20), col3 VARCHAR(20), col4 VARCHAR(20));
+
+exclude-from-coverage
+statement ok
+INSERT INTO t2 VALUES
+  (1,'Mini','Cooper', 'Convertible'),
+  (2,'Mini','Cooper S', 'Convertible'),
+  (3,'Mini','Countryman SE','ALL4'),
+  (4,'Mini','Countryman S','ALL4');
+
+query TTTTTT
+SELECT * FROM t1 JOIN t2 USING(col1)
+  WHERE SEARCH((t1.*),'s all4')
+----
+2	Mini	Cooper S	Mini	Cooper S	Convertible
+4	Mini	Countryman S	Mini	Countryman S	ALL4
+
+query TTTTTT
+SELECT * FROM t1 JOIN t2 USING(col1)
+  WHERE SEARCH((t2.*),'s all4')
+----
+2	Mini	Cooper S	Mini	Cooper S	Convertible
+3	Mini	Countryman	Mini	Countryman SE	ALL4
+4	Mini	Countryman S	Mini	Countryman S	ALL4
+
+query TTT
+SELECT *
+  FROM (
+    SELECT col1, col2, col3 FROM t1
+    UNION
+    SELECT col1, col2, col3 FROM t2
+    ) AS T3
+  WHERE SEARCH((T3.*),'s')
+----
+2	Mini	Cooper S
+4	Mini	Countryman S
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE car_rentals(
+  vehicle_make VARCHAR(30),
+  dealership VARCHAR(30),
+  salesperson VARCHAR(30));
+
+exclude-from-coverage
+statement ok
+INSERT INTO car_rentals VALUES
+  ('Toyota', 'Tindel Toyota', 'Greg Northrup'),
+  ('Honda', 'Valley View Auto Sales', 'Frank Beasley'),
+  ('Tesla', 'Valley View Auto Sales', 'Arturo Sandoval');
+
+query TT
+SELECT line_id, act_scene_line FROM lines
+  WHERE SEARCH(act_scene_line, '1.2.500', ANALYZER=>'NO_OP_ANALYZER')
+----
+91998	1.2.500
+108464	1.2.500
+
+query T
+SELECT DISTINCT(play)
+  FROM lines
+  WHERE SEARCH(play, 'love''s', ANALYZER=>'UNICODE_ANALYZER')
+----
+Love's Labour's Lost
+
+query T
+SELECT DISTINCT(play) FROM lines WHERE SEARCH(play, 'love''s')
+----
+The Winter's Tale
+A Midsummer Night's Dream
+Love's Labour's Lost
+All's Well That Ends Well
+
+statement error
+SELECT SEARCH(line, 5) FROM lines
+----
+001045 (22023): SQL compilation error:
+argument needs to be a string: '1'
+
+statement error
+SELECT SEARCH(line_id, 'dream') FROM lines
+----
+001173 (22023): SQL compilation error: error line 1 at position 7: Expected non-empty set of columns supporting full-text search.
+
+query T
+SELECT SEARCH((line_id, play), 'dream') FROM lines
+  ORDER BY play LIMIT 5
+----
+TRUE
+TRUE
+FALSE
+FALSE
+FALSE
+
+statement error
+SELECT SEARCH('docs@snowflake.com', 'careers@snowflake.com', '@')
+----
+000939 (22023): SQL compilation error: error line 1 at position 7
+too many arguments for function [SEARCH] expected 2, got 3
+
+statement error
+SELECT SEARCH(play,line,'king', ANALYZER=>'UNICODE_ANALYZER') FROM lines
+----
+001015 (22023): SQL compilation error:
+argument 1 to function SEARCH needs to be constant, found 'LINES.LINE'
+
+statement error
+SELECT SEARCH(line, character) FROM lines
+----
+001015 (22023): SQL compilation error:
+argument 1 to function SEARCH needs to be constant, found 'LINES.CHARACTER'
+
+query T
+SELECT SEARCH('king','KING')
+----
+TRUE
+

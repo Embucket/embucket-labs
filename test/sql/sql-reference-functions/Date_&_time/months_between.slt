@@ -1,0 +1,40 @@
+query TT
+SELECT
+    MONTHS_BETWEEN('2019-03-15'::DATE,
+                   '2019-02-15'::DATE) AS MonthsBetween1,
+    MONTHS_BETWEEN('2019-03-31'::DATE,
+                   '2019-02-28'::DATE) AS MonthsBetween2
+----
+1.000000	1.000000
+
+query TTT
+SELECT
+    MONTHS_BETWEEN('2019-03-01'::DATE,
+                   '2019-02-15'::DATE) AS MonthsBetween1,
+    MONTHS_BETWEEN('2019-03-01 02:00:00'::TIMESTAMP,
+                   '2019-02-15 01:00:00'::TIMESTAMP) AS MonthsBetween2,
+    MONTHS_BETWEEN('2019-02-15 02:00:00'::TIMESTAMP,
+                   '2019-02-15 01:00:00'::TIMESTAMP) AS MonthsBetween3
+----
+0.548387	0.549731	0.000000
+
+query TTT
+SELECT
+    MONTHS_BETWEEN('2019-03-28'::DATE,
+                   '2019-02-28'::DATE) AS MonthsBetween1,
+    MONTHS_BETWEEN('2019-03-30'::DATE,
+                   '2019-02-28'::DATE) AS MonthsBetween2,
+    MONTHS_BETWEEN('2019-03-31'::DATE,
+                   '2019-02-28'::DATE) AS MonthsBetween3
+----
+1.000000	1.064516	1.000000
+
+query TT
+SELECT
+    MONTHS_BETWEEN('2019-03-01'::DATE,
+                   '2019-02-01'::DATE) AS MonthsBetween1,
+    MONTHS_BETWEEN('2019-02-01'::DATE,
+                   '2019-03-01'::DATE) AS MonthsBetween2
+----
+1.000000	-1.000000
+

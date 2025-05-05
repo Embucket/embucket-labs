@@ -1,0 +1,58 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE demo1 (id INTEGER, json_data VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO demo1 SELECT
+   1, '{"level_1_key": "level_1_value"}';
+
+exclude-from-coverage
+statement ok
+INSERT INTO demo1 SELECT
+   2, '{"level_1_key": {"level_2_key": "level_2_value"}}';
+
+exclude-from-coverage
+statement ok
+INSERT INTO demo1 SELECT
+   3, '{"level_1_key": {"level_2_key": ["zero", "one", "two"]}}';
+
+query TT
+SELECT 
+        TO_VARCHAR(GET_PATH(PARSE_JSON(json_data), 'level_1_key')) 
+            AS OLD_WAY,
+        JSON_EXTRACT_PATH_TEXT(json_data, 'level_1_key')
+            AS JSON_EXTRACT_PATH_TEXT
+    FROM demo1
+    ORDER BY id
+----
+level_1_value	level_1_value
+'{"level_2_key":"level_2_value"}'	'{"level_2_key":"level_2_value"}'
+'{"level_2_key":["zero","one","two"]}'	'{"level_2_key":["zero","one","two"]}'
+
+query TT
+SELECT 
+        TO_VARCHAR(GET_PATH(PARSE_JSON(json_data), 'level_1_key.level_2_key'))
+            AS OLD_WAY,
+        JSON_EXTRACT_PATH_TEXT(json_data, 'level_1_key.level_2_key')
+            AS JSON_EXTRACT_PATH_TEXT
+    FROM demo1
+    ORDER BY id
+----
+NULL	NULL
+level_2_value	level_2_value
+'["zero","one","two"]'	'["zero","one","two"]'
+
+query TT
+SELECT 
+      TO_VARCHAR(GET_PATH(PARSE_JSON(json_data), 'level_1_key.level_2_key[1]'))
+          AS OLD_WAY,
+      JSON_EXTRACT_PATH_TEXT(json_data, 'level_1_key.level_2_key[1]')
+          AS JSON_EXTRACT_PATH_TEXT
+    FROM demo1
+    ORDER BY id
+----
+NULL	NULL
+NULL	NULL
+one	one
+

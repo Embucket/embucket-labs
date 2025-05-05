@@ -1,0 +1,24 @@
+query T
+SELECT HEX_DECODE_STRING('536E6F77666C616B65')
+----
+Snowflake
+
+query T
+SELECT HEX_DECODE_STRING('536e6f77666c616b65')
+----
+Snowflake
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE binary_table (v VARCHAR, b BINARY);
+
+exclude-from-coverage
+statement ok
+INSERT INTO binary_table (v, b) 
+    SELECT 'HELLO', HEX_DECODE_BINARY(HEX_ENCODE('HELLO'));
+
+query TTT
+SELECT v, b, HEX_DECODE_STRING(TO_VARCHAR(b)) FROM binary_table
+----
+HELLO	x'48454c4c4f'	HELLO
+

@@ -1,0 +1,39 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE objectagg_example(g NUMBER, k VARCHAR(30), v VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO objectagg_example SELECT 0, 'name', 'Joe'::VARIANT;
+
+exclude-from-coverage
+statement ok
+INSERT INTO objectagg_example SELECT 0, 'age', 21::VARIANT;
+
+exclude-from-coverage
+statement ok
+INSERT INTO objectagg_example SELECT 1, 'name', 'Sue'::VARIANT;
+
+exclude-from-coverage
+statement ok
+INSERT INTO objectagg_example SELECT 1, 'zip', 94401::VARIANT;
+
+statement ok
+SELECT * FROM objectagg_example;
+
+query T
+SELECT OBJECT_AGG(k, v) FROM objectagg_example GROUP BY g
+----
+'{"name":"Sue","zip":94401}'
+'{"age":21,"name":"Joe"}'
+
+query TTT
+SELECT seq, key, value
+  FROM (SELECT object_agg(k, v) o FROM objectagg_example GROUP BY g),
+    LATERAL FLATTEN(input => o)
+----
+1	name	"Sue"
+1	zip	94401
+2	age	21
+2	name	"Joe"
+

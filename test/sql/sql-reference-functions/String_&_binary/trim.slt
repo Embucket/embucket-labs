@@ -1,0 +1,29 @@
+query TT
+SELECT '*-*ABC-*-' AS original,
+       TRIM('*-*ABC-*-', '*-') AS trimmed
+----
+*-*ABC-*-	ABC
+
+query TT
+SELECT CONCAT('>', CONCAT('ABC\n', '<')) AS original,
+       CONCAT('>', CONCAT(TRIM('ABC\n', '\n'), '<')) AS trimmed
+----
+>ABC\n<	>ABC<
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE test_trim_function(column1 VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_trim_function VALUES ('  Leading Spaces'), ('Trailing Spaces  '), (NULL);
+
+query TT
+SELECT CONCAT('>', CONCAT(column1, '<')) AS original_values,
+       CONCAT('>', CONCAT(TRIM(column1), '<')) AS trimmed_values
+  FROM test_trim_function
+----
+>  Leading Spaces<	>Leading Spaces<
+>Trailing Spaces  <	>Trailing Spaces<
+NULL	NULL
+

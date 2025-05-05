@@ -1,0 +1,15 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE as_integer_example (integer1 VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO as_integer_example (integer1)
+  SELECT TO_VARIANT(15);
+
+query T
+SELECT AS_INTEGER(integer1) AS integer_value
+  FROM as_integer_example
+----
+15
+

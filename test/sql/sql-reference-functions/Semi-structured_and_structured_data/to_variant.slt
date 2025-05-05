@@ -1,0 +1,23 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE to_variant_example (
+  v_varchar   VARIANT,
+  v_number    VARIANT,
+  v_timestamp VARIANT,
+  v_array     VARIANT,
+  v_object    VARIANT);
+
+statement ok
+INSERT INTO to_variant_example (v_varchar, v_number, v_timestamp, v_array, v_object)
+  SELECT
+    TO_VARIANT('Skiing is fun!'),
+    TO_VARIANT(3.14),
+    TO_VARIANT('2024-01-25 01:02:03'),
+    TO_VARIANT(ARRAY_CONSTRUCT('San Mateo', 'Seattle', 'Berlin')),
+    PARSE_JSON(' { "key1": "value1", "key2": "value2" } ');
+
+query TTTTT
+SELECT * FROM to_variant_example
+----
+"Skiing is fun!"	3.14	"2024-01-25 01:02:03"	'["San Mateo","Seattle","Berlin"]'	'{"key1":"value1","key2":"value2"}'
+

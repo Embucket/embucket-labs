@@ -1,0 +1,49 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE tt1 (c1 INT, c2 INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO tt1 VALUES (1, 2);
+
+exclude-from-coverage
+statement ok
+INSERT INTO tt1 VALUES (2, 3);
+
+exclude-from-coverage
+statement ok
+CALL SYSTEM$WAIT(10);
+
+exclude-from-coverage
+statement ok
+INSERT INTO tt1 VALUES (3, 4);
+
+query TT
+SELECT * FROM tt1 AT(OFFSET => -10);
+----
+1	2
+2	3
+
+exclude-from-coverage
+statement ok
+INSERT INTO tt1 VALUES (4, 5);
+
+exclude-from-coverage
+statement ok
+SET last_query_id = LAST_QUERY_ID();
+
+query TT
+SELECT * FROM tt1 BEFORE(STATEMENT => $last_query_id);
+----
+1	2
+2	3
+3	4
+
+query TTTT
+SELECT oldt.c1, oldt.c2, newt.c1, newt.c2
+  FROM tt1 BEFORE(STATEMENT => $last_query_id) AS oldt
+  FULL OUTER JOIN tt1 AT(STATEMENT => $last_query_id) AS newt
+  ON oldt.c1 = newt.c1
+  WHERE oldt.c1 IS NULL OR newt.c1 IS NULL;
+----
+NULL	NULL	4	5

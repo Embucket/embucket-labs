@@ -1,0 +1,15 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE as_date_example (date1 VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO as_date_example (date1)
+ SELECT TO_VARIANT(TO_DATE('2024-10-10'));
+
+query T
+SELECT AS_DATE(date1) date_value
+  FROM as_date_example
+----
+'2024-10-10'
+

@@ -1,0 +1,15 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE as_number_example (number1 VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO as_number_example (number1)
+  SELECT TO_VARIANT(TO_NUMBER(2.34, 6, 3));
+
+query T
+SELECT TO_NUMBER(number1, 6, 3) number_value
+  FROM as_number_example
+----
+2.340
+
