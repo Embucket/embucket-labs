@@ -15,6 +15,7 @@ pub struct CliOpts {
         long,
         value_enum,
         env = "OBJECT_STORE_BACKEND",
+        default_value = "memory",
         help = "Backend to use for state storage"
     )]
     backend: StoreBackend,
@@ -75,7 +76,7 @@ pub struct CliOpts {
     )]
     file_storage_path: Option<PathBuf>,
 
-    #[arg(short, long, env = "SLATEDB_PREFIX")]
+    #[arg(short, long, env = "SLATEDB_PREFIX", default_value = "state")]
     pub slatedb_prefix: String,
 
     #[arg(
@@ -114,13 +115,14 @@ pub struct CliOpts {
         long,
         env = "CORS_ENABLED",
         help = "Enable CORS",
-        default_value = "false"
+        default_value = "true"
     )]
     pub cors_enabled: Option<bool>,
 
     #[arg(
         long,
         env = "CORS_ALLOW_ORIGIN",
+        default_value = "http://127.0.0.1:8080",
         required_if_eq("cors_enabled", "true"),
         help = "CORS Allow Origin"
     )]
