@@ -1,7 +1,7 @@
 use super::config::StaticWebConfig;
 use super::handler::WEB_ASSETS_MOUNT_PATH;
 use super::handler::{root_handler, tar_handler};
-use crate::http::{layers::make_cors_middleware, shutdown_signal};
+use crate::http::layers::make_cors_middleware;
 use axum::{routing::get, Router};
 use core::net::SocketAddr;
 use tower_http::trace::TraceLayer;
@@ -34,7 +34,7 @@ pub async fn run_web_assets_server(
 
     tokio::spawn(async move {
         axum::serve(listener, app)
-            .with_graceful_shutdown(shutdown_signal())
+            // .with_graceful_shutdown(shutdown_signal())
             .await
     });
 

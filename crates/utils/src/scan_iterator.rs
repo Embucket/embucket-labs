@@ -2,7 +2,7 @@ use crate::{DeserializeValueSnafu, Result, ScanFailedSnafu};
 use async_trait::async_trait;
 use bytes::Bytes;
 use serde_json::de;
-use slatedb::db::Db as SlateDb;
+use slatedb::Db as SlateDb;
 use snafu::prelude::*;
 use std::marker::PhantomData;
 use std::sync::Arc;

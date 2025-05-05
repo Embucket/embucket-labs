@@ -408,7 +408,7 @@ impl From<NormalizedIdent> for MetastoreSchemaIdent {
 
 impl From<NormalizedIdent> for ObjectName {
     fn from(ident: NormalizedIdent) -> Self {
-        Self(ident.0)
+        Self::from(ident.0)
     }
 }
 

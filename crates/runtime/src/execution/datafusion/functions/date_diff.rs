@@ -7,7 +7,9 @@ use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
+use datafusion_common::types::logical_date;
 use datafusion_common::{internal_err, types::logical_string};
+use datafusion_expr::Coercion;
 use std::any::Any;
 use std::sync::Arc;
 use std::vec;
@@ -32,19 +34,19 @@ impl DateDiffFunc {
             signature: Signature::one_of(
                 vec![
                     Coercible(vec![
-                        TypeSignatureClass::Native(logical_string()),
-                        TypeSignatureClass::Timestamp,
-                        TypeSignatureClass::Timestamp,
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Timestamp),
+                        Coercion::new_exact(TypeSignatureClass::Timestamp),
                     ]),
                     Coercible(vec![
-                        TypeSignatureClass::Native(logical_string()),
-                        TypeSignatureClass::Time,
-                        TypeSignatureClass::Time,
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Time),
+                        Coercion::new_exact(TypeSignatureClass::Time),
                     ]),
                     Coercible(vec![
-                        TypeSignatureClass::Native(logical_string()),
-                        TypeSignatureClass::Date,
-                        TypeSignatureClass::Date,
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
                     ]),
                 ],
                 Volatility::Immutable,
@@ -117,7 +119,9 @@ impl ScalarUDFImpl for DateDiffFunc {
         Ok(DataType::Int64)
     }
 
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
+
         if args.len() != 3 {
             return plan_err!("function requires three arguments");
         }

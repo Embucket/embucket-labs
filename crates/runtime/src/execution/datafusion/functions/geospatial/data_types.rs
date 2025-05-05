@@ -8,10 +8,11 @@ use arrow_schema::DataType;
 use datafusion::error::DataFusionError;
 use datafusion::logical_expr::{Signature, Volatility};
 use geoarrow::array::{
-    CoordType, GeometryArray, GeometryCollectionArray, LineStringArray, PointArray, PolygonArray,
+    GeometryArray, GeometryCollectionArray, LineStringArray, PointArray, PolygonArray,
     RectArray,
 };
-use geoarrow::datatypes::{Dimension, NativeType};
+use geoarrow::datatypes::{NativeType};
+use geoarrow_schema::{CoordType, Dimension};
 use geoarrow::NativeArray;
 use snafu::ResultExt;
 

@@ -9,7 +9,7 @@ use datafusion::assert_batches_eq;
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::visit_expressions;
 use datafusion::sql::sqlparser::ast::Statement as SQLStatement;
-use datafusion::sql::sqlparser::ast::{Expr, ObjectName};
+use datafusion::sql::sqlparser::ast::{Expr, ObjectName, ObjectNamePart};
 use embucket_metastore::Metastore;
 use embucket_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
@@ -110,26 +110,34 @@ async fn test_timestamp_keywords_postprocess() {
         if let DFStatement::Statement(statement) = statement {
             visit_expressions(&statement, |expr| {
                 if let Expr::Function(Function {
-                    name: ObjectName(idents),
+                    name: ObjectName(object_name_parts),
                     args: FunctionArguments::List(FunctionArgumentList { args, .. }),
                     ..
                 }) = expr
                 {
-                    match idents.first().unwrap().value.as_str() {
-                        "dateadd" | "date_add" | "datediff" | "date_diff" => {
-                            if let FunctionArg::Unnamed(FunctionArgExpr::Expr(ident)) =
-                                args.iter().next().unwrap()
-                            {
-                                if let Expr::Value(found) = ident {
-                                    if test.should_work {
-                                        assert_eq!(*found, test.expected);
-                                    } else {
-                                        assert_ne!(*found, test.expected);
+                    match object_name_parts.first().unwrap() {
+                        ObjectNamePart::Identifier(ident) => match ident.value.as_str() {
+                            "dateadd" | "date_add" | "datediff" | "date_diff" => {
+                                if let FunctionArg::Unnamed(FunctionArgExpr::Expr(ident)) =
+                                    args.iter().next().unwrap()
+                                {
+                                    if let Expr::Value(found) = ident {
+                                        if test.should_work {
+                                            assert_eq!(
+                                                found.to_string(),
+                                                test.expected.to_string()
+                                            );
+                                        } else {
+                                            assert_ne!(
+                                                found.to_string(),
+                                                test.expected.to_string()
+                                            );
+                                        }
                                     }
                                 }
                             }
-                        }
-                        _ => {}
+                            _ => {}
+                        },
                     }
                 }
                 ControlFlow::<()>::Continue(())
@@ -377,36 +385,39 @@ async fn test_create_schema() {
 
 #[tokio::test]
 #[allow(clippy::unwrap_used)]
-async fn test_resolve_table_ident() {
+async fn test_resolve_table_object_name() {
     let metastore = SlateDBMetastore::new_in_memory().await;
     let session = UserSession::new(metastore)
         .await
         .expect("Failed to create session");
     let query = UserQuery::new(Arc::from(session), "", QueryContext::default());
 
-    let test_cases: [(Vec<Ident>, ExecutionResult<String>); 4] = [
+    let test_cases: [(Vec<ObjectNamePart>, ExecutionResult<String>); 4] = [
         (
-            vec![Ident::new("table")],
+            vec![ObjectNamePart::Identifier(Ident::new("table"))],
             Ok("embucket.public.table".to_string()),
         ),
         (
-            vec![Ident::new("test_schema"), Ident::new("table")],
+            vec![
+                ObjectNamePart::Identifier(Ident::new("test_schema")),
+                ObjectNamePart::Identifier(Ident::new("table")),
+            ],
             Ok("embucket.test_schema.table".to_string()),
         ),
         (
             vec![
-                Ident::new("test_db"),
-                Ident::new("test_schema"),
-                Ident::new("table"),
+                ObjectNamePart::Identifier(Ident::new("test_db")),
+                ObjectNamePart::Identifier(Ident::new("test_schema")),
+                ObjectNamePart::Identifier(Ident::new("table")),
             ],
             Ok("test_db.test_schema.table".to_string()),
         ),
         (
             vec![
-                Ident::new("test_db"),
-                Ident::new("test_schema"),
-                Ident::new("table"),
-                Ident::new("col"),
+                ObjectNamePart::Identifier(Ident::new("test_db")),
+                ObjectNamePart::Identifier(Ident::new("test_schema")),
+                ObjectNamePart::Identifier(Ident::new("table")),
+                ObjectNamePart::Identifier(Ident::new("col")),
             ],
             Err(ExecutionError::InvalidTableIdentifier {
                 ident: "test_db.test_schema.table.col".to_string(),
@@ -414,7 +425,7 @@ async fn test_resolve_table_ident() {
         ),
     ];
     for (test_case, expected) in test_cases {
-        let result = query.resolve_table_ident(test_case.clone());
+        let result = query.resolve_table_object_name(test_case.clone());
         if result.is_err() {
             assert_eq!(
                 result.err().unwrap().to_string(),
@@ -428,27 +439,30 @@ async fn test_resolve_table_ident() {
 
 #[tokio::test]
 #[allow(clippy::unwrap_used)]
-async fn test_resolve_schema_ident() {
+async fn test_resolve_schema_object_name() {
     let metastore = SlateDBMetastore::new_in_memory().await;
     let session = UserSession::new(metastore)
         .await
         .expect("Failed to create session");
     let query = UserQuery::new(Arc::from(session), "", QueryContext::default());
 
-    let test_cases: [(Vec<Ident>, ExecutionResult<String>); 3] = [
+    let test_cases: [(Vec<ObjectNamePart>, ExecutionResult<String>); 3] = [
         (
-            vec![Ident::new("schema")],
+            vec![ObjectNamePart::Identifier(Ident::new("schema"))],
             Ok("embucket.schema".to_string()),
         ),
         (
-            vec![Ident::new("test_db"), Ident::new("schema")],
+            vec![
+                ObjectNamePart::Identifier(Ident::new("test_db")),
+                ObjectNamePart::Identifier(Ident::new("schema")),
+            ],
             Ok("test_db.schema".to_string()),
         ),
         (
             vec![
-                Ident::new("test_db"),
-                Ident::new("test_schema"),
-                Ident::new("table"),
+                ObjectNamePart::Identifier(Ident::new("test_db")),
+                ObjectNamePart::Identifier(Ident::new("test_schema")),
+                ObjectNamePart::Identifier(Ident::new("table")),
             ],
             Err(ExecutionError::InvalidSchemaIdentifier {
                 ident: "test_db.test_schema.table".to_string(),
@@ -456,7 +470,7 @@ async fn test_resolve_schema_ident() {
         ),
     ];
     for (test_case, expected) in test_cases {
-        let res = query.resolve_schema_ident(test_case.clone());
+        let res = query.resolve_schema_object_name(test_case.clone());
         if res.is_err() {
             assert_eq!(
                 res.err().unwrap().to_string(),

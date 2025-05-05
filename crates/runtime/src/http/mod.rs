@@ -20,6 +20,7 @@ use session::{RequestSessionMemory, RequestSessionStore};
 
 use crate::execution::recording_service::RecordingExecutionService;
 use crate::execution::{self, service::CoreExecutionService};
+use embucket_utils::Db;
 
 pub mod error;
 
@@ -88,14 +89,18 @@ pub fn make_app(
 }
 
 #[allow(clippy::as_conversions)]
-pub async fn run_app(app: Router, config: &WebConfig) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_app(
+    app: Router,
+    config: &WebConfig,
+    db: Arc<Db>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let host = config.host.clone();
     let port = config.port;
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
     let addr = listener.local_addr()?;
     tracing::info!("Listening on http://{}", addr);
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(shutdown_signal(db))
         .await
         .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
 }
@@ -110,7 +115,7 @@ pub async fn run_app(app: Router, config: &WebConfig) -> Result<(), Box<dyn std:
     clippy::redundant_pub_crate,
     clippy::cognitive_complexity
 )]
-async fn shutdown_signal() {
+async fn shutdown_signal(db: Arc<Db>) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -130,9 +135,11 @@ async fn shutdown_signal() {
 
     tokio::select! {
         () = ctrl_c => {
+            db.close().await.expect("Failed to close database");
             tracing::warn!("Ctrl+C received, starting graceful shutdown");
         },
         () = terminate => {
+            db.close().await.expect("Failed to close database");
             tracing::warn!("SIGTERM received, starting graceful shutdown");
         },
     }

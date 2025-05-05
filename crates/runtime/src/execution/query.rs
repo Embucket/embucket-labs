@@ -1,7 +1,7 @@
 use arrow::array::{Int64Array, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
+use datafusion::catalog::CatalogProvider;
 use datafusion::catalog::MemoryCatalogProvider;
-use datafusion::catalog_common::CatalogProvider;
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
@@ -10,7 +10,7 @@ use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
-    TableFactor, TableWithJoins,
+    TableFactor, TableObject, TableWithJoins,
 };
 use datafusion_common::{DataFusionError, ResolvedTableReference, TableReference};
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
@@ -32,8 +32,8 @@ use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectType,
-    Query as AstQuery, Select, SelectItem, Use,
+    BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
+    ObjectType, Query as AstQuery, Select, SelectItem, UpdateTableFromKind, Use,
 };
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -370,7 +370,7 @@ impl UserQuery {
                 ),
             });
         };
-        let ident: MetastoreTableIdent = self.resolve_table_ident(names[0].0.clone())?.into();
+        let ident: MetastoreTableIdent = self.resolve_table_object_name(names[0].0.clone())?.into();
         let plan = self.sql_statement_to_plan(statement).await?;
         let catalog = self.get_catalog(ident.database.as_str())?;
         let iceberg_catalog = match self
@@ -435,7 +435,8 @@ impl UserQuery {
             .clone()
             .or_else(|| create_table_statement.base_location.clone());
 
-        let new_table_ident = self.resolve_table_ident(create_table_statement.name.0.clone())?;
+        let new_table_ident =
+            self.resolve_table_object_name(create_table_statement.name.0.clone())?;
         create_table_statement.name = new_table_ident.clone().into();
         // We don't support transient tables for now
         create_table_statement.transient = false;
@@ -458,7 +459,7 @@ impl UserQuery {
 
         let catalog = self.get_catalog(ident.database.as_str())?;
         self.create_iceberg_table(
-            catalog,
+            catalog.clone(),
             ident.database.clone(),
             table_location,
             ident.clone(),
@@ -473,7 +474,6 @@ impl UserQuery {
         // Insert data to new table
         // Since we don't execute logical plan, and we don't transform it to physical plan and
         // also don't execute it as well, we need somehow to support CTAS
-        let schema = plan.schema().clone();
         if let LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(CreateMemoryTable {
             name,
             input,
@@ -483,9 +483,27 @@ impl UserQuery {
             if is_logical_plan_effectively_empty(&input) {
                 return created_entity_response();
             }
+            let schema_name = name
+                .schema()
+                .ok_or(ExecutionError::InvalidTableIdentifier {
+                    ident: name.to_string(),
+                })?;
+
+            let target_table = catalog
+                .schema(schema_name)
+                .ok_or(ExecutionError::SchemaNotFound {
+                    schema: schema_name.to_string(),
+                })?
+                .table(name.table())
+                .await
+                .context(super::error::DataFusionSnafu)?
+                .ok_or(ExecutionError::TableProviderNotFound {
+                    table_name: name.table().to_string(),
+                })?;
+
             let insert_plan = LogicalPlan::Dml(DmlStatement::new(
                 name,
-                schema,
+                provider_as_source(target_table),
                 WriteOp::Insert(InsertOp::Append),
                 input,
             ));
@@ -542,9 +560,18 @@ impl UserQuery {
         ))
         .map_err(|err| DataFusionError::External(Box::new(err)))
         .context(super::error::DataFusionSnafu)?;
-        let schema = Schema::builder()
-            .with_schema_id(0)
-            .with_fields(fields_with_ids)
+
+        // Create builder and configure it
+        let mut builder = Schema::builder();
+        builder.with_schema_id(0);
+        builder.with_identifier_field_ids(vec![]);
+
+        // Add each struct field individually
+        for field in fields_with_ids.iter() {
+            builder.with_struct_field(field.clone());
+        }
+
+        let schema = builder
             .build()
             .map_err(|err| DataFusionError::External(Box::new(err)))
             .context(super::error::DataFusionSnafu)?;
@@ -585,17 +612,27 @@ impl UserQuery {
 
         // TODO: Use the options with the table format in the future
         let _table_options = statement.options.clone();
-        let table_ident: MetastoreTableIdent = self.resolve_table_ident(statement.name.0)?.into();
+        let table_ident: MetastoreTableIdent =
+            self.resolve_table_object_name(statement.name.0)?.into();
+
+        // Create builder and configure it
+        let mut builder = Schema::builder();
+        builder.with_schema_id(0);
+        builder.with_identifier_field_ids(vec![]);
+
+        // Add each struct field individually
+        for field in fields_with_ids.iter() {
+            builder.with_struct_field(field.clone());
+        }
+
+        let table_schema = builder
+            .build()
+            .map_err(|err| DataFusionError::External(Box::new(err)))
+            .context(ex_error::DataFusionSnafu)?;
 
         let table_create_request = MetastoreTableCreateRequest {
             ident: table_ident.clone(),
-            schema: Schema::builder()
-                .with_schema_id(0)
-                .with_identifier_field_ids(vec![])
-                .with_fields(fields_with_ids)
-                .build()
-                .map_err(|err| DataFusionError::External(Box::new(err)))
-                .context(ex_error::DataFusionSnafu)?,
+            schema: table_schema,
             location: Some(table_location),
             partition_spec: None,
             sort_order: None,
@@ -640,13 +677,14 @@ impl UserQuery {
             });
         };
 
-        let table_name = name
-            .0
-            .last()
-            .ok_or_else(|| ExecutionError::InvalidTableIdentifier {
-                ident: name.to_string(),
-            })?
-            .clone();
+        let table_name = match name.0.last() {
+            Some(ObjectNamePart::Identifier(ident)) => ident.value.clone(),
+            _ => {
+                return Err(ExecutionError::InvalidTableIdentifier {
+                    ident: name.to_string(),
+                })
+            }
+        };
 
         let skip_header = file_format.options.iter().any(|option| {
             option.option_name.eq_ignore_ascii_case("skip_header")
@@ -715,7 +753,7 @@ impl UserQuery {
         self.session
             .ctx
             .register_csv(
-                table_name.value.clone(),
+                table_name,
                 file_path,
                 CsvReadOptions::new()
                     .has_header(skip_header)
@@ -731,10 +769,7 @@ impl UserQuery {
         &self,
         statement: Statement,
     ) -> ExecutionResult<Vec<RecordBatch>> {
-        let Statement::CopyIntoSnowflake {
-            into, from_stage, ..
-        } = statement
-        else {
+        let Statement::CopyIntoSnowflake { into, from_obj, .. } = statement else {
             return Err(ExecutionError::DataFusion {
                 source: DataFusionError::NotImplemented(
                     "Only COPY INTO statements are supported".to_string(),
@@ -742,16 +777,24 @@ impl UserQuery {
             });
         };
 
-        let from_stage: Vec<Ident> = from_stage
-            .0
-            .iter()
-            .map(|fs| Ident::new(fs.to_string().replace('@', "")))
-            .collect();
-        let insert_into = self.resolve_table_ident(into.0)?;
-        let insert_from = self.resolve_table_ident(from_stage)?;
-        // Insert data to table
-        let insert_query = format!("INSERT INTO {insert_into} SELECT * FROM {insert_from}");
-        self.execute_with_custom_plan(&insert_query).await
+        if let Some(from_obj) = from_obj {
+            let from_stage: Vec<ObjectNamePart> = from_obj
+                .0
+                .iter()
+                .map(|fs| ObjectNamePart::Identifier(Ident::new(fs.to_string().replace('@', ""))))
+                .collect();
+            let insert_into = self.resolve_table_object_name(into.0)?;
+            let insert_from = self.resolve_table_object_name(from_stage)?;
+            // Insert data to table
+            let insert_query = format!("INSERT INTO {insert_into} SELECT * FROM {insert_from}");
+            self.execute_with_custom_plan(&insert_query).await
+        } else {
+            Err(ExecutionError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "FROM object is required for COPY INTO statements".to_string(),
+                ),
+            })
+        }
     }
 
     #[instrument(level = "trace", skip(self), err, ret)]
@@ -774,7 +817,7 @@ impl UserQuery {
         let (target_table, target_alias) = Self::get_table_with_alias(table);
         let (_source_table, source_alias) = Self::get_table_with_alias(source.clone());
 
-        let target_table = self.resolve_table_ident(target_table.0)?;
+        let target_table = self.resolve_table_object_name(target_table.0)?;
 
         let source_query = if let TableFactor::Derived {
             subquery,
@@ -861,7 +904,7 @@ impl UserQuery {
             });
         };
 
-        let ident: MetastoreSchemaIdent = self.resolve_schema_ident(schema_name.0)?.into();
+        let ident: MetastoreSchemaIdent = self.resolve_schema_object_name(schema_name.0)?.into();
         let plan = self.sql_statement_to_plan(statement).await?;
         let catalog = self.get_catalog(ident.database.as_str())?;
 
@@ -1059,6 +1102,7 @@ impl UserQuery {
                             window_before_qualify: false,
                             value_table_mode: None,
                             connect_by: None,
+                            flavor: sqlparser::ast::SelectFlavor::Standard,
                         };
 
                         *query.body = sqlparser::ast::SetExpr::Select(Box::new(outer_select));
@@ -1283,14 +1327,14 @@ impl UserQuery {
                 {
                     if f.name.to_string().to_lowercase() == "result_scan" {
                         let columns = [
-                            "table_catalog as 'database_name'",
-                            "table_schema as 'schema_name'",
-                            "table_name as 'name'",
-                            "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
-                            "null as 'comment'",
-                            "case when table_type='BASE TABLE' then 'Y' else 'N' end as is_iceberg",
-                            "'N' as 'is_dynamic'",
-                        ].join(", ");
+                                "table_catalog as 'database_name'",
+                                "table_schema as 'schema_name'",
+                                "table_name as 'name'",
+                                "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
+                                "null as 'comment'",
+                                "case when table_type='BASE TABLE' then 'Y' else 'N' end as is_iceberg",
+                                "'N' as 'is_dynamic'",
+                            ].join(", ");
                         let information_schema_query =
                             format!("SELECT {columns} FROM information_schema.tables");
 
@@ -1365,17 +1409,23 @@ impl UserQuery {
                     ..
                 } => {
                     if name.0.len() == 2 {
-                        Some(TableReference::full(
-                            name.0[0].value.clone(),
-                            name.0[1].value.clone(),
-                            empty(),
-                        ))
+                        // Extract the database and schema names
+                        let db_name = match &name.0[0] {
+                            ObjectNamePart::Identifier(ident) => ident.value.clone(),
+                        };
+
+                        let schema_name = match &name.0[1] {
+                            ObjectNamePart::Identifier(ident) => ident.value.clone(),
+                        };
+
+                        Some(TableReference::full(db_name, schema_name, empty()))
                     } else {
-                        Some(TableReference::full(
-                            empty(),
-                            name.0[0].value.clone(),
-                            empty(),
-                        ))
+                        // Extract just the schema name
+                        let schema_name = match &name.0[0] {
+                            ObjectNamePart::Identifier(ident) => ident.value.clone(),
+                        };
+
+                        Some(TableReference::full(empty(), schema_name, empty()))
                     }
                 }
                 _ => references.first().cloned(),
@@ -1393,9 +1443,9 @@ impl UserQuery {
     ) -> ExecutionResult<DFStatement> {
         match statement.clone() {
             DFStatement::CreateExternalTable(create_external) => {
-                let table_name = self.resolve_table_ident(create_external.name.0)?;
+                let table_name = self.resolve_table_object_name(create_external.name.0)?;
                 let modified_statement = CreateExternalTable {
-                    name: ObjectName(table_name.0),
+                    name: ObjectName::from(table_name.0),
                     ..create_external
                 };
                 Ok(DFStatement::CreateExternalTable(modified_statement))
@@ -1409,9 +1459,9 @@ impl UserQuery {
                     location,
                     on_cluster,
                 } => {
-                    let name = self.resolve_table_ident(name.0)?;
+                    let name = self.resolve_table_object_name(name.0)?;
                     let modified_statement = Statement::AlterTable {
-                        name: ObjectName(name.0),
+                        name: ObjectName::from(name.0),
                         if_exists,
                         only,
                         operations,
@@ -1421,7 +1471,20 @@ impl UserQuery {
                     Ok(DFStatement::Statement(Box::new(modified_statement)))
                 }
                 Statement::Insert(insert_statement) => {
-                    let table_name = self.resolve_table_ident(insert_statement.table_name.0)?;
+                    // Extract ObjectName from TableObject
+                    let obj_name = match &insert_statement.table {
+                        TableObject::TableName(obj_name) => obj_name.clone(),
+                        TableObject::TableFunction(_) => {
+                            return Err(ExecutionError::DataFusion {
+                                source: DataFusionError::NotImplemented(
+                                    "Table functions are not supported in INSERT statements"
+                                        .to_string(),
+                                ),
+                            })
+                        }
+                    };
+
+                    let table_name = self.resolve_table_object_name(obj_name.0)?;
 
                     let source = insert_statement.source.map(|mut query| {
                         self.update_tables_in_query(query.as_mut())
@@ -1435,7 +1498,7 @@ impl UserQuery {
                     };
 
                     let modified_statement = Insert {
-                        table_name: ObjectName(table_name.0),
+                        table: TableObject::TableName(ObjectName::from(table_name.0)),
                         source,
                         ..insert_statement
                     };
@@ -1455,10 +1518,21 @@ impl UserQuery {
                     for name in &mut names {
                         match object_type {
                             ObjectType::Schema => {
-                                *name = ObjectName(self.resolve_schema_ident(name.0.clone())?.0);
+                                // TODO: Check if this works the same way as the table case
+                                let schema_name =
+                                    self.resolve_schema_object_name(name.0.clone())?;
+                                *name = ObjectName(
+                                    schema_name
+                                        .0
+                                        .iter()
+                                        .map(|i| ObjectNamePart::Identifier(i.clone()))
+                                        .collect(),
+                                );
                             }
                             ObjectType::Table => {
-                                *name = ObjectName(self.resolve_table_ident(name.0.clone())?.0);
+                                *name = ObjectName::from(
+                                    self.resolve_table_object_name(name.0.clone())?.0,
+                                );
                             }
                             _ => {}
                         }
@@ -1477,6 +1551,7 @@ impl UserQuery {
                 }
                 Statement::Query(mut query) => {
                     self.update_tables_in_query(query.as_mut())?;
+                    // self.update_tables_in_query(&mut query)?;
                     Ok(DFStatement::Statement(Box::new(Statement::Query(query))))
                 }
                 Statement::CreateTable(mut create_table_statement) => {
@@ -1504,7 +1579,7 @@ impl UserQuery {
                 } => {
                     self.update_tables_in_table_with_joins(&mut table)?;
                     if let Some(from) = from.as_mut() {
-                        self.update_tables_in_table_with_joins(from)?;
+                        self.update_tables_in_update_table_from_kind(from)?;
                     }
                     let modified_statement = Statement::Update {
                         table,
@@ -1523,53 +1598,86 @@ impl UserQuery {
     }
 
     // Fill in the database and schema if they are missing
-    // and normalize the identifiers
-    pub fn resolve_table_ident(
+    // and normalize the identifiers for ObjectNamePart
+    pub fn resolve_table_object_name(
         &self,
-        mut table_ident: Vec<Ident>,
+        mut table_ident: Vec<ObjectNamePart>,
     ) -> ExecutionResult<NormalizedIdent> {
         match table_ident.len() {
             1 => {
-                table_ident.insert(0, Ident::new(self.current_database()));
-                table_ident.insert(1, Ident::new(self.current_schema()));
+                table_ident.insert(
+                    0,
+                    ObjectNamePart::Identifier(Ident::new(self.current_database())),
+                );
+                table_ident.insert(
+                    1,
+                    ObjectNamePart::Identifier(Ident::new(self.current_schema())),
+                );
             }
             2 => {
-                table_ident.insert(0, Ident::new(self.current_database()));
+                table_ident.insert(
+                    0,
+                    ObjectNamePart::Identifier(Ident::new(self.current_database())),
+                );
             }
             3 => {}
             _ => {
                 return Err(ExecutionError::InvalidTableIdentifier {
-                    ident: NormalizedIdent(table_ident).to_string(),
+                    ident: table_ident
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join("."),
                 });
             }
         }
-        Ok(NormalizedIdent(
-            table_ident
-                .iter()
-                .map(|ident| Ident::new(self.session.ident_normalizer.normalize(ident.clone())))
-                .collect(),
-        ))
+
+        let normalized_idents = table_ident
+            .iter()
+            .map(|part| match part {
+                ObjectNamePart::Identifier(ident) => {
+                    Ident::new(self.session.ident_normalizer.normalize(ident.clone()))
+                }
+            })
+            .collect();
+
+        Ok(NormalizedIdent(normalized_idents))
     }
 
-    pub fn resolve_schema_ident(
+    // Fill in the database if missing and normalize the identifiers for ObjectNamePart
+    pub fn resolve_schema_object_name(
         &self,
-        mut schema_ident: Vec<Ident>,
+        mut schema_ident: Vec<ObjectNamePart>,
     ) -> ExecutionResult<NormalizedIdent> {
         match schema_ident.len() {
-            1 => schema_ident.insert(0, Ident::new(self.current_database())),
+            1 => {
+                schema_ident.insert(
+                    0,
+                    ObjectNamePart::Identifier(Ident::new(self.current_database())),
+                );
+            }
             2 => {}
             _ => {
                 return Err(ExecutionError::InvalidSchemaIdentifier {
-                    ident: NormalizedIdent(schema_ident).to_string(),
+                    ident: schema_ident
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join("."),
                 });
             }
         }
-        Ok(NormalizedIdent(
-            schema_ident
-                .iter()
-                .map(|ident| Ident::new(self.session.ident_normalizer.normalize(ident.clone())))
-                .collect(),
-        ))
+
+        let normalized_idents = schema_ident
+            .iter()
+            .map(|part| match part {
+                ObjectNamePart::Identifier(ident) => {
+                    Ident::new(self.session.ident_normalizer.normalize(ident.clone()))
+                }
+            })
+            .collect();
+
+        Ok(NormalizedIdent(normalized_idents))
     }
 
     #[allow(clippy::only_used_in_recursion)]
@@ -1647,8 +1755,14 @@ impl UserQuery {
     fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor) -> ExecutionResult<()> {
         match table_factor {
             TableFactor::Table { name, .. } => {
-                let compressed_name = self.resolve_table_ident(name.clone().0)?;
-                *name = ObjectName(compressed_name.0);
+                let compressed_name = self.resolve_table_object_name(name.clone().0)?;
+                *name = ObjectName(
+                    compressed_name
+                        .0
+                        .iter()
+                        .map(|i| ObjectNamePart::Identifier(i.clone()))
+                        .collect(),
+                );
             }
             TableFactor::Derived { subquery, .. } => {
                 self.update_tables_in_query(subquery)?;
@@ -1659,6 +1773,20 @@ impl UserQuery {
                 self.update_tables_in_table_with_joins(table_with_joins)?;
             }
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn update_tables_in_update_table_from_kind(
+        &self,
+        from_kind: &mut UpdateTableFromKind,
+    ) -> ExecutionResult<()> {
+        match from_kind {
+            UpdateTableFromKind::BeforeSet(tables) | UpdateTableFromKind::AfterSet(tables) => {
+                for table_with_joins in tables {
+                    self.update_tables_in_table_with_joins(table_with_joins)?;
+                }
+            }
         }
         Ok(())
     }

@@ -33,7 +33,7 @@ export function SqlEditorLeftPanelTrees() {
 
   return (
     <>
-      <TreesLayout>
+      <TreesLayout scrollAreaClassName="h-[calc(100%-56px-2px)]">
         <TreesDatabases
           databases={navigationTrees}
           isFetchingDatabases={isFetchingNavigationTrees}

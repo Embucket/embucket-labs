@@ -78,7 +78,13 @@ pnpm dev
 ### 4. Open the app in your browser
 
 ```bash
-open http://localhost:3000
+open http://localhost:5173
+```
+
+### 5. Run BE server
+
+```bash
+cargo run -- --backend memory --slatedb-prefix sdb --cors-enabled=true --cors-allow-origin=http://localhost:5173 --allow-http=true
 ```
 
 ## Common scripts

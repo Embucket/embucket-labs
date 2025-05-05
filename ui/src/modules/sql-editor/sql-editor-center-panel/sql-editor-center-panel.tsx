@@ -35,7 +35,7 @@ export function SqlEditorCenterPanel() {
 
   const { mutateAsync, isPending, isIdle } = useCreateQuery({
     mutation: {
-      onSuccess: async (newQueryRecord) => {
+      onSettled: async (newQueryRecord) => {
         if (!isRightPanelExpanded) {
           toggleRightPanel();
         }
@@ -47,7 +47,9 @@ export function SqlEditorCenterPanel() {
             queryKey: getGetDashboardQueryKey(),
           }),
         ]);
-        setQueryRecord(newQueryRecord);
+        if (newQueryRecord) {
+          setQueryRecord(newQueryRecord);
+        }
       },
     },
   });

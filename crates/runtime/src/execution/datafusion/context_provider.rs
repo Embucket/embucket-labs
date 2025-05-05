@@ -70,11 +70,8 @@ where
             | Statement::Update { .. } => Ok(LogicalPlan::default()),
             Statement::ShowSchemas { .. } => self.show_variable_to_plan(&["schemas".into()]),
             Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
-            Statement::ShowObjects {
-                terse: _,
-                show_options,
-            } => {
-                let Some(show_in) = show_options.show_in else {
+            Statement::ShowObjects(show_objects) => {
+                let Some(show_in) = show_objects.show_options.show_in else {
                     return plan_err!("Unsupported show statement: missing show_in");
                 };
                 let Some(parent_name) = show_in.parent_name else {
@@ -154,10 +151,9 @@ where
                         schema,
                     };
                     let plan = LogicalPlan::EmptyRelation(plan);
-                    let constraints = SqlToRel::<S>::new_constraint_from_table_constraints(
-                        &all_constraints,
-                        plan.schema(),
-                    )?;
+                    let constraints = self
+                        .inner
+                        .new_constraint_from_table_constraints(&all_constraints, plan.schema())?;
                     Ok(LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(
                         CreateMemoryTable {
                             name: object_name_to_table_reference(name, true)?,
@@ -255,7 +251,7 @@ where
             );
         }
 
-        let variable = object_name_to_string(&ObjectName(variable.to_vec()));
+        let variable = object_name_to_string(&ObjectName::from(variable.to_vec()));
         // let base_query = format!("SELECT {columns} FROM information_schema.df_settings");
         let base_query = "select schema_name as 'name' from information_schema.schemata";
         let query = if variable == "all" {

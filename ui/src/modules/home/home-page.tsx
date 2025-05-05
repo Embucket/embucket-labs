@@ -5,7 +5,6 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useGetDashboard } from '@/orval/dashboard';
 import { useGetWorksheets } from '@/orval/worksheets';
 
-import { PageContent } from '../shared/page/page-content';
 import { PageHeader } from '../shared/page/page-header';
 import HomeActionButtons from './home-action-buttons';
 import { HomeDashboardMetrics } from './home-dashboard-metrics';
@@ -22,7 +21,8 @@ export function HomePage() {
   return (
     <>
       <PageHeader title="Home" />
-      <PageContent>
+
+      <ScrollArea className="h-[calc(100vh-65px-32px-2px)]">
         <div className="p-4">
           <p className="mb-2 text-3xl font-semibold">Welcome!</p>
           <p className="text-muted-foreground font-light">Nice seeing you here 😎</p>
@@ -41,6 +41,8 @@ export function HomePage() {
               </ScrollArea>
             ) : (
               <EmptyContainer
+                // TODO: Hardcode
+                className="min-h-[calc(100vh-200px-344px)]"
                 Icon={FileText}
                 title="No SQL Worksheets Created Yet"
                 description="Create your first worksheet to start querying data"
@@ -50,7 +52,8 @@ export function HomePage() {
             )}
           </div>
         </div>
-      </PageContent>
+        <ScrollBar orientation="vertical" />
+      </ScrollArea>
     </>
   );
 }

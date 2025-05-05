@@ -13,7 +13,7 @@ use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion_common::types::logical_int64;
 use datafusion_common::{internal_err, Result, ScalarValue};
-use datafusion_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
+use datafusion_expr::{Coercion, ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion_macros::user_doc;
 
 #[user_doc(
@@ -63,8 +63,18 @@ impl TimeFromPartsFunc {
         Self {
             signature: Signature::one_of(
                 vec![
-                    Coercible(vec![TypeSignatureClass::Native(logical_int64()); 4]),
-                    Coercible(vec![TypeSignatureClass::Native(logical_int64()); 3]),
+                    Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(
+                            logical_int64()
+                        ));
+                        4
+                    ]),
+                    Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(
+                            logical_int64()
+                        ));
+                        3
+                    ]),
                 ],
                 Volatility::Immutable,
             ),
@@ -89,7 +99,8 @@ impl ScalarUDFImpl for TimeFromPartsFunc {
         Ok(Time64(TimeUnit::Nanosecond))
     }
 
-    fn invoke_batch(&self, args: &[ColumnarValue], _number_rows: usize) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
         // first, identify if any of the arguments is an Array. If yes, store its `len`,
         // as any scalar will need to be converted to an array of len `len`.
         let array_size = args
@@ -200,7 +211,15 @@ mod test {
                 if let Some(nano) = n {
                     fn_args.push(columnar_value_fn(is_scalar, *nano));
                 };
-                let result = TimeFromPartsFunc::new().invoke_batch(&fn_args, 1).unwrap();
+                let result = TimeFromPartsFunc::new()
+                    .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
+                        args: fn_args,
+                        number_rows: 1,
+                        return_type: &arrow::datatypes::DataType::Time64(
+                            arrow_schema::TimeUnit::Nanosecond,
+                        ),
+                    })
+                    .unwrap();
                 let result = to_primitive_array::<Time64NanosecondType>(&result).unwrap();
                 let seconds = result.value(0) / 1_000_000_000;
                 let nanoseconds = result.value(0) % 1_000_000_000;

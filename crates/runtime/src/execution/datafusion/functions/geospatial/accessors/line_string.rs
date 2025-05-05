@@ -13,8 +13,8 @@ use datafusion::logical_expr::{
 use datafusion_common::{DataFusionError, Result};
 use datafusion_expr::ScalarFunctionArgs;
 use geo_traits::LineStringTrait;
-use geoarrow::array::{AsNativeArray, CoordType, PointBuilder};
-use geoarrow::datatypes::Dimension;
+use geoarrow::array::{AsNativeArray, PointBuilder};
+use geoarrow_schema::{Dimension, CoordType};
 use geoarrow::error::GeoArrowError;
 use geoarrow::trait_::ArrayAccessor;
 use geoarrow::ArrayBase;

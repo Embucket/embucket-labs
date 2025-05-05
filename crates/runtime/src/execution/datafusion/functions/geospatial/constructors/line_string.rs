@@ -12,9 +12,10 @@ use datafusion_doc::Documentation;
 use datafusion_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use geo_traits::{LineStringTrait, MultiPointTrait, PointTrait};
 use geoarrow::array::{
-    AsNativeArray, CoordType, LineStringArray, LineStringBuilder, MultiPointArray, PointArray,
+    AsNativeArray, LineStringArray, LineStringBuilder, MultiPointArray, PointArray,
 };
-use geoarrow::datatypes::{Dimension, NativeType};
+use geoarrow_schema::{CoordType, Dimension};
+use geoarrow::datatypes::{NativeType};
 use geoarrow::error::GeoArrowError;
 use geoarrow::trait_::ArrayAccessor;
 use geoarrow::ArrayBase;
@@ -70,7 +71,8 @@ impl ScalarUDFImpl for MakeLine {
         Ok(LINE_STRING_TYPE.into())
     }
 
-    fn invoke_batch(&self, args: &[ColumnarValue], _number_rows: usize) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
         unsafe { make_line(args) }
     }
 

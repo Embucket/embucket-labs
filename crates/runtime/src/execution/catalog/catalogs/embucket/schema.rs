@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use datafusion::catalog::{SchemaProvider, TableProvider};
 use datafusion_common::DataFusionError;
 use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
+use embucket_metastore::error::MetastoreError;
 use embucket_metastore::{Metastore, SchemaIdent, TableIdent};
 use embucket_utils::scan_iterator::ScanIterator;
 use iceberg_rust::catalog::Catalog as IcebergCatalog;
@@ -55,11 +56,24 @@ impl SchemaProvider for EmbucketSchema {
 
     async fn table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
         let ident = &TableIdent::new(&self.database.clone(), &self.schema.clone(), name);
+        let object_store = self
+            .metastore
+            .table_object_store(ident)
+            .await
+            .map_err(|e| DataFusionError::External(Box::new(e)))?
+            .ok_or_else(|| {
+                DataFusionError::External(Box::new(MetastoreError::TableObjectStoreNotFound {
+                    table: ident.table.clone(),
+                    schema: ident.schema.clone(),
+                    db: ident.database.clone(),
+                }))
+            })?;
         match self.metastore.get_table(ident).await {
             Ok(Some(table)) => {
                 let iceberg_table = IcebergTable::new(
                     ident.to_iceberg_ident(),
                     self.iceberg_catalog.clone(),
+                    object_store,
                     table.metadata.clone(),
                 )
                 .await

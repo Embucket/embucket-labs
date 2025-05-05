@@ -60,7 +60,6 @@ const sidebarNavItems: SidebarNavOption[] = [
       to: '/databases',
     },
     Icon: Database,
-    disabled: true,
   },
 ];
 

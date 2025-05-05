@@ -8,9 +8,9 @@ use iterable::IterableEntity;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::de;
 use serde_json::ser;
-use slatedb::db::Db as SlateDb;
-use slatedb::db_iter::DbIterator;
-use slatedb::error::SlateDBError;
+use slatedb::Db as SlateDb;
+use slatedb::DbIterator;
+use slatedb::SlateDBError;
 use snafu::prelude::*;
 use std::ops::RangeBounds;
 use std::string::ToString;
@@ -108,7 +108,7 @@ impl Db {
     pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
         let serialized = ser::to_vec(value).context(SerializeValueSnafu)?;
         self.0
-            .put(key.as_bytes(), serialized.as_ref())
+            .put(key.as_bytes(), serialized)
             .await
             .context(KeyPutSnafu {
                 key: key.to_string(),
@@ -198,7 +198,7 @@ impl Db {
     ) -> Result<()> {
         let serialized = ser::to_vec(entity).context(SerializeValueSnafu)?;
         self.0
-            .put(entity.key().as_ref(), serialized.as_ref())
+            .put(entity.key().as_ref(), serialized)
             .await
             .context(DatabaseSnafu)
     }
@@ -303,6 +303,7 @@ mod test {
     use futures::future::join_all;
     use iterable::IterableEntity;
     use serde::{Deserialize, Serialize};
+    use std::ops::Bound;
     use std::time::SystemTime;
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -441,7 +442,8 @@ mod test {
             SystemTime::now().duration_since(started)
         );
 
-        let mut iter = db.0.scan(..).await.unwrap();
+        let full_range: (Bound<Bytes>, Bound<Bytes>) = (Bound::Unbounded, Bound::Unbounded);
+        let mut iter = db.0.scan(full_range).await.unwrap();
         let mut i = 0;
         while let Ok(Some(item)) = iter.next().await {
             assert_eq!(item.key, items[i].key());
