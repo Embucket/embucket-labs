@@ -8,7 +8,6 @@ use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::provider::SharedCredentialsProvider;
 use aws_credential_types::Credentials;
 use dashmap::DashMap;
-use datafusion::catalog::SchemaProvider;
 use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList},
     execution::object_store::ObjectStoreRegistry,
@@ -167,16 +166,17 @@ impl EmbucketCatalogList {
         for catalog in self.catalogs.iter_mut() {
             if catalog.should_refresh {
                 let schemas = catalog.schema_names();
-                for schema in schemas {
-                    if let Some(schema_provider) = catalog.schema(&schema) {
+                for schema in schemas.clone() {
+                    if let Some(schema_provider) = catalog.catalog.schema(&schema) {
                         let schema = CachingSchema {
                             schema: schema_provider,
                             tables_cache: DashMap::default(),
                             name: schema.to_string(),
                         };
-                        let tables = schema.table_names();
+                        let tables = schema.schema.table_names();
                         for table in tables {
                             if let Some(table_provider) = schema
+                                .schema
                                 .table(&table)
                                 .await
                                 .context(ex_error::DataFusionSnafu)?
@@ -195,6 +195,12 @@ impl EmbucketCatalogList {
                             .schemas_cache
                             .insert(schema.name.clone(), Arc::new(schema));
                     };
+                }
+                // Cleanup removed schemas from the cache
+                for schema in &catalog.schemas_cache {
+                    if !schemas.contains(&schema.key().to_string()) {
+                        catalog.schemas_cache.remove(schema.key());
+                    }
                 }
             }
         }

@@ -11,7 +11,7 @@ use crate::http::ui::tables::models::{
     TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
     TableUploadPayload, TableUploadResponse, TablesParameters, TablesResponse, UploadParameters,
 };
-use arrow::util::display::array_value_to_string;
+use arrow_array::{Array, StringArray};
 use axum::extract::Query;
 use axum::{
     extract::{Multipart, Path, State},
@@ -148,7 +148,7 @@ pub async fn get_table_columns(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| TablesAPIError::Execution { source: e })?;
+        .map_err(|e| TablesAPIError::GetExecution { source: e })?;
     let items: Vec<TableColumn> = column_infos
         .iter()
         .map(|column_info| TableColumn {
@@ -196,7 +196,36 @@ pub async fn get_table_preview_data(
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
 ) -> TablesResult<Json<TablePreviewDataResponse>> {
     let context = QueryContext::new(Some(database_name.clone()), Some(schema_name.clone()), None);
-    let sql_string = format!("SELECT * FROM {database_name}.{schema_name}.{table_name}");
+    let ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
+    let column_names = match state.metastore.get_table(&ident).await {
+        Ok(Some(rw_object)) => {
+            if let Ok(schema) = rw_object.metadata.current_schema(None) {
+                let items: Vec<String> = schema.iter().map(|field| field.name.clone()).collect();
+                Ok(items)
+            } else {
+                Ok(vec![])
+            }
+        }
+        Ok(None) => Err(TablesAPIError::GetMetastore {
+            source: MetastoreError::TableNotFound {
+                table: database_name.clone(),
+                schema: schema_name.clone(),
+                db: table_name.clone(),
+            },
+        }),
+        Err(e) => Err(TablesAPIError::GetMetastore { source: e }),
+    }?;
+    let column_names = column_names
+        .iter()
+        //UNSUPPORTED TYPES: ListArray, StructArray, Binary (Arrow Cast for Datafusion)
+        .map(|column_name| {
+            format!("COALESCE(CAST({column_name} AS STRING), 'Unsupported') AS {column_name}")
+        })
+        .collect::<Vec<_>>();
+    let sql_string = format!(
+        "SELECT {} FROM {database_name}.{schema_name}.{table_name}",
+        column_names.join(", ")
+    );
     let sql_string = parameters.offset.map_or(sql_string.clone(), |offset| {
         format!("{sql_string} OFFSET {offset}")
     });
@@ -207,26 +236,21 @@ pub async fn get_table_preview_data(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| TablesAPIError::Execution { source: e })?;
-
-    let mut preview_data_columns = Vec::new();
+        .map_err(|e| TablesAPIError::GetExecution { source: e })?;
+    let mut preview_data_columns: Vec<TablePreviewDataColumn> = vec![];
     for batch in &batches {
-        let schema = batch.schema();
-        let num_rows = batch.num_rows();
-
         for (i, column) in batch.columns().iter().enumerate() {
-            let array = column.as_ref(); // Arc<dyn Array> -> &dyn Array
-
-            let preview_data_rows: Vec<TablePreviewDataRow> = (0..num_rows)
-                .map(|row_index| {
-                    let data = array_value_to_string(array, row_index)
-                        .unwrap_or_else(|_| "ERROR".to_string());
-                    TablePreviewDataRow { data }
+            let preview_data_rows: Vec<TablePreviewDataRow> = column
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .unwrap()
+                .iter()
+                .map(|row| TablePreviewDataRow {
+                    data: row.unwrap().to_string(),
                 })
                 .collect();
-
             preview_data_columns.push(TablePreviewDataColumn {
-                name: schema.field(i).name().to_string(),
+                name: batch.schema().fields[i].name().to_string(),
                 rows: preview_data_rows,
             });
         }

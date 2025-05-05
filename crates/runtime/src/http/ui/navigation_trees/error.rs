@@ -1,4 +1,3 @@
-use crate::execution::error::ExecutionError;
 use crate::http::error::ErrorResponse;
 use crate::http::ui::error::IntoStatusCode;
 use axum::response::IntoResponse;
@@ -14,16 +13,13 @@ pub type NavigationTreesResult<T> = Result<T, NavigationTreesAPIError>;
 pub enum NavigationTreesAPIError {
     #[snafu(display("Get navigation trees error: {source}"))]
     Get { source: MetastoreError },
-
-    #[snafu(display("Get navigation trees execution error: {source}"))]
-    SessionError { source: ExecutionError },
 }
 
 // Select which status code to return.
 impl IntoStatusCode for NavigationTreesAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::Get { .. } | Self::SessionError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Get { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
