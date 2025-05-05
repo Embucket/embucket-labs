@@ -136,6 +136,7 @@ impl IntoResponse for ExecutionError {
             | Self::S3Tables { .. }
             | Self::Iceberg { .. }
             | Self::CatalogListDowncast { .. }
+            | Self::CatalogDownCast { .. }
             | Self::RegisterCatalog { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
             Self::DatabaseNotFound { .. }
             | Self::TableNotFound { .. }

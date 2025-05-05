@@ -8,7 +8,6 @@ use crate::http::ui::queries::models::ResultSet;
 use arrow::csv::reader::Format;
 use arrow_array::RecordBatch;
 use bytes::Bytes;
-use datafusion::dataframe::DataFrame;
 use embucket_history::{QueryRecord, QueryRecordActions, WorksheetsStore};
 use embucket_metastore::TableIdent as MetastoreTableIdent;
 use std::sync::Arc;
@@ -78,14 +77,6 @@ impl ExecutionService for RecordingExecutionService {
         }
         query_res
     }
-    async fn table(
-        &self,
-        session_id: &str,
-        table_ident: &MetastoreTableIdent,
-    ) -> ExecutionResult<DataFrame> {
-        self.execution.table(session_id, table_ident).await
-    }
-
     async fn upload_data_to_table(
         &self,
         session_id: &str,

@@ -7,7 +7,6 @@ use datafusion::arrow::csv::reader::Format;
 use datafusion::arrow::csv::ReaderBuilder;
 use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
 use datafusion::catalog_common::CatalogProvider;
-use datafusion::dataframe::DataFrame;
 use datafusion::datasource::memory::MemTable;
 use datafusion_common::TableReference;
 use snafu::ResultExt;
@@ -34,11 +33,6 @@ pub trait ExecutionService: Send + Sync {
         query: &str,
         query_context: QueryContext,
     ) -> ExecutionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
-    async fn table(
-        &self,
-        session_id: &str,
-        table_ident: &MetastoreTableIdent,
-    ) -> ExecutionResult<DataFrame>;
     async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -136,29 +130,6 @@ impl ExecutionService for CoreExecutionService {
         };
 
         Ok((records, columns))
-    }
-
-    async fn table(
-        &self,
-        session_id: &str,
-        table_ident: &MetastoreTableIdent,
-    ) -> ExecutionResult<DataFrame> {
-        let sessions = self.df_sessions.read().await;
-        let user_session =
-            sessions
-                .get(session_id)
-                .ok_or(ExecutionError::MissingDataFusionSession {
-                    id: session_id.to_string(),
-                })?;
-        user_session
-            .ctx
-            .table(TableReference::full(
-                table_ident.database.clone(),
-                table_ident.schema.clone(),
-                table_ident.table.clone(),
-            ))
-            .await
-            .context(ex_error::DataFusionSnafu)
     }
 
     #[tracing::instrument(level = "debug", skip(self, data))]

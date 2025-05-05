@@ -47,6 +47,7 @@ use super::datafusion::context_provider::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::session::UserSession;
 use super::utils::{is_logical_plan_effectively_empty, NormalizedIdent};
+use crate::execution::catalog::catalog::CachingCatalog;
 use crate::execution::datafusion::visitors::{functions_rewriter, json_element};
 use embucket_history::WorksheetId;
 use tracing_attributes::instrument;
@@ -325,8 +326,20 @@ impl UserQuery {
     pub async fn resolve_iceberg_catalog_or_execute(
         &self,
         catalog: Arc<dyn CatalogProvider>,
+        catalog_name: String,
         plan: LogicalPlan,
     ) -> IcebergCatalogResult {
+        // Try to downcast to CachingCatalog first since all catalogs are registered as CachingCatalog
+        let catalog =
+            if let Some(caching_catalog) = catalog.as_any().downcast_ref::<CachingCatalog>() {
+                &caching_catalog.catalog
+            } else {
+                return IcebergCatalogResult::Result(Err(ExecutionError::CatalogDownCast {
+                    catalog: catalog_name,
+                }));
+            };
+
+        // Try to resolve the actual underlying catalog type
         if let Some(iceberg_catalog) = catalog.as_any().downcast_ref::<IcebergCatalog>() {
             IcebergCatalogResult::Catalog(iceberg_catalog.catalog())
         } else if let Some(embucket_catalog) = catalog.as_any().downcast_ref::<EmbucketCatalog>() {
@@ -339,8 +352,8 @@ impl UserQuery {
             let result = self.execute_logical_plan(plan).await;
             IcebergCatalogResult::Result(result)
         } else {
-            IcebergCatalogResult::Result(Err(ExecutionError::CatalogNotFound {
-                catalog: "invalid catalog type".to_string(),
+            IcebergCatalogResult::Result(Err(ExecutionError::CatalogDownCast {
+                catalog: catalog_name,
             }))
         }
     }
@@ -361,7 +374,7 @@ impl UserQuery {
         let plan = self.sql_statement_to_plan(statement).await?;
         let catalog = self.get_catalog(ident.database.as_str())?;
         let iceberg_catalog = match self
-            .resolve_iceberg_catalog_or_execute(catalog, plan.clone())
+            .resolve_iceberg_catalog_or_execute(catalog, ident.database.clone(), plan.clone())
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
@@ -446,6 +459,7 @@ impl UserQuery {
         let catalog = self.get_catalog(ident.database.as_str())?;
         self.create_iceberg_table(
             catalog,
+            ident.database.clone(),
             table_location,
             ident.clone(),
             create_table_statement,
@@ -484,13 +498,14 @@ impl UserQuery {
     pub async fn create_iceberg_table(
         &self,
         catalog: Arc<dyn CatalogProvider>,
+        catalog_name: String,
         table_location: Option<String>,
         ident: MetastoreTableIdent,
         statement: CreateTableStatement,
         plan: LogicalPlan,
     ) -> ExecutionResult<Vec<RecordBatch>> {
         let iceberg_catalog = match self
-            .resolve_iceberg_catalog_or_execute(catalog, plan.clone())
+            .resolve_iceberg_catalog_or_execute(catalog, catalog_name, plan.clone())
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
@@ -850,7 +865,9 @@ impl UserQuery {
         let plan = self.sql_statement_to_plan(statement).await?;
         let catalog = self.get_catalog(ident.database.as_str())?;
 
-        let downcast_result = self.resolve_iceberg_catalog_or_execute(catalog, plan).await;
+        let downcast_result = self
+            .resolve_iceberg_catalog_or_execute(catalog, ident.database, plan)
+            .await;
         let iceberg_catalog = match downcast_result {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
