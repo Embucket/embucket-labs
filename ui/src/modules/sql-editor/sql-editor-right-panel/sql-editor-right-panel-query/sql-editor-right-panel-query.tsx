@@ -13,16 +13,16 @@ interface SqlEditorRightPanelQueriesProps {
 }
 
 export const SqlEditorRightPanelQuery = ({ query }: SqlEditorRightPanelQueriesProps) => {
-  const queryRecord = useSqlEditorSettingsStore((state) => state.queryRecord);
-  const setQueryRecord = useSqlEditorSettingsStore((state) => state.setQueryRecord);
+  const selectedQueryRecord = useSqlEditorSettingsStore((state) => state.selectedQueryRecord);
+  const setSelectedQueryRecord = useSqlEditorSettingsStore((state) => state.setSelectedQueryRecord);
 
   return (
     <HoverCard key={query.id} openDelay={100} closeDelay={10}>
       <HoverCardTrigger>
         <SidebarMenuItem>
           <SidebarMenuButton
-            isActive={query.id === queryRecord?.id}
-            onClick={() => setQueryRecord(query)}
+            isActive={query.id === selectedQueryRecord?.id}
+            onClick={() => setSelectedQueryRecord(query)}
             className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent! data-[active=true]:font-light"
           >
             <SqlEditorRightPanelQueryItem

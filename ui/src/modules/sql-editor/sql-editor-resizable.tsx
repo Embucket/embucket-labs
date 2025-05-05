@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ResizableHandle, ResizablePanel } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
 
 import { useSqlEditorPanelsState } from './sql-editor-panels-state-provider';
+
+const INITIAL_TRANSITION_DELAY_MS = 1000;
 
 export const SqlEditorResizablePanel = ({
   children,
@@ -14,17 +16,26 @@ export const SqlEditorResizablePanel = ({
   ...props
 }: React.ComponentProps<typeof ResizablePanel>) => {
   const { setIsAnyPanelCollapsing, isDragging, isAnyPanelCollapsing } = useSqlEditorPanelsState();
+  const [enableTransition, setEnableTransition] = useState(false);
 
   useEffect(() => {
     setIsAnyPanelCollapsing(false);
   }, [setIsAnyPanelCollapsing]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setEnableTransition(true);
+    }, INITIAL_TRANSITION_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <ResizablePanel
       {...props}
       className={cn(
         isDragging && isAnyPanelCollapsing && 'transition-all duration-300 ease-in-out',
-        !isDragging && 'transition-all duration-300 ease-in-out',
+        !isDragging && enableTransition && 'transition-all duration-300 ease-in-out',
         className,
       )}
       onCollapse={() => {

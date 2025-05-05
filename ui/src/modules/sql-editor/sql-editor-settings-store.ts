@@ -8,24 +8,24 @@ import type { SelectedTree } from '../shared/trees/trees-items';
 export type LeftPanelTab = 'databases' | 'worksheets';
 
 interface SqlEditorSettingsStore {
-  leftPanelTab: LeftPanelTab;
-  setLeftPanelTab: (tab: LeftPanelTab) => void;
+  selectedLeftPanelTab: LeftPanelTab;
+  setSelectedLeftPanelTab: (tab: LeftPanelTab) => void;
 
   tabs: Worksheet[];
   addTab: (tab: Worksheet) => void;
   removeTab: (tabId: Worksheet['id']) => void;
   setTabs: (tabs: Worksheet[]) => void;
 
-  queryRecord?: QueryRecord;
-  setQueryRecord: (queryRecord: QueryRecord) => void;
+  selectedQueryRecord?: QueryRecord;
+  setSelectedQueryRecord: (queryRecord: QueryRecord) => void;
 
   selectedTree?: SelectedTree;
   setSelectedTree: (selectedTree: SelectedTree) => void;
 }
 
 const initialState = {
-  leftPanelTab: 'databases' as LeftPanelTab,
-  queryRecord: undefined,
+  selectedLeftPanelTab: 'databases' as LeftPanelTab,
+  selectedQueryRecord: undefined,
   selectedTree: undefined,
   tabs: [],
 };
@@ -50,15 +50,15 @@ export const useSqlEditorSettingsStore = create<SqlEditorSettingsStore>()(
       setTabs: (tabs: Worksheet[]) => {
         set({ tabs });
       },
-      setQueryRecord: (queryRecord: QueryRecord) => {
-        set({ queryRecord });
+      setSelectedQueryRecord: (queryRecord: QueryRecord) => {
+        set({ selectedQueryRecord: queryRecord });
       },
       setSelectedTree: (selectedTree: SelectedTree) => {
         set({ selectedTree });
       },
 
-      setLeftPanelTab: (leftPanelTab: LeftPanelTab) => {
-        set({ leftPanelTab });
+      setSelectedLeftPanelTab: (selectedLeftPanelTab: LeftPanelTab) => {
+        set({ selectedLeftPanelTab });
       },
     }),
     {

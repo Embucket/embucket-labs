@@ -23,7 +23,7 @@ export function EmptyContainer({
   return (
     <div
       className={cn(
-        'flex h-full min-w-[256px] flex-1 flex-col items-center justify-center p-4',
+        'flex h-full min-w-[256px] flex-1 flex-col items-center justify-center p-4 text-center',
         className,
       )}
     >
