@@ -26,6 +26,7 @@ import { TreesToolbar } from './trees-toolbar';
 interface TreeItemProps<T> {
   isActive?: (item: T) => boolean;
   onClick?: (item: T) => void;
+  open?: boolean;
 }
 
 export interface SelectedTree {
@@ -50,6 +51,7 @@ export function TreesTables({
   isActive,
   renderDropdownMenu,
   defaultOpen,
+  open,
 }: TreesTablesProps) {
   const [hoveredTable, setHoveredTable] = useState<NavigationTreeTable>();
 
@@ -59,6 +61,7 @@ export function TreesTables({
       label="Tables"
       triggerComponent={SidebarMenuSubButton}
       defaultOpen={defaultOpen}
+      open={open}
     >
       {tables.map((table) => {
         const tree = {
@@ -71,9 +74,7 @@ export function TreesTables({
             <SidebarMenuSubButton
               className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
               isActive={isActive?.(table)}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
+              onClick={() => {
                 onClick?.(table);
               }}
               onMouseEnter={() => setHoveredTable(table)}
@@ -102,6 +103,7 @@ export function TreesSchemas({
   schemas,
   onClick,
   isActive,
+  open,
   defaultOpen,
   children,
 }: TreesSchemasProps) {
@@ -116,6 +118,7 @@ export function TreesSchemas({
             isActive={isActive?.(schema)}
             onClick={() => onClick?.(schema)}
             defaultOpen={defaultOpen?.(schema)}
+            open={open}
           >
             {children(schema)}
           </TreeCollapsibleItem>
@@ -138,6 +141,7 @@ export function TreesDatabases({
   isActive,
   defaultOpen,
   onClick,
+  open,
   children,
 }: TreesDatabasesProps) {
   if (isFetchingDatabases) {
@@ -169,6 +173,7 @@ export function TreesDatabases({
             isActive={isActive?.(database)}
             defaultOpen={defaultOpen?.(database)}
             onClick={() => onClick?.(database)}
+            open={open}
           >
             {children(database)}
           </TreeCollapsibleItem>
