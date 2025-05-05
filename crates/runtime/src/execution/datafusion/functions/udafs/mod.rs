@@ -20,9 +20,12 @@ use datafusion_expr::AggregateUDF;
 use std::sync::Arc;
 
 pub mod any_value;
+pub mod object_agg;
 
 pub fn register_udafs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
-    let aggregate_functions: Vec<Arc<AggregateUDF>> = vec![any_value::get_udaf()];
+    let aggregate_functions: Vec<Arc<AggregateUDF>> = vec![
+        any_value::get_udaf()
+    ];
 
     for func in aggregate_functions {
         registry.register_udaf(func)?;

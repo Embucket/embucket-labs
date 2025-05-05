@@ -455,7 +455,7 @@ fn eval_expr(expr: &Expr) -> DFResult<ScalarValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::execution::datafusion::functions::parse_json::ParseJsonFunc;
+    use crate::execution::datafusion::functions::udfs::parse_json::ParseJsonFunc;
     use datafusion::prelude::SessionContext;
     use datafusion_common::assert_batches_eq;
     use std::sync::Arc;

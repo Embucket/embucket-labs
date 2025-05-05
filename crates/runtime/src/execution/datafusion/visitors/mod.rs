@@ -17,5 +17,14 @@
 
 //pub mod analyzer;
 //pub mod error;
+use datafusion_expr::sqlparser::ast::Statement;
+
+pub mod variant;
 pub mod functions_rewriter;
 pub mod json_element;
+
+pub fn visit_all(stmt: &mut Statement) {
+    variant::visit_all(stmt);
+    functions_rewriter::visit(stmt);
+    //json_element::visit(stmt);
+}

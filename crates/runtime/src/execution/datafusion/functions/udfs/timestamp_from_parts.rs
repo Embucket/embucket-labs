@@ -421,7 +421,7 @@ super::macros::make_udf_function!(TimestampFromPartsFunc);
 
 #[cfg(test)]
 mod test {
-    use crate::execution::datafusion::functions::timestamp_from_parts::{
+    use crate::execution::datafusion::functions::udfs::timestamp_from_parts::{
         to_primitive_array, TimestampFromPartsFunc,
     };
     use arrow::datatypes::TimestampNanosecondType;

@@ -47,7 +47,7 @@ use super::datafusion::context_provider::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::session::UserSession;
 use super::utils::{is_logical_plan_effectively_empty, NormalizedIdent};
-use crate::execution::datafusion::visitors::{functions_rewriter, json_element};
+use crate::execution::datafusion::visitors::visit_all;
 use embucket_history::WorksheetId;
 use tracing_attributes::instrument;
 
@@ -151,8 +151,7 @@ impl UserQuery {
     #[instrument(level = "trace", ret)]
     pub fn postprocess_query_statement(statement: &mut DFStatement) {
         if let DFStatement::Statement(value) = statement {
-            json_element::visit(value);
-            functions_rewriter::visit(value);
+            visit_all(value);
         }
     }
 

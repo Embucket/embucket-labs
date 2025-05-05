@@ -1,0 +1,207 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+use super::super::macros::make_udf_function;
+use arrow::datatypes::DataType;
+use arrow_array::Array;
+use arrow_array::cast::AsArray;
+use datafusion_common::types::{logical_binary, logical_string};
+use datafusion_common::{Result as DFResult, ScalarValue, types::NativeType};
+use datafusion_expr::{
+    Coercion, ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature,
+    TypeSignatureClass, Volatility,
+};
+use serde_json::{Value, from_slice, to_string};
+use std::sync::Arc;
+
+#[derive(Debug, Clone)]
+pub struct ArrayDistinctUDF {
+    signature: Signature,
+}
+
+impl ArrayDistinctUDF {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature {
+                type_signature: TypeSignature::Coercible(vec![Coercion::new_implicit(
+                    TypeSignatureClass::Native(logical_string()),
+                    vec![TypeSignatureClass::Native(logical_binary())],
+                    NativeType::String,
+                )]),
+                volatility: Volatility::Immutable,
+            },
+        }
+    }
+
+    fn distinct_array(&self, string: impl AsRef<str>) -> DFResult<Option<String>> {
+        let string = string.as_ref();
+        let array_value: Value =
+            from_slice(string.as_bytes()).map_err(|e| {
+                datafusion_common::error::DataFusionError::Internal(format!(
+                    "Couldn't parse the JSON string: {e}",
+                ))
+            })?;
+
+        if let Value::Array(array) = array_value {
+            if array.is_empty() {
+                return Ok(Some("[]".to_string()));
+            }
+
+            let mut seen = std::collections::HashSet::new();
+            let mut distinct_values = Vec::new();
+
+            for value in array {
+                if seen.insert(value.clone()) {
+                    distinct_values.push(value);
+                }
+            }
+
+            Ok(Some(to_string(&distinct_values).map_err(|e| {
+                datafusion_common::DataFusionError::Internal(e.to_string())
+            })?))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl Default for ArrayDistinctUDF {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ScalarUDFImpl for ArrayDistinctUDF {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn name(&self) -> &str {
+        "array_distinct"
+    }
+
+    fn signature(&self) -> &Signature {
+        &self.signature
+    }
+
+    fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
+        Ok(DataType::Utf8)
+    }
+
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
+        let ScalarFunctionArgs { args, .. } = args;
+        let array_str = args.first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal("Expected a variant argument".to_string()))?;
+        match array_str {
+            ColumnarValue::Array(array) => {
+                let string_array = array.as_string::<i32>();
+                let mut results = Vec::new();
+
+                for i in 0..string_array.len() {
+                    if string_array.is_null(i) {
+                        results.push(None);
+                    } else {
+                        let str_value = string_array.value(i);
+                        results.push(self.distinct_array(str_value)?);
+                    }
+                }
+
+                Ok(ColumnarValue::Array(Arc::new(
+                    arrow::array::StringArray::from(results),
+                )))
+            }
+            ColumnarValue::Scalar(array_value) => {
+                let ScalarValue::Utf8(Some(array_str)) = array_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
+                        "Expected UTF8 string".to_string(),
+                    ));
+                };
+
+                let result = self.distinct_array(array_str)?;
+                Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
+            }
+        }
+    }
+}
+
+make_udf_function!(ArrayDistinctUDF);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::array_construct;
+    use datafusion::assert_batches_eq;
+    use datafusion::prelude::SessionContext;
+    use datafusion::execution::FunctionRegistry;
+
+    #[tokio::test]
+    async fn test_array_distinct() -> DFResult<()> {
+        let ctx = SessionContext::new();
+
+        // Register both UDFs
+        ctx.state().register_udf(array_construct::get_udf());
+        ctx.state().register_udf(get_udf());
+
+        // Test with duplicates
+        let sql =
+            "SELECT array_distinct(array_construct('A', 'A', 'B', NULL, NULL)) as distinct_array";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+----------------+",
+                "| distinct_array |",
+                "+----------------+",
+                "| [\"A\",\"B\",null] |",
+                "+----------------+",
+            ],
+            &result
+        );
+
+        // Test with numbers
+        let sql = "SELECT array_distinct(array_construct(1, 2, 1, 3, 2)) as distinct_nums";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+---------------+",
+                "| distinct_nums |",
+                "+---------------+",
+                "| [1,2,3]       |",
+                "+---------------+",
+            ],
+            &result
+        );
+
+        // Test empty array
+        let sql = "SELECT array_distinct(array_construct()) as empty_array";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+-------------+",
+                "| empty_array |",
+                "+-------------+",
+                "| []          |",
+                "+-------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+}

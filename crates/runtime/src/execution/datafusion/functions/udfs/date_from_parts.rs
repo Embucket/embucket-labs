@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use crate::execution::datafusion::functions::timestamp_from_parts::{
+use crate::execution::datafusion::functions::udfs::timestamp_from_parts::{
     make_date, take_function_args, to_primitive_array,
 };
 use arrow::array::builder::PrimitiveBuilder;
@@ -137,8 +137,8 @@ super::macros::make_udf_function!(DateFromPartsFunc);
 
 #[cfg(test)]
 mod test {
-    use crate::execution::datafusion::functions::date_from_parts::DateFromPartsFunc;
-    use crate::execution::datafusion::functions::timestamp_from_parts::{
+    use crate::execution::datafusion::functions::udfs::date_from_parts::DateFromPartsFunc;
+    use crate::execution::datafusion::functions::udfs::timestamp_from_parts::{
         to_primitive_array, UNIX_DAYS_FROM_CE,
     };
     use arrow::datatypes::Date32Type;
