@@ -12,13 +12,16 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
 import type {
   NavigationTreeDatabase,
   NavigationTreeSchema,
   NavigationTreeTable,
 } from '@/orval/models';
+import { useGetNavigationTrees } from '@/orval/navigation-trees';
 
 import { TreeCollapsibleItem } from './trees-collapsible-item';
+import { TreesToolbar } from './trees-toolbar';
 
 interface TreeItemProps<T> {
   isActive?: (item: T) => boolean;
@@ -175,11 +178,25 @@ export function TreesDatabases({
   );
 }
 
-export function TreesLayout({ children }: { children: ReactNode }) {
+interface TreesLayoutProps {
+  children: ReactNode;
+  scrollAreaClassName?: string;
+}
+
+export function TreesLayout({ children, scrollAreaClassName }: TreesLayoutProps) {
+  const { refetch: refetchNavigationTrees, isFetching: isFetchingNavigationTrees } =
+    useGetNavigationTrees();
+
   return (
-    <ScrollArea className="size-full py-2">
-      <SidebarMenu className="w-full px-2 select-none">{children}</SidebarMenu>
-      <ScrollBar orientation="vertical" />
-    </ScrollArea>
+    <>
+      <TreesToolbar
+        isFetchingNavigationTrees={isFetchingNavigationTrees}
+        onRefetchNavigationTrees={refetchNavigationTrees}
+      />
+      <ScrollArea className={cn('py-2', scrollAreaClassName)}>
+        <SidebarMenu className="w-full px-2 select-none">{children}</SidebarMenu>
+        <ScrollBar orientation="vertical" />
+      </ScrollArea>
+    </>
   );
 }

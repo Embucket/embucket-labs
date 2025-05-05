@@ -44,7 +44,7 @@ export default function HomeActionButtons() {
 
   return (
     <>
-      <div className="w-full py-4">
+      <div className="mt-4 w-full px-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <button
             onClick={handleCreateWorksheet}

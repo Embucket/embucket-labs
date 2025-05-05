@@ -7,15 +7,15 @@ import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { SidebarGroup } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
-interface SqlEditorLeftPanelDatabasesToolbarProps {
+interface TreesToolbarProps {
   isFetchingNavigationTrees: boolean;
   onRefetchNavigationTrees: () => void;
 }
 
-export const SqlEditorLeftPanelDatabasesToolbar = ({
+export const TreesToolbar = ({
   isFetchingNavigationTrees,
   onRefetchNavigationTrees,
-}: SqlEditorLeftPanelDatabasesToolbarProps) => {
+}: TreesToolbarProps) => {
   const [isSpinning, setIsSpinning] = useState(false);
 
   const handleRefresh = async () => {
@@ -26,7 +26,7 @@ export const SqlEditorLeftPanelDatabasesToolbar = ({
   };
 
   return (
-    <SidebarGroup className="px-4">
+    <SidebarGroup className="px-4 pt-4">
       <div className="justify flex items-center justify-between gap-2">
         <InputRoot className="w-full">
           <InputIcon>

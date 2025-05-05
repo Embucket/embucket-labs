@@ -21,7 +21,7 @@ interface SqlEditorLeftPanelWorksheetsProps {
 export function SqlEditorLeftPanelWorksheets({ worksheets }: SqlEditorLeftPanelWorksheetsProps) {
   return (
     // TODO: Hardcode
-    <ScrollArea className="h-[calc(100%-48px)] py-2">
+    <ScrollArea className="h-[calc(100%-56px-2px)] py-2">
       <SidebarMenu className="flex w-full flex-col px-2">
         <Worksheets worksheets={worksheets} />
       </SidebarMenu>
