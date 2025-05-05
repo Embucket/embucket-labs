@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router';
 import { createColumnHelper } from '@tanstack/react-table';
 
 import { DataTable } from '@/components/data-table/data-table';
@@ -9,6 +10,7 @@ interface DatabasesTableProps {
 }
 
 export function DatabasesTable({ isLoading, databases }: DatabasesTableProps) {
+  const navigate = useNavigate();
   const columnHelper = createColumnHelper<Database>();
 
   const columns = [
@@ -20,5 +22,17 @@ export function DatabasesTable({ isLoading, databases }: DatabasesTableProps) {
     }),
   ];
 
-  return <DataTable rounded columns={columns} data={databases} isLoading={isLoading} />;
+  const handleRowClick = (row: Database) => {
+    navigate({ to: `/databases/$databaseName/schemas`, params: { databaseName: row.name } });
+  };
+
+  return (
+    <DataTable
+      rounded
+      columns={columns}
+      data={databases}
+      isLoading={isLoading}
+      onRowClick={handleRowClick}
+    />
+  );
 }

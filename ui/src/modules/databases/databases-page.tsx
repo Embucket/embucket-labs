@@ -11,9 +11,9 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useGetDatabases } from '@/orval/databases';
 
 import { CreateDatabaseDialog } from '../shared/create-database-dialog/create-database-dialog';
+import { DataPageTrees } from '../shared/data-page/databases-page-trees';
 // import { PageHeader } from '../shared/page/page-header';
 import { DatabasesTable } from './databases-page-table';
-import { DatabasesPageTrees } from './databases-page-trees';
 
 export function DatabasesPage() {
   const [opened, setOpened] = useState(false);
@@ -23,7 +23,7 @@ export function DatabasesPage() {
     <>
       <ResizablePanelGroup direction="horizontal">
         <ResizablePanel collapsible defaultSize={20} minSize={20} order={1}>
-          <DatabasesPageTrees />
+          <DataPageTrees />
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel collapsible defaultSize={20} order={1}>

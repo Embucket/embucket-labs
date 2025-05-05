@@ -12,15 +12,15 @@ export function TablesPage() {
       <PageHeader title="Tables">
         <Link
           className="text-blue-500"
-          to="/databases/$databaseId/schemas"
-          params={{ databaseId: '1' }}
+          to="/databases/$databaseName/schemas"
+          params={{ databaseName: '1' }}
         >
           ← Schemas
         </Link>
         <Link
           className="text-blue-500"
-          to="/databases/$databaseId/schemas/$schemaId/tables/$tableId/columns"
-          params={{ databaseId: '1', schemaId: '1', tableId: '1' }}
+          to="/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns"
+          params={{ databaseName: '1', schemaName: '1', tableName: '1' }}
         >
           Columns →
         </Link>

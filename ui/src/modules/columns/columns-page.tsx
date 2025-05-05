@@ -12,8 +12,8 @@ export function ColumnsPage() {
       <PageHeader title="Columns">
         <Link
           className="text-blue-500"
-          to="/databases/$databaseId/schemas/$schemaId/tables"
-          params={{ databaseId: '1', schemaId: '1' }}
+          to="/databases/$databaseName/schemas/$schemaName/tables"
+          params={{ databaseName: '1', schemaName: '1' }}
         >
           ← Tables
         </Link>

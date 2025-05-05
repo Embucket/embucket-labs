@@ -1,3 +1,5 @@
+import { useNavigate, useParams } from '@tanstack/react-router';
+
 import {
   TreesDatabases,
   TreesLayout,
@@ -11,23 +13,34 @@ import type {
 } from '@/orval/models';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
 
-export function DatabasesPageTrees() {
+export function DataPageTrees() {
+  const { databaseName, schemaName, tableName } = useParams({ strict: false });
+
+  const navigate = useNavigate();
+
   const { data: { items: navigationTrees } = {}, isFetching: isFetchingNavigationTrees } =
     useGetNavigationTrees();
 
   const handleDatabaseClick = (database: NavigationTreeDatabase) => {
-    // eslint-disable-next-line no-console
-    console.log(database);
+    navigate({ to: '/databases/$databaseName/schemas', params: { databaseName: database.name } });
   };
 
   const handleSchemaClick = (schema: NavigationTreeSchema) => {
-    // eslint-disable-next-line no-console
-    console.log(schema);
+    if (databaseName) {
+      navigate({
+        to: '/databases/$databaseName/schemas/$schemaName/tables',
+        params: { databaseName: databaseName, schemaName: schema.name },
+      });
+    }
   };
 
   const handleTableClick = (table: NavigationTreeTable) => {
-    // eslint-disable-next-line no-console
-    console.log(table);
+    if (databaseName && schemaName) {
+      navigate({
+        to: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns',
+        params: { databaseName: databaseName, schemaName: schemaName, tableName: table.name },
+      });
+    }
   };
 
   return (
@@ -36,19 +49,22 @@ export function DatabasesPageTrees() {
         <TreesDatabases
           databases={navigationTrees}
           isFetchingDatabases={isFetchingNavigationTrees}
-          defaultOpen={() => true}
+          defaultOpen={(database) => database.name === databaseName}
+          isActive={(database) => database.name === databaseName}
           onClick={handleDatabaseClick}
         >
           {(database) => (
             <TreesSchemas
               schemas={database.schemas}
-              defaultOpen={() => true}
+              defaultOpen={(database) => database.name === databaseName}
+              isActive={(schema) => schema.name === schemaName}
               onClick={handleSchemaClick}
             >
               {(schema) => (
                 <TreesTables
                   tables={schema.tables}
                   database={database}
+                  isActive={(table) => table.name === tableName}
                   schema={schema}
                   defaultOpen={true}
                   onClick={handleTableClick}
