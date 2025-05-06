@@ -8,17 +8,19 @@ use std::sync::Arc;
 use arrow::array::{ArrayRef, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow_array::Array;
+use datafusion_common::{internal_err, not_impl_datafusion_err, not_impl_err};
 use datafusion_common::{plan_err, Result, ScalarValue};
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
-use datafusion_expr::type_coercion::aggregates::{NUMERICS, INTEGERS};
+use datafusion_expr::type_coercion::aggregates::{INTEGERS, NUMERICS};
 use datafusion_expr::utils::format_state_name;
-use datafusion_expr::{Accumulator, AggregateUDFImpl, ColumnarValue,  Documentation, Signature, Volatility, TypeSignature, Expr};
+use datafusion_expr::{
+    Accumulator, AggregateUDFImpl, ColumnarValue, Documentation, Expr, Signature, TypeSignature,
+    Volatility,
+};
 use datafusion_macros::user_doc;
 use datafusion_physical_plan::PhysicalExpr;
-use datafusion_common::{internal_err, not_impl_datafusion_err, not_impl_err};
 
 use super::macros::make_udaf_function;
-
 
 #[user_doc(
     doc_section(label = "General Functions"),
@@ -115,7 +117,7 @@ impl AggregateUDFImpl for PercentileCont {
 
     fn accumulator(&self, acc_args: AccumulatorArgs) -> Result<Box<dyn Accumulator>> {
         // Extract the percentile value from the first argument
-        let percentile = validate_input_percentile_expr(&acc_args.exprs[1])?;  
+        let percentile = validate_input_percentile_expr(&acc_args.exprs[1])?;
 
         // Handle descending order if specified
         let is_descending = acc_args
@@ -208,7 +210,7 @@ impl Accumulator for PercentileContAccumulator {
         }
 
         let array = &values[0];
-        
+
         for i in 0..array.len() {
             if !array.is_null(i) {
                 let value = ScalarValue::try_from_array(array, i)?;
@@ -226,7 +228,8 @@ impl Accumulator for PercentileContAccumulator {
             return Ok(ScalarValue::Float64(None));
         }
 
-        self.values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        self.values
+            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         if self.values.len() == 1 {
             return Ok(ScalarValue::Float64(Some(self.values[0])));
@@ -234,15 +237,16 @@ impl Accumulator for PercentileContAccumulator {
 
         let index = self.percentile * (self.values.len() as f64 - 1.0);
         let lower_idx = index.floor() as usize;
-        
+
         if (index - lower_idx as f64).abs() < f64::EPSILON {
             return Ok(ScalarValue::Float64(Some(self.values[lower_idx])));
         }
-        
+
         let upper_idx = lower_idx + 1;
         let factor = index - lower_idx as f64;
-        
-        let result = self.values[lower_idx] + (self.values[upper_idx] - self.values[lower_idx]) * factor;
+
+        let result =
+            self.values[lower_idx] + (self.values[upper_idx] - self.values[lower_idx]) * factor;
         Ok(ScalarValue::Float64(Some(result)))
     }
 
@@ -252,7 +256,7 @@ impl Accumulator for PercentileContAccumulator {
 
     fn state(&mut self) -> Result<Vec<ScalarValue>> {
         let percentile_value = ScalarValue::Float64(Some(self.percentile));
-        
+
         let values_value = if self.values.is_empty() {
             ScalarValue::Float64(None)
         } else if self.values.len() == 1 {
@@ -260,20 +264,17 @@ impl Accumulator for PercentileContAccumulator {
         } else {
             self.evaluate()?
         };
-        
-        Ok(vec![
-            percentile_value,
-            values_value,
-        ])
+
+        Ok(vec![percentile_value, values_value])
     }
 
     fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
         if states.is_empty() || states[0].is_empty() {
             return Ok(());
         }
-        
+
         let values_array = &states[1];
-        
+
         for i in 0..values_array.len() {
             if !values_array.is_null(i) {
                 let value = ScalarValue::try_from_array(values_array, i)?;
@@ -282,7 +283,7 @@ impl Accumulator for PercentileContAccumulator {
                 }
             }
         }
-        
+
         Ok(())
     }
 }
@@ -299,12 +300,11 @@ mod tests {
     #[test]
     fn test_percentile_cont_median() -> Result<()> {
         let mut accumulator = PercentileContAccumulator::try_new(0.5)?;
-        
+
         let values_array = Arc::new(Int64Array::from(vec![10, 30, 20, 40, 50])) as ArrayRef;
 
         accumulator.update_batch(&[values_array])?;
         let result = accumulator.evaluate()?;
-
 
         assert_eq!(result, ScalarValue::Float64(Some(30.0)));
 
@@ -314,7 +314,7 @@ mod tests {
     #[test]
     fn test_percentile_cont_interpolation() -> Result<()> {
         let mut accumulator = PercentileContAccumulator::try_new(0.75)?;
-        
+
         let values_array = Arc::new(Float64Array::from(vec![10.0, 30.0, 20.0, 40.0])) as ArrayRef;
 
         accumulator.update_batch(&[values_array])?;
@@ -328,7 +328,7 @@ mod tests {
     #[test]
     fn test_percentile_cont_integer_to_float() -> Result<()> {
         let mut accumulator = PercentileContAccumulator::try_new(0.4)?;
-        
+
         let values_array = Arc::new(Int64Array::from(vec![10, 20, 30, 40, 50])) as ArrayRef;
 
         accumulator.update_batch(&[values_array])?;
@@ -342,14 +342,14 @@ mod tests {
     #[test]
     fn test_percentile_cont_empty() -> Result<()> {
         let mut accumulator = PercentileContAccumulator::try_new(0.5)?;
-        
+
         let empty_array = Arc::new(Float64Array::from(Vec::<f64>::new())) as ArrayRef;
-        
+
         accumulator.update_batch(&[empty_array])?;
         let result = accumulator.evaluate()?;
-        
+
         assert_eq!(result, ScalarValue::Float64(None));
-        
+
         Ok(())
     }
 }
