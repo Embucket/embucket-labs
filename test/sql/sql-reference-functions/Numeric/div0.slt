@@ -1,0 +1,10 @@
+query T
+SELECT DIV0(1, 2)
+----
+0.500000
+
+query T
+SELECT DIV0(1, 0)
+----
+0.000000
+

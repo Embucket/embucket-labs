@@ -1,0 +1,52 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE table1 AS SELECT 1 AS column1;
+
+statement ok
+SET V1 = 10;
+
+query T
+SELECT $V1;
+----
+10
+
+statement ok
+SET V2 = 'example';
+
+query T
+SELECT $V2;
+----
+example
+
+statement ok
+SET (V1, V2) = (10, 'example');
+
+query T
+SELECT $V1;
+----
+10
+
+query T
+SELECT $V2;
+----
+example
+
+statement ok
+SET id_threshold = (SELECT COUNT(*)/2 FROM table1);
+
+query T
+SELECT $id_threshold;
+----
+0.5
+
+statement ok
+SET (min, max) = (40, 70);
+
+statement ok
+SET (min, max) = (50, 2 * $min);
+
+query T
+SELECT $max;
+----
+80
+

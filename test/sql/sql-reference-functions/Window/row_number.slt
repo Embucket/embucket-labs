@@ -1,0 +1,37 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE trades (
+    symbol STRING,
+    exchange STRING,
+    shares NUMBER
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO trades VALUES
+    ('NYSE', 'AAPL', 150.25),
+    ('NYSE', 'MSFT', 300.50),
+    ('NYSE', 'GOOGL', 2700.75),
+    ('NYSE', 'AMZN', 3200.10),
+    ('NASDAQ', 'TSLA', 800.30),
+    ('NASDAQ', 'META', 330.45),
+    ('NASDAQ', 'NFLX', 550.20),
+    ('NASDAQ', 'NVDA', 220.15);
+
+query TTTT
+SELECT
+    symbol,
+    exchange,
+    shares,
+    ROW_NUMBER() OVER (PARTITION BY exchange ORDER BY shares) AS row_number
+  FROM trades
+----
+NASDAQ	NFLX	550	1
+NASDAQ	NVDA	220	1
+NYSE	GOOGL	2701	1
+NASDAQ	META	330	1
+NASDAQ	TSLA	800	1
+NYSE	MSFT	301	1
+NYSE	AAPL	150	1
+NYSE	AMZN	3200	1
+

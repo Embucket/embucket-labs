@@ -1,0 +1,30 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE sales (
+  region STRING,
+  product STRING,
+  revenue NUMBER
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO sales (region, product, revenue) VALUES
+  ('East', 'Laptop', 1000),
+  ('East', 'Tablet', 500),
+  ('West', 'Laptop', 700),
+  ('West', 'Tablet', 300);
+
+query TTTT
+SELECT region, product, SUM(revenue) AS total_revenue,
+       GROUPING_ID(region, product) AS grp_id
+  FROM sales
+  GROUP BY ROLLUP(region, product)
+  ORDER BY region, product;
+----
+East	Laptop	1000	0
+East	Tablet	500	0
+East	NULL	1500	1
+West	Laptop	700	0
+West	Tablet	300	0
+West	NULL	1000	1
+NULL	NULL	2500	3

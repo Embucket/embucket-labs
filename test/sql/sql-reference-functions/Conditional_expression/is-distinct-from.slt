@@ -1,0 +1,38 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE x (i number);
+
+exclude-from-coverage
+statement ok
+INSERT INTO x values
+    (1), 
+    (2), 
+    (null);
+
+query TT
+SELECT x1.i x1_i, x2.i x2_i 
+    FROM x x1, x x2 
+    WHERE x1.i IS NOT DISTINCT FROM x2.i
+    ORDER BY x1.i
+----
+1	1
+2	2
+NULL	NULL
+
+query TTTTTT
+SELECT x1.i x1_i, x2.i x2_i,
+               x1.i IS NOT DISTINCT FROM x2.i, iff(x1.i IS NOT DISTINCT FROM x2.i, 'Selected', 'Not') "SELECT IF X1.I IS NOT DISTINCT FROM X2.I",
+               x1.i IS DISTINCT FROM x2.i, iff(x1.i IS DISTINCT FROM x2.i, 'Selected', 'Not') "SELECT IF X1.I IS DISTINCT FROM X2.I"
+        FROM x x1, x x2
+        ORDER BY x1.i, x2.i
+----
+1	1	TRUE	Selected	FALSE	Not
+1	2	FALSE	Not	TRUE	Selected
+1	NULL	FALSE	Not	TRUE	Selected
+2	1	FALSE	Not	TRUE	Selected
+2	2	TRUE	Selected	FALSE	Not
+2	NULL	FALSE	Not	TRUE	Selected
+NULL	1	FALSE	Not	TRUE	Selected
+NULL	2	FALSE	Not	TRUE	Selected
+NULL	NULL	TRUE	Selected	FALSE	Not
+

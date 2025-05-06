@@ -1,0 +1,4 @@
+query T
+SELECT CURRENT_USER();
+----
+<REGEX>:[a-zA-Z0-9_]+

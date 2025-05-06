@@ -1,0 +1,20 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE as_array_example (
+  array1 VARIANT,
+  array2 VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO as_array_example (array1, array2)
+  SELECT
+    TO_VARIANT(TO_ARRAY('Example')),
+    TO_VARIANT(ARRAY_CONSTRUCT('Array-like', 'example'));
+
+query TT
+SELECT AS_ARRAY(array1) AS array1,
+       AS_ARRAY(array2) AS array2
+  FROM as_array_example
+----
+'["Example"]'	'["Array-like","example"]'
+

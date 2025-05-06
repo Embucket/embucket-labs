@@ -1,0 +1,41 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE departments (
+  department_id INTEGER,
+  department_name STRING
+);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE employees (
+  employee_id INTEGER,
+  first_name STRING,
+  last_name STRING,
+  department_id INTEGER
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO departments (department_id, department_name)
+VALUES
+  (101, 'Engineering'),
+  (102, 'Marketing'),
+  (103, 'HR');
+
+exclude-from-coverage
+statement ok
+INSERT INTO employees (employee_id, first_name, last_name, department_id)
+VALUES
+  (1, 'Alice', 'Smith', 101),
+  (2, 'Bob', 'Jones', 101);
+
+query T
+SELECT department_id
+  FROM departments d
+  WHERE d.department_id != ALL (
+    SELECT e.department_id
+      FROM employees e);
+----
+102
+103
+

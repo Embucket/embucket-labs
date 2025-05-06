@@ -1,0 +1,51 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE cities(city varchar(20));
+
+exclude-from-coverage
+statement ok
+INSERT INTO cities VALUES
+  ('Sacramento'),
+  ('San Francisco'),
+  ('San Jose'),
+  (null);
+
+query T
+SELECT * FROM cities WHERE REGEXP_LIKE(city, 'san.*')
+----
+
+
+query T
+SELECT * FROM cities WHERE REGEXP_LIKE(city, 'san.*', 'i')
+----
+San Francisco
+San Jose
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE wildcards (w VARCHAR, w2 VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO wildcards (w, w2) VALUES ('\\', '?');
+
+query T
+SELECT w2
+  FROM wildcards
+  WHERE REGEXP_LIKE(w2, '\\?')
+----
+?
+
+query T
+SELECT w2
+  FROM wildcards
+  WHERE REGEXP_LIKE(w2, '\\' || '?')
+----
+?
+
+query TTTT
+SELECT w, w2, w || w2 AS escape_sequence, w2
+  FROM wildcards
+  WHERE REGEXP_LIKE(w2, w || w2)
+----
+\	?	\?	?

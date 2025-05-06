@@ -1,0 +1,40 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE d (column1 INTEGER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO d (column1) VALUES 
+    (1),
+    (2),
+    (NULL),
+    (4);
+
+query TT
+SELECT column1, decode(column1, 
+                       1, 'one', 
+                       2, 'two', 
+                       NULL, '-NULL-', 
+                       'other'
+                      ) AS decode_result
+    FROM d
+----
+1	one
+2	two
+NULL	-NULL-
+4	other
+
+query TT
+SELECT column1, decode(column1, 
+                       1, 'one', 
+                       2, 'two', 
+                       NULL, '-NULL-', 
+                       'other'
+                       ) AS decode_result
+    FROM d
+----
+1	one
+2	two
+NULL	-NULL-
+4	other
+

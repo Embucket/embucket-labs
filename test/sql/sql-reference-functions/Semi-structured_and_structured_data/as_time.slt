@@ -1,0 +1,15 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE as_time_example (time1 VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO as_time_example (time1)
+  SELECT TO_VARIANT(TO_TIME('12:34:56'));
+
+query T
+SELECT TO_TIME(time1) AS time_value
+  FROM as_time_example
+----
+'12:34:56'
+

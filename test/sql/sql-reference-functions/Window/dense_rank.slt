@@ -1,0 +1,34 @@
+exclude-from-coverage
+statement ok
+create or replace table corn_production (farmer_ID INTEGER, state varchar, bushels float);
+
+exclude-from-coverage
+statement ok
+insert into corn_production (farmer_ID, state, bushels) values
+    (1, 'Iowa', 100),
+    (2, 'Iowa', 110),
+    (3, 'Kansas', 120),
+    (4, 'Kansas', 130);
+
+query TTTT
+SELECT state, bushels,
+        RANK() OVER (ORDER BY bushels DESC),
+        DENSE_RANK() OVER (ORDER BY bushels DESC)
+    FROM corn_production
+----
+Kansas	130.0	1	1
+Kansas	120.0	2	2
+Iowa	110.0	3	3
+Iowa	100.0	4	4
+
+query TTTT
+SELECT state, bushels,
+        RANK() OVER (PARTITION BY state ORDER BY bushels DESC),
+        DENSE_RANK() OVER (PARTITION BY state ORDER BY bushels DESC)
+    FROM corn_production
+----
+Iowa	110.0	1	1
+Iowa	100.0	2	2
+Kansas	130.0	1	1
+Kansas	120.0	2	2
+

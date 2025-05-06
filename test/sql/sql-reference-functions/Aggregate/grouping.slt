@@ -1,0 +1,24 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE aggr2(col_x int, col_y int, col_z int);
+
+exclude-from-coverage
+statement ok
+INSERT INTO aggr2 VALUES(1, 2, 1), (1, 2, 3);
+
+exclude-from-coverage
+statement ok
+INSERT INTO aggr2 VALUES(2, 1, 10), (2, 2, 11), (2, 2, 3);
+
+query TTTTTT
+SELECT col_x, col_y, sum(col_z), 
+       grouping(col_x), grouping(col_y), grouping(col_x, col_y)
+    FROM aggr2 GROUP BY GROUPING SETS ((col_x), (col_y), ())
+    ORDER BY 1, 2
+----
+1	NULL	4	0	1	1
+2	NULL	24	0	1	1
+NULL	1	10	1	0	2
+NULL	2	18	1	0	2
+NULL	NULL	28	1	1	3
+

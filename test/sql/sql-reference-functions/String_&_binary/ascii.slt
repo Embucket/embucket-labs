@@ -1,0 +1,19 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE temp_table (column1 STRING);
+
+exclude-from-coverage
+statement ok
+INSERT INTO temp_table VALUES ('!'), ('A'), ('a'), ('bcd'), (''), (null);
+
+query TT
+SELECT column1, ASCII(column1)
+  FROM temp_table
+----
+!	33
+A	65
+a	97
+bcd	98
+''	0
+NULL	NULL
+

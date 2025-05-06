@@ -1,0 +1,45 @@
+query T
+SELECT ARRAY_CONTAINS('hello'::VARIANT, ARRAY_CONSTRUCT('hello', 'hi'))
+----
+TRUE
+
+query T
+SELECT ARRAY_CONTAINS('hello'::VARIANT, ARRAY_CONSTRUCT('hola', 'bonjour'))
+----
+FALSE
+
+query T
+SELECT ARRAY_CONTAINS(NULL, ARRAY_CONSTRUCT('hola', 'bonjour'))
+----
+NULL
+
+query T
+SELECT ARRAY_CONTAINS(NULL, ARRAY_CONSTRUCT('hola', NULL))
+----
+TRUE
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE array_example (id INT, array_column ARRAY);
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_example (id, array_column)
+  SELECT 1, ARRAY_CONSTRUCT(1, 2, 3);
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_example (id, array_column)
+  SELECT 2, ARRAY_CONSTRUCT(4, 5, 6);
+
+query TT
+SELECT * FROM array_example
+----
+1	'[1,2,3]'
+2	'[4,5,6]'
+
+query TT
+SELECT * FROM array_example WHERE ARRAY_CONTAINS(5, array_column)
+----
+2	'[4,5,6]'
+

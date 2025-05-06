@@ -1,0 +1,14 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE array_demo (ID INTEGER, array1 ARRAY, array2 ARRAY);
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_demo (ID, array1, array2) 
+    SELECT 1, ARRAY_CONSTRUCT(1, 2), ARRAY_CONSTRUCT(3, 4);
+
+query T
+SELECT ARRAY_CAT(array1, array2) FROM array_demo
+----
+'[1,2,3,4]'
+

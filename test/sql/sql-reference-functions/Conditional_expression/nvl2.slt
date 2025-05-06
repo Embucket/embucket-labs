@@ -1,0 +1,31 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE i2 (
+  a INT,
+  b INT,
+  c INT
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO i2 VALUES
+  (0, 5, 3),
+  (0, 5, NULL),
+  (0, NULL, 3),
+  (0, NULL, NULL),
+  (NULL, 5, 3),
+  (NULL, 5, NULL),
+  (NULL, NULL, 3),
+  (NULL, NULL, NULL);
+
+query TTTT
+SELECT a, b, c, NVL2(a, b, c) FROM i2 ORDER BY a, b, c;
+----
+0	5	3	5
+0	5	NULL	5
+0	NULL	3	NULL
+0	NULL	NULL	NULL
+NULL	5	3	3
+NULL	5	NULL	NULL
+NULL	NULL	3	3
+NULL	NULL	NULL	NULL

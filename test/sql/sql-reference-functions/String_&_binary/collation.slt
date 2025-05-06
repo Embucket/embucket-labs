@@ -1,0 +1,14 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE collation1 (v VARCHAR COLLATE 'es');
+
+exclude-from-coverage
+statement ok
+INSERT INTO collation1 (v) VALUES ('ñ');
+
+query T
+SELECT COLLATION(v)
+  FROM collation1
+----
+es
+

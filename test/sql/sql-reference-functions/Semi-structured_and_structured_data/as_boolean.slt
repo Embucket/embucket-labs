@@ -1,0 +1,20 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE as_boolean_example (
+  boolean1 VARIANT,
+  boolean2 VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO as_boolean_example (boolean1, boolean2)
+  SELECT
+    TO_VARIANT(TO_BOOLEAN(TRUE)),
+    TO_VARIANT(TO_BOOLEAN(FALSE));
+
+query TT
+SELECT AS_BOOLEAN(boolean1) boolean_true,
+       AS_BOOLEAN(boolean2) boolean_false
+  FROM as_boolean_example
+----
+TRUE	FALSE
+

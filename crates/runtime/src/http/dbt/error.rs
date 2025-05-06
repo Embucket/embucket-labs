@@ -117,6 +117,7 @@ impl IntoResponse for ExecutionError {
     fn into_response(self) -> axum::response::Response {
         let status_code = match &self {
             Self::RegisterUDF { .. }
+            | Self::RegisterUDAF { .. }
             | Self::InvalidTableIdentifier { .. }
             | Self::InvalidSchemaIdentifier { .. }
             | Self::InvalidFilePath { .. }

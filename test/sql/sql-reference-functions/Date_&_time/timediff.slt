@@ -1,0 +1,10 @@
+query T
+SELECT DATEDIFF(YEAR, '2017-01-01', '2019-01-01') AS Years
+----
+2
+
+query T
+SELECT DATEDIFF(MONTH, '2017-01-01', '2017-12-31') AS Months
+----
+11
+

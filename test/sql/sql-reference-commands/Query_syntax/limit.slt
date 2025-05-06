@@ -1,0 +1,62 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE testtable (c1 STRING);
+
+exclude-from-coverage
+statement ok
+INSERT INTO testtable (c1)
+VALUES
+  (1),
+  (2),
+  (3),
+  (20),
+  (19),
+  (18),
+  (1),
+  (2),
+  (3),
+  (4),
+  (NULL),
+  (30),
+  (NULL);
+
+query T
+select c1 from testtable limit 3 offset 3
+----
+20
+19
+18
+
+query T
+select c1 from testtable order by c1 limit 3 offset 3
+----
+19
+2
+2
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE demo1 (i INTEGER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO demo1 (i) VALUES (1), (2);
+
+query T
+SELECT * FROM demo1 ORDER BY i LIMIT NULL OFFSET NULL
+----
+1
+2
+
+query T
+SELECT * FROM demo1 ORDER BY i LIMIT NULL OFFSET NULL
+----
+1
+2
+
+query T
+SELECT * FROM demo1 ORDER BY i LIMIT NULL OFFSET NULL
+----
+1
+2
+

@@ -1,0 +1,17 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE TEMP_TABLE (column1 FLOAT) AS
+SELECT column1
+FROM (values (0), (1), (-2), (3.5), (-4.5), (null)) AS TEMP(column1);
+
+query TT
+SELECT column1, abs(column1)
+FROM TEMP_TABLE;
+----
+0.0	0.0
+1.0	1.0
+-2.0	2.0
+3.5	3.5
+-4.5	4.5
+NULL	NULL
+

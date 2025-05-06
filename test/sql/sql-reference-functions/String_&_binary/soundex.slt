@@ -1,0 +1,30 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE sounding_board (v VARCHAR);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE sounding_bored (v VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO sounding_board (v) VALUES ('Marsha');
+
+exclude-from-coverage
+statement ok
+INSERT INTO sounding_bored (v) VALUES ('Marcia');
+
+query TT
+SELECT * 
+    FROM sounding_board AS board, sounding_bored AS bored 
+    WHERE bored.v = board.v
+----
+
+
+query TT
+SELECT * 
+    FROM sounding_board AS board, sounding_bored AS bored 
+    WHERE SOUNDEX(bored.v) = SOUNDEX(board.v)
+----
+Marsha	Marcia
+

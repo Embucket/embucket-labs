@@ -1,0 +1,9 @@
+query T
+CALL SYSTEM$WAIT(3);
+----
+waited 3 seconds
+
+query T
+CALL SYSTEM$WAIT(1, 'MINUTES');
+----
+waited 1 minutes

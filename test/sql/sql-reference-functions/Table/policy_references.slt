@@ -1,0 +1,32 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE AUTHENTICATION POLICY restrict_ui_mfa
+  CLIENT_TYPES = ('SNOWFLAKE_UI')
+  MFA_ENROLLMENT = REQUIRED
+  COMMENT = 'Restrict access to UI with mandatory MFA';
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE USER test_user
+  PASSWORD = 'StrongPassword123!';
+
+exclude-from-coverage
+statement ok
+ALTER USER test_user SET AUTHENTICATION POLICY restrict_ui_mfa;
+
+query TTTTTT
+SELECT policy_name,
+       policy_kind,
+       ref_entity_name,
+       ref_entity_domain,
+       policy_status,
+       policy_schema
+  FROM TABLE(
+    INFORMATION_SCHEMA.POLICY_REFERENCES(
+      REF_ENTITY_NAME => 'test_user',
+      REF_ENTITY_DOMAIN => 'USER'
+    )
+  );
+----
+RESTRICT_UI_MFA	AUTHENTICATION_POLICY	TEST_USER	USER	ACTIVE	PUBLIC
+

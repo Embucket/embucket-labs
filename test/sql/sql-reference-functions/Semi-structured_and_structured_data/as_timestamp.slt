@@ -1,0 +1,15 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE as_timestamp_example (timestamp1 VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO as_timestamp_example (timestamp1)
+  SELECT TO_VARIANT(TO_TIMESTAMP_NTZ('2024-10-10 12:34:56'));
+
+query T
+SELECT AS_TIMESTAMP_NTZ(timestamp1) AS timestamp_value
+  FROM as_timestamp_example
+----
+'2024-10-10T12:34:56'
+

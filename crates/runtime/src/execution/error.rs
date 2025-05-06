@@ -11,6 +11,9 @@ pub enum ExecutionError {
     #[snafu(display("Cannot register UDF functions"))]
     RegisterUDF { source: DataFusionError },
 
+    #[snafu(display("Cannot register UDAF functions"))]
+    RegisterUDAF { source: DataFusionError },
+
     #[snafu(display("DataFusion error: {source}"))]
     DataFusion { source: DataFusionError },
 
