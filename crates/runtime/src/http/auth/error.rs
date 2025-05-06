@@ -34,7 +34,6 @@ pub enum AuthError {
     NoRefreshTokenCookie,
 
     // programmatic errors goes here:
-
     #[snafu(display("Can't add header to response: {source}"))]
     ResponseHeader { source: InvalidHeaderValue },
 
@@ -52,23 +51,27 @@ pub enum AuthError {
 impl IntoResponse for AuthError {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         let (status, www_value) = match self {
-            Self::Login => {
-                (StatusCode::UNAUTHORIZED, Some(WwwAuthenticate {
+            Self::Login => (
+                StatusCode::UNAUTHORIZED,
+                Some(WwwAuthenticate {
                     auth: "Basic".to_string(),
                     realm: "login".to_string(),
                     error: "Login error".to_string(),
-                }))
-            }
+                }),
+            ),
             Self::NoAuthHeader
             | Self::NoRefreshTokenCookie
             | Self::BadRefreshToken { .. }
             | Self::BadAuthToken { .. } => {
                 // reuse error message
-                (StatusCode::UNAUTHORIZED, Some(WwwAuthenticate {
-                    auth: "Bearer".to_string(),
-                    realm: "api-auth".to_string(),
-                    error: self.to_string(),
-                }))
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Some(WwwAuthenticate {
+                        auth: "Bearer".to_string(),
+                        realm: "api-auth".to_string(),
+                        error: self.to_string(),
+                    }),
+                )
             }
             _ => (StatusCode::INTERNAL_SERVER_ERROR, None),
         };
@@ -92,7 +95,8 @@ impl IntoResponse for AuthError {
                         }),
                 )],
                 body,
-            ).into_response(),
+            )
+                .into_response(),
             None => (status, body).into_response(),
         }
     }
