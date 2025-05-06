@@ -27,6 +27,7 @@ use datafusion_common::{downcast_value, ScalarValue};
 use datafusion_expr::function::AccumulatorArgs;
 use datafusion_expr::{AggregateUDFImpl, Signature, Volatility};
 use std::any::Any;
+use crate::execution::datafusion::functions::aggregate::macros::make_udaf_function;
 
 /// Booland Agg function
 /// Returns TRUE if all non-NULL Boolean records in a group evaluate to TRUE.
@@ -182,6 +183,8 @@ fn array_to_boolean(arr: &ArrayRef) -> DFResult<BooleanArray> {
     }
     Ok(boolean_array.finish())
 }
+
+make_udaf_function!(BoolAndAggUDAF);
 
 #[cfg(test)]
 mod tests {

@@ -18,11 +18,16 @@
 use datafusion_expr::registry::FunctionRegistry;
 use datafusion_expr::AggregateUDF;
 use std::sync::Arc;
+use datafusion::functions_aggregate::expr_fn::bool_and;
 
 pub mod any_value;
+pub mod booland_agg;
 
 pub fn register_udafs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
-    let aggregate_functions: Vec<Arc<AggregateUDF>> = vec![any_value::get_udaf()];
+    let aggregate_functions: Vec<Arc<AggregateUDF>> = vec![
+        any_value::get_udaf(),
+        booland_agg::get_udaf(),
+    ];
 
     for func in aggregate_functions {
         registry.register_udaf(func)?;
