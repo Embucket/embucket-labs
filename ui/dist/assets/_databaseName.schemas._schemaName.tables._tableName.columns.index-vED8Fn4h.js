@@ -1,5 +1,5 @@
-import{d as a,j as e,B as o}from"./index-BuPNv2RZ.js";import{E as n}from"./scroll-area-BtSxB6nS.js";import{R as s,a as t,b as r}from"./trees-items-CoYLK49h.js";import{D as i,a as l}from"./databases-page-trees-CGrCjkc_.js";import"./navigation-trees-Bz7FCFCk.js";/**
- * @license lucide-react v0.505.0 - ISC
+import{d as a,j as e,B as o}from"./index-Vag8KDcO.js";import{E as n}from"./scroll-area-Dg31ZVb-.js";import{R as s,a as t,b as r}from"./trees-items-uLYVxzpt.js";import{D as i,a as l}from"./databases-page-trees-BU63PDBB.js";import"./navigation-trees-Cj9K9HLT.js";/**
+ * @license lucide-react v0.507.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
