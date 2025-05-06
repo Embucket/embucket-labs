@@ -7,8 +7,6 @@ use validator::Validate;
 #[serde(rename_all = "camelCase")]
 pub struct NavigationTreesResponse {
     pub items: Vec<NavigationTreeDatabase>,
-    pub offset: Option<usize>,
-    pub next_offset: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]

@@ -48,7 +48,7 @@ pub struct ApiDoc;
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_navigation_trees(
     DFSessionId(session_id): DFSessionId,
-    Query(parameters): Query<NavigationTreesParameters>,
+    Query(params): Query<NavigationTreesParameters>,
     State(state): State<AppState>,
 ) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
     let catalogs_tree = state
@@ -58,15 +58,16 @@ pub async fn get_navigation_trees(
         .context(error::SessionSnafu)?
         .fetch_catalogs_tree();
 
-    let offset = parameters.offset.unwrap_or_default();
-    let limit = parameters.limit.map_or(usize::MAX, usize::from);
+    let offset = params.offset.unwrap_or(0);
+    let limit = params.limit.map_or(usize::MAX, usize::from);
 
-    let items: Vec<_> = catalogs_tree
+    let items = catalogs_tree
         .into_iter()
         .skip(offset)
         .take(limit)
-        .map(|(catalog_name, schemas_map)| {
-            let schemas = schemas_map
+        .map(|(catalog_name, schemas_map)| NavigationTreeDatabase {
+            name: catalog_name,
+            schemas: schemas_map
                 .into_iter()
                 .map(|(schema_name, table_names)| NavigationTreeSchema {
                     name: schema_name,
@@ -75,19 +76,9 @@ pub async fn get_navigation_trees(
                         .map(|name| NavigationTreeTable { name })
                         .collect(),
                 })
-                .collect();
-
-            NavigationTreeDatabase {
-                name: catalog_name,
-                schemas,
-            }
+                .collect(),
         })
         .collect();
 
-    let next_cursor = (items.len() == limit).then(|| offset + limit);
-    Ok(Json(NavigationTreesResponse {
-        items,
-        offset: parameters.offset,
-        next_offset: next_cursor.unwrap_or_default(),
-    }))
+    Ok(Json(NavigationTreesResponse { items }))
 }
