@@ -11,7 +11,6 @@ use slatedb::DbIterator;
 use slatedb::SlateDBError;
 use snafu::{ResultExt, Snafu};
 use std::str;
-use std::sync::Arc;
 
 #[derive(Snafu, Debug)]
 pub enum WorksheetsStoreError {
@@ -132,7 +131,7 @@ async fn queries_iterator(
     db: &Db,
     cursor: Option<QueryRecordId>,
 ) -> WorksheetsStoreResult<DbIterator<'_>> {
-    let start_key = QueryRecord::get_key(cursor.unwrap_or(QueryRecordId::min_cursor()));
+    let start_key = QueryRecord::get_key(cursor.unwrap_or_else(QueryRecordId::min_cursor));
     let end_key = QueryRecord::get_key(QueryRecordId::max_cursor());
     db.range_iterator(start_key..end_key)
         .await
@@ -145,7 +144,7 @@ async fn worksheet_queries_references_iterator(
     cursor: Option<QueryRecordId>,
 ) -> WorksheetsStoreResult<DbIterator<'_>> {
     let refs_start_key =
-        QueryRecordReference::get_key(worksheet_id, cursor.unwrap_or(QueryRecordId::min_cursor()));
+        QueryRecordReference::get_key(worksheet_id, cursor.unwrap_or_else(QueryRecordId::min_cursor));
     let refs_end_key = QueryRecordReference::get_key(worksheet_id, QueryRecordId::max_cursor());
     db.range_iterator(refs_start_key..refs_end_key)
         .await
@@ -275,7 +274,7 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
             }
             Ok(items)
         } else {
-            let start_key = QueryRecord::get_key(cursor.unwrap_or(QueryRecordId::min_cursor()));
+            let start_key = QueryRecord::get_key(cursor.unwrap_or_else(QueryRecordId::min_cursor));
             let end_key = QueryRecord::get_key(QueryRecordId::max_cursor());
 
             Ok(self

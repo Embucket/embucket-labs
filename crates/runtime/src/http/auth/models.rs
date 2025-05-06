@@ -34,14 +34,14 @@ pub struct LoginPayload {
 }
 
 pub struct WwwAuthenticate {
-    pub realm: String,
     pub auth: String,
+    pub realm: String,
     pub error: String,
 }
 
 impl std::fmt::Display for WwwAuthenticate {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let Self { realm, auth, error } = self;
+        let Self { auth, realm, error } = self;
         write!(f, "{auth} realm=\"{realm}\", error=\"{error}\"")
     }
 }

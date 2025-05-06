@@ -34,15 +34,18 @@ impl AuthConfig {
         self.demo_password = demo_password;
     }
 
-    pub fn jwt_secret(&self) -> &String {
+    #[must_use]
+    pub fn jwt_secret(&self) -> &str {
         &self.jwt_secret
     }
 
-    pub fn demo_user(&self) -> &String {
+    #[must_use]
+    pub fn demo_user(&self) -> &str {
         &self.demo_user
     }
 
-    pub fn demo_password(&self) -> &String {
+    #[must_use]
+    pub fn demo_password(&self) -> &str {
         &self.demo_password
     }
 }

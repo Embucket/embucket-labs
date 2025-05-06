@@ -34,26 +34,6 @@ impl IterableCursor for i64 {
     }
 }
 
-#[allow(clippy::trait_duplication_in_bounds)]
-impl IterableCursor for String {
-    fn min_cursor() -> Self {
-        String::from("")
-    }
-
-    fn max_cursor() -> Self {
-        String::from("\x7F") // lexicographically max value
-    }
-
-    // Not used with paging
-    fn next_cursor(&self) -> Self {
-        panic!("Not implemented");
-    }
-
-    fn as_bytes(&self) -> Bytes {
-        // can't use str.as_bytes to avoid recursion
-        Bytes::from(self.to_string())
-    }
-}
 pub trait IterableEntity {
     type Cursor: IterableCursor + ToString;
 

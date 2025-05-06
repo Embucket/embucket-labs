@@ -5,7 +5,6 @@ use crate::http::metastore::handlers::RwObjectVec;
 use crate::http::ui::tests::common::{http_req_with_headers, TestHttpError};
 use crate::tests::run_test_server_with_demo_auth;
 use http::{header, HeaderMap, HeaderValue, Method, StatusCode};
-use reqwest;
 use serde_json::json;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -15,6 +14,7 @@ const JWT_SECRET: &str = "test";
 const DEMO_USER: &str = "demo_user";
 const DEMO_PASSWORD: &str = "demo_password";
 
+#[allow(clippy::explicit_iter_loop)]
 fn get_set_cookie_from_response_headers(
     headers: &HeaderMap,
 ) -> HashMap<&str, (&str, &HeaderValue)> {
@@ -36,7 +36,7 @@ async fn login<T>(client: &reqwest::Client, addr: &SocketAddr, username: &str, p
 where
     T: serde::de::DeserializeOwned {
     http_req_with_headers::<T>(
-        &client,
+        client,
         Method::POST,
         HeaderMap::from_iter(vec![(
             header::CONTENT_TYPE,
@@ -56,7 +56,7 @@ async fn logout<T>(client: &reqwest::Client, addr: &SocketAddr) -> Result<(Heade
 where
     T: serde::de::DeserializeOwned {
     http_req_with_headers::<T>(
-        &client,
+        client,
         Method::POST,
         HeaderMap::from_iter(vec![(
             header::CONTENT_TYPE,
@@ -72,7 +72,7 @@ async fn refresh<T>(client: &reqwest::Client, addr: &SocketAddr, refresh_token: 
 where
     T: serde::de::DeserializeOwned {
     http_req_with_headers::<T>(
-        &client,
+        client,
         Method::POST,
         HeaderMap::from_iter(vec![
             (
@@ -95,7 +95,7 @@ async fn query<T>(client: &reqwest::Client, addr: &SocketAddr, access_token: &St
 where
     T: serde::de::DeserializeOwned {
     http_req_with_headers::<T>(
-        &client,
+        client,
         Method::POST,
         HeaderMap::from_iter(vec![
             (
@@ -122,7 +122,7 @@ async fn metastore<T>(client: &reqwest::Client, addr: &SocketAddr, access_token:
 where
     T: serde::de::DeserializeOwned {
     http_req_with_headers::<T>(
-        &client,
+        client,
         Method::POST,
         HeaderMap::from_iter(vec![
             (
@@ -145,7 +145,7 @@ where
 async fn test_login_no_secret_set() {
     // No secret set
     let addr = run_test_server_with_demo_auth(
-        "".to_string(), DEMO_USER.to_string(), DEMO_PASSWORD.to_string()
+        String::new(), DEMO_USER.to_string(), DEMO_PASSWORD.to_string()
     ).await;
     let client = reqwest::Client::new();
 
@@ -289,7 +289,7 @@ async fn test_logout() {
     assert_eq!(headers.get(header::WWW_AUTHENTICATE), None);
 
     // logout
-    let (headers, _) = logout::<()>(&client, &addr)
+    let (headers, ()) = logout::<()>(&client, &addr)
         .await
         .expect("Failed to logout");
 
@@ -315,8 +315,6 @@ async fn test_login_refresh() {
     let (headers, login_response) = login::<AuthResponse>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
         .await
         .expect("Failed to login");
-
-    eprintln!("Login response headers: {:#?}", headers);
 
     let set_cookies = get_set_cookie_from_response_headers(&headers);
 
@@ -351,8 +349,6 @@ async fn test_login_refresh() {
         .await
         .expect("Refresh request failed");
 
-    eprintln!("Refresh response headers: {:#?}", headers);
-
     let set_cookies = get_set_cookie_from_response_headers(&headers);
 
     let (_, refresh_token_cookie) = set_cookies
@@ -371,4 +367,16 @@ async fn test_login_refresh() {
         .to_str()
         .expect("Bad cookie")
         .contains("SameSite=Strict"));
+}
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)]
+async fn test_expired_auth_token() {
+    assert!(false);
+}
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)]
+async fn test_expired_refresh_token() {
+    assert!(false);
 }

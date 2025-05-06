@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::error::CreateJwtSnafu;
-use crate::http::auth::error::{AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu};
+use crate::http::auth::error::{AuthError, AuthResult, BadRefreshTokenSnafu, SetCookieSnafu, ResponseHeaderSnafu};
 use crate::http::auth::models::{AuthResponse, Claims, LoginPayload, RefreshClaims};
 use crate::http::state::AppState;
 use axum::extract::State;
@@ -20,6 +20,7 @@ use tracing;
 pub const REFRESH_TOKEN_EXPIRATION_HOURS: u32 = 24 * 7;
 pub const ACCESS_TOKEN_EXPIRATION_SECONDS: u32 = 15 * 60;
 
+#[allow(clippy::explicit_iter_loop)]
 pub fn cookies_from_header(headers: &HeaderMap) -> HashMap<&str, &str> {
     let mut cookies_map = HashMap::new();
 
@@ -30,41 +31,41 @@ pub fn cookies_from_header(headers: &HeaderMap) -> HashMap<&str, &str> {
             Ok(cookie_str) => {
                 // parse separate cookes
                 for cookie in cookie_str.split(';') {
-                    let parts: Vec<_> = cookie.trim().split('=').collect();
+                    let parts: Vec<&str> = cookie.trim().split('=').collect();
                     cookies_map.insert(parts[0], parts[1]);
                 }
             }
             _ => (), // ignore error in cookie header
         }
     }
-    return cookies_map;
+    cookies_map
 }
 
 #[must_use]
-fn access_token_claims(username: &String, audience: &String) -> Claims {
+fn access_token_claims(username: String, audience: String) -> Claims {
     let now = Local::now();
     let iat = now.timestamp();
     let exp =
         now.timestamp() + Duration::seconds(ACCESS_TOKEN_EXPIRATION_SECONDS.into()).whole_seconds();
 
     Claims {
-        sub: username.clone(),
-        aud: audience.clone(),
+        sub: username,
+        aud: audience,
         iat,
         exp,
     }
 }
 
 #[must_use]
-fn refresh_token_claims(username: &String, audience: &String) -> RefreshClaims {
+fn refresh_token_claims(username: String, audience: String) -> RefreshClaims {
     let now = Local::now();
     let iat = now.timestamp();
     let exp =
         now.timestamp() + Duration::hours(REFRESH_TOKEN_EXPIRATION_HOURS.into()).whole_seconds();
 
     RefreshClaims {
-        sub: username.clone(),
-        aud: audience.clone(),
+        sub: username,
+        aud: audience,
         iat,
         exp,
     }
@@ -72,8 +73,8 @@ fn refresh_token_claims(username: &String, audience: &String) -> RefreshClaims {
 
 pub fn get_claims_validate_jwt_token(
     token: &str,
-    audience: &String,
-    jwt_secret: &String,
+    audience: &str,
+    jwt_secret: &str,
 ) -> Result<Claims, jsonwebtoken::errors::Error> {
     let mut validation = Validation::default();
     validation.leeway = 5;
@@ -87,19 +88,18 @@ pub fn get_claims_validate_jwt_token(
     Ok(decoded.claims)
 }
 
-fn create_jwt<T>(claims: &T, jwt_secret: &String) -> Result<String, jsonwebtoken::errors::Error>
+fn create_jwt<T>(claims: &T, jwt_secret: &str) -> Result<String, jsonwebtoken::errors::Error>
 where
     T: Serialize,
 {
-    let jwt_secret = jwt_secret.as_bytes();
     encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(jwt_secret),
+        &EncodingKey::from_secret(jwt_secret.as_bytes()),
     )
 }
 
-fn assert_jwt_secret(jwt_secret: &String) -> AuthResult<()> {
+const fn assert_jwt_secret(jwt_secret: &str) -> AuthResult<()> {
     if jwt_secret.is_empty() {
         return Err(AuthError::NoJwtSecret);
     }
@@ -117,9 +117,9 @@ fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
                 .path("/")
                 .to_string()
                 .parse()
-                .unwrap(),
+                .context(ResponseHeaderSnafu)?,
         )
-        .context(ResponseHeaderSnafu)?;
+        .context(SetCookieSnafu)?;
 
     Ok(())
 }
@@ -133,16 +133,16 @@ pub async fn login(
         return Err(AuthError::Login);
     }
 
-    let audience = &state.config.host;
+    let audience = state.config.host.clone();
     let jwt_secret = state.auth_config.jwt_secret();
 
-    assert_jwt_secret(&jwt_secret)?;
+    assert_jwt_secret(jwt_secret)?;
 
-    let access_token_claims = access_token_claims(&username, audience);
+    let access_token_claims = access_token_claims(username.clone(), audience.clone());
 
     let access_token = create_jwt(&access_token_claims, jwt_secret).context(CreateJwtSnafu)?;
 
-    let refresh_token_claims = refresh_token_claims(&username, audience);
+    let refresh_token_claims = refresh_token_claims(username, audience);
 
     let refresh_token = create_jwt(&refresh_token_claims, jwt_secret).context(CreateJwtSnafu)?;
 
@@ -164,18 +164,18 @@ pub async fn refresh_access_token(
 ) -> AuthResult<impl IntoResponse> {
 
     let jwt_secret = state.auth_config.jwt_secret();
-    assert_jwt_secret(&jwt_secret)?;
+    assert_jwt_secret(jwt_secret)?;
 
     let cookies_map = cookies_from_header(&headers);
     match cookies_map.get("refresh_token") {
         None => Err(AuthError::NoRefreshTokenCookie),
         Some(refresh_token) => {
-            let audience = &state.config.host;
+            let audience = state.config.host.clone();
 
-            let refresh_claims = get_claims_validate_jwt_token(refresh_token, audience, jwt_secret)
+            let refresh_claims = get_claims_validate_jwt_token(refresh_token, &audience, jwt_secret)
                 .context(BadRefreshTokenSnafu)?;
 
-            let access_claims = access_token_claims(&refresh_claims.sub, audience);
+            let access_claims = access_token_claims(refresh_claims.sub, audience);
 
             let access_token = create_jwt(&access_claims, jwt_secret).context(CreateJwtSnafu)?;
 
@@ -199,15 +199,15 @@ pub async fn logout(
 ) -> AuthResult<impl IntoResponse> {
     
     let jwt_secret = state.auth_config.jwt_secret();
-    assert_jwt_secret(&jwt_secret)?;
+    assert_jwt_secret(jwt_secret)?;
 
     let cookies_map = cookies_from_header(&headers);
 
     match cookies_map.get("refresh_token") {
         Some(refresh_token) => {
-            let audience = &state.config.host;
+            let audience = state.config.host.clone();
 
-            let _ = get_claims_validate_jwt_token(refresh_token, audience, jwt_secret)
+            let _ = get_claims_validate_jwt_token(refresh_token, &audience, jwt_secret)
                 .context(BadRefreshTokenSnafu)?;
         }
         // logout doesn't return unuathorized

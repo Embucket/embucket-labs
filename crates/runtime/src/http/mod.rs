@@ -80,7 +80,7 @@ pub fn make_app(
         Arc::new(auth_config),
     );
 
-    let mut app = router::create_app(app_state.clone())
+    let mut app = router::create_app(app_state)
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn(print_request_response));

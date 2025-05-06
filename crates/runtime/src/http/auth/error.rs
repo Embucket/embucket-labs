@@ -2,6 +2,7 @@ use super::models::WwwAuthenticate;
 use crate::http::error::ErrorResponse;
 use axum::{http, response::IntoResponse, Json};
 use http::header;
+use http::header::InvalidHeaderValue;
 use http::HeaderValue;
 use http::{header::MaxSizeReached, StatusCode};
 use jsonwebtoken::errors::Error as JwtError;
@@ -23,8 +24,11 @@ pub enum AuthError {
     #[snafu(display("Bad authentication token"))]
     BadAuthToken,
 
-    #[snafu(display("Response Header error: {source}"))]
-    ResponseHeader { source: MaxSizeReached },
+    #[snafu(display("Can't add header to response: {source}"))]
+    ResponseHeader { source: InvalidHeaderValue },
+
+    #[snafu(display("Set-Cookie error: {source}"))]
+    SetCookie { source: MaxSizeReached },
 
     #[snafu(display("Missing refresh_token cookie"))]
     NoRefreshTokenCookie,
@@ -50,21 +54,20 @@ impl IntoResponse for AuthError {
         let mut error = self.to_string();
 
         let status = match self {
-            AuthError::Login => {
+            Self::Login => {
                 error = "Login error".to_string();
                 realm = "login".to_string();
                 StatusCode::UNAUTHORIZED
             }
-            AuthError::NoAuthHeader | AuthError::BadAuthToken => {
+            Self::NoAuthHeader | Self::BadAuthToken => {
                 error = "The authorization token is missing or invalid".to_string();
                 StatusCode::UNAUTHORIZED
             }
-            AuthError::NoRefreshTokenCookie | AuthError::BadRefreshToken { .. } => {
+            Self::NoRefreshTokenCookie | Self::BadRefreshToken { .. } => {
                 error = "The refresh token is missing or invalid".to_string();
                 StatusCode::UNAUTHORIZED
             }
-            AuthError::NoJwtSecret
-            | AuthError::CreateJwt { .. } | _ => StatusCode::INTERNAL_SERVER_ERROR,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let body = Json(ErrorResponse {
@@ -78,7 +81,12 @@ impl IntoResponse for AuthError {
                 StatusCode::UNAUTHORIZED,
                 [(
                     header::WWW_AUTHENTICATE,
-                    HeaderValue::from_str(&www_value.to_string()).unwrap(),
+                    HeaderValue::from_str(&www_value.to_string())
+                        // Not sure if this error can ever happen, but in any case
+                        // we have no options as already handling error response
+                        .unwrap_or_else(|_| {
+                            HeaderValue::from_static("Error adding www_authenticate to HeaderValue")
+                        })
                 )],
                 body,
             )
