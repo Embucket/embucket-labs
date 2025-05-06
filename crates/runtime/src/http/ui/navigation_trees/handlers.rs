@@ -1,14 +1,18 @@
+use crate::execution::error::ExecutionError;
+use crate::execution::query::QueryContext;
 use crate::http::error::ErrorResponse;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
-use crate::http::ui::navigation_trees::error::{self as error, NavigationTreesResult};
+use crate::http::ui::navigation_trees::error::{NavigationTreesAPIError, NavigationTreesResult};
 use crate::http::ui::navigation_trees::models::{
     NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable, NavigationTreesParameters,
     NavigationTreesResponse,
 };
+use arrow_array::{RecordBatch, StringArray};
 use axum::extract::Query;
 use axum::{extract::State, Json};
-use snafu::ResultExt;
+use datafusion_common::DataFusionError;
+use std::collections::BTreeMap;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -45,18 +49,41 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_navigation_trees(
     DFSessionId(session_id): DFSessionId,
     Query(params): Query<NavigationTreesParameters>,
     State(state): State<AppState>,
 ) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
-    let catalogs_tree = state
+    let (batches, _) = state
         .execution_svc
-        .create_session(session_id)
+        .query(
+            &session_id,
+            "SELECT table_catalog, table_schema, table_name FROM information_schema.tables",
+            QueryContext::default(),
+        )
         .await
-        .context(error::SessionSnafu)?
-        .fetch_catalogs_tree();
+        .map_err(|e| NavigationTreesAPIError::Execution { source: e })?;
+
+    let mut catalogs_tree: BTreeMap<String, BTreeMap<String, Vec<String>>> = BTreeMap::new();
+
+    for batch in batches {
+        let catalog_col = downcast_string_column(&batch, "table_catalog")?;
+        let schema_col = downcast_string_column(&batch, "table_schema")?;
+        let name_col = downcast_string_column(&batch, "table_name")?;
+
+        for i in 0..batch.num_rows() {
+            let catalog = catalog_col.value(i).to_string();
+            let schema = schema_col.value(i).to_string();
+            let name = name_col.value(i).to_string();
+
+            catalogs_tree
+                .entry(catalog)
+                .or_default()
+                .entry(schema)
+                .or_default()
+                .push(name);
+        }
+    }
 
     let offset = params.offset.unwrap_or(0);
     let limit = params.limit.map_or(usize::MAX, usize::from);
@@ -81,4 +108,18 @@ pub async fn get_navigation_trees(
         .collect();
 
     Ok(Json(NavigationTreesResponse { items }))
+}
+
+fn downcast_string_column<'a>(
+    batch: &'a RecordBatch,
+    name: &str,
+) -> Result<&'a StringArray, NavigationTreesAPIError> {
+    batch
+        .column_by_name(name)
+        .and_then(|col| col.as_any().downcast_ref::<StringArray>())
+        .ok_or_else(|| NavigationTreesAPIError::Execution {
+            source: ExecutionError::DataFusion {
+                source: DataFusionError::Internal(format!("Missing or invalid column: '{name}'")),
+            },
+        })
 }

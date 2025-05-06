@@ -15,15 +15,15 @@ pub enum NavigationTreesAPIError {
     #[snafu(display("Get navigation trees error: {source}"))]
     Get { source: MetastoreError },
 
-    #[snafu(display("Failed to create session error: {source}"))]
-    SessionError { source: ExecutionError },
+    #[snafu(display("Execution error: {source}"))]
+    Execution { source: ExecutionError },
 }
 
 // Select which status code to return.
 impl IntoStatusCode for NavigationTreesAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::Get { .. } | Self::SessionError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Get { .. } | Self::Execution { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

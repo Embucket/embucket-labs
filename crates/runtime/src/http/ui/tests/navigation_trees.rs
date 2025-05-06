@@ -113,7 +113,7 @@ async fn test_ui_databases_navigation() {
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
     assert_eq!(4, databases_navigation.items.len());
     assert_eq!(1, databases_navigation.items.first().unwrap().schemas.len());
-    assert_eq!(0, databases_navigation.items.last().unwrap().schemas.len());
+    assert_eq!(1, databases_navigation.items.last().unwrap().schemas.len());
 
     let res = req(
         &client,
@@ -167,9 +167,22 @@ async fn test_ui_databases_navigation() {
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
-
     assert_eq!(
         1,
+        databases_navigation
+            .items
+            .first()
+            .unwrap()
+            .schemas
+            .last()
+            .unwrap()
+            .tables
+            .len()
+    );
+
+    // Information schema tables
+    assert_eq!(
+        7,
         databases_navigation
             .items
             .first()
@@ -193,11 +206,10 @@ async fn test_ui_databases_navigation() {
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_navigation.items.len());
     assert_eq!("test1", databases_navigation.items.first().unwrap().name);
-    let cursor = databases_navigation.next_cursor;
     let res = req(
         &client,
         Method::GET,
-        &format!("{url}?cursor={cursor}"),
+        &format!("{url}?offset=2"),
         String::new(),
     )
     .await
