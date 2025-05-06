@@ -1,12 +1,12 @@
-use embucket_history::{history_store::WorksheetsStore, auth_store::AuthStore};
+use embucket_history::{auth_store::AuthStore, history_store::WorksheetsStore};
 use embucket_metastore::metastore::Metastore;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use crate::config::AuthConfig;
 use crate::execution::service::ExecutionService;
 use crate::http::config::WebConfig;
-use crate::config::AuthConfig;
 
 // Define a State struct that contains shared services or repositories
 #[derive(Clone)]
@@ -17,7 +17,7 @@ pub struct AppState {
     pub execution_svc: Arc<dyn ExecutionService>,
     pub dbt_sessions: Arc<Mutex<HashMap<String, String>>>,
     pub config: Arc<WebConfig>,
-    // separate non printable AuthConfig 
+    // separate non printable AuthConfig
     pub auth_config: Arc<AuthConfig>,
 }
 
@@ -42,4 +42,3 @@ impl AppState {
         }
     }
 }
-

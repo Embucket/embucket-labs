@@ -7,7 +7,7 @@ pub trait IterableCursor {
     fn min_cursor() -> Self;
     #[must_use]
     fn max_cursor() -> Self;
-    
+
     fn as_bytes(&self) -> Bytes;
 }
 

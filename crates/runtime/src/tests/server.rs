@@ -1,4 +1,7 @@
-use crate::{AuthConfig, http::{make_app, config::WebConfig}};
+use crate::{
+    http::{config::WebConfig, make_app},
+    AuthConfig,
+};
 use embucket_history::store::SlateDBWorksheetsStore;
 use embucket_metastore::SlateDBMetastore;
 use embucket_utils::Db;

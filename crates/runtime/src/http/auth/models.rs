@@ -11,7 +11,7 @@ pub struct AuthResponse {
 
 impl AuthResponse {
     #[must_use]
-    pub fn new (access_token: String, expires_in: u32) -> Self {
+    pub fn new(access_token: String, expires_in: u32) -> Self {
         Self {
             access_token,
             token_type: "Bearer".to_string(),
@@ -50,14 +50,14 @@ impl std::fmt::Display for WwwAuthenticate {
 pub struct Claims {
     pub sub: String, // token issued to a particular user
     pub aud: String, // validate audience since as it can be deployed on multiple hosts
-    pub iat: i64, // Issued At
-    pub exp: i64, // Expiration Time
+    pub iat: i64,    // Issued At
+    pub exp: i64,    // Expiration Time
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct RefreshClaims {
     pub sub: String, // token issued to a particular user
     pub aud: String, // validate audience since as it can be deployed on multiple hosts
-    pub iat: i64, // Issued At
-    pub exp: i64, // Expiration Time
+    pub iat: i64,    // Issued At
+    pub exp: i64,    // Expiration Time
 }

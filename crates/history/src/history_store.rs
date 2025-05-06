@@ -1,4 +1,7 @@
-use crate::{SlateDBWorksheetsStore, QueryRecord, QueryRecordId, QueryRecordReference, Worksheet, WorksheetId};
+use crate::{
+    QueryRecord, QueryRecordId, QueryRecordReference, SlateDBWorksheetsStore, Worksheet,
+    WorksheetId,
+};
 use async_trait::async_trait;
 use embucket_utils::iterable::IterableCursor;
 use embucket_utils::{Db, Error};
@@ -125,15 +128,13 @@ pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
     async fn get_queries(&self, params: GetQueries) -> WorksheetsStoreResult<Vec<QueryRecord>>;
 }
 
-
 async fn queries_iterator(
     db: &Db,
     cursor: Option<QueryRecordId>,
 ) -> WorksheetsStoreResult<DbIterator<'_>> {
     let start_key = QueryRecord::get_key(cursor.unwrap_or(QueryRecordId::min_cursor()));
     let end_key = QueryRecord::get_key(QueryRecordId::max_cursor());
-    db
-        .range_iterator(start_key..end_key)
+    db.range_iterator(start_key..end_key)
         .await
         .context(GetWorksheetQueriesSnafu)
 }
@@ -143,13 +144,10 @@ async fn worksheet_queries_references_iterator(
     worksheet_id: WorksheetId,
     cursor: Option<QueryRecordId>,
 ) -> WorksheetsStoreResult<DbIterator<'_>> {
-    let refs_start_key = QueryRecordReference::get_key(
-        worksheet_id,
-        cursor.unwrap_or(QueryRecordId::min_cursor()),
-    );
+    let refs_start_key =
+        QueryRecordReference::get_key(worksheet_id, cursor.unwrap_or(QueryRecordId::min_cursor()));
     let refs_end_key = QueryRecordReference::get_key(worksheet_id, QueryRecordId::max_cursor());
-    db
-        .range_iterator(refs_start_key..refs_end_key)
+    db.range_iterator(refs_start_key..refs_end_key)
         .await
         .context(GetWorksheetQueriesSnafu)
 }
@@ -245,8 +243,8 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 
         if let Some(worksheet_id) = worksheet_id {
             // 1. Get iterator over all queries references related to a worksheet_id (QueryRecordReference)
-            let mut refs_iter = worksheet_queries_references_iterator(&self.db, worksheet_id, cursor)
-                .await?;
+            let mut refs_iter =
+                worksheet_queries_references_iterator(&self.db, worksheet_id, cursor).await?;
 
             // 2. Get iterator over all queries (QueryRecord)
             let mut queries_iter = queries_iterator(&self.db, cursor).await?;
@@ -400,10 +398,10 @@ mod tests {
         db.delete_worksheet(worksheet.id)
             .await
             .expect("Failed deleting worksheet");
-        let mut worksheet_refs_iter = 
+        let mut worksheet_refs_iter =
             worksheet_queries_references_iterator(&db.db, worksheet.id, None)
-            .await
-            .expect("Error getting worksheets queries references iterator");
+                .await
+                .expect("Error getting worksheets queries references iterator");
         let mut rudiment_keys = vec![];
         while let Ok(Some(item)) = worksheet_refs_iter.next().await {
             eprintln!("rudiment key left after worksheet deleted: {:?}", item.key);

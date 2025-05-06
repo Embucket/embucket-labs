@@ -24,12 +24,12 @@ use embucket_utils::Db;
 
 pub mod error;
 
+pub mod auth;
 pub mod catalog;
 pub mod dbt;
 pub mod metastore;
 pub mod ui;
 pub mod web_assets;
-pub mod auth;
 
 pub mod config;
 pub mod layers;
@@ -78,7 +78,7 @@ pub fn make_app(
         history_store,
         execution_svc,
         Arc::new(config.clone()),
-	Arc::new(auth_config),
+        Arc::new(auth_config),
     );
 
     let mut app = router::create_app(app_state.clone())

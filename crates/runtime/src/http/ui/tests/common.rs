@@ -73,7 +73,10 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
         let text = response.text().await.expect("Failed to get response text");
         if text.is_empty() {
             // If no actual type retuned we emulate unit, by "null" value in json
-            Ok((headers, serde_json::from_str::<T>("null").expect("Failed to parse response")))
+            Ok((
+                headers,
+                serde_json::from_str::<T>("null").expect("Failed to parse response"),
+            ))
         } else {
             let json = serde_json::from_str::<T>(&text);
             match json {
@@ -114,9 +117,10 @@ pub async fn http_req<T: serde::de::DeserializeOwned>(
     url: &String,
     payload: String,
 ) -> Result<T, TestHttpError> {
-    let headers = HeaderMap::from_iter(vec![
-        (header::CONTENT_TYPE, HeaderValue::from_static("application/json")),
-    ]);
+    let headers = HeaderMap::from_iter(vec![(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    )]);
     let (_, res) = http_req_with_headers(client, method, headers, url, payload).await?;
     Ok(res)
 }

@@ -1,12 +1,12 @@
-use axum::{Json, http, response::IntoResponse};
-use snafu::prelude::*;
-use embucket_history::auth_store::AuthStoreError;
-use jsonwebtoken::errors::Error as JwtError;
-use http::{header::MaxSizeReached, StatusCode};
-use crate::http::error::ErrorResponse;
 use super::models::WwwAuthenticate;
+use crate::http::error::ErrorResponse;
+use axum::{http, response::IntoResponse, Json};
+use embucket_history::auth_store::AuthStoreError;
 use http::header;
 use http::HeaderValue;
+use http::{header::MaxSizeReached, StatusCode};
+use jsonwebtoken::errors::Error as JwtError;
+use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
@@ -38,7 +38,7 @@ pub enum AuthError {
 
     #[cfg(test)]
     #[snafu(display("Custom error: {message}"))]
-    Custom { message: String }
+    Custom { message: String },
 }
 
 impl IntoResponse for AuthError {
@@ -46,7 +46,7 @@ impl IntoResponse for AuthError {
         let auth = "Bearer".to_string();
         let mut realm = "api-auth".to_string();
         let mut error = self.to_string();
-        
+
         let status = match self {
             AuthError::Login => {
                 error = "Login error".to_string();
@@ -56,13 +56,12 @@ impl IntoResponse for AuthError {
             AuthError::NoAuthHeader | AuthError::BadAuthToken => {
                 error = "The authorization token is missing or invalid".to_string();
                 StatusCode::UNAUTHORIZED
-            },
+            }
             AuthError::NoRefreshTokenCookie | AuthError::BadRefreshToken { .. } => {
                 error = "The refresh token is missing or invalid".to_string();
                 StatusCode::UNAUTHORIZED
             }
-            AuthError::CreateJwt { .. }
-            | _ => StatusCode::INTERNAL_SERVER_ERROR,
+            AuthError::CreateJwt { .. } | _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let body = Json(ErrorResponse {
@@ -74,9 +73,13 @@ impl IntoResponse for AuthError {
             let www_value = WwwAuthenticate { auth, realm, error };
             (
                 StatusCode::UNAUTHORIZED,
-                [(header::WWW_AUTHENTICATE, HeaderValue::from_str(&www_value.to_string()).unwrap())],
+                [(
+                    header::WWW_AUTHENTICATE,
+                    HeaderValue::from_str(&www_value.to_string()).unwrap(),
+                )],
                 body,
-            ).into_response()
+            )
+                .into_response()
         } else {
             (status, body).into_response()
         }
@@ -85,4 +88,3 @@ impl IntoResponse for AuthError {
 
 //  pub type AuthResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub type AuthResult<T> = std::result::Result<T, AuthError>;
-

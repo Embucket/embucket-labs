@@ -138,12 +138,7 @@ pub struct CliOpts {
     pub data_format: Option<String>,
 
     // should unset JWT_SECRET env var after loading
-    #[arg(
-        long,
-        env = "JWT_SECRET",
-        hide_env_values = true,
-        help = "JWT secret"
-    )]
+    #[arg(long, env = "JWT_SECRET", hide_env_values = true, help = "JWT secret")]
     jwt_secret: String,
 }
 

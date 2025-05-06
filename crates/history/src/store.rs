@@ -1,4 +1,6 @@
-use crate::{QueryRecord, QueryRecordId, QueryRecordReference, Worksheet, WorksheetId, Token, TokenId};
+use crate::{
+    QueryRecord, QueryRecordId, QueryRecordReference, Token, TokenId, Worksheet, WorksheetId,
+};
 use async_trait::async_trait;
 use embucket_utils::iterable::IterableCursor;
 use embucket_utils::{Db, Error};

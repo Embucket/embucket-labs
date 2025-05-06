@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use config::AuthConfig;
 use config::RuntimeConfig;
 use embucket_history::store::SlateDBWorksheetsStore;
 use embucket_metastore::SlateDBMetastore;
@@ -8,7 +9,6 @@ use http::web_assets::run_web_assets_server;
 use http::{make_app, run_app};
 use object_store::{path::Path, ObjectStore};
 use slatedb::{config::DbOptions, Db as SlateDb};
-use config::AuthConfig;	
 
 pub mod config;
 pub mod execution;
