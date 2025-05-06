@@ -99,6 +99,13 @@ where
     )
 }
 
+fn assert_jwt_secret(jwt_secret: &String) -> AuthResult<()> {
+    if jwt_secret.is_empty() {
+        return Err(AuthError::NoJwtSecret);
+    }
+    Ok(())
+}
+
 fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
     headers
         .try_append(
@@ -122,12 +129,14 @@ pub async fn login(
     State(state): State<AppState>,
     Json(LoginPayload { username, password }): Json<LoginPayload>,
 ) -> AuthResult<impl IntoResponse> {
-    if username != "admin" || password != "admin" {
+    if username != *state.auth_config.demo_user() || password != *state.auth_config.demo_password() {
         return Err(AuthError::Login);
     }
 
     let audience = &state.config.host;
     let jwt_secret = state.auth_config.jwt_secret();
+
+    assert_jwt_secret(&jwt_secret)?;
 
     let access_token_claims = access_token_claims(&username, audience);
 
@@ -153,18 +162,15 @@ pub async fn refresh_access_token(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> AuthResult<impl IntoResponse> {
+
+    let jwt_secret = state.auth_config.jwt_secret();
+    assert_jwt_secret(&jwt_secret)?;
+
     let cookies_map = cookies_from_header(&headers);
-
-    // return Err(AuthError::Custom { message: format!("cookies: {cookies:?}, cookies_map: {cookies_map:?}") });
-    // let refresh_token =cookies.iter().find(|cookie| {
-    //     cookie.to_str().unwrap_or_default().starts_with("refresh_token=")
-    // });
-
     match cookies_map.get("refresh_token") {
         None => Err(AuthError::NoRefreshTokenCookie),
         Some(refresh_token) => {
             let audience = &state.config.host;
-            let jwt_secret = state.auth_config.jwt_secret();
 
             let refresh_claims = get_claims_validate_jwt_token(refresh_token, audience, jwt_secret)
                 .context(BadRefreshTokenSnafu)?;
@@ -191,12 +197,15 @@ pub async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> AuthResult<impl IntoResponse> {
+    
+    let jwt_secret = state.auth_config.jwt_secret();
+    assert_jwt_secret(&jwt_secret)?;
+
     let cookies_map = cookies_from_header(&headers);
 
     match cookies_map.get("refresh_token") {
         Some(refresh_token) => {
             let audience = &state.config.host;
-            let jwt_secret = state.auth_config.jwt_secret();
 
             let _ = get_claims_validate_jwt_token(refresh_token, audience, jwt_secret)
                 .context(BadRefreshTokenSnafu)?;

@@ -16,16 +16,33 @@ pub struct DbConfig {
 }
 
 // Non serializable, no Clone, Copy, Debug traits
+#[derive(Default)]
 pub struct AuthConfig {
     jwt_secret: String,
+    demo_user: String,
+    demo_password: String,
 }
 
 impl AuthConfig {
+    #[must_use]
     pub fn new(jwt_secret: String) -> Self {
-        Self { jwt_secret }
+        Self { jwt_secret, ..Self::default() }
+    }
+
+    pub fn with_demo_credentials(&mut self, demo_user: String, demo_password: String) {
+        self.demo_user = demo_user;
+        self.demo_password = demo_password;
     }
 
     pub fn jwt_secret(&self) -> &String {
         &self.jwt_secret
+    }
+
+    pub fn demo_user(&self) -> &String {
+        &self.demo_user
+    }
+
+    pub fn demo_password(&self) -> &String {
+        &self.demo_password
     }
 }

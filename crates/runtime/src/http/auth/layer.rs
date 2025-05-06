@@ -36,6 +36,11 @@ pub async fn require_auth(
     mut req: Request,
     next: Next,
 ) -> AuthResult<impl IntoResponse> {
+    // no demo user -> no auth required
+    if state.auth_config.demo_user().is_empty() {
+        return Ok(next.run(req).await);
+    }
+
     let access_token = get_authorization_token(&req.headers())?;
 
     let audience = &state.config.host;

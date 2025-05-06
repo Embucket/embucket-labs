@@ -14,6 +14,9 @@ pub enum AuthError {
     #[snafu(display("Login error"))]
     Login,
 
+    #[snafu(display("No JWT secret set"))]
+    NoJwtSecret,
+
     // Do not output sensitive error details
     #[snafu(display("Bad refresh token"))]
     BadRefreshToken { source: JwtError }, // keep source for snafu selector
@@ -61,7 +64,8 @@ impl IntoResponse for AuthError {
                 error = "The refresh token is missing or invalid".to_string();
                 StatusCode::UNAUTHORIZED
             }
-            AuthError::CreateJwt { .. } | _ => StatusCode::INTERNAL_SERVER_ERROR,
+            AuthError::NoJwtSecret
+            | AuthError::CreateJwt { .. } | _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let body = Json(ErrorResponse {
