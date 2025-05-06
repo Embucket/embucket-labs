@@ -67,6 +67,8 @@ impl SchemaProvider for CachingSchema {
         name: String,
         table: Arc<dyn TableProvider>,
     ) -> datafusion_common::Result<Option<Arc<dyn TableProvider>>> {
+        let caching_table = Arc::new(CachingTable::new(name.clone(), Arc::clone(&table)));
+        self.tables_cache.insert(name.clone(), caching_table);
         self.schema.register_table(name, table)
     }
 
@@ -74,6 +76,7 @@ impl SchemaProvider for CachingSchema {
         &self,
         name: &str,
     ) -> datafusion_common::Result<Option<Arc<dyn TableProvider>>> {
+        self.tables_cache.remove(name);
         self.schema.deregister_table(name)
     }
 
