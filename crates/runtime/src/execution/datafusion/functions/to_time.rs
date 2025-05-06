@@ -22,6 +22,7 @@ impl ToTimeFunc {
         Self {
             signature: Signature::one_of(
                 vec![
+                    TySig
                     TypeSignature::Numeric(1),
                     TypeSignature::String(1),
                     TypeSignature::Exact(vec![DataType::Boolean]),
