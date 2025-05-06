@@ -105,6 +105,7 @@ utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 uuid = { workspace = true }
 validator = { version = "0.20.0", features = ["derive"] }
+half = "2.6.0"
 
 [lints]
 workspace = true

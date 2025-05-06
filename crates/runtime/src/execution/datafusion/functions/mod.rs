@@ -8,6 +8,9 @@ mod date_add;
 mod date_diff;
 mod date_from_parts;
 //pub mod geospatial;
+mod booland;
+mod boolor;
+mod boolxor;
 mod parse_json;
 pub mod table;
 mod time_from_parts;
@@ -22,9 +25,9 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         timestamp_from_parts::get_udf(),
         time_from_parts::get_udf(),
         date_from_parts::get_udf(),
-        Arc::new(ScalarUDF::from(bool::BoolAndFunc::new())),
-        Arc::new(ScalarUDF::from(bool::BoolOrFunc::new())),
-        Arc::new(ScalarUDF::from(bool::BoolXorFunc::new()))
+        booland::get_udf(),
+        boolor::get_udf(),
+        boolxor::get_udf(),
     ];
 
     for func in functions {
