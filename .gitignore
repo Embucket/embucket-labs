@@ -44,3 +44,5 @@ snowplow
 *.sst
 *.manifest.json
 **.new
+
+.cursor
