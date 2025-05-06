@@ -1,14 +1,10 @@
-use crate::execution::datafusion::functions::booland::BoolAndFunc;
 use arrow_array::builder::BooleanBuilder;
-use arrow_array::cast::{as_string_array, downcast_array};
-use arrow_array::{Array, ArrayRef, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int16Array, Int32Array, Int64Array, Int8Array, UInt16Array, UInt32Array, UInt64Array, UInt8Array};
+use arrow_array::cast::{as_string_array};
+use arrow_array::Array;
 use arrow_schema::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
-use datafusion_common::cast::{
-    as_boolean_array, as_int16_array, as_int32_array, as_int64_array, as_int8_array,
-};
-use datafusion_common::{downcast_value, DataFusionError};
+use datafusion_common::DataFusionError;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
 use std::sync::Arc;
@@ -54,7 +50,7 @@ impl ScalarUDFImpl for ToBooleanFunc {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "to_boolean"
     }
 
@@ -93,8 +89,7 @@ impl ScalarUDFImpl for ToBooleanFunc {
                             res.append_value(false);
                         } else {
                             return Err(DataFusionError::Internal(format!(
-                                "Invalid boolean string: {}",
-                                v
+                                "Invalid boolean string: {v}"
                             )));
                         }
                     }

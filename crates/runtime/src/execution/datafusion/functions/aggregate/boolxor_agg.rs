@@ -1,4 +1,5 @@
 use crate::execution::datafusion::functions::aggregate::macros::make_udaf_function;
+use crate::execution::datafusion::functions::array_to_boolean;
 use arrow_array::ArrayRef;
 use arrow_schema::DataType;
 use datafusion::error::Result as DFResult;
@@ -7,7 +8,6 @@ use datafusion_common::ScalarValue;
 use datafusion_expr::function::AccumulatorArgs;
 use datafusion_expr::{AggregateUDFImpl, Signature, Volatility};
 use std::any::Any;
-use crate::execution::datafusion::functions::array_to_boolean;
 
 /// Boolxor function
 /// Returns TRUE if exactly one Boolean record in the group evaluates to TRUE.

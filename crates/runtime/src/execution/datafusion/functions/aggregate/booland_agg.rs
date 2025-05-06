@@ -1,17 +1,13 @@
 use crate::execution::datafusion::functions::aggregate::macros::make_udaf_function;
-use arrow_array::{
-    ArrayRef, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int16Array, Int32Array,
-    Int64Array, Int8Array, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
-};
+use crate::execution::datafusion::functions::array_to_boolean;
+use arrow_array::ArrayRef;
 use arrow_schema::DataType;
-use datafusion::common::DataFusionError;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::Accumulator;
-use datafusion_common::{downcast_value, ScalarValue};
+use datafusion_common::ScalarValue;
 use datafusion_expr::function::AccumulatorArgs;
 use datafusion_expr::{AggregateUDFImpl, Signature, Volatility};
 use std::any::Any;
-use crate::execution::datafusion::functions::array_to_boolean;
 
 /// Booland Agg function
 /// Returns TRUE if all non-NULL Boolean records in a group evaluate to TRUE.
@@ -144,6 +140,7 @@ mod tests {
     use datafusion_common::assert_batches_eq;
     use datafusion_expr::AggregateUDF;
     use std::sync::Arc;
+    use arrow_array::BooleanArray;
 
     #[tokio::test]
     async fn test_merge() -> DFResult<()> {
