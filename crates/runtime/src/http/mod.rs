@@ -74,7 +74,6 @@ pub fn make_app(
     // Create the application state
     let app_state = state::AppState::new(
         metastore,
-        history_store.clone(),
         history_store,
         execution_svc,
         Arc::new(config.clone()),

@@ -1,4 +1,4 @@
-use embucket_history::{auth_store::AuthStore, history_store::WorksheetsStore};
+use embucket_history::{history_store::WorksheetsStore};
 use embucket_metastore::metastore::Metastore;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -13,7 +13,6 @@ use crate::http::config::WebConfig;
 pub struct AppState {
     pub metastore: Arc<dyn Metastore + Send + Sync>,
     pub history_store: Arc<dyn WorksheetsStore + Send + Sync>,
-    pub auth_store: Arc<dyn AuthStore + Send + Sync>,
     pub execution_svc: Arc<dyn ExecutionService>,
     pub dbt_sessions: Arc<Mutex<HashMap<String, String>>>,
     pub config: Arc<WebConfig>,
@@ -26,7 +25,6 @@ impl AppState {
     pub fn new(
         metastore: Arc<dyn Metastore + Send + Sync>,
         history_store: Arc<dyn WorksheetsStore + Send + Sync>,
-        auth_store: Arc<dyn AuthStore + Send + Sync>,
         execution_svc: Arc<dyn ExecutionService>,
         config: Arc<WebConfig>,
         auth_config: Arc<AuthConfig>,
@@ -34,7 +32,6 @@ impl AppState {
         Self {
             metastore,
             history_store,
-            auth_store,
             execution_svc,
             dbt_sessions: Arc::new(Mutex::default()),
             config,

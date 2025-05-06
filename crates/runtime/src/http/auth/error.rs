@@ -1,7 +1,6 @@
 use super::models::WwwAuthenticate;
 use crate::http::error::ErrorResponse;
 use axum::{http, response::IntoResponse, Json};
-use embucket_history::auth_store::AuthStoreError;
 use http::header;
 use http::HeaderValue;
 use http::{header::MaxSizeReached, StatusCode};
