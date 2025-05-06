@@ -10,8 +10,8 @@ use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
 use std::sync::Arc;
 
-const TRUE: [&'static str; 6] = ["true", "t", "yes", "y", "on", "1"];
-const FALSE: [&'static str; 6] = ["false", "f", "no", "n", "off", "0"];
+const TRUE: [&str; 6] = ["true", "t", "yes", "y", "on", "1"];
+const FALSE: [&str; 6] = ["false", "f", "no", "n", "off", "0"];
 
 // to_boolean SQL function
 // Converts the input text or numeric expression to a BOOLEAN value.
