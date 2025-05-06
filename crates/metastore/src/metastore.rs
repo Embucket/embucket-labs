@@ -784,7 +784,7 @@ mod tests {
     use futures::StreamExt;
     use iceberg_rust_spec::{
         schema::Schema as IcebergSchema,
-        types::{PrimitiveType, StructField, StructType, Type},
+        types::{PrimitiveType, StructField, Type},
     };
     use slatedb::Db as SlateDb;
     use std::sync::Arc;
