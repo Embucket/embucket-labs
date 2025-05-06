@@ -23,6 +23,7 @@ pub mod any_value;
 pub mod booland_agg;
 pub mod boolor_agg;
 pub mod boolxor_agg;
+pub mod percentile_cont;
 
 pub fn register_udafs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let aggregate_functions: Vec<Arc<AggregateUDF>> = vec![
@@ -30,6 +31,7 @@ pub fn register_udafs(registry: &mut dyn FunctionRegistry) -> datafusion_common:
         booland_agg::get_udaf(),
         boolor_agg::get_udaf(),
         boolxor_agg::get_udaf(),
+        percentile_cont::get_udaf()
     ];
 
     for func in aggregate_functions {
