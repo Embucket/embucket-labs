@@ -1,29 +1,12 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::cast::AsArray;
+use arrow_array::Array;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, to_string};
+use serde_json::{to_string, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -31,8 +14,15 @@ pub struct ArrayInsertUDF {
     signature: Signature,
 }
 
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::as_conversions,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_wrap
+)]
 impl ArrayInsertUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::Any(3),
@@ -42,7 +32,6 @@ impl ArrayInsertUDF {
     }
 
     fn insert_element(
-        &self,
         array_str: impl AsRef<str>,
         pos: i64,
         element: &ScalarValue,
@@ -52,8 +41,7 @@ impl ArrayInsertUDF {
         // Parse the input array
         let mut array_value: Value = serde_json::from_str(array_str).map_err(|e| {
             datafusion_common::error::DataFusionError::Internal(format!(
-                "Failed to parse array JSON: {}",
-                e
+                "Failed to parse array JSON: {e}",
             ))
         })?;
 
@@ -72,8 +60,7 @@ impl ArrayInsertUDF {
             if pos > array.len() {
                 return Err(datafusion_common::error::DataFusionError::Internal(
                     format!(
-                        "Position {} is out of bounds for array of length {}",
-                        pos,
+                        "Position {pos} is out of bounds for array of length {}",
                         array.len()
                     ),
                 ));
@@ -84,8 +71,7 @@ impl ArrayInsertUDF {
             // Convert back to JSON string
             to_string(&array_value).map_err(|e| {
                 datafusion_common::error::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {}",
-                    e
+                    "Failed to serialize result: {e}",
                 ))
             })
         } else {
@@ -107,7 +93,7 @@ impl ScalarUDFImpl for ArrayInsertUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_insert"
     }
 
@@ -121,9 +107,21 @@ impl ScalarUDFImpl for ArrayInsertUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array_str = args.first().expect("Expected array argument");
-        let pos = args.get(1).expect("Expected position argument");
-        let element = args.get(2).expect("Expected element argument");
+        let array_str = args
+            .first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected array argument".to_string(),
+            ))?;
+        let pos = args
+            .get(1)
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected position argument".to_string(),
+            ))?;
+        let element = args
+            .get(2)
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected element argument".to_string(),
+            ))?;
 
         match (array_str, pos, element) {
             (ColumnarValue::Array(array), ColumnarValue::Scalar(pos_value), ColumnarValue::Scalar(element_value)) => {
@@ -131,9 +129,8 @@ impl ScalarUDFImpl for ArrayInsertUDF {
                 let mut results = Vec::new();
 
                 // Get position as i64
-                let pos = match pos_value {
-                    ScalarValue::Int64(Some(p)) => p,
-                    _ => return Err(datafusion_common::error::DataFusionError::Internal(
+                let ScalarValue::Int64(Some(pos)) = pos_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
                         "Position must be an integer".to_string()
                     ))
                 };
@@ -143,28 +140,26 @@ impl ScalarUDFImpl for ArrayInsertUDF {
                         results.push(None);
                     } else {
                         let array_value = string_array.value(i);
-                        results.push(Some(self.insert_element(array_value, *pos, element_value)?));
+                        results.push(Some(Self::insert_element(array_value, *pos, element_value)?));
                     }
                 }
 
                 Ok(ColumnarValue::Array(Arc::new(arrow::array::StringArray::from(results))))
             }
             (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(pos_value), ColumnarValue::Scalar(element_value)) => {
-                let array_str = match array_value {
-                    ScalarValue::Utf8(Some(s)) => s,
-                    _ => return Err(datafusion_common::error::DataFusionError::Internal(
+                let ScalarValue::Utf8(Some(array_str)) = array_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
                         "Expected UTF8 string for array".to_string()
                     ))
                 };
 
-                let pos = match pos_value {
-                    ScalarValue::Int64(Some(p)) => p,
-                    _ => return Err(datafusion_common::error::DataFusionError::Internal(
+                let ScalarValue::Int64(Some(pos)) = pos_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
                         "Position must be an integer".to_string()
                     ))
                 };
 
-                let result = self.insert_element(array_str, *pos, element_value)?;
+                let result = Self::insert_element(array_str, *pos, element_value)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(result))))
             }
             _ => Err(datafusion_common::error::DataFusionError::Internal(
@@ -177,20 +172,20 @@ impl ScalarUDFImpl for ArrayInsertUDF {
 make_udf_function!(ArrayInsertUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_insert() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test inserting into numeric array
         let sql = "SELECT array_insert(array_construct(0,1,2,3), 2, 'hello') as inserted";

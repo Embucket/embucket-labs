@@ -1,20 +1,3 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::{array::AsArray, datatypes::DataType};
 use datafusion_common::{Result as DFResult, ScalarValue};
@@ -30,6 +13,7 @@ pub struct ArrayConstructUDF {
 }
 
 impl ArrayConstructUDF {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature {
@@ -55,7 +39,7 @@ impl ScalarUDFImpl for ArrayConstructUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_construct"
     }
 
@@ -83,7 +67,7 @@ impl ScalarUDFImpl for ArrayConstructUDF {
                 if arg_array.is_null(i) {
                     results.push(Value::Null);
                 } else if let Some(str_array) = arg_array.as_string_opt::<i32>() {
-                    for istr in str_array.iter() {
+                    for istr in str_array {
                         match istr {
                             Some(istr) => {
                                 if let Ok(json_obj) = serde_json::from_str(istr) {
@@ -115,8 +99,7 @@ impl ScalarUDFImpl for ArrayConstructUDF {
         let arr = serde_json::Value::Array(results);
         let json_str = serde_json::to_string(&arr).map_err(|e| {
             datafusion_common::error::DataFusionError::Internal(format!(
-                "Failed to serialize JSON: {}",
-                e
+                "Failed to serialize JSON: {e}",
             ))
         })?;
         Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(json_str))))
@@ -126,17 +109,17 @@ impl ScalarUDFImpl for ArrayConstructUDF {
 make_udf_function!(ArrayConstructUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_construct() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
-        ctx.state().register_udf(get_udf());
+        register_udf(&mut ctx);
 
         // Test basic array construction
         let sql = "SELECT array_construct(1, 2, 3) as arr1";
@@ -197,9 +180,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_array_construct_nested() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
-        ctx.state().register_udf(get_udf());
+        register_udf(&mut ctx);
 
         // Test basic array construction
         let sql =

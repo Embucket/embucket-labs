@@ -1,29 +1,12 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::cast::AsArray;
+use arrow_array::Array;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, from_str};
+use serde_json::{from_str, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -31,8 +14,10 @@ pub struct ArraySizeUDF {
     signature: Signature,
 }
 
+#[allow(clippy::as_conversions, clippy::cast_possible_wrap)]
 impl ArraySizeUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::Any(1),
@@ -41,10 +26,10 @@ impl ArraySizeUDF {
         }
     }
 
-    fn get_array_size(&self, value: Value) -> DFResult<Option<i64>> {
+    fn get_array_size(value: Value) -> Option<i64> {
         match value {
-            Value::Array(array) => Ok(Some(array.len() as i64)),
-            _ => Ok(None), // Return NULL for non-array values
+            Value::Array(array) => Some(array.len() as i64),
+            _ => None, // Return NULL for non-array values
         }
     }
 }
@@ -60,7 +45,7 @@ impl ScalarUDFImpl for ArraySizeUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_size"
     }
 
@@ -74,7 +59,11 @@ impl ScalarUDFImpl for ArraySizeUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array_arg = args.first().expect("Expected array argument");
+        let array_arg = args
+            .first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected array argument".to_string(),
+            ))?;
 
         match array_arg {
             ColumnarValue::Array(array) => {
@@ -88,12 +77,11 @@ impl ScalarUDFImpl for ArraySizeUDF {
                         let array_str = string_array.value(i);
                         let array_json: Value = from_str(array_str).map_err(|e| {
                             datafusion_common::error::DataFusionError::Internal(format!(
-                                "Failed to parse array JSON: {}",
-                                e
+                                "Failed to parse array JSON: {e}"
                             ))
                         })?;
 
-                        results.push(self.get_array_size(array_json)?);
+                        results.push(Self::get_array_size(array_json));
                     }
                 }
 
@@ -105,12 +93,11 @@ impl ScalarUDFImpl for ArraySizeUDF {
                 ScalarValue::Utf8(Some(s)) => {
                     let array_json: Value = from_str(s).map_err(|e| {
                         datafusion_common::error::DataFusionError::Internal(format!(
-                            "Failed to parse array JSON: {}",
-                            e
+                            "Failed to parse array JSON: {e}"
                         ))
                     })?;
 
-                    let size = self.get_array_size(array_json)?;
+                    let size = Self::get_array_size(array_json);
                     Ok(ColumnarValue::Scalar(ScalarValue::Int64(size)))
                 }
                 ScalarValue::Utf8(None) | ScalarValue::Null => {
@@ -127,19 +114,19 @@ impl ScalarUDFImpl for ArraySizeUDF {
 make_udf_function!(ArraySizeUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
     #[tokio::test]
     async fn test_array_size() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test empty array
         let sql = "SELECT array_size(array_construct()) as empty_size";

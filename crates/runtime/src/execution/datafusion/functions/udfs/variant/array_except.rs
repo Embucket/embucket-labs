@@ -1,20 +1,3 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
 use arrow_array::cast::AsArray;
@@ -22,7 +5,7 @@ use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, from_slice};
+use serde_json::{from_slice, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -31,7 +14,8 @@ pub struct ArrayExceptUDF {
 }
 
 impl ArrayExceptUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::Any(2),
@@ -40,24 +24,18 @@ impl ArrayExceptUDF {
         }
     }
 
-    fn array_except(
-        &self,
-        array1_str: Option<&str>,
-        array2_str: Option<&str>,
-    ) -> DFResult<Option<Value>> {
+    fn array_except(array1_str: Option<&str>, array2_str: Option<&str>) -> DFResult<Option<Value>> {
         if let (Some(arr1), Some(arr2)) = (array1_str, array2_str) {
             // Parse both arrays
             let array1_value: Value = from_slice(arr1.as_bytes()).map_err(|e| {
                 datafusion_common::error::DataFusionError::Internal(format!(
-                    "Failed to parse first array: {}",
-                    e
+                    "Failed to parse first array: {e}",
                 ))
             })?;
 
             let array2_value: Value = from_slice(arr2.as_bytes()).map_err(|e| {
                 datafusion_common::error::DataFusionError::Internal(format!(
-                    "Failed to parse second array: {}",
-                    e
+                    "Failed to parse second array: {e}",
                 ))
             })?;
 
@@ -89,7 +67,7 @@ impl ScalarUDFImpl for ArrayExceptUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_except"
     }
 
@@ -103,10 +81,16 @@ impl ScalarUDFImpl for ArrayExceptUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array1 = args.first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal("Expected first array argument".to_string()))?;
-        let array2 = args.get(1)
-            .ok_or(datafusion_common::error::DataFusionError::Internal("Expected second array argument".to_string()))?;
+        let array1 = args
+            .first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected first array argument".to_string(),
+            ))?;
+        let array2 = args
+            .get(1)
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected second array argument".to_string(),
+            ))?;
 
         match (array1, array2) {
             (ColumnarValue::Array(array1_array), ColumnarValue::Array(array2_array)) => {
@@ -115,12 +99,18 @@ impl ScalarUDFImpl for ArrayExceptUDF {
                 let mut results = Vec::new();
 
                 for (arr1, arr2) in array1_strings.iter().zip(array2_strings) {
-                    let result = self.array_except(arr1, arr2)?;
-                    results.push(result.map(|v| serde_json::to_string(&v).map_err(|e| {
-                        datafusion_common::error::DataFusionError::Internal(format!(
-                            "Failed to serialize result: {e}",
-                        ))
-                    })).transpose());
+                    let result = Self::array_except(arr1, arr2)?;
+                    results.push(
+                        result
+                            .map(|v| {
+                                serde_json::to_string(&v).map_err(|e| {
+                                    datafusion_common::error::DataFusionError::Internal(format!(
+                                        "Failed to serialize result: {e}",
+                                    ))
+                                })
+                            })
+                            .transpose(),
+                    );
                 }
                 let results: DFResult<Vec<Option<String>>> = results.into_iter().collect();
 
@@ -153,15 +143,17 @@ impl ScalarUDFImpl for ArrayExceptUDF {
                     }
                 };
 
-                let result = self.array_except(Some(array1_str), Some(array2_str))?;
-                let result = result.map(|v| serde_json::to_string(&v).map_err(|e| {
-                    datafusion_common::error::DataFusionError::Internal(format!(
-                        "Failed to serialize result: {e}",
-                    ))
-                })).transpose()?;
-                Ok(ColumnarValue::Scalar(ScalarValue::Utf8(
-                    result,
-                )))
+                let result = Self::array_except(Some(array1_str), Some(array2_str))?;
+                let result = result
+                    .map(|v| {
+                        serde_json::to_string(&v).map_err(|e| {
+                            datafusion_common::error::DataFusionError::Internal(format!(
+                                "Failed to serialize result: {e}",
+                            ))
+                        })
+                    })
+                    .transpose()?;
+                Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
             _ => Err(datafusion_common::error::DataFusionError::Internal(
                 "Mismatched argument types".to_string(),
@@ -173,20 +165,20 @@ impl ScalarUDFImpl for ArrayExceptUDF {
 make_udf_function!(ArrayExceptUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_except() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test basic array difference
         let sql =
@@ -240,11 +232,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_array_except_with_table() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Create a table with two array columns
         let sql = "CREATE TABLE test_array_except AS 

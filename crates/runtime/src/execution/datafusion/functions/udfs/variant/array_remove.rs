@@ -1,29 +1,12 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::cast::AsArray;
+use arrow_array::Array;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, from_str, to_string};
+use serde_json::{from_str, to_string, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -32,7 +15,8 @@ pub struct ArrayRemoveUDF {
 }
 
 impl ArrayRemoveUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::Any(2),
@@ -42,7 +26,6 @@ impl ArrayRemoveUDF {
     }
 
     fn remove_element(
-        &self,
         array_value: Value,
         element_value: Option<Value>,
     ) -> DFResult<Option<String>> {
@@ -50,7 +33,10 @@ impl ArrayRemoveUDF {
         if element_value.is_none() {
             return Ok(None);
         }
-        let element_value = element_value.unwrap();
+        let element_value =
+            element_value.ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Element value is null".to_string(),
+            ))?;
 
         // Ensure the first argument is an array
         if let Value::Array(array) = array_value {
@@ -60,8 +46,7 @@ impl ArrayRemoveUDF {
             // Convert back to JSON string
             Ok(Some(to_string(&filtered).map_err(|e| {
                 datafusion_common::error::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {}",
-                    e
+                    "Failed to serialize result: {e}",
                 ))
             })?))
         } else {
@@ -83,7 +68,7 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_remove"
     }
 
@@ -97,8 +82,16 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array_str = args.first().expect("Expected array argument");
-        let element = args.get(1).expect("Expected element argument");
+        let array_str = args
+            .first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected array argument".to_string(),
+            ))?;
+        let element = args
+            .get(1)
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected element argument".to_string(),
+            ))?;
 
         match (array_str, element) {
             (ColumnarValue::Array(array), ColumnarValue::Scalar(element_value)) => {
@@ -131,26 +124,25 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
                         let array_str = string_array.value(i);
                         let array_json: Value = from_str(array_str)
                             .map_err(|e| datafusion_common::error::DataFusionError::Internal(
-                                format!("Failed to parse array JSON: {}", e)
+                                format!("Failed to parse array JSON: {e}")
                             ))?;
-                        results.push(self.remove_element(array_json, element_json.clone())?);
+                        results.push(Self::remove_element(array_json, element_json.clone())?);
                     }
                 }
 
                 Ok(ColumnarValue::Array(Arc::new(arrow::array::StringArray::from(results))))
             }
             (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(element_value)) => {
-                let array_str = match array_value {
-                    ScalarValue::Utf8(Some(s)) => s,
-                    _ => return Err(datafusion_common::error::DataFusionError::Internal(
+                let ScalarValue::Utf8(Some(array_str)) = array_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
                         "Expected UTF8 string for array".to_string()
-                    ))
+                    ));
                 };
 
                 // Parse array string to JSON Value
                 let array_json: Value = from_str(array_str)
                     .map_err(|e| datafusion_common::error::DataFusionError::Internal(
-                        format!("Failed to parse array JSON: {}", e)
+                        format!("Failed to parse array JSON: {e}")
                     ))?;
 
                 // Convert element to JSON Value if not null
@@ -172,7 +164,7 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
                     }
                 };
 
-                let result = self.remove_element(array_json, element_json)?;
+                let result = Self::remove_element(array_json, element_json)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
             _ => Err(datafusion_common::error::DataFusionError::Internal(
@@ -185,20 +177,20 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
 make_udf_function!(ArrayRemoveUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_remove() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(get_udf());
-        ctx.state().register_udf(array_construct::get_udf());
+        register_udf(&mut ctx);
+        array_construct::register_udf(&mut ctx);
 
         // Test removing from numeric array
         let sql = "SELECT array_remove(array_construct(2, 5, 7, 5, 1), 5) as removed";

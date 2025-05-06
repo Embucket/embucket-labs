@@ -1,29 +1,12 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::cast::AsArray;
+use arrow_array::Array;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, from_str};
+use serde_json::{from_str, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -32,7 +15,8 @@ pub struct ArraysOverlapUDF {
 }
 
 impl ArraysOverlapUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::Any(2),
@@ -41,7 +25,7 @@ impl ArraysOverlapUDF {
         }
     }
 
-    fn arrays_have_overlap(&self, array1: Value, array2: Value) -> DFResult<Option<bool>> {
+    fn arrays_have_overlap(array1: Value, array2: Value) -> DFResult<Option<bool>> {
         // Ensure both arguments are arrays
         if let (Value::Array(arr1), Value::Array(arr2)) = (array1, array2) {
             // Convert arrays to HashSet for efficient comparison
@@ -49,7 +33,7 @@ impl ArraysOverlapUDF {
                 arr1.iter().map(|v| v.to_string()).collect();
 
             // Check if any element from arr2 exists in set1
-            for val in arr2.iter() {
+            for val in arr2 {
                 if set1.contains(&val.to_string()) {
                     return Ok(Some(true));
                 }
@@ -75,7 +59,7 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "arrays_overlap"
     }
 
@@ -89,8 +73,16 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array1_arg = args.first().expect("Expected first array argument");
-        let array2_arg = args.get(1).expect("Expected second array argument");
+        let array1_arg =
+            args.first()
+                .ok_or(datafusion_common::error::DataFusionError::Internal(
+                    "Expected first array argument".to_string(),
+                ))?;
+        let array2_arg = args
+            .get(1)
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected second array argument".to_string(),
+            ))?;
 
         match (array1_arg, array2_arg) {
             (ColumnarValue::Array(array1), ColumnarValue::Array(array2)) => {
@@ -107,19 +99,17 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
 
                         let array1_json: Value = from_str(array1_str).map_err(|e| {
                             datafusion_common::error::DataFusionError::Internal(format!(
-                                "Failed to parse first array JSON: {}",
-                                e
+                                "Failed to parse first array JSON: {e}"
                             ))
                         })?;
 
                         let array2_json: Value = from_str(array2_str).map_err(|e| {
                             datafusion_common::error::DataFusionError::Internal(format!(
-                                "Failed to parse second array JSON: {}",
-                                e
+                                "Failed to parse second array JSON: {e}"
                             ))
                         })?;
 
-                        results.push(self.arrays_have_overlap(array1_json, array2_json)?);
+                        results.push(Self::arrays_have_overlap(array1_json, array2_json)?);
                     }
                 }
 
@@ -133,40 +123,31 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
                     return Ok(ColumnarValue::Scalar(ScalarValue::Boolean(None)));
                 }
 
-                let array1_str = match array1_value {
-                    ScalarValue::Utf8(Some(s)) => s,
-                    _ => {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
-                            "Expected UTF8 string for first array".to_string(),
-                        ));
-                    }
+                let ScalarValue::Utf8(Some(array1_str)) = array1_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
+                        "Expected UTF8 string for first array".to_string(),
+                    ));
                 };
-
-                let array2_str = match array2_value {
-                    ScalarValue::Utf8(Some(s)) => s,
-                    _ => {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
-                            "Expected UTF8 string for second array".to_string(),
-                        ));
-                    }
+                let ScalarValue::Utf8(Some(array2_str)) = array2_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
+                        "Expected UTF8 string for first array".to_string(),
+                    ));
                 };
 
                 // Parse array strings to JSON Values
                 let array1_json: Value = from_str(array1_str).map_err(|e| {
                     datafusion_common::error::DataFusionError::Internal(format!(
-                        "Failed to parse first array JSON: {}",
-                        e
+                        "Failed to parse first array JSON: {e}"
                     ))
                 })?;
 
                 let array2_json: Value = from_str(array2_str).map_err(|e| {
                     datafusion_common::error::DataFusionError::Internal(format!(
-                        "Failed to parse second array JSON: {}",
-                        e
+                        "Failed to parse second array JSON: {e}",
                     ))
                 })?;
 
-                let result = self.arrays_have_overlap(array1_json, array2_json)?;
+                let result = Self::arrays_have_overlap(array1_json, array2_json)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Boolean(result)))
             }
             _ => Err(datafusion_common::error::DataFusionError::Internal(
@@ -179,20 +160,20 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
 make_udf_function!(ArraysOverlapUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_arrays_overlap() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test with string arrays that overlap
         let sql = "SELECT arrays_overlap(array_construct('hello', 'aloha'), array_construct('hello', 'hi', 'hey')) as overlap";

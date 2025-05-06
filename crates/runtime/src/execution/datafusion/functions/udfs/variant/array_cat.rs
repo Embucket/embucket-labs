@@ -1,29 +1,12 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::cast::AsArray;
+use arrow_array::Array;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, from_str, to_string};
+use serde_json::{from_str, to_string, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -32,7 +15,8 @@ pub struct ArrayCatUDF {
 }
 
 impl ArrayCatUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::Any(2),
@@ -41,15 +25,14 @@ impl ArrayCatUDF {
         }
     }
 
-    fn concatenate_arrays(&self, arrays: &[&str]) -> DFResult<String> {
+    fn concatenate_arrays(arrays: &[&str]) -> DFResult<String> {
         let mut result_array = Vec::new();
 
         for array_str in arrays {
             // Parse each input array
             let array_value: Value = from_str(array_str).map_err(|e| {
                 datafusion_common::error::DataFusionError::Internal(format!(
-                    "Failed to parse array JSON: {}",
-                    e
+                    "Failed to parse array JSON: {e}",
                 ))
             })?;
 
@@ -66,8 +49,7 @@ impl ArrayCatUDF {
         // Convert back to JSON string
         to_string(&Value::Array(result_array)).map_err(|e| {
             datafusion_common::error::DataFusionError::Internal(format!(
-                "Failed to serialize result: {}",
-                e
+                "Failed to serialize result: {e}",
             ))
         })
     }
@@ -84,7 +66,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_cat"
     }
 
@@ -112,7 +94,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 ColumnarValue::Scalar(ScalarValue::Utf8(Some(s1))),
                 ColumnarValue::Scalar(ScalarValue::Utf8(Some(s2))),
             ) => {
-                let result = self.concatenate_arrays(&[s1.as_str(), s2.as_str()])?;
+                let result = Self::concatenate_arrays(&[s1.as_str(), s2.as_str()])?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(result))))
             }
 
@@ -128,7 +110,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                             "Cannot concatenate arrays with null values".to_string(),
                         ));
                     }
-                    let result = self.concatenate_arrays(&[
+                    let result = Self::concatenate_arrays(&[
                         s1.as_str(),
                         string_array2.value(i).to_string().as_str(),
                     ])?;
@@ -152,7 +134,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                             "Cannot concatenate arrays with null values".to_string(),
                         ));
                     }
-                    let result = self.concatenate_arrays(&[
+                    let result = Self::concatenate_arrays(&[
                         string_array1.value(i).to_string().as_str(),
                         s2.as_str(),
                     ])?;
@@ -177,7 +159,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                             "Cannot concatenate arrays with null values".to_string(),
                         ));
                     }
-                    let result = self.concatenate_arrays(&[
+                    let result = Self::concatenate_arrays(&[
                         string_array1.value(i).to_string().as_str(),
                         string_array2.value(i).to_string().as_str(),
                     ])?;
@@ -199,20 +181,20 @@ impl ScalarUDFImpl for ArrayCatUDF {
 make_udf_function!(ArrayCatUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_cat() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test concatenating two arrays
         let sql = "SELECT array_cat(array_construct(1, 2), array_construct(3, 4)) as concatenated";

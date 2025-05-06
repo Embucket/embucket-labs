@@ -1,20 +1,3 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::macros::make_udaf_function;
 use serde_json::Value as JsonValue;
 use std::any::Any;
@@ -24,15 +7,15 @@ use std::sync::Arc;
 use arrow::array::as_list_array;
 use arrow::datatypes::{DataType, Field, Fields};
 use arrow_array::StringArray;
-use arrow_array::{Array, new_empty_array};
+use arrow_array::{new_empty_array, Array};
 use arrow_array::{ArrayRef, StructArray};
 use datafusion::common::ScalarValue;
 
 use datafusion_common::utils::SingleRowListArrayBuilder;
-use datafusion_common::{DataFusionError, Result, exec_err, internal_err};
-use datafusion_expr::Volatility;
+use datafusion_common::{exec_err, internal_err, DataFusionError, Result};
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
 use datafusion_expr::utils::format_state_name;
+use datafusion_expr::Volatility;
 use datafusion_expr::{Accumulator, AggregateUDFImpl, Signature};
 
 #[derive(Debug, Clone)]
@@ -47,6 +30,7 @@ impl Default for ObjectAggUDAF {
 }
 
 impl ObjectAggUDAF {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::any(2, Volatility::Immutable),
@@ -59,7 +43,7 @@ impl AggregateUDFImpl for ObjectAggUDAF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "object_agg"
     }
 
@@ -131,9 +115,7 @@ impl ObjectAggAccumulator {
 
 impl Accumulator for ObjectAggAccumulator {
     fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
-        let key_array = if let Some(array) = values[0].as_any().downcast_ref::<StringArray>() {
-            array
-        } else {
+        let Some(key_array) = values[0].as_any().downcast_ref::<StringArray>() else {
             return internal_err!("Key column must be Utf8 or LargeUtf8");
         };
 
@@ -167,19 +149,24 @@ impl Accumulator for ObjectAggAccumulator {
         let list = as_list_array(&*states[0]);
 
         for maybe_struct in list.iter().flatten() {
-            let array = if let Some(array) = maybe_struct.as_any().downcast_ref::<StructArray>() {
-                array
-            } else {
+            let Some(array) = maybe_struct.as_any().downcast_ref::<StructArray>() else {
                 return internal_err!("OBJECT_AGG state is not a StructArray");
             };
 
             let key_arr = array
                 .column_by_name("key")
-                .unwrap()
+                .ok_or(DataFusionError::Internal("Missing key column".to_string()))?
                 .as_any()
                 .downcast_ref::<StringArray>()
-                .unwrap();
-            let val_arr = array.column_by_name("value").unwrap();
+                .ok_or(DataFusionError::Internal(
+                    "Key column is not a StringArray".to_string(),
+                ))?;
+
+            let val_arr = array
+                .column_by_name("value")
+                .ok_or(DataFusionError::Internal(
+                    "Missing value column".to_string(),
+                ))?;
 
             for i in 0..array.len() {
                 if array.is_null(i) {
@@ -202,17 +189,18 @@ impl Accumulator for ObjectAggAccumulator {
     }
 
     fn state(&mut self) -> Result<Vec<ScalarValue>> {
-        let key_array: ArrayRef = if !self.keys.is_empty() {
-            ScalarValue::iter_to_array(self.keys.clone())?
-        } else {
+        let key_array: ArrayRef = if self.keys.is_empty() {
             new_empty_array(&DataType::Utf8)
+        } else {
+            ScalarValue::iter_to_array(self.keys.clone())?
         };
 
-        let val_array: ArrayRef = if !self.values.is_empty() {
-            ScalarValue::iter_to_array(self.values.clone())?
-        } else {
+        let val_array: ArrayRef = if self.values.is_empty() {
             new_empty_array(&self.value_type)
+        } else {
+            ScalarValue::iter_to_array(self.values.clone())?
         };
+
         let key_field = Arc::new(Field::new("key", DataType::Utf8, false));
         let val_field = Arc::new(Field::new("value", self.value_type.clone(), true));
 
@@ -259,13 +247,14 @@ impl Accumulator for ObjectAggAccumulator {
 make_udaf_function!(ObjectAggUDAF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use arrow::datatypes::{Field, Schema};
     use datafusion::physical_expr::LexOrdering;
-    use datafusion_common::{Result, internal_err};
-    use datafusion_physical_plan::Accumulator;
+    use datafusion_common::{internal_err, Result};
     use datafusion_physical_plan::expressions::Column;
+    use datafusion_physical_plan::Accumulator;
     use serde_json::json;
     use serde_json::{Map as JsonMap, Value as JsonValue};
     use std::sync::Arc;
@@ -289,9 +278,9 @@ mod tests {
             ]);
 
             Self {
-                data_type: value_type.clone(),
+                data_type: value_type,
                 distinct: Default::default(),
-                ordering: Default::default(),
+                ordering: LexOrdering::default(),
                 schema,
             }
         }
@@ -322,11 +311,10 @@ mod tests {
         ScalarValue: From<T>,
     {
         let values: Vec<_> = list.into_iter().map(ScalarValue::from).collect();
-        let array: ArrayRef = if !values.is_empty() {
-            ScalarValue::iter_to_array(values).unwrap()
-        } else {
-            // empty Utf8 array
+        let array: ArrayRef = if values.is_empty() {
             new_empty_array(&DataType::Utf8)
+        } else {
+            ScalarValue::iter_to_array(values).unwrap()
         };
         array
     }
@@ -382,7 +370,7 @@ mod tests {
             .collect::<Result<Vec<_>>>()?;
         let err = acc1.merge_batch(&intermediate).unwrap_err();
         let msg = format!("{err}");
-        assert!(msg.contains("Duplicate keys"), "got: {}", msg);
+        assert!(msg.contains("Duplicate keys"), "got: {msg}");
         Ok(())
     }
 

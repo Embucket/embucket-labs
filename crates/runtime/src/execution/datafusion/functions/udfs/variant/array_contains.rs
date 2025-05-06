@@ -1,20 +1,3 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use super::json::{encode_array, encode_scalar};
 use arrow::datatypes::DataType;
@@ -23,7 +6,7 @@ use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, from_slice};
+use serde_json::{from_slice, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -32,7 +15,8 @@ pub struct ArrayContainsUDF {
 }
 
 impl ArrayContainsUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::Any(2),
@@ -41,11 +25,7 @@ impl ArrayContainsUDF {
         }
     }
 
-    fn contains_value(
-        &self,
-        search_value: &Value,
-        array_str: Option<&str>,
-    ) -> DFResult<Option<bool>> {
+    fn contains_value(search_value: &Value, array_str: Option<&str>) -> DFResult<Option<bool>> {
         if let Some(array_str) = array_str {
             // Parse the array
             let array_value: Value = from_slice(array_str.as_bytes()).map_err(|e| {
@@ -59,9 +39,8 @@ impl ArrayContainsUDF {
                 if search_value.is_null() {
                     if array.iter().any(|v| v.is_null()) {
                         return Ok(Some(true));
-                    } else {
-                        return Ok(None);
                     }
+                    return Ok(None);
                 }
 
                 // For non-null values, compare each array element
@@ -86,7 +65,7 @@ impl ScalarUDFImpl for ArrayContainsUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_contains"
     }
 
@@ -100,23 +79,31 @@ impl ScalarUDFImpl for ArrayContainsUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let value = args.first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal("Expected a value argument".to_string()))?;
-        let array = args.get(1)
-            .ok_or(datafusion_common::error::DataFusionError::Internal("Expected an array argument".to_string()))?;
+        let value = args
+            .first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected a value argument".to_string(),
+            ))?;
+        let array = args
+            .get(1)
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected an array argument".to_string(),
+            ))?;
 
         match (value, array) {
             (ColumnarValue::Array(value_array), ColumnarValue::Array(array_array)) => {
                 let array_strings = array_array.as_string::<i32>();
                 let value_array = encode_array(value_array.clone())?;
                 let mut results = Vec::new();
-                for (search_val, col_val) in
-                    value_array.as_array()
-                        .ok_or(datafusion_common::error::DataFusionError::Internal("Expected an array argument".to_string()))?
-                        .iter()
-                        .zip(array_strings)
+                for (search_val, col_val) in value_array
+                    .as_array()
+                    .ok_or(datafusion_common::error::DataFusionError::Internal(
+                        "Expected an array argument".to_string(),
+                    ))?
+                    .iter()
+                    .zip(array_strings)
                 {
-                    results.push(self.contains_value(search_val, col_val)?);
+                    results.push(Self::contains_value(search_val, col_val)?);
                 }
 
                 Ok(ColumnarValue::Array(Arc::new(
@@ -137,7 +124,7 @@ impl ScalarUDFImpl for ArrayContainsUDF {
                     }
                 };
 
-                let result = self.contains_value(&value_scalar, Some(array_str.as_str()))?;
+                let result = Self::contains_value(&value_scalar, Some(array_str.as_str()))?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Boolean(result)))
             }
             _ => Err(datafusion_common::error::DataFusionError::Internal(
@@ -150,20 +137,20 @@ impl ScalarUDFImpl for ArrayContainsUDF {
 make_udf_function!(ArrayContainsUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_contains() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test value exists in array
         let sql = "SELECT array_contains('hello', array_construct('hello', 'hi')) as contains";
@@ -230,11 +217,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_array_contains_with_table() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Create a table with a value column and an array column
         let sql = "CREATE TABLE test_array_contains AS 

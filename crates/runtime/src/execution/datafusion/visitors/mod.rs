@@ -19,9 +19,9 @@
 //pub mod error;
 use datafusion_expr::sqlparser::ast::Statement;
 
-pub mod variant;
 pub mod functions_rewriter;
 pub mod json_element;
+pub mod variant;
 
 pub fn visit_all(stmt: &mut Statement) {
     variant::visit_all(stmt);

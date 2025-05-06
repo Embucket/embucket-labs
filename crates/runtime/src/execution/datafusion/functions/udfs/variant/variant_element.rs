@@ -1,31 +1,14 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::builder::StringBuilder;
 use arrow_array::cast::AsArray;
+use arrow_array::Array;
 use datafusion_common::{
-    Result as DFResult, ScalarValue,
     types::{
-        NativeType, logical_binary, logical_boolean, logical_int8, logical_int16, logical_int32,
-        logical_int64, logical_string, logical_uint8, logical_uint16, logical_uint32,
+        logical_binary, logical_boolean, logical_int16, logical_int32, logical_int64, logical_int8,
+        logical_string, logical_uint16, logical_uint32, logical_uint8, NativeType,
     },
+    Result as DFResult, ScalarValue,
 };
 use datafusion_expr::{
     Coercion, ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature,
@@ -41,6 +24,7 @@ pub struct VariantArrayElementUDF {
 }
 
 impl VariantArrayElementUDF {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature {
@@ -98,7 +82,7 @@ impl ScalarUDFImpl for VariantArrayElementUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "variant_element"
     }
 
@@ -114,31 +98,24 @@ impl ScalarUDFImpl for VariantArrayElementUDF {
         Ok(DataType::Utf8)
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines, clippy::unwrap_used)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { mut args, .. } = args;
         let (flatten, index, array_str) = if args.len() == 3 {
-            (
-                args.pop(),
-                args.pop().expect("Expected an index argument"),
-                args.pop().expect("Expected a variant argument"),
-            )
+            (args.pop(), args.pop().unwrap(), args.pop().unwrap())
+        } else if args.len() == 2 {
+            (None, args.pop().unwrap(), args.pop().unwrap())
         } else {
-            (
-                None,
-                args.pop().expect("Expected an index argument"),
-                args.pop().expect("Expected a variant argument"),
-            )
+            return Err(datafusion_common::error::DataFusionError::Internal(
+                "Invalid number of arguments".to_string(),
+            ));
         };
         match (array_str, index) {
             (ColumnarValue::Array(array), ColumnarValue::Scalar(index_value)) => {
-                let index = match index_value {
-                    ScalarValue::Utf8(Some(i)) => i,
-                    _ => {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
-                            "Expected JSONPath value for index".to_string(),
-                        ));
-                    }
+                let ScalarValue::Utf8(Some(index)) = index_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
+                        "Expected JSONPath value for index".to_string(),
+                    ));
                 };
 
                 let flatten =
@@ -179,22 +156,16 @@ impl ScalarUDFImpl for VariantArrayElementUDF {
                 Ok(ColumnarValue::Array(Arc::new(builder.finish())))
             }
             (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(index_value)) => {
-                let index = match index_value {
-                    ScalarValue::Utf8(Some(i)) => i,
-                    _ => {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
-                            "Expected UInt64 index".to_string(),
-                        ));
-                    }
+                let ScalarValue::Utf8(Some(index)) = index_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
+                        "Expected JSONPath value for index".to_string(),
+                    ));
                 };
 
-                let array_str = match array_value {
-                    ScalarValue::Utf8(Some(s)) => s,
-                    _ => {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
-                            "Expected string array".to_string(),
-                        ));
-                    }
+                let ScalarValue::Utf8(Some(array_str)) = array_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
+                        "Expected string array".to_string(),
+                    ));
                 };
 
                 let flatten =
@@ -232,8 +203,8 @@ make_udf_function!(VariantArrayElementUDF);
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::array_construct::ArrayConstructUDF;
+    use super::*;
     use crate::execution::datafusion::visitors::variant::variant_element;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;

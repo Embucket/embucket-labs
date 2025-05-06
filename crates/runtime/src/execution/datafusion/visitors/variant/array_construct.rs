@@ -1,20 +1,3 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{
     Expr as ASTExpr, Function, FunctionArg, FunctionArgExpr, FunctionArgumentList,
@@ -25,7 +8,8 @@ use datafusion_expr::sqlparser::ast::{
 pub struct ArrayConstructVisitor;
 
 impl ArrayConstructVisitor {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -40,7 +24,9 @@ impl VisitorMut for ArrayConstructVisitor {
                 .collect();
 
             let new_expr = ASTExpr::Function(Function {
-                name: ObjectName(vec![ObjectNamePart::Identifier(Ident::new("array_construct"))]),
+                name: ObjectName(vec![ObjectNamePart::Identifier(Ident::new(
+                    "array_construct",
+                ))]),
                 args: FunctionArguments::List(FunctionArgumentList {
                     args,
                     duplicate_treatment: None,
@@ -65,6 +51,7 @@ pub fn visit(stmt: &mut Statement) {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::execution::datafusion::functions::udfs::variant::array_construct;
@@ -72,13 +59,12 @@ mod tests {
     use datafusion::prelude::SessionContext;
     use datafusion::sql::parser::Statement as DFStatement;
     use datafusion_common::Result as DFResult;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_construct_rewrite() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
         // Register array_construct UDF
-        ctx.state().register_udf(array_construct::get_udf());
+        array_construct::register_udf(&mut ctx);
 
         // Test simple array construction
         let sql = "SELECT [1, 2, 3] as arr";

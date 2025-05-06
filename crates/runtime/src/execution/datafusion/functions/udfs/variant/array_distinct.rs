@@ -1,31 +1,14 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::cast::AsArray;
+use arrow_array::Array;
 use datafusion_common::types::{logical_binary, logical_string};
-use datafusion_common::{Result as DFResult, ScalarValue, types::NativeType};
+use datafusion_common::{types::NativeType, Result as DFResult, ScalarValue};
 use datafusion_expr::{
     Coercion, ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature,
     TypeSignatureClass, Volatility,
 };
-use serde_json::{Value, from_slice, to_string};
+use serde_json::{from_slice, to_string, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -34,6 +17,7 @@ pub struct ArrayDistinctUDF {
 }
 
 impl ArrayDistinctUDF {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature {
@@ -47,14 +31,13 @@ impl ArrayDistinctUDF {
         }
     }
 
-    fn distinct_array(&self, string: impl AsRef<str>) -> DFResult<Option<String>> {
+    fn distinct_array(string: impl AsRef<str>) -> DFResult<Option<String>> {
         let string = string.as_ref();
-        let array_value: Value =
-            from_slice(string.as_bytes()).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
-                    "Couldn't parse the JSON string: {e}",
-                ))
-            })?;
+        let array_value: Value = from_slice(string.as_bytes()).map_err(|e| {
+            datafusion_common::error::DataFusionError::Internal(format!(
+                "Couldn't parse the JSON string: {e}",
+            ))
+        })?;
 
         if let Value::Array(array) = array_value {
             if array.is_empty() {
@@ -90,7 +73,7 @@ impl ScalarUDFImpl for ArrayDistinctUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_distinct"
     }
 
@@ -104,8 +87,11 @@ impl ScalarUDFImpl for ArrayDistinctUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array_str = args.first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal("Expected a variant argument".to_string()))?;
+        let array_str = args
+            .first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected a variant argument".to_string(),
+            ))?;
         match array_str {
             ColumnarValue::Array(array) => {
                 let string_array = array.as_string::<i32>();
@@ -116,7 +102,7 @@ impl ScalarUDFImpl for ArrayDistinctUDF {
                         results.push(None);
                     } else {
                         let str_value = string_array.value(i);
-                        results.push(self.distinct_array(str_value)?);
+                        results.push(Self::distinct_array(str_value)?);
                     }
                 }
 
@@ -131,7 +117,7 @@ impl ScalarUDFImpl for ArrayDistinctUDF {
                     ));
                 };
 
-                let result = self.distinct_array(array_str)?;
+                let result = Self::distinct_array(array_str)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
         }
@@ -141,20 +127,20 @@ impl ScalarUDFImpl for ArrayDistinctUDF {
 make_udf_function!(ArrayDistinctUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_distinct() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test with duplicates
         let sql =

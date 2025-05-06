@@ -1,31 +1,14 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::cast::AsArray;
-use datafusion_common::types::{NativeType, logical_binary, logical_string};
+use arrow_array::Array;
+use datafusion_common::types::{logical_binary, logical_string, NativeType};
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     Coercion, ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature,
     TypeSignatureClass, Volatility,
 };
-use serde_json::{Value, from_slice};
+use serde_json::{from_slice, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -34,6 +17,7 @@ pub struct ArrayMinUDF {
 }
 
 impl ArrayMinUDF {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature {
@@ -47,10 +31,13 @@ impl ArrayMinUDF {
         }
     }
 
-    fn find_min(&self, string: impl AsRef<str>) -> DFResult<Option<String>> {
+    fn find_min(string: impl AsRef<str>) -> DFResult<Option<String>> {
         let string = string.as_ref();
-        let array_value: Value =
-            from_slice(string.as_bytes()).expect("Couldn't parse the JSON string");
+        let array_value: Value = from_slice(string.as_bytes()).map_err(|e| {
+            datafusion_common::error::DataFusionError::Internal(format!(
+                "Failed to parse the JSON string: {e}",
+            ))
+        })?;
 
         if let Value::Array(array) = array_value {
             if array.is_empty() {
@@ -64,7 +51,11 @@ impl ArrayMinUDF {
             for value in array {
                 match value {
                     Value::Number(n) if n.is_i64() => {
-                        let num = n.as_i64().unwrap();
+                        let num = n.as_i64().ok_or(
+                            datafusion_common::error::DataFusionError::Internal(
+                                "Failed to parse number".to_string(),
+                            ),
+                        )?;
                         let should_update = match min_value.as_ref() {
                             None => true,
                             Some(current) => {
@@ -81,7 +72,11 @@ impl ArrayMinUDF {
                         }
                     }
                     Value::Number(n) if n.is_f64() => {
-                        let num = n.as_f64().unwrap();
+                        let num = n.as_f64().ok_or(
+                            datafusion_common::error::DataFusionError::Internal(
+                                "Failed to parse number".to_string(),
+                            ),
+                        )?;
                         let should_update = match min_value.as_ref() {
                             None => true,
                             Some(current) => {
@@ -97,7 +92,7 @@ impl ArrayMinUDF {
                             min_type = Some("f64");
                         }
                     }
-                    _ => continue,
+                    _ => {}
                 }
             }
 
@@ -119,7 +114,7 @@ impl ScalarUDFImpl for ArrayMinUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_min"
     }
 
@@ -133,7 +128,11 @@ impl ScalarUDFImpl for ArrayMinUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array_str = args.first().expect("Expected a variant argument");
+        let array_str = args
+            .first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected a variant argument".to_string(),
+            ))?;
         match array_str {
             ColumnarValue::Array(array) => {
                 let string_array = array.as_string::<i32>();
@@ -144,7 +143,7 @@ impl ScalarUDFImpl for ArrayMinUDF {
                         results.push(None);
                     } else {
                         let str_value = string_array.value(i);
-                        results.push(self.find_min(str_value)?);
+                        results.push(Self::find_min(str_value)?);
                     }
                 }
 
@@ -153,16 +152,13 @@ impl ScalarUDFImpl for ArrayMinUDF {
                 )))
             }
             ColumnarValue::Scalar(array_value) => {
-                let array_str = match array_value {
-                    ScalarValue::Utf8(Some(s)) => s,
-                    _ => {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
-                            "Expected UTF8 string".to_string(),
-                        ));
-                    }
+                let ScalarValue::Utf8(Some(array_str)) = array_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
+                        "Expected UTF8 string".to_string(),
+                    ));
                 };
 
-                let result = self.find_min(array_str)?;
+                let result = Self::find_min(array_str)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
         }
@@ -172,20 +168,20 @@ impl ScalarUDFImpl for ArrayMinUDF {
 make_udf_function!(ArrayMinUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_min() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test numeric array
         let sql = "SELECT array_min(array_construct(1, 5, 3, 9, 2)) as min_num";

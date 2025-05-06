@@ -1,24 +1,7 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{
     Expr, Function, FunctionArg, FunctionArgumentList, FunctionArguments, Ident, JsonPath,
-    JsonPathElem, ObjectName, ObjectNamePart, Statement, VisitorMut, Value, ValueWithSpan, 
+    JsonPathElem, ObjectName, ObjectNamePart, Statement, Value, ValueWithSpan, VisitorMut,
 };
 use sqlparser::tokenizer::{Location, Span};
 
@@ -34,14 +17,18 @@ impl VisitorMut for VariantArrayAggRewriter {
     ) -> std::ops::ControlFlow<Self::Break> {
         if let datafusion_expr::sqlparser::ast::Expr::Function(Function { name, .. }) = expr {
             if let Some(part) = name.0.last() {
-                if part.as_ident().map(|i| i.value == "array_agg").unwrap_or(false) {
+                if part.as_ident().is_some_and(|i| i.value == "array_agg") {
                     let wrapped_function = Function {
-                        name: ObjectName(vec![ObjectNamePart::Identifier(Ident::new("array_construct".to_string()))]),
+                        name: ObjectName(vec![ObjectNamePart::Identifier(Ident::new(
+                            "array_construct".to_string(),
+                        ))]),
                         uses_odbc_syntax: false,
                         parameters: FunctionArguments::None,
                         args: FunctionArguments::List(FunctionArgumentList {
                             args: vec![FunctionArg::Unnamed(
-                                datafusion_expr::sqlparser::ast::FunctionArgExpr::Expr(expr.clone()),
+                                datafusion_expr::sqlparser::ast::FunctionArgExpr::Expr(
+                                    expr.clone(),
+                                ),
                             )],
                             duplicate_treatment: None,
                             clauses: vec![],
@@ -49,7 +36,7 @@ impl VisitorMut for VariantArrayAggRewriter {
                         filter: None,
                         null_treatment: None,
                         over: None,
-                        within_group: Default::default(),
+                        within_group: Vec::default(),
                     };
                     let fn_call_expr =
                         datafusion_expr::sqlparser::ast::Expr::Function(wrapped_function);
@@ -60,7 +47,7 @@ impl VisitorMut for VariantArrayAggRewriter {
                             path: vec![JsonPathElem::Bracket {
                                 key: Expr::Value(ValueWithSpan {
                                     value: Value::Number("0".to_string(), false),
-                                    span: Span::new(Location::new(0,0), Location::new(0,0)),
+                                    span: Span::new(Location::new(0, 0), Location::new(0, 0)),
                                 }),
                             }],
                         },
@@ -79,23 +66,25 @@ pub fn visit(stmt: &mut Statement) {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::execution::datafusion::functions::udfs::variant::{array_construct, variant_element};
+    use crate::execution::datafusion::functions::udfs::variant::{
+        array_construct, variant_element,
+    };
     use crate::execution::datafusion::visitors::variant::variant_element as variant_element_visitor;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion::sql::parser::Statement as DFStatement;
     use datafusion_common::Result as DFResult;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_agg_rewrite() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
         // Register array_construct UDF
 
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(variant_element::get_udf());
+        array_construct::register_udf(&mut ctx);
+        variant_element::register_udf(&mut ctx);
 
         // Create table and insert data
         let create_sql = "CREATE TABLE test_table (id INT, val INT)";

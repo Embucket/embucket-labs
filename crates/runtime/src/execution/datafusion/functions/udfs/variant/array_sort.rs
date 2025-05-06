@@ -1,29 +1,12 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::cast::AsArray;
+use arrow_array::Array;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, from_str, to_string};
+use serde_json::{from_str, to_string, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -32,7 +15,8 @@ pub struct ArraySortUDF {
 }
 
 impl ArraySortUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::VariadicAny,
@@ -71,7 +55,6 @@ impl ArraySortUDF {
     }
 
     fn sort_array(
-        &self,
         array_value: Value,
         sort_ascending: bool,
         _nulls_first: bool,
@@ -106,7 +89,11 @@ impl ArraySortUDF {
                     }
                     (Some(a_val), Some(b_val)) => {
                         let cmp = Self::compare_json_values(a_val, b_val);
-                        if sort_ascending { cmp } else { cmp.reverse() }
+                        if sort_ascending {
+                            cmp
+                        } else {
+                            cmp.reverse()
+                        }
                     }
                 }
             });
@@ -119,8 +106,7 @@ impl ArraySortUDF {
 
             Ok(Some(to_string(&sorted_array).map_err(|e| {
                 datafusion_common::error::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {}",
-                    e
+                    "Failed to serialize result: {e}"
                 ))
             })?))
         } else {
@@ -142,7 +128,7 @@ impl ScalarUDFImpl for ArraySortUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_sort"
     }
 
@@ -158,25 +144,23 @@ impl ScalarUDFImpl for ArraySortUDF {
         let ScalarFunctionArgs { args, .. } = args;
 
         // Get array argument
-        let array_arg = args.first().expect("Expected array argument");
+        let array_arg = args
+            .first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected array argument".to_string(),
+            ))?;
 
         // Get optional sort_ascending argument (default: true)
-        let sort_ascending = args
-            .get(1)
-            .map(|v| match v {
-                ColumnarValue::Scalar(ScalarValue::Boolean(Some(b))) => *b,
-                _ => true,
-            })
-            .unwrap_or(true);
+        let sort_ascending = args.get(1).is_none_or(|v| match v {
+            ColumnarValue::Scalar(ScalarValue::Boolean(Some(b))) => *b,
+            _ => true,
+        });
 
         // Get optional nulls_first argument (default: true)
-        let nulls_first = args
-            .get(2)
-            .map(|v| match v {
-                ColumnarValue::Scalar(ScalarValue::Boolean(Some(b))) => *b,
-                _ => true,
-            })
-            .unwrap_or(true);
+        let nulls_first = args.get(2).is_none_or(|v| match v {
+            ColumnarValue::Scalar(ScalarValue::Boolean(Some(b))) => *b,
+            _ => true,
+        });
 
         match array_arg {
             ColumnarValue::Array(array) => {
@@ -190,12 +174,11 @@ impl ScalarUDFImpl for ArraySortUDF {
                         let array_str = string_array.value(i);
                         let array_json: Value = from_str(array_str).map_err(|e| {
                             datafusion_common::error::DataFusionError::Internal(format!(
-                                "Failed to parse array JSON: {}",
-                                e
+                                "Failed to parse array JSON: {e}"
                             ))
                         })?;
 
-                        results.push(self.sort_array(array_json, sort_ascending, nulls_first)?);
+                        results.push(Self::sort_array(array_json, sort_ascending, nulls_first)?);
                     }
                 }
 
@@ -207,12 +190,11 @@ impl ScalarUDFImpl for ArraySortUDF {
                 ScalarValue::Utf8(Some(array_str)) => {
                     let array_json: Value = from_str(array_str).map_err(|e| {
                         datafusion_common::error::DataFusionError::Internal(format!(
-                            "Failed to parse array JSON: {}",
-                            e
+                            "Failed to parse array JSON: {e}"
                         ))
                     })?;
 
-                    let result = self.sort_array(array_json, sort_ascending, nulls_first)?;
+                    let result = Self::sort_array(array_json, sort_ascending, nulls_first)?;
                     Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
                 }
                 ScalarValue::Utf8(None) => Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None))),
@@ -227,20 +209,20 @@ impl ScalarUDFImpl for ArraySortUDF {
 make_udf_function!(ArraySortUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_sort() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test basic sorting
         let sql = "SELECT array_sort(array_construct(20, NULL, 0, NULL, 10)) as sorted";

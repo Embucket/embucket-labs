@@ -1,20 +1,3 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
 use arrow_array::cast::AsArray;
@@ -22,7 +5,7 @@ use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, from_slice};
+use serde_json::{from_slice, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -31,7 +14,8 @@ pub struct ArrayIntersectionUDF {
 }
 
 impl ArrayIntersectionUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::Any(2),
@@ -41,7 +25,6 @@ impl ArrayIntersectionUDF {
     }
 
     fn array_intersection(
-        &self,
         array1_str: Option<&str>,
         array2_str: Option<&str>,
     ) -> DFResult<Option<Value>> {
@@ -49,15 +32,13 @@ impl ArrayIntersectionUDF {
             // Parse both arrays
             let array1_value: Value = from_slice(arr1.as_bytes()).map_err(|e| {
                 datafusion_common::error::DataFusionError::Internal(format!(
-                    "Failed to parse first array: {}",
-                    e
+                    "Failed to parse first array: {e}",
                 ))
             })?;
 
             let array2_value: Value = from_slice(arr2.as_bytes()).map_err(|e| {
                 datafusion_common::error::DataFusionError::Internal(format!(
-                    "Failed to parse second array: {}",
-                    e
+                    "Failed to parse second array: {e}",
                 ))
             })?;
 
@@ -89,7 +70,7 @@ impl ScalarUDFImpl for ArrayIntersectionUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_intersection"
     }
 
@@ -103,8 +84,16 @@ impl ScalarUDFImpl for ArrayIntersectionUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array1 = args.first().expect("Expected first array argument");
-        let array2 = args.get(1).expect("Expected second array argument");
+        let array1 = args
+            .first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected first array argument".to_string(),
+            ))?;
+        let array2 = args
+            .get(1)
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected second array argument".to_string(),
+            ))?;
 
         match (array1, array2) {
             (ColumnarValue::Array(array1_array), ColumnarValue::Array(array2_array)) => {
@@ -113,9 +102,17 @@ impl ScalarUDFImpl for ArrayIntersectionUDF {
                 let mut results = Vec::new();
 
                 for (arr1, arr2) in array1_strings.iter().zip(array2_strings) {
-                    let result = self.array_intersection(arr1, arr2)?;
-                    results.push(result.map(|v| serde_json::to_string(&v).unwrap()));
+                    let result = Self::array_intersection(arr1, arr2)?;
+                    results.push(result.map(|v| serde_json::to_string(&v)).transpose());
                 }
+
+                let results: Result<Vec<Option<String>>, serde_json::Error> =
+                    results.into_iter().collect();
+                let results = results.map_err(|e| {
+                    datafusion_common::error::DataFusionError::Internal(format!(
+                        "Failed to serialize result: {e}",
+                    ))
+                })?;
 
                 Ok(ColumnarValue::Array(Arc::new(
                     arrow::array::StringArray::from(results),
@@ -146,10 +143,17 @@ impl ScalarUDFImpl for ArrayIntersectionUDF {
                     }
                 };
 
-                let result = self.array_intersection(Some(array1_str), Some(array2_str))?;
-                Ok(ColumnarValue::Scalar(ScalarValue::Utf8(
-                    result.map(|v| serde_json::to_string(&v).unwrap()),
-                )))
+                let result = Self::array_intersection(Some(array1_str), Some(array2_str))?;
+                let result = result
+                    .map(|v| serde_json::to_string(&v))
+                    .transpose()
+                    .map_err(|_e| {
+                        datafusion_common::error::DataFusionError::Internal(
+                            "Failed to serialize result".to_string(),
+                        )
+                    })?;
+
+                Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
             _ => Err(datafusion_common::error::DataFusionError::Internal(
                 "Mismatched argument types".to_string(),
@@ -161,20 +165,20 @@ impl ScalarUDFImpl for ArrayIntersectionUDF {
 make_udf_function!(ArrayIntersectionUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_intersection() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test basic array intersection
         let sql = "SELECT array_intersection(array_construct('A', 'B'), array_construct('B', 'C')) as result1";

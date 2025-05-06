@@ -1,24 +1,7 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::cast::AsArray;
+use arrow_array::Array;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
@@ -32,7 +15,8 @@ pub struct ArraysZipUDF {
 }
 
 impl ArraysZipUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::VariadicAny,
@@ -41,7 +25,7 @@ impl ArraysZipUDF {
         }
     }
 
-    fn zip_arrays(&self, arrays: Vec<Value>) -> DFResult<Option<String>> {
+    fn zip_arrays(arrays: Vec<Value>) -> DFResult<Option<String>> {
         // If any array is null, return null
         if arrays.iter().any(|arr| arr.is_null()) {
             return Ok(None);
@@ -75,8 +59,7 @@ impl ArraysZipUDF {
 
         Ok(Some(serde_json::to_string(&result).map_err(|e| {
             datafusion_common::error::DataFusionError::Internal(format!(
-                "Failed to serialize result: {}",
-                e
+                "Failed to serialize result: {e}"
             ))
         })?))
     }
@@ -93,7 +76,7 @@ impl ScalarUDFImpl for ArraysZipUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "arrays_zip"
     }
 
@@ -108,14 +91,8 @@ impl ScalarUDFImpl for ArraysZipUDF {
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
 
-        if args.is_empty() {
-            return Err(datafusion_common::error::DataFusionError::Internal(
-                "ARRAYS_ZIP requires at least one array argument".to_string(),
-            ));
-        }
-
-        match args.first().unwrap() {
-            ColumnarValue::Array(first_array) => {
+        match args.first() {
+            Some(ColumnarValue::Array(first_array)) => {
                 let string_array = first_array.as_string::<i32>();
                 let mut results = Vec::new();
 
@@ -135,12 +112,12 @@ impl ScalarUDFImpl for ArraysZipUDF {
                                 let array_json: Value = serde_json::from_str(arr.value(row))
                                     .map_err(|e| {
                                         datafusion_common::error::DataFusionError::Internal(
-                                            format!("Failed to parse array JSON: {}", e),
+                                            format!("Failed to parse array JSON: {e}"),
                                         )
                                     })?;
                                 row_arrays.push(array_json);
                             }
-                            _ => {
+                            ColumnarValue::Scalar(_) => {
                                 return Err(datafusion_common::error::DataFusionError::Internal(
                                     "All arguments must be arrays".to_string(),
                                 ));
@@ -151,7 +128,7 @@ impl ScalarUDFImpl for ArraysZipUDF {
                     if has_null {
                         results.push(None);
                     } else {
-                        results.push(self.zip_arrays(row_arrays)?);
+                        results.push(Self::zip_arrays(row_arrays)?);
                     }
                 }
 
@@ -159,7 +136,7 @@ impl ScalarUDFImpl for ArraysZipUDF {
                     arrow::array::StringArray::from(results),
                 )))
             }
-            ColumnarValue::Scalar(_first_value) => {
+            Some(ColumnarValue::Scalar(_first_value)) => {
                 let mut scalar_arrays = Vec::new();
 
                 // If any scalar is NULL, return NULL
@@ -172,8 +149,7 @@ impl ScalarUDFImpl for ArraysZipUDF {
                             if let ScalarValue::Utf8(Some(s)) = scalar {
                                 let array_json: Value = serde_json::from_str(s).map_err(|e| {
                                     datafusion_common::error::DataFusionError::Internal(format!(
-                                        "Failed to parse array JSON: {}",
-                                        e
+                                        "Failed to parse array JSON: {e}"
                                     ))
                                 })?;
                                 scalar_arrays.push(array_json);
@@ -183,7 +159,7 @@ impl ScalarUDFImpl for ArraysZipUDF {
                                 ));
                             }
                         }
-                        _ => {
+                        ColumnarValue::Array(_) => {
                             return Err(datafusion_common::error::DataFusionError::Internal(
                                 "Mixed scalar and array arguments are not supported".to_string(),
                             ));
@@ -191,9 +167,12 @@ impl ScalarUDFImpl for ArraysZipUDF {
                     }
                 }
 
-                let result = self.zip_arrays(scalar_arrays)?;
+                let result = Self::zip_arrays(scalar_arrays)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
+            None => Err(datafusion_common::error::DataFusionError::Internal(
+                "ARRAYS_ZIP requires at least one array argument".to_string(),
+            )),
         }
     }
 }
@@ -201,20 +180,20 @@ impl ScalarUDFImpl for ArraysZipUDF {
 make_udf_function!(ArraysZipUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_arrays_zip() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test basic zipping of three arrays
         let sql = "SELECT arrays_zip(

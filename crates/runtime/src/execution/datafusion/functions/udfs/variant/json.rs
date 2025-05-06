@@ -1,23 +1,16 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
+#![allow(clippy::needless_pass_by_value, clippy::unnecessary_wraps)]
 
 use arrow::array::AsArray;
 use arrow::array::{Array, ArrayRef, BooleanArray, NullArray, PrimitiveArray, StringArray};
-use arrow::datatypes::*;
+use arrow::datatypes::{
+    DataType, Date32Type, Date64Type, Decimal128Type, Decimal256Type, DurationMicrosecondType,
+    DurationMillisecondType, DurationNanosecondType, DurationSecondType, Float16Type, Float32Type,
+    Float64Type, Int16Type, Int32Type, Int64Type, Int8Type, IntervalDayTimeType,
+    IntervalMonthDayNanoType, IntervalUnit, IntervalYearMonthType, Time32MillisecondType,
+    Time32SecondType, Time64MicrosecondType, Time64NanosecondType, TimeUnit,
+    TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
+    TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
+};
 use arrow::error::ArrowError;
 use base64::engine::Engine;
 use datafusion_common::ScalarValue;
@@ -115,7 +108,7 @@ pub fn encode_float32_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
             JsonValue::Null
         } else {
             JsonValue::Number(
-                Number::from_f64(array.value(i) as f64).ok_or_else(|| {
+                Number::from_f64(f64::from(array.value(i))).ok_or_else(|| {
                     ArrowError::InvalidArgumentError("Invalid float value".into())
                 })?,
             )
@@ -158,7 +151,7 @@ pub fn encode_utf8_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a LargeUtf8 Arrow array into a JSON array
+// Encodes a LargeUtf8 Arrow array into a JSON array
 pub fn encode_large_utf8_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_string::<i64>();
     let mut values = Vec::with_capacity(array.len());
@@ -188,7 +181,7 @@ pub fn encode_binary_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a LargeBinary Arrow array into a JSON array
+// Encodes a LargeBinary Arrow array into a JSON array
 pub fn encode_large_binary_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_binary::<i64>();
     let mut values = Vec::with_capacity(array.len());
@@ -203,7 +196,7 @@ pub fn encode_large_binary_array(array: ArrayRef) -> Result<JsonValue, ArrowErro
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a Dictionary Arrow array into a JSON array
+// Encodes a Dictionary Arrow array into a JSON array
 pub fn encode_dictionary_array<K>(array: ArrayRef) -> Result<JsonValue, ArrowError>
 where
     K: arrow::datatypes::ArrowDictionaryKeyType,
@@ -226,13 +219,10 @@ where
 /// Encodes a Timestamp Arrow array into a JSON array
 pub fn encode_timestamp_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let data_type = array.data_type();
-    let unit = match data_type {
-        DataType::Timestamp(unit, _) => unit,
-        _ => {
-            return Err(ArrowError::InvalidArgumentError(
-                "Expected timestamp array".into(),
-            ));
-        }
+    let DataType::Timestamp(unit, _) = data_type else {
+        return Err(ArrowError::InvalidArgumentError(
+            "Expected timestamp array".into(),
+        ));
     };
 
     let mut values = Vec::with_capacity(array.len());
@@ -291,7 +281,7 @@ pub fn encode_date32_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
         values.push(if array.is_null(i) {
             JsonValue::Null
         } else {
-            JsonValue::Number(Number::from(array.value(i) as i64))
+            JsonValue::Number(Number::from(i64::from(array.value(i))))
         });
     }
     Ok(JsonValue::Array(values))
@@ -324,7 +314,7 @@ pub fn encode_time32_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
                     values.push(if array.is_null(i) {
                         JsonValue::Null
                     } else {
-                        JsonValue::Number(Number::from(array.value(i) as i64))
+                        JsonValue::Number(Number::from(i64::from(array.value(i))))
                     });
                 }
             }
@@ -334,14 +324,13 @@ pub fn encode_time32_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
                     values.push(if array.is_null(i) {
                         JsonValue::Null
                     } else {
-                        JsonValue::Number(Number::from(array.value(i) as i64))
+                        JsonValue::Number(Number::from(i64::from(array.value(i))))
                     });
                 }
             }
             _ => {
                 return Err(ArrowError::InvalidArgumentError(format!(
-                    "Time32 arrays only support Second and Millisecond units, got {:?}",
-                    unit
+                    "Time32 arrays only support Second and Millisecond units, got {unit:?}",
                 )));
             }
         },
@@ -383,8 +372,7 @@ pub fn encode_time64_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
             }
             _ => {
                 return Err(ArrowError::InvalidArgumentError(format!(
-                    "Time64 arrays only support Microsecond and Nanosecond units, got {:?}",
-                    unit
+                    "Time64 arrays only support Microsecond and Nanosecond units, got {unit:?}",
                 )));
             }
         },
@@ -593,7 +581,7 @@ pub fn encode_list_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a ListView Arrow array into a JSON array
+// Encodes a ListView Arrow array into a JSON array
 pub fn encode_list_view_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_list_view::<i32>();
     let mut values = Vec::with_capacity(array.len());
@@ -609,7 +597,7 @@ pub fn encode_list_view_array(array: ArrayRef) -> Result<JsonValue, ArrowError> 
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a FixedSizeList Arrow array into a JSON array
+// Encodes a FixedSizeList Arrow array into a JSON array
 pub fn encode_fixed_size_list_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_fixed_size_list();
     let mut values = Vec::with_capacity(array.len());
@@ -625,7 +613,7 @@ pub fn encode_fixed_size_list_array(array: ArrayRef) -> Result<JsonValue, ArrowE
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a LargeList Arrow array into a JSON array
+// Encodes a LargeList Arrow array into a JSON array
 pub fn encode_large_list_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_list::<i64>();
     let mut values = Vec::with_capacity(array.len());
@@ -641,7 +629,7 @@ pub fn encode_large_list_array(array: ArrayRef) -> Result<JsonValue, ArrowError>
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a Struct Arrow array into a JSON array
+// Encodes a Struct Arrow array into a JSON array
 pub fn encode_struct_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_struct();
     let mut values = Vec::with_capacity(array.len());
@@ -661,6 +649,7 @@ pub fn encode_struct_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
         } else {
             let mut struct_value = Map::new();
 
+            #[allow(clippy::unwrap_used)]
             for (encoded_array, field) in &encoded_arrays {
                 let encoded_value = encoded_array.get(i).unwrap();
                 struct_value.insert(field.name().to_string(), encoded_value.clone());
@@ -706,7 +695,7 @@ pub fn encode_decimal256_array(array: ArrayRef) -> Result<JsonValue, ArrowError>
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a FixedSizeBinary Arrow array into a JSON array
+// Encodes a FixedSizeBinary Arrow array into a JSON array
 pub fn encode_fixed_size_binary_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_fixed_size_binary();
     let mut values = Vec::with_capacity(array.len());
@@ -721,7 +710,7 @@ pub fn encode_fixed_size_binary_array(array: ArrayRef) -> Result<JsonValue, Arro
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a BinaryView Arrow array into a JSON array
+// Encodes a BinaryView Arrow array into a JSON array
 pub fn encode_binary_view_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_binary_view();
     let mut values = Vec::with_capacity(array.len());
@@ -736,7 +725,7 @@ pub fn encode_binary_view_array(array: ArrayRef) -> Result<JsonValue, ArrowError
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a Utf8View Arrow array into a JSON array
+// Encodes a Utf8View Arrow array into a JSON array
 pub fn encode_utf8_view_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array
         .as_ref()
@@ -755,7 +744,7 @@ pub fn encode_utf8_view_array(array: ArrayRef) -> Result<JsonValue, ArrowError> 
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a RunEndEncoded Arrow array into a JSON array
+// Encodes a RunEndEncoded Arrow array into a JSON array
 pub fn encode_run_end_encoded_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let mut values = Vec::with_capacity(array.len());
 
@@ -774,7 +763,7 @@ pub fn encode_run_end_encoded_array(array: ArrayRef) -> Result<JsonValue, ArrowE
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a Map Arrow array into a JSON array
+// Encodes a Map Arrow array into a JSON array
 pub fn encode_map_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let mut values = Vec::with_capacity(array.len());
 
@@ -793,7 +782,7 @@ pub fn encode_map_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a Union Arrow array into a JSON array
+// Encodes a Union Arrow array into a JSON array
 pub fn encode_union_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_union();
     let mut values = Vec::with_capacity(array.len());
@@ -876,7 +865,7 @@ pub fn encode_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
         DataType::List(_) => encode_list_array(array),
         DataType::ListView(_) => encode_list_view_array(array),
         DataType::FixedSizeList(_, _) => encode_fixed_size_list_array(array),
-        DataType::LargeList(_) => encode_large_list_array(array),
+        DataType::LargeList(_) | DataType::LargeListView(_) => encode_large_list_array(array),
         DataType::Struct(_) => encode_struct_array(array),
         DataType::Decimal128(_, _) => encode_decimal128_array(array),
         DataType::Decimal256(_, _) => encode_decimal256_array(array),
@@ -886,10 +875,6 @@ pub fn encode_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
         DataType::RunEndEncoded(_, _) => encode_run_end_encoded_array(array),
         DataType::Map(_, _) => encode_map_array(array),
         DataType::Union(_, _) => encode_union_array(array),
-        _ => Err(ArrowError::InvalidArgumentError(format!(
-            "Unsupported array type: {:?}",
-            array.data_type()
-        ))),
     }
 }
 
@@ -903,7 +888,8 @@ pub fn encode_scalar(scalar: &ScalarValue) -> Result<JsonValue, ArrowError> {
     }
 }
 
-/// Encodes a ColumnarValue into a JSON value
+// Encodes a ColumnarValue into a JSON value
+#[allow(dead_code)]
 pub fn encode_columnar_value(value: &ColumnarValue) -> Result<JsonValue, ArrowError> {
     match value {
         ColumnarValue::Array(array) => encode_array(array.clone()),
@@ -912,9 +898,13 @@ pub fn encode_columnar_value(value: &ColumnarValue) -> Result<JsonValue, ArrowEr
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use arrow::array::*;
+    use arrow::datatypes::i256;
+    use arrow::datatypes::{IntervalDayTime, IntervalMonthDayNano};
+    use arrow_schema::Field;
 
     #[test]
     fn test_boolean_array() {
@@ -1085,6 +1075,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::as_conversions)]
     fn test_struct_array() {
         let boolean = Arc::new(BooleanArray::from(vec![false, false, true, true]));
         let int = Arc::new(Int32Array::from(vec![42, 28, 19, 31]));
@@ -1092,11 +1083,11 @@ mod tests {
         let struct_array = StructArray::from(vec![
             (
                 Arc::new(Field::new("b", DataType::Boolean, false)),
-                boolean.clone() as ArrayRef,
+                boolean as ArrayRef,
             ),
             (
                 Arc::new(Field::new("c", DataType::Int32, false)),
-                int.clone() as ArrayRef,
+                int as ArrayRef,
             ),
         ]);
 
@@ -1137,6 +1128,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_interval_arrays() {
         // Test YearMonth interval
         let array = IntervalYearMonthArray::from(vec![Some(12), None, Some(-24)]);

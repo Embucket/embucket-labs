@@ -1,29 +1,12 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::cast::AsArray;
+use arrow_array::Array;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, from_str, to_string};
+use serde_json::{from_str, to_string, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -32,7 +15,8 @@ pub struct ArrayReverseUDF {
 }
 
 impl ArrayReverseUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::Any(1),
@@ -41,7 +25,7 @@ impl ArrayReverseUDF {
         }
     }
 
-    fn reverse_array(&self, array_value: Value) -> DFResult<Option<String>> {
+    fn reverse_array(array_value: Value) -> DFResult<Option<String>> {
         // Ensure the argument is an array
         if let Value::Array(mut array) = array_value {
             // Reverse the array
@@ -50,8 +34,7 @@ impl ArrayReverseUDF {
             // Convert back to JSON string
             Ok(Some(to_string(&array).map_err(|e| {
                 datafusion_common::error::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {}",
-                    e
+                    "Failed to serialize result: {e}"
                 ))
             })?))
         } else {
@@ -73,7 +56,7 @@ impl ScalarUDFImpl for ArrayReverseUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_reverse"
     }
 
@@ -87,7 +70,11 @@ impl ScalarUDFImpl for ArrayReverseUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array_arg = args.first().expect("Expected array argument");
+        let array_arg = args
+            .first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected array argument".to_string(),
+            ))?;
 
         match array_arg {
             ColumnarValue::Array(array) => {
@@ -101,12 +88,11 @@ impl ScalarUDFImpl for ArrayReverseUDF {
                         let array_str = string_array.value(i);
                         let array_json: Value = from_str(array_str).map_err(|e| {
                             datafusion_common::error::DataFusionError::Internal(format!(
-                                "Failed to parse array JSON: {}",
-                                e
+                                "Failed to parse array JSON: {e}"
                             ))
                         })?;
 
-                        results.push(self.reverse_array(array_json)?);
+                        results.push(Self::reverse_array(array_json)?);
                     }
                 }
 
@@ -120,24 +106,20 @@ impl ScalarUDFImpl for ArrayReverseUDF {
                     return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                 }
 
-                let array_str = match array_value {
-                    ScalarValue::Utf8(Some(s)) => s,
-                    _ => {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
-                            "Expected UTF8 string for array".to_string(),
-                        ));
-                    }
+                let ScalarValue::Utf8(Some(array_str)) = array_value else {
+                    return Err(datafusion_common::error::DataFusionError::Internal(
+                        "Expected UTF8 string for array".to_string(),
+                    ));
                 };
 
                 // Parse array string to JSON Value
                 let array_json: Value = from_str(array_str).map_err(|e| {
                     datafusion_common::error::DataFusionError::Internal(format!(
-                        "Failed to parse array JSON: {}",
-                        e
+                        "Failed to parse array JSON: {e}"
                     ))
                 })?;
 
-                let result = self.reverse_array(array_json)?;
+                let result = Self::reverse_array(array_json)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
         }
@@ -147,20 +129,20 @@ impl ScalarUDFImpl for ArrayReverseUDF {
 make_udf_function!(ArrayReverseUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_reverse() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(get_udf());
-        ctx.state().register_udf(array_construct::get_udf());
+        register_udf(&mut ctx);
+        array_construct::register_udf(&mut ctx);
 
         // Test basic array reverse
         let sql = "SELECT array_reverse(array_construct(1, 2, 3, 4)) as reversed";

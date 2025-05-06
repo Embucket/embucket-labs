@@ -1,27 +1,10 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, to_string};
+use serde_json::{to_string, Value};
 
 #[derive(Debug, Clone)]
 pub struct ArrayGenerateRangeUDF {
@@ -30,12 +13,13 @@ pub struct ArrayGenerateRangeUDF {
 }
 
 impl ArrayGenerateRangeUDF {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::OneOf(vec![
                     TypeSignature::Exact(vec![DataType::Int64, DataType::Int64]),
-                    TypeSignature::Exact(vec![DataType::Int64, DataType::Int64, DataType::Int64]),
+                    TypeSignature::Exact(vec![DataType::Int64, DataType::Int64, DataType::UInt64]),
                 ]),
                 volatility: Volatility::Immutable,
             },
@@ -50,12 +34,13 @@ impl Default for ArrayGenerateRangeUDF {
     }
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
 impl ScalarUDFImpl for ArrayGenerateRangeUDF {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "array_generate_range"
     }
 
@@ -84,44 +69,64 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
 
         let mut args = args;
         let step = if args.len() == 3 {
-            args.pop().unwrap().into_array(number_rows)?
+            args.pop()
+                .ok_or(datafusion_common::error::DataFusionError::Internal(
+                    "Expected step argument".to_string(),
+                ))?
+                .into_array(number_rows)?
         } else {
             // Default step is 1
             let default_step = ScalarValue::Int64(Some(1));
             default_step.to_array_of_size(number_rows)?
         };
-        let stop = args.pop().unwrap().into_array(number_rows)?;
-        let start = args.pop().unwrap().into_array(number_rows)?;
+        let stop = args
+            .pop()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected stop argument".to_string(),
+            ))?
+            .into_array(number_rows)?;
+        let start = args
+            .pop()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected start argument".to_string(),
+            ))?
+            .into_array(number_rows)?;
 
         let mut results = Vec::new();
 
         for i in 0..number_rows {
-            let start_val = if !start.is_null(i) {
+            let start_val = if start.is_null(i) {
+                continue;
+            } else {
                 start
                     .as_any()
                     .downcast_ref::<arrow::array::Int64Array>()
-                    .unwrap()
+                    .ok_or(datafusion_common::error::DataFusionError::Internal(
+                        "Expected start argument to be an Int64Array".to_string(),
+                    ))?
                     .value(i)
-            } else {
-                continue;
             };
 
-            let stop_val = if !stop.is_null(i) {
+            let stop_val = if stop.is_null(i) {
+                continue;
+            } else {
                 stop.as_any()
                     .downcast_ref::<arrow::array::Int64Array>()
-                    .unwrap()
+                    .ok_or(datafusion_common::error::DataFusionError::Internal(
+                        "Expected stop argument to be an Int64Array".to_string(),
+                    ))?
                     .value(i)
-            } else {
-                continue;
             };
 
-            let step_val = if !step.is_null(i) {
-                step.as_any()
-                    .downcast_ref::<arrow::array::Int64Array>()
-                    .unwrap()
-                    .value(i)
-            } else {
+            let step_val = if step.is_null(i) {
                 continue;
+            } else {
+                step.as_any()
+                    .downcast_ref::<arrow::array::UInt64Array>()
+                    .ok_or(datafusion_common::error::DataFusionError::Internal(
+                        "Expected step argument to be an Int64Array".to_string(),
+                    ))?
+                    .value(i)
             };
 
             for i in (start_val..stop_val).step_by(step_val as usize) {
@@ -131,8 +136,7 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
 
         let json_str = to_string(&Value::Array(results)).map_err(|e| {
             datafusion_common::error::DataFusionError::Internal(format!(
-                "Failed to serialize JSON: {}",
-                e
+                "Failed to serialize JSON: {e}",
             ))
         })?;
 
@@ -143,18 +147,18 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
 make_udf_function!(ArrayGenerateRangeUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_array_generate_range() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register both UDFs
-        ctx.state().register_udf(get_udf());
+        register_udf(&mut ctx);
 
         // Test basic range
         let sql = "SELECT array_generate_range(2, 5) as range1";

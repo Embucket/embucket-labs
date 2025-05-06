@@ -1,29 +1,12 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use super::super::macros::make_udf_function;
 use arrow::datatypes::DataType;
-use arrow_array::Array;
 use arrow_array::cast::AsArray;
+use arrow_array::Array;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -32,7 +15,8 @@ pub struct ArraysToObjectUDF {
 }
 
 impl ArraysToObjectUDF {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::Any(2),
@@ -41,9 +25,9 @@ impl ArraysToObjectUDF {
         }
     }
 
-    fn create_object(&self, keys: &[Option<String>], values: &[Value]) -> DFResult<Option<String>> {
+    fn create_object(keys: &[Option<String>], values: &[Value]) -> Option<String> {
         if keys.len() != values.len() {
-            return Ok(None);
+            return None;
         }
 
         let mut obj = serde_json::Map::new();
@@ -54,7 +38,7 @@ impl ArraysToObjectUDF {
             }
         }
 
-        Ok(Some(json!(obj).to_string()))
+        Some(json!(obj).to_string())
     }
 }
 
@@ -69,7 +53,7 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "arrays_to_object"
     }
 
@@ -83,8 +67,16 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let keys_arg = args.first().expect("Expected keys array argument");
-        let values_arg = args.get(1).expect("Expected values array argument");
+        let keys_arg = args
+            .first()
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected keys array argument".to_string(),
+            ))?;
+        let values_arg = args
+            .get(1)
+            .ok_or(datafusion_common::error::DataFusionError::Internal(
+                "Expected values array argument".to_string(),
+            ))?;
 
         match (keys_arg, values_arg) {
             (ColumnarValue::Array(keys_array), ColumnarValue::Array(values_array)) => {
@@ -124,7 +116,7 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
                         })
                         .collect();
 
-                    results.push(self.create_object(&keys, &values)?);
+                    results.push(Self::create_object(&keys, &values));
                 }
 
                 Ok(ColumnarValue::Array(Arc::new(
@@ -137,28 +129,24 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
                     return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                 }
 
-                let keys_str = match keys_value {
-                    ScalarValue::Utf8(Some(s)) => s,
-                    _ => return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None))),
+                let ScalarValue::Utf8(Some(keys_str)) = keys_value else {
+                    return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                 };
 
-                let values_str = match values_value {
-                    ScalarValue::Utf8(Some(s)) => s,
-                    _ => return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None))),
+                let ScalarValue::Utf8(Some(values_str)) = values_value else {
+                    return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                 };
 
                 // Parse arrays
                 let keys: Value = serde_json::from_str(keys_str).map_err(|e| {
                     datafusion_common::error::DataFusionError::Internal(format!(
-                        "Failed to parse keys JSON array: {}",
-                        e
+                        "Failed to parse keys JSON array: {e}"
                     ))
                 })?;
 
                 let values: Value = serde_json::from_str(values_str).map_err(|e| {
                     datafusion_common::error::DataFusionError::Internal(format!(
-                        "Failed to parse values JSON array: {}",
-                        e
+                        "Failed to parse values JSON array: {e}"
                     ))
                 })?;
 
@@ -172,7 +160,7 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
                         })
                         .collect();
 
-                    let result = self.create_object(&keys, &value_array)?;
+                    let result = Self::create_object(&keys, &value_array);
                     Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
                 } else {
                     Err(datafusion_common::error::DataFusionError::Internal(
@@ -190,20 +178,20 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
 make_udf_function!(ArraysToObjectUDF);
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use super::super::array_construct;
+    use super::*;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
-    use datafusion::execution::FunctionRegistry;
 
     #[tokio::test]
     async fn test_arrays_to_object() -> DFResult<()> {
-        let ctx = SessionContext::new();
+        let mut ctx = SessionContext::new();
 
         // Register UDFs
-        ctx.state().register_udf(array_construct::get_udf());
-        ctx.state().register_udf(get_udf());
+        array_construct::register_udf(&mut ctx);
+        register_udf(&mut ctx);
 
         // Test basic key-value mapping
         let sql = "SELECT arrays_to_object(array_construct('key1', 'key2', 'key3'), array_construct(1, 2, 3)) as obj";

@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-mod json;
 pub mod array_append;
 pub mod array_cat;
 pub mod array_compact;
@@ -39,42 +38,36 @@ pub mod array_sort;
 pub mod arrays_overlap;
 pub mod arrays_to_object;
 pub mod arrays_zip;
+mod json;
 pub mod variant_element;
 
-use std::sync::Arc;
-use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
+use datafusion::{common::Result, prelude::SessionContext};
 
-pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
-    let functions: Vec<Arc<ScalarUDF>> = vec![
-        array_append::get_udf(),
-        array_cat::get_udf(),
-        array_compact::get_udf(),
-        array_construct::get_udf(),
-        array_contains::get_udf(),
-        array_distinct::get_udf(),
-        array_except::get_udf(),
-        array_generate_range::get_udf(),
-        array_insert::get_udf(),
-        array_intersection::get_udf(),
-        array_max::get_udf(),
-        array_min::get_udf(),
-        array_position::get_udf(),
-        array_prepend::get_udf(),
-        array_remove::get_udf(),
-        array_remove_at::get_udf(),
-        array_reverse::get_udf(),
-        array_size::get_udf(),
-        array_slice::get_udf(),
-        array_sort::get_udf(),
-        arrays_overlap::get_udf(),
-        arrays_to_object::get_udf(),
-        arrays_zip::get_udf(),
-        variant_element::get_udf(),
-    ];
-
-    for func in functions {
-        registry.register_udf(func)?;
-    }
+pub fn register_udfs(ctx: &mut SessionContext) -> Result<()> {
+    array_append::register_udf(ctx);
+    array_cat::register_udf(ctx);
+    array_compact::register_udf(ctx);
+    array_construct::register_udf(ctx);
+    array_contains::register_udf(ctx);
+    array_distinct::register_udf(ctx);
+    array_except::register_udf(ctx);
+    array_generate_range::register_udf(ctx);
+    array_insert::register_udf(ctx);
+    array_intersection::register_udf(ctx);
+    array_max::register_udf(ctx);
+    array_min::register_udf(ctx);
+    array_position::register_udf(ctx);
+    array_prepend::register_udf(ctx);
+    array_remove::register_udf(ctx);
+    array_remove_at::register_udf(ctx);
+    array_reverse::register_udf(ctx);
+    array_size::register_udf(ctx);
+    array_slice::register_udf(ctx);
+    array_sort::register_udf(ctx);
+    arrays_overlap::register_udf(ctx);
+    arrays_to_object::register_udf(ctx);
+    arrays_zip::register_udf(ctx);
+    variant_element::register_udf(ctx);
 
     Ok(())
 }

@@ -1,13 +1,14 @@
 ---
 source: crates/metastore/src/metastore.rs
 expression: "(test_volume, all_volumes)"
+snapshot_kind: text
 ---
 (
     Some(
         Object {
-            "created_at: "TIMESTAMP",
             "ident": String("test"),
             "type": String("memory"),
+            "created_at: "TIMESTAMP",
             "updated_at: "TIMESTAMP",
         },
     ),
