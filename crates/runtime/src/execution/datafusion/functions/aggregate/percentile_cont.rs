@@ -179,7 +179,7 @@ pub struct PercentileContAccumulator {
 }
 
 impl PercentileContAccumulator {
-    pub fn try_new(percentile: f64) -> Result<Self> {
+    pub const fn try_new(percentile: f64) -> Result<Self> {
         Ok(Self {
             values: Vec::new(),
             percentile,
@@ -189,15 +189,15 @@ impl PercentileContAccumulator {
     fn value_to_f64(value: &ScalarValue) -> Option<f64> {
         match value {
             ScalarValue::Float64(Some(v)) => Some(*v),
-            ScalarValue::Float32(Some(v)) => Some(*v as f64),
+            ScalarValue::Float32(Some(v)) => Some(f64::from(*v)),
             ScalarValue::Int64(Some(v)) => Some(*v as f64),
-            ScalarValue::Int32(Some(v)) => Some(*v as f64),
-            ScalarValue::Int16(Some(v)) => Some(*v as f64),
-            ScalarValue::Int8(Some(v)) => Some(*v as f64),
+            ScalarValue::Int32(Some(v)) => Some(f64::from(*v)),
+            ScalarValue::Int16(Some(v)) => Some(f64::from(*v)),
+            ScalarValue::Int8(Some(v)) => Some(f64::from(*v)),
             ScalarValue::UInt64(Some(v)) => Some(*v as f64),
-            ScalarValue::UInt32(Some(v)) => Some(*v as f64),
-            ScalarValue::UInt16(Some(v)) => Some(*v as f64),
-            ScalarValue::UInt8(Some(v)) => Some(*v as f64),
+            ScalarValue::UInt32(Some(v)) => Some(f64::from(*v)),
+            ScalarValue::UInt16(Some(v)) => Some(f64::from(*v)),
+            ScalarValue::UInt8(Some(v)) => Some(f64::from(*v)),
             _ => None,
         }
     }
@@ -245,8 +245,8 @@ impl Accumulator for PercentileContAccumulator {
         let upper_idx = lower_idx + 1;
         let factor = index - lower_idx as f64;
 
-        let result =
-            self.values[lower_idx] + (self.values[upper_idx] - self.values[lower_idx]) * factor;
+        let result = (self.values[upper_idx] - self.values[lower_idx])
+            .mul_add(factor, self.values[lower_idx]);
         Ok(ScalarValue::Float64(Some(result)))
     }
 
