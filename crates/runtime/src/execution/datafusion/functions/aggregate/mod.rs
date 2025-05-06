@@ -31,7 +31,7 @@ pub fn register_udafs(registry: &mut dyn FunctionRegistry) -> datafusion_common:
         booland_agg::get_udaf(),
         boolor_agg::get_udaf(),
         boolxor_agg::get_udaf(),
-        percentile_cont::get_udaf()
+        percentile_cont::get_udaf(),
     ];
 
     for func in aggregate_functions {
