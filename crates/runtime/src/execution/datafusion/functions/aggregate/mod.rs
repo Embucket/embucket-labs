@@ -18,7 +18,6 @@
 use datafusion_expr::registry::FunctionRegistry;
 use datafusion_expr::AggregateUDF;
 use std::sync::Arc;
-use datafusion::functions_aggregate::expr_fn::bool_and;
 
 pub mod any_value;
 pub mod booland_agg;
