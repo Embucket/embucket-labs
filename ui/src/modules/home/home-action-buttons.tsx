@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { Database, Plus, Upload } from 'lucide-react';
 
+import { TableDataUploadDialog } from '@/modules/shared/table-data-upload-dialog/table-data-upload-dialog';
 import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
 import { CreateDatabaseDialog } from '../shared/create-database-dialog/create-database-dialog';
@@ -11,6 +12,7 @@ import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-sto
 
 export default function HomeActionButtons() {
   const [opened, setOpened] = useState(false);
+  const [isUploadFileDialogOpened, setIsUploadFileDialogOpened] = useState(false);
   const addTab = useSqlEditorSettingsStore((state) => state.addTab);
 
   const queryClient = useQueryClient();
@@ -64,8 +66,8 @@ export default function HomeActionButtons() {
           </button>
 
           <button
-            disabled
-            className="hover:bg-sidebar-secondary-accent bg-muted flex cursor-pointer items-center gap-3 rounded-md border p-6 text-white transition-colors disabled:cursor-auto disabled:bg-transparent disabled:hover:bg-transparent"
+            onClick={() => setIsUploadFileDialogOpened(true)}
+            className="hover:bg-sidebar-secondary-accent bg-muted flex cursor-pointer items-center gap-3 rounded-md border p-6 text-white transition-colors"
           >
             <Upload className="text-muted-foreground size-5" />
             <span className="text-sm font-medium">Upload Local Files</span>
@@ -73,6 +75,10 @@ export default function HomeActionButtons() {
         </div>
       </div>
       <CreateDatabaseDialog opened={opened} onSetOpened={setOpened} />
+      <TableDataUploadDialog
+        opened={isUploadFileDialogOpened}
+        onSetOpened={setIsUploadFileDialogOpened}
+      />
     </>
   );
 }
