@@ -308,7 +308,7 @@ mod tests {
     fn test_percentile_cont_median() -> Result<()> {
         let mut accumulator = PercentileContAccumulator::new(0.5);
 
-        let values_array: ArrayRef = Arc::new(Int64Array::from(vec![10, 30, 20, 40, 50])) as ArrayRef;
+        let values_array: ArrayRef = Arc::new(Int64Array::from(vec![10, 30, 20, 40, 50]));
 
         accumulator.update_batch(&[values_array])?;
         let result = accumulator.evaluate()?;
@@ -322,7 +322,7 @@ mod tests {
     fn test_percentile_cont_interpolation() -> Result<()> {
         let mut accumulator = PercentileContAccumulator::new(0.75);
 
-        let values_array: ArrayRef = Arc::new(Float64Array::from(vec![10.0, 30.0, 20.0, 40.0])) as ArrayRef;
+        let values_array: ArrayRef = Arc::new(Float64Array::from(vec![10.0, 30.0, 20.0, 40.0]));
 
         accumulator.update_batch(&[values_array])?;
         let result = accumulator.evaluate()?;
