@@ -1,20 +1,3 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 //! Defines the `PERCENTILE_CONT` aggregation function.
 
 use std::any::Any;
@@ -37,9 +20,6 @@ use datafusion_common::{internal_err, not_impl_datafusion_err, not_impl_err};
 use super::macros::make_udaf_function;
 
 
-
-
-/// Implementation of percentile_cont
 #[user_doc(
     doc_section(label = "General Functions"),
     description = "Return a percentile value based on a continuous distribution of the input column. If no input row lies exactly at the desired percentile, the result is calculated using linear interpolation of the two nearest input values.",
@@ -69,7 +49,6 @@ impl Default for PercentileCont {
 impl PercentileCont {
     pub fn new() -> Self {
         let mut variants = Vec::with_capacity(NUMERICS.len() * (INTEGERS.len() + 1));
-        // Accept any numeric value paired with a float64 percentile
         for num in NUMERICS {
             variants.push(TypeSignature::Exact(vec![num.clone(), DataType::Float64]));
         }
@@ -106,7 +85,6 @@ fn validate_input_percentile_expr(expr: &Arc<dyn PhysicalExpr>) -> Result<f64> {
         }
     };
 
-    // Ensure the percentile is between 0 and 1.
     if !(0.0..=1.0).contains(&percentile) {
         return plan_err!(
             "Percentile value must be between 0.0 and 1.0 inclusive, {percentile} is invalid"
@@ -154,7 +132,6 @@ impl AggregateUDFImpl for PercentileCont {
 
         Ok(Box::new(PercentileContAccumulator::try_new(
             adjusted_percentile,
-            acc_args.return_type,
         )?))
     }
 
@@ -195,69 +172,31 @@ impl AggregateUDFImpl for PercentileCont {
 pub struct PercentileContAccumulator {
     /// The percentile value (0.0 to 1.0)
     percentile: f64,
-    /// Collected values for percentile calculation
-    values: Vec<ScalarValue>,
-    /// The return data type
-    return_type: DataType,
+    /// Collected values for percentile calculation (all converted to f64)
+    values: Vec<f64>,
 }
 
 impl PercentileContAccumulator {
-    /// Creates a new accumulator
-    pub fn try_new(percentile: f64, return_type: &DataType) -> Result<Self> {
+    pub fn try_new(percentile: f64) -> Result<Self> {
         Ok(Self {
             values: Vec::new(),
             percentile,
-            return_type: return_type.clone(),
         })
     }
 
-    /// Perform linear interpolation between two values
-    fn interpolate(&self, lower: &ScalarValue, upper: &ScalarValue, factor: f64) -> Result<ScalarValue> {
-        match (lower, upper) {
-            (ScalarValue::Float64(Some(l)), ScalarValue::Float64(Some(u))) => {
-                Ok(ScalarValue::Float64(Some(l + (u - l) * factor)))
-            }
-            (ScalarValue::Float32(Some(l)), ScalarValue::Float32(Some(u))) => {
-                Ok(ScalarValue::Float32(Some(l + (u - l) * factor as f32)))
-            }
-            (ScalarValue::Int64(Some(l)), ScalarValue::Int64(Some(u))) => {
-                // If we're doing exact integer interpolation (no fractional part), return Int64
-                if factor == 0.0 || factor == 1.0 || (upper == lower) {
-                    if factor == 0.0 {
-                        Ok(ScalarValue::Int64(Some(*l)))
-                    } else {
-                        Ok(ScalarValue::Int64(Some(*u)))
-                    }
-                } else {
-                    // Otherwise we need to convert to float for interpolation
-                    Ok(ScalarValue::Float64(Some(*l as f64 + (*u as f64 - *l as f64) * factor)))
-                }
-            }
-            (ScalarValue::Int32(Some(l)), ScalarValue::Int32(Some(u))) => {
-                Ok(ScalarValue::Float64(Some(*l as f64 + (*u as f64 - *l as f64) * factor)))
-            }
-            (ScalarValue::Int16(Some(l)), ScalarValue::Int16(Some(u))) => {
-                Ok(ScalarValue::Float64(Some(*l as f64 + (*u as f64 - *l as f64) * factor)))
-            }
-            (ScalarValue::Int8(Some(l)), ScalarValue::Int8(Some(u))) => {
-                Ok(ScalarValue::Float64(Some(*l as f64 + (*u as f64 - *l as f64) * factor)))
-            }
-            (ScalarValue::UInt64(Some(l)), ScalarValue::UInt64(Some(u))) => {
-                Ok(ScalarValue::Float64(Some(*l as f64 + (*u as f64 - *l as f64) * factor)))
-            }
-            (ScalarValue::UInt32(Some(l)), ScalarValue::UInt32(Some(u))) => {
-                Ok(ScalarValue::Float64(Some(*l as f64 + (*u as f64 - *l as f64) * factor)))
-            }
-            (ScalarValue::UInt16(Some(l)), ScalarValue::UInt16(Some(u))) => {
-                Ok(ScalarValue::Float64(Some(*l as f64 + (*u as f64 - *l as f64) * factor)))
-            }
-            (ScalarValue::UInt8(Some(l)), ScalarValue::UInt8(Some(u))) => {
-                Ok(ScalarValue::Float64(Some(*l as f64 + (*u as f64 - *l as f64) * factor)))
-            }
-            _ => {
-                // Default to float64 for other types
-                Ok(ScalarValue::Float64(None))
-            }
+    fn value_to_f64(value: &ScalarValue) -> Option<f64> {
+        match value {
+            ScalarValue::Float64(Some(v)) => Some(*v),
+            ScalarValue::Float32(Some(v)) => Some(*v as f64),
+            ScalarValue::Int64(Some(v)) => Some(*v as f64),
+            ScalarValue::Int32(Some(v)) => Some(*v as f64),
+            ScalarValue::Int16(Some(v)) => Some(*v as f64),
+            ScalarValue::Int8(Some(v)) => Some(*v as f64),
+            ScalarValue::UInt64(Some(v)) => Some(*v as f64),
+            ScalarValue::UInt32(Some(v)) => Some(*v as f64),
+            ScalarValue::UInt16(Some(v)) => Some(*v as f64),
+            ScalarValue::UInt8(Some(v)) => Some(*v as f64),
+            _ => None,
         }
     }
 }
@@ -270,11 +209,12 @@ impl Accumulator for PercentileContAccumulator {
 
         let array = &values[0];
         
-        // Collect non-null values
         for i in 0..array.len() {
             if !array.is_null(i) {
                 let value = ScalarValue::try_from_array(array, i)?;
-                self.values.push(value);
+                if let Some(f) = Self::value_to_f64(&value) {
+                    self.values.push(f);
+                }
             }
         }
 
@@ -283,51 +223,41 @@ impl Accumulator for PercentileContAccumulator {
 
     fn evaluate(&mut self) -> Result<ScalarValue> {
         if self.values.is_empty() {
-            return ScalarValue::try_from(&self.return_type);
+            return Ok(ScalarValue::Float64(None));
         }
 
-        // Sort the values
         self.values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         if self.values.len() == 1 {
-            // If there's only one value, return it regardless of percentile
-            return Ok(self.values[0].clone());
+            return Ok(ScalarValue::Float64(Some(self.values[0])));
         }
 
         let index = self.percentile * (self.values.len() as f64 - 1.0);
         let lower_idx = index.floor() as usize;
         
         if (index - lower_idx as f64).abs() < f64::EPSILON {
-            // Exact match to an index, return that value
-            return Ok(self.values[lower_idx].clone());
+            return Ok(ScalarValue::Float64(Some(self.values[lower_idx])));
         }
         
-        // Need to interpolate between two adjacent values
         let upper_idx = lower_idx + 1;
         let factor = index - lower_idx as f64;
         
-        // Perform linear interpolation
-        self.interpolate(&self.values[lower_idx], &self.values[upper_idx], factor)
+        let result = self.values[lower_idx] + (self.values[upper_idx] - self.values[lower_idx]) * factor;
+        Ok(ScalarValue::Float64(Some(result)))
     }
 
     fn size(&self) -> usize {
-        size_of_val(self) + self.values.iter().map(|v| v.size()).sum::<usize>()
+        size_of_val(self) + self.values.capacity() * std::mem::size_of::<f64>()
     }
 
     fn state(&mut self) -> Result<Vec<ScalarValue>> {
-        // Store the percentile value as the first state field
         let percentile_value = ScalarValue::Float64(Some(self.percentile));
         
-        // For the second state field, serialize the stored values
-        // We'll convert our collected values to a regular scalar value
-        // rather than a list, following the pattern from avg implementation
         let values_value = if self.values.is_empty() {
-            ScalarValue::try_from(&self.return_type)?
+            ScalarValue::Float64(None)
         } else if self.values.len() == 1 {
-            // If there's only one value, use it directly
-            self.values[0].clone()
+            ScalarValue::Float64(Some(self.values[0]))
         } else {
-            // Evaluate our percentile to get the result value
             self.evaluate()?
         };
         
@@ -342,15 +272,14 @@ impl Accumulator for PercentileContAccumulator {
             return Ok(());
         }
         
-        // First array contains percentile values (should be the same for all rows)
-        // Second array contains the actual values to merge
         let values_array = &states[1];
         
         for i in 0..values_array.len() {
             if !values_array.is_null(i) {
                 let value = ScalarValue::try_from_array(values_array, i)?;
-                // Add this value to our collection
-                self.values.push(value);
+                if let Some(f) = Self::value_to_f64(&value) {
+                    self.values.push(f);
+                }
             }
         }
         
@@ -369,36 +298,58 @@ mod tests {
 
     #[test]
     fn test_percentile_cont_median() -> Result<()> {
-        let mut accumulator = PercentileContAccumulator::try_new(0.5, &DataType::Int64)?;
+        let mut accumulator = PercentileContAccumulator::try_new(0.5)?;
         
-        // Create array for values - now we only need values, not percentile
         let values_array = Arc::new(Int64Array::from(vec![10, 30, 20, 40, 50])) as ArrayRef;
 
         accumulator.update_batch(&[values_array])?;
         let result = accumulator.evaluate()?;
 
-        // Median of [10, 20, 30, 40, 50] is 30
-        assert_eq!(result, ScalarValue::Int64(Some(30)));
+
+        assert_eq!(result, ScalarValue::Float64(Some(30.0)));
 
         Ok(())
     }
 
     #[test]
     fn test_percentile_cont_interpolation() -> Result<()> {
-        let mut accumulator = PercentileContAccumulator::try_new(0.75, &DataType::Float64)?;
+        let mut accumulator = PercentileContAccumulator::try_new(0.75)?;
         
-        // Create array for values - only values needed
         let values_array = Arc::new(Float64Array::from(vec![10.0, 30.0, 20.0, 40.0])) as ArrayRef;
 
         accumulator.update_batch(&[values_array])?;
         let result = accumulator.evaluate()?;
 
-        // Sorted: [10, 20, 30, 40]
-        // Index = 0.75 * (4-1) = 2.25
-        // Interpolation between values[2]=30 and values[3]=40
-        // 30 + (40-30) * 0.25 = 32.5
         assert_eq!(result, ScalarValue::Float64(Some(32.5)));
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_percentile_cont_integer_to_float() -> Result<()> {
+        let mut accumulator = PercentileContAccumulator::try_new(0.4)?;
+        
+        let values_array = Arc::new(Int64Array::from(vec![10, 20, 30, 40, 50])) as ArrayRef;
+
+        accumulator.update_batch(&[values_array])?;
+        let result = accumulator.evaluate()?;
+
+        assert_eq!(result, ScalarValue::Float64(Some(26.0)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_percentile_cont_empty() -> Result<()> {
+        let mut accumulator = PercentileContAccumulator::try_new(0.5)?;
+        
+        let empty_array = Arc::new(Float64Array::from(Vec::<f64>::new())) as ArrayRef;
+        
+        accumulator.update_batch(&[empty_array])?;
+        let result = accumulator.evaluate()?;
+        
+        assert_eq!(result, ScalarValue::Float64(None));
+        
         Ok(())
     }
 }
