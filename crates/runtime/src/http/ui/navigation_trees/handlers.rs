@@ -35,8 +35,8 @@ pub struct ApiDoc;
     get,
     operation_id = "getNavigationTrees",
     params(
-        ("cursor" = Option<String>, Query, description = "Navigation trees cursor"),
-        ("limit" = Option<usize>, Query, description = "Navigation trees limit"),
+        ("offset" = Option<usize>, Query, description = "Navigation trees offset"),
+        ("limit" = Option<u16>, Query, description = "Navigation trees limit"),
     ),
     tags = ["navigation-trees"],
     path = "/ui/navigation-trees",
@@ -58,11 +58,7 @@ pub async fn get_navigation_trees(
         .context(error::SessionSnafu)?
         .fetch_catalogs_tree();
 
-    let offset = parameters
-        .cursor
-        .as_deref()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(0);
+    let offset = parameters.offset.unwrap_or_default();
     let limit = parameters.limit.map_or(usize::MAX, usize::from);
 
     let items: Vec<_> = catalogs_tree
@@ -88,10 +84,10 @@ pub async fn get_navigation_trees(
         })
         .collect();
 
-    let next_cursor = (items.len() == limit).then(|| (offset + limit).to_string());
+    let next_cursor = (items.len() == limit).then(|| offset + limit);
     Ok(Json(NavigationTreesResponse {
         items,
-        current_cursor: parameters.cursor,
-        next_cursor: next_cursor.unwrap_or_default(),
+        offset: parameters.offset,
+        next_offset: next_cursor.unwrap_or_default(),
     }))
 }
