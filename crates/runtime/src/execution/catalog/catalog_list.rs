@@ -183,11 +183,11 @@ impl EmbucketCatalogList {
                             {
                                 schema.tables_cache.insert(
                                     table.clone(),
-                                    Arc::new(CachingTable {
-                                        name: table.to_string(),
-                                        schema: Some(table_provider.schema()),
-                                        table: Arc::clone(&table_provider),
-                                    }),
+                                    Arc::new(CachingTable::new_with_schema(
+                                        table,
+                                        table_provider.schema(),
+                                        Arc::clone(&table_provider),
+                                    )),
                                 );
                             }
                         }

@@ -4,13 +4,31 @@ use datafusion::catalog::{Session, TableProvider};
 use datafusion_expr::dml::InsertOp;
 use datafusion_expr::{Expr, TableType};
 use datafusion_physical_plan::ExecutionPlan;
+use once_cell::sync::OnceCell;
 use std::any::Any;
 use std::sync::Arc;
 
 pub struct CachingTable {
-    pub schema: Option<SchemaRef>,
+    pub schema: OnceCell<SchemaRef>,
     pub name: String,
     pub table: Arc<dyn TableProvider>,
+}
+
+impl CachingTable {
+    pub fn new(name: String, table: Arc<dyn TableProvider>) -> Self {
+        Self {
+            schema: OnceCell::new(),
+            name,
+            table,
+        }
+    }
+    pub fn new_with_schema(name: String, schema: SchemaRef, table: Arc<dyn TableProvider>) -> Self {
+        Self {
+            schema: OnceCell::from(schema),
+            name,
+            table,
+        }
+    }
 }
 
 impl std::fmt::Debug for CachingTable {
@@ -30,10 +48,7 @@ impl TableProvider for CachingTable {
     }
 
     fn schema(&self) -> SchemaRef {
-        match &self.schema {
-            Some(schema) => Arc::clone(schema),
-            None => self.table.schema(),
-        }
+        self.schema.get_or_init(|| self.table.schema()).clone()
     }
 
     fn table_type(&self) -> TableType {

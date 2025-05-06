@@ -34,8 +34,8 @@ pub enum TableError {
 pub enum TablesAPIError {
     #[snafu(display("Create table error: {source}"))]
     CreateUpload { source: TableError },
-    #[snafu(display("Get table error: {source}"))]
-    GetExecution { source: ExecutionError },
+    #[snafu(display("Execution error: {source}"))]
+    Execution { source: ExecutionError },
     #[snafu(display("Get table error: {source}"))]
     GetMetastore { source: MetastoreError },
 }
@@ -60,7 +60,7 @@ impl IntoStatusCode for TablesAPIError {
                 } => StatusCode::UNPROCESSABLE_ENTITY,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::GetExecution { source } => match &source {
+            Self::Execution { source } => match &source {
                 ExecutionError::TableNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },

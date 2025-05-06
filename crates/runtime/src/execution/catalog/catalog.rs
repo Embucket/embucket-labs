@@ -30,22 +30,38 @@ impl CatalogProvider for CachingCatalog {
 
     fn schema_names(&self) -> Vec<String> {
         if self.schemas_cache.is_empty() {
-            // Fallback to the original catalog schema names if the cache is empty
-            self.catalog.schema_names()
-        } else {
-            self.schemas_cache
-                .iter()
-                .map(|entry| entry.key().clone())
-                .collect()
+            for name in self.catalog.schema_names() {
+                if let Some(schema) = self.catalog.schema(&name) {
+                    self.schemas_cache.insert(
+                        name.clone(),
+                        Arc::new(CachingSchema {
+                            name,
+                            schema,
+                            tables_cache: DashMap::new(),
+                        }),
+                    );
+                }
+            }
         }
+        self.schemas_cache.iter().map(|e| e.key().clone()).collect()
     }
 
     #[allow(clippy::as_conversions)]
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
-        self.schemas_cache
-            .get(name)
-            .map(|schema| Arc::clone(schema.value()) as Arc<dyn SchemaProvider>)
-            // Fallback to the original catalog schema if the cache is empty
-            .or_else(|| self.catalog.schema(name))
+        if let Some(schema) = self.schemas_cache.get(name) {
+            Some(Arc::clone(schema.value()) as Arc<dyn SchemaProvider>)
+        } else if let Some(schema) = self.catalog.schema(name) {
+            let caching_schema = Arc::new(CachingSchema {
+                name: name.to_string(),
+                schema: Arc::clone(&schema),
+                tables_cache: DashMap::new(),
+            });
+
+            self.schemas_cache
+                .insert(name.to_string(), Arc::clone(&caching_schema));
+            Some(caching_schema as Arc<dyn SchemaProvider>)
+        } else {
+            None
+        }
     }
 }

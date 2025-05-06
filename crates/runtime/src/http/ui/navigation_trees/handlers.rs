@@ -1,14 +1,14 @@
 use crate::http::error::ErrorResponse;
+use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
-use crate::http::ui::navigation_trees::error::{NavigationTreesAPIError, NavigationTreesResult};
+use crate::http::ui::navigation_trees::error::{self as error, NavigationTreesResult};
 use crate::http::ui::navigation_trees::models::{
     NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable, NavigationTreesParameters,
     NavigationTreesResponse,
 };
 use axum::extract::Query;
 use axum::{extract::State, Json};
-use embucket_metastore::error::MetastoreError;
-use embucket_utils::scan_iterator::ScanIterator;
+use snafu::ResultExt;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -47,67 +47,51 @@ pub struct ApiDoc;
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_navigation_trees(
+    DFSessionId(session_id): DFSessionId,
     Query(parameters): Query<NavigationTreesParameters>,
     State(state): State<AppState>,
 ) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
-    let rw_databases = state
-        .metastore
-        .iter_databases()
-        .cursor(parameters.cursor.clone())
-        .limit(parameters.limit)
-        .collect()
+    let catalogs_tree = state
+        .execution_svc
+        .create_session(session_id)
         .await
-        .map_err(|e| NavigationTreesAPIError::Get {
-            source: MetastoreError::UtilSlateDB { source: e },
-        })?;
+        .context(error::SessionSnafu)?
+        .fetch_catalogs_tree();
 
-    let next_cursor = rw_databases
-        .iter()
-        .last()
-        .map_or(String::new(), |rw_object| rw_object.ident.clone());
+    let offset = parameters
+        .cursor
+        .as_deref()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(0);
+    let limit = parameters.limit.map_or(usize::MAX, usize::from);
 
-    let mut databases: Vec<NavigationTreeDatabase> = vec![];
-    for rw_database in rw_databases {
-        let rw_schemas = state
-            .metastore
-            .iter_schemas(&rw_database.ident.clone())
-            .collect()
-            .await
-            .map_err(|e| NavigationTreesAPIError::Get {
-                source: MetastoreError::UtilSlateDB { source: e },
-            })?;
+    let items: Vec<_> = catalogs_tree
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .map(|(catalog_name, schemas_map)| {
+            let schemas = schemas_map
+                .into_iter()
+                .map(|(schema_name, table_names)| NavigationTreeSchema {
+                    name: schema_name,
+                    tables: table_names
+                        .into_iter()
+                        .map(|name| NavigationTreeTable { name })
+                        .collect(),
+                })
+                .collect();
 
-        let mut schemas: Vec<NavigationTreeSchema> = vec![];
-        for rw_schema in rw_schemas {
-            let rw_tables = state
-                .metastore
-                .iter_tables(&rw_schema.ident)
-                .collect()
-                .await
-                .map_err(|e| NavigationTreesAPIError::Get {
-                    source: MetastoreError::UtilSlateDB { source: e },
-                })?;
-
-            let mut tables: Vec<NavigationTreeTable> = vec![];
-            for rw_table in rw_tables {
-                tables.push(NavigationTreeTable {
-                    name: rw_table.ident.table.clone(),
-                });
+            NavigationTreeDatabase {
+                name: catalog_name,
+                schemas,
             }
-            schemas.push(NavigationTreeSchema {
-                name: rw_schema.ident.schema.clone(),
-                tables,
-            });
-        }
-        databases.push(NavigationTreeDatabase {
-            name: rw_database.ident.clone(),
-            schemas,
-        });
-    }
+        })
+        .collect();
 
+    let next_cursor = (items.len() == limit).then(|| (offset + limit).to_string());
     Ok(Json(NavigationTreesResponse {
-        items: databases,
+        items,
         current_cursor: parameters.cursor,
-        next_cursor,
+        next_cursor: next_cursor.unwrap_or_default(),
     }))
 }

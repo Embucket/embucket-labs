@@ -18,7 +18,7 @@ impl std::fmt::Debug for CachingSchema {
         f.debug_struct("Schema")
             .field("schema", &"")
             .field("name", &self.name)
-            .field("tables_cache", &"")
+            .field("tables_cache", &self.tables_cache)
             .finish()
     }
 }
@@ -33,6 +33,7 @@ impl SchemaProvider for CachingSchema {
         if self.tables_cache.is_empty() {
             self.schema.table_names()
         } else {
+            // Don't fill the cache since should call async table() to fill it
             self.tables_cache
                 .iter()
                 .map(|entry| entry.key().clone())
@@ -47,11 +48,8 @@ impl SchemaProvider for CachingSchema {
         } else {
             // Fallback to the original schema table if the cache is empty
             if let Some(table) = self.schema.table(name).await? {
-                let caching_table = Arc::new(CachingTable {
-                    name: name.to_string(),
-                    schema: Some(table.schema()),
-                    table: Arc::clone(&table),
-                });
+                let caching_table =
+                    Arc::new(CachingTable::new(name.to_string(), Arc::clone(&table)));
 
                 // Insert into cache
                 self.tables_cache
@@ -62,6 +60,21 @@ impl SchemaProvider for CachingSchema {
                 Ok(None)
             }
         }
+    }
+
+    fn register_table(
+        &self,
+        name: String,
+        table: Arc<dyn TableProvider>,
+    ) -> datafusion_common::Result<Option<Arc<dyn TableProvider>>> {
+        self.schema.register_table(name, table)
+    }
+
+    fn deregister_table(
+        &self,
+        name: &str,
+    ) -> datafusion_common::Result<Option<Arc<dyn TableProvider>>> {
+        self.schema.deregister_table(name)
     }
 
     fn table_exist(&self, name: &str) -> bool {

@@ -1141,35 +1141,6 @@ impl UserQuery {
                 }
             }
         }
-        // Unwraps are allowed here because we are sure that objects exists
-        for catalog in self.session.ctx.state().catalog_list().catalog_names() {
-            let provider = self
-                .session
-                .ctx
-                .state()
-                .catalog_list()
-                .catalog(&catalog)
-                .unwrap();
-            for schema in provider.schema_names() {
-                for table in provider.schema(&schema).unwrap().table_names() {
-                    let table_source = provider
-                        .schema(&schema)
-                        .unwrap()
-                        .table(&table)
-                        .await
-                        .context(super::error::DataFusionSnafu)?
-                        .ok_or(ExecutionError::TableProviderNotFound {
-                            table_name: table.clone(),
-                        })?;
-                    let resolved = state.resolve_table_ref(TableReference::full(
-                        catalog.to_string(),
-                        schema.to_string(),
-                        table,
-                    ));
-                    tables.insert(resolved, provider_as_source(table_source));
-                }
-            }
-        }
         Ok(tables)
     }
     // TODO: We need to recursively fix any missing table references with the default
