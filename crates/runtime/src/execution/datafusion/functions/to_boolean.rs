@@ -1,5 +1,6 @@
+use crate::execution::datafusion::functions::array_to_boolean;
 use arrow_array::builder::BooleanBuilder;
-use arrow_array::cast::{as_string_array};
+use arrow_array::cast::as_string_array;
 use arrow_array::Array;
 use arrow_schema::DataType;
 use datafusion::error::Result as DFResult;
@@ -8,7 +9,6 @@ use datafusion_common::DataFusionError;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
 use std::sync::Arc;
-use crate::execution::datafusion::functions::array_to_boolean;
 
 // to_boolean SQL function
 // Converts the input text or numeric expression to a BOOLEAN value.
@@ -96,9 +96,7 @@ impl ScalarUDFImpl for ToBooleanFunc {
                 }
                 res.finish()
             }
-            _=> {
-                array_to_boolean(&arr)?
-            }
+            _ => array_to_boolean(&arr)?,
         };
 
         Ok(ColumnarValue::Array(Arc::new(arr)))

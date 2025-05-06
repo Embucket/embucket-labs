@@ -136,11 +136,11 @@ make_udaf_function!(BoolAndAggUDAF);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use arrow_array::BooleanArray;
     use datafusion::prelude::{SessionConfig, SessionContext};
     use datafusion_common::assert_batches_eq;
     use datafusion_expr::AggregateUDF;
     use std::sync::Arc;
-    use arrow_array::BooleanArray;
 
     #[tokio::test]
     async fn test_merge() -> DFResult<()> {
