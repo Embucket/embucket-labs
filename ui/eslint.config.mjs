@@ -40,6 +40,7 @@ export default tseslint.config(
       '@typescript-eslint': tseslint.plugin,
     },
     rules: {
+      '@typescript-eslint/restrict-template-expressions': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-confusing-void-expression': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',

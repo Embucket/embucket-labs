@@ -1,5 +1,5 @@
-use crate::execution::datafusion::functions::aggregate::booland_agg::array_to_boolean;
 use crate::execution::datafusion::functions::aggregate::macros::make_udaf_function;
+use crate::execution::datafusion::functions::array_to_boolean;
 use arrow_array::ArrayRef;
 use arrow_schema::DataType;
 use datafusion::error::Result as DFResult;

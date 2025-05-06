@@ -4,7 +4,6 @@ import { EmptyContainer } from '@/components/empty-container';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useGetQueries } from '@/orval/queries';
 
-import { PageContent } from '../shared/page/page-content';
 import { PageHeader } from '../shared/page/page-header';
 import { QueriesHistoryTable } from './queries-history-table';
 
@@ -14,7 +13,7 @@ export function QueriesHistoryPage() {
   return (
     <>
       <PageHeader title="Queries History" />
-      <PageContent>
+      <ScrollArea className="h-[calc(100vh-65px-32px)] p-4">
         <div className="flex size-full flex-col">
           {queries?.length ? (
             <ScrollArea tableViewport>
@@ -31,7 +30,8 @@ export function QueriesHistoryPage() {
             />
           )}
         </div>
-      </PageContent>
+        <ScrollBar orientation="vertical" />
+      </ScrollArea>
     </>
   );
 }

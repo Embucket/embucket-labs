@@ -13,6 +13,7 @@ interface TreeCollapsibleItemProps {
   defaultOpen?: boolean;
   isActive?: boolean;
   className?: string;
+  open?: boolean;
   triggerClassName?: string;
   contentClassName?: string;
   onClick?: () => void;
@@ -26,6 +27,7 @@ export function TreeCollapsibleItem({
   defaultOpen = true,
   isActive,
   className,
+  open,
   triggerClassName,
   contentClassName,
   onClick,
@@ -33,6 +35,7 @@ export function TreeCollapsibleItem({
   return (
     <Collapsible
       defaultOpen={defaultOpen}
+      open={open}
       className={cn(
         'group/collapsible [&[data-state=open]>a>svg:first-child]:rotate-90 [&[data-state=open]>button>svg:first-child]:rotate-90',
         className,
