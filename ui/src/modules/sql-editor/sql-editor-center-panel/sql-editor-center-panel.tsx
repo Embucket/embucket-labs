@@ -18,8 +18,8 @@ import { SqlEditorCenterPanelToolbar } from './sql-editor-center-panel-toolbar/s
 
 export function SqlEditorCenterPanel() {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
-  const queryRecord = useSqlEditorSettingsStore((state) => state.queryRecord);
-  const setQueryRecord = useSqlEditorSettingsStore((state) => state.setQueryRecord);
+  const selectedQueryRecord = useSqlEditorSettingsStore((state) => state.selectedQueryRecord);
+  const setSelectedQueryRecord = useSqlEditorSettingsStore((state) => state.setSelectedQueryRecord);
 
   const {
     groupRef,
@@ -35,7 +35,7 @@ export function SqlEditorCenterPanel() {
 
   const { mutateAsync, isPending, isIdle } = useCreateQuery({
     mutation: {
-      onSuccess: async (newQueryRecord) => {
+      onSettled: async (newQueryRecord) => {
         if (!isRightPanelExpanded) {
           toggleRightPanel();
         }
@@ -47,7 +47,9 @@ export function SqlEditorCenterPanel() {
             queryKey: getGetDashboardQueryKey(),
           }),
         ]);
-        setQueryRecord(newQueryRecord);
+        if (newQueryRecord) {
+          setSelectedQueryRecord(newQueryRecord);
+        }
       },
     },
   });
@@ -98,7 +100,7 @@ export function SqlEditorCenterPanel() {
             ref={bottomRef}
           >
             <SqlEditorCenterBottomPanel
-              queryRecord={queryRecord}
+              queryRecord={selectedQueryRecord}
               isLoading={isPending}
               isIdle={isIdle}
             />

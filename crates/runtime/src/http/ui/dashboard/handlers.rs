@@ -75,7 +75,7 @@ pub async fn get_dashboard(
     }
 
     let total_queries = state
-        .history
+        .history_store
         .get_queries(GetQueries::new())
         .await
         .map_err(|e| DashboardAPIError::Queries {

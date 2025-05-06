@@ -1,0 +1,44 @@
+query T
+SELECT CONCAT('George Washington ', 'Carver')
+----
+George Washington Carver
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE concat_function_example (s1 VARCHAR, s2 VARCHAR, s3 VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO concat_function_example (s1, s2, s3) VALUES
+  ('co', 'd', 'e'),
+  ('Colorado ', 'River ', NULL);
+
+query T
+SELECT CONCAT(s1, s2)
+  FROM concat_function_example
+----
+cod
+Colorado River 
+
+query T
+SELECT CONCAT(s1, s2, s3)
+  FROM concat_function_example
+----
+code
+NULL
+
+query T
+SELECT CONCAT(
+    IFF(s1 IS NULL, '', s1),
+    IFF(s2 IS NULL, '', s2),
+    IFF(s3 IS NULL, '', s3)) AS concat_non_null_strings
+  FROM concat_function_example
+----
+code
+Colorado River 
+
+query T
+SELECT 'This ' || 'is ' || 'another ' || 'concatenation ' || 'technique.'
+----
+This is another concatenation technique.
+

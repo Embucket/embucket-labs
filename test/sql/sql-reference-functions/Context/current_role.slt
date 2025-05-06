@@ -1,0 +1,31 @@
+statement ok
+SET current_role = CURRENT_ROLE();
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE ROLE current_role_test_role;
+
+exclude-from-coverage
+statement ok
+GRANT ROLE current_role_test_role TO ROLE SYSADMIN;
+
+exclude-from-coverage
+statement ok
+USE ROLE current_role_test_role;
+
+query T
+SELECT CURRENT_ROLE();
+----
+CURRENT_ROLE_TEST_ROLE
+
+exclude-from-coverage
+statement ok
+USE ROLE IDENTIFIER($current_role);
+
+exclude-from-coverage
+statement ok
+REVOKE ROLE current_role_test_role FROM ROLE SYSADMIN;
+
+exclude-from-coverage
+statement ok
+DROP ROLE IF EXISTS current_role_test_role;

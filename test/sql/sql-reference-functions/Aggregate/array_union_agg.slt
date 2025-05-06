@@ -1,0 +1,16 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE union_test(a array);
+
+exclude-from-coverage
+statement ok
+INSERT INTO union_test
+    SELECT PARSE_JSON('[ 1, 1, 2]')
+    UNION ALL
+    SELECT PARSE_JSON('[ 1, 2, 3]');
+
+query T
+SELECT ARRAY_UNION_AGG(a) FROM union_test
+----
+'[1,1,2,3]'
+

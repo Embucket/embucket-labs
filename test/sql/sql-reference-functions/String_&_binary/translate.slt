@@ -1,0 +1,10 @@
+query T
+SELECT TRANSLATE('peña','ñ','n') AS translation
+----
+pena
+
+query T
+SELECT TRANSLATE('❄a❄bX❄dYZ❄','XYZ❄','cef') AS translation
+----
+abcdef
+

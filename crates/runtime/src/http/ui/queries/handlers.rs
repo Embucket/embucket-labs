@@ -1,8 +1,9 @@
+use crate::execution::query::QueryContext;
 use crate::http::session::DFSessionId;
 use crate::http::state::AppState;
 use crate::http::ui::queries::models::{
-    ExecutionContext, GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse,
-    QueryRecord, ResultSet,
+    GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryRecord,
+    ResultSet,
 };
 use crate::http::{
     error::ErrorResponse,
@@ -75,17 +76,19 @@ pub async fn query(
     // Note: This handler allowed to return error from a designated place only,
     // after query record successfuly saved result or error.
 
-    let query_context = ExecutionContext {
-        database: payload
+    let query_context = QueryContext::new(
+        payload
             .context
             .as_ref()
             .and_then(|c| c.get("database").cloned()),
-        schema: payload
+        payload
             .context
             .as_ref()
             .and_then(|c| c.get("schema").cloned()),
-    };
+        payload.worksheet_id,
+    );
 
+    //TODO: map to result correctly without using duplicate code
     let mut query_record =
         embucket_history::QueryRecord::query_start(&payload.query, payload.worksheet_id);
     let query_res = state
@@ -122,11 +125,11 @@ pub async fn query(
         }
     }
 
-    // add query record
-    if let Err(err) = state.history.add_query(&query_record).await {
-        // do not raise error, just log ?
-        tracing::error!("{err}");
-    }
+    // // add query record
+    // if let Err(err) = state.history_store.add_query(&query_record).await {
+    //     // do not raise error, just log ?
+    //     tracing::error!("{err}");
+    // }
 
     if let Err(err) = query_res {
         Err(QueriesAPIError::Query {
@@ -163,7 +166,7 @@ pub async fn queries(
     State(state): State<AppState>,
 ) -> QueriesResult<Json<QueriesResponse>> {
     let cursor = params.cursor;
-    let result = state.history.get_queries(params.into()).await;
+    let result = state.history_store.get_queries(params.into()).await;
 
     match result {
         Ok(recs) => {

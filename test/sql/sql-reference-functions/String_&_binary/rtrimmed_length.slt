@@ -1,0 +1,5 @@
+query T
+SELECT RTRIM(' ABCD ')
+----
+ ABCD
+

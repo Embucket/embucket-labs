@@ -1,0 +1,56 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE sample_table(k CHAR(4), d CHAR(4));
+
+exclude-from-coverage
+statement ok
+INSERT INTO sample_table VALUES
+    ('1', '1'), ('1', '5'), ('1', '3'),
+    ('2', '2'), ('2', NULL),
+    ('3', NULL),
+    (NULL, '7'), (NULL, '1');
+
+query T
+SELECT MAX(d) FROM sample_table
+----
+7
+
+query TT
+SELECT k, MAX(d)
+  FROM sample_table 
+  GROUP BY k
+  ORDER BY k
+----
+1	5
+2	2
+3	NULL
+NULL	7
+
+query TTT
+SELECT k, d, MAX(d) OVER (PARTITION BY k)
+  FROM sample_table
+  ORDER BY k, d
+----
+1	1	5
+1	3	5
+1	5	5
+2	2	2
+2	NULL	2
+3	NULL	NULL
+NULL	1	7
+NULL	7	7
+
+query TTT
+SELECT k, d, MAX(d) OVER (ORDER BY k, d ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
+  FROM sample_table
+  ORDER BY k, d
+----
+1	1	1
+1	3	3
+1	5	5
+2	2	5
+2	NULL	2
+3	NULL	NULL
+NULL	1	1
+NULL	7	7
+

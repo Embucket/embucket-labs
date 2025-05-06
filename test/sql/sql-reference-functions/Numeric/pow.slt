@@ -1,0 +1,23 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE tab (
+    x NUMBER,
+    y NUMBER
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO tab (x, y) VALUES
+    (0.1, 2),
+    (2, 3),
+    (2, 0.5),
+    (2, -1);
+
+query TTT
+SELECT x, y, pow(x, y) FROM tab
+----
+0	2	0.0
+2	3	8.0
+2	1	2.0
+2	-1	0.5
+

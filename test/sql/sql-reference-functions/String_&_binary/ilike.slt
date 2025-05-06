@@ -1,0 +1,39 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE ilike_ex(name VARCHAR(20));
+
+exclude-from-coverage
+statement ok
+INSERT INTO ilike_ex VALUES
+  ('John  Dddoe'),
+  ('Joe   Doe'),
+  ('John_down'),
+  ('Joe down'),
+  (null);
+
+query T
+SELECT * 
+  FROM ilike_ex 
+  WHERE name ILIKE '%j%h%do%'
+  ORDER BY 1
+----
+John  Dddoe
+John_down
+
+query T
+SELECT *
+  FROM ilike_ex
+  WHERE name NOT ILIKE '%j%h%do%'
+  ORDER BY 1
+----
+Joe   Doe
+Joe down
+
+query T
+SELECT * 
+  FROM ilike_ex 
+  WHERE name ILIKE '%j%h%^_do%' ESCAPE '^'
+  ORDER BY 1
+----
+John_down
+

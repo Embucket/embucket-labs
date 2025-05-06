@@ -1,0 +1,12 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE TEMP_TABLE AS
+SELECT DATE '2025-05-01' AS "Today's Date";
+
+query TT
+SELECT "Today's Date",
+       PREVIOUS_DAY("Today's Date", 'Friday ') AS "Previous Friday"
+FROM TEMP_TABLE;
+----
+'2025-05-01'	'2025-04-25'
+

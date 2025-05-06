@@ -1,5 +1,4 @@
 use datafusion::common::error::DataFusionError;
-use iceberg_rust::spec::schema::SchemaBuilderError;
 use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
@@ -18,7 +17,7 @@ pub enum SQLError {
     RegisterUDF { source: DataFusionError },
 
     #[snafu(display("Schema builder error: {source}"))]
-    SchemaBuilder { source: SchemaBuilderError },
+    SchemaBuilder { source: iceberg_rust::error::Error },
 
     #[snafu(display("Warehouse not found for name {name}"))]
     WarehouseNotFound { name: String },

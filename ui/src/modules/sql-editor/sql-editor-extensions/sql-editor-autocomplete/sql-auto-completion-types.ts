@@ -5,7 +5,7 @@ import type { EditorView, Rect } from '@codemirror/view';
 /**
  * The configs of Codemirror Autocomplete
  */
-export interface DefaultCompletionConfig {
+interface DefaultCompletionConfig {
   /**
     When enabled (defaults to true), autocompletion will start
     whenever the user types something that can be completed.

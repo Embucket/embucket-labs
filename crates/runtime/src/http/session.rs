@@ -18,14 +18,14 @@ pub type RequestSessionMemory = Arc<Mutex<HashMap<Id, Record>>>;
 #[derive(Clone)]
 pub struct RequestSessionStore {
     store: Arc<Mutex<HashMap<Id, Record>>>,
-    execution_svc: Arc<ExecutionService>,
+    execution_svc: Arc<dyn ExecutionService>,
 }
 
 #[allow(clippy::missing_const_for_fn)]
 impl RequestSessionStore {
     pub fn new(
         store: Arc<Mutex<HashMap<Id, Record>>>,
-        execution_svc: Arc<ExecutionService>,
+        execution_svc: Arc<dyn ExecutionService>,
     ) -> Self {
         Self {
             store,

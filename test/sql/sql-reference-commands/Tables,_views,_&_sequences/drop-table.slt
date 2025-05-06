@@ -1,0 +1,24 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE t2 (amount NUMBER);
+
+query T
+SELECT table_name
+FROM information_schema.tables
+WHERE table_name = 'T2';
+----
+T2
+
+statement ok
+DROP TABLE t2
+
+query T
+SELECT table_name
+FROM information_schema.tables
+WHERE table_name = 'T2';
+----
+
+
+statement ok
+DROP TABLE IF EXISTS t2;
+

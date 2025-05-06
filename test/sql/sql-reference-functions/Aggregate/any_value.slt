@@ -1,0 +1,48 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE customer_any_value_test (
+    id INT,
+    name STRING
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO customer_any_value_test (id, name) VALUES
+    (1, 'Alice'),
+    (2, 'Bob'),
+    (3, 'Charlie');
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE orders_any_value_test (
+    order_id INT,
+    customer_id INT,
+    value DECIMAL(10, 2)
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO orders_any_value_test (order_id, customer_id, value) VALUES
+    (101, 1, 150.00),
+    (102, 1, 200.00),
+    (103, 2, 50.00),
+    (104, 3, 300.00),
+    (105, 3, 100.00);
+
+query TTT
+SELECT
+    customer.id,
+    ANY_VALUE(customer.name),
+    SUM(orders.value)
+FROM
+    customer_any_value_test AS customer
+JOIN
+    orders_any_value_test AS orders ON customer.id = orders.customer_id
+GROUP BY
+    customer.id
+ORDER BY
+    customer.id;
+----
+1	Alice	350.00
+2	Bob	50.00
+3	Charlie	400.00

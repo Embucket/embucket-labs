@@ -1,0 +1,33 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE test_floor (n FLOAT, scale INTEGER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_floor (n, scale) VALUES
+   (-975.975, -1),
+   (-975.975,  0),
+   (-975.975,  2),
+   ( 135.135, -2),
+   ( 135.135,  0),
+   ( 135.135,  1),
+   ( 135.135,  3),
+   ( 135.135, 50),
+   ( 135.135, NULL)
+   ;
+
+query TTT
+SELECT n, scale, FLOOR(n, scale)
+  FROM test_floor
+  ORDER BY n, scale
+----
+-975.975	-1	-980.0
+-975.975	0	-976.0
+-975.975	2	-975.98
+135.135	-2	100.0
+135.135	0	135.0
+135.135	1	135.1
+135.135	3	135.135
+135.135	50	135.135
+135.135	NULL	NULL
+

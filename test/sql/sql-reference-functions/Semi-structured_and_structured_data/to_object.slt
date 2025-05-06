@@ -1,0 +1,14 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE t1 (vo VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO t1 (vo) 
+    SELECT PARSE_JSON('{"a":1}');
+
+query T
+SELECT TO_OBJECT(vo) from t1
+----
+'{"a":1}'
+

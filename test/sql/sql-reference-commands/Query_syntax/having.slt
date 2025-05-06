@@ -1,0 +1,28 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE employees (
+    department_id INT
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO employees (department_id)
+VALUES
+  (101), (101), (101), (101), (101);
+
+exclude-from-coverage
+statement ok
+INSERT INTO employees (department_id)
+VALUES
+  (202), (202), (202), (202), (202),
+  (202), (202), (202), (202), (202),
+  (202), (202);
+
+query T
+SELECT department_id
+FROM employees
+GROUP BY department_id
+HAVING count(*) < 10
+----
+101
+

@@ -1,0 +1,13 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE t1 (JOB_ID STRING);
+
+statement error
+SELECT * FROM TABLE(VALIDATE(t1, JOB_ID => '_last'));
+----
+002018 (22023): SQL compilation error: Invalid argument [We couldn't find a copy for this table which occurred during this session ] for table function. Table function argument is required to be a constant.
+
+statement error
+SELECT * FROM TABLE(VALIDATE(t1, JOB_ID => '00000000-0000-0000-0000-000000000000'))
+----
+002018 (22023): SQL compilation error: Invalid argument [Invalid Job UUID provided.] for table function. Table function argument is required to be a constant.

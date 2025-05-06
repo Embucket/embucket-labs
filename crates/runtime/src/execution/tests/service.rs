@@ -1,20 +1,24 @@
 use crate::execution::query::QueryContext;
-use crate::execution::service::ExecutionService;
+use crate::execution::recording_service::RecordingExecutionService;
+use crate::execution::service::{CoreExecutionService, ExecutionService};
 use crate::execution::utils::{Config, DataSerializationFormat};
 use crate::SlateDBMetastore;
 use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
+use embucket_history::{GetQueries, SlateDBWorksheetsStore, Worksheet, WorksheetsStore};
 use embucket_metastore::models::table::TableIdent as MetastoreTableIdent;
 use embucket_metastore::Metastore;
 use embucket_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     Volume as MetastoreVolume,
 };
+use embucket_utils::Db;
+use std::sync::Arc;
 
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_execute_always_returns_schema() {
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let execution_svc = ExecutionService::new(
+    let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         Config {
             dbt_serialization_format: DataSerializationFormat::Json,
@@ -92,7 +96,7 @@ async fn test_service_upload_file() {
     let csv_content = "id,name,value\n1,test1,100\n2,test2,200\n3,test3,300";
     let data = csv_content.as_bytes().to_vec();
 
-    let execution_svc = ExecutionService::new(
+    let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         Config {
             dbt_serialization_format: DataSerializationFormat::Json,
@@ -219,7 +223,7 @@ async fn test_service_create_table_file_volume() {
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };
-    let execution_svc = ExecutionService::new(
+    let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         Config {
             dbt_serialization_format: DataSerializationFormat::Json,
@@ -263,5 +267,213 @@ async fn test_service_create_table_file_volume() {
             "+-------+",
         ],
         &res
+    );
+}
+
+#[tokio::test]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_recording_service() {
+    let db = Db::memory().await;
+    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let history_store = Arc::new(SlateDBWorksheetsStore::new(db));
+    let execution_svc = Arc::new(CoreExecutionService::new(
+        metastore.clone(),
+        Config {
+            dbt_serialization_format: DataSerializationFormat::Json,
+        },
+    ));
+    let execution_svc =
+        RecordingExecutionService::new(execution_svc.clone(), history_store.clone());
+
+    metastore
+        .create_volume(
+            &"test_volume".to_string(),
+            MetastoreVolume::new(
+                "test_volume".to_string(),
+                embucket_metastore::VolumeType::Memory,
+            ),
+        )
+        .await
+        .expect("Failed to create volume");
+
+    let database_name = "embucket".to_string();
+
+    metastore
+        .create_database(
+            &database_name.clone(),
+            MetastoreDatabase {
+                ident: "embucket".to_string(),
+                properties: None,
+                volume: "test_volume".to_string(),
+            },
+        )
+        .await
+        .expect("Failed to create database");
+
+    let session_id = "test_session_id";
+    execution_svc
+        .create_session(session_id.to_string())
+        .await
+        .expect("Failed to create session");
+
+    let schema_name = "public".to_string();
+
+    let context = QueryContext::new(Some(database_name.clone()), Some(schema_name.clone()), None);
+
+    //Good query
+    execution_svc
+        .query(
+            session_id,
+            format!(
+                "CREATE SCHEMA {}.{}",
+                database_name.clone(),
+                schema_name.clone()
+            )
+            .as_str(),
+            context.clone(),
+        )
+        .await
+        .expect("Failed to add schema");
+
+    assert_eq!(
+        1,
+        history_store
+            .get_queries(GetQueries::default())
+            .await
+            .expect("Failed to get queries")
+            .len()
+    );
+
+    //Failing query
+    execution_svc
+        .query(
+            session_id,
+            format!(
+                "CREATE SCHEMA {}.{}",
+                database_name.clone(),
+                schema_name.clone()
+            )
+            .as_str(),
+            context.clone(),
+        )
+        .await
+        .expect_err("Failed to not add schema");
+
+    assert_eq!(
+        2,
+        history_store
+            .get_queries(GetQueries::default())
+            .await
+            .expect("Failed to get queries")
+            .len()
+    );
+
+    let table_name = "test1".to_string();
+
+    //Create table queries
+    execution_svc
+        .query(
+            session_id,
+            format!(
+                "create TABLE {}.{}.{}
+        external_volume = ''
+	    catalog = ''
+	    base_location = ''
+        (
+	    APP_ID TEXT,
+	    PLATFORM TEXT,
+	    EVENT TEXT,
+        TXN_ID NUMBER(38,0),
+        EVENT_TIME TEXT
+	    );",
+                database_name.clone(),
+                schema_name.clone(),
+                table_name.clone()
+            )
+            .as_str(),
+            context.clone(),
+        )
+        .await
+        .expect("Failed to create table");
+
+    assert_eq!(
+        3,
+        history_store
+            .get_queries(GetQueries::default())
+            .await
+            .expect("Failed to get queries")
+            .len()
+    );
+
+    //Insert into query
+    execution_svc
+        .query(
+            session_id,
+            format!(
+                "INSERT INTO {}.{}.{} (APP_ID, PLATFORM, EVENT, TXN_ID, EVENT_TIME)
+        VALUES ('12345', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
+               ('67890', 'Android', 'purchase', '456789', '2021-01-01T00:02:00')",
+                database_name.clone(),
+                schema_name.clone(),
+                table_name.clone()
+            )
+            .as_str(),
+            context.clone(),
+        )
+        .await
+        .expect("Failed to insert into");
+
+    assert_eq!(
+        4,
+        history_store
+            .get_queries(GetQueries::default())
+            .await
+            .expect("Failed to get queries")
+            .len()
+    );
+
+    //With worksheet
+    let worksheet = history_store
+        .add_worksheet(Worksheet::new("Testing1".to_string(), String::new()))
+        .await
+        .expect("Failed to add worksheet");
+
+    assert_eq!(
+        0,
+        history_store
+            .get_queries(GetQueries::default().with_worksheet_id(worksheet.clone().id))
+            .await
+            .expect("Failed to get queries")
+            .len()
+    );
+
+    execution_svc
+        .query(
+            session_id,
+            format!(
+                "INSERT INTO {}.{}.{} (APP_ID, PLATFORM, EVENT, TXN_ID, EVENT_TIME)
+        VALUES ('1234', 'iOS', 'login', '123456', '2021-01-01T00:00:00'),
+               ('6789', 'Android', 'purchase', '456789', '2021-01-01T00:02:00')",
+                database_name.clone(),
+                schema_name.clone(),
+                table_name.clone()
+            )
+            .as_str(),
+            QueryContext::new(
+                Some(database_name.clone()),
+                Some(schema_name.clone()),
+                Some(worksheet.clone().id),
+            ),
+        )
+        .await
+        .expect("Failed to insert into");
+
+    assert_eq!(
+        1,
+        history_store
+            .get_queries(GetQueries::default().with_worksheet_id(worksheet.clone().id))
+            .await
+            .expect("Failed to get queries")
+            .len()
     );
 }

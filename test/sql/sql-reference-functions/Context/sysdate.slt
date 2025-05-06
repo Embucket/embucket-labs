@@ -1,0 +1,17 @@
+exclude-from-coverage
+statement ok
+ALTER SESSION SET TIMESTAMP_NTZ_OUTPUT_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF4';
+
+exclude-from-coverage
+statement ok
+ALTER SESSION SET TIMESTAMP_LTZ_OUTPUT_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF4';
+
+exclude-from-coverage
+statement ok
+ALTER SESSION SET TIMEZONE = 'America/Los_Angeles';
+
+query TT
+SELECT SYSDATE(), CURRENT_TIMESTAMP()
+----
+<REGEX>:'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}'	<REGEX>:'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}[+-]\d{2}:\d{2}'
+

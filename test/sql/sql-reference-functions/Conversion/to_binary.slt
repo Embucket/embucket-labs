@@ -1,0 +1,28 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE binary_test (v VARCHAR, b BINARY);
+
+exclude-from-coverage
+statement ok
+INSERT INTO binary_test(v) VALUES ('SNOW');
+
+query TT
+UPDATE binary_test SET b = TO_BINARY(HEX_ENCODE(v), 'HEX')
+----
+1	0
+
+query TT
+SELECT v, HEX_DECODE_STRING(TO_VARCHAR(b, 'HEX')) FROM binary_test
+----
+SNOW	SNOW
+
+query T
+SELECT TO_BINARY('SNOW', 'utf-8')
+----
+x'534e4f57'
+
+query T
+SELECT TO_VARCHAR(TO_BINARY('SNOW', 'utf-8'), 'HEX')
+----
+534E4F57
+

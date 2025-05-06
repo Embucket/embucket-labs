@@ -1,0 +1,35 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE objects_1 (id INTEGER, object1 OBJECT, variant1 VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO objects_1 (id, object1, variant1) 
+  SELECT
+    1,
+    OBJECT_CONSTRUCT('a', 1, 'b', 2, 'c', 3),
+    TO_VARIANT(OBJECT_CONSTRUCT('a', 1, 'b', 2, 'c', 3))
+    ;
+
+query TT
+SELECT OBJECT_KEYS(object1), OBJECT_KEYS(variant1) 
+    FROM objects_1
+    ORDER BY id
+----
+'["a","b","c"]'	'["a","b","c"]'
+
+query T
+SELECT OBJECT_KEYS (
+           PARSE_JSON (
+               '{
+                    "level_1_A": {
+                                 "level_2": "two"
+                                 },
+                    "level_1_B": "one"
+                    }'
+               )
+           ) AS keys
+    ORDER BY 1
+----
+'["level_1_A","level_1_B"]'
+

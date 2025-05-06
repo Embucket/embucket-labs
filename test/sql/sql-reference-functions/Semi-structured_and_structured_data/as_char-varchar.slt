@@ -1,0 +1,15 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE as_varchar_example (varchar1 VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO as_varchar_example (varchar1)
+  SELECT TO_VARIANT('My VARCHAR value');
+
+query T
+SELECT AS_VARCHAR(varchar1) varchar_value
+  FROM as_varchar_example
+----
+My VARCHAR value
+

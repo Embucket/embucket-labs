@@ -2,8 +2,8 @@ use arrow::array::{
     Array, ArrayRef, BooleanArray, Float64Array, Int64Array, StringArray, StructArray,
 };
 use arrow::datatypes::{DataType, Field, Fields};
-use datafusion::common::{exec_err, ExprSchema, Result};
-use datafusion::logical_expr::{ColumnarValue, Expr, ScalarUDFImpl, Signature, Volatility};
+use datafusion::common::{exec_err, Result};
+use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
 use serde_json::Value;
 use std::any::Any;
@@ -59,16 +59,8 @@ impl ScalarUDFImpl for ParseJsonFunc {
         Ok(DataType::Utf8)
     }
 
-    fn return_type_from_exprs(
-        &self,
-        _args: &[Expr],
-        _schema: &dyn ExprSchema,
-        arg_types: &[DataType],
-    ) -> Result<DataType> {
-        self.return_type(arg_types)
-    }
-
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
         if args.len() != 1 {
             return exec_err!(
                 "parse_json function requires one argument, got {}",

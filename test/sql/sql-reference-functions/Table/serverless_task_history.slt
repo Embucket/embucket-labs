@@ -1,0 +1,45 @@
+statement ok
+select *
+  from table(information_schema.serverless_task_history(
+    date_range_start=>DATEADD(DAY, -1, CURRENT_DATE()),
+    date_range_end=>current_date()));
+
+statement ok
+select *
+  from table(information_schema.serverless_task_history(
+    date_range_start=>dateadd(H, -12, current_timestamp)));
+
+statement ok
+select *
+  from table(information_schema.serverless_task_history(
+    date_range_start=>dateadd(D, -7, current_date),
+    date_range_end=>current_date));
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TASK mytask
+  SCHEDULE = 'USING CRON * * * * * UTC'
+  USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 'XSMALL'
+  AS
+    SELECT CURRENT_TIMESTAMP();
+
+exclude-from-coverage
+statement ok
+ALTER TASK mytask RESUME;
+
+query TTTT
+SELECT *
+FROM TABLE(INFORMATION_SCHEMA.SERVERLESS_TASK_HISTORY(
+  DATE_RANGE_START => DATEADD(DAY, -7, CURRENT_DATE()),
+  DATE_RANGE_END => CURRENT_DATE(),
+  TASK_NAME => 'EMBUCKET.PUBLIC.MYTASK'
+));
+----
+
+exclude-from-coverage
+statement ok
+ALTER TASK mytask SUSPEND;
+
+exclude-from-coverage
+statement ok
+DROP TASK IF EXISTS mytask;

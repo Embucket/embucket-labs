@@ -1,0 +1,20 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE array_unique_agg_test (
+  a INTEGER
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_unique_agg_test VALUES
+  (5),
+  (2),
+  (1),
+  (2),
+  (1);
+
+query T
+SELECT ARRAY_UNIQUE_AGG(a) AS distinct_values
+FROM array_unique_agg_test
+----
+'[5,2,1]'

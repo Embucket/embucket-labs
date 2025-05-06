@@ -1,0 +1,11 @@
+statement ok
+select *
+from table(information_schema.warehouse_metering_history(dateadd('days',-10,current_date())));
+
+statement ok
+SELECT *
+FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_METERING_HISTORY(
+  DATE_RANGE_START => DATEADD(DAY, -1, CURRENT_DATE()),
+  DATE_RANGE_END => CURRENT_DATE(),
+  WAREHOUSE_NAME => 'COMPUTE_WH'
+));

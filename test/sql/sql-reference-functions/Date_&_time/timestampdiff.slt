@@ -1,0 +1,39 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE timestampdiff_test (
+    id INT,
+    start_time TIMESTAMP,
+    end_time TIMESTAMP
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO timestampdiff_test (id, start_time, end_time) VALUES
+    (1, '2023-01-01 08:00:00', '2023-01-01 10:30:00'),
+    (2, '2023-01-01 23:00:00', '2023-01-02 01:00:00'),
+    (3, '2023-01-01 12:00:00', '2023-01-01 12:00:00'),
+    (4, '2023-01-02 10:00:00', '2023-01-01 10:00:00');
+
+query TT
+SELECT id, TIMESTAMPDIFF(HOUR, start_time, end_time) AS diff_hours FROM timestampdiff_test ORDER BY id;
+----
+1	2
+2	2
+3	0
+4	-24
+
+query TT
+SELECT id, TIMESTAMPDIFF(MINUTE, start_time, end_time) AS diff_minutes FROM timestampdiff_test ORDER BY id;
+----
+1	150
+2	120
+3	0
+4	-1440
+
+query TT
+SELECT id, TIMESTAMPDIFF(SECOND, start_time, end_time) AS diff_seconds FROM timestampdiff_test ORDER BY id;
+----
+1	9000
+2	7200
+3	0
+4	-86400

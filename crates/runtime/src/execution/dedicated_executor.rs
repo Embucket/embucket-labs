@@ -684,6 +684,38 @@ impl Display for IoObjectStore {
 
 #[async_trait]
 impl ObjectStore for IoObjectStore {
+    async fn put_opts(
+        &self,
+        location: &Path,
+        payload: PutPayload,
+        opts: PutOptions,
+    ) -> object_store::Result<PutResult> {
+        let location = location.clone();
+        let store = Arc::clone(&self.inner);
+        self.dedicated_executor
+            .spawn_io(async move { store.put_opts(&location, payload, opts).await })
+            .await
+    }
+
+    async fn put_multipart_opts(
+        &self,
+        location: &Path,
+        opts: PutMultipartOpts,
+    ) -> object_store::Result<Box<dyn MultipartUpload>> {
+        let location = location.clone();
+        let store = Arc::clone(&self.inner);
+        let result = self
+            .dedicated_executor
+            .spawn_io(async move { store.put_multipart_opts(&location, opts).await })
+            .await?;
+
+        // the resulting object has async functions too which we must wrap
+        Ok(Box::new(IoMultipartUpload::new(
+            self.dedicated_executor.clone(),
+            result,
+        )))
+    }
+
     /// Return GetResult for the location and options.
     async fn get_opts(
         &self,
@@ -702,24 +734,6 @@ impl ObjectStore for IoObjectStore {
         Ok(results)
     }
 
-    async fn copy(&self, from: &Path, to: &Path) -> object_store::Result<()> {
-        let from = from.clone();
-        let to = to.clone();
-        let store = Arc::clone(&self.inner);
-        self.dedicated_executor
-            .spawn_io(async move { store.copy(&from, &to).await })
-            .await
-    }
-
-    async fn copy_if_not_exists(&self, from: &Path, to: &Path) -> object_store::Result<()> {
-        let from = from.clone();
-        let to = to.clone();
-        let store = Arc::clone(&self.inner);
-        self.dedicated_executor
-            .spawn_io(async move { store.copy(&from, &to).await })
-            .await
-    }
-
     async fn delete(&self, location: &Path) -> object_store::Result<()> {
         let location = location.clone();
         let store = Arc::clone(&self.inner);
@@ -728,7 +742,7 @@ impl ObjectStore for IoObjectStore {
             .await
     }
 
-    fn list(&self, prefix: Option<&Path>) -> BoxStream<'_, object_store::Result<ObjectMeta>> {
+    fn list(&self, prefix: Option<&Path>) -> BoxStream<'static, object_store::Result<ObjectMeta>> {
         // run the inner list on the dedicated executor
         //
         // This requires some fiddling as we can't pass the result of list
@@ -770,35 +784,21 @@ impl ObjectStore for IoObjectStore {
             .await
     }
 
-    async fn put_multipart_opts(
-        &self,
-        location: &Path,
-        opts: PutMultipartOpts,
-    ) -> object_store::Result<Box<dyn MultipartUpload>> {
-        let location = location.clone();
-        let store = Arc::clone(&self.inner);
-        let result = self
-            .dedicated_executor
-            .spawn_io(async move { store.put_multipart_opts(&location, opts).await })
-            .await?;
-
-        // the resulting object has async functions too which we must wrap
-        Ok(Box::new(IoMultipartUpload::new(
-            self.dedicated_executor.clone(),
-            result,
-        )))
-    }
-
-    async fn put_opts(
-        &self,
-        location: &Path,
-        payload: PutPayload,
-        opts: PutOptions,
-    ) -> object_store::Result<PutResult> {
-        let location = location.clone();
+    async fn copy(&self, from: &Path, to: &Path) -> object_store::Result<()> {
+        let from = from.clone();
+        let to = to.clone();
         let store = Arc::clone(&self.inner);
         self.dedicated_executor
-            .spawn_io(async move { store.put_opts(&location, payload, opts).await })
+            .spawn_io(async move { store.copy(&from, &to).await })
+            .await
+    }
+
+    async fn copy_if_not_exists(&self, from: &Path, to: &Path) -> object_store::Result<()> {
+        let from = from.clone();
+        let to = to.clone();
+        let store = Arc::clone(&self.inner);
+        self.dedicated_executor
+            .spawn_io(async move { store.copy(&from, &to).await })
             .await
     }
 }
@@ -1564,7 +1564,10 @@ mod tests {
             self.inner.delete(location).await
         }
 
-        fn list(&self, prefix: Option<&Path>) -> BoxStream<'_, object_store::Result<ObjectMeta>> {
+        fn list(
+            &self,
+            prefix: Option<&Path>,
+        ) -> BoxStream<'static, object_store::Result<ObjectMeta>> {
             self.inner.list(prefix).then(with_mock_io).boxed()
         }
 

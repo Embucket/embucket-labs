@@ -1,0 +1,5 @@
+query T
+SELECT CURRENT_WAREHOUSE()
+----
+COMPUTE_WH
+

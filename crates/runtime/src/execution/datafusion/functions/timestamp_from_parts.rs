@@ -13,10 +13,10 @@ use chrono::prelude::*;
 use chrono::{Duration, Months};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
-use datafusion_common::types::{logical_int64, logical_string};
+use datafusion_common::types::{logical_date, logical_int64, logical_string};
 use datafusion_common::{exec_err, internal_err, Result, ScalarValue, _exec_datafusion_err};
 use datafusion_expr::{
-    ColumnarValue, ReturnInfo, ReturnTypeArgs, ScalarUDFImpl, Signature, Volatility,
+    Coercion, ColumnarValue, ReturnInfo, ReturnTypeArgs, ScalarUDFImpl, Signature, Volatility,
 };
 use datafusion_macros::user_doc;
 
@@ -98,7 +98,8 @@ impl Default for TimestampFromPartsFunc {
 
 impl TimestampFromPartsFunc {
     pub fn new() -> Self {
-        let basic_signature = vec![TypeSignatureClass::Native(logical_int64()); 6];
+        let basic_signature =
+            vec![Coercion::new_exact(TypeSignatureClass::Native(logical_int64())); 6];
         Self {
             signature: Signature::one_of(
                 vec![
@@ -107,7 +108,9 @@ impl TimestampFromPartsFunc {
                     Coercible(
                         [
                             basic_signature.clone(),
-                            vec![TypeSignatureClass::Native(logical_int64())],
+                            vec![Coercion::new_exact(TypeSignatureClass::Native(
+                                logical_int64(),
+                            ))],
                         ]
                         .concat(),
                     ),
@@ -115,14 +118,17 @@ impl TimestampFromPartsFunc {
                         [
                             basic_signature,
                             vec![
-                                TypeSignatureClass::Native(logical_int64()),
-                                TypeSignatureClass::Native(logical_string()),
+                                Coercion::new_exact(TypeSignatureClass::Native(logical_int64())),
+                                Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
                             ],
                         ]
                         .concat(),
                     ),
                     // TIMESTAMP_FROM_PARTS( <date_expr>, <time_expr> )
-                    Coercible(vec![TypeSignatureClass::Date, TypeSignatureClass::Time]),
+                    Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
+                        Coercion::new_exact(TypeSignatureClass::Time),
+                    ]),
                 ],
                 Volatility::Immutable,
             ),
@@ -169,7 +175,8 @@ impl ScalarUDFImpl for TimestampFromPartsFunc {
         )))
     }
 
-    fn invoke_batch(&self, args: &[ColumnarValue], _number_rows: usize) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
         // first, identify if any of the arguments is an Array. If yes, store its `len`,
         // as any scalar will need to be converted to an array of len `len`.
         let array_size = args
@@ -548,7 +555,14 @@ mod test {
                     fn_args.push(columnar_value_fn(is_scalar, t.to_string()));
                 };
                 let result = TimestampFromPartsFunc::new()
-                    .invoke_batch(&fn_args, 1)
+                    .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
+                        args: fn_args,
+                        number_rows: 1,
+                        return_type: &arrow::datatypes::DataType::Timestamp(
+                            arrow_schema::TimeUnit::Nanosecond,
+                            None,
+                        ),
+                    })
                     .unwrap();
                 let result = to_primitive_array::<TimestampNanosecondType>(&result).unwrap();
                 let ts = DateTime::from_timestamp_nanos(result.value(0))
@@ -576,7 +590,14 @@ mod test {
                     columnar_value_fn(is_scalar, ScalarValue::Time64Nanosecond(Some(*time))),
                 ];
                 let result = TimestampFromPartsFunc::new()
-                    .invoke_batch(&fn_args, 1)
+                    .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
+                        args: fn_args,
+                        number_rows: 1,
+                        return_type: &arrow::datatypes::DataType::Timestamp(
+                            arrow_schema::TimeUnit::Nanosecond,
+                            None,
+                        ),
+                    })
                     .unwrap();
                 let result = to_primitive_array::<TimestampNanosecondType>(&result).unwrap();
                 assert_eq!(result.value(0), *exp, "failed at index {i}");

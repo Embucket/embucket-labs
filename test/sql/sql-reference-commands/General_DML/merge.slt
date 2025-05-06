@@ -1,0 +1,184 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE target_table (ID INTEGER, description VARCHAR);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE source_table (ID INTEGER, description VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO target_table (ID, description) VALUES
+    (10, 'To be updated (this is the old value)')
+    ;
+
+exclude-from-coverage
+statement ok
+INSERT INTO source_table (ID, description) VALUES
+    (10, 'To be updated (this is the new value)')
+    ;
+
+query T
+MERGE INTO target_table USING source_table 
+    ON target_table.id = source_table.id
+    WHEN MATCHED THEN 
+        UPDATE SET target_table.description = source_table.description
+----
+1
+
+query TT
+SELECT * FROM target_table
+----
+10	To be updated (this is the new value)
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TEMP TABLE t1 (t1Key INTEGER, val NUMBER, status NUMBER);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TEMP TABLE t2 (t2Key INTEGER, marked INTEGER, isNewStatus INTEGER, newVal NUMBER, newStatus NUMBER);
+
+statement ok
+MERGE INTO t1 USING t2 ON t1.t1Key = t2.t2Key
+    WHEN MATCHED AND t2.marked = 1 THEN DELETE
+    WHEN MATCHED AND t2.isNewStatus = 1 THEN UPDATE SET val = t2.newVal, status = t2.newStatus
+    WHEN MATCHED THEN UPDATE SET val = t2.newVal
+    WHEN NOT MATCHED THEN INSERT (val, status) VALUES (t2.newVal, t2.newStatus);
+
+exclude-from-coverage
+statement ok
+TRUNCATE TABLE source_table
+
+exclude-from-coverage
+statement ok
+TRUNCATE TABLE target_table
+
+exclude-from-coverage
+query T
+INSERT INTO source_table (ID, description) VALUES
+    (50, 'This is a duplicate in the source and has no match in target'),
+    (50, 'This is a duplicate in the source and has no match in target')
+----
+2
+
+query TT
+MERGE INTO target_table USING source_table 
+    ON target_table.id = source_table.id
+    WHEN MATCHED THEN 
+        UPDATE SET target_table.description = source_table.description
+    WHEN NOT MATCHED THEN
+        INSERT (ID, description) VALUES (source_table.id, source_table.description)
+----
+2	0
+
+query T
+SELECT ID FROM target_table
+----
+50
+50
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE target_orig (k NUMBER, v NUMBER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO target_orig VALUES (0, 10);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE src (k NUMBER, v NUMBER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO src VALUES (0, 11), (0, 12), (0, 13);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE target CLONE target_orig;
+
+statement error
+MERGE INTO target
+  USING src ON target.k = src.k
+  WHEN MATCHED THEN UPDATE SET target.v = src.v;
+----
+100090 (42P18): Duplicate row detected during DML action
+Row Values: [0, 10]
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE target CLONE target_orig;
+
+statement error
+MERGE INTO target
+  USING src ON target.k = src.k
+  WHEN MATCHED AND src.v = 11 THEN DELETE
+  WHEN MATCHED THEN UPDATE SET target.v = src.v;
+----
+100090 (42P18): Duplicate row detected during DML action
+Row Values: [0, 10]
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE target CLONE target_orig;
+
+query T
+MERGE INTO target
+  USING src ON target.k = src.k
+  WHEN MATCHED AND src.v <= 12 THEN DELETE;
+----
+1
+
+query TT
+SELECT * FROM target;
+----
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE target CLONE target_orig;
+
+query T
+MERGE INTO target
+  USING src ON target.k = src.k
+  WHEN MATCHED AND src.v = 11 THEN UPDATE SET target.v = src.v;
+----
+1
+
+query TT
+SELECT * FROM target;
+----
+0	11
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE target CLONE target_orig;
+
+query TT
+MERGE INTO target USING (select k, max(v) as v from src group by k) AS b ON target.k = b.k
+  WHEN MATCHED THEN UPDATE SET target.v = b.v
+  WHEN NOT MATCHED THEN INSERT (k, v) VALUES (b.k, b.v);
+----
+0	1
+
+query TT
+SELECT * FROM target;
+----
+0	13
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE members (id INTEGER, fee NUMBER);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE signup (id INTEGER, date DATE);
+
+statement ok
+MERGE INTO members m
+  USING (
+  SELECT id, date
+  FROM signup
+  WHERE DATEDIFF(day, CURRENT_DATE(), signup.date::DATE) < -30) s ON m.id = s.id
+  WHEN MATCHED THEN UPDATE SET m.fee = 40;
+

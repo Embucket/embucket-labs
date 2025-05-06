@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
-import { useCreateDatabase } from '@/orval/databases';
+import { getGetDatabasesQueryKey, useCreateDatabase } from '@/orval/databases';
 import { getGetNavigationTreesQueryKey } from '@/orval/navigation-trees';
 import { useGetVolumes } from '@/orval/volumes';
 
@@ -35,6 +35,9 @@ export function CreateDatabaseDialog({ opened, onSetOpened }: CreateDatabaseDial
           }),
           queryClient.invalidateQueries({
             queryKey: getGetDashboardQueryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: getGetDatabasesQueryKey(),
           }),
         ]);
         onSetOpened(false);

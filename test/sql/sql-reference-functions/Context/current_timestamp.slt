@@ -1,0 +1,19 @@
+exclude-from-coverage
+statement ok
+ALTER SESSION SET TIMESTAMP_OUTPUT_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF';
+
+query T
+SELECT CURRENT_TIMESTAMP(2)
+----
+<REGEX>:'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{2,6}[+-]\d{2}:\d{2}'
+
+query T
+SELECT CURRENT_TIMESTAMP(4)
+----
+<REGEX>:'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{2,6}[+-]\d{2}:\d{2}'
+
+query T
+SELECT CURRENT_TIMESTAMP
+----
+<REGEX>:'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}[+-]\d{2}:\d{2}'
+

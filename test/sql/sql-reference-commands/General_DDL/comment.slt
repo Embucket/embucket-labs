@@ -1,0 +1,41 @@
+statement ok
+CREATE OR REPLACE SCHEMA my_schema COMMENT='this is comment1';
+
+query T
+SELECT comment
+FROM information_schema.schemata
+WHERE schema_name LIKE '%MY_SCHEMA%';
+----
+this is comment1
+
+statement ok
+COMMENT ON SCHEMA my_schema IS 'now comment2'
+
+query T
+SELECT comment
+FROM information_schema.schemata
+WHERE schema_name LIKE '%MY_SCHEMA%';
+----
+now comment2
+
+statement ok
+CREATE OR REPLACE TABLE my_table(my_column string COMMENT 'this is comment3');
+
+statement ok
+COMMENT ON COLUMN my_table.my_column IS 'now comment4'
+
+query TTTTTTTTTTTT
+DESC TABLE my_table
+----
+MY_COLUMN	VARCHAR(16777216)	COLUMN	Y	NULL	N	N	NULL	NULL	now comment4	NULL	NULL
+
+statement ok
+CREATE OR REPLACE VIEW my_view comment='this is comment5' AS (SELECT * FROM my_table);
+
+query T
+SELECT comment
+FROM information_schema.views
+WHERE table_name LIKE '%MY_VIEW%';
+----
+this is comment5
+

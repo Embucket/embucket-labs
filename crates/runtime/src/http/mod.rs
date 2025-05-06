@@ -18,7 +18,9 @@ use tower_sessions::{Expiry, SessionManagerLayer};
 use layers::make_cors_middleware;
 use session::{RequestSessionMemory, RequestSessionStore};
 
-use crate::execution::{self, service::ExecutionService};
+use crate::execution::recording_service::RecordingExecutionService;
+use crate::execution::{self, service::CoreExecutionService};
+use embucket_utils::Db;
 
 pub mod error;
 
@@ -45,12 +47,16 @@ use crate::config::AuthConfig;
 #[allow(clippy::needless_pass_by_value)]
 pub fn make_app(
     metastore: Arc<SlateDBMetastore>,
-    history: Arc<SlateDBWorksheetsStore>,
+    history_store: Arc<SlateDBWorksheetsStore>,
     config: &WebConfig,
     auth_config: AuthConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format)?;
-    let execution_svc = Arc::new(ExecutionService::new(metastore.clone(), execution_cfg));
+    let execution_svc = Arc::new(CoreExecutionService::new(metastore.clone(), execution_cfg));
+    let execution_svc = Arc::new(RecordingExecutionService::new(
+        execution_svc,
+        history_store.clone(),
+    ));
 
     let session_memory = RequestSessionMemory::default();
     let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
@@ -66,8 +72,13 @@ pub fn make_app(
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
     // Create the application state
-    let app_state =
-        state::AppState::new(metastore, history.clone(), history, execution_svc, Arc::new(config.clone()), Arc::new(auth_config));
+    let app_state = state::AppState::new(
+        metastore,
+        history_store,
+        execution_svc,
+        Arc::new(config.clone()),
+	Arc::new(auth_config),
+    );
 
     let mut app = router::create_app(app_state.clone())
         .layer(session_layer)
@@ -82,14 +93,18 @@ pub fn make_app(
 }
 
 #[allow(clippy::as_conversions)]
-pub async fn run_app(app: Router, config: &WebConfig) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_app(
+    app: Router,
+    config: &WebConfig,
+    db: Arc<Db>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let host = config.host.clone();
     let port = config.port;
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
     let addr = listener.local_addr()?;
     tracing::info!("Listening on http://{}", addr);
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(shutdown_signal(db))
         .await
         .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
 }
@@ -104,7 +119,7 @@ pub async fn run_app(app: Router, config: &WebConfig) -> Result<(), Box<dyn std:
     clippy::redundant_pub_crate,
     clippy::cognitive_complexity
 )]
-async fn shutdown_signal() {
+async fn shutdown_signal(db: Arc<Db>) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -124,9 +139,11 @@ async fn shutdown_signal() {
 
     tokio::select! {
         () = ctrl_c => {
+            db.close().await.expect("Failed to close database");
             tracing::warn!("Ctrl+C received, starting graceful shutdown");
         },
         () = terminate => {
+            db.close().await.expect("Failed to close database");
             tracing::warn!("SIGTERM received, starting graceful shutdown");
         },
     }

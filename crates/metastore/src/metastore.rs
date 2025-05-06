@@ -786,7 +786,7 @@ mod tests {
         schema::Schema as IcebergSchema,
         types::{PrimitiveType, StructField, StructType, Type},
     };
-    use slatedb::db::Db as SlateDb;
+    use slatedb::Db as SlateDb;
     use std::sync::Arc;
 
     fn insta_filters() -> Vec<(&'static str, &'static str)> {
@@ -1048,21 +1048,20 @@ mod tests {
 
         let schema = IcebergSchema::builder()
             .with_schema_id(0)
-            .with_fields(
-                StructType::builder()
-                    .fields(vec![
-                        StructField::new(0, "id", true, Type::Primitive(PrimitiveType::Int), None),
-                        StructField::new(
-                            1,
-                            "name",
-                            true,
-                            Type::Primitive(PrimitiveType::String),
-                            None,
-                        ),
-                    ])
-                    .build()
-                    .expect("struct type build failed"),
-            )
+            .with_struct_field(StructField::new(
+                0,
+                "id",
+                true,
+                Type::Primitive(PrimitiveType::Int),
+                None,
+            ))
+            .with_struct_field(StructField::new(
+                1,
+                "name",
+                true,
+                Type::Primitive(PrimitiveType::String),
+                None,
+            ))
             .build()
             .expect("schema build failed");
 
@@ -1173,21 +1172,20 @@ mod tests {
 
         let schema = IcebergSchema::builder()
             .with_schema_id(0)
-            .with_fields(
-                StructType::builder()
-                    .fields(vec![
-                        StructField::new(0, "id", true, Type::Primitive(PrimitiveType::Int), None),
-                        StructField::new(
-                            1,
-                            "name",
-                            true,
-                            Type::Primitive(PrimitiveType::String),
-                            None,
-                        ),
-                    ])
-                    .build()
-                    .expect("struct type build failed"),
-            )
+            .with_struct_field(StructField::new(
+                0,
+                "id",
+                true,
+                Type::Primitive(PrimitiveType::Int),
+                None,
+            ))
+            .with_struct_field(StructField::new(
+                1,
+                "name",
+                true,
+                Type::Primitive(PrimitiveType::String),
+                None,
+            ))
             .build()
             .expect("schema build failed");
 

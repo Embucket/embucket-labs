@@ -1,11 +1,16 @@
-use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
+//use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
+use super::datafusion::functions::aggregate::register_udafs;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
-use super::error::{self as ex_error, ExecutionResult};
+use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::query::{QueryContext, UserQuery};
 use crate::execution::catalog::catalog_list::{EmbucketCatalogList, DEFAULT_CATALOG};
 use crate::execution::datafusion::analyzer::IcebergTypesAnalyzer;
+use aws_config::{BehaviorVersion, Region, SdkConfig};
+use aws_credential_types::provider::SharedCredentialsProvider;
+use aws_credential_types::Credentials;
+use datafusion::catalog::CatalogProvider;
 use datafusion::common::error::Result as DFResult;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::execution::SessionStateBuilder;
@@ -13,12 +18,18 @@ use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_functions_json::register_all as register_json_udfs;
+use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
-use embucket_metastore::Metastore;
-use geodatafusion::udf::native::register_native as register_geo_native;
+use embucket_metastore::error::MetastoreError;
+use embucket_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
+use embucket_utils::scan_iterator::ScanIterator;
+// TODO: We need to fix this after geodatafusion is updated to datafusion 47
+//use geodatafusion::udf::native::register_native as register_geo_native;
+use iceberg_rust::object_store::ObjectStoreBuilder;
+use iceberg_s3tables_catalog::S3TablesCatalog;
 use snafu::ResultExt;
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::sync::Arc;
 
@@ -28,6 +39,8 @@ pub struct UserSession {
     pub ident_normalizer: IdentNormalizer,
     pub executor: DedicatedExecutor,
 }
+
+pub type CatalogsTree = BTreeMap<String, BTreeMap<String, Vec<String>>>;
 
 impl UserSession {
     pub async fn new(metastore: Arc<dyn Metastore>) -> ExecutionResult<Self> {
@@ -54,15 +67,16 @@ impl UserSession {
             .with_default_features()
             .with_runtime_env(Arc::new(runtime_config))
             .with_catalog_list(catalog_list_impl.clone())
-            .with_query_planner(Arc::new(IcebergQueryPlanner {}))
+            .with_query_planner(Arc::new(IcebergQueryPlanner::new()))
             .with_type_planner(Arc::new(CustomTypePlanner {}))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
             .build();
         let mut ctx = SessionContext::new_with_state(state);
         register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
+        register_udafs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         register_json_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
-        register_geo_native(&ctx);
-        register_geo_udfs(&ctx);
+        //register_geo_native(&ctx);
+        //register_geo_udfs(&ctx);
 
         catalog_list_impl.register_catalogs().await?;
         catalog_list_impl.refresh().await?;
@@ -74,7 +88,64 @@ impl UserSession {
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
             executor: DedicatedExecutor::builder().build(),
         };
+        session.register_external_catalogs().await?;
         Ok(session)
+    }
+
+    #[allow(clippy::as_conversions)]
+    pub async fn register_external_catalogs(&self) -> ExecutionResult<()> {
+        let volumes = self
+            .metastore
+            .iter_volumes()
+            .collect()
+            .await
+            .map_err(|e| ExecutionError::Metastore {
+                source: MetastoreError::UtilSlateDB { source: e },
+            })?
+            .into_iter()
+            .filter_map(|volume| {
+                if let MetastoreVolumeType::S3Tables(s3_volume) = volume.volume.clone() {
+                    Some(s3_volume)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        if volumes.is_empty() {
+            return Ok(());
+        }
+        for volume in volumes {
+            let (ak, sk, token) = match volume.credentials {
+                AwsCredentials::AccessKey(ref creds) => (
+                    Some(creds.aws_access_key_id.clone()),
+                    Some(creds.aws_secret_access_key.clone()),
+                    None,
+                ),
+                AwsCredentials::Token(ref token) => (None, None, Some(token.clone())),
+            };
+            let creds =
+                Credentials::from_keys(ak.unwrap_or_default(), sk.unwrap_or_default(), token);
+            let config = SdkConfig::builder()
+                .behavior_version(BehaviorVersion::latest())
+                .credentials_provider(SharedCredentialsProvider::new(creds))
+                .region(Region::new(volume.region.clone()))
+                .build();
+            let catalog = S3TablesCatalog::new(
+                &config,
+                volume.arn.as_str(),
+                ObjectStoreBuilder::S3(volume.s3_builder()),
+            )
+            .context(ex_error::S3TablesSnafu)?;
+
+            let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
+                .await
+                .context(ex_error::DataFusionSnafu)?;
+            let catalog_provider = Arc::new(catalog) as Arc<dyn CatalogProvider>;
+
+            self.ctx.register_catalog(volume.name, catalog_provider);
+        }
+        Ok(())
     }
 
     pub fn query<S>(self: &Arc<Self>, query: S, query_context: QueryContext) -> UserQuery
@@ -82,6 +153,41 @@ impl UserSession {
         S: Into<String>,
     {
         UserQuery::new(self.clone(), query.into(), query_context)
+    }
+
+    /// Returns a tree of available catalogs, schemas, and table names.
+    ///
+    /// The structure of the result:
+    ///
+    /// ```json
+    /// {
+    ///   "catalog1": {
+    ///     "schema1": ["table1", "table2"],
+    ///     "schema2": ["table3"]
+    ///   },
+    ///   "catalog2": { ... }
+    /// }
+    /// ```
+    ///
+    /// Note: Only table names are retrieved — the actual table metadata is not loaded.
+    ///
+    /// Returns a [`CatalogsTree`] mapping catalog names to schemas and their tables.
+    #[must_use]
+    pub fn fetch_catalogs_tree(&self) -> CatalogsTree {
+        let mut tree: CatalogsTree = BTreeMap::new();
+
+        for catalog_name in self.ctx.catalog_names() {
+            if let Some(catalog) = self.ctx.catalog(&catalog_name) {
+                let mut schemas = BTreeMap::new();
+                for schema_name in catalog.schema_names() {
+                    if let Some(schema) = catalog.schema(&schema_name) {
+                        schemas.insert(schema_name, schema.table_names());
+                    }
+                }
+                tree.insert(catalog_name, schemas);
+            }
+        }
+        tree
     }
 
     pub fn set_session_variable(

@@ -1,0 +1,262 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE demo1 (id INT, string1 VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO demo1 (id, string1) VALUES
+  (1, 'nevermore1, nevermore2, nevermore3.');
+
+query TTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'nevermore\\d') AS substring,
+       REGEXP_INSTR( string1, 'nevermore\\d') AS position
+  FROM demo1
+  ORDER BY id
+----
+1	nevermore1, nevermore2, nevermore3.	nevermore1	1
+
+query TTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'nevermore\\d', 5) AS substring,
+       REGEXP_INSTR( string1, 'nevermore\\d', 5) AS position
+  FROM demo1
+  ORDER BY id
+----
+1	nevermore1, nevermore2, nevermore3.	nevermore2	13
+
+query TTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'nevermore\\d', 1, 3) AS substring,
+       REGEXP_INSTR( string1, 'nevermore\\d', 1, 3) AS position
+  FROM demo1
+  ORDER BY id
+----
+1	nevermore1, nevermore2, nevermore3.	nevermore3	25
+
+query TTTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'nevermore\\d', 1, 3) AS substring,
+       REGEXP_INSTR( string1, 'nevermore\\d', 1, 3, 0) AS start_position,
+       REGEXP_INSTR( string1, 'nevermore\\d', 1, 3, 1) AS after_position
+  FROM demo1
+  ORDER BY id
+----
+1	nevermore1, nevermore2, nevermore3.	nevermore3	25	35
+
+query TTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'nevermore', 1, 4) AS substring,
+       REGEXP_INSTR( string1, 'nevermore', 1, 4) AS position
+  FROM demo1
+  ORDER BY id
+----
+1	nevermore1, nevermore2, nevermore3.	NULL	0
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE demo2 (id INT, string1 VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO demo2 (id, string1) VALUES
+    (2, 'It was the best of times, it was the worst of times.'),
+    (3, 'In    the   string   the   extra   spaces  are   redundant.'),
+    (4, 'A thespian theater is nearby.');
+
+query TTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'the\\W+\\w+') AS substring,
+       REGEXP_INSTR(string1, 'the\\W+\\w+') AS position
+  FROM demo2
+  ORDER BY id
+----
+2	It was the best of times, it was the worst of times.	the best	8
+3	In    the   string   the   extra   spaces  are   redundant.	the   string	7
+4	A thespian theater is nearby.	NULL	0
+
+query TTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'the\\W+\\w+', 1, 2) AS substring,
+       REGEXP_INSTR(string1, 'the\\W+\\w+', 1, 2) AS position
+  FROM demo2
+  ORDER BY id
+----
+2	It was the best of times, it was the worst of times.	the worst	34
+3	In    the   string   the   extra   spaces  are   redundant.	the   extra	22
+4	A thespian theater is nearby.	NULL	0
+
+query TTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'the\\W+(\\w+)', 1, 2,    'e', 1) AS substring,
+       REGEXP_INSTR( string1, 'the\\W+(\\w+)', 1, 2, 0, 'e', 1) AS position
+  FROM demo2
+  ORDER BY id
+----
+2	It was the best of times, it was the worst of times.	worst	38
+3	In    the   string   the   extra   spaces  are   redundant.	extra	28
+4	A thespian theater is nearby.	NULL	0
+
+query TTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'the\\W+(\\w+)', 1, 2,    'e') AS substring,
+       REGEXP_INSTR( string1, 'the\\W+(\\w+)', 1, 2, 0, 'e') AS position
+  FROM demo2
+  ORDER BY id
+----
+2	It was the best of times, it was the worst of times.	worst	38
+3	In    the   string   the   extra   spaces  are   redundant.	extra	28
+4	A thespian theater is nearby.	NULL	0
+
+query TTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'the\\W+(\\w+)', 1, 2,    '', 1) AS substring,
+       REGEXP_INSTR( string1, 'the\\W+(\\w+)', 1, 2, 0, '', 1) AS position
+  FROM demo2
+  ORDER BY id
+----
+2	It was the best of times, it was the worst of times.	worst	38
+3	In    the   string   the   extra   spaces  are   redundant.	extra	28
+4	A thespian theater is nearby.	NULL	0
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE demo3 (id INT, string1 VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO demo3 (id, string1) VALUES
+  (5, 'A MAN A PLAN A CANAL');
+
+query TTTTTTTTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'A\\W+(\\w+)', 1, 1,    'e', 1) AS substring1,
+       REGEXP_INSTR( string1, 'A\\W+(\\w+)', 1, 1, 0, 'e', 1) AS position1,
+       REGEXP_SUBSTR(string1, 'A\\W+(\\w+)', 1, 2,    'e', 1) AS substring2,
+       REGEXP_INSTR( string1, 'A\\W+(\\w+)', 1, 2, 0, 'e', 1) AS position2,
+       REGEXP_SUBSTR(string1, 'A\\W+(\\w+)', 1, 3,    'e', 1) AS substring3,
+       REGEXP_INSTR( string1, 'A\\W+(\\w+)', 1, 3, 0, 'e', 1) AS position3,
+       REGEXP_SUBSTR(string1, 'A\\W+(\\w+)', 1, 4,    'e', 1) AS substring4,
+       REGEXP_INSTR( string1, 'A\\W+(\\w+)', 1, 4, 0, 'e', 1) AS position4
+  FROM demo3
+----
+5	A MAN A PLAN A CANAL	MAN	3	PLAN	9	CANAL	16	NULL	0
+
+query TTTTTTTT
+SELECT id,
+       string1,
+       REGEXP_SUBSTR(string1, 'A\\W+(\\w)(\\w)(\\w)', 1, 1,    'e', 1) AS substring1,
+       REGEXP_INSTR( string1, 'A\\W+(\\w)(\\w)(\\w)', 1, 1, 0, 'e', 1) AS position1,
+       REGEXP_SUBSTR(string1, 'A\\W+(\\w)(\\w)(\\w)', 1, 1,    'e', 2) AS substring2,
+       REGEXP_INSTR( string1, 'A\\W+(\\w)(\\w)(\\w)', 1, 1, 0, 'e', 2) AS position2,
+       REGEXP_SUBSTR(string1, 'A\\W+(\\w)(\\w)(\\w)', 1, 1,    'e', 3) AS substring3,
+       REGEXP_INSTR( string1, 'A\\W+(\\w)(\\w)(\\w)', 1, 1, 0, 'e', 3) AS position3
+  FROM demo3
+----
+5	A MAN A PLAN A CANAL	M	3	A	4	N	5
+
+query T
+SELECT REGEXP_INSTR('It was the best of times, it was the worst of times',
+                    '\\bwas\\b',
+                    1,
+                    1) AS result
+----
+4
+
+query T
+SELECT REGEXP_INSTR('It was the best of times, it was the worst of times',
+                    'the\\W+(\\w+)',
+                    1,
+                    1,
+                    0) AS result
+----
+8
+
+query T
+SELECT REGEXP_INSTR('It was the best of times, it was the worst of times',
+                    'the\\W+(\\w+)',
+                    1,
+                    1,
+                    0,
+                    'e') AS result
+----
+12
+
+query T
+SELECT REGEXP_INSTR('It was the best of times, it was the worst of times',
+                    '[[:alpha:]]{2,}st',
+                    15,
+                    1) AS result
+----
+38
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE message(body VARCHAR(255));
+
+exclude-from-coverage
+statement ok
+INSERT INTO message VALUES
+  ('Hellooo World'),
+  ('How are you doing today?'),
+  ('the quick brown fox jumps over the lazy dog'),
+  ('PACK MY BOX WITH FIVE DOZEN LIQUOR JUGS');
+
+query TT
+SELECT body,
+       REGEXP_INSTR(body, '\\b\\S*o\\S*\\b') AS result
+  FROM message
+----
+Hellooo World	1
+How are you doing today?	1
+the quick brown fox jumps over the lazy dog	11
+PACK MY BOX WITH FIVE DOZEN LIQUOR JUGS	0
+
+query TT
+SELECT body,
+       REGEXP_INSTR(body, '\\b\\S*o\\S*\\b', 3) AS result
+  FROM message
+----
+Hellooo World	3
+How are you doing today?	9
+the quick brown fox jumps over the lazy dog	11
+PACK MY BOX WITH FIVE DOZEN LIQUOR JUGS	0
+
+query TT
+SELECT body, REGEXP_INSTR(body, '\\b\\S*o\\S*\\b', 3, 3) AS result
+  FROM message
+----
+Hellooo World	0
+How are you doing today?	19
+the quick brown fox jumps over the lazy dog	27
+PACK MY BOX WITH FIVE DOZEN LIQUOR JUGS	0
+
+query TT
+SELECT body, REGEXP_INSTR(body, '\\b\\S*o\\S*\\b', 3, 3, 1) AS result
+  FROM message
+----
+Hellooo World	0
+How are you doing today?	24
+the quick brown fox jumps over the lazy dog	31
+PACK MY BOX WITH FIVE DOZEN LIQUOR JUGS	0
+
+query TT
+SELECT body, REGEXP_INSTR(body, '\\b\\S*o\\S*\\b', 3, 3, 1, 'i') AS result
+  FROM message
+----
+Hellooo World	0
+How are you doing today?	24
+the quick brown fox jumps over the lazy dog	31
+PACK MY BOX WITH FIVE DOZEN LIQUOR JUGS	35
+

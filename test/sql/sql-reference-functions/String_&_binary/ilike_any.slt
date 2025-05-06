@@ -1,0 +1,24 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE ilike_example(name VARCHAR(20));
+
+exclude-from-coverage
+statement ok
+INSERT INTO ilike_example VALUES
+    ('jane doe'),
+    ('Jane Doe'),
+    ('JANE DOE'),
+    ('John Doe'),
+    ('John Smith');
+
+query T
+SELECT * 
+  FROM ilike_example 
+  WHERE name ILIKE ANY ('jane%', '%SMITH')
+  ORDER BY name
+----
+JANE DOE
+Jane Doe
+John Smith
+jane doe
+

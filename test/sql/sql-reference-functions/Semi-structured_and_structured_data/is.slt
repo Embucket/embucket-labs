@@ -1,0 +1,67 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE vartab (n NUMBER(2), v VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO vartab
+  SELECT column1 AS n, PARSE_JSON(column2) AS v
+    FROM VALUES (1, 'null'), 
+                (2, null), 
+                (3, 'true'),
+                (4, '-17'), 
+                (5, '123.12'), 
+                (6, '1.912e2'),
+                (7, '"Om ara pa ca na dhih"  '), 
+                (8, '[-1, 12, 289, 2188, false,]'), 
+                (9, '{ "x" : "abc", "y" : false, "z": 10} ') 
+       AS vals;
+
+query T
+SELECT COUNT(*) FROM vartab WHERE IS_VARCHAR(v)
+----
+1
+
+query TT
+SELECT * FROM vartab WHERE IS_NULL_VALUE(v)
+----
+1	null
+
+query TT
+SELECT * FROM vartab WHERE IS_BOOLEAN(v)
+----
+3	true
+
+query TT
+SELECT * FROM vartab WHERE IS_INTEGER(v)
+----
+4	-17
+
+query TT
+SELECT * FROM vartab WHERE IS_DECIMAL(v)
+----
+4	-17
+5	123.12
+
+query TT
+SELECT * FROM vartab WHERE IS_DOUBLE(v)
+----
+4	-17
+5	123.12
+6	1.912000000000000e+02
+
+query TT
+SELECT * FROM vartab WHERE IS_VARCHAR(v)
+----
+7	"Om ara pa ca na dhih"
+
+query TT
+SELECT * FROM vartab WHERE IS_ARRAY(v)
+----
+8	'[-1,12,289,2188,false,null]'
+
+query TT
+SELECT * FROM vartab WHERE IS_OBJECT(v)
+----
+9	'{"x":"abc","y":false,"z":10}'
+

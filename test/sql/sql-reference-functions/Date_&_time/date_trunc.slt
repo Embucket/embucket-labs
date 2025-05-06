@@ -1,0 +1,49 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE test_date_trunc (
+ mydate DATE,
+ mytime TIME,
+ mytimestamp TIMESTAMP);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_date_trunc VALUES (
+  '2024-05-09',
+  '08:50:48',
+  '2024-05-09 08:50:57.891 -0700');
+
+exclude-from-coverage
+statement ok
+ALTER SESSION SET WEEK_START = 2;
+
+statement ok
+SELECT mydate AS "DATE",
+       DATE_TRUNC('year', mydate) AS "TRUNCATED TO YEAR",
+       DATE_TRUNC('month', mydate) AS "TRUNCATED TO MONTH",
+       DATE_TRUNC('week', mydate) AS "TRUNCATED TO WEEK",
+       DATE_TRUNC('day', mydate) AS "TRUNCATED TO DAY"
+  FROM test_date_trunc;
+
+query TT
+SELECT mytime AS "TIME",
+       DATE_TRUNC('minute', mytime) AS "TRUNCATED TO MINUTE"
+  FROM test_date_trunc
+----
+'08:50:48'	'08:50:00'
+
+query TTTT
+SELECT mytimestamp AS "TIMESTAMP",
+       DATE_TRUNC('hour', mytimestamp) AS "TRUNCATED TO HOUR",
+       DATE_TRUNC('minute', mytimestamp) AS "TRUNCATED TO MINUTE",
+       DATE_TRUNC('second', mytimestamp) AS "TRUNCATED TO SECOND"
+  FROM test_date_trunc
+----
+'2024-05-09T08:50:57.891000'	'2024-05-09T08:00:00'	'2024-05-09T08:50:00'	'2024-05-09T08:50:57'
+
+query TT
+SELECT DATE_TRUNC('quarter', mytimestamp) AS "TRUNCATED",
+       EXTRACT('quarter', mytimestamp) AS "EXTRACTED"
+  FROM test_date_trunc
+----
+'2024-04-01T00:00:00'	2
+

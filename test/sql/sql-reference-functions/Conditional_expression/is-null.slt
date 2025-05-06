@@ -1,0 +1,48 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE test_is_not_null (id NUMBER, col1 NUMBER, col2 NUMBER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_is_not_null (id, col1, col2) VALUES 
+  (1, 0, 5), 
+  (2, 0, NULL), 
+  (3, NULL, 5), 
+  (4, NULL, NULL);
+
+query TTT
+SELECT * 
+  FROM test_is_not_null 
+  WHERE col1 IS NOT NULL
+  ORDER BY id
+----
+1	0	5
+2	0	NULL
+
+query TTT
+SELECT * 
+  FROM test_is_not_null 
+  WHERE col2 IS NULL
+  ORDER BY id
+----
+2	0	NULL
+4	NULL	NULL
+
+query TTT
+SELECT * 
+  FROM test_is_not_null 
+  WHERE col1 IS NOT NULL OR col2 IS NULL
+  ORDER BY id
+----
+1	0	5
+2	0	NULL
+4	NULL	NULL
+
+query TTT
+SELECT *
+  FROM test_is_not_null
+  WHERE col1 IS NOT NULL AND col2 IS NULL
+  ORDER BY id
+----
+2	0	NULL
+

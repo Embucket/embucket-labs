@@ -1,0 +1,5 @@
+query T
+SELECT UPPER('i' COLLATE 'tr')
+----
+İ
+

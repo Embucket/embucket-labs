@@ -1,0 +1,86 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE leased_bicycles (bicycle_id INTEGER, customer_id INTEGER);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE returned_bicycles (bicycle_id INTEGER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO leased_bicycles (bicycle_id, customer_id) VALUES
+    (101, 1111),
+    (102, 2222),
+    (103, 3333),
+    (104, 4444),
+    (105, 5555);
+
+exclude-from-coverage
+statement ok
+INSERT INTO returned_bicycles (bicycle_id) VALUES
+    (102),
+    (104);
+
+query T
+DELETE FROM leased_bicycles WHERE bicycle_id = 105
+----
+1
+
+query TT
+SELECT * FROM leased_bicycles ORDER BY bicycle_id
+----
+101	1111
+102	2222
+103	3333
+104	4444
+
+exclude-from-coverage
+statement ok
+BEGIN WORK;
+
+statement ok
+DELETE FROM leased_bicycles 
+    USING returned_bicycles
+    WHERE leased_bicycles.bicycle_id = returned_bicycles.bicycle_id;
+
+query TT
+SELECT * FROM leased_bicycles ORDER BY bicycle_id
+----
+101	1111
+103	3333
+
+query T
+SELECT * FROM returned_bicycles ORDER BY bicycle_id
+----
+102
+104
+
+statement ok
+TRUNCATE TABLE returned_bicycles;
+
+query T
+SELECT * FROM returned_bicycles ORDER BY bicycle_id
+----
+
+exclude-from-coverage
+statement ok
+COMMIT WORK;
+
+exclude-from-coverage
+statement ok
+INSERT INTO returned_bicycles (bicycle_id) VALUES (103);
+
+exclude-from-coverage
+statement ok
+BEGIN WORK;
+
+statement ok
+DELETE FROM leased_bicycles 
+    USING (SELECT bicycle_id AS bicycle_id FROM returned_bicycles) AS returned
+    WHERE leased_bicycles.bicycle_id = returned.bicycle_id;
+
+query TT
+SELECT * FROM leased_bicycles ORDER BY bicycle_id
+----
+101	1111
+

@@ -1,0 +1,10 @@
+query T
+SELECT CONCAT_WS(',', 'one', 'two', 'three')
+----
+one,two,three
+
+query T
+SELECT CONCAT_WS(',', 'one')
+----
+one
+

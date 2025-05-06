@@ -1,0 +1,97 @@
+query T
+SELECT array_intersection(ARRAY_CONSTRUCT('A', 'B'), 
+                          ARRAY_CONSTRUCT('B', 'C'))
+----
+'["B"]'
+
+query T
+SELECT array_intersection(ARRAY_CONSTRUCT('A', 'B', 'C'), 
+                          ARRAY_CONSTRUCT('B', 'C'))
+----
+'["B","C"]'
+
+query T
+SELECT array_intersection(ARRAY_CONSTRUCT('A', 'B', 'B', 'B', 'C'), 
+                          ARRAY_CONSTRUCT('B', 'B'))
+----
+'["B","B"]'
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE array_demo (ID INTEGER, array1 ARRAY, array2 ARRAY, tip VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_demo (ID, array1, array2, tip)
+    SELECT 1, ARRAY_CONSTRUCT(1, 2), ARRAY_CONSTRUCT(3, 4), 'non-overlapping';
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_demo (ID, array1, array2, tip)
+    SELECT 2, ARRAY_CONSTRUCT(1, 2, 3), ARRAY_CONSTRUCT(3, 4, 5), 'value 3 overlaps';
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_demo (ID, array1, array2, tip)
+    SELECT 3, ARRAY_CONSTRUCT(1, 2, 3, 4), ARRAY_CONSTRUCT(3, 4, 5), 'values 3 and 4 overlap';
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_demo (ID, array1, array2, tip)
+    SELECT 4, ARRAY_CONSTRUCT(NULL, 102, NULL), ARRAY_CONSTRUCT(NULL, NULL, 103), 'NULLs overlap';
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_demo (ID, array1, array2, tip)
+    SELECT 5, array_construct(object_construct('a',1,'b',2), 1, 2),
+              array_construct(object_construct('a',1,'b',2), 3, 4), 
+              'the objects in the array match';
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_demo (ID, array1, array2, tip)
+    SELECT 6, array_construct(object_construct('a',1,'b',2), 1, 2),
+              array_construct(object_construct('b',2,'c',3), 3, 4), 
+              'neither the objects nor any other values match';
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_demo (ID, array1, array2, tip)
+    SELECT 7, array_construct(object_construct('a',1, 'b',2, 'c',3)),
+              array_construct(object_construct('c',3, 'b',2, 'a',1)), 
+              'the objects contain the same values, but in different order';
+
+query TTTTT
+SELECT ID, array1, array2, tip, ARRAY_INTERSECTION(array1, array2) 
+    FROM array_demo
+    WHERE ID <= 3
+    ORDER BY ID
+----
+1	'[1,2]'	'[3,4]'	non-overlapping	'[]'
+2	'[1,2,3]'	'[3,4,5]'	value 3 overlaps	'[3]'
+3	'[1,2,3,4]'	'[3,4,5]'	values 3 and 4 overlap	'[3,4]'
+
+query TTTTT
+SELECT ID, array1, array2, tip, ARRAY_INTERSECTION(array1, array2) 
+    FROM array_demo
+    WHERE ID = 4
+    ORDER BY ID
+----
+4	'[null,102,null]'	'[null,null,103]'	NULLs overlap	'[null,null]'
+
+query TTTTT
+SELECT ID, array1, array2, tip, ARRAY_INTERSECTION(array1, array2) 
+    FROM array_demo
+    WHERE ID >= 5 and ID <= 7
+    ORDER BY ID
+----
+5	'[{"a":1,"b":2},1,2]'	'[{"a":1,"b":2},3,4]'	the objects in the array match	'[{"a":1,"b":2}]'
+6	'[{"a":1,"b":2},1,2]'	'[{"b":2,"c":3},3,4]'	neither the objects nor any other values match	'[]'
+7	'[{"a":1,"b":2,"c":3}]'	'[{"a":1,"b":2,"c":3}]'	the objects contain the same values, but in different order	'[{"a":1,"b":2,"c":3}]'
+
+query T
+SELECT array_intersection(ARRAY_CONSTRUCT('A', 'B'), 
+                          NULL)
+----
+NULL
+

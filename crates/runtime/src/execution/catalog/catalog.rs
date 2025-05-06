@@ -17,7 +17,7 @@ impl std::fmt::Debug for CachingCatalog {
         f.debug_struct("Catalog")
             .field("name", &self.name)
             .field("should_refresh", &self.should_refresh)
-            .field("schemas_cache", &"")
+            .field("schemas_cache", &self.schemas_cache)
             .field("catalog", &"")
             .finish()
     }
@@ -29,24 +29,23 @@ impl CatalogProvider for CachingCatalog {
     }
 
     fn schema_names(&self) -> Vec<String> {
-        let schemas: Vec<_> = self
-            .schemas_cache
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect();
-
-        // Fallback to the original catalog schema names if the cache is empty
-        if schemas.is_empty() {
-            return self.catalog.schema_names();
+        if self.schemas_cache.is_empty() {
+            // Fallback to the original catalog schema names if the cache is empty
+            self.catalog.schema_names()
+        } else {
+            self.schemas_cache
+                .iter()
+                .map(|entry| entry.key().clone())
+                .collect()
         }
-        schemas
     }
 
+    #[allow(clippy::as_conversions)]
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
-        if let Some(schema) = self.schemas_cache.get(name) {
-            return Some(schema.value().clone());
-        }
-        // Fallback to the original catalog schema if the cache is empty
-        self.catalog.schema(name)
+        self.schemas_cache
+            .get(name)
+            .map(|schema| Arc::clone(schema.value()) as Arc<dyn SchemaProvider>)
+            // Fallback to the original catalog schema if the cache is empty
+            .or_else(|| self.catalog.schema(name))
     }
 }

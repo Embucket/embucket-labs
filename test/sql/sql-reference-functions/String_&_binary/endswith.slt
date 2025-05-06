@@ -1,0 +1,24 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE strings_test (s VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO strings_test values
+  ('coffee'),
+  ('ice tea'),
+  ('latte'),
+  ('tea'),
+  (NULL);
+
+query T
+SELECT * FROM strings_test WHERE ENDSWITH(s, 'te')
+----
+latte
+
+query TT
+SELECT ENDSWITH(COLLATE('nñ', 'en-ci-ai'), 'n'),
+       ENDSWITH(COLLATE('nñ', 'es-ci-ai'), 'n')
+----
+TRUE	FALSE
+

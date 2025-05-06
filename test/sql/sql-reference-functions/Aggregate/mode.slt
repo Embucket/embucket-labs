@@ -1,0 +1,58 @@
+exclude-from-coverage
+statement ok
+create or replace table aggr(k int, v decimal(10,2));
+
+query T
+select mode(v) from aggr
+----
+NULL
+
+exclude-from-coverage
+statement ok
+INSERT INTO aggr (k, v) VALUES
+    (1, 10), 
+    (1, 10), 
+    (1, 10), 
+    (1, 10), 
+    (1, 20), 
+    (1, 21);
+
+exclude-from-coverage
+statement ok
+INSERT INTO aggr (k, v) VALUES
+    (2, 20), 
+    (2, 20), 
+    (2, 25), 
+    (2, 30);
+
+exclude-from-coverage
+statement ok
+INSERT INTO aggr (k, v) VALUES (3, null);
+
+query TT
+select k, mode(v) 
+    from aggr 
+    group by k
+    order by k
+----
+1	10.00
+2	20.00
+3	NULL
+
+query TTT
+select k, v, mode(v) over (partition by k) 
+    from aggr 
+    order by k, v
+----
+1	10.00	10.00
+1	10.00	10.00
+1	10.00	10.00
+1	10.00	10.00
+1	20.00	10.00
+1	21.00	10.00
+2	20.00	20.00
+2	20.00	20.00
+2	25.00	20.00
+2	30.00	20.00
+3	NULL	NULL
+

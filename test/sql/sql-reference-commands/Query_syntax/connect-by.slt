@@ -1,0 +1,45 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE employees (
+  title VARCHAR,
+  employee_ID INTEGER,
+  manager_ID INTEGER
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO employees (title, employee_ID, manager_ID) VALUES
+  ('President', 1, NULL),
+  ('Vice President Engineering', 10, 1),
+  ('Programmer', 100, 10),
+  ('QA Engineer', 101, 10),
+  ('Vice President HR', 20, 1),
+  ('Health Insurance Analyst', 200, 20);
+
+query TTT
+SELECT employee_ID, manager_ID, title
+  FROM employees
+    START WITH title = 'President'
+    CONNECT BY manager_ID = PRIOR employee_id
+  ORDER BY employee_ID;
+----
+1	NULL	President
+10	1	Vice President Engineering
+20	1	Vice President HR
+100	10	Programmer
+101	10	QA Engineer
+200	20	Health Insurance Analyst
+
+query TTTT
+SELECT SYS_CONNECT_BY_PATH(title, ' -> ') AS path, employee_ID, manager_ID, title
+  FROM employees
+    START WITH title = 'President'
+    CONNECT BY manager_ID = PRIOR employee_id
+  ORDER BY employee_ID;
+----
+ -> President	1	NULL	President
+ -> President -> Vice President Engineering	10	1	Vice President Engineering
+ -> President -> Vice President HR	20	1	Vice President HR
+ -> President -> Vice President Engineering -> Programmer	100	10	Programmer
+ -> President -> Vice President Engineering -> QA Engineer	101	10	QA Engineer
+ -> President -> Vice President HR -> Health Insurance Analyst	200	20	Health Insurance Analyst

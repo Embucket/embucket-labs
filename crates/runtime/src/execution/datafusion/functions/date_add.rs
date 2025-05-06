@@ -1,12 +1,14 @@
 use arrow::array::{Array, ArrayRef};
 use arrow::compute::kernels::numeric::add_wrapping;
 use arrow::datatypes::DataType;
+use arrow::datatypes::TimeUnit::Nanosecond;
 use datafusion::common::{plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
-use datafusion_common::types::{logical_int64, logical_string};
+use datafusion_common::types::{logical_date, logical_int64, logical_string, NativeType};
+use datafusion_expr::Coercion;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -30,19 +32,23 @@ impl DateAddFunc {
             signature: Signature::one_of(
                 vec![
                     Coercible(vec![
-                        TypeSignatureClass::Native(logical_string()),
-                        TypeSignatureClass::Native(logical_int64()),
-                        TypeSignatureClass::Timestamp,
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_int64())),
+                        Coercion::new_implicit(
+                            TypeSignatureClass::Timestamp,
+                            vec![TypeSignatureClass::Native(logical_string())],
+                            NativeType::Timestamp(Nanosecond, None),
+                        ),
                     ]),
                     Coercible(vec![
-                        TypeSignatureClass::Native(logical_string()),
-                        TypeSignatureClass::Native(logical_int64()),
-                        TypeSignatureClass::Time,
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_int64())),
+                        Coercion::new_exact(TypeSignatureClass::Time),
                     ]),
                     Coercible(vec![
-                        TypeSignatureClass::Native(logical_string()),
-                        TypeSignatureClass::Native(logical_int64()),
-                        TypeSignatureClass::Date,
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_int64())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
                     ]),
                 ],
                 Volatility::Immutable,

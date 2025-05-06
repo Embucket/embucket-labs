@@ -1,0 +1,81 @@
+exclude-from-coverage
+statement ok
+ALTER SESSION SET BINARY_OUTPUT_FORMAT='HEX';
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE binary_table (
+    encryption_key BINARY,
+    initialization_vector BINARY(12),
+    binary_column BINARY,
+    encrypted_binary_column VARIANT,
+    aad_column BINARY);
+
+exclude-from-coverage
+statement ok
+INSERT INTO binary_table (encryption_key,
+                          initialization_vector,
+                          binary_column,
+                          aad_column)
+    SELECT SHA2_BINARY('NotSecretEnough', 256),
+            SUBSTR(TO_BINARY(HEX_ENCODE('AlsoNotSecretEnough'), 'HEX'), 0, 12),
+            TO_BINARY(HEX_ENCODE('Bonjour'), 'HEX'),
+            TO_BINARY(HEX_ENCODE('additional data'), 'HEX')
+    ;
+
+query TT
+UPDATE binary_table SET encrypted_binary_column =
+    ENCRYPT_RAW(binary_column, 
+        encryption_key, 
+        initialization_vector, 
+        aad_column,
+        'AES-GCM')
+----
+1	0
+
+query TTTTTT
+SELECT 'Bonjour' as original_value,
+       binary_column,
+       hex_decode_string(to_varchar(binary_column)) as decoded,
+       encrypted_binary_column,
+       decrypt_raw(as_binary(get(encrypted_binary_column, 'ciphertext')),
+                  encryption_key,
+                  as_binary(get(encrypted_binary_column, 'iv')),
+                  aad_column,
+                  'AES-GCM',
+                  as_binary(get(encrypted_binary_column, 'tag')))
+           as decrypted,
+       hex_decode_string(to_varchar(decrypt_raw(as_binary(get(encrypted_binary_column, 'ciphertext')),
+                  encryption_key,
+                  as_binary(get(encrypted_binary_column, 'iv')),
+                  aad_column,
+                  'AES-GCM',
+                  as_binary(get(encrypted_binary_column, 'tag')))
+                  ))
+           as decrypted_and_decoded
+    FROM binary_table
+----
+Bonjour	x'426f6e6a6f7572'	Bonjour	'{"ciphertext":"CA2F4A383F6F55","iv":"416C736F4E6F745365637265","tag":"91F28FBC6A2FE9B213D1C44B8D75D147"}'	x'426f6e6a6f7572'	Bonjour
+
+query TTTTTT
+WITH
+    decrypted_but_not_decoded as (
+        SELECT decrypt_raw(as_binary(get(encrypted_binary_column, 'ciphertext')),
+                      encryption_key,
+                      as_binary(get(encrypted_binary_column, 'iv')),
+                      aad_column,
+                      'AES-GCM',
+                      as_binary(get(encrypted_binary_column, 'tag')))
+        FROM binary_table
+    )
+SELECT 'Bonjour' as original_value,
+       binary_column,
+       hex_decode_string(to_varchar(binary_column)) as decoded,
+       encrypted_binary_column,
+       (SELECT * FROM decrypted_but_not_decoded) as decrypted_but_not_decoded,
+       hex_decode_string(to_varchar((SELECT * FROM decrypted_but_not_decoded)))
+           as decrypted_and_decoded
+    FROM binary_table
+----
+Bonjour	x'426f6e6a6f7572'	Bonjour	'{"ciphertext":"CA2F4A383F6F55","iv":"416C736F4E6F745365637265","tag":"91F28FBC6A2FE9B213D1C44B8D75D147"}'	x'426f6e6a6f7572'	Bonjour
+

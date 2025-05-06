@@ -1,0 +1,35 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE pipe_test_table (
+  id INT,
+  data STRING
+);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE FILE FORMAT pipe_test_format
+  TYPE = 'CSV'
+  FIELD_DELIMITER = ','
+  SKIP_HEADER = 0
+  ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE;
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE PIPE pipe_test_pipe
+  AUTO_INGEST = FALSE
+  AS COPY INTO pipe_test_table
+  FROM @pipe_test_stage/sample_data.csv
+  FILE_FORMAT = pipe_test_format;
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE STAGE pipe_test_stage
+  FILE_FORMAT = pipe_test_format;
+
+statement ok
+SELECT *
+FROM TABLE(INFORMATION_SCHEMA.PIPE_USAGE_HISTORY(
+  DATE_RANGE_START => DATEADD(DAY, -1, CURRENT_DATE()),
+  DATE_RANGE_END => CURRENT_DATE(),
+  PIPE_NAME => 'PIPE_TEST_PIPE'
+));

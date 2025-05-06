@@ -125,7 +125,9 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
     //TODO: select convert_timezone('America/New_York, 'UTC', v3) with v3 a timestamp with value = '2025-01-06 08:00:00 America/New_York',
     //should be parsed as the timezone None variant timestamp
     #[allow(clippy::too_many_lines)]
-    fn invoke(&self, args: &[ColumnarValue]) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
+
         match args.len() {
             2 => {
                 let target_tz = match &args[0] {
@@ -297,8 +299,9 @@ super::macros::make_udf_function!(ConvertTimezoneFunc);
 #[allow(clippy::unwrap_in_result)]
 mod tests {
     use super::ConvertTimezoneFunc;
+    use arrow_schema::{DataType, TimeUnit};
     use datafusion_common::ScalarValue;
-    use datafusion_expr::{ColumnarValue, ScalarUDFImpl};
+    use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
     use std::sync::Arc;
 
     #[test]
@@ -312,10 +315,17 @@ mod tests {
             Some(Arc::from(source_timestamp_tz_timezone.into_boxed_str())),
         );
         #[allow(deprecated)]
-        let result_wrapped = ConvertTimezoneFunc::new().invoke(&[
-            ColumnarValue::Scalar(ScalarValue::Utf8(Some(target_tz.clone()))),
-            ColumnarValue::Scalar(source_timestamp_tz.clone()),
-        ]);
+        let result_wrapped = ConvertTimezoneFunc::new().invoke_with_args(ScalarFunctionArgs {
+            args: vec![
+                ColumnarValue::Scalar(ScalarValue::Utf8(Some(target_tz.clone()))),
+                ColumnarValue::Scalar(source_timestamp_tz.clone()),
+            ],
+            number_rows: 1,
+            return_type: &DataType::Timestamp(
+                TimeUnit::Microsecond,
+                Some(Arc::from(target_tz.clone().into_boxed_str())),
+            ),
+        });
         match result_wrapped {
             Ok(ColumnarValue::Scalar(result)) => {
                 let expected = ScalarValue::TimestampMicrosecond(
@@ -337,14 +347,18 @@ mod tests {
         //2025-01-06 08:00:00 in UTC
         let source_timestamp_tz_value = 1_736_150_400_000_000_i64;
         #[allow(deprecated)]
-        let result_wrapped = ConvertTimezoneFunc::new().invoke(&[
-            ColumnarValue::Scalar(ScalarValue::Utf8(Some(source_tz))),
-            ColumnarValue::Scalar(ScalarValue::Utf8(Some(target_tz.clone()))),
-            ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
-                Some(source_timestamp_tz_value),
-                None,
-            )),
-        ]);
+        let result_wrapped = ConvertTimezoneFunc::new().invoke_with_args(ScalarFunctionArgs {
+            args: vec![
+                ColumnarValue::Scalar(ScalarValue::Utf8(Some(source_tz))),
+                ColumnarValue::Scalar(ScalarValue::Utf8(Some(target_tz.clone()))),
+                ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
+                    Some(source_timestamp_tz_value),
+                    None,
+                )),
+            ],
+            number_rows: 1,
+            return_type: &DataType::Timestamp(TimeUnit::Microsecond, None),
+        });
         match result_wrapped {
             Ok(ColumnarValue::Scalar(result)) => {
                 let expected = ScalarValue::TimestampMicrosecond(
@@ -368,14 +382,18 @@ mod tests {
         //beacuse of teh internal conversion it adds the America/New_York offset twice in this example
         let source_timestamp_tz_value = 1_736_168_400_000_000_i64;
         #[allow(deprecated)]
-        let result_wrapped = ConvertTimezoneFunc::new().invoke(&[
-            ColumnarValue::Scalar(ScalarValue::Utf8(Some(source_tz))),
-            ColumnarValue::Scalar(ScalarValue::Utf8(Some(target_tz.clone()))),
-            ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
-                Some(source_timestamp_tz_value),
-                None,
-            )),
-        ]);
+        let result_wrapped = ConvertTimezoneFunc::new().invoke_with_args(ScalarFunctionArgs {
+            args: vec![
+                ColumnarValue::Scalar(ScalarValue::Utf8(Some(source_tz))),
+                ColumnarValue::Scalar(ScalarValue::Utf8(Some(target_tz.clone()))),
+                ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
+                    Some(source_timestamp_tz_value),
+                    None,
+                )),
+            ],
+            number_rows: 1,
+            return_type: &DataType::Timestamp(TimeUnit::Microsecond, None),
+        });
         match result_wrapped {
             Ok(ColumnarValue::Scalar(result)) => {
                 let expected = ScalarValue::TimestampMicrosecond(

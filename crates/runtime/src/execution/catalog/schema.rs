@@ -1,3 +1,4 @@
+use crate::execution::catalog::table::CachingTable;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use datafusion::catalog::{SchemaProvider, TableProvider};
@@ -8,7 +9,7 @@ use std::sync::Arc;
 pub struct CachingSchema {
     pub schema: Arc<dyn SchemaProvider>,
     pub name: String,
-    pub tables_cache: DashMap<String, Arc<dyn TableProvider>>,
+    pub tables_cache: DashMap<String, Arc<CachingTable>>,
 }
 
 #[allow(clippy::missing_fields_in_debug)]
@@ -29,25 +30,38 @@ impl SchemaProvider for CachingSchema {
     }
 
     fn table_names(&self) -> Vec<String> {
-        let tables: Vec<_> = self
-            .tables_cache
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect();
-
-        // Fallback to the original schema table names if the cache is empty
-        if tables.is_empty() {
-            return self.schema.table_names();
+        if self.tables_cache.is_empty() {
+            self.schema.table_names()
+        } else {
+            self.tables_cache
+                .iter()
+                .map(|entry| entry.key().clone())
+                .collect()
         }
-        tables
     }
 
+    #[allow(clippy::as_conversions)]
     async fn table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
         if let Some(table) = self.tables_cache.get(name) {
-            return Ok(Some(table.clone()));
+            Ok(Some(Arc::clone(table.value()) as Arc<dyn TableProvider>))
+        } else {
+            // Fallback to the original schema table if the cache is empty
+            if let Some(table) = self.schema.table(name).await? {
+                let caching_table = Arc::new(CachingTable {
+                    name: name.to_string(),
+                    schema: Some(table.schema()),
+                    table: Arc::clone(&table),
+                });
+
+                // Insert into cache
+                self.tables_cache
+                    .insert(name.to_string(), Arc::clone(&caching_table));
+
+                Ok(Some(caching_table as Arc<dyn TableProvider>))
+            } else {
+                Ok(None)
+            }
         }
-        // Fallback to the original schema table if the cache is empty
-        self.schema.table(name).await
     }
 
     fn table_exist(&self, name: &str) -> bool {

@@ -1,0 +1,58 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE splittable_strtok (v VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO splittable_strtok (v) VALUES ('a b'), ('cde'), ('f|g'), ('');
+
+query T
+SELECT table1.value
+  FROM TABLE(STRTOK_SPLIT_TO_TABLE('a.b', '.')) AS table1
+  ORDER BY table1.value
+----
+a
+b
+
+query TTTT
+SELECT *
+  FROM splittable_strtok, LATERAL STRTOK_SPLIT_TO_TABLE(splittable_strtok.v, ' ')
+  ORDER BY SEQ, INDEX
+----
+a b	1	1	a
+a b	1	2	b
+cde	2	1	cde
+f|g	3	1	f|g
+
+query TTTT
+SELECT *
+  FROM splittable_strtok, LATERAL STRTOK_SPLIT_TO_TABLE(splittable_strtok.v, ' |')
+  ORDER BY SEQ, INDEX
+----
+a b	1	1	a
+a b	1	2	b
+cde	2	1	cde
+f|g	3	1	f
+f|g	3	2	g
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE authors_books_test2 (author VARCHAR, titles VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO authors_books_test2 (author, titles) VALUES
+      ('Nathaniel Hawthorne', 'The Scarlet Letter , The House of the Seven Gables,The Blithedale Romance'),
+      ('Herman Melville', 'Moby Dick,The Confidence-Man');
+
+query TT
+SELECT author, TRIM(value) AS title
+  FROM authors_books_test2, LATERAL STRTOK_SPLIT_TO_TABLE(titles, ',;')
+  ORDER BY author;
+----
+Herman Melville	Moby Dick
+Herman Melville	The Confidence-Man
+Nathaniel Hawthorne	The Scarlet Letter
+Nathaniel Hawthorne	The House of the Seven Gables
+Nathaniel Hawthorne	The Blithedale Romance
+

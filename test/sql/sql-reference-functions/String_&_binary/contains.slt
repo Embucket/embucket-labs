@@ -1,0 +1,26 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE strings_test (s VARCHAR);
+
+exclude-from-coverage
+statement ok
+INSERT INTO strings_test values
+  ('coffee'),
+  ('ice tea'),
+  ('latte'),
+  ('tea'),
+  (NULL);
+
+query T
+SELECT * FROM strings_test WHERE CONTAINS(s, 'te')
+----
+ice tea
+latte
+tea
+
+query TT
+SELECT CONTAINS(COLLATE('ñ', 'en-ci-ai'), 'n'),
+       CONTAINS(COLLATE('ñ', 'es-ci-ai'), 'n')
+----
+TRUE	FALSE
+

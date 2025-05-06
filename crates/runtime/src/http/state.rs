@@ -12,9 +12,9 @@ use crate::config::AuthConfig;
 #[derive(Clone)]
 pub struct AppState {
     pub metastore: Arc<dyn Metastore + Send + Sync>,
-    pub history: Arc<dyn WorksheetsStore + Send + Sync>,
+    pub history_store: Arc<dyn WorksheetsStore + Send + Sync>,
     pub auth_store: Arc<dyn AuthStore + Send + Sync>,
-    pub execution_svc: Arc<ExecutionService>,
+    pub execution_svc: Arc<dyn ExecutionService>,
     pub dbt_sessions: Arc<Mutex<HashMap<String, String>>>,
     pub config: Arc<WebConfig>,
     // separate non printable AuthConfig 
@@ -25,15 +25,15 @@ impl AppState {
     // You can add helper methods for state initialization if needed
     pub fn new(
         metastore: Arc<dyn Metastore + Send + Sync>,
-        history: Arc<dyn WorksheetsStore + Send + Sync>,
+        history_store: Arc<dyn WorksheetsStore + Send + Sync>,
         auth_store: Arc<dyn AuthStore + Send + Sync>,
-        execution_svc: Arc<ExecutionService>,
+        execution_svc: Arc<dyn ExecutionService>,
         config: Arc<WebConfig>,
         auth_config: Arc<AuthConfig>,
     ) -> Self {
         Self {
             metastore,
-            history,
+            history_store,
             auth_store,
             execution_svc,
             dbt_sessions: Arc::new(Mutex::default()),

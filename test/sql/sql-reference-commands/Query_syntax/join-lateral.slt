@@ -1,0 +1,68 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE departments (department_id INTEGER, name VARCHAR);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE employees (employee_ID INTEGER, last_name VARCHAR, 
+                        department_ID INTEGER, project_names ARRAY);
+
+exclude-from-coverage
+statement ok
+INSERT INTO departments (department_ID, name) VALUES 
+    (1, 'Engineering'), 
+    (2, 'Support');
+
+exclude-from-coverage
+statement ok
+INSERT INTO employees (employee_ID, last_name, department_ID) VALUES 
+    (101, 'Richards', 1),
+    (102, 'Paulson',  1),
+    (103, 'Johnson',  2);
+
+query TTTTTT
+SELECT * 
+    FROM departments AS d, LATERAL (SELECT * FROM employees AS e WHERE e.department_ID = d.department_ID) AS iv2
+    ORDER BY employee_ID
+----
+1	Engineering	101	Richards	1	NULL
+1	Engineering	102	Paulson	1	NULL
+2	Support	103	Johnson	2	NULL
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TEMP TABLE table1 AS SELECT 1 AS dummy;
+
+exclude-from-coverage
+query TT
+UPDATE employees SET project_names = ARRAY_CONSTRUCT('Materialized Views', 'UDFs') 
+    WHERE employee_ID = 101
+----
+1	0
+
+exclude-from-coverage
+query TT
+UPDATE employees SET project_names = ARRAY_CONSTRUCT('Materialized Views', 'Lateral Joins')
+    WHERE employee_ID = 102
+----
+1	0
+
+query TTTT
+SELECT emp.employee_ID, emp.last_name, index, value AS project_name
+    FROM employees AS emp, LATERAL FLATTEN(INPUT => emp.project_names) AS proj_names
+    ORDER BY employee_ID
+----
+101	Richards	0	"Materialized Views"
+101	Richards	1	"UDFs"
+102	Paulson	0	"Materialized Views"
+102	Paulson	1	"Lateral Joins"
+
+query TTTTTT
+SELECT * 
+    FROM departments AS d INNER JOIN LATERAL (SELECT * FROM employees AS e WHERE e.department_ID = d.department_ID) AS iv2
+    ORDER BY employee_ID
+----
+1	Engineering	101	Richards	1	'["Materialized Views","UDFs"]'
+1	Engineering	102	Paulson	1	'["Materialized Views","Lateral Joins"]'
+2	Support	103	Johnson	2	NULL
+

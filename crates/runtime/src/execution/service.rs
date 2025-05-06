@@ -5,8 +5,8 @@ use bytes::{Buf, Bytes};
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::csv::reader::Format;
 use datafusion::arrow::csv::ReaderBuilder;
+use datafusion::catalog::CatalogProvider;
 use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
-use datafusion::catalog_common::CatalogProvider;
 use datafusion::datasource::memory::MemTable;
 use datafusion_common::TableReference;
 use snafu::ResultExt;
@@ -23,13 +23,35 @@ use uuid::Uuid;
 
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
-pub struct ExecutionService {
+#[async_trait::async_trait]
+pub trait ExecutionService: Send + Sync {
+    async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>>;
+    async fn delete_session(&self, session_id: String) -> ExecutionResult<()>;
+    async fn query(
+        &self,
+        session_id: &str,
+        query: &str,
+        query_context: QueryContext,
+    ) -> ExecutionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)>;
+    async fn upload_data_to_table(
+        &self,
+        session_id: &str,
+        table_ident: &MetastoreTableIdent,
+        data: Bytes,
+        file_name: &str,
+        format: Format,
+    ) -> ExecutionResult<usize>;
+    //Can't be const in trait
+    fn config(&self) -> &Config;
+}
+
+pub struct CoreExecutionService {
     metastore: Arc<dyn Metastore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<UserSession>>>>,
     config: Config,
 }
 
-impl ExecutionService {
+impl CoreExecutionService {
     pub fn new(metastore: Arc<dyn Metastore>, config: Config) -> Self {
         Self {
             metastore,
@@ -37,22 +59,29 @@ impl ExecutionService {
             config,
         }
     }
-
+}
+#[async_trait::async_trait]
+impl ExecutionService for CoreExecutionService {
     #[tracing::instrument(level = "debug", skip(self))]
-    pub async fn create_session(&self, session_id: String) -> ExecutionResult<()> {
-        let session_exists = { self.df_sessions.read().await.contains_key(&session_id) };
-        if !session_exists {
-            let user_session = UserSession::new(self.metastore.clone()).await?;
-            tracing::trace!("Acuiring write lock for df_sessions");
-            let mut session_list_mut = self.df_sessions.write().await;
-            tracing::trace!("Acquired write lock for df_sessions");
-            session_list_mut.insert(session_id, Arc::new(user_session));
+    async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>> {
+        {
+            let sessions = self.df_sessions.read().await;
+            if let Some(session) = sessions.get(&session_id) {
+                return Ok(session.clone());
+            }
         }
-        Ok(())
+        let user_session = Arc::new(UserSession::new(self.metastore.clone()).await?);
+        {
+            tracing::trace!("Acquiring write lock for df_sessions");
+            let mut sessions = self.df_sessions.write().await;
+            tracing::trace!("Acquired write lock for df_sessions");
+            sessions.insert(session_id.clone(), user_session.clone());
+        }
+        Ok(user_session)
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    pub async fn delete_session(&self, session_id: String) -> ExecutionResult<()> {
+    async fn delete_session(&self, session_id: String) -> ExecutionResult<()> {
         // TODO: Need to have a timeout for the lock
         let mut session_list = self.df_sessions.write().await;
         session_list.remove(&session_id);
@@ -61,7 +90,7 @@ impl ExecutionService {
 
     #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
-    pub async fn query(
+    async fn query(
         &self,
         session_id: &str,
         query: &str,
@@ -104,7 +133,7 @@ impl ExecutionService {
     }
 
     #[tracing::instrument(level = "debug", skip(self, data))]
-    pub async fn upload_data_to_table(
+    async fn upload_data_to_table(
         &self,
         session_id: &str,
         table_ident: &MetastoreTableIdent,
@@ -210,7 +239,7 @@ impl ExecutionService {
     }
 
     #[must_use]
-    pub const fn config(&self) -> &Config {
+    fn config(&self) -> &Config {
         &self.config
     }
 }

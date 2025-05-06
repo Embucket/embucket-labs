@@ -1,0 +1,14 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE array_demo (ID INTEGER, array1 ARRAY, array2 ARRAY);
+
+exclude-from-coverage
+statement ok
+INSERT INTO array_demo (ID, array1, array2) 
+    SELECT 2, ARRAY_CONSTRUCT(10, NULL, 30), ARRAY_CONSTRUCT(40);
+
+query TT
+SELECT array1, ARRAY_COMPACT(array1) FROM array_demo WHERE ID = 2
+----
+'[10,null,30]'	'[10,30]'
+

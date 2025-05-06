@@ -2,6 +2,7 @@ use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::execution::catalog::catalog::CachingCatalog;
 use crate::execution::catalog::schema::CachingSchema;
+use crate::execution::catalog::table::CachingTable;
 use crate::execution::error::{self as ex_error, ExecutionError, ExecutionResult};
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::provider::SharedCredentialsProvider;
@@ -28,11 +29,10 @@ use url::Url;
 
 pub const DEFAULT_CATALOG: &str = "embucket";
 
-#[derive(Clone)]
 pub struct EmbucketCatalogList {
     pub metastore: Arc<dyn Metastore>,
     pub table_object_store: Arc<DashMap<String, Arc<dyn ObjectStore>>>,
-    pub catalogs: DashMap<String, CachingCatalog>,
+    pub catalogs: DashMap<String, Arc<CachingCatalog>>,
 }
 
 impl EmbucketCatalogList {
@@ -70,7 +70,8 @@ impl EmbucketCatalogList {
         catalogs.extend(self.external_catalogs().await?);
 
         for catalog in catalogs {
-            self.catalogs.insert(catalog.name.clone(), catalog);
+            self.catalogs
+                .insert(catalog.name.clone(), Arc::new(catalog));
         }
         Ok(())
     }
@@ -162,12 +163,10 @@ impl EmbucketCatalogList {
 
     #[allow(clippy::as_conversions, clippy::too_many_lines)]
     pub async fn refresh(&self) -> ExecutionResult<()> {
-        for mut catalog in self.catalogs.iter_mut() {
+        for catalog in self.catalogs.iter_mut() {
             if catalog.should_refresh {
-                let schemas = catalog.catalog.schema_names();
-                let cache = DashMap::new();
-
-                for schema in schemas {
+                let schemas = catalog.schema_names();
+                for schema in schemas.clone() {
                     if let Some(schema_provider) = catalog.catalog.schema(&schema) {
                         let schema = CachingSchema {
                             schema: schema_provider,
@@ -182,14 +181,27 @@ impl EmbucketCatalogList {
                                 .await
                                 .context(ex_error::DataFusionSnafu)?
                             {
-                                schema.tables_cache.insert(table, table_provider);
+                                schema.tables_cache.insert(
+                                    table.clone(),
+                                    Arc::new(CachingTable {
+                                        name: table.to_string(),
+                                        schema: Some(table_provider.schema()),
+                                        table: Arc::clone(&table_provider),
+                                    }),
+                                );
                             }
                         }
-                        cache.insert(schema.name.clone(), Arc::new(schema));
+                        catalog
+                            .schemas_cache
+                            .insert(schema.name.clone(), Arc::new(schema));
                     };
                 }
-                // Rewrite the cache with fresh data
-                catalog.schemas_cache = cache;
+                // Cleanup removed schemas from the cache
+                for schema in &catalog.schemas_cache {
+                    if !schemas.contains(&schema.key().to_string()) {
+                        catalog.schemas_cache.remove(schema.key());
+                    }
+                }
             }
         }
         Ok(())
@@ -252,17 +264,21 @@ impl CatalogProviderList for EmbucketCatalogList {
             name,
         };
         self.catalogs
-            .insert(catalog.name.clone(), catalog)
-            .map(|c| c.catalog)
+            .insert(catalog.name.clone(), Arc::new(catalog))
+            .map(|arc| {
+                let catalog: Arc<dyn CatalogProvider> = arc;
+                catalog
+            })
     }
 
     fn catalog_names(&self) -> Vec<String> {
         self.catalogs.iter().map(|c| c.key().clone()).collect()
     }
 
+    #[allow(clippy::as_conversions)]
     fn catalog(&self, name: &str) -> Option<Arc<dyn CatalogProvider>> {
         self.catalogs
             .get(name)
-            .map(|catalog| catalog.catalog.clone())
+            .map(|c| Arc::clone(c.value()) as Arc<dyn CatalogProvider>)
     }
 }

@@ -1,0 +1,57 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE convert_numbers_to_strings(column1 NUMBER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO convert_numbers_to_strings VALUES
+  (-12.391),
+  (0),
+  (-1),
+  (0.10),
+  (0.01),
+  (3987),
+  (1.111);
+
+statement ok
+SELECT column1 AS orig_value,
+       TO_CHAR(column1, '">"$99.0"<"') AS D2_1,
+       TO_CHAR(column1, '">"B9,999.0"<"') AS D4_1,
+       TO_CHAR(column1, '">"TME"<"') AS TME,
+       TO_CHAR(column1, '">"TM9"<"') AS TM9,
+       TO_CHAR(column1, '">"0XXX"<"') AS X4,
+       TO_CHAR(column1, '">"S0XXX"<"') AS SX4
+  FROM convert_numbers_to_strings;
+
+query T
+SELECT TO_VARCHAR(LOG(3,4))
+----
+1.261859507
+
+query T
+SELECT TO_VARCHAR('2024-04-05 01:02:03'::TIMESTAMP, 'mm/dd/yyyy, hh24:mi hours')
+----
+04/05/2024, 01:02 hours
+
+exclude-from-coverage
+statement ok
+ALTER SESSION SET TIMESTAMP_OUTPUT_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF3';
+
+exclude-from-coverage
+statement ok
+ALTER SESSION SET DATE_OUTPUT_FORMAT = 'YYYY-MM-DD';
+
+query T
+SELECT TO_VARCHAR('03-April-2024'::DATE)
+----
+2024-04-03
+
+query T
+SELECT TO_VARCHAR('03-April-2024'::DATE, 'yyyy.mm.dd')
+----
+2024.04.03
+
+query T
+SELECT TO_VARCHAR('2024-04-05'::DATE, 'mon dd, yyyy')
+----
+Apr 05, 2024

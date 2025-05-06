@@ -1,0 +1,18 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE sequence_demo (i INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO sequence_demo
+SELECT SEQ4()
+FROM TABLE(GENERATOR(ROWCOUNT => 1024));
+
+query TTTT
+SELECT COUNT(i),
+       COUNT(DISTINCT i),
+       APPROX_COUNT_DISTINCT(i),
+       HLL(i)
+  FROM sequence_demo;
+----
+1024	1024	1030	1030

@@ -1,0 +1,24 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE vartab (v VARIANT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO vartab (v)
+SELECT PARSE_JSON('{
+  "attr": [
+    { "name": "Alice" },
+    { "name": "Bob" }
+  ]
+}');
+
+query T
+SELECT GET_PATH(v, 'attr[0].name') FROM vartab
+----
+"Alice"
+
+query T
+SELECT v:attr[0].name FROM vartab
+----
+"Alice"
+

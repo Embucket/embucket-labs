@@ -1,0 +1,17 @@
+exclude-from-coverage
+statement ok
+ALTER SESSION SET TIME_OUTPUT_FORMAT = 'HH24:MI:SS.FF';
+
+statement ok
+SELECT CURRENT_TIME(2);
+
+query T
+SELECT CURRENT_TIME(4)
+----
+<REGEX>:['\"]?\d{2}:\d{2}:\d{2}\.\d{3,6}['\"]?
+
+query T
+SELECT CURRENT_TIME
+----
+<REGEX>:'\d{2}:\d{2}:\d{2}\.\d{6}'
+

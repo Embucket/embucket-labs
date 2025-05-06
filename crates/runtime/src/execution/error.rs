@@ -73,6 +73,9 @@ pub enum ExecutionError {
     #[snafu(display("Cannot refresh catalog list"))]
     RefreshCatalogList { message: String },
 
+    #[snafu(display("Catalog {catalog} cannot be downcasted"))]
+    CatalogDownCast { catalog: String },
+
     #[snafu(display("Catalog {catalog} not found"))]
     CatalogNotFound { catalog: String },
 

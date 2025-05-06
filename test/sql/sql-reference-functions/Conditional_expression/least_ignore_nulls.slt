@@ -1,0 +1,28 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE test_least_ignore_nulls (
+  col_1 INTEGER,
+  col_2 INTEGER,
+  col_3 INTEGER,
+  col_4 FLOAT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_least_ignore_nulls (col_1, col_2, col_3, col_4) VALUES
+  (1, 2,    3,  4.25),
+  (2, 4,   -1,  NULL),
+  (3, 6, NULL,  -2.75);
+
+query TTTTT
+SELECT col_1,
+       col_2,
+       col_3,
+       col_4,
+       LEAST(col_1, col_2, col_3, col_4) AS least_ignore_nulls
+ FROM test_least_ignore_nulls
+ ORDER BY col_1
+----
+1	2	3	4.25	1.0
+2	4	-1	NULL	NULL
+3	6	NULL	-2.75	NULL
+

@@ -9,8 +9,8 @@ use datafusion_common::{DataFusionError, Result};
 use datafusion_doc::Documentation;
 use datafusion_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use geo_traits::LineStringTrait;
-use geoarrow::array::{AsNativeArray, CoordType, PolygonBuilder};
-use geoarrow::datatypes::Dimension;
+use geoarrow::array::{AsNativeArray, PolygonBuilder};
+use geoarrow_schema::{CoordType, Dimension};
 use geoarrow::error::GeoArrowError;
 use geoarrow::trait_::ArrayAccessor;
 use geoarrow::ArrayBase;
@@ -62,7 +62,8 @@ impl ScalarUDFImpl for MakePolygon {
         Ok(POLYGON_2D_TYPE.into())
     }
 
-    fn invoke_batch(&self, args: &[ColumnarValue], _number_rows: usize) -> Result<ColumnarValue> {
+    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
+        let args = &args.args;
         unsafe { make_polygon(args) }
     }
 
