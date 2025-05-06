@@ -14,7 +14,7 @@ use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
 use datafusion_expr::type_coercion::aggregates::{INTEGERS, NUMERICS};
 use datafusion_expr::utils::format_state_name;
 use datafusion_expr::{
-    Accumulator, AggregateUDFImpl, ColumnarValue, Documentation, Expr, Signature, TypeSignature,
+    Accumulator, AggregateUDFImpl, ColumnarValue, Documentation, Signature, TypeSignature,
     Volatility,
 };
 use datafusion_macros::user_doc;
@@ -74,7 +74,7 @@ fn validate_input_percentile_expr(expr: &Arc<dyn PhysicalExpr>) -> Result<f64> {
     let percentile = match get_scalar_value(expr)
         .map_err(|_| not_impl_datafusion_err!("Percentile value for 'PERCENTILE_CONT' must be a literal, got: {expr}"))? {
         ScalarValue::Float32(Some(value)) => {
-            value as f64
+            f64::from(value)
         }
         ScalarValue::Float64(Some(value)) => {
             value
@@ -123,8 +123,7 @@ impl AggregateUDFImpl for PercentileCont {
         let is_descending = acc_args
             .ordering_req
             .first()
-            .map(|sort_expr| sort_expr.options.descending)
-            .unwrap_or(false);
+            .is_some_and(|sort_expr| sort_expr.options.descending);
 
         let adjusted_percentile = if is_descending {
             1.0 - percentile
