@@ -88,7 +88,6 @@ macro_rules! numeric_to_boolean {
 
 #[allow(clippy::cognitive_complexity, clippy::unwrap_used)]
 pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
-    let arr = arr.as_ref();
     Ok(match arr.data_type() {
         DataType::Boolean => {
             let mut boolean_array = BooleanArray::builder(arr.len());
