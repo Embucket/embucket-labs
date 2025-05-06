@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { Table } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useGetNavigationTrees } from '@/orval/navigation-trees';
+import { getGetDashboardQueryKey } from '@/orval/dashboard';
+import { getGetDatabasesQueryKey } from '@/orval/databases';
+import { getGetNavigationTreesQueryKey, useGetNavigationTrees } from '@/orval/navigation-trees';
 import { useUploadFile } from '@/orval/tables';
 
 import type { SelectedTree } from '../trees/trees-items';
@@ -21,6 +24,7 @@ interface TableDataUploadDialogProps {
   onSetOpened: (opened: boolean) => void;
 }
 
+// TODO: Double check keys hack
 export function TableDataUploadDialog({
   opened,
   onSetOpened,
@@ -38,10 +42,24 @@ export function TableDataUploadDialog({
     tableName: tableName ?? '',
   });
 
+  const queryClient = useQueryClient();
+
   const { mutate, isPending, error } = useUploadFile({
     mutation: {
-      onSuccess: () => {
+      onSuccess: async () => {
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: getGetNavigationTreesQueryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: getGetDashboardQueryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: getGetDatabasesQueryKey(),
+          }),
+        ]);
         toast.success('File uploaded successfully');
+        onSetOpened(false);
       },
     },
   });
@@ -68,8 +86,12 @@ export function TableDataUploadDialog({
     () =>
       isLoadingNavigationTrees
         ? { databasesOptions: [], schemasOptions: [], tablesOptions: [] }
-        : transformNavigationTreesToSelectOptions(navigationTrees ?? []),
-    [navigationTrees, isLoadingNavigationTrees],
+        : transformNavigationTreesToSelectOptions(
+            navigationTrees ?? [],
+            tree.databaseName,
+            tree.schemaName,
+          ),
+    [navigationTrees, isLoadingNavigationTrees, tree.databaseName, tree.schemaName],
   );
 
   return (
@@ -101,26 +123,42 @@ export function TableDataUploadDialog({
             <p className="text-sm">Select database, schema and table before uploading</p>
             <div className="flex gap-2">
               <TableDataUploadSelect
+                key={tree.databaseName}
                 options={databasesOptions}
                 value={tree.databaseName}
-                onChange={(databaseName) => setTree((prev) => ({ ...prev, databaseName }))}
+                onChange={(newDbName) =>
+                  setTree((prev) => ({
+                    ...prev,
+                    databaseName: newDbName,
+                    schemaName: '',
+                    tableName: '',
+                  }))
+                }
                 placeholder="Select Database"
                 disabled={isPending}
               />
               <TableDataUploadSelect
+                key={`${tree.databaseName}-${tree.schemaName}`}
                 options={schemasOptions}
                 value={tree.schemaName}
-                onChange={(schemaName) => setTree((prev) => ({ ...prev, schemaName }))}
+                onChange={(newSchemaName) =>
+                  setTree((prev) => ({
+                    ...prev,
+                    schemaName: newSchemaName,
+                    tableName: '',
+                  }))
+                }
                 placeholder="Select Schema"
                 disabled={isPending || !tree.databaseName}
               />
               <TableDataUploadSelect
+                key={`key-${tree.schemaName}`}
                 options={tablesOptions}
                 value={tree.tableName}
                 onChange={(tableName) => setTree((prev) => ({ ...prev, tableName }))}
                 placeholder="Select Table"
                 disabled={isPending || !tree.schemaName}
-                customOptionLabel="New Random Name"
+                customOptionLabel="Random Name (New Table)"
                 onCustomOptionClick={handleCreateNewTable}
               />
             </div>

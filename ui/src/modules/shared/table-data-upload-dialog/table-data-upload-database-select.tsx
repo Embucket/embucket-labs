@@ -55,7 +55,7 @@ export function TableDataUploadSelect({
         <SelectGroup>
           {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
-              {option.label}
+              <span className="max-w-[100px] truncate">{option.label}</span>
             </SelectItem>
           ))}
         </SelectGroup>
@@ -64,7 +64,7 @@ export function TableDataUploadSelect({
             <SelectSeparator />
             <SelectGroup>
               <SelectItem value={CUSTOM_OPTION_VALUE} className="cursor-pointer">
-                {customOptionLabel}
+                <span className="max-w-[100px] truncate">{customOptionLabel}</span>
               </SelectItem>
             </SelectGroup>
           </>

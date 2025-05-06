@@ -7,6 +7,8 @@ interface Option {
 
 export const transformNavigationTreesToSelectOptions = (
   navigationTrees: NavigationTreeDatabase[],
+  selectedDatabase?: string,
+  selectedSchema?: string,
 ): {
   databasesOptions: Option[];
   schemasOptions: Option[];
@@ -21,18 +23,24 @@ export const transformNavigationTreesToSelectOptions = (
       value: db.name,
       label: db.name,
     });
-    db.schemas.forEach((schema) => {
-      schemas.push({
-        value: schema.name,
-        label: schema.name,
-      });
-      schema.tables.forEach((table) => {
-        tables.push({
-          value: table.name,
-          label: table.name,
+
+    if (!selectedDatabase || db.name === selectedDatabase) {
+      db.schemas.forEach((schema) => {
+        schemas.push({
+          value: schema.name,
+          label: schema.name,
         });
+
+        if (!selectedSchema || schema.name === selectedSchema) {
+          schema.tables.forEach((table) => {
+            tables.push({
+              value: table.name,
+              label: table.name,
+            });
+          });
+        }
       });
-    });
+    }
   });
 
   return {
