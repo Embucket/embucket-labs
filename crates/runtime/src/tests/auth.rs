@@ -1,14 +1,14 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::http::auth::models::{AuthResponse, LoginPayload};
-use crate::http::ui::queries::models::{QueryCreatePayload, QueryCreateResponse};
 use crate::http::metastore::handlers::RwObjectVec;
+use crate::http::ui::queries::models::{QueryCreatePayload, QueryCreateResponse};
 use crate::http::ui::tests::common::{http_req_with_headers, TestHttpError};
 use crate::tests::run_test_server_with_demo_auth;
+use embucket_metastore::models::Volume;
 use http::{header, HeaderMap, HeaderValue, Method, StatusCode};
 use serde_json::json;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use embucket_metastore::models::Volume;
 
 const JWT_SECRET: &str = "test";
 const DEMO_USER: &str = "demo_user";
@@ -32,9 +32,15 @@ fn get_set_cookie_from_response_headers(
     set_cookies_map
 }
 
-async fn login<T>(client: &reqwest::Client, addr: &SocketAddr, username: &str, password: &str) -> Result<(HeaderMap, T), TestHttpError> 
+async fn login<T>(
+    client: &reqwest::Client,
+    addr: &SocketAddr,
+    username: &str,
+    password: &str,
+) -> Result<(HeaderMap, T), TestHttpError>
 where
-    T: serde::de::DeserializeOwned {
+    T: serde::de::DeserializeOwned,
+{
     http_req_with_headers::<T>(
         client,
         Method::POST,
@@ -52,9 +58,13 @@ where
     .await
 }
 
-async fn logout<T>(client: &reqwest::Client, addr: &SocketAddr) -> Result<(HeaderMap, T), TestHttpError> 
+async fn logout<T>(
+    client: &reqwest::Client,
+    addr: &SocketAddr,
+) -> Result<(HeaderMap, T), TestHttpError>
 where
-    T: serde::de::DeserializeOwned {
+    T: serde::de::DeserializeOwned,
+{
     http_req_with_headers::<T>(
         client,
         Method::POST,
@@ -68,9 +78,14 @@ where
     .await
 }
 
-async fn refresh<T>(client: &reqwest::Client, addr: &SocketAddr, refresh_token: &str) -> Result<(HeaderMap, T), TestHttpError> 
+async fn refresh<T>(
+    client: &reqwest::Client,
+    addr: &SocketAddr,
+    refresh_token: &str,
+) -> Result<(HeaderMap, T), TestHttpError>
 where
-    T: serde::de::DeserializeOwned {
+    T: serde::de::DeserializeOwned,
+{
     http_req_with_headers::<T>(
         client,
         Method::POST,
@@ -91,9 +106,15 @@ where
     .await
 }
 
-async fn query<T>(client: &reqwest::Client, addr: &SocketAddr, access_token: &String, query: &str) -> Result<(HeaderMap, T), TestHttpError> 
+async fn query<T>(
+    client: &reqwest::Client,
+    addr: &SocketAddr,
+    access_token: &String,
+    query: &str,
+) -> Result<(HeaderMap, T), TestHttpError>
 where
-    T: serde::de::DeserializeOwned {
+    T: serde::de::DeserializeOwned,
+{
     http_req_with_headers::<T>(
         client,
         Method::POST,
@@ -104,7 +125,8 @@ where
             ),
             (
                 header::AUTHORIZATION,
-                HeaderValue::from_str(format!("Bearer {access_token}").as_str()).expect("Can't convert to HeaderValue"),
+                HeaderValue::from_str(format!("Bearer {access_token}").as_str())
+                    .expect("Can't convert to HeaderValue"),
             ),
         ]),
         &format!("http://{addr}/ui/queries"),
@@ -118,9 +140,14 @@ where
     .await
 }
 
-async fn metastore<T>(client: &reqwest::Client, addr: &SocketAddr, access_token: &String) -> Result<(HeaderMap, T), TestHttpError> 
+async fn metastore<T>(
+    client: &reqwest::Client,
+    addr: &SocketAddr,
+    access_token: &String,
+) -> Result<(HeaderMap, T), TestHttpError>
 where
-    T: serde::de::DeserializeOwned {
+    T: serde::de::DeserializeOwned,
+{
     http_req_with_headers::<T>(
         client,
         Method::POST,
@@ -131,7 +158,8 @@ where
             ),
             (
                 header::AUTHORIZATION,
-                HeaderValue::from_str(format!("Bearer {access_token}").as_str()).expect("Can't convert to HeaderValue"),
+                HeaderValue::from_str(format!("Bearer {access_token}").as_str())
+                    .expect("Can't convert to HeaderValue"),
             ),
         ]),
         &format!("http://{addr}/v1/metastore/volumes"),
@@ -145,8 +173,11 @@ where
 async fn test_login_no_secret_set() {
     // No secret set
     let addr = run_test_server_with_demo_auth(
-        String::new(), DEMO_USER.to_string(), DEMO_PASSWORD.to_string()
-    ).await;
+        String::new(),
+        DEMO_USER.to_string(),
+        DEMO_PASSWORD.to_string(),
+    )
+    .await;
     let client = reqwest::Client::new();
 
     let login_error = login::<()>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
@@ -155,13 +186,15 @@ async fn test_login_no_secret_set() {
     assert_eq!(login_error.status, StatusCode::INTERNAL_SERVER_ERROR);
 }
 
-
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_bad_login() {
     let addr = run_test_server_with_demo_auth(
-        JWT_SECRET.to_string(), DEMO_USER.to_string(), DEMO_PASSWORD.to_string()
-    ).await;
+        JWT_SECRET.to_string(),
+        DEMO_USER.to_string(),
+        DEMO_PASSWORD.to_string(),
+    )
+    .await;
     let client = reqwest::Client::new();
 
     let login_error = login::<()>(&client, &addr, "", "")
@@ -174,7 +207,7 @@ async fn test_bad_login() {
         .expect("No WWW-Authenticate header");
     assert_eq!(
         www_auth.to_str().expect("Bad header encoding"),
-        "Bearer realm=\"login\", error=\"Login error\""
+        "Basic realm=\"login\", error=\"Login error\""
     );
 }
 
@@ -182,8 +215,11 @@ async fn test_bad_login() {
 #[allow(clippy::too_many_lines)]
 async fn test_metastore_request_unauthorized() {
     let addr = run_test_server_with_demo_auth(
-        JWT_SECRET.to_string(), DEMO_USER.to_string(), DEMO_PASSWORD.to_string()
-    ).await;
+        JWT_SECRET.to_string(),
+        DEMO_USER.to_string(),
+        DEMO_PASSWORD.to_string(),
+    )
+    .await;
     let client = reqwest::Client::new();
 
     let _ = login::<()>(&client, &addr, "", "")
@@ -201,8 +237,11 @@ async fn test_metastore_request_unauthorized() {
 #[allow(clippy::too_many_lines)]
 async fn test_metastore_request_passes_authorization() {
     let addr = run_test_server_with_demo_auth(
-        JWT_SECRET.to_string(), DEMO_USER.to_string(), DEMO_PASSWORD.to_string()
-    ).await;
+        JWT_SECRET.to_string(),
+        DEMO_USER.to_string(),
+        DEMO_PASSWORD.to_string(),
+    )
+    .await;
     let client = reqwest::Client::new();
 
     let (_, login_response) = login::<AuthResponse>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
@@ -210,8 +249,8 @@ async fn test_metastore_request_passes_authorization() {
         .expect("Failed to login");
 
     // Metastore request not returning auth error
-    let metastore_res = metastore::<RwObjectVec<Volume>>(&client, &addr, &login_response.access_token)
-        .await;
+    let metastore_res =
+        metastore::<RwObjectVec<Volume>>(&client, &addr, &login_response.access_token).await;
     if let Err(e) = metastore_res {
         assert_ne!(e.status, StatusCode::UNAUTHORIZED);
     }
@@ -221,8 +260,11 @@ async fn test_metastore_request_passes_authorization() {
 #[allow(clippy::too_many_lines)]
 async fn test_query_request_unauthorized() {
     let addr = run_test_server_with_demo_auth(
-        JWT_SECRET.to_string(), DEMO_USER.to_string(), DEMO_PASSWORD.to_string()
-    ).await;
+        JWT_SECRET.to_string(),
+        DEMO_USER.to_string(),
+        DEMO_PASSWORD.to_string(),
+    )
+    .await;
     let client = reqwest::Client::new();
 
     let _ = login::<()>(&client, &addr, "", "")
@@ -236,13 +278,15 @@ async fn test_query_request_unauthorized() {
     assert_eq!(query_err.status, StatusCode::UNAUTHORIZED);
 }
 
-
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_query_request_ok() {
     let addr = run_test_server_with_demo_auth(
-        JWT_SECRET.to_string(), DEMO_USER.to_string(), DEMO_PASSWORD.to_string()
-    ).await;
+        JWT_SECRET.to_string(),
+        DEMO_USER.to_string(),
+        DEMO_PASSWORD.to_string(),
+    )
+    .await;
     let client = reqwest::Client::new();
 
     // login
@@ -251,20 +295,22 @@ async fn test_query_request_ok() {
         .expect("Failed to login");
 
     // Successfuly run query
-    let (_, query_response) = query::<QueryCreateResponse>(
-        &client, &addr, &login_response.access_token, "SELECT 1")
-        .await
-        .expect("Failed to run query");
+    let (_, query_response) =
+        query::<QueryCreateResponse>(&client, &addr, &login_response.access_token, "SELECT 1")
+            .await
+            .expect("Failed to run query");
     assert_eq!(query_response.data.query, "SELECT 1");
-
 }
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_refresh_bad_token() {
     let addr = run_test_server_with_demo_auth(
-        JWT_SECRET.to_string(), DEMO_USER.to_string(), DEMO_PASSWORD.to_string()
-    ).await;
+        JWT_SECRET.to_string(),
+        DEMO_USER.to_string(),
+        DEMO_PASSWORD.to_string(),
+    )
+    .await;
     let client = reqwest::Client::new();
 
     let refresh_err = refresh::<()>(&client, &addr, "xyz")
@@ -278,8 +324,11 @@ async fn test_refresh_bad_token() {
 #[allow(clippy::too_many_lines)]
 async fn test_logout() {
     let addr = run_test_server_with_demo_auth(
-        JWT_SECRET.to_string(), DEMO_USER.to_string(), DEMO_PASSWORD.to_string()
-    ).await;
+        JWT_SECRET.to_string(),
+        DEMO_USER.to_string(),
+        DEMO_PASSWORD.to_string(),
+    )
+    .await;
     let client = reqwest::Client::new();
 
     // login
@@ -307,8 +356,11 @@ async fn test_logout() {
 #[allow(clippy::too_many_lines)]
 async fn test_login_refresh() {
     let addr = run_test_server_with_demo_auth(
-        JWT_SECRET.to_string(), DEMO_USER.to_string(), DEMO_PASSWORD.to_string()
-    ).await;
+        JWT_SECRET.to_string(),
+        DEMO_USER.to_string(),
+        DEMO_PASSWORD.to_string(),
+    )
+    .await;
     let client = reqwest::Client::new();
 
     // login
@@ -336,10 +388,10 @@ async fn test_login_refresh() {
         .contains("SameSite=Strict"));
 
     // Successfuly run query
-    let (_, query_response) = query::<QueryCreateResponse>(
-        &client, &addr, &login_response.access_token, "SELECT 1")
-        .await
-        .expect("Failed to run query");
+    let (_, query_response) =
+        query::<QueryCreateResponse>(&client, &addr, &login_response.access_token, "SELECT 1")
+            .await
+            .expect("Failed to run query");
     assert_eq!(query_response.data.query, "SELECT 1");
 
     //

@@ -46,7 +46,5 @@ pub async fn run_test_server_with_demo_auth(
 
 #[allow(clippy::unwrap_used)]
 pub async fn run_test_server() -> SocketAddr {
-    run_test_server_with_demo_auth(
-        String::new(), String::new(), String::new(),
-    ).await
+    run_test_server_with_demo_auth(String::new(), String::new(), String::new()).await
 }

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use super::error::CreateJwtSnafu;
-use crate::http::auth::error::{AuthError, AuthResult, BadRefreshTokenSnafu, SetCookieSnafu, ResponseHeaderSnafu};
+use crate::http::auth::error::{
+    AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu, SetCookieSnafu,
+};
 use crate::http::auth::models::{AuthResponse, Claims, LoginPayload, RefreshClaims};
 use crate::http::state::AppState;
 use axum::extract::State;
@@ -129,7 +131,8 @@ pub async fn login(
     State(state): State<AppState>,
     Json(LoginPayload { username, password }): Json<LoginPayload>,
 ) -> AuthResult<impl IntoResponse> {
-    if username != *state.auth_config.demo_user() || password != *state.auth_config.demo_password() {
+    if username != *state.auth_config.demo_user() || password != *state.auth_config.demo_password()
+    {
         return Err(AuthError::Login);
     }
 
@@ -162,7 +165,6 @@ pub async fn refresh_access_token(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> AuthResult<impl IntoResponse> {
-
     let jwt_secret = state.auth_config.jwt_secret();
     assert_jwt_secret(jwt_secret)?;
 
@@ -172,8 +174,9 @@ pub async fn refresh_access_token(
         Some(refresh_token) => {
             let audience = state.config.host.clone();
 
-            let refresh_claims = get_claims_validate_jwt_token(refresh_token, &audience, jwt_secret)
-                .context(BadRefreshTokenSnafu)?;
+            let refresh_claims =
+                get_claims_validate_jwt_token(refresh_token, &audience, jwt_secret)
+                    .context(BadRefreshTokenSnafu)?;
 
             let access_claims = access_token_claims(refresh_claims.sub, audience);
 
@@ -197,7 +200,6 @@ pub async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> AuthResult<impl IntoResponse> {
-    
     let jwt_secret = state.auth_config.jwt_secret();
     assert_jwt_secret(jwt_secret)?;
 

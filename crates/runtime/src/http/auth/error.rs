@@ -18,26 +18,28 @@ pub enum AuthError {
     NoJwtSecret,
 
     // Do not output sensitive error details
-    #[snafu(display("Bad refresh token"))]
-    BadRefreshToken { source: JwtError }, // keep source for snafu selector
+    #[snafu(display("Bad refresh token. {source}"))]
+    BadRefreshToken { source: JwtError },
 
-    #[snafu(display("Bad authentication token"))]
-    BadAuthToken,
+    #[snafu(display("Bad authentication token. {source}"))]
+    BadAuthToken { source: JwtError },
+
+    #[snafu(display("Bad Authorization header"))]
+    BadAuthHeader,
+
+    #[snafu(display("No Authorization header"))]
+    NoAuthHeader,
+
+    #[snafu(display("No refresh_token cookie"))]
+    NoRefreshTokenCookie,
+
+    // programmatic errors goes here:
 
     #[snafu(display("Can't add header to response: {source}"))]
     ResponseHeader { source: InvalidHeaderValue },
 
     #[snafu(display("Set-Cookie error: {source}"))]
     SetCookie { source: MaxSizeReached },
-
-    #[snafu(display("Missing refresh_token cookie"))]
-    NoRefreshTokenCookie,
-
-    #[snafu(display("Missing authorization header"))]
-    NoAuthHeader,
-
-    #[snafu(display("Bad Authorization header"))]
-    BadAuthHeader,
 
     #[snafu(display("JWT create error: {source}"))]
     CreateJwt { source: JwtError },
@@ -49,36 +51,37 @@ pub enum AuthError {
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
-        let auth = "Bearer".to_string();
-        let mut realm = "api-auth".to_string();
-        let mut error = self.to_string();
-
-        let status = match self {
+        let (status, www_value) = match self {
             Self::Login => {
-                error = "Login error".to_string();
-                realm = "login".to_string();
-                StatusCode::UNAUTHORIZED
+                (StatusCode::UNAUTHORIZED, Some(WwwAuthenticate {
+                    auth: "Basic".to_string(),
+                    realm: "login".to_string(),
+                    error: "Login error".to_string(),
+                }))
             }
-            Self::NoAuthHeader | Self::BadAuthToken => {
-                error = "The authorization token is missing or invalid".to_string();
-                StatusCode::UNAUTHORIZED
+            Self::NoAuthHeader
+            | Self::NoRefreshTokenCookie
+            | Self::BadRefreshToken { .. }
+            | Self::BadAuthToken { .. } => {
+                // reuse error message
+                (StatusCode::UNAUTHORIZED, Some(WwwAuthenticate {
+                    auth: "Bearer".to_string(),
+                    realm: "api-auth".to_string(),
+                    error: self.to_string(),
+                }))
             }
-            Self::NoRefreshTokenCookie | Self::BadRefreshToken { .. } => {
-                error = "The refresh token is missing or invalid".to_string();
-                StatusCode::UNAUTHORIZED
-            }
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, None),
         };
 
         let body = Json(ErrorResponse {
             message: self.to_string(),
             status_code: status.as_u16(),
         });
-        if status == StatusCode::UNAUTHORIZED {
-            // rfc7235
-            let www_value = WwwAuthenticate { auth, realm, error };
-            (
+
+        match www_value {
+            Some(www_value) => (
                 StatusCode::UNAUTHORIZED,
+                // rfc7235
                 [(
                     header::WWW_AUTHENTICATE,
                     HeaderValue::from_str(&www_value.to_string())
@@ -86,13 +89,11 @@ impl IntoResponse for AuthError {
                         // we have no options as already handling error response
                         .unwrap_or_else(|_| {
                             HeaderValue::from_static("Error adding www_authenticate to HeaderValue")
-                        })
+                        }),
                 )],
                 body,
-            )
-                .into_response()
-        } else {
-            (status, body).into_response()
+            ).into_response(),
+            None => (status, body).into_response(),
         }
     }
 }

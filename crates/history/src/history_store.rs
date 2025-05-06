@@ -143,8 +143,10 @@ async fn worksheet_queries_references_iterator(
     worksheet_id: WorksheetId,
     cursor: Option<QueryRecordId>,
 ) -> WorksheetsStoreResult<DbIterator<'_>> {
-    let refs_start_key =
-        QueryRecordReference::get_key(worksheet_id, cursor.unwrap_or_else(QueryRecordId::min_cursor));
+    let refs_start_key = QueryRecordReference::get_key(
+        worksheet_id,
+        cursor.unwrap_or_else(QueryRecordId::min_cursor),
+    );
     let refs_end_key = QueryRecordReference::get_key(worksheet_id, QueryRecordId::max_cursor());
     db.range_iterator(refs_start_key..refs_end_key)
         .await

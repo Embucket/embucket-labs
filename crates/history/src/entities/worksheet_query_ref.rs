@@ -3,19 +3,22 @@ use bytes::Bytes;
 use embucket_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 
-// QueryRecordReference struct is used for referencing QueryRecord from worksheet
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+// QueryRecordReference struct is used for referencing QueryRecord from worksheet.
+// We don't need its fields when deserializing from DB, it's not intended for use after
+// deserialized
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct QueryRecordReference {
-    #[serde(skip_serializing)]
+    #[serde(skip)]
     pub id: QueryRecordId,
-    #[serde(skip_serializing)]
+    #[serde(skip)]
     pub worksheet_id: WorksheetId,
 }
 
 impl QueryRecordReference {
     #[must_use]
     pub fn get_key(worksheet_id: WorksheetId, id: QueryRecordId) -> Bytes {
-        Bytes::from(format!("/ws/{worksheet_id}/qh/{id}"))
+        // use /rws prefix to avoid clashing with /ws prefix used in worksheet
+        Bytes::from(format!("/rws/{worksheet_id}/qh/{id}"))
     }
 
     pub fn extract_qh_key(data: &Bytes) -> Option<Bytes> {

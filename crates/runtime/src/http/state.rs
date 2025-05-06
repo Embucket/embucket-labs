@@ -1,4 +1,4 @@
-use embucket_history::{history_store::WorksheetsStore};
+use embucket_history::history_store::WorksheetsStore;
 use embucket_metastore::metastore::Metastore;
 use std::collections::HashMap;
 use std::sync::Arc;

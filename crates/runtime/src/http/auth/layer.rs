@@ -1,12 +1,13 @@
-use super::error::{AuthError, AuthResult};
+use super::error::{AuthError, AuthResult, BadAuthTokenSnafu};
 use super::handlers::get_claims_validate_jwt_token;
 use crate::http::state::AppState;
 use axum::{
     extract::{Request, State},
-    middleware::{Next},
+    middleware::Next,
     response::IntoResponse,
 };
 use http::HeaderMap;
+use snafu::ResultExt;
 
 fn get_authorization_token(headers: &HeaderMap) -> AuthResult<&str> {
     let auth = headers.get(http::header::AUTHORIZATION);
@@ -34,7 +35,8 @@ pub async fn require_auth(
     // no demo user -> no auth required
     if state.auth_config.jwt_secret().is_empty()
         || state.auth_config.demo_user().is_empty()
-        || state.auth_config.demo_password().is_empty() {
+        || state.auth_config.demo_password().is_empty()
+    {
         return Ok(next.run(req).await);
     }
 
@@ -42,9 +44,8 @@ pub async fn require_auth(
     let audience = state.config.host.clone();
     let jwt_secret = state.auth_config.jwt_secret();
 
-    if get_claims_validate_jwt_token(access_token, &audience, jwt_secret).is_err() {
-        return Err(AuthError::BadAuthToken);
-    }
+    let _ = get_claims_validate_jwt_token(access_token, &audience, jwt_secret)
+        .context(BadAuthTokenSnafu)?;
 
     Ok(next.run(req).await)
 }

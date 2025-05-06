@@ -26,7 +26,10 @@ pub struct AuthConfig {
 impl AuthConfig {
     #[must_use]
     pub fn new(jwt_secret: String) -> Self {
-        Self { jwt_secret, ..Self::default() }
+        Self {
+            jwt_secret,
+            ..Self::default()
+        }
     }
 
     pub fn with_demo_credentials(&mut self, demo_user: String, demo_password: String) {
