@@ -10,6 +10,9 @@ use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
 use std::sync::Arc;
 
+const TRUE: [&'static str; 6] = ["true", "t", "yes", "y", "on", "1"];
+const FALSE: [&'static str; 6] = ["false", "f", "no", "n", "off", "0"];
+
 // to_boolean SQL function
 // Converts the input text or numeric expression to a BOOLEAN value.
 // Syntax: TO_BOOLEAN( <string_or_numeric_expr> )
@@ -69,8 +72,6 @@ impl ScalarUDFImpl for ToBooleanFunc {
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        assert_eq!(args.args.len(), 1);
-
         let ScalarFunctionArgs { args, .. } = args;
 
         let arr = match args[0].clone() {
@@ -82,16 +83,14 @@ impl ScalarUDFImpl for ToBooleanFunc {
             DataType::Utf8 => {
                 let arr = as_string_array(&arr);
                 let mut res = BooleanBuilder::with_capacity(arr.len());
-                let true_ = ["true", "t", "yes", "y", "on", "1"];
-                let false_ = ["false", "f", "no", "n", "off", "0"];
                 for i in 0..arr.len() {
                     if arr.is_null(i) {
                         res.append_null();
                     } else {
                         let v = arr.value(i);
-                        if true_.iter().any(|&s| s.eq_ignore_ascii_case(v)) {
+                        if TRUE.iter().any(|&s| s.eq_ignore_ascii_case(v)) {
                             res.append_value(true);
-                        } else if false_.iter().any(|&s| s.eq_ignore_ascii_case(v)) {
+                        } else if FALSE.iter().any(|&s| s.eq_ignore_ascii_case(v)) {
                             res.append_value(false);
                         } else if self.try_ {
                             res.append_null();
@@ -114,7 +113,6 @@ impl ScalarUDFImpl for ToBooleanFunc {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrow::util::pretty::print_batches;
     use datafusion::prelude::SessionContext;
     use datafusion_common::assert_batches_eq;
     use datafusion_expr::ScalarUDF;
@@ -210,7 +208,16 @@ mod tests {
         let q = "SELECT TO_BOOLEAN(true)";
         let result = ctx.sql(q).await?.collect().await?;
 
-        print_batches(&result)?;
+        assert_batches_eq!(
+            &[
+                "+---------------------------+",
+                "| to_boolean(Boolean(true)) |",
+                "+---------------------------+",
+                "| true                      |",
+                "+---------------------------+",
+            ],
+            &result
+        );
         Ok(())
     }
 
