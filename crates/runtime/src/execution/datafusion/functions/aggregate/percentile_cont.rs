@@ -131,9 +131,9 @@ impl AggregateUDFImpl for PercentileCont {
             percentile
         };
 
-        Ok(Box::new(PercentileContAccumulator::try_new(
+        Ok(Box::new(PercentileContAccumulator::new(
             adjusted_percentile,
-        )?))
+        )))
     }
 
     fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<Field>> {
@@ -178,13 +178,14 @@ pub struct PercentileContAccumulator {
 }
 
 impl PercentileContAccumulator {
-    pub const fn try_new(percentile: f64) -> Result<Self> {
-        Ok(Self {
+    pub const fn new(percentile: f64) -> Self {
+        Self {
             values: Vec::new(),
             percentile,
-        })
+        }
     }
 
+    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
     fn value_to_f64(value: &ScalarValue) -> Option<f64> {
         match value {
             ScalarValue::Float64(Some(v)) => Some(*v),
@@ -222,6 +223,12 @@ impl Accumulator for PercentileContAccumulator {
         Ok(())
     }
 
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )]
     fn evaluate(&mut self) -> Result<ScalarValue> {
         if self.values.is_empty() {
             return Ok(ScalarValue::Float64(None));
@@ -235,6 +242,7 @@ impl Accumulator for PercentileContAccumulator {
         }
 
         let index = self.percentile * (self.values.len() as f64 - 1.0);
+
         let lower_idx = index.floor() as usize;
 
         if (index - lower_idx as f64).abs() < f64::EPSILON {
@@ -298,7 +306,7 @@ mod tests {
 
     #[test]
     fn test_percentile_cont_median() -> Result<()> {
-        let mut accumulator = PercentileContAccumulator::try_new(0.5)?;
+        let mut accumulator = PercentileContAccumulator::new(0.5);
 
         let values_array = Arc::new(Int64Array::from(vec![10, 30, 20, 40, 50])) as ArrayRef;
 
@@ -312,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_percentile_cont_interpolation() -> Result<()> {
-        let mut accumulator = PercentileContAccumulator::try_new(0.75)?;
+        let mut accumulator = PercentileContAccumulator::new(0.75);
 
         let values_array = Arc::new(Float64Array::from(vec![10.0, 30.0, 20.0, 40.0])) as ArrayRef;
 
@@ -326,7 +334,7 @@ mod tests {
 
     #[test]
     fn test_percentile_cont_integer_to_float() -> Result<()> {
-        let mut accumulator = PercentileContAccumulator::try_new(0.4)?;
+        let mut accumulator = PercentileContAccumulator::new(0.4);
 
         let values_array = Arc::new(Int64Array::from(vec![10, 20, 30, 40, 50])) as ArrayRef;
 
@@ -340,7 +348,7 @@ mod tests {
 
     #[test]
     fn test_percentile_cont_empty() -> Result<()> {
-        let mut accumulator = PercentileContAccumulator::try_new(0.5)?;
+        let mut accumulator = PercentileContAccumulator::new(0.5);
 
         let empty_array = Arc::new(Float64Array::from(Vec::<f64>::new())) as ArrayRef;
 
