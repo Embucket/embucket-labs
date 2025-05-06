@@ -1,5 +1,5 @@
 use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::{Json, Router, middleware};
 use std::fs;
 use tower_http::catch_panic::CatchPanicLayer;
 use utoipa::openapi::{self};
@@ -14,6 +14,7 @@ use crate::http::ui::router::{create_router as create_ui_router, ui_open_api_spe
 use tower_http::timeout::TimeoutLayer;
 use crate::http::auth::router::create_router as create_auth_router;
 use super::metastore::router::create_router as create_metastore_router;
+use crate::http::auth::layer::require_auth;
 
 // TODO: Fix OpenAPI spec generation
 #[derive(OpenApi)]
@@ -39,9 +40,11 @@ pub fn create_app(state: AppState) -> Router {
     Router::new()
         .merge(dbt_router)
         .merge(metastore_router)
-        .merge(auth_router)
-        .nest("/ui", ui_router)
+        .merge(ui_router)
         .nest("/catalog", iceberg_catalog)
+        // middleware wraping all routes above ^^
+        .layer(middleware::from_fn_with_state(state.clone(),require_auth))
+        .merge(auth_router)
         .merge(
             SwaggerUi::new("/")
                 .url("/openapi.json", spec)

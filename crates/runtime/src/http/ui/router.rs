@@ -68,7 +68,7 @@ pub fn ui_open_api_spec() -> utoipa::openapi::OpenApi {
 }
 
 pub fn create_router() -> Router<AppState> {
-    Router::new()
+    let ui_router = Router::new()
         // .route("/navigation_trees", get(navigation_trees))
         .route("/navigation-trees", get(get_navigation_trees))
         .route("/dashboard", get(get_dashboard))
@@ -140,5 +140,7 @@ pub fn create_router() -> Router<AppState> {
             axum::http::header::AUTHORIZATION,
         ]))
         .layer(axum::middleware::from_fn(add_request_metadata))
-        .layer(DefaultBodyLimit::disable())
+        .layer(DefaultBodyLimit::disable());
+
+    Router::new().nest("/ui", ui_router)
 }

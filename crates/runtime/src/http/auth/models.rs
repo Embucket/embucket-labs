@@ -1,9 +1,23 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(Debug, Deserialize))]
-pub struct LoginResponse {
+pub struct AuthResponse {
     pub access_token: String,
+    pub token_type: String,
+    pub expires_in: u32,
+}
+
+impl AuthResponse {
+    #[must_use]
+    pub fn new (access_token: String, expires_in: u32) -> Self {
+        Self {
+            access_token,
+            token_type: "Bearer".to_string(),
+            expires_in,
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -17,6 +31,19 @@ pub struct RefreshTokenResponse {
 pub struct LoginPayload {
     pub username: String,
     pub password: String,
+}
+
+pub struct WwwAuthenticate {
+    pub realm: String,
+    pub auth: String,
+    pub error: String,
+}
+
+impl std::fmt::Display for WwwAuthenticate {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let Self { realm, auth, error } = self;
+        write!(f, "{auth} realm=\"{realm}\", error=\"{error}\"")
+    }
 }
 
 #[derive(Serialize, Deserialize)]

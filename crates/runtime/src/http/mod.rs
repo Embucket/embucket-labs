@@ -69,7 +69,7 @@ pub fn make_app(
     let app_state =
         state::AppState::new(metastore, history.clone(), history, execution_svc, Arc::new(config.clone()), Arc::new(auth_config));
 
-    let mut app = router::create_app(app_state)
+    let mut app = router::create_app(app_state.clone())
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn(print_request_response));

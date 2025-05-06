@@ -5,7 +5,7 @@ use crate::tests::run_test_server;
 use http::{header, HeaderMap, HeaderValue, Method, StatusCode};
 use reqwest;
 use serde_json::json;
-use crate::http::auth::models::{LoginPayload, LoginResponse};
+use crate::http::auth::models::{LoginPayload, AuthResponse};
 
 
 fn get_set_cookie_from_response_headers (headers: &HeaderMap) -> HashMap<&str, (&str, &HeaderValue)> {
@@ -29,17 +29,20 @@ async fn test_bad_login() {
     let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
-    let _ = http_req_with_headers::<LoginResponse>(
+    let login_error = http_req_with_headers::<()>(
         &client, Method::POST, 
         HeaderMap::from_iter(vec![
             (header::CONTENT_TYPE, HeaderValue::from_static("application/json")),
         ]),
-        &format!("http://{addr}/login"),
+        &format!("http://{addr}/auth/login"),
         json!(LoginPayload {
             username: String::new(),
             password: String::new(),
         }).to_string(),
     ).await.expect_err("Login should fail");
+
+    let www_auth = login_error.headers.get(header::WWW_AUTHENTICATE).expect("No WWW-Authenticate header");
+    assert_eq!(www_auth.to_str().expect("Bad header encoding"), "Bearer realm=\"login\", error=\"Login error\"");
 }
 
 #[tokio::test]
@@ -56,7 +59,7 @@ async fn test_refresh_bad_token() {
                 format!("access_token=xyz; refresh_token=xyz").as_str(),
             ).expect("Can't convert to HeaderValue")),
         ]),
-        &format!("http://{addr}/refresh"),
+        &format!("http://{addr}/auth/refresh"),
         String::new(),
     ).await.expect_err("Refresh should fail");
     assert_eq!(refresh_err.status, StatusCode::UNAUTHORIZED);
@@ -69,17 +72,18 @@ async fn test_logout() {
     let client = reqwest::Client::new();
 
     // login
-    let (headers, _) = http_req_with_headers::<LoginResponse>(
+    let (headers, _) = http_req_with_headers::<AuthResponse>(
         &client, Method::POST, 
         HeaderMap::from_iter(vec![
             (header::CONTENT_TYPE, HeaderValue::from_static("application/json")),
         ]),
-        &format!("http://{addr}/login"),
+        &format!("http://{addr}/auth/login"),
         json!(LoginPayload {
             username: String::from("admin"),
             password: String::from("admin"),
         }).to_string(),
     ).await.expect("Failed to login");
+    assert_eq!(headers.get(header::WWW_AUTHENTICATE), None);
 
     // logout
     let (headers, _) = http_req_with_headers::<()>(
@@ -87,7 +91,7 @@ async fn test_logout() {
         HeaderMap::from_iter(vec![
             (header::CONTENT_TYPE, HeaderValue::from_static("application/json")),
         ]),
-        &format!("http://{addr}/logout"),
+        &format!("http://{addr}/auth/logout"),
         String::new(),
     ).await.expect("Failed to logout");
 
@@ -99,12 +103,6 @@ async fn test_logout() {
         .expect("No Set-Cookie found with refresh_token");
 
     assert_eq!(refresh_token, &"");
-
-    let (access_token, _) = set_cookies
-        .get("access_token")
-        .expect("No Set-Cookie found with access_token");
-
-    assert_eq!(access_token, &"");
 }
 
 
@@ -115,12 +113,12 @@ async fn test_login_refresh() {
     let client = reqwest::Client::new();
 
     // login
-    let (headers, _) = http_req_with_headers::<LoginResponse>(
+    let (headers, _) = http_req_with_headers::<AuthResponse>(
         &client, Method::POST, 
         HeaderMap::from_iter(vec![
             (header::CONTENT_TYPE, HeaderValue::from_static("application/json")),
         ]),
-        &format!("http://{addr}/login"),
+        &format!("http://{addr}/auth/login"),
         json!(LoginPayload {
             username: String::from("admin"),
             password: String::from("admin"),
@@ -137,26 +135,20 @@ async fn test_login_refresh() {
 
     assert!(refresh_token_cookie.to_str().expect("Bad cookie").contains("HttpOnly"));
     assert!(refresh_token_cookie.to_str().expect("Bad cookie").contains("Secure"));
-
-    let (access_token, access_token_cookie) = set_cookies
-        .get("access_token")
-        .expect("No Set-Cookie found with access_token");
-
-    assert!(!access_token_cookie.to_str().expect("Bad cookie").contains("HttpOnly"));
-    assert!(access_token_cookie.to_str().expect("Bad cookie").contains("Secure"));
+    assert!(refresh_token_cookie.to_str().expect("Bad cookie").contains("SameSite=Strict"));
 
     //
     // test refresh handler, using refresh_token from cookie from login
     //
-    let (headers, _) = http_req_with_headers::<LoginResponse>(
+    let (headers, _) = http_req_with_headers::<AuthResponse>(
         &client, Method::POST, 
         HeaderMap::from_iter(vec![
             (header::CONTENT_TYPE, HeaderValue::from_static("application/json")),
             (header::COOKIE, HeaderValue::from_str(
-                format!("access_token={access_token}; refresh_token={refresh_token}").as_str(),
+                format!("refresh_token={refresh_token}").as_str(),
             ).expect("Can't convert to HeaderValue")),
         ]),
-        &format!("http://{addr}/refresh"),
+        &format!("http://{addr}/auth/refresh"),
         String::new(),
     ).await.expect("Refresh request failed");
 
@@ -170,11 +162,5 @@ async fn test_login_refresh() {
 
     assert!(refresh_token_cookie.to_str().expect("Bad cookie").contains("HttpOnly"));
     assert!(refresh_token_cookie.to_str().expect("Bad cookie").contains("Secure"));
-
-    let (_, access_token_cookie) = set_cookies
-        .get("access_token")
-        .expect("No Set-Cookie found with access_token");
-
-    assert!(!access_token_cookie.to_str().expect("Bad cookie").contains("HttpOnly"));
-    assert!(access_token_cookie.to_str().expect("Bad cookie").contains("Secure"));
+    assert!(refresh_token_cookie.to_str().expect("Bad cookie").contains("SameSite=Strict"));
 }

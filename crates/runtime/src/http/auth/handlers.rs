@@ -4,24 +4,21 @@ use tracing;
 use snafu::ResultExt;
 use http::HeaderMap;
 use http::header::SET_COOKIE;
-use crate::http::auth::error::{AuthResult, AuthError, StoreSnafu, ResponseHeaderSnafu};
-use crate::http::auth::models::{Claims, RefreshClaims, LoginPayload, LoginResponse};
+use crate::http::auth::error::{AuthResult, AuthError, BadRefreshTokenSnafu, ResponseHeaderSnafu};
+use crate::http::auth::models::{Claims, RefreshClaims, LoginPayload, AuthResponse};
 use crate::http::state::AppState;
 use axum::{Json};
 use axum::extract::{State};
 use time::Duration;
 use jsonwebtoken::{encode, decode, Header, DecodingKey, EncodingKey, Validation};
 use chrono::offset::Local;
-use rand::rand_core::{TryRngCore, OsRng};
-use base64::{engine::general_purpose, Engine as _};
-use embucket_history::Token;
-use tower_sessions::cookie::Cookie;
+use tower_sessions::cookie::{Cookie, SameSite};
 use axum::response::IntoResponse;
-use super::error::{CreateJwtSnafu, ValidateJwtSnafu};
-use http::HeaderName;
-use serde::{Deserialize, Serialize};
+use super::error::CreateJwtSnafu;
+use serde::Serialize;
 
-pub const REFRESH_TOKEN_EXPIRATION_HOURS: i64 = 24*7;
+pub const REFRESH_TOKEN_EXPIRATION_HOURS: u32 = 24*7;
+pub const ACCESS_TOKEN_EXPIRATION_SECONDS: u32 = 15*60;
 
 pub fn cookies_from_header (headers: &HeaderMap) -> HashMap<&str, &str> {
     let mut cookies_map = HashMap::new();
@@ -37,9 +34,7 @@ pub fn cookies_from_header (headers: &HeaderMap) -> HashMap<&str, &str> {
                     cookies_map.insert(parts[0], parts[1]);
                 }
             }
-            Err(_) => {
-                eprintln!("Invalid UTF-8 in cookie header");
-            }
+            _ => () // ignore error in cookie header
         }
     }
     return cookies_map;
@@ -49,7 +44,7 @@ pub fn cookies_from_header (headers: &HeaderMap) -> HashMap<&str, &str> {
 fn access_token_claims(username: &String, audience: &String) -> Claims {
     let now = Local::now();
     let iat = now.timestamp();
-    let exp = now.timestamp() + Duration::minutes(15).whole_seconds();
+    let exp = now.timestamp() + Duration::seconds(ACCESS_TOKEN_EXPIRATION_SECONDS.into()).whole_seconds();
 
     Claims {
         sub: username.clone(),
@@ -63,7 +58,7 @@ fn access_token_claims(username: &String, audience: &String) -> Claims {
 fn refresh_token_claims(username: &String, audience: &String) -> RefreshClaims {
     let now = Local::now();
     let iat = now.timestamp();
-    let exp = now.timestamp() + Duration::hours(REFRESH_TOKEN_EXPIRATION_HOURS).whole_seconds();
+    let exp = now.timestamp() + Duration::hours(REFRESH_TOKEN_EXPIRATION_HOURS.into()).whole_seconds();
 
     RefreshClaims {
         sub: username.clone(),
@@ -93,22 +88,13 @@ where
     encode(&Header::default(), &claims, &EncodingKey::from_secret(jwt_secret))
 }
 
-fn set_cookies(headers: &mut HeaderMap, refresh_token: &str, access_token: &str) -> AuthResult<()> {
+fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
     headers.try_append(
         SET_COOKIE,
         Cookie::build(("refresh_token", refresh_token))
             .http_only(true)
             .secure(true)
-            .path("/")
-            .to_string()
-            .parse()
-            .unwrap(),
-    ).context(ResponseHeaderSnafu)?;
-
-    headers.try_append(
-        SET_COOKIE, 
-        Cookie::build(("access_token", access_token))
-            .secure(true)
+            .same_site(SameSite::Strict)
             .path("/")
             .to_string()
             .parse()
@@ -140,16 +126,12 @@ pub async fn login(
     let refresh_token = create_jwt(&refresh_token_claims, jwt_secret)
     .context(CreateJwtSnafu)?;
 
-    state.auth_store.put_token(Token::new(username, refresh_token.clone()))
-        .await
-        .context(StoreSnafu)?;
-
     let mut headers = HeaderMap::new();
-    set_cookies(&mut headers, &refresh_token, &access_token)?;
+    set_cookies(&mut headers, &refresh_token)?;
 
     Ok((
         headers,
-        Json(LoginResponse { access_token }),
+        Json(AuthResponse::new(access_token, ACCESS_TOKEN_EXPIRATION_SECONDS)),
     ))
 }
 
@@ -166,13 +148,13 @@ pub async fn refresh_access_token(
     // });
 
     match cookies_map.get("refresh_token") {
-        None => Err(AuthError::Unauthorized),
+        None => Err(AuthError::NoRefreshTokenCookie),
         Some(refresh_token) => {
             let audience = &state.config.host;
             let jwt_secret = state.auth_config.jwt_secret();
     
             let refresh_claims = get_claims_validate_jwt_token(refresh_token, audience, jwt_secret)
-                .context(ValidateJwtSnafu)?;
+                .context(BadRefreshTokenSnafu)?;
     
             let access_claims = access_token_claims(&refresh_claims.sub, audience);
 
@@ -180,11 +162,11 @@ pub async fn refresh_access_token(
                 .context(CreateJwtSnafu)?;
     
             let mut headers = HeaderMap::new();
-            set_cookies(&mut headers, refresh_token, &access_token)?;
+            set_cookies(&mut headers, refresh_token)?;
 
             Ok((
                 headers,
-                Json(LoginResponse { access_token }),
+                Json(AuthResponse::new(access_token, ACCESS_TOKEN_EXPIRATION_SECONDS)),
             ))
         }
     }
@@ -202,13 +184,8 @@ pub async fn logout(
             let audience = &state.config.host;
             let jwt_secret = state.auth_config.jwt_secret();
     
-            let claims = get_claims_validate_jwt_token(refresh_token, audience, jwt_secret)
-                .context(ValidateJwtSnafu)?;
-
-            // Delete refresh token from storage
-            state.auth_store.delete_token(claims.sub)
-                .await
-                .context(StoreSnafu)?;
+            let _ = get_claims_validate_jwt_token(refresh_token, audience, jwt_secret)
+                .context(BadRefreshTokenSnafu)?;
         }
         // logout doesn't return unuathorized
         None => (),
@@ -217,7 +194,7 @@ pub async fn logout(
     // unset refresh_token, access_token cookies
 
     let mut headers = HeaderMap::new();
-    set_cookies(&mut headers, "", "")?;
+    set_cookies(&mut headers, "")?;
 
     Ok((headers, ()))
 
