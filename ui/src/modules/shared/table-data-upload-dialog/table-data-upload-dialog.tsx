@@ -3,22 +3,25 @@ import { Table } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { SelectedTree } from '@/modules/shared/trees/trees-items';
 import { useUploadFile } from '@/orval/tables';
 
-import { TableDataUploadDropzone } from './sql-editor-upload-dropzone';
+import { TableDataUploadDropzone } from './table-data-upload-dropzone';
 
-interface SqlEditorUploadDialogProps {
+interface TableDataUploadDialogProps {
   opened: boolean;
-  selectedTree: SelectedTree;
+  databaseName: string;
+  schemaName: string;
+  tableName: string;
   onSetOpened: (opened: boolean) => void;
 }
 
-export function SqlEditorUploadDialog({
+export function TableDataUploadDialog({
   opened,
   onSetOpened,
-  selectedTree,
-}: SqlEditorUploadDialogProps) {
+  databaseName,
+  schemaName,
+  tableName,
+}: TableDataUploadDialogProps) {
   const { mutate, isPending } = useUploadFile({
     mutation: {
       onSuccess: () => {
@@ -29,9 +32,9 @@ export function SqlEditorUploadDialog({
 
   const handleUpload = (file: File) => {
     mutate({
-      databaseName: selectedTree.databaseName,
-      tableName: selectedTree.tableName,
-      schemaName: selectedTree.schemaName,
+      databaseName,
+      tableName,
+      schemaName,
       data: {
         uploadFile: file,
       },
@@ -47,7 +50,7 @@ export function SqlEditorUploadDialog({
             <Table className="size-4" />
             {/* TODO: Hardcode */}
             <span className="max-w-[500px] truncate">
-              {`${selectedTree.databaseName}.${selectedTree.schemaName}.${selectedTree.tableName}`}
+              {`${databaseName}.${schemaName}.${tableName}`}
             </span>
           </div>
         </DialogHeader>

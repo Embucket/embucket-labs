@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button';
 
 export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 
-interface DropzoneContentProps {
+interface TableDataUploadDialogDropzoneContentProps {
   isDragActive: boolean;
 }
 
-export function DropzoneContent({ isDragActive }: DropzoneContentProps) {
+export function TableDataUploadDialogDropzoneContent({
+  isDragActive,
+}: TableDataUploadDialogDropzoneContentProps) {
   return (
     <div className="flex flex-col items-center justify-center">
       <UploadCloud strokeWidth={1.5} className="text-muted-foreground mb-4 size-12 font-thin" />

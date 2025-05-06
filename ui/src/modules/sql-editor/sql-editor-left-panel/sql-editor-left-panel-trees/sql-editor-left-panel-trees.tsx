@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { TableDataUploadDialog } from '@/modules/shared/table-data-upload-dialog/table-data-upload-dialog';
 import type { SelectedTree } from '@/modules/shared/trees/trees-items';
 import {
   TreesDatabases,
@@ -11,7 +12,6 @@ import { useGetNavigationTrees } from '@/orval/navigation-trees';
 
 import { useSqlEditorPanelsState } from '../../sql-editor-panels-state-provider';
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
-import { SqlEditorUploadDialog } from '../../sql-editor-upload-dropzone/sql-editor-upload-dialog';
 import { SqlEditorLeftPanelTreesTableDropdown } from './sql-editor-left-panel-trees-table-dropdown';
 
 export function SqlEditorLeftPanelTrees() {
@@ -86,10 +86,12 @@ export function SqlEditorLeftPanelTrees() {
         </TreesDatabases>
       </TreesLayout>
       {selectedTree && (
-        <SqlEditorUploadDialog
+        <TableDataUploadDialog
           opened={isLoadDataDialogOpened}
           onSetOpened={setIsLoadDataDialogOpened}
-          selectedTree={selectedTree}
+          databaseName={selectedTree.databaseName}
+          schemaName={selectedTree.schemaName}
+          tableName={selectedTree.tableName}
         />
       )}
     </>

@@ -1,13 +1,22 @@
+import { useState } from 'react';
+
+import { useParams } from '@tanstack/react-router';
 import { Columns } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { TableDataUploadDialog } from '@/modules/shared/table-data-upload-dialog/table-data-upload-dialog';
 
 import { DataPageHeader } from '../shared/data-page/data-page-header';
 import { DataPageTrees } from '../shared/data-page/databases-page-trees';
 
 export function ColumnsPage() {
+  const [isLoadDataDialogOpened, setIsLoadDataDialogOpened] = useState(false);
+  const { databaseName, schemaName, tableName } = useParams({
+    from: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/',
+  });
+
   return (
     <>
       <ResizablePanelGroup direction="horizontal">
@@ -19,7 +28,11 @@ export function ColumnsPage() {
           <DataPageHeader
             title="Table columns"
             secondaryText="0 columns found"
-            Action={<Button>Load Data</Button>}
+            Action={
+              <Button onClick={() => setIsLoadDataDialogOpened(true)} disabled={!tableName}>
+                Load Data
+              </Button>
+            }
           />
           <EmptyContainer
             // TODO: Hardcode
@@ -30,6 +43,15 @@ export function ColumnsPage() {
           />
         </ResizablePanel>
       </ResizablePanelGroup>
+      {databaseName && schemaName && tableName && (
+        <TableDataUploadDialog
+          opened={isLoadDataDialogOpened}
+          onSetOpened={setIsLoadDataDialogOpened}
+          databaseName={databaseName}
+          schemaName={schemaName}
+          tableName={tableName}
+        />
+      )}
     </>
   );
 }

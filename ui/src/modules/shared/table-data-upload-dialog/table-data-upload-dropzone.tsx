@@ -7,7 +7,10 @@ import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
 
-import { DropzoneContent, MAX_FILE_SIZE } from './sql-editor-upload-dropzone-content.tsx';
+import {
+  MAX_FILE_SIZE,
+  TableDataUploadDialogDropzoneContent,
+} from './table-data-upload-dropzone-content.tsx';
 
 const MAX_FILES = 1;
 const ACCEPT: DropzoneProps['accept'] = {
@@ -91,7 +94,7 @@ export function TableDataUploadDropzone({ onUpload, isDisabled }: DropzoneWrappe
           </div>
         </div>
       ) : (
-        <DropzoneContent isDragActive={isDragActive} />
+        <TableDataUploadDialogDropzoneContent isDragActive={isDragActive} />
       )}
     </div>
   );
