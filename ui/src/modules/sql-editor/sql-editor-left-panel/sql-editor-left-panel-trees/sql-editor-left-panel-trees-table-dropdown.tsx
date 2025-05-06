@@ -1,11 +1,11 @@
+import { MoreHorizontal } from 'lucide-react';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@radix-ui/react-dropdown-menu';
-import { MoreHorizontal } from 'lucide-react';
-
+} from '@/components/ui/dropdown-menu';
 import { SidebarMenuAction } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
