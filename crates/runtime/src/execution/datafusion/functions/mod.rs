@@ -1,3 +1,4 @@
+use crate::execution::datafusion::functions::to_boolean::ToBooleanFunc;
 use arrow_array::{
     ArrayRef, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int16Array, Int32Array,
     Int64Array, Int8Array, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
@@ -34,7 +35,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         booland::get_udf(),
         boolor::get_udf(),
         boolxor::get_udf(),
-        to_boolean::get_udf(),
+        Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
+        Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
     ];
 
     for func in functions {

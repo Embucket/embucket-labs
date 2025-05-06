@@ -22,16 +22,17 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct ToBooleanFunc {
     signature: Signature,
+    try_: bool,
 }
 
 impl Default for ToBooleanFunc {
     fn default() -> Self {
-        Self::new()
+        Self::new(true)
     }
 }
 
 impl ToBooleanFunc {
-    pub fn new() -> Self {
+    pub fn new(try_: bool) -> Self {
         Self {
             signature: Signature::one_of(
                 vec![
@@ -41,6 +42,7 @@ impl ToBooleanFunc {
                 ],
                 Volatility::Immutable,
             ),
+            try_,
         }
     }
 }
@@ -51,7 +53,11 @@ impl ScalarUDFImpl for ToBooleanFunc {
     }
 
     fn name(&self) -> &'static str {
-        "to_boolean"
+        if self.try_ {
+            "try_to_boolean"
+        } else {
+            "to_boolean"
+        }
     }
 
     fn signature(&self) -> &Signature {
@@ -87,6 +93,8 @@ impl ScalarUDFImpl for ToBooleanFunc {
                             res.append_value(true);
                         } else if false_.iter().any(|&s| s.eq_ignore_ascii_case(v)) {
                             res.append_value(false);
+                        } else if self.try_ {
+                            res.append_null();
                         } else {
                             return Err(DataFusionError::Internal(format!(
                                 "Invalid boolean string: {v}"
@@ -103,8 +111,6 @@ impl ScalarUDFImpl for ToBooleanFunc {
     }
 }
 
-super::macros::make_udf_function!(ToBooleanFunc);
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,7 +122,7 @@ mod tests {
     #[tokio::test]
     async fn test_boolean() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToBooleanFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ToBooleanFunc::new(false)));
         let q = "CREATE OR REPLACE TABLE test_boolean(b boolean);";
         ctx.sql(q).await?.collect().await?;
 
@@ -144,7 +150,7 @@ mod tests {
     #[tokio::test]
     async fn test_number() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToBooleanFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ToBooleanFunc::new(false)));
         let q = "CREATE OR REPLACE TABLE test_boolean(i integer);";
         ctx.sql(q).await?.collect().await?;
 
@@ -172,7 +178,7 @@ mod tests {
     #[tokio::test]
     async fn test_string() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToBooleanFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ToBooleanFunc::new(false)));
         let q = "CREATE OR REPLACE TABLE test_boolean(s STRING);";
         ctx.sql(q).await?.collect().await?;
 
@@ -200,11 +206,37 @@ mod tests {
     #[tokio::test]
     async fn test_to_boolean_scalar() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToBooleanFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ToBooleanFunc::new(false)));
         let q = "SELECT TO_BOOLEAN(true)";
         let result = ctx.sql(q).await?.collect().await?;
 
         print_batches(&result)?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_try_string() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToBooleanFunc::new(true)));
+        let q = "CREATE OR REPLACE TABLE test_boolean(s STRING);";
+        ctx.sql(q).await?.collect().await?;
+
+        let q = "INSERT INTO test_boolean VALUES ('invalid');";
+        ctx.sql(q).await?.collect().await?;
+
+        let q = "SELECT s, TRY_TO_BOOLEAN(s) FROM test_boolean;";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------+--------------------------------+",
+                "| s       | try_to_boolean(test_boolean.s) |",
+                "+---------+--------------------------------+",
+                "| invalid |                                |",
+                "+---------+--------------------------------+"
+            ],
+            &result
+        );
         Ok(())
     }
 }
