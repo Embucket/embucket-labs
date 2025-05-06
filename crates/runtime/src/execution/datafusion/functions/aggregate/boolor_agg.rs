@@ -24,6 +24,7 @@ use datafusion_common::{downcast_value, ScalarValue};
 use datafusion_expr::function::AccumulatorArgs;
 use datafusion_expr::{AggregateUDFImpl, Signature, Volatility};
 use std::any::Any;
+use crate::execution::datafusion::functions::aggregate::macros::make_udaf_function;
 
 /// Boolor function
 /// Returns TRUE if at least one Boolean record in a group evaluates to TRUE.
@@ -156,6 +157,9 @@ impl Accumulator for BoolAndAggAccumulator {
         Ok(())
     }
 }
+
+make_udaf_function!(BoolOrAggUDAF);
+
 #[cfg(test)]
 mod tests {
     use super::*;
