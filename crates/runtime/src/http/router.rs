@@ -38,13 +38,13 @@ pub fn create_app(state: AppState) -> Router {
     let auth_router = create_auth_router();
 
     Router::new()
-        .merge(dbt_router)
         .merge(metastore_router)
         .merge(ui_router)
-        .nest("/catalog", iceberg_catalog)
         // middleware wraping all routes above ^^
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .merge(auth_router)
+        .merge(dbt_router)
+        .nest("/catalog", iceberg_catalog)
         .merge(
             SwaggerUi::new("/")
                 .url("/openapi.json", spec)

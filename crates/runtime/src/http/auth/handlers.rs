@@ -103,7 +103,7 @@ where
     )
 }
 
-const fn assert_jwt_secret(jwt_secret: &str) -> AuthResult<()> {
+const fn ensure_jwt_secret_is_valid(jwt_secret: &str) -> AuthResult<()> {
     if jwt_secret.is_empty() {
         return Err(AuthError::NoJwtSecret);
     }
@@ -141,7 +141,7 @@ pub async fn login(
     let audience = state.config.host.clone();
     let jwt_secret = state.auth_config.jwt_secret();
 
-    assert_jwt_secret(jwt_secret)?;
+    ensure_jwt_secret_is_valid(jwt_secret)?;
 
     let access_token_claims = access_token_claims(&username, &audience);
 
@@ -168,7 +168,7 @@ pub async fn refresh_access_token(
     headers: HeaderMap,
 ) -> AuthResult<impl IntoResponse> {
     let jwt_secret = state.auth_config.jwt_secret();
-    assert_jwt_secret(jwt_secret)?;
+    ensure_jwt_secret_is_valid(jwt_secret)?;
 
     let cookies_map = cookies_from_header(&headers);
     match cookies_map.get("refresh_token") {
@@ -201,7 +201,7 @@ pub async fn logout(
     headers: HeaderMap,
 ) -> AuthResult<impl IntoResponse> {
     let jwt_secret = state.auth_config.jwt_secret();
-    assert_jwt_secret(jwt_secret)?;
+    ensure_jwt_secret_is_valid(jwt_secret)?;
 
     let cookies_map = cookies_from_header(&headers);
 
