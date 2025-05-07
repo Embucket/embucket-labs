@@ -1,3 +1,5 @@
+#![allow(clippy::missing_const_for_fn)]
+
 use serde::{Deserialize, Serialize};
 
 use crate::http::config::WebConfig;

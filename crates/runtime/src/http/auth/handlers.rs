@@ -4,7 +4,7 @@ use super::error::CreateJwtSnafu;
 use crate::http::auth::error::{
     AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu, SetCookieSnafu,
 };
-use crate::http::auth::models::{AuthResponse, Claims, LoginPayload, RefreshClaims};
+use crate::http::auth::models::{AuthResponse, Claims, LoginPayload};
 use crate::http::state::AppState;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -44,33 +44,35 @@ pub fn cookies_from_header(headers: &HeaderMap) -> HashMap<&str, &str> {
 }
 
 #[must_use]
-fn access_token_claims(username: String, audience: String) -> Claims {
+pub fn jwt_claims(username: &str, audience: &str, expiration: Duration) -> Claims {
     let now = Local::now();
     let iat = now.timestamp();
-    let exp =
-        now.timestamp() + Duration::seconds(ACCESS_TOKEN_EXPIRATION_SECONDS.into()).whole_seconds();
+    let exp = now.timestamp() + expiration.whole_seconds();
 
     Claims {
-        sub: username,
-        aud: audience,
+        sub: username.to_string(),
+        aud: audience.to_string(),
         iat,
         exp,
     }
 }
 
 #[must_use]
-fn refresh_token_claims(username: String, audience: String) -> RefreshClaims {
-    let now = Local::now();
-    let iat = now.timestamp();
-    let exp =
-        now.timestamp() + Duration::hours(REFRESH_TOKEN_EXPIRATION_HOURS.into()).whole_seconds();
+fn access_token_claims(username: &str, audience: &str) -> Claims {
+    jwt_claims(
+        username,
+        audience,
+        Duration::seconds(ACCESS_TOKEN_EXPIRATION_SECONDS.into()),
+    )
+}
 
-    RefreshClaims {
-        sub: username,
-        aud: audience,
-        iat,
-        exp,
-    }
+#[must_use]
+fn refresh_token_claims(username: &str, audience: &str) -> Claims {
+    jwt_claims(
+        username,
+        audience,
+        Duration::hours(REFRESH_TOKEN_EXPIRATION_HOURS.into()),
+    )
 }
 
 pub fn get_claims_validate_jwt_token(
@@ -90,7 +92,7 @@ pub fn get_claims_validate_jwt_token(
     Ok(decoded.claims)
 }
 
-fn create_jwt<T>(claims: &T, jwt_secret: &str) -> Result<String, jsonwebtoken::errors::Error>
+pub fn create_jwt<T>(claims: &T, jwt_secret: &str) -> Result<String, jsonwebtoken::errors::Error>
 where
     T: Serialize,
 {
@@ -141,11 +143,11 @@ pub async fn login(
 
     assert_jwt_secret(jwt_secret)?;
 
-    let access_token_claims = access_token_claims(username.clone(), audience.clone());
+    let access_token_claims = access_token_claims(&username, &audience);
 
     let access_token = create_jwt(&access_token_claims, jwt_secret).context(CreateJwtSnafu)?;
 
-    let refresh_token_claims = refresh_token_claims(username, audience);
+    let refresh_token_claims = refresh_token_claims(&username, &audience);
 
     let refresh_token = create_jwt(&refresh_token_claims, jwt_secret).context(CreateJwtSnafu)?;
 
@@ -172,13 +174,11 @@ pub async fn refresh_access_token(
     match cookies_map.get("refresh_token") {
         None => Err(AuthError::NoRefreshTokenCookie),
         Some(refresh_token) => {
-            let audience = state.config.host.clone();
-
             let refresh_claims =
-                get_claims_validate_jwt_token(refresh_token, &audience, jwt_secret)
+                get_claims_validate_jwt_token(refresh_token, &state.config.host, jwt_secret)
                     .context(BadRefreshTokenSnafu)?;
 
-            let access_claims = access_token_claims(refresh_claims.sub, audience);
+            let access_claims = access_token_claims(&refresh_claims.sub, &state.config.host);
 
             let access_token = create_jwt(&access_claims, jwt_secret).context(CreateJwtSnafu)?;
 

@@ -1,4 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+use crate::http::auth::error::AuthError;
+use crate::http::auth::error::*;
+use crate::http::auth::handlers::{create_jwt, get_claims_validate_jwt_token, jwt_claims};
 use crate::http::auth::models::{AuthResponse, LoginPayload};
 use crate::http::metastore::handlers::RwObjectVec;
 use crate::http::ui::queries::models::{QueryCreatePayload, QueryCreateResponse};
@@ -9,6 +12,7 @@ use http::{header, HeaderMap, HeaderValue, Method, StatusCode};
 use serde_json::json;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use time::Duration;
 
 const JWT_SECRET: &str = "test";
 const DEMO_USER: &str = "demo_user";
@@ -331,20 +335,19 @@ async fn test_logout() {
     .await;
     let client = reqwest::Client::new();
 
-    // login
+    // login ok
     let (headers, _) = login::<AuthResponse>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
         .await
         .expect("Failed to login");
     assert_eq!(headers.get(header::WWW_AUTHENTICATE), None);
 
-    // logout
+    // logout ok
     let (headers, ()) = logout::<()>(&client, &addr)
         .await
         .expect("Failed to logout");
 
-    // logout reset cookies to empty values
+    // empty refresh_token cookie set
     let set_cookies = get_set_cookie_from_response_headers(&headers);
-
     let (refresh_token, _) = set_cookies
         .get("refresh_token")
         .expect("No Set-Cookie found with refresh_token");
@@ -423,12 +426,36 @@ async fn test_login_refresh() {
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
-async fn test_expired_auth_token() {
-    assert!(false);
+async fn test_jwt_token_expired() {
+    let username = DEMO_USER;
+    let audience = "localhost";
+    let claims = jwt_claims(username, audience, Duration::seconds(-10));
+    let expired_token = create_jwt(&claims, JWT_SECRET).expect("Failed to create token");
+
+    let err = get_claims_validate_jwt_token(&expired_token, &audience, JWT_SECRET)
+        .expect_err("Token should be expired");
+    assert_eq!(
+        *err.kind(),
+        jsonwebtoken::errors::ErrorKind::ExpiredSignature
+    );
+
+    let www_authenticate: Result<WwwAuthenticate, Option<WwwAuthenticate>> =
+        AuthError::BadAuthToken { source: err }.try_into();
+    let www_authenticate = www_authenticate.expect("Failed to convert to WwwAuthenticate");
+    assert_eq!(
+        www_authenticate.to_string(),
+        "Bearer realm=\"api-auth\", error=\"Bad authentication token. ExpiredSignature\", kind=\"ExpiredSignature\"",
+    )
 }
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
-async fn test_expired_refresh_token() {
-    assert!(false);
+async fn test_jwt_token_valid() {
+    let username = DEMO_USER;
+    let audience = "localhost";
+    let claims = jwt_claims(username, audience, Duration::seconds(10));
+    let expired_token = create_jwt(&claims, JWT_SECRET).expect("Failed to create token");
+
+    let _ = get_claims_validate_jwt_token(&expired_token, &audience, JWT_SECRET)
+        .expect("Token should be valid");
 }

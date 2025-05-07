@@ -21,6 +21,7 @@ impl AuthResponse {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(Debug, Deserialize))]
 pub struct RefreshTokenResponse {
     pub access_token: String,
@@ -33,29 +34,9 @@ pub struct LoginPayload {
     pub password: String,
 }
 
-pub struct WwwAuthenticate {
-    pub auth: String,
-    pub realm: String,
-    pub error: String,
-}
-
-impl std::fmt::Display for WwwAuthenticate {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let Self { auth, realm, error } = self;
-        write!(f, "{auth} realm=\"{realm}\", error=\"{error}\"")
-    }
-}
-
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(test, derive(Debug))]
 pub struct Claims {
-    pub sub: String, // token issued to a particular user
-    pub aud: String, // validate audience since as it can be deployed on multiple hosts
-    pub iat: i64,    // Issued At
-    pub exp: i64,    // Expiration Time
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct RefreshClaims {
     pub sub: String, // token issued to a particular user
     pub aud: String, // validate audience since as it can be deployed on multiple hosts
     pub iat: i64,    // Issued At
