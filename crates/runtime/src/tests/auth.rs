@@ -432,7 +432,7 @@ async fn test_jwt_token_expired() {
     let claims = jwt_claims(username, audience, Duration::seconds(-10));
     let expired_token = create_jwt(&claims, JWT_SECRET).expect("Failed to create token");
 
-    let err = get_claims_validate_jwt_token(&expired_token, &audience, JWT_SECRET)
+    let err = get_claims_validate_jwt_token(&expired_token, audience, JWT_SECRET)
         .expect_err("Token should be expired");
     assert_eq!(
         *err.kind(),
@@ -445,7 +445,7 @@ async fn test_jwt_token_expired() {
     assert_eq!(
         www_authenticate.to_string(),
         "Bearer realm=\"api-auth\", error=\"Bad authentication token. ExpiredSignature\", kind=\"ExpiredSignature\"",
-    )
+    );
 }
 
 #[tokio::test]
@@ -456,6 +456,6 @@ async fn test_jwt_token_valid() {
     let claims = jwt_claims(username, audience, Duration::seconds(10));
     let expired_token = create_jwt(&claims, JWT_SECRET).expect("Failed to create token");
 
-    let _ = get_claims_validate_jwt_token(&expired_token, &audience, JWT_SECRET)
+    let _ = get_claims_validate_jwt_token(&expired_token, audience, JWT_SECRET)
         .expect("Token should be valid");
 }
