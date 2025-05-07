@@ -1,7 +1,10 @@
+use super::catalog::information_schema::information_schema::{
+    InformationSchemaProvider, INFORMATION_SCHEMA,
+};
 use arrow::array::{Int64Array, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
-use datafusion::catalog::CatalogProvider;
 use datafusion::catalog::MemoryCatalogProvider;
+use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
@@ -12,7 +15,9 @@ use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableObject, TableWithJoins,
 };
-use datafusion_common::{DataFusionError, ResolvedTableReference, TableReference};
+use datafusion_common::{
+    plan_datafusion_err, DataFusionError, ResolvedTableReference, TableReference,
+};
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -1130,7 +1135,7 @@ impl UserQuery {
         for reference in references {
             let resolved = state.resolve_table_ref(reference);
             if let Entry::Vacant(v) = tables.entry(resolved.clone()) {
-                if let Ok(schema) = state.schema_for_ref(resolved.clone()) {
+                if let Ok(schema) = self.schema_for_ref(resolved.clone()) {
                     if let Some(table) = schema
                         .table(&resolved.table)
                         .await
@@ -1143,6 +1148,35 @@ impl UserQuery {
         }
         Ok(tables)
     }
+
+    pub fn schema_for_ref(
+        &self,
+        table_ref: impl Into<TableReference>,
+    ) -> datafusion_common::Result<Arc<dyn SchemaProvider>> {
+        let resolved_ref = self.session.ctx.state().resolve_table_ref(table_ref);
+        if self.session.ctx.state().config().information_schema()
+            && *resolved_ref.schema == *INFORMATION_SCHEMA
+        {
+            return Ok(Arc::new(InformationSchemaProvider::new(
+                Arc::clone(self.session.ctx.state().catalog_list()),
+                resolved_ref.catalog,
+            )));
+        }
+
+        self.session
+            .ctx
+            .state()
+            .catalog_list()
+            .catalog(&resolved_ref.catalog)
+            .ok_or_else(|| {
+                plan_datafusion_err!("failed to resolve catalog: {}", resolved_ref.catalog)
+            })?
+            .schema(&resolved_ref.schema)
+            .ok_or_else(|| {
+                plan_datafusion_err!("failed to resolve schema: {}", resolved_ref.schema)
+            })
+    }
+
     // TODO: We need to recursively fix any missing table references with the default
     // database and schema from the session
     /*fn update_statement_table_references(
