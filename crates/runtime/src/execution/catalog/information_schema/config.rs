@@ -9,6 +9,7 @@ use super::routines::InformationSchemaRoutinesBuilder;
 use super::schemata::InformationSchemataBuilder;
 use super::tables::InformationSchemaTablesBuilder;
 use super::views::InformationSchemaViewBuilder;
+use crate::execution::catalog::information_schema::databases::InformationSchemaDatabasesBuilder;
 use datafusion::catalog::CatalogProviderList;
 use datafusion::logical_expr::{Signature, TypeSignature, Volatility};
 use datafusion_common::config::ConfigOptions;
@@ -157,6 +158,14 @@ impl InformationSchemaConfig {
         }
 
         Ok(())
+    }
+
+    pub(crate) fn make_databases(&self, builder: &mut InformationSchemaDatabasesBuilder) {
+        self.catalog_list
+            .catalog_names()
+            .iter()
+            .filter_map(|name| self.catalog_list.catalog(name).map(|_| name))
+            .for_each(|name| builder.add_database(name, "", ""));
     }
 
     /// Construct the `information_schema.df_settings` virtual table

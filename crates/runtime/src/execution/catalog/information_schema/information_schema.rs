@@ -8,6 +8,7 @@ use super::tables::InformationSchemaTables;
 use super::views::InformationSchemaViews;
 
 use crate::execution::catalog::information_schema::columns::InformationSchemaColumns;
+use crate::execution::catalog::information_schema::databases::InformationSchemaDatabases;
 use crate::execution::catalog::information_schema::df_settings::InformationSchemaDfSettings;
 use crate::execution::catalog::information_schema::parameters::InformationSchemaParameters;
 use crate::execution::catalog::information_schema::routines::InformationSchemaRoutines;
@@ -25,6 +26,8 @@ pub const TABLES: &str = "tables";
 pub const VIEWS: &str = "views";
 pub const COLUMNS: &str = "columns";
 pub const SCHEMATA: &str = "schemata";
+pub const DATABASES: &str = "databases";
+
 pub const DF_SETTINGS: &str = "df_settings";
 pub const ROUTINES: &str = "routines";
 pub const PARAMETERS: &str = "parameters";
@@ -83,6 +86,7 @@ impl SchemaProvider for InformationSchemaProvider {
             COLUMNS => Arc::new(InformationSchemaColumns::new(config)),
             VIEWS => Arc::new(InformationSchemaViews::new(config)),
             SCHEMATA => Arc::new(InformationSchemata::new(config)),
+            DATABASES => Arc::new(InformationSchemaDatabases::new(config)),
             // TODO: Check if non-Snowflake related tables are required
             DF_SETTINGS => Arc::new(InformationSchemaDfSettings::new()),
             ROUTINES => Arc::new(InformationSchemaRoutines::new()),

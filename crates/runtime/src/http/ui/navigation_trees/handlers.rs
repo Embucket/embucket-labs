@@ -54,11 +54,11 @@ pub async fn get_navigation_trees(
     Query(params): Query<NavigationTreesParameters>,
     State(state): State<AppState>,
 ) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
-    let (batches, _) = state
+    let (database_batches, _) = state
         .execution_svc
         .query(
             &session_id,
-            "SELECT table_catalog, table_schema, table_name FROM information_schema.tables",
+            "SELECT * FROM information_schema.databases",
             QueryContext::default(),
         )
         .await
@@ -66,22 +66,38 @@ pub async fn get_navigation_trees(
 
     let mut catalogs_tree: BTreeMap<String, BTreeMap<String, Vec<String>>> = BTreeMap::new();
 
-    for batch in batches {
-        let catalog_col = downcast_string_column(&batch, "table_catalog")?;
-        let schema_col = downcast_string_column(&batch, "table_schema")?;
-        let name_col = downcast_string_column(&batch, "table_name")?;
+    for db_batch in database_batches {
+        let catalog_col = downcast_string_column(&db_batch, "database_name")?;
 
-        for i in 0..batch.num_rows() {
-            let catalog = catalog_col.value(i).to_string();
-            let schema = schema_col.value(i).to_string();
-            let name = name_col.value(i).to_string();
+        for i in 0..db_batch.num_rows() {
+            let catalog = catalog_col.value(i);
 
-            catalogs_tree
-                .entry(catalog)
-                .or_default()
-                .entry(schema)
-                .or_default()
-                .push(name);
+            let query = format!(
+                "SELECT table_schema, table_name FROM {catalog}.information_schema.tables",
+            );
+
+            let (table_batches, _) = state
+                .execution_svc
+                .query(&session_id, &query, QueryContext::default())
+                .await
+                .map_err(|e| NavigationTreesAPIError::Execution { source: e })?;
+
+            for table_batch in table_batches {
+                let schema_col = downcast_string_column(&table_batch, "table_schema")?;
+                let name_col = downcast_string_column(&table_batch, "table_name")?;
+
+                for j in 0..table_batch.num_rows() {
+                    let schema = schema_col.value(j).to_string();
+                    let name = name_col.value(j).to_string();
+
+                    catalogs_tree
+                        .entry(catalog.to_string())
+                        .or_default()
+                        .entry(schema)
+                        .or_default()
+                        .push(name);
+                }
+            }
         }
     }
 

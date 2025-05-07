@@ -47,18 +47,12 @@ impl PartitionStream for InformationSchemaDfSettings {
 
     fn execute(&self, ctx: Arc<TaskContext>) -> SendableRecordBatchStream {
         let mut builder = self.builder();
+        InformationSchemaConfig::make_df_settings(ctx.session_config().options(), &mut builder);
         Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&self.schema),
-            // TODO: Stream this
-            futures::stream::once(async move {
-                InformationSchemaConfig::make_df_settings(
-                    ctx.session_config().options(),
-                    &mut builder,
-                );
-                builder
-                    .finish()
-                    .map_err(|e| DataFusionError::ArrowError(e, None))
-            }),
+            futures::stream::iter([builder
+                .finish()
+                .map_err(|e| DataFusionError::ArrowError(e, None))]),
         ))
     }
 }

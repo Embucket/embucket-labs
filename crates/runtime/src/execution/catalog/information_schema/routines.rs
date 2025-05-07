@@ -65,20 +65,19 @@ impl PartitionStream for InformationSchemaRoutines {
 
     fn execute(&self, ctx: Arc<TaskContext>) -> SendableRecordBatchStream {
         let mut builder = self.builder();
+        InformationSchemaConfig::make_routines(
+            ctx.scalar_functions(),
+            ctx.aggregate_functions(),
+            ctx.window_functions(),
+            ctx.session_config().options(),
+            &mut builder,
+        );
+
         Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&self.schema),
-            futures::stream::once(async move {
-                InformationSchemaConfig::make_routines(
-                    ctx.scalar_functions(),
-                    ctx.aggregate_functions(),
-                    ctx.window_functions(),
-                    ctx.session_config().options(),
-                    &mut builder,
-                );
-                builder
-                    .finish()
-                    .map_err(|e| DataFusionError::ArrowError(e, None))
-            }),
+            futures::stream::iter([builder
+                .finish()
+                .map_err(|e| DataFusionError::ArrowError(e, None))]),
         ))
     }
 }

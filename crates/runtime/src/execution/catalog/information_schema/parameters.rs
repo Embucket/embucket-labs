@@ -68,20 +68,22 @@ impl PartitionStream for InformationSchemaParameters {
 
     fn execute(&self, ctx: Arc<TaskContext>) -> SendableRecordBatchStream {
         let mut builder = self.builder();
+        let result = InformationSchemaConfig::make_parameters(
+            ctx.scalar_functions(),
+            ctx.aggregate_functions(),
+            ctx.window_functions(),
+            ctx.session_config().options(),
+            &mut builder,
+        )
+        .and_then(|()| {
+            builder
+                .finish()
+                .map_err(|e| DataFusionError::ArrowError(e, None))
+        });
+
         Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&self.schema),
-            futures::stream::once(async move {
-                InformationSchemaConfig::make_parameters(
-                    ctx.scalar_functions(),
-                    ctx.aggregate_functions(),
-                    ctx.window_functions(),
-                    ctx.session_config().options(),
-                    &mut builder,
-                )?;
-                builder
-                    .finish()
-                    .map_err(|e| DataFusionError::ArrowError(e, None))
-            }),
+            futures::stream::iter([result]),
         ))
     }
 }
