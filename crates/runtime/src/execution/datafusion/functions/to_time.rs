@@ -1,10 +1,12 @@
-use arrow::compute::cast;
-use arrow::compute::kernels::cast_utils::Parser;
-use arrow_array::builder::Time64NanosecondBuilder;
-use arrow_array::types::Time64NanosecondType;
-use arrow_array::{Array, StringArray, TimestampNanosecondArray};
 use arrow_schema::{DataType, TimeUnit};
 use chrono::{NaiveTime, ParseError, Timelike};
+use datafusion::arrow::array::builder::Time64NanosecondBuilder;
+use datafusion::arrow::array::types::Time64NanosecondType;
+use datafusion::arrow::array::{Array, StringArray, TimestampNanosecondArray};
+use datafusion::arrow::array::{
+    TimestampMicrosecondArray, TimestampMillisecondArray, TimestampSecondArray,
+};
+use datafusion::arrow::compute::kernels::cast_utils::Parser;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::ColumnarValue;
 use datafusion_common::{exec_err, ScalarValue};
@@ -51,7 +53,7 @@ use std::sync::Arc;
 pub struct ToTimeFunc {
     signature: Signature,
     aliases: Vec<String>,
-    try_: bool,
+    is_try: bool,
 }
 
 impl Default for ToTimeFunc {
@@ -61,7 +63,7 @@ impl Default for ToTimeFunc {
 }
 
 impl ToTimeFunc {
-    pub fn new(try_: bool) -> Self {
+    pub fn new(is_try: bool) -> Self {
         Self {
             signature: Signature::one_of(
                 vec![
@@ -75,7 +77,7 @@ impl ToTimeFunc {
                 Volatility::Immutable,
             ),
             aliases: vec!["time".to_string()],
-            try_,
+            is_try,
         }
     }
 }
@@ -86,7 +88,7 @@ impl ScalarUDFImpl for ToTimeFunc {
     }
 
     fn name(&self) -> &str {
-        if self.try_ {
+        if self.is_try {
             "try_to_time"
         } else {
             "to_time"
@@ -145,7 +147,7 @@ impl ScalarUDFImpl for ToTimeFunc {
                                     b.append_value(ts);
                                 }
                                 Err(v) => {
-                                    if self.try_ {
+                                    if self.is_try {
                                         b.append_null();
                                     } else {
                                         return exec_err!(
@@ -177,7 +179,7 @@ impl ScalarUDFImpl for ToTimeFunc {
                                         }
                                         17 => b.append_value(calc_nanos_since_midnight(i)), // nanoseconds
                                         _ => {
-                                            if self.try_ {
+                                            if self.is_try {
                                                 b.append_null();
                                             } else {
                                                 return exec_err!(
@@ -191,7 +193,7 @@ impl ScalarUDFImpl for ToTimeFunc {
                                     // TO_TIME( <string_expr> )
                                     match Time64NanosecondType::parse(s) {
                                         None => {
-                                            if self.try_ {
+                                            if self.is_try {
                                                 b.append_null();
                                             } else {
                                                 return exec_err!("can't parse time string");
@@ -207,14 +209,43 @@ impl ScalarUDFImpl for ToTimeFunc {
                     }
                 }
             }
-            DataType::Timestamp(
-                TimeUnit::Second
-                | TimeUnit::Millisecond
-                | TimeUnit::Microsecond
-                | TimeUnit::Nanosecond,
-                _,
-            ) => {
-                let arr = cast(arr, &DataType::Timestamp(TimeUnit::Nanosecond, None))?;
+            DataType::Timestamp(TimeUnit::Second, _) => {
+                let arr = arr.as_any().downcast_ref::<TimestampSecondArray>().unwrap();
+                for v in arr {
+                    if let Some(v) = v {
+                        b.append_value(calc_nanos_since_midnight(v * 1_000_000_000));
+                    } else {
+                        b.append_null();
+                    }
+                }
+            }
+            DataType::Timestamp(TimeUnit::Millisecond, _) => {
+                let arr = arr
+                    .as_any()
+                    .downcast_ref::<TimestampMillisecondArray>()
+                    .unwrap();
+                for v in arr {
+                    if let Some(v) = v {
+                        b.append_value(calc_nanos_since_midnight(v * 1_000_000));
+                    } else {
+                        b.append_null();
+                    }
+                }
+            }
+            DataType::Timestamp(TimeUnit::Microsecond, _) => {
+                let arr = arr
+                    .as_any()
+                    .downcast_ref::<TimestampMicrosecondArray>()
+                    .unwrap();
+                for v in arr {
+                    if let Some(v) = v {
+                        b.append_value(calc_nanos_since_midnight(v * 1_000));
+                    } else {
+                        b.append_null();
+                    }
+                }
+            }
+            DataType::Timestamp(TimeUnit::Nanosecond, _) => {
                 let arr = arr
                     .as_any()
                     .downcast_ref::<TimestampNanosecondArray>()
