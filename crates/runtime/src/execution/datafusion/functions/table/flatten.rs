@@ -22,7 +22,7 @@ use datafusion::catalog::{TableFunctionImpl, TableProvider};
 use datafusion::datasource::MemTable;
 use datafusion::physical_expr::create_physical_expr;
 use datafusion::physical_plan::ColumnarValue;
-use datafusion_common::{plan_err, DFSchema, Result as DFResult, ScalarValue};
+use datafusion_common::{exec_err, DFSchema, DataFusionError, Result as DFResult, ScalarValue};
 use datafusion_expr::execution_props::ExecutionProps;
 use datafusion_expr::Expr;
 use serde_json::Value;
@@ -62,6 +62,14 @@ struct Out {
     value: StringBuilder,
     this: StringBuilder,
     last_outer: Option<Value>,
+}
+
+struct Args {
+    input_str: String,
+    path: Vec<PathToken>,
+    is_outer: bool,
+    is_recursive: bool,
+    mode: Mode,
 }
 
 /// Flatten function
@@ -248,53 +256,33 @@ impl FlattenTableFunc {
 
 impl TableFunctionImpl for FlattenTableFunc {
     fn call(&self, args: &[(Expr, Option<String>)]) -> DFResult<Arc<dyn TableProvider>> {
-        if args.len() != 5 {
-            return plan_err!("flatten() expects 5 args: INPUT, PATH, OUTER, RECURSIVE, MODE");
+        let named_args_count = args.iter().filter(|(_, name)| name.is_some()).count();
+        if named_args_count > 0 && named_args_count != args.len() {
+            return exec_err!("flatten() supports either all named arguments or positional");
+        }
+        if named_args_count == 0 && args.len() != 5 {
+            return exec_err!("flatten() expects 5 args: INPUT, PATH, OUTER, RECURSIVE, MODE");
         }
 
-        self.row_id.fetch_add(1, Ordering::Acquire);
-        let ScalarValue::Utf8(Some(input_str)) = eval_expr(&args[0].0)? else {
-            return plan_err!("INPUT must be a string");
-        };
-
-        let path = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[1].0 {
-            if let Some(p) = tokenize_path(v) {
-                p
-            } else {
-                return plan_err!("Invalid JSON path");
-            }
+        let Args {
+            input_str,
+            path,
+            is_outer,
+            is_recursive,
+            mode,
+        } = if named_args_count > 0 {
+            get_named_args(args)?
         } else {
-            vec![]
+            get_args(
+                args.iter()
+                    .map(|(expr, _)| expr)
+                    .collect::<Vec<_>>()
+                    .as_ref(),
+            )?
         };
 
-        let is_outer = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[2].0 {
-            *v
-        } else {
-            false
-        };
-
-        let is_recursive = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[3].0 {
-            *v
-        } else {
-            false
-        };
-
-        let mode = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[4].0 {
-            match v.to_lowercase().as_str() {
-                "object" => Mode::Object,
-                "array" => Mode::Array,
-                "both" => Mode::Both,
-                _ => return plan_err!("MODE must be one of: object, array, both"),
-            }
-        } else {
-            Mode::Both
-        };
-
-        let input: Value = serde_json::from_str(&input_str).map_err(|e| {
-            datafusion_common::error::DataFusionError::Plan(format!(
-                "Failed to parse array JSON: {e}"
-            ))
-        })?;
+        let input: Value = serde_json::from_str(&input_str)
+            .map_err(|e| DataFusionError::Execution(format!("Failed to parse array JSON: {e}")))?;
 
         let schema_fields = vec![
             Field::new("SEQ", DataType::UInt64, false),
@@ -306,6 +294,8 @@ impl TableFunctionImpl for FlattenTableFunc {
         ];
 
         let schema = Arc::new(Schema::new(schema_fields));
+
+        self.row_id.fetch_add(1, Ordering::Acquire);
 
         let input = match get_json_value(&input, &path) {
             None => return Ok(self.empty_table(schema, &[], None, is_outer)),
@@ -450,6 +440,124 @@ fn eval_expr(expr: &Expr) -> DFResult<ScalarValue> {
         ColumnarValue::Scalar(s) => Ok(s),
         ColumnarValue::Array(arr) => ScalarValue::try_from_array(&arr, 0),
     }
+}
+
+#[allow(clippy::unwrap_used)]
+fn get_arg(args: &[(Expr, Option<String>)], name: &str) -> Option<Expr> {
+    args.iter().find_map(|(expr, n)| {
+        if n.as_ref().unwrap().to_lowercase().as_str() == name {
+            Some(expr.to_owned())
+        } else {
+            None
+        }
+    })
+}
+
+fn get_named_args(args: &[(Expr, Option<String>)]) -> DFResult<Args> {
+    let mut path: Vec<PathToken> = vec![];
+    let mut is_outer: bool = false;
+    let mut is_recursive: bool = false;
+    let mut mode = Mode::Both;
+
+    // input
+    let input_str = if let Some(v) = get_arg(args, "input") {
+        if let ScalarValue::Utf8(Some(v)) = eval_expr(&v)? {
+            v
+        } else {
+            return exec_err!("Wrong INPUT argument");
+        }
+    } else {
+        return exec_err!("Missing INPUT argument");
+    };
+
+    // path
+    if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)))) = get_arg(args, "path") {
+        path = if let Some(p) = tokenize_path(&v) {
+            p
+        } else {
+            return exec_err!("Invalid JSON path");
+        }
+    }
+
+    // is_outer
+    if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)))) = get_arg(args, "is_outer") {
+        is_outer = v;
+    }
+
+    // is_recursive
+    if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)))) = get_arg(args, "is_recursive") {
+        is_recursive = v;
+    }
+
+    // mode
+    if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)))) = get_arg(args, "mode") {
+        mode = match v.to_lowercase().as_str() {
+            "object" => Mode::Object,
+            "array" => Mode::Array,
+            "both" => Mode::Both,
+            _ => return exec_err!("MODE must be one of: object, array, both"),
+        }
+    }
+
+    Ok(Args {
+        input_str,
+        path,
+        is_outer,
+        is_recursive,
+        mode,
+    })
+}
+
+fn get_args(args: &[&Expr]) -> DFResult<Args> {
+    // input
+    let ScalarValue::Utf8(Some(input_str)) = eval_expr(args[0])? else {
+        return exec_err!("INPUT must be a string");
+    };
+
+    // path
+    let path = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[1] {
+        if let Some(p) = tokenize_path(v) {
+            p
+        } else {
+            return exec_err!("Invalid JSON path");
+        }
+    } else {
+        vec![]
+    };
+
+    // is_outer
+    let is_outer = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[2] {
+        *v
+    } else {
+        false
+    };
+
+    // is_recursive
+    let is_recursive = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[3] {
+        *v
+    } else {
+        false
+    };
+
+    // mode
+    let mode = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[4] {
+        match v.to_lowercase().as_str() {
+            "object" => Mode::Object,
+            "array" => Mode::Array,
+            "both" => Mode::Both,
+            _ => return exec_err!("MODE must be one of: object, array, both"),
+        }
+    } else {
+        Mode::Both
+    };
+
+    Ok(Args {
+        input_str,
+        path,
+        is_outer,
+        is_recursive,
+        mode,
+    })
 }
 
 #[cfg(test)]
@@ -830,6 +938,34 @@ mod tests {
                 "|     |     |      |       |       |   77 |",
                 "|     |     |      |       |       | ]    |",
                 "+-----+-----+------+-------+-------+------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_named_arguments() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
+        let sql = r#"SELECT * from flatten(INPUT => '{"a":1, "b":[77,88]}',PATH=>'b',IS_OUTER=>false,IS_RECURSIVE=>false,MODE=>'both')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+-----+-----+------+-------+-------+-------+",
+                "| SEQ | KEY | PATH | INDEX | VALUE | THIS  |",
+                "+-----+-----+------+-------+-------+-------+",
+                "| 1   |     | b[0] | 0     | 77    | [     |",
+                "|     |     |      |       |       |   77, |",
+                "|     |     |      |       |       |   88  |",
+                "|     |     |      |       |       | ]     |",
+                "| 1   |     | b[1] | 1     | 88    | [     |",
+                "|     |     |      |       |       |   77, |",
+                "|     |     |      |       |       |   88  |",
+                "|     |     |      |       |       | ]     |",
+                "+-----+-----+------+-------+-------+-------+",
             ],
             &result
         );
