@@ -11,14 +11,12 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   setAuthenticated: (data: AuthResponse) => void;
   resetAuthenticated: () => void;
-  user: string | null;
   getAccessToken: () => string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const { mutate: refresh, isPending } = useRefresh({
@@ -37,13 +35,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Use flushSync, so TanStack Router beforeLoad context is updated
     flushSync(() => {
       setAccessToken(data.accessToken);
-      setUser('username');
     });
   }, []);
 
   const resetAuthenticated = useCallback(() => {
     setAccessToken(null);
-    setUser(null);
   }, []);
 
   useEffect(refresh, [refresh]);
@@ -52,13 +48,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const value = useMemo(
     () => ({
-      user,
       isAuthenticated,
       setAuthenticated,
       resetAuthenticated,
       getAccessToken,
     }),
-    [user, isAuthenticated, setAuthenticated, resetAuthenticated, getAccessToken],
+    [isAuthenticated, setAuthenticated, resetAuthenticated, getAccessToken],
   );
 
   if (isPending) {
