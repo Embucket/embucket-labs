@@ -6,17 +6,17 @@
  * OpenAPI spec version: 1.0.2
  */
 
-export type GetSchemasParams = {
+export type GetTablesParams = {
   /**
-   * Schemas cursor
+   * Tables cursor
    */
   cursor?: string;
   /**
-   * Schemas limit
+   * Tables limit
    */
   limit?: number;
   /**
-   * Schemas search (start with)
+   * Tables search (start with)
    */
   search?: string;
 };

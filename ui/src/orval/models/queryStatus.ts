@@ -10,7 +10,6 @@ export type QueryStatus = (typeof QueryStatus)[keyof typeof QueryStatus];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const QueryStatus = {
-  running: 'running',
-  successful: 'successful',
-  failed: 'failed',
+  Ok: 'Ok',
+  Error: 'Error',
 } as const;

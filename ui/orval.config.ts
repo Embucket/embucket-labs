@@ -9,8 +9,8 @@ const apiUrl = process.env.VITE_API_URL!;
 
 const config = {
   embucket: {
-    input: `${apiUrl}/ui_openapi.json`,
-    // input: `./ui_openapi.json`,
+    // input: `${apiUrl}/ui_openapi.json`,
+    input: `./ui_openapi.json`,
     output: {
       mode: 'tags',
       target: './src/orval/api.ts',

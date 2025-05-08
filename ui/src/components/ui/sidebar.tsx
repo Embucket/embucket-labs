@@ -77,7 +77,7 @@ function SidebarProvider({
       }
 
       // This sets the cookie to keep the sidebar state.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
     [setOpenProp, open],
@@ -591,7 +591,6 @@ function SidebarMenuSkeleton({
 }) {
   // Random width between 50 to 90%.
   const width = React.useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     return `${Math.floor(Math.random() * 40) + 50}%`;
   }, []);
 
