@@ -74,7 +74,7 @@ impl ScalarUDFImpl for BoolAndFunc {
                 continue;
             }
 
-            b.append_value(is_true(&lhs) && is_true(&rhs))
+            b.append_value(is_true(&lhs) && is_true(&rhs));
         }
 
         Ok(ColumnarValue::Array(Arc::new(b.finish())))
