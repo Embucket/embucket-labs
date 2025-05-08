@@ -1,57 +1,80 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+import { flushSync } from 'react-dom';
+
+import { useRefresh } from '@/orval/auth';
 import type { AuthResponse } from '@/orval/models';
 
-export interface AuthContext {
+import { AxiosInterceptors } from './AxiosInterceptors';
+
+export interface AuthContextType {
   isAuthenticated: boolean;
   setAuthenticated: (data: AuthResponse) => void;
   resetAuthenticated: () => void;
   user: string | null;
+  getAccessToken: () => string | null;
 }
 
-const AuthContext = createContext<AuthContext | undefined>(undefined);
-
-const ACCESS_TOKEN_KEY = 'accessToken';
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<string | null>(() => {
-    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-    if (token) {
-      return 'username';
-    }
-    return null;
+  const [user, setUser] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  const { mutate: refresh, isPending } = useRefresh({
+    mutation: {
+      onSuccess: (data) => {
+        setAuthenticated(data);
+      },
+    },
   });
 
+  const getAccessToken = useCallback(() => {
+    return accessToken;
+  }, [accessToken]);
+
   const setAuthenticated = useCallback((data: AuthResponse) => {
-    localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
-    setUser('username');
+    // Use flushSync, so TanStack Router beforeLoad context is updated
+    flushSync(() => {
+      setAccessToken(data.accessToken);
+      setUser('username');
+    });
   }, []);
 
   const resetAuthenticated = useCallback(() => {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    setAccessToken(null);
     setUser(null);
   }, []);
 
-  // TODO: This is a hack to reset the authenticated state when the refresh token fails in the interceptor.
-  useEffect(() => {
-    const handleRefreshTokenFailed = resetAuthenticated;
-    window.addEventListener('auth:refreshTokenFailed', handleRefreshTokenFailed);
-    return () => {
-      window.removeEventListener('auth:refreshTokenFailed', handleRefreshTokenFailed);
-    };
-  }, [resetAuthenticated]);
+  useEffect(refresh, [refresh]);
+
+  const isAuthenticated = !!accessToken;
 
   const value = useMemo(
     () => ({
       user,
-      isAuthenticated: !!user,
+      isAuthenticated,
       setAuthenticated,
       resetAuthenticated,
+      getAccessToken,
     }),
-    [user, setAuthenticated, resetAuthenticated],
+    [user, isAuthenticated, setAuthenticated, resetAuthenticated, getAccessToken],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  if (isPending) {
+    return null;
+  }
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <AxiosInterceptors
+        onSetAuthenticated={setAuthenticated}
+        onResetAuthenticated={resetAuthenticated}
+        getAccessToken={getAccessToken}
+      />
+    </AuthContext.Provider>
+  );
 };
 
 // eslint-disable-next-line react-refresh/only-export-components

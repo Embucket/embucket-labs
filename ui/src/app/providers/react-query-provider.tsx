@@ -1,5 +1,8 @@
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { toast } from 'sonner';
+
+import { UNAUTHORIZED_STATUS_CODE } from '@/constants';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -11,12 +14,20 @@ const queryClient = new QueryClient({
   },
   queryCache: new QueryCache({
     onError: (error) => {
-      toast.error(error.message);
+      if (error instanceof AxiosError) {
+        if (error.response?.status !== UNAUTHORIZED_STATUS_CODE) {
+          toast.error(error.message);
+        }
+      }
     },
   }),
   mutationCache: new MutationCache({
     onError: (error) => {
-      toast.error(error.message);
+      if (error instanceof AxiosError) {
+        if (error.response?.status !== UNAUTHORIZED_STATUS_CODE) {
+          toast.error(error.message);
+        }
+      }
     },
   }),
 });

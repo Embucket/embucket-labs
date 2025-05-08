@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-router';
 
 import { SidebarProvider } from '@/components/ui/sidebar';
-import type { AuthContext } from '@/modules/auth/AuthProvider';
+import type { AuthContextType } from '@/modules/auth/AuthProvider';
 
 import { Layout } from '../layout/layout';
 import { AppSidebar } from '../layout/sidebar/app-sidebar';
@@ -17,10 +17,10 @@ import type { FileRoutesByTo } from '../routeTree.gen';
 const PUBLIC_PATHS: (keyof FileRoutesByTo)[] = ['/'];
 
 export const Route = createRootRouteWithContext<{
-  auth: AuthContext;
+  auth: AuthContextType;
 }>()({
   component: Root,
-  notFoundComponent: NotFound,
+  notFoundComponent: () => <Navigate to="/" />,
   beforeLoad: ({ location, context }) => {
     const { pathname } = location;
     if (!context.auth.isAuthenticated) {
@@ -40,10 +40,6 @@ export const Route = createRootRouteWithContext<{
     }
   },
 });
-
-function NotFound() {
-  return <Navigate to="/" />;
-}
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode;
