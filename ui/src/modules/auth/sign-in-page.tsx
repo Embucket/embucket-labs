@@ -15,7 +15,7 @@ export function SignInPage() {
           <CardHeader>
             <CardTitle className="text-2xl font-semibold">Login</CardTitle>
             <CardDescription className="text-sm font-light">
-              Enter your email below to login to your account
+              Enter your username below to login to your account
             </CardDescription>
           </CardHeader>
           <CardContent>

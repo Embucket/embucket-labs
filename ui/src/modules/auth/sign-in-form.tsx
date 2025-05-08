@@ -43,13 +43,7 @@ export function SignInForm() {
               <FormItem>
                 <FormLabel htmlFor="username">Username</FormLabel>
                 <FormControl>
-                  <Input
-                    className="h-10"
-                    id="username"
-                    type="text"
-                    placeholder="yourusername"
-                    {...field}
-                  />
+                  <Input className="h-10" id="username" type="text" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
