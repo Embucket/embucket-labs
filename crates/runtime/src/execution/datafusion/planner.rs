@@ -44,23 +44,9 @@ where
         }
     }
 
-    /// Custom implementation of `sql_statement_to_plan`
-    pub fn sql_statement_to_plan(&self, statement: Statement) -> Result<LogicalPlan> {
-        // Check for a custom statement type
-        match self.handle_custom_statement(statement.clone()) {
-            Ok(plan) => return Ok(plan),
-            Err(e) => {
-                tracing::debug!("Custom statement parsing skipped: {} {}", statement, e);
-            }
-        }
-
-        // For all other statements, delegate to the wrapped SqlToRel
-        self.inner.sql_statement_to_plan(statement)
-    }
-
     /// Handle custom statements not supported by the original `SqlToRel`
     #[allow(clippy::too_many_lines)]
-    fn handle_custom_statement(&self, statement: Statement) -> Result<LogicalPlan> {
+    pub fn sql_statement_to_plan(&self, statement: Statement) -> Result<LogicalPlan> {
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
         // Example: Custom handling for a specific statement
         match statement.clone() {
@@ -167,7 +153,7 @@ where
                     )))
                 }
             }
-            _ => plan_err!("Unsupported statement: {:?}", statement),
+            _ => self.inner.sql_statement_to_plan(statement),
         }
     }
 

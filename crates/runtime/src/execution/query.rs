@@ -48,7 +48,7 @@ use url::Url;
 use super::catalog::{
     catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
 };
-use super::datafusion::context_provider::ExtendedSqlToRel;
+use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::session::UserSession;
 use super::utils::{is_logical_plan_effectively_empty, NormalizedIdent};
