@@ -5,6 +5,7 @@ use crate::http::auth::error::{
     AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu, SetCookieSnafu,
 };
 use crate::http::auth::models::{AuthResponse, Claims, LoginPayload};
+use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -127,7 +128,18 @@ fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
 
     Ok(())
 }
-
+#[utoipa::path(
+    post,
+    path = "/auth/login",
+    operation_id = "login",
+    tags = ["auth"],
+    request_body = LoginPayload,
+    responses(
+        (status = 200, description = "Successful Response", body = AuthResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse),
+    )
+)]
 #[tracing::instrument(level = "debug", skip(state, password), err)]
 pub async fn login(
     State(state): State<AppState>,
@@ -163,6 +175,18 @@ pub async fn login(
     ))
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/refresh",
+    operation_id = "refresh",
+    tags = ["auth"],
+    responses(
+        (status = 200, description = "Successful Response", body = AuthResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err)]
 pub async fn refresh_access_token(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -196,6 +220,18 @@ pub async fn refresh_access_token(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/logout",
+    operation_id = "logout",
+    tags = ["auth"],
+    responses(
+        (status = 200, description = "Successful Response", body = AuthResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err)]
 pub async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,

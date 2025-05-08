@@ -327,7 +327,7 @@ pub async fn upload_file(
 
 #[utoipa::path(
     get,
-    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{schemaName}/tables",
+    path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables",
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),

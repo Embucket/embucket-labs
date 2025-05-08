@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Serialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(Debug, Deserialize))]
 pub struct AuthResponse {
@@ -27,7 +28,7 @@ pub struct RefreshTokenResponse {
     pub access_token: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, PartialEq, Eq, ToSchema)]
 #[cfg_attr(test, derive(Serialize))]
 pub struct LoginPayload {
     pub username: String,
