@@ -46,6 +46,7 @@ pub struct ApiDoc;
     path = "/ui/navigation-trees",
     responses(
         (status = 200, description = "Successful Response", body = NavigationTreesResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]

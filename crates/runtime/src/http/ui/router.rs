@@ -29,6 +29,7 @@ use crate::http::ui::tables::handlers::{
 use crate::http::ui::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::http::ui::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
 
+use crate::http::auth::handlers::ApiDoc as AuthApiDoc;
 use crate::http::state::AppState;
 use crate::http::ui::dashboard::handlers::{get_dashboard, ApiDoc as DashboardApiDoc};
 use axum::extract::DefaultBodyLimit;
@@ -65,6 +66,7 @@ pub fn ui_open_api_spec() -> utoipa::openapi::OpenApi {
         .merge_from(QueryApiDoc::openapi())
         .merge_from(DatabasesNavigationApiDoc::openapi())
         .merge_from(DashboardApiDoc::openapi())
+        .merge_from(AuthApiDoc::openapi())
 }
 
 pub fn create_router() -> Router<AppState> {

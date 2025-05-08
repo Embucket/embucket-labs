@@ -21,7 +21,7 @@ impl AuthResponse {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(Debug, Deserialize))]
 pub struct RefreshTokenResponse {
@@ -35,7 +35,7 @@ pub struct LoginPayload {
     pub password: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, ToSchema)]
 #[cfg_attr(test, derive(Debug))]
 pub struct Claims {
     pub sub: String, // token issued to a particular user

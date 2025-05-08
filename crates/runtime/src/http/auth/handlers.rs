@@ -1,3 +1,4 @@
+use crate::http::auth::models::RefreshTokenResponse;
 use std::collections::HashMap;
 
 use super::error::CreateJwtSnafu;
@@ -19,6 +20,7 @@ use snafu::ResultExt;
 use time::Duration;
 use tower_sessions::cookie::{Cookie, SameSite};
 use tracing;
+use utoipa::OpenApi;
 
 pub const REFRESH_TOKEN_EXPIRATION_HOURS: u32 = 24 * 7;
 pub const ACCESS_TOKEN_EXPIRATION_SECONDS: u32 = 15 * 60;
@@ -128,6 +130,29 @@ fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
 
     Ok(())
 }
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        login,
+        refresh_access_token,
+        logout,
+    ),
+    components(
+        schemas(
+            LoginPayload,
+            AuthResponse,
+            RefreshTokenResponse,
+            Claims,
+            ErrorResponse,
+        )
+    ),
+    tags(
+        (name = "auth", description = "Authentication endpoints")
+    )
+)]
+pub struct ApiDoc;
+
 #[utoipa::path(
     post,
     path = "/auth/login",
@@ -227,7 +252,6 @@ pub async fn refresh_access_token(
     tags = ["auth"],
     responses(
         (status = 200, description = "Successful Response", body = AuthResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]

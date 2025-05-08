@@ -50,6 +50,7 @@ pub struct ApiDoc;
     request_body = VolumeCreatePayload,
     responses(
         (status = 200, description = "Successful Response", body = VolumeCreateResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
         (status = 400, description = "Bad request", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
@@ -88,6 +89,7 @@ pub async fn create_volume(
     ),
     responses(
         (status = 200, description = "Successful Response", body = VolumeResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
         (status = 404, description = "Not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -120,6 +122,7 @@ pub async fn get_volume(
     ),
     responses(
         (status = 200, description = "Successful Response"),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
         (status = 404, description = "Not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -148,6 +151,7 @@ pub async fn delete_volume(
     request_body = VolumeUpdatePayload,
     responses(
         (status = 200, description = "Successful Response", body = VolumeUpdateResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
         (status = 404, description = "Not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -186,6 +190,7 @@ pub async fn update_volume(
     path = "/ui/volumes",
     responses(
         (status = 200, body = VolumesResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
