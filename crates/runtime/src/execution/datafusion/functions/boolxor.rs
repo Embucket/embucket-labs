@@ -75,9 +75,9 @@ impl ScalarUDFImpl for BoolXorFunc {
                 continue;
             }
 
-            if (is_true(&lhs) && !is_true(&rhs)) || (!is_true(&lhs) && is_true(&rhs)) {
+            if (is_true(lhs) && !is_true(rhs)) || (!is_true(lhs) && is_true(rhs)) {
                 b.append_value(true);
-            } else if (is_true(&lhs) && is_true(&rhs)) || (!is_true(&lhs) && !is_true(&rhs)) {
+            } else if (is_true(lhs) && is_true(rhs)) || (!is_true(lhs) && !is_true(rhs)) {
                 b.append_value(false);
             } else {
                 b.append_null();

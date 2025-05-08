@@ -69,20 +69,20 @@ impl ScalarUDFImpl for BoolAndFunc {
                 continue;
             }
 
-            if (lhs.is_none() || rhs.is_none()) && (is_true(&lhs) || is_true(&rhs)) {
+            if (lhs.is_none() || rhs.is_none()) && (is_true(lhs) || is_true(rhs)) {
                 b.append_null();
                 continue;
             }
 
-            b.append_value(is_true(&lhs) && is_true(&rhs));
+            b.append_value(is_true(lhs) && is_true(rhs));
         }
 
         Ok(ColumnarValue::Array(Arc::new(b.finish())))
     }
 }
 
-pub(crate) fn is_true(v: &Option<bool>) -> bool {
-    v.unwrap_or_else(|| false)
+pub fn is_true(v: Option<bool>) -> bool {
+    v.unwrap_or(false)
 }
 
 super::macros::make_udf_function!(BoolAndFunc);
