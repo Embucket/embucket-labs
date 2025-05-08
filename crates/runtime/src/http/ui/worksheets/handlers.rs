@@ -46,7 +46,12 @@ pub struct ApiDoc;
     params(GetWorksheetsParams),
     responses(
         (status = 200, description = "Get list of worksheets", body = WorksheetsResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 400, description = "Unknown", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
@@ -122,7 +127,12 @@ pub async fn worksheets(
     ),
     responses(
         (status = 200, description = "Created worksheet", body = WorksheetCreateResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 409, description = "Already Exists", body = ErrorResponse),
         (status = 422, description = "Unprocessable Entity"), // Failed to deserialize payload
         (status = 500, description = "Internal server error", body = ErrorResponse),
@@ -161,7 +171,12 @@ pub async fn create_worksheet(
     ),
     responses(
         (status = 200, description = "Returns worksheet", body = WorksheetResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 400, description = "Bad request", body = ErrorResponse),        
         (status = 404, description = "Worksheet not found", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
@@ -193,7 +208,12 @@ pub async fn worksheet(
     ),
     responses(
         (status = 200, description = "Worksheet deleted"),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 404, description = "Worksheet not found", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
@@ -241,7 +261,12 @@ pub async fn delete_worksheet(
     ),
     responses(
         (status = 200, description = "Worksheet updated"),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 400, description = "Bad request", body = ErrorResponse),
         (status = 404, description = "Worksheet not found", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),

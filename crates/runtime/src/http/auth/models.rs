@@ -35,7 +35,7 @@ pub struct LoginPayload {
     pub password: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, ToSchema)]
+#[derive(Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug))]
 pub struct Claims {
     pub sub: String, // token issued to a particular user

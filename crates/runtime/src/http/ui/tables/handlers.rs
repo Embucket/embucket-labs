@@ -70,7 +70,12 @@ pub struct ApiDoc;
     tags = ["tables"],
     responses(
         (status = 200, description = "Successful Response", body = TableStatisticsResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -132,7 +137,12 @@ pub async fn get_table_statistics(
     tags = ["tables"],
     responses(
         (status = 200, description = "Successful Response", body = TableColumnsResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -185,7 +195,12 @@ pub async fn get_table_columns(
     tags = ["tables"],
     responses(
         (status = 200, description = "Successful Response", body = TablePreviewDataResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
@@ -262,7 +277,12 @@ pub async fn get_table_preview_data(
     ),
     responses(
         (status = 200, description = "Successful Response", body = TableUploadResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 400, description = "Bad request", body = ErrorResponse),
         // 409, when schema provided but table already exists
         (status = 409, description = "Already exists", body = ErrorResponse),
@@ -343,7 +363,12 @@ pub async fn upload_file(
     tags = ["tables"],
     responses(
         (status = 200, description = "Successful Response", body = TablesResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 404, description = "Table not found", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )

@@ -143,7 +143,6 @@ fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
             LoginPayload,
             AuthResponse,
             RefreshTokenResponse,
-            Claims,
             ErrorResponse,
         )
     ),
@@ -161,7 +160,12 @@ pub struct ApiDoc;
     request_body = LoginPayload,
     responses(
         (status = 200, description = "Successful Response", body = AuthResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+         description = "Unauthorized", 
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
