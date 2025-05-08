@@ -6,10 +6,12 @@
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:3000';
+const ACCESS_TOKEN =
+  'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImF1ZCI6IjEyNy4wLjAuMSIsImlhdCI6MTc0Njc0NTUzMCwiZXhwIjoxNzQ2NzQ1NTYwfQ.qixGb05lB0D3PMBY-Lv4QyGfsllZv0_yBSvn1tuzmcM';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ACCESS_TOKEN}` },
 });
 
 // Volumes
