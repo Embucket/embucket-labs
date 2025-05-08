@@ -2,7 +2,7 @@
 
 use crate::http::ui::databases::models::DatabaseCreatePayload;
 use crate::http::ui::volumes::models::VolumeCreatePayload;
-use http::{HeaderMap, HeaderValue, Method, StatusCode};
+use http::{header, HeaderMap, HeaderValue, Method, StatusCode};
 use serde_json::json;
 use std::net::SocketAddr;
 
@@ -51,15 +51,17 @@ pub async fn req(
     res
 }
 
-pub async fn http_req<T: serde::de::DeserializeOwned>(
+/// As of minimalistic interface this doesn't support checking request/response headers
+pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
     client: &reqwest::Client,
     method: Method,
+    headers: HeaderMap,
     url: &String,
     payload: String,
-) -> Result<T, TestHttpError> {
+) -> Result<(HeaderMap, T), TestHttpError> {
     let res = client
         .request(method.clone(), url)
-        .header("Content-Type", "application/json")
+        .headers(headers)
         .body(payload)
         .send()
         .await;
@@ -71,11 +73,14 @@ pub async fn http_req<T: serde::de::DeserializeOwned>(
         let text = response.text().await.expect("Failed to get response text");
         if text.is_empty() {
             // If no actual type retuned we emulate unit, by "null" value in json
-            Ok(serde_json::from_str::<T>("null").expect("Failed to parse response"))
+            Ok((
+                headers,
+                serde_json::from_str::<T>("null").expect("Failed to parse response"),
+            ))
         } else {
             let json = serde_json::from_str::<T>(&text);
             match json {
-                Ok(json) => Ok(json),
+                Ok(json) => Ok((headers, json)),
                 Err(err) => {
                     // Normally we don't expect error here, and only have http related error to return
                     Err(TestHttpError {
@@ -103,6 +108,21 @@ pub async fn http_req<T: serde::de::DeserializeOwned>(
             error: format!("{error:?}"),
         })
     }
+}
+
+/// As of minimalistic interface this doesn't support checking request/response headers
+pub async fn http_req<T: serde::de::DeserializeOwned>(
+    client: &reqwest::Client,
+    method: Method,
+    url: &String,
+    payload: String,
+) -> Result<T, TestHttpError> {
+    let headers = HeaderMap::from_iter(vec![(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    )]);
+    let (_, res) = http_req_with_headers(client, method, headers, url, payload).await?;
+    Ok(res)
 }
 
 fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {

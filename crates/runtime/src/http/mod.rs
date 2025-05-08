@@ -6,8 +6,8 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
-use embucket_history::store::WorksheetsStore;
-use embucket_metastore::Metastore;
+use embucket_history::store::SlateDBWorksheetsStore;
+use embucket_metastore::SlateDBMetastore;
 use http_body_util::BodyExt;
 use std::sync::Arc;
 use time::Duration;
@@ -24,6 +24,7 @@ use embucket_utils::Db;
 
 pub mod error;
 
+pub mod auth;
 pub mod catalog;
 pub mod dbt;
 pub mod metastore;
@@ -41,12 +42,14 @@ pub mod utils;
 mod tests;
 
 use super::http::config::WebConfig;
+use crate::config::AuthConfig;
 
 #[allow(clippy::needless_pass_by_value)]
 pub fn make_app(
-    metastore: Arc<dyn Metastore>,
-    history_store: Arc<dyn WorksheetsStore>,
+    metastore: Arc<SlateDBMetastore>,
+    history_store: Arc<SlateDBWorksheetsStore>,
     config: &WebConfig,
+    auth_config: AuthConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_cfg = execution::utils::Config::new(&config.data_format)?;
     let execution_svc = Arc::new(CoreExecutionService::new(metastore.clone(), execution_cfg));
@@ -74,6 +77,7 @@ pub fn make_app(
         history_store,
         execution_svc,
         Arc::new(config.clone()),
+        Arc::new(auth_config),
     );
 
     let mut app = router::create_app(app_state)

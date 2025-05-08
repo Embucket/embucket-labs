@@ -35,8 +35,12 @@ pub enum Error {
     #[snafu(display("Error serializing value: {source}"))]
     SerializeValue { source: serde_json::Error },
 
-    #[snafu(display("Deserialize error: {source}"))]
-    DeserializeValue { source: serde_json::Error },
+    #[snafu(display("Deserialize error: {source}, key: {key:?}, data: {data:?}"))]
+    DeserializeValue {
+        source: serde_json::Error,
+        key: Bytes,
+        data: Bytes,
+    },
 
     #[snafu(display("Key Not found"))]
     KeyNotFound,
@@ -131,7 +135,12 @@ impl Db {
             })?;
         value.map_or_else(
             || Ok(None),
-            |bytes| de::from_slice(&bytes).context(DeserializeValueSnafu), //.map_err(|e| Error::Deserialize { source: e}),
+            |bytes| {
+                de::from_slice(&bytes).context(DeserializeValueSnafu {
+                    key: Bytes::from(key.to_string()),
+                    data: bytes,
+                })
+            },
         )
     }
 
@@ -232,7 +241,10 @@ impl Db {
         let mut iter = self.range_iterator(range).await?;
         let mut items: Vec<T> = vec![];
         while let Ok(Some(item)) = iter.next().await {
-            let item = de::from_slice(&item.value).context(DeserializeValueSnafu)?;
+            let item = de::from_slice(&item.value).context(DeserializeValueSnafu {
+                key: item.key,
+                data: item.value,
+            })?;
             items.push(item);
             if items.len() >= usize::from(limit.unwrap_or(u16::MAX)) {
                 break;

@@ -1,4 +1,5 @@
 use crate::execution::datafusion::functions::to_boolean::ToBooleanFunc;
+use crate::execution::datafusion::functions::to_time::ToTimeFunc;
 use arrow_array::{
     ArrayRef, ArrowNativeTypeOp, BooleanArray, Decimal128Array, Decimal256Array, Float16Array,
     Float32Array, Float64Array, Int16Array, Int32Array, Int64Array, Int8Array, UInt16Array,
@@ -23,6 +24,7 @@ pub mod table;
 mod time_from_parts;
 mod timestamp_from_parts;
 mod to_boolean;
+mod to_time;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
@@ -38,6 +40,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         boolxor::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
+        Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
+        Arc::new(ScalarUDF::from(ToTimeFunc::new(true))),
     ];
 
     for func in functions {

@@ -1,3 +1,4 @@
+mod auth;
 mod queries;
 pub mod server;
 mod session;

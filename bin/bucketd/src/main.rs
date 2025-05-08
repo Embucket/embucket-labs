@@ -3,7 +3,7 @@ pub(crate) mod cli;
 use clap::Parser;
 use dotenv::dotenv;
 use embucket_runtime::{
-    config::{DbConfig, RuntimeConfig},
+    config::{AuthConfig, DbConfig, RuntimeConfig},
     http::config::WebConfig,
     http::web_assets::config::StaticWebConfig,
     run_binary,
@@ -37,11 +37,17 @@ async fn main() {
     } else {
         None
     };
+    let jwt_secret = opts.jwt_secret();
+    let demo_user = opts.auth_demo_user.clone().unwrap();
+    let demo_password = opts.auth_demo_password.clone().unwrap();
+
     let dbt_serialization_format = opts
         .data_format
         .clone()
         .unwrap_or_else(|| "json".to_string());
     let object_store = opts.object_store_backend();
+    let mut auth_config = AuthConfig::new(jwt_secret);
+    auth_config.with_demo_credentials(demo_user, demo_password);
 
     match object_store {
         Err(e) => {
@@ -69,7 +75,7 @@ async fn main() {
                 },
             };
 
-            if let Err(e) = run_binary(object_store, runtime_config).await {
+            if let Err(e) = run_binary(object_store, runtime_config, auth_config).await {
                 tracing::error!("Error while running: {:?}", e);
             }
         }

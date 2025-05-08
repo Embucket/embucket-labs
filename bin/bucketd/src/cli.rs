@@ -136,6 +136,36 @@ pub struct CliOpts {
         help = "Data serialization format in Snowflake v1 API"
     )]
     pub data_format: Option<String>,
+
+    // should unset JWT_SECRET env var after loading
+    #[arg(
+        long,
+        env = "JWT_SECRET",
+        hide_env_values = true,
+        required_if_eq("auth_demo", "true"),
+        help = "JWT secret for auth"
+    )]
+    jwt_secret: Option<String>,
+
+    #[arg(
+        long,
+        env = "AUTH_DEMO_USER",
+        default_value = "embucket",
+        group("auth_demo"),
+        required_if_eq("auth_demo", "true"),
+        help = "Default user for auth demo"
+    )]
+    pub auth_demo_user: Option<String>,
+
+    #[arg(
+        long,
+        env = "AUTH_DEMO_PASSWORD",
+        default_value = "embucket",
+        group("auth_demo"),
+        required_if_eq("auth_demo", "true"),
+        help = "Default password for auth demo"
+    )]
+    pub auth_demo_password: Option<String>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -182,5 +212,11 @@ impl CliOpts {
             }
             StoreBackend::Memory => Ok(Arc::new(InMemory::new()) as Arc<dyn ObjectStore>),
         }
+    }
+
+    // added as a method to reset a secret env
+    pub fn jwt_secret(&self) -> String {
+        std::env::remove_var("JWT_SECRET");
+        self.jwt_secret.clone().unwrap_or_default()
     }
 }

@@ -1,5 +1,5 @@
 use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::{middleware, Json, Router};
 use std::fs;
 use tower_http::catch_panic::CatchPanicLayer;
 use utoipa::openapi::{self};
@@ -9,11 +9,12 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::http::catalog::router::create_router as create_iceberg_router;
 use crate::http::dbt::router::create_router as create_dbt_router;
 // use crate::http::ui::old_handlers::tables::ApiDoc as TableApiDoc;
+use super::metastore::router::create_router as create_metastore_router;
+use crate::http::auth::layer::require_auth;
+use crate::http::auth::router::create_router as create_auth_router;
 use crate::http::state::AppState;
 use crate::http::ui::router::{create_router as create_ui_router, ui_open_api_spec};
 use tower_http::timeout::TimeoutLayer;
-
-use super::metastore::router::create_router as create_metastore_router;
 
 // TODO: Fix OpenAPI spec generation
 #[derive(OpenApi)]
@@ -34,11 +35,15 @@ pub fn create_app(state: AppState) -> Router {
     let ui_router = create_ui_router();
     let dbt_router = create_dbt_router();
     let iceberg_catalog = create_iceberg_router();
+    let auth_router = create_auth_router();
 
     Router::new()
-        .merge(dbt_router)
         .merge(metastore_router)
-        .nest("/ui", ui_router)
+        .merge(ui_router)
+        // middleware wraping all routes above ^^
+        .layer(middleware::from_fn_with_state(state.clone(), require_auth))
+        .merge(auth_router)
+        .merge(dbt_router)
         .nest("/catalog", iceberg_catalog)
         .merge(
             SwaggerUi::new("/")

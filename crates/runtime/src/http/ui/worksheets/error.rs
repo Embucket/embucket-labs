@@ -2,7 +2,7 @@ use crate::http::error::ErrorResponse;
 use crate::http::ui::error::IntoStatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use embucket_history::store::WorksheetsStoreError;
+use embucket_history::history_store::WorksheetsStoreError;
 use http::status::StatusCode;
 use snafu::prelude::*;
 

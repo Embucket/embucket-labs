@@ -5,7 +5,7 @@ use crate::http::ui::queries::models::{
     Column, QueriesResponse, QueryCreatePayload, QueryRecord, QueryStatus, ResultSet,
 };
 use crate::http::ui::tests::common::http_req;
-use crate::http::ui::worksheets::models::{Worksheet, WorksheetCreatePayload};
+use crate::http::ui::worksheets::models::{Worksheet, WorksheetCreatePayload, WorksheetsResponse};
 use crate::tests::run_test_server;
 use http::Method;
 use serde_json::json;
@@ -43,7 +43,7 @@ async fn test_ui_queries_no_worksheet() {
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
-async fn test_ui_queries() {
+async fn test_ui_queries_with_worksheet() {
     let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
@@ -232,4 +232,16 @@ async fn test_ui_queries() {
     assert_eq!(queries2[0].result, query2.result);
     assert_eq!(queries2[1].status, QueryStatus::Successful);
     assert_eq!(queries2[1].result, query.result);
+
+    // get worksheet with queries
+    // tesing regression: "Deserialize error: missing field `id` at line 1 column 2"
+    let worksheets = http_req::<WorksheetsResponse>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/worksheets"),
+        String::new(),
+    )
+    .await
+    .expect("Failed to get worksheets");
+    assert_eq!(worksheets.items.len(), 1);
 }

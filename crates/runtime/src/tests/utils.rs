@@ -72,28 +72,20 @@ pub mod macros {
                     let ctx = crate::tests::utils::create_df_session().await;
 
                     let mut query = ctx.query($query, crate::execution::query::QueryContext::default());
-                    let statement = query.parse_query().unwrap();
-                    let plan = query.plan().await;
-                    //TODO: add our plan processing also
-                    let df = match &plan {
-                        Ok(_plan) => {
-                            match query.execute().await {
-                                Ok(record_batches) => {
-                                    Ok(datafusion::arrow::util::pretty::pretty_format_batches(&record_batches).unwrap().to_string())
-                                },
-                                Err(e) => Err(format!("Error: {e}"))
-                            }
-                        },
-                        Err(e) => Err(format!("Error: {e}"))
-                    };
+                    let res = query.execute().await;
                     insta::with_settings!({
                         description => stringify!($query),
                         omit_expression => true,
                         prepend_module_to_snapshot => false
                     }, {
-                        let plan = plan.map(|plan| plan.to_string().split("\n").map(|s| s.to_string()).collect::<Vec<String>>());
+                        let df =  match res {
+                            Ok(record_batches) => {
+                                Ok(datafusion::arrow::util::pretty::pretty_format_batches(&record_batches).unwrap().to_string())
+                            },
+                            Err(e) => Err(format!("Error: {e}"))
+                        };
                         let df = df.map(|df| df.split("\n").map(|s| s.to_string()).collect::<Vec<String>>());
-                        insta::assert_debug_snapshot!((statement, plan, df));
+                        insta::assert_debug_snapshot!((df));
                     })
                 }
             }
