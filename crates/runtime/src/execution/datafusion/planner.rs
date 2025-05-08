@@ -48,7 +48,7 @@ where
     #[allow(clippy::too_many_lines)]
     pub fn sql_statement_to_plan(&self, statement: Statement) -> Result<LogicalPlan> {
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
-        // Example: Custom handling for a specific statement
+        // TODO: Refactor what statements are handleded here vs UserQuery `sql_to_statement`
         match statement.clone() {
             Statement::AlterTable { .. }
             | Statement::StartTransaction { .. }
@@ -66,42 +66,36 @@ where
                 self.show_objects_to_plan(&parent_name)
             }
             Statement::Drop {
-                object_type,
+                object_type: ObjectType::Database,
                 if_exists,
                 mut names,
                 cascade,
                 ..
-            } => match object_type {
-                ObjectType::Database => {
-                    #[allow(clippy::unwrap_used)]
-                    let name = object_name_to_table_reference(
-                        names.pop().unwrap(),
-                        self.options.enable_ident_normalization,
-                    )?;
-                    let schema_name = match name {
-                        TableReference::Bare { table } => {
-                            Ok(SchemaReference::Bare { schema: table })
-                        }
-                        TableReference::Partial { schema, table } => Ok(SchemaReference::Full {
-                            schema: table,
-                            catalog: schema,
-                        }),
-                        TableReference::Full { .. } => {
-                            plan_err!("Invalid schema specifier (has 3 parts)")
-                        }
-                    }?;
-
-                    Ok(LogicalPlan::Ddl(DdlStatement::DropCatalogSchema(
-                        DropCatalogSchema {
-                            name: schema_name,
-                            if_exists,
-                            cascade,
-                            schema: DFSchemaRef::new(DFSchema::empty()),
-                        },
-                    )))
-                }
-                _ => plan_err!("Unsupported drop: {:?}", object_type),
-            },
+            } => {
+                #[allow(clippy::unwrap_used)]
+                let name = object_name_to_table_reference(
+                    names.pop().unwrap(),
+                    self.options.enable_ident_normalization,
+                )?;
+                let schema_name = match name {
+                    TableReference::Bare { table } => Ok(SchemaReference::Bare { schema: table }),
+                    TableReference::Partial { schema, table } => Ok(SchemaReference::Full {
+                        schema: table,
+                        catalog: schema,
+                    }),
+                    TableReference::Full { .. } => {
+                        plan_err!("Invalid schema specifier (has 3 parts)")
+                    }
+                }?;
+                Ok(LogicalPlan::Ddl(DdlStatement::DropCatalogSchema(
+                    DropCatalogSchema {
+                        name: schema_name,
+                        if_exists,
+                        cascade,
+                        schema: DFSchemaRef::new(DFSchema::empty()),
+                    },
+                )))
+            }
             Statement::CreateTable(CreateTableStatement {
                 query,
                 name,
