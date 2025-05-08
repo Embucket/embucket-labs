@@ -4,8 +4,8 @@ use crate::execution::datafusion::functions::geospatial::data_types::{
 };
 use crate::execution::datafusion::functions::geospatial::error as geo_error;
 use crate::execution::datafusion::functions::timestamp_from_parts::to_primitive_array;
-use arrow_array::types::Int64Type;
-use arrow_schema::DataType;
+use datafusion::arrow::array::types::Int64Type;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{
     ColumnarValue, Documentation, ScalarUDFImpl, Signature, TypeSignature, Volatility,
@@ -14,10 +14,10 @@ use datafusion_common::{DataFusionError, Result};
 use datafusion_expr::ScalarFunctionArgs;
 use geo_traits::LineStringTrait;
 use geoarrow::array::{AsNativeArray, PointBuilder};
-use geoarrow_schema::{Dimension, CoordType};
 use geoarrow::error::GeoArrowError;
 use geoarrow::trait_::ArrayAccessor;
 use geoarrow::ArrayBase;
+use geoarrow_schema::{CoordType, Dimension};
 use snafu::ResultExt;
 use std::any::Any;
 use std::sync::{Arc, OnceLock};
@@ -207,7 +207,7 @@ fn get_n_point(args: &[ColumnarValue], n: Option<i64>) -> Result<ColumnarValue> 
 mod tests {
     use super::*;
     use super::{EndPoint, StartPoint};
-    use arrow_array::Array;
+    use datafusion::arrow::array::Array;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::line_string;
     use geoarrow::array::{LineStringBuilder, PointArray};

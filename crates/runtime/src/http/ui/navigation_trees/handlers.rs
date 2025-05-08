@@ -8,9 +8,9 @@ use crate::http::ui::navigation_trees::models::{
     NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable, NavigationTreesParameters,
     NavigationTreesResponse,
 };
-use arrow_array::{RecordBatch, StringArray};
 use axum::extract::Query;
 use axum::{extract::State, Json};
+use datafusion::arrow::array::{RecordBatch, StringArray};
 use datafusion_common::DataFusionError;
 use std::collections::BTreeMap;
 use utoipa::OpenApi;

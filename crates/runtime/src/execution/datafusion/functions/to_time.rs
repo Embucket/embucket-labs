@@ -1,4 +1,3 @@
-use arrow_schema::{DataType, TimeUnit};
 use chrono::{NaiveTime, ParseError, Timelike};
 use datafusion::arrow::array::builder::Time64NanosecondBuilder;
 use datafusion::arrow::array::types::Time64NanosecondType;
@@ -7,6 +6,7 @@ use datafusion::arrow::array::{
     TimestampMicrosecondArray, TimestampMillisecondArray, TimestampSecondArray,
 };
 use datafusion::arrow::compute::kernels::cast_utils::Parser;
+use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::ColumnarValue;
 use datafusion_common::{exec_err, ScalarValue};

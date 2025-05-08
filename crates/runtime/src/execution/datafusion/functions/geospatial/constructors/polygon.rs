@@ -3,17 +3,17 @@ use crate::execution::datafusion::functions::geospatial::data_types::{
 };
 use crate::execution::datafusion::functions::geospatial::error as geo_error;
 use crate::execution::datafusion::functions::macros::make_udf_function;
-use arrow_schema::DataType;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion_common::{DataFusionError, Result};
 use datafusion_doc::Documentation;
 use datafusion_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use geo_traits::LineStringTrait;
 use geoarrow::array::{AsNativeArray, PolygonBuilder};
-use geoarrow_schema::{CoordType, Dimension};
 use geoarrow::error::GeoArrowError;
 use geoarrow::trait_::ArrayAccessor;
 use geoarrow::ArrayBase;
+use geoarrow_schema::{CoordType, Dimension};
 use snafu::ResultExt;
 use std::any::Any;
 use std::sync::{Arc, OnceLock};
@@ -129,7 +129,7 @@ make_udf_function!(MakePolygon);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrow_array::Array;
+    use datafusion::arrow::array::Array;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::line_string;
     use geoarrow::array::{LineStringBuilder, PolygonArray};

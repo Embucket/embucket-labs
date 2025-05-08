@@ -1,11 +1,11 @@
 use crate::execution::catalog::information_schema::config::InformationSchemaConfig;
-use arrow::{
+use datafusion::arrow::array::builder::{BooleanBuilder, UInt64Builder, UInt8Builder};
+use datafusion::arrow::error::ArrowError;
+use datafusion::arrow::{
     array::StringBuilder,
     datatypes::{DataType, Field, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
-use arrow_array::builder::{BooleanBuilder, UInt64Builder, UInt8Builder};
-use arrow_schema::ArrowError;
 use datafusion::execution::TaskContext;
 use datafusion::logical_expr::Signature;
 use datafusion_common::DataFusionError;

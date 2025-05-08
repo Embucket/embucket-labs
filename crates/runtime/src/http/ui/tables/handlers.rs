@@ -11,13 +11,13 @@ use crate::http::ui::tables::models::{
     TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
     TableUploadPayload, TableUploadResponse, TablesParameters, TablesResponse, UploadParameters,
 };
-use arrow::util::display::array_value_to_string;
 use axum::extract::Query;
 use axum::{
     extract::{Multipart, Path, State},
     Json,
 };
 use datafusion::arrow::csv::reader::Format;
+use datafusion::arrow::util::display::array_value_to_string;
 use embucket_metastore::error::MetastoreError;
 use embucket_metastore::{SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent};
 use embucket_utils::scan_iterator::ScanIterator;

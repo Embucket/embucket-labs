@@ -1,15 +1,15 @@
 use super::models::ColumnInfo;
-use arrow::array::{
+use chrono::DateTime;
+use datafusion::arrow::array::ArrayRef;
+use datafusion::arrow::array::{
     Array, Decimal128Array, Int16Array, Int32Array, Int64Array, StringArray,
     TimestampMicrosecondArray, TimestampMillisecondArray, TimestampNanosecondArray,
     TimestampSecondArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array, UnionArray,
 };
-use arrow::compute::cast;
-use arrow::datatypes::{Field, Schema, TimeUnit};
-use arrow::record_batch::RecordBatch;
-use chrono::DateTime;
-use datafusion::arrow::array::ArrayRef;
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::{Field, Schema, TimeUnit};
+use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::Result as DataFusionResult;
 use datafusion_common::ScalarValue;
 use datafusion_expr::{Expr, LogicalPlan};
@@ -422,13 +422,13 @@ impl std::fmt::Display for NormalizedIdent {
 #[allow(clippy::unwrap_used, clippy::as_conversions, clippy::expect_used)]
 mod tests {
     use super::*;
-    use arrow::array::{
+    use datafusion::arrow::array::{
         ArrayRef, Float64Array, Int32Array, TimestampSecondArray, UInt64Array, UnionArray,
     };
-    use arrow::buffer::ScalarBuffer;
-    use arrow::datatypes::{DataType, Field};
-    use arrow::record_batch::RecordBatch;
-    use arrow_array::{BinaryViewArray, StringViewArray};
+    use datafusion::arrow::array::{BinaryViewArray, StringViewArray};
+    use datafusion::arrow::buffer::ScalarBuffer;
+    use datafusion::arrow::datatypes::{DataType, Field};
+    use datafusion::arrow::record_batch::RecordBatch;
     use std::sync::Arc;
 
     #[test]

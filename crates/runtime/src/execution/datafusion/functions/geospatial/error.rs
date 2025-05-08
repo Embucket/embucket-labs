@@ -1,4 +1,4 @@
-use arrow_schema::ArrowError;
+use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 use geoarrow::error::GeoArrowError;
 use geohash::GeohashError;

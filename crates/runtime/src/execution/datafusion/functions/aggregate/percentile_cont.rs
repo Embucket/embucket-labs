@@ -5,9 +5,9 @@ use std::fmt::Debug;
 use std::mem::size_of_val;
 use std::sync::Arc;
 
-use arrow::array::{ArrayRef, RecordBatch};
-use arrow::datatypes::{DataType, Field, Schema};
-use arrow_array::Array;
+use datafusion::arrow::array::Array;
+use datafusion::arrow::array::{ArrayRef, RecordBatch};
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion_common::{internal_err, not_impl_datafusion_err, not_impl_err};
 use datafusion_common::{plan_err, Result, ScalarValue};
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
@@ -299,7 +299,7 @@ make_udaf_function!(PercentileCont);
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::{Float64Array, Int64Array};
+    use datafusion::arrow::array::{Float64Array, Int64Array};
     use std::sync::Arc;
 
     use super::*;

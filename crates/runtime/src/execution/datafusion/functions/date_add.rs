@@ -1,7 +1,7 @@
-use arrow::array::{Array, ArrayRef};
-use arrow::compute::kernels::numeric::add_wrapping;
-use arrow::datatypes::DataType;
-use arrow::datatypes::TimeUnit::Nanosecond;
+use datafusion::arrow::array::{Array, ArrayRef};
+use datafusion::arrow::compute::kernels::numeric::add_wrapping;
+use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::TimeUnit::Nanosecond;
 use datafusion::common::{plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;

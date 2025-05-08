@@ -1,8 +1,8 @@
 use crate::execution::datafusion::functions::array_to_boolean;
-use arrow_array::builder::BooleanBuilder;
-use arrow_array::cast::as_string_array;
-use arrow_array::Array;
-use arrow_schema::DataType;
+use datafusion::arrow::array::builder::BooleanBuilder;
+use datafusion::arrow::array::cast::as_string_array;
+use datafusion::arrow::array::Array;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
 use datafusion_common::DataFusionError;

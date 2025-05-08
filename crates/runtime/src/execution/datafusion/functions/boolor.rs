@@ -1,7 +1,7 @@
 use crate::execution::datafusion::functions::array_to_boolean;
 use crate::execution::datafusion::functions::booland::is_true;
-use arrow_schema::DataType;
 use datafusion::arrow::array::builder::BooleanBuilder;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;

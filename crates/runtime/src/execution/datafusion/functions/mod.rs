@@ -1,11 +1,11 @@
 use crate::execution::datafusion::functions::to_boolean::ToBooleanFunc;
 use crate::execution::datafusion::functions::to_time::ToTimeFunc;
-use arrow_array::{
+use datafusion::arrow::array::{
     Array, ArrayRef, ArrowNativeTypeOp, BooleanArray, Decimal128Array, Decimal256Array,
     Float16Array, Float32Array, Float64Array, Int16Array, Int32Array, Int64Array, Int8Array,
     StringViewArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
 };
-use arrow_schema::DataType;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
 use datafusion_common::DataFusionError;
 use std::sync::Arc;

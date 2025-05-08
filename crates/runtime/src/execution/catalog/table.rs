@@ -1,5 +1,5 @@
-use arrow_schema::SchemaRef;
 use async_trait::async_trait;
+use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::catalog::{Session, TableProvider};
 use datafusion_expr::dml::InsertOp;
 use datafusion_expr::{Expr, TableType};

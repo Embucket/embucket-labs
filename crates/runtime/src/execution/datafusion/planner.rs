@@ -1,4 +1,4 @@
-use arrow::datatypes::{Field, Schema};
+use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::Result;
 use datafusion::common::{plan_err, ToDFSchema};
 use datafusion::logical_expr::sqlparser::ast::{Ident, ObjectName};

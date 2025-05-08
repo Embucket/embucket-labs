@@ -1,8 +1,8 @@
 use super::catalog::information_schema::information_schema::{
     InformationSchemaProvider, INFORMATION_SCHEMA,
 };
-use arrow::array::{Int64Array, RecordBatch};
-use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
+use datafusion::arrow::array::{Int64Array, RecordBatch};
+use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use datafusion::datasource::default_table_source::provider_as_source;

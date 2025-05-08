@@ -3,12 +3,12 @@
 //! [Information Schema Databases]: https://docs.snowflake.com/en/sql-reference/info-schema/databases
 
 use crate::execution::catalog::information_schema::config::InformationSchemaConfig;
-use arrow::{
+use datafusion::arrow::error::ArrowError;
+use datafusion::arrow::{
     array::StringBuilder,
     datatypes::{DataType, Field, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
-use arrow_schema::ArrowError;
 use datafusion::execution::TaskContext;
 use datafusion_common::DataFusionError;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;

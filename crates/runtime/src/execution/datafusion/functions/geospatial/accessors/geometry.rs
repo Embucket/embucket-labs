@@ -1,9 +1,9 @@
 use crate::execution::datafusion::functions::geospatial::data_types::{
     any_single_geometry_type_input, parse_to_native_array,
 };
-use arrow_array::builder::Float64Builder;
-use arrow_schema::DataType;
-use arrow_schema::DataType::Float64;
+use datafusion::arrow::array::builder::Float64Builder;
+use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::DataType::Float64;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{ColumnarValue, Documentation, ScalarUDFImpl, Signature};
 use datafusion_common::{DataFusionError, Result};
@@ -142,9 +142,9 @@ fn get_extremum(args: &[ColumnarValue], index: i64, is_max: bool) -> Result<Colu
 mod tests {
     use super::*;
     use super::{MaxX, MaxY, MinX, MinY};
-    use arrow_array::cast::AsArray;
-    use arrow_array::types::Float64Type;
-    use arrow_array::ArrayRef;
+    use datafusion::arrow::array::cast::AsArray;
+    use datafusion::arrow::array::types::Float64Type;
+    use datafusion::arrow::array::ArrayRef;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::{line_string, point, polygon};
     use geoarrow::array::{CoordType, LineStringBuilder, PointBuilder, PolygonBuilder};

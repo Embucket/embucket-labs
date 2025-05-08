@@ -4,8 +4,8 @@ use std::sync::{Arc, OnceLock};
 use crate::execution::datafusion::functions::geospatial::data_types::{
     any_single_geometry_type_input, parse_to_native_array,
 };
-use arrow_array::builder::Int32Builder;
-use arrow_schema::DataType;
+use datafusion::arrow::array::builder::Int32Builder;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{ColumnarValue, Documentation, ScalarUDFImpl, Signature};
 use datafusion_common::{DataFusionError, Result};
@@ -115,9 +115,9 @@ fn dim_impl(args: &[ColumnarValue]) -> Result<ColumnarValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrow_array::cast::AsArray;
-    use arrow_array::types::Int32Type;
-    use arrow_array::ArrayRef;
+    use datafusion::arrow::array::cast::AsArray;
+    use datafusion::arrow::array::types::Int32Type;
+    use datafusion::arrow::array::ArrayRef;
     use datafusion::logical_expr::ColumnarValue;
     use datafusion_expr::ScalarFunctionArgs;
     use geo_types::{line_string, point, polygon};

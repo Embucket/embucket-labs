@@ -2,9 +2,9 @@ use crate::execution::datafusion::functions::geospatial::data_types::{
     parse_to_native_array, POINT2D_TYPE,
 };
 use crate::execution::datafusion::functions::geospatial::error as geo_error;
-use arrow_array::builder::Float64Builder;
-use arrow_schema::DataType;
-use arrow_schema::DataType::Float64;
+use datafusion::arrow::array::builder::Float64Builder;
+use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::DataType::Float64;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{
     ColumnarValue, Documentation, ScalarUDFImpl, Signature, Volatility,
@@ -128,8 +128,8 @@ fn get_coord(args: &[ColumnarValue], n: i64) -> Result<ColumnarValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrow_array::cast::AsArray;
-    use arrow_array::types::Float64Type;
+    use datafusion::arrow::array::cast::AsArray;
+    use datafusion::arrow::array::types::Float64Type;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::point;
     use geoarrow::array::{CoordType, PointBuilder};

@@ -3,17 +3,16 @@ use std::sync::Arc;
 use crate::execution::datafusion::functions::geospatial::error::{
     self as geo_error, GeoDataFusionError, GeoDataFusionResult,
 };
-use arrow_array::ArrayRef;
-use arrow_schema::DataType;
+use datafusion::arrow::array::ArrayRef;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::error::DataFusionError;
 use datafusion::logical_expr::{Signature, Volatility};
 use geoarrow::array::{
-    GeometryArray, GeometryCollectionArray, LineStringArray, PointArray, PolygonArray,
-    RectArray,
+    GeometryArray, GeometryCollectionArray, LineStringArray, PointArray, PolygonArray, RectArray,
 };
-use geoarrow::datatypes::{NativeType};
-use geoarrow_schema::{CoordType, Dimension};
+use geoarrow::datatypes::NativeType;
 use geoarrow::NativeArray;
+use geoarrow_schema::{CoordType, Dimension};
 use snafu::ResultExt;
 
 pub const POINT2D_TYPE: NativeType = NativeType::Point(CoordType::Separated, Dimension::XY);
