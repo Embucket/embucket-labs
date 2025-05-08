@@ -1,60 +1,54 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { flushSync } from 'react-dom';
+import type { AuthResponse } from '@/orval/models';
 
 export interface AuthContext {
   isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (username: string) => Promise<void>;
-  logout: () => void;
+  setAuthenticated: (data: AuthResponse) => void;
+  resetAuthenticated: () => void;
   user: string | null;
 }
 
 const AuthContext = createContext<AuthContext | undefined>(undefined);
 
-const key = 'auth.user';
-
-const getUserFromLocalStorage = () => {
-  return localStorage.getItem(key) ?? null;
-};
-
-const setStoredUser = (user: string | null) => {
-  if (user) {
-    localStorage.setItem(key, user);
-  } else {
-    localStorage.removeItem(key);
-  }
-};
+const ACCESS_TOKEN_KEY = 'accessToken';
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<string | null>(getUserFromLocalStorage());
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const isAuthenticated = !!user;
+  const [user, setUser] = useState<string | null>(() => {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (token) {
+      return 'username';
+    }
+    return null;
+  });
 
-  const logout = useCallback(() => {
-    setStoredUser(null);
+  const setAuthenticated = useCallback((data: AuthResponse) => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
+    setUser('username');
+  }, []);
+
+  const resetAuthenticated = useCallback(() => {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
     setUser(null);
   }, []);
 
-  const login = useCallback(async (username: string) => {
-    setIsLoading(true);
-    // Delay 1 sec
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    // https://github.com/TanStack/router/discussions/1668#discussioncomment-9726727
-    flushSync(() => {
-      setStoredUser(username);
-      setUser(username);
-      setIsLoading(false);
-    });
-  }, []);
-
+  // TODO: This is a hack to reset the authenticated state when the refresh token fails in the interceptor.
   useEffect(() => {
-    setUser(getUserFromLocalStorage());
-  }, []);
+    const handleRefreshTokenFailed = resetAuthenticated;
+    window.addEventListener('auth:refreshTokenFailed', handleRefreshTokenFailed);
+    return () => {
+      window.removeEventListener('auth:refreshTokenFailed', handleRefreshTokenFailed);
+    };
+  }, [resetAuthenticated]);
 
   const value = useMemo(
-    () => ({ isAuthenticated, isLoading, user, login, logout }),
-    [isAuthenticated, user, login, logout, isLoading],
+    () => ({
+      user,
+      isAuthenticated: !!user,
+      setAuthenticated,
+      resetAuthenticated,
+    }),
+    [user, setAuthenticated, resetAuthenticated],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

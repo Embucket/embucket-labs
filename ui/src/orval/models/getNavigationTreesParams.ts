@@ -5,8 +5,14 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
-import type { NavigationTreeDatabase } from './navigationTreeDatabase';
 
-export interface NavigationTreesResponse {
-  items: NavigationTreeDatabase[];
-}
+export type GetNavigationTreesParams = {
+  /**
+   * Navigation trees offset
+   */
+  offset?: number;
+  /**
+   * Navigation trees limit
+   */
+  limit?: number;
+};

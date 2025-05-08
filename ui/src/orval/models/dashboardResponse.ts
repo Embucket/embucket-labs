@@ -5,5 +5,6 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
+import type { Dashboard } from './dashboard';
 
-export type NavigationTreesResponseCurrentCursor = string | null;
+export type DashboardResponse = Dashboard;

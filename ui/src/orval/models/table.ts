@@ -5,8 +5,13 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
-import type { NavigationTreeDatabase } from './navigationTreeDatabase';
 
-export interface NavigationTreesResponse {
-  items: NavigationTreeDatabase[];
+export interface Table {
+  createdAt: string;
+  name: string;
+  owner: string;
+  totalBytes: number;
+  totalRows: number;
+  type: string;
+  updatedAt: string;
 }

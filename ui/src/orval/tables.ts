@@ -25,27 +25,25 @@ import type {
   UseQueryResult,
 } from '@tanstack/react-query';
 
+import { useAxiosMutator } from '../lib/axiosMutator';
+import type { ErrorType } from '../lib/axiosMutator';
 import type {
   ErrorResponse,
   GetTablePreviewDataParams,
   GetTablesParams,
   TableColumnsResponse,
   TablePreviewDataResponse,
+  TablesResponse,
   TableStatisticsResponse,
   TableUploadPayload,
   TableUploadResponse,
-  TablesResponse,
   UploadFileParams,
 } from './models';
-
-import { useAxiosMutator } from '../lib/axiosMutator';
-import type { ErrorType } from '../lib/axiosMutator';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 export const getTables = (
   databaseName: string,
-  schemaName: string,
   schemaName: string,
   params?: GetTablesParams,
   options?: SecondParameter<typeof useAxiosMutator>,
@@ -53,7 +51,7 @@ export const getTables = (
 ) => {
   return useAxiosMutator<TablesResponse>(
     {
-      url: `/ui/databases/${databaseName}/schemas/${schemaName}/tables/${schemaName}/tables`,
+      url: `/ui/databases/${databaseName}/schemas/${schemaName}/tables`,
       method: 'GET',
       params,
       signal,
@@ -65,11 +63,10 @@ export const getTables = (
 export const getGetTablesQueryKey = (
   databaseName: string,
   schemaName: string,
-  schemaName: string,
   params?: GetTablesParams,
 ) => {
   return [
-    `/ui/databases/${databaseName}/schemas/${schemaName}/tables/${schemaName}/tables`,
+    `/ui/databases/${databaseName}/schemas/${schemaName}/tables`,
     ...(params ? [params] : []),
   ] as const;
 };
@@ -80,7 +77,6 @@ export const getGetTablesInfiniteQueryOptions = <
 >(
   databaseName: string,
   schemaName: string,
-  schemaName: string,
   params?: GetTablesParams,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTables>>, TError, TData>>;
@@ -89,16 +85,15 @@ export const getGetTablesInfiniteQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getGetTablesQueryKey(databaseName, schemaName, schemaName, params);
+  const queryKey = queryOptions?.queryKey ?? getGetTablesQueryKey(databaseName, schemaName, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getTables>>> = ({ signal }) =>
-    getTables(databaseName, schemaName, schemaName, params, requestOptions, signal);
+    getTables(databaseName, schemaName, params, requestOptions, signal);
 
   return {
     queryKey,
     queryFn,
-    enabled: !!(databaseName && schemaName && schemaName),
+    enabled: !!(databaseName && schemaName),
     ...queryOptions,
   } as UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTables>>, TError, TData> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -113,7 +108,6 @@ export function useGetTablesInfinite<
   TError = ErrorType<ErrorResponse>,
 >(
   databaseName: string,
-  schemaName: string,
   schemaName: string,
   params: undefined | GetTablesParams,
   options: {
@@ -136,7 +130,6 @@ export function useGetTablesInfinite<
 >(
   databaseName: string,
   schemaName: string,
-  schemaName: string,
   params?: GetTablesParams,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTables>>, TError, TData>> &
@@ -158,7 +151,6 @@ export function useGetTablesInfinite<
 >(
   databaseName: string,
   schemaName: string,
-  schemaName: string,
   params?: GetTablesParams,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTables>>, TError, TData>>;
@@ -173,7 +165,6 @@ export function useGetTablesInfinite<
 >(
   databaseName: string,
   schemaName: string,
-  schemaName: string,
   params?: GetTablesParams,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTables>>, TError, TData>>;
@@ -181,13 +172,7 @@ export function useGetTablesInfinite<
   },
   queryClient?: QueryClient,
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetTablesInfiniteQueryOptions(
-    databaseName,
-    schemaName,
-    schemaName,
-    params,
-    options,
-  );
+  const queryOptions = getGetTablesInfiniteQueryOptions(databaseName, schemaName, params, options);
 
   const query = useInfiniteQuery(queryOptions, queryClient) as UseInfiniteQueryResult<
     TData,
@@ -205,7 +190,6 @@ export const getGetTablesQueryOptions = <
 >(
   databaseName: string,
   schemaName: string,
-  schemaName: string,
   params?: GetTablesParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTables>>, TError, TData>>;
@@ -214,16 +198,15 @@ export const getGetTablesQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getGetTablesQueryKey(databaseName, schemaName, schemaName, params);
+  const queryKey = queryOptions?.queryKey ?? getGetTablesQueryKey(databaseName, schemaName, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getTables>>> = ({ signal }) =>
-    getTables(databaseName, schemaName, schemaName, params, requestOptions, signal);
+    getTables(databaseName, schemaName, params, requestOptions, signal);
 
   return {
     queryKey,
     queryFn,
-    enabled: !!(databaseName && schemaName && schemaName),
+    enabled: !!(databaseName && schemaName),
     ...queryOptions,
   } as UseQueryOptions<Awaited<ReturnType<typeof getTables>>, TError, TData> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -238,7 +221,6 @@ export function useGetTables<
   TError = ErrorType<ErrorResponse>,
 >(
   databaseName: string,
-  schemaName: string,
   schemaName: string,
   params: undefined | GetTablesParams,
   options: {
@@ -261,7 +243,6 @@ export function useGetTables<
 >(
   databaseName: string,
   schemaName: string,
-  schemaName: string,
   params?: GetTablesParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTables>>, TError, TData>> &
@@ -283,7 +264,6 @@ export function useGetTables<
 >(
   databaseName: string,
   schemaName: string,
-  schemaName: string,
   params?: GetTablesParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTables>>, TError, TData>>;
@@ -298,7 +278,6 @@ export function useGetTables<
 >(
   databaseName: string,
   schemaName: string,
-  schemaName: string,
   params?: GetTablesParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTables>>, TError, TData>>;
@@ -306,13 +285,7 @@ export function useGetTables<
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetTablesQueryOptions(
-    databaseName,
-    schemaName,
-    schemaName,
-    params,
-    options,
-  );
+  const queryOptions = getGetTablesQueryOptions(databaseName, schemaName, params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

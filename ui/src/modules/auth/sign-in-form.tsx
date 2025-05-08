@@ -1,7 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useNavigate } from '@tanstack/react-router';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
@@ -12,6 +14,10 @@ import {
   FormProvider,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { useLogin } from '@/orval/auth';
+import type { AuthResponse } from '@/orval/models';
+
+import { useAuth } from './AuthProvider';
 
 const signInSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -19,6 +25,9 @@ const signInSchema = z.object({
 });
 
 export function SignInForm() {
+  const navigate = useNavigate();
+  const { setAuthenticated } = useAuth();
+
   const form = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -27,15 +36,33 @@ export function SignInForm() {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof signInSchema>) => {
-    console.log(values);
-    // Handle form submission
+  const { mutate, isPending, error } = useLogin({
+    mutation: {
+      onSuccess: (data: AuthResponse) => {
+        setAuthenticated(data);
+        navigate({ to: '/home' });
+      },
+    },
+  });
+
+  const onSubmit = ({ username, password }: z.infer<typeof signInSchema>) => {
+    mutate({
+      data: {
+        username,
+        password,
+      },
+    });
   };
 
   return (
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <div className="flex flex-col gap-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{JSON.stringify(error.response?.data.message)}</AlertDescription>
+            </Alert>
+          )}
           <FormField
             control={form.control}
             name="username"
@@ -65,7 +92,7 @@ export function SignInForm() {
             )}
           />
 
-          <Button type="submit" className="mt-2 w-full">
+          <Button type="submit" className="mt-2 w-full" disabled={isPending}>
             Login
           </Button>
         </div>

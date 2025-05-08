@@ -18,6 +18,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/modules/auth/AuthProvider';
+import { useLogout } from '@/orval/auth';
 
 export function AppSidebarAvatarMenu({
   user,
@@ -28,15 +29,23 @@ export function AppSidebarAvatarMenu({
     avatar: string;
   };
 }) {
-  const { isMobile } = useSidebar();
-  const { logout } = useAuth();
+  const { resetAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
+  const { mutate: logout, isPending } = useLogout({
+    mutation: {
+      onSuccess: () => {
+        resetAuthenticated();
+        navigate({
+          to: '/',
+        });
+      },
+    },
+  });
+  const { isMobile } = useSidebar();
+
+  const handleLogout = () => {
     logout();
-    await navigate({
-      to: '/',
-    });
   };
 
   return (
@@ -82,7 +91,7 @@ export function AppSidebarAvatarMenu({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
+            <DropdownMenuItem onClick={handleLogout} disabled={isPending}>
               <LogOut />
               Log out
             </DropdownMenuItem>

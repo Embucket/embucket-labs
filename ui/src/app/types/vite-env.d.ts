@@ -5,4 +5,6 @@ type ImportMetaEnvAugmented = import('@julr/vite-plugin-validate-env').ImportMet
   typeof import('../../env').default
 >;
 
-interface ImportMetaEnv extends ImportMetaEnvAugmented {}
+interface ImportMetaEnv extends ImportMetaEnvAugmented {
+  readonly VITE_API_URL: string;
+}

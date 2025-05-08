@@ -5,8 +5,6 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
-import type { NavigationTreeDatabase } from './navigationTreeDatabase';
+import type { I64 } from './i64';
 
-export interface NavigationTreesResponse {
-  items: NavigationTreeDatabase[];
-}
+export type QueryRecordWorksheetId = null | I64;

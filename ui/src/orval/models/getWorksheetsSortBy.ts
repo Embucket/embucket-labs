@@ -6,11 +6,11 @@
  * OpenAPI spec version: 1.0.2
  */
 
-export type QueryStatus = (typeof QueryStatus)[keyof typeof QueryStatus];
+export type GetWorksheetsSortBy = (typeof GetWorksheetsSortBy)[keyof typeof GetWorksheetsSortBy];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
-export const QueryStatus = {
-  running: 'running',
-  successful: 'successful',
-  failed: 'failed',
+export const GetWorksheetsSortBy = {
+  name: 'name',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
 } as const;
