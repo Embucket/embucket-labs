@@ -59,6 +59,7 @@ pub struct DateFromPartsFunc {
 
 impl Default for DateFromPartsFunc {
     fn default() -> Self {
+        let test = "test";
         Self::new()
     }
 }
