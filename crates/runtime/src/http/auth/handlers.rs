@@ -1,3 +1,4 @@
+use crate::http::auth::models::RefreshTokenResponse;
 use std::collections::HashMap;
 
 use super::error::CreateJwtSnafu;
@@ -5,6 +6,7 @@ use crate::http::auth::error::{
     AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu, SetCookieSnafu,
 };
 use crate::http::auth::models::{AuthResponse, Claims, LoginPayload};
+use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -18,6 +20,7 @@ use snafu::ResultExt;
 use time::Duration;
 use tower_sessions::cookie::{Cookie, SameSite};
 use tracing;
+use utoipa::OpenApi;
 
 pub const REFRESH_TOKEN_EXPIRATION_HOURS: u32 = 24 * 7;
 pub const ACCESS_TOKEN_EXPIRATION_SECONDS: u32 = 15 * 60;
@@ -128,6 +131,44 @@ fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
     Ok(())
 }
 
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        login,
+        refresh_access_token,
+        logout,
+    ),
+    components(
+        schemas(
+            LoginPayload,
+            AuthResponse,
+            RefreshTokenResponse,
+            ErrorResponse,
+        )
+    ),
+    tags(
+        (name = "auth", description = "Authentication endpoints")
+    )
+)]
+pub struct ApiDoc;
+
+#[utoipa::path(
+    post,
+    path = "/auth/login",
+    operation_id = "login",
+    tags = ["auth"],
+    request_body = LoginPayload,
+    responses(
+        (status = 200, description = "Successful Response", body = AuthResponse),
+        (status = 401,
+         description = "Unauthorized", 
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse),
+    )
+)]
 #[tracing::instrument(level = "debug", skip(state, password), err)]
 pub async fn login(
     State(state): State<AppState>,
@@ -163,6 +204,18 @@ pub async fn login(
     ))
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/refresh",
+    operation_id = "refresh",
+    tags = ["auth"],
+    responses(
+        (status = 200, description = "Successful Response", body = AuthResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err)]
 pub async fn refresh_access_token(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -196,6 +249,17 @@ pub async fn refresh_access_token(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/logout",
+    operation_id = "logout",
+    tags = ["auth"],
+    responses(
+        (status = 200, description = "Successful Response"),
+        (status = 500, description = "Internal server error", body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err)]
 pub async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,

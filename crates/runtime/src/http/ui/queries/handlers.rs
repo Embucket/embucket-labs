@@ -61,6 +61,12 @@ pub struct ApiDoc;
     ),
     responses(
         (status = 200, description = "Returns result of the query", body = QueryCreateResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 409, description = "Bad request", body = ErrorResponse),
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
@@ -156,6 +162,12 @@ pub async fn query(
     ),
     responses(
         (status = 200, description = "Returns queries history", body = QueriesResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 400, description = "Bad worksheet key", body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )

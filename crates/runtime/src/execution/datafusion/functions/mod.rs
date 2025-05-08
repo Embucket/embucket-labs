@@ -1,9 +1,9 @@
 use crate::execution::datafusion::functions::to_boolean::ToBooleanFunc;
 use crate::execution::datafusion::functions::to_time::ToTimeFunc;
 use arrow_array::{
-    ArrayRef, ArrowNativeTypeOp, BooleanArray, Decimal128Array, Decimal256Array, Float16Array,
-    Float32Array, Float64Array, Int16Array, Int32Array, Int64Array, Int8Array, UInt16Array,
-    UInt32Array, UInt64Array, UInt8Array,
+    Array, ArrayRef, ArrowNativeTypeOp, BooleanArray, Decimal128Array, Decimal256Array,
+    Float16Array, Float32Array, Float64Array, Int16Array, Int32Array, Int64Array, Int8Array,
+    StringViewArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
 };
 use arrow_schema::DataType;
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
@@ -118,10 +118,28 @@ pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
         DataType::Float64 => numeric_to_boolean!(&arr, Float64Array),
         DataType::Decimal128(_, _) => numeric_to_boolean!(&arr, Decimal128Array),
         DataType::Decimal256(_, _) => numeric_to_boolean!(&arr, Decimal256Array),
+        DataType::Utf8View => {
+            // special case, because scalar null (like func(NULL)) is treated as a Utf8View
+            let mut boolean_array = BooleanArray::builder(arr.len());
+            let arr = arr.as_any().downcast_ref::<StringViewArray>().unwrap();
+            for v in arr {
+                if v.is_some() {
+                    return Err(DataFusionError::Internal(format!(
+                        "unsupported {:?} type. Only supports boolean, numeric, decimal, float types",
+                        arr.data_type()
+                    )));
+                }
+
+                boolean_array.append_null();
+            }
+
+            boolean_array.finish()
+        }
         _ => {
-            return Err(DataFusionError::Internal(
-                "only supports boolean, numeric, decimal, float types".to_string(),
-            ))
+            return Err(DataFusionError::Internal(format!(
+                "unsupported {:?} type. Only supports boolean, numeric, decimal, float types",
+                arr.data_type()
+            )))
         }
     })
 }

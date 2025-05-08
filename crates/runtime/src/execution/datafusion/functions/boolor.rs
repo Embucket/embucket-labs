@@ -1,9 +1,11 @@
+use crate::execution::datafusion::functions::array_to_boolean;
 use crate::execution::datafusion::functions::booland::is_true;
 use arrow_schema::DataType;
+use datafusion::arrow::array::builder::BooleanBuilder;
 use datafusion::error::Result as DFResult;
-use datafusion_common::ScalarValue;
 use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
+use std::sync::Arc;
 
 // boolor SQL function
 // Computes the Boolean OR of two numeric expressions. In accordance with Boolean semantics:
@@ -52,25 +54,30 @@ impl ScalarUDFImpl for BoolOrFunc {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let lhs = match &args.args[0] {
-            ColumnarValue::Scalar(val) => val.to_owned(),
-            ColumnarValue::Array(array) => ScalarValue::try_from_array(&array, 0)?,
-        };
-
+            ColumnarValue::Scalar(v) => array_to_boolean(&v.to_array()?),
+            ColumnarValue::Array(arr) => array_to_boolean(arr),
+        }?;
         let rhs = match &args.args[1] {
-            ColumnarValue::Scalar(val) => val.to_owned(),
-            ColumnarValue::Array(array) => ScalarValue::try_from_array(&array, 0)?,
-        };
+            ColumnarValue::Scalar(v) => array_to_boolean(&v.to_array()?),
+            ColumnarValue::Array(arr) => array_to_boolean(arr),
+        }?;
 
-        if lhs.is_null() && rhs.is_null() {
-            return Ok(ColumnarValue::Scalar(ScalarValue::Boolean(None)));
+        let mut b = BooleanBuilder::with_capacity(lhs.len());
+
+        for (lhs, rhs) in lhs.iter().zip(rhs.iter()) {
+            if lhs.is_none() && rhs.is_none() {
+                b.append_null();
+                continue;
+            }
+            if (lhs.is_none() || rhs.is_none()) && (!is_true(lhs) && !is_true(rhs)) {
+                b.append_null();
+                continue;
+            }
+
+            b.append_value(is_true(lhs) || is_true(rhs));
         }
 
-        if (lhs.is_null() || rhs.is_null()) && (!is_true(&lhs)? && !is_true(&rhs)?) {
-            return Ok(ColumnarValue::Scalar(ScalarValue::Boolean(None)));
-        }
-        Ok(ColumnarValue::Scalar(ScalarValue::from(
-            is_true(&lhs)? || is_true(&rhs)?,
-        )))
+        Ok(ColumnarValue::Array(Arc::new(b.finish())))
     }
 }
 

@@ -52,6 +52,12 @@ pub struct ApiDoc;
     request_body = DatabaseCreatePayload,
     responses(
         (status = 200, description = "Successful Response", body = DatabaseCreateResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 409, description = "Already Exists", body = ErrorResponse),
         (status = 400, description = "Bad request", body = ErrorResponse),
     )
@@ -87,6 +93,12 @@ pub async fn create_database(
     ),
     responses(
         (status = 200, description = "Successful Response", body = DatabaseResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 404, description = "Not found", body = ErrorResponse),
     )
 )]
@@ -118,6 +130,12 @@ pub async fn get_database(
     ),
     responses(
         (status = 200, description = "Successful Response"),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 404, description = "Not found", body = ErrorResponse),
     )
 )]
@@ -145,6 +163,12 @@ pub async fn delete_database(
     ),
     responses(
         (status = 200, description = "Successful Response", body = DatabaseUpdateResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 404, description = "Not found", body = ErrorResponse),
         (status = 400, description = "Invalid data", body = ErrorResponse)
     )
@@ -184,6 +208,12 @@ pub async fn update_database(
     path = "/ui/databases",
     responses(
         (status = 200, body = DatabasesResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]

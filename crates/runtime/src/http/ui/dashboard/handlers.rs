@@ -33,6 +33,12 @@ pub struct ApiDoc;
     path = "/ui/dashboard",
     responses(
         (status = 200, description = "Successful Response", body = DashboardResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
