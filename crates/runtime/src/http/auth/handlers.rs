@@ -255,7 +255,7 @@ pub async fn refresh_access_token(
     operation_id = "logout",
     tags = ["auth"],
     responses(
-        (status = 200, description = "Successful Response", body = AuthResponse),
+        (status = 200, description = "Successful Response"),
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
