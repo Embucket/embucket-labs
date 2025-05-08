@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
+
 /* eslint-disable no-undef */
 import axios from 'axios';
 
@@ -184,35 +184,35 @@ const WORKSHEETS = [
   },
   {
     name: 'myworksheet3',
-    content: `SELECT * FROM ${TABLES[0].databaseName}.${TABLES[0].schemaName}.${TABLES[0].name} WHERE id = 1;`,
+    content: `SELECT * FROM ${TABLES[2].databaseName}.${TABLES[2].schemaName}.${TABLES[2].name} WHERE id = 5;`,
   },
   {
     name: 'myworksheet4',
-    content: `SELECT * FROM ${TABLES[1].databaseName}.${TABLES[1].schemaName}.${TABLES[1].name} WHERE id = 3;`,
+    content: `SELECT * FROM ${TABLES[3].databaseName}.${TABLES[3].schemaName}.${TABLES[3].name} WHERE name LIKE 'E%';`,
   },
   {
     name: 'myworksheet5',
-    content: `SELECT * FROM ${TABLES[0].databaseName}.${TABLES[0].schemaName}.${TABLES[0].name} WHERE name LIKE 'John%';`,
+    content: `SELECT * FROM ${TABLES[4].databaseName}.${TABLES[4].schemaName}.${TABLES[4].name} ORDER BY name;`,
   },
   {
     name: 'myworksheet6',
-    content: `SELECT * FROM ${TABLES[1].databaseName}.${TABLES[1].schemaName}.${TABLES[1].name} WHERE name LIKE 'A%';`,
+    content: `SELECT * FROM ${TABLES[5].databaseName}.${TABLES[5].schemaName}.${TABLES[5].name} WHERE id BETWEEN 11 AND 12;`,
   },
   {
     name: 'myworksheet7',
-    content: `SELECT * FROM ${TABLES[0].databaseName}.${TABLES[0].schemaName}.${TABLES[0].name} ORDER BY name;`,
+    content: `SELECT * FROM ${TABLES[6].databaseName}.${TABLES[6].schemaName}.${TABLES[6].name};`,
   },
   {
     name: 'myworksheet8',
-    content: `SELECT * FROM ${TABLES[1].databaseName}.${TABLES[1].schemaName}.${TABLES[1].name} ORDER BY name;`,
+    content: `SELECT COUNT(*) FROM ${TABLES[7].databaseName}.${TABLES[7].schemaName}.${TABLES[7].name};`,
   },
   {
     name: 'myworksheet9',
-    content: `SELECT * FROM ${TABLES[0].databaseName}.${TABLES[0].schemaName}.${TABLES[0].name} WHERE id BETWEEN 1 AND 2;`,
+    content: `SELECT * FROM ${TABLES[8].databaseName}.${TABLES[8].schemaName}.${TABLES[8].name} WHERE id = 17;`,
   },
   {
     name: 'myworksheet10',
-    content: `SELECT * FROM ${TABLES[1].databaseName}.${TABLES[1].schemaName}.${TABLES[1].name} WHERE id BETWEEN 3 AND 4;`,
+    content: `SELECT * FROM ${TABLES[9].databaseName}.${TABLES[9].schemaName}.${TABLES[9].name} WHERE name LIKE 'Q%';`,
   },
 ];
 

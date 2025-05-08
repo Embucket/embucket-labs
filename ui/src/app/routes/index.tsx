@@ -1,15 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { AuthForm } from '@/modules/auth/AuthForm';
+import { SignInPage } from '@/modules/auth/sign-in-page';
 
 export const Route = createFileRoute('/')({
-  component: Auth,
+  component: SignInPage,
 });
-
-function Auth() {
-  return (
-    <div className="flex h-screen w-full items-center justify-center">
-      <AuthForm />
-    </div>
-  );
-}
