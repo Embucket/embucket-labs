@@ -11,12 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from '@/components/ui/sidebar';
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { useAuth } from '@/modules/auth/AuthProvider';
 import { useLogout } from '@/orval/auth';
 
@@ -42,7 +37,6 @@ export function AppSidebarAvatarMenu({
       },
     },
   });
-  const { isMobile } = useSidebar();
 
   const handleLogout = () => {
     logout();
@@ -67,7 +61,7 @@ export function AppSidebarAvatarMenu({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-            side={isMobile ? 'bottom' : 'right'}
+            side="right"
             align="end"
             sideOffset={4}
           >
