@@ -66,12 +66,16 @@ impl ScalarUDFImpl for IffFunc {
 
         let lhs = match &args.args[1] {
             ColumnarValue::Scalar(val) => val.to_owned(),
-            ColumnarValue::Array(_) => return exec_err!("Iff function requires the second argument to be a scalar"),
+            ColumnarValue::Array(_) => {
+                return exec_err!("Iff function requires the second argument to be a scalar")
+            }
         };
 
         let rhs = match &args.args[2] {
             ColumnarValue::Scalar(val) => val.to_owned(),
-            ColumnarValue::Array(_) => return exec_err!("Iff function requires the third argument to be a scalar"),
+            ColumnarValue::Array(_) => {
+                return exec_err!("Iff function requires the third argument to be a scalar")
+            }
         };
 
         let lhs = lhs.cast_to(&return_type(&arg1_dt, &arg2_dt))?;
