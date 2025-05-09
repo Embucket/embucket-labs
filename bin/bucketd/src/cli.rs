@@ -142,7 +142,6 @@ pub struct CliOpts {
         long,
         env = "JWT_SECRET",
         hide_env_values = true,
-        required_if_eq("auth_demo", "true"),
         help = "JWT secret for auth"
     )]
     jwt_secret: Option<String>,
@@ -150,20 +149,18 @@ pub struct CliOpts {
     #[arg(
         long,
         env = "AUTH_DEMO_USER",
+        value_parser = clap::builder::NonEmptyStringValueParser::new(),
         default_value = "embucket",
-        group("auth_demo"),
-        required_if_eq("auth_demo", "true"),
-        help = "Default user for auth demo"
+        help = "User for auth demo"
     )]
     pub auth_demo_user: Option<String>,
 
     #[arg(
         long,
         env = "AUTH_DEMO_PASSWORD",
+        value_parser = clap::builder::NonEmptyStringValueParser::new(),
         default_value = "embucket",
-        group("auth_demo"),
-        required_if_eq("auth_demo", "true"),
-        help = "Default password for auth demo"
+        help = "Password for auth demo"
     )]
     pub auth_demo_password: Option<String>,
 }
@@ -214,7 +211,7 @@ impl CliOpts {
         }
     }
 
-    // added as a method to reset a secret env
+    // method resets a secret env
     pub fn jwt_secret(&self) -> String {
         std::env::remove_var("JWT_SECRET");
         self.jwt_secret.clone().unwrap_or_default()

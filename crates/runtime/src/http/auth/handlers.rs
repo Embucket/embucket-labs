@@ -1,4 +1,4 @@
-use crate::http::auth::models::RefreshTokenResponse;
+use crate::http::auth::models::{AccountResponse, RefreshTokenResponse};
 use std::collections::HashMap;
 
 use super::error::CreateJwtSnafu;
@@ -211,7 +211,12 @@ pub async fn login(
     tags = ["auth"],
     responses(
         (status = 200, description = "Successful Response", body = AuthResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 401,
+            description = "Unauthorized", 
+            headers(
+               ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+            ),
+            body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
@@ -256,6 +261,12 @@ pub async fn refresh_access_token(
     tags = ["auth"],
     responses(
         (status = 200, description = "Successful Response"),
+        (status = 401,
+            description = "Unauthorized", 
+            headers(
+               ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+            ),
+            body = ErrorResponse),
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
@@ -286,4 +297,42 @@ pub async fn logout(
     set_cookies(&mut headers, "")?;
 
     Ok((headers, ()))
+}
+
+#[utoipa::path(
+    get,
+    path = "/account",
+    operation_id = "account",
+    tags = ["auth"],
+    responses(
+        (status = 200, description = "Successful Response"),
+        (status = 401,
+            description = "Unauthorized", 
+            headers(
+               ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+            ),
+            body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err)]
+pub async fn account(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> AuthResult<impl IntoResponse> {
+    // Simplest account info, also no auth checks.
+    // TODO:
+    // Move it to proper place when working with real account
+    // Check authentication
+
+    let auth = headers.get(http::header::AUTHORIZATION);
+    if auth.is_some() {
+        Ok((
+            headers,
+            Json(AccountResponse {
+                username: state.auth_config.demo_user().to_string(),
+            }),
+        ))
+    } else {
+        Err(AuthError::NoAuthHeader)
+    }
 }

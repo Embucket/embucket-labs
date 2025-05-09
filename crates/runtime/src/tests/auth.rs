@@ -2,7 +2,7 @@
 use crate::http::auth::error::AuthError;
 use crate::http::auth::error::*;
 use crate::http::auth::handlers::{create_jwt, get_claims_validate_jwt_token, jwt_claims};
-use crate::http::auth::models::{AuthResponse, LoginPayload};
+use crate::http::auth::models::{AccountResponse, AuthResponse, LoginPayload};
 use crate::http::metastore::handlers::RwObjectVec;
 use crate::http::ui::queries::models::{QueryCreatePayload, QueryCreateResponse};
 use crate::http::ui::tests::common::{http_req_with_headers, TestHttpError};
@@ -211,7 +211,7 @@ async fn test_bad_login() {
         .expect("No WWW-Authenticate header");
     assert_eq!(
         www_auth.to_str().expect("Bad header encoding"),
-        "Basic realm=\"login\", error=\"Login error\""
+        "Bearer realm=\"login\", error=\"Login error\""
     );
 }
 
@@ -458,4 +458,74 @@ async fn test_jwt_token_valid() {
 
     let _ = get_claims_validate_jwt_token(&expired_token, audience, JWT_SECRET)
         .expect("Token should be valid");
+}
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)]
+async fn test_account_ok() {
+    let addr = run_test_server_with_demo_auth(
+        JWT_SECRET.to_string(),
+        DEMO_USER.to_string(),
+        DEMO_PASSWORD.to_string(),
+    )
+    .await;
+    let client = reqwest::Client::new();
+
+    let (_, login_resp) = login::<AuthResponse>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
+        .await
+        .expect("Failed to login");
+
+    let access_token = login_resp.access_token;
+
+    let (_, account_response) = http_req_with_headers::<AccountResponse>(
+        &client,
+        Method::GET,
+        HeaderMap::from_iter(vec![
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            ),
+            (
+                header::AUTHORIZATION,
+                HeaderValue::from_str(format!("Bearer {access_token}").as_str())
+                    .expect("Can't convert to HeaderValue"),
+            ),
+        ]),
+        &format!("http://{addr}/account"),
+        String::new().to_string(),
+    )
+    .await
+    .expect("Failed to get account");
+
+    assert_eq!(account_response.username, DEMO_USER);
+}
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)]
+async fn test_account_unauthorized() {
+    let addr = run_test_server_with_demo_auth(
+        JWT_SECRET.to_string(),
+        DEMO_USER.to_string(),
+        DEMO_PASSWORD.to_string(),
+    )
+    .await;
+    let client = reqwest::Client::new();
+
+    // skip login
+
+    // do account request
+    let account_err = http_req_with_headers::<()>(
+        &client,
+        Method::GET,
+        HeaderMap::from_iter(vec![(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        )]),
+        &format!("http://{addr}/account"),
+        String::new().to_string(),
+    )
+    .await
+    .expect_err("Account should fail");
+
+    assert_eq!(account_err.status, StatusCode::UNAUTHORIZED);
 }
