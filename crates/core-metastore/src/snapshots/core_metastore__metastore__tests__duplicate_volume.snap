@@ -1,0 +1,9 @@
+---
+source: crates/metastore/src/metastore.rs
+expression: result
+---
+Err(
+    VolumeAlreadyExists {
+        volume: "test",
+    },
+)

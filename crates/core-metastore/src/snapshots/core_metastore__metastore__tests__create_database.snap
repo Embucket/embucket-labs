@@ -1,0 +1,34 @@
+---
+source: crates/metastore/src/metastore.rs
+expression: "(no_volume_result, all_databases, fetched_db, all_dbs_after)"
+---
+(
+    Err(
+        VolumeNotFound {
+            volume: "testv1",
+        },
+    ),
+    [
+        RwObject {
+            data: Database {
+                ident: "testdb",
+                properties: None,
+                volume: "testv1",
+            },
+            created_at: "TIMESTAMP",
+            updated_at: "TIMESTAMP",
+        },
+    ],
+    Some(
+        RwObject {
+            data: Database {
+                ident: "testdb",
+                properties: None,
+                volume: "testv2",
+            },
+            created_at: "TIMESTAMP",
+            updated_at: "TIMESTAMP",
+        },
+    ),
+    [],
+)

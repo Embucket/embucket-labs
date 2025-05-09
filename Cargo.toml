@@ -28,6 +28,8 @@ futures = { version = "0.3" }
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
 axum = { version = "0.8.1", features = ["multipart", "macros"] }
 axum-macros = "0.5"
+dashmap = "6.1.0"
+url = "2.5"
 tokio = { version = "1", features = ["full"] }
 async-trait = { version = "0.1.84" }
 serde = { version = "1.0", features = ["derive"] }

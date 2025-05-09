@@ -1,10 +1,33 @@
 [package]
 name = "core-metastore"
 version = "0.1.0"
-edition = "2024"
-license-file.workspace = true
+edition = "2021"
+license-file = { workspace = true }
 
 [dependencies]
+async-trait = { workspace = true }
+bytes = { workspace = true }
+chrono = { workspace = true }
+dashmap = { workspace = true }
+futures = { workspace = true }
+iceberg-rust = { workspace = true }
+iceberg-rust-spec = { workspace = true }
+core-utils = { path = "../core-utils" }
+object_store = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+slatedb = { workspace = true }
+snafu = { workspace = true }
+strum = { version = "0.26.3", features = ["derive"] }
+tokio = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+validator = { version = "0.20.0", features = ["derive"] }
+
+[dev-dependencies]
+insta = { version = "1.42.0", features = ["yaml", "filters", "redactions"] }
 
 [lints]
 workspace = true
