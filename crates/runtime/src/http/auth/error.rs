@@ -3,9 +3,10 @@ use http::header;
 use http::header::InvalidHeaderValue;
 use http::HeaderValue;
 use http::{header::MaxSizeReached, StatusCode};
-use jsonwebtoken::errors::Error as JwtError;
+use jsonwebtoken::errors::{Error as JwtError, ErrorKind as JwtErrorKind};
 use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
+use utoipa::ToSchema;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
@@ -46,11 +47,59 @@ pub enum AuthError {
     Custom { message: String },
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum TokenErrorKind {
+    InvalidToken,
+    InvalidSignature,
+    InvalidEcdsaKey,
+    InvalidRsaKey,
+    RsaFailedSigning,
+    InvalidAlgorithmName,
+    InvalidKeyFormat,
+
+    // validation errors
+    MissingRequiredClaim,
+    ExpiredSignature,
+    InvalidIssuer,
+    InvalidAudience,
+    InvalidSubject,
+    ImmatureSignature,
+    InvalidAlgorithm,
+    MissingAlgorithm,
+
+    Other,
+}
+
+impl From<JwtErrorKind> for TokenErrorKind {
+    fn from(value: JwtErrorKind) -> Self {
+        match value {
+            JwtErrorKind::InvalidToken => Self::InvalidToken,
+            JwtErrorKind::InvalidSignature => Self::InvalidSignature,
+            JwtErrorKind::InvalidEcdsaKey => Self::InvalidEcdsaKey,
+            JwtErrorKind::InvalidRsaKey(_) => Self::InvalidRsaKey,
+            JwtErrorKind::RsaFailedSigning => Self::RsaFailedSigning,
+            JwtErrorKind::InvalidAlgorithmName => Self::InvalidAlgorithmName,
+            JwtErrorKind::InvalidKeyFormat => Self::InvalidKeyFormat,
+            JwtErrorKind::MissingRequiredClaim(_) => Self::MissingRequiredClaim,
+            JwtErrorKind::ExpiredSignature => Self::ExpiredSignature,
+            JwtErrorKind::InvalidIssuer => Self::InvalidIssuer,
+            JwtErrorKind::InvalidAudience => Self::InvalidAudience,
+            JwtErrorKind::InvalidSubject => Self::InvalidSubject,
+            JwtErrorKind::ImmatureSignature => Self::ImmatureSignature,
+            JwtErrorKind::InvalidAlgorithm => Self::InvalidAlgorithm,
+            JwtErrorKind::MissingAlgorithm => Self::MissingAlgorithm,
+            _ => Self::Other,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct AuthErrorResponse {
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_kind: Option<String>,
+    pub error_kind: Option<TokenErrorKind>,
     pub status_code: u16,
 }
 
@@ -61,7 +110,7 @@ pub struct WwwAuthenticate {
     pub auth: String,
     pub realm: String,
     pub error: String,
-    pub kind: Option<String>,
+    pub kind: Option<TokenErrorKind>,
 }
 
 impl TryFrom<AuthError> for WwwAuthenticate {
@@ -87,7 +136,7 @@ impl TryFrom<AuthError> for WwwAuthenticate {
                     auth,
                     realm: "api-auth".to_string(),
                     error,
-                    kind: Some(source.to_string()),
+                    kind: Some(TokenErrorKind::from(source.kind().clone())),
                 })
             }
             _ => Err(None),
@@ -105,7 +154,7 @@ impl std::fmt::Display for WwwAuthenticate {
         } = self;
         let base: String = format!(r#"{auth} realm="{realm}", error="{error}""#);
         match kind {
-            Some(kind) => write!(f, r#"{base}, kind="{kind}""#),
+            Some(kind) => write!(f, r#"{base}, kind="{kind:?}""#),
             None => write!(f, "{base}"),
         }
     }

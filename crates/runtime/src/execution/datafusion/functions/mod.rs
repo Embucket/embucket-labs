@@ -19,6 +19,7 @@ mod date_from_parts;
 mod booland;
 mod boolor;
 mod boolxor;
+mod iff;
 mod parse_json;
 pub mod table;
 mod time_from_parts;
@@ -38,6 +39,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         booland::get_udf(),
         boolor::get_udf(),
         boolxor::get_udf(),
+        iff::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
@@ -93,6 +95,7 @@ macro_rules! numeric_to_boolean {
 #[allow(clippy::cognitive_complexity, clippy::unwrap_used)]
 pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
     Ok(match arr.data_type() {
+        DataType::Null => BooleanArray::new_null(arr.len()),
         DataType::Boolean => {
             let mut boolean_array = BooleanArray::builder(arr.len());
             let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();

@@ -540,22 +540,33 @@ impl UserQuery {
             }
         };
 
+        let iceberg_ident = ident.to_iceberg_ident();
+
         // Check if it already exists, if exists and CREATE OR REPLACE - drop it
         let table_exists = iceberg_catalog
             .clone()
-            .load_tabular(&ident.to_iceberg_ident())
+            .load_tabular(&iceberg_ident)
             .await
             .is_ok();
-        if table_exists && statement.if_not_exists {
-            return created_entity_response();
+
+        if table_exists {
+            if statement.if_not_exists {
+                return created_entity_response();
+            }
+
+            if statement.or_replace {
+                iceberg_catalog
+                    .drop_table(&iceberg_ident)
+                    .await
+                    .context(ex_error::IcebergSnafu)?;
+            } else {
+                return Err(ExecutionError::ObjectAlreadyExists {
+                    type_name: "table".to_string(),
+                    name: ident.to_string(),
+                });
+            }
         }
 
-        if table_exists && statement.or_replace {
-            iceberg_catalog
-                .drop_table(&ident.to_iceberg_ident())
-                .await
-                .context(ex_error::IcebergSnafu)?;
-        }
         let fields_with_ids = StructType::try_from(&new_fields_with_ids(
             plan.schema().as_arrow().fields(),
             &mut 0,
@@ -930,8 +941,14 @@ impl UserQuery {
             .iter()
             .any(|namespace| namespace.join(".") == ident.schema);
 
-        if schema_exists && if_not_exists {
-            return created_entity_response();
+        if schema_exists {
+            if if_not_exists {
+                return created_entity_response();
+            }
+            return Err(ExecutionError::ObjectAlreadyExists {
+                type_name: "schema".to_string(),
+                name: ident.schema,
+            });
         }
         let namespace = Namespace::try_new(&[ident.schema])
             .map_err(|err| DataFusionError::External(Box::new(err)))
