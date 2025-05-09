@@ -5,6 +5,7 @@ use super::error::AuthErrorResponse;
 use super::error::CreateJwtSnafu;
 use crate::http::auth::error::{
     AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu, SetCookieSnafu,
+    TokenErrorKind,
 };
 use crate::http::auth::models::{AuthResponse, Claims, LoginPayload};
 use crate::http::state::AppState;
@@ -146,6 +147,7 @@ fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
             AuthResponse,
             RefreshTokenResponse,
             AuthErrorResponse,
+            TokenErrorKind,
         )
     ),
     tags(
@@ -209,7 +211,7 @@ pub async fn login(
 #[utoipa::path(
     post,
     path = "/auth/refresh",
-    operation_id = "refresh",
+    operation_id = "refreshAuthToken",
     tags = ["auth"],
     responses(
         (status = 200, description = "Successful Response", body = AuthResponse),
@@ -304,10 +306,10 @@ pub async fn logout(
 #[utoipa::path(
     get,
     path = "/account",
-    operation_id = "account",
+    operation_id = "getAccount",
     tags = ["account"],
     responses(
-        (status = 200, description = "Successful Response"),
+        (status = 200, description = "Successful Response", body = AccountResponse),
         (status = 401,
             description = "Unauthorized", 
             headers(
