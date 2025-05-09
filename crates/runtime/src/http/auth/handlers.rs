@@ -1,12 +1,12 @@
 use crate::http::auth::models::{AccountResponse, RefreshTokenResponse};
 use std::collections::HashMap;
 
+use super::error::AuthErrorResponse;
 use super::error::CreateJwtSnafu;
 use crate::http::auth::error::{
     AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu, SetCookieSnafu,
 };
 use crate::http::auth::models::{AuthResponse, Claims, LoginPayload};
-use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -20,6 +20,7 @@ use snafu::ResultExt;
 use time::Duration;
 use tower_sessions::cookie::{Cookie, SameSite};
 use tracing;
+use tracing::Level;
 use utoipa::OpenApi;
 
 pub const REFRESH_TOKEN_EXPIRATION_HOURS: u32 = 24 * 7;
@@ -137,13 +138,14 @@ fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
         login,
         refresh_access_token,
         logout,
+        account,
     ),
     components(
         schemas(
             LoginPayload,
             AuthResponse,
             RefreshTokenResponse,
-            ErrorResponse,
+            AuthErrorResponse,
         )
     ),
     tags(
@@ -165,11 +167,11 @@ pub struct ApiDoc;
          headers(
             ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
          ),
-         body = ErrorResponse),
-        (status = 500, description = "Internal server error", body = ErrorResponse),
+         body = AuthErrorResponse),
+        (status = 500, description = "Internal server error", body = AuthErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state, password), err)]
+#[tracing::instrument(level = Level::ERROR, skip_all, err)]
 pub async fn login(
     State(state): State<AppState>,
     Json(LoginPayload { username, password }): Json<LoginPayload>,
@@ -216,11 +218,11 @@ pub async fn login(
             headers(
                ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
             ),
-            body = ErrorResponse),
-        (status = 500, description = "Internal server error", body = ErrorResponse),
+            body = AuthErrorResponse),
+        (status = 500, description = "Internal server error", body = AuthErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err)]
+#[tracing::instrument(level = Level::ERROR, skip_all, err)]
 pub async fn refresh_access_token(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -266,11 +268,11 @@ pub async fn refresh_access_token(
             headers(
                ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
             ),
-            body = ErrorResponse),
-        (status = 500, description = "Internal server error", body = ErrorResponse),
+            body = AuthErrorResponse),
+        (status = 500, description = "Internal server error", body = AuthErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err)]
+#[tracing::instrument(level = Level::ERROR, skip_all, err)]
 pub async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -303,7 +305,7 @@ pub async fn logout(
     get,
     path = "/account",
     operation_id = "account",
-    tags = ["auth"],
+    tags = ["account"],
     responses(
         (status = 200, description = "Successful Response"),
         (status = 401,
@@ -311,10 +313,10 @@ pub async fn logout(
             headers(
                ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
             ),
-            body = ErrorResponse),
+            body = AuthErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err)]
+#[tracing::instrument(level = Level::ERROR, skip_all, err)]
 pub async fn account(
     State(state): State<AppState>,
     headers: HeaderMap,
