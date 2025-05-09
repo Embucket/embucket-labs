@@ -1,7 +1,7 @@
 use crate::WorksheetId;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use embucket_utils::iterable::IterableEntity;
+use core_utils::iterable::IterableEntity;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Serialize};

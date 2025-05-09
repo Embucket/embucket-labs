@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use embucket_utils::iterable::IterableEntity;
+use core_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 
 pub type WorksheetId = i64;

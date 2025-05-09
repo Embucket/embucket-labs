@@ -1,6 +1,6 @@
 use crate::{QueryRecordId, WorksheetId};
 use bytes::Bytes;
-use embucket_utils::iterable::IterableEntity;
+use core_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 
 // QueryRecordReference struct is used for referencing QueryRecord from worksheet.

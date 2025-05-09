@@ -3,8 +3,8 @@ use crate::{
     WorksheetId,
 };
 use async_trait::async_trait;
-use embucket_utils::iterable::IterableCursor;
-use embucket_utils::{Db, Error};
+use core_utils::iterable::IterableCursor;
+use core_utils::{Db, Error};
 use futures::future::join_all;
 use serde_json::de;
 use slatedb::DbIterator;
@@ -18,28 +18,28 @@ pub enum WorksheetsStoreError {
     BadKey { source: std::str::Utf8Error },
 
     #[snafu(display("Error adding worksheet: {source}"))]
-    WorksheetAdd { source: embucket_utils::Error },
+    WorksheetAdd { source: core_utils::Error },
 
     #[snafu(display("Error getting worksheet: {source}"))]
-    WorksheetGet { source: embucket_utils::Error },
+    WorksheetGet { source: core_utils::Error },
 
     #[snafu(display("Error getting worksheets: {source}"))]
-    WorksheetsList { source: embucket_utils::Error },
+    WorksheetsList { source: core_utils::Error },
 
     #[snafu(display("Error deleting worksheet: {source}"))]
-    WorksheetDelete { source: embucket_utils::Error },
+    WorksheetDelete { source: core_utils::Error },
 
     #[snafu(display("Error updating worksheet: {source}"))]
-    WorksheetUpdate { source: embucket_utils::Error },
+    WorksheetUpdate { source: core_utils::Error },
 
     #[snafu(display("Error adding query record: {source}"))]
-    QueryAdd { source: embucket_utils::Error },
+    QueryAdd { source: core_utils::Error },
 
     #[snafu(display("Error adding query record reference: {source}"))]
-    QueryReferenceAdd { source: embucket_utils::Error },
+    QueryReferenceAdd { source: core_utils::Error },
 
     #[snafu(display("Error getting query history: {source}"))]
-    QueryGet { source: embucket_utils::Error },
+    QueryGet { source: core_utils::Error },
 
     #[snafu(display("Can't locate worksheet by key: {message}"))]
     WorksheetNotFound { message: String },
@@ -294,7 +294,7 @@ mod tests {
     use super::*;
     use crate::*;
     use chrono::{Duration, TimeZone, Utc};
-    use embucket_utils::iterable::{IterableCursor, IterableEntity};
+    use core_utils::iterable::{IterableCursor, IterableEntity};
     use tokio;
 
     fn create_query_records(templates: &[(Option<i64>, QueryStatus)]) -> Vec<QueryRecord> {

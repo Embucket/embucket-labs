@@ -1,4 +1,4 @@
-use embucket_utils::Db;
+use core_utils::Db;
 use std::sync::Arc;
 
 pub struct SlateDBWorksheetsStore {
