@@ -1,4 +1,4 @@
-use crate::execution::catalog::schema::CachingSchema;
+use crate::schema::CachingSchema;
 use dashmap::DashMap;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use std::{any::Any, sync::Arc};

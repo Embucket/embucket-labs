@@ -1,23 +1,23 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use embucket_metastore::error::{MetastoreError, MetastoreResult};
-use embucket_metastore::{
+use core_metastore::error::{MetastoreError, MetastoreResult};
+use core_metastore::{
     Metastore, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     TableCreateRequest as MetastoreTableCreateRequest, TableIdent as MetastoreTableIdent,
     TableUpdate as MetastoreTableUpdate,
 };
-use embucket_utils::scan_iterator::ScanIterator;
+use core_utils::scan_iterator::ScanIterator;
 use futures::executor::block_on;
 use iceberg_rust::{
     catalog::{
+        Catalog as IcebergCatalog,
         commit::{CommitTable as IcebergCommitTable, CommitView as IcebergCommitView},
         create::{
             CreateMaterializedView as IcebergCreateMaterializedView,
             CreateTable as IcebergCreateTable, CreateView as IcebergCreateView,
         },
         tabular::Tabular as IcebergTabular,
-        Catalog as IcebergCatalog,
     },
     error::Error as IcebergError,
     materialized_view::MaterializedView as IcebergMaterializedView,
@@ -364,11 +364,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             properties: None,
         };
 
+        // TODO: restore .context
         let table = self
             .metastore
             .create_table(&ident, table_create_request)
             .await
-            .context(crate::execution::error::MetastoreSnafu)
+            // .context(crate::execution::error::MetastoreSnafu)
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         Ok(IcebergTable::new(
             identifier.clone(),

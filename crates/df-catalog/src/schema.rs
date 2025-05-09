@@ -1,4 +1,4 @@
-use crate::execution::catalog::table::CachingTable;
+use crate::table::CachingTable;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use datafusion::catalog::{SchemaProvider, TableProvider};

@@ -1,0 +1,32 @@
+[package]
+name = "df-catalog"
+version = "0.1.0"
+edition = "2024"
+license-file.workspace = true
+
+[dependencies]
+core-utils = { path = "../core-utils" }
+core-metastore = { path = "../core-metastore" }
+async-trait = { workspace = true }
+aws-config = { version = "1.5.17" }
+aws-credential-types = { version = "1.2.1", features = ["hardcoded-credentials"] }
+dashmap = { workspace = true }
+datafusion = { workspace = true }
+datafusion-common = { workspace = true }
+datafusion-doc = { workspace = true }
+datafusion-expr = { workspace = true }
+datafusion-physical-plan = { workspace = true }
+datafusion_iceberg = { workspace = true }
+futures = { workspace = true }
+
+iceberg-rust = { workspace = true }
+iceberg-rust-spec = { workspace = true }
+iceberg-s3tables-catalog = { workspace = true }
+object_store = { workspace = true }
+once_cell = { version = "1.20.2" }
+snafu = { workspace = true }
+tokio = { workspace = true }
+url = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,5 +1,5 @@
-use crate::execution::catalog::information_schema::config::InformationSchemaConfig;
-use datafusion::arrow::array::builder::{BooleanBuilder, UInt64Builder, UInt8Builder};
+use crate::information_schema::config::InformationSchemaConfig;
+use datafusion::arrow::array::builder::{BooleanBuilder, UInt8Builder, UInt64Builder};
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
     array::StringBuilder,
@@ -10,9 +10,9 @@ use datafusion::execution::TaskContext;
 use datafusion::logical_expr::Signature;
 use datafusion_common::DataFusionError;
 use datafusion_expr::{AggregateUDF, ScalarUDF, WindowUDF};
+use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
-use datafusion_physical_plan::SendableRecordBatchStream;
 use std::fmt::Debug;
 use std::sync::Arc;
 

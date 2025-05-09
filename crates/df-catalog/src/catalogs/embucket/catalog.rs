@@ -1,8 +1,8 @@
 use super::schema::EmbucketSchema;
-use crate::execution::catalog::catalogs::embucket::block_in_new_runtime;
+use crate::catalogs::embucket::block_in_new_runtime;
+use core_metastore::{Metastore, SchemaIdent};
+use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
-use embucket_metastore::{Metastore, SchemaIdent};
-use embucket_utils::scan_iterator::ScanIterator;
 use iceberg_rust::catalog::Catalog as IcebergCatalog;
 use std::{any::Any, sync::Arc};
 

@@ -1,12 +1,14 @@
 use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
-use crate::execution::catalog::catalog::CachingCatalog;
-use crate::execution::catalog::schema::CachingSchema;
-use crate::execution::catalog::table::CachingTable;
-use crate::execution::error::{self as ex_error, ExecutionError, ExecutionResult};
+use crate::catalog::CachingCatalog;
+use crate::error::{DataFusionSnafu, Error, MetastoreSnafu, Result, S3TablesSnafu};
+use crate::schema::CachingSchema;
+use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
-use aws_credential_types::provider::SharedCredentialsProvider;
 use aws_credential_types::Credentials;
+use aws_credential_types::provider::SharedCredentialsProvider;
+use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
+use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
 use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList},
@@ -14,14 +16,10 @@ use datafusion::{
 };
 use datafusion_common::DataFusionError;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
-use embucket_metastore::{
-    error::MetastoreError, AwsCredentials, Metastore, VolumeType as MetastoreVolumeType,
-};
-use embucket_utils::scan_iterator::ScanIterator;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
-use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
+use object_store::local::LocalFileSystem;
 use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
@@ -62,7 +60,7 @@ impl EmbucketCatalogList {
     /// - Metastore access (e.g., during database or volume listing)
     /// - Iceberg or S3 catalog initialization
     /// - `DataFusion` catalog wrapping or setup failures
-    pub async fn register_catalogs(&self) -> ExecutionResult<()> {
+    pub async fn register_catalogs(&self) -> Result<()> {
         // Internal catalogs
         let mut catalogs = self.internal_catalogs().await?;
 
@@ -76,19 +74,17 @@ impl EmbucketCatalogList {
         Ok(())
     }
 
-    pub async fn internal_catalogs(&self) -> ExecutionResult<Vec<CachingCatalog>> {
+    pub async fn internal_catalogs(&self) -> Result<Vec<CachingCatalog>> {
         self.metastore
             .iter_databases()
             .collect()
             .await
-            .map_err(|e| ExecutionError::Metastore {
-                source: MetastoreError::UtilSlateDB { source: e },
-            })?
+            .map_err(|e| Error::Core { source: e })?
             .into_iter()
             .map(|db| {
                 let iceberg_catalog =
                     EmbucketIcebergCatalog::new(self.metastore.clone(), db.ident.clone())
-                        .context(ex_error::MetastoreSnafu)?;
+                        .context(MetastoreSnafu)?;
                 let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog {
                     database: db.ident.clone(),
                     metastore: self.metastore.clone(),
@@ -104,15 +100,13 @@ impl EmbucketCatalogList {
             .collect()
     }
 
-    pub async fn external_catalogs(&self) -> ExecutionResult<Vec<CachingCatalog>> {
+    pub async fn external_catalogs(&self) -> Result<Vec<CachingCatalog>> {
         let volumes = self
             .metastore
             .iter_volumes()
             .collect()
             .await
-            .map_err(|e| ExecutionError::Metastore {
-                source: MetastoreError::UtilSlateDB { source: e },
-            })?
+            .map_err(|e| Error::Core { source: e })?
             .into_iter()
             .filter_map(|v| match v.volume.clone() {
                 MetastoreVolumeType::S3Tables(s3) => Some(s3),
@@ -146,11 +140,11 @@ impl EmbucketCatalogList {
                 volume.arn.as_str(),
                 ObjectStoreBuilder::S3(volume.s3_builder()),
             )
-            .context(ex_error::S3TablesSnafu)?;
+            .context(S3TablesSnafu)?;
 
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await
-                .context(ex_error::DataFusionSnafu)?;
+                .context(DataFusionSnafu)?;
             catalogs.push(CachingCatalog {
                 catalog: Arc::new(catalog),
                 schemas_cache: DashMap::new(),
@@ -162,7 +156,7 @@ impl EmbucketCatalogList {
     }
 
     #[allow(clippy::as_conversions, clippy::too_many_lines)]
-    pub async fn refresh(&self) -> ExecutionResult<()> {
+    pub async fn refresh(&self) -> Result<()> {
         for catalog in self.catalogs.iter_mut() {
             if catalog.should_refresh {
                 let schemas = catalog.schema_names();
@@ -175,11 +169,8 @@ impl EmbucketCatalogList {
                         };
                         let tables = schema.schema.table_names();
                         for table in tables {
-                            if let Some(table_provider) = schema
-                                .schema
-                                .table(&table)
-                                .await
-                                .context(ex_error::DataFusionSnafu)?
+                            if let Some(table_provider) =
+                                schema.schema.table(&table).await.context(DataFusionSnafu)?
                             {
                                 schema.tables_cache.insert(
                                     table.clone(),

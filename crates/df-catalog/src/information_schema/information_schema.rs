@@ -2,21 +2,20 @@
 //!
 //! [Information Schema]: https://docs.snowflake.com/en/sql-reference/info-schema
 
-use super::config::InformationSchemaConfig;
-use super::schemata::InformationSchemata;
-use super::tables::InformationSchemaTables;
-use super::views::InformationSchemaViews;
-
-use crate::execution::catalog::information_schema::columns::InformationSchemaColumns;
-use crate::execution::catalog::information_schema::databases::InformationSchemaDatabases;
-use crate::execution::catalog::information_schema::df_settings::InformationSchemaDfSettings;
-use crate::execution::catalog::information_schema::parameters::InformationSchemaParameters;
-use crate::execution::catalog::information_schema::routines::InformationSchemaRoutines;
+use crate::information_schema::columns::InformationSchemaColumns;
+use crate::information_schema::config::InformationSchemaConfig;
+use crate::information_schema::databases::InformationSchemaDatabases;
+use crate::information_schema::df_settings::InformationSchemaDfSettings;
+use crate::information_schema::parameters::InformationSchemaParameters;
+use crate::information_schema::routines::InformationSchemaRoutines;
+use crate::information_schema::schemata::InformationSchemata;
+use crate::information_schema::tables::InformationSchemaTables;
+use crate::information_schema::views::InformationSchemaViews;
 use async_trait::async_trait;
 use datafusion::catalog::streaming::StreamingTable;
 use datafusion::catalog::{CatalogProviderList, SchemaProvider, TableProvider};
-use datafusion_common::error::Result;
 use datafusion_common::DataFusionError;
+use datafusion_common::error::Result;
 use datafusion_physical_plan::streaming::PartitionStream;
 use std::fmt::Debug;
 use std::{any::Any, sync::Arc};

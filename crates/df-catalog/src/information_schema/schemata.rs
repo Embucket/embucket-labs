@@ -2,7 +2,7 @@
 //!
 //! [Information Schema Schemata]: https://docs.snowflake.com/en/sql-reference/info-schema/schemata
 
-use crate::execution::catalog::information_schema::config::InformationSchemaConfig;
+use crate::information_schema::config::InformationSchemaConfig;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
     array::StringBuilder,
@@ -11,9 +11,9 @@ use datafusion::arrow::{
 };
 use datafusion::execution::TaskContext;
 use datafusion_common::DataFusionError;
+use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
-use datafusion_physical_plan::SendableRecordBatchStream;
 use std::fmt::Debug;
 use std::sync::Arc;
 

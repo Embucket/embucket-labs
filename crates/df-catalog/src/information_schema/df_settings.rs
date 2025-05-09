@@ -1,4 +1,4 @@
-use crate::execution::catalog::information_schema::config::InformationSchemaConfig;
+use crate::information_schema::config::InformationSchemaConfig;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
     array::StringBuilder,
@@ -6,11 +6,11 @@ use datafusion::arrow::{
     record_batch::RecordBatch,
 };
 use datafusion::execution::TaskContext;
-use datafusion_common::config::ConfigEntry;
 use datafusion_common::DataFusionError;
+use datafusion_common::config::ConfigEntry;
+use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
-use datafusion_physical_plan::SendableRecordBatchStream;
 use std::fmt::Debug;
 use std::sync::Arc;
 

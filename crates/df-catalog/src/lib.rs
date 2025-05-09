@@ -2,6 +2,7 @@
 pub mod catalog;
 pub mod catalog_list;
 pub mod catalogs;
+pub mod error;
 pub mod schema;
 pub mod table;
 

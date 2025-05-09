@@ -1,11 +1,11 @@
-use crate::execution::catalog::catalogs::embucket::block_in_new_runtime;
+use crate::catalogs::embucket::block_in_new_runtime;
 use async_trait::async_trait;
+use core_metastore::error::MetastoreError;
+use core_metastore::{Metastore, SchemaIdent, TableIdent};
+use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::{SchemaProvider, TableProvider};
 use datafusion_common::DataFusionError;
 use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
-use embucket_metastore::error::MetastoreError;
-use embucket_metastore::{Metastore, SchemaIdent, TableIdent};
-use embucket_utils::scan_iterator::ScanIterator;
 use iceberg_rust::catalog::Catalog as IcebergCatalog;
 use iceberg_rust::{catalog::tabular::Tabular as IcebergTabular, table::Table as IcebergTable};
 use std::any::Any;
