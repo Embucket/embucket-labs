@@ -1,5 +1,5 @@
 [package]
-name = "api-internal-rest"
+name = "api-iceberg-rest"
 version = "0.1.0"
 edition = "2024"
 license-file.workspace = true
@@ -10,11 +10,16 @@ core-utils = { path = "../core-utils" }
 
 axum = { workspace = true }
 http = { workspace = true }
+iceberg-rest-catalog = { workspace = true }
+iceberg-rust = { workspace = true }
+iceberg-rust-spec = { workspace = true }
+object_store = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 snafu = { workspace = true }
-validator = { workspace = true }
 tracing = { workspace = true }
+validator = { workspace = true }
+
 
 [lints]
 workspace = true

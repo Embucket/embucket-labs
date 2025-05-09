@@ -1,4 +1,4 @@
-use embucket_metastore::{
+use core_metastore::{
     RwObject, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     Table as MetastoreTable, TableCreateRequest as MetastoreTableCreateRequest,
     TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent,

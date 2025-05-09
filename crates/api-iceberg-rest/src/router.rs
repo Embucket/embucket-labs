@@ -1,12 +1,15 @@
-use crate::http::state::AppState;
-use axum::routing::{delete, get, post};
+use crate::state::State;
 use axum::Router;
+use axum::routing::{delete, get, post};
 
-#[allow(clippy::wildcard_imports)]
-use crate::http::catalog::handlers::*;
+use crate::handlers::{
+    commit_table, create_namespace, create_table, delete_namespace, delete_table, get_config,
+    get_namespace, get_table, list_namespaces, list_tables, list_views, register_table,
+    report_metrics,
+};
 
-pub fn create_router() -> Router<AppState> {
-    let table_router: Router<AppState> = Router::new()
+pub fn create_router() -> Router<State> {
+    let table_router: Router<State> = Router::new()
         .route("/", post(create_table))
         .route("/", get(list_tables))
         .route("/{table}", get(get_table))
@@ -16,7 +19,7 @@ pub fn create_router() -> Router<AppState> {
 
     // only one endpoint is defined for the catalog implementation to work
     // we don't actually have functionality for views yet
-    let view_router: Router<AppState> = Router::new().route("/", get(list_views));
+    let view_router: Router<State> = Router::new().route("/", get(list_views));
 
     let ns_router = Router::new()
         .route("/", get(list_namespaces))
