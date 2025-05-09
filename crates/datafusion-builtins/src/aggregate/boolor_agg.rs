@@ -1,5 +1,5 @@
-use crate::execution::datafusion::functions::aggregate::macros::make_udaf_function;
-use crate::execution::datafusion::functions::array_to_boolean;
+use crate::aggregate::macros::make_udaf_function;
+use crate::array_to_boolean;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
@@ -9,24 +9,25 @@ use datafusion_expr::function::AccumulatorArgs;
 use datafusion_expr::{AggregateUDFImpl, Signature, Volatility};
 use std::any::Any;
 
-/// Booland Agg function
-/// Returns TRUE if all non-NULL Boolean records in a group evaluate to TRUE.
+/// Boolor function
+/// Returns TRUE if at least one Boolean record in a group evaluates to TRUE.
+///
 /// If all records in the group are NULL, or if the group is empty, the function returns NULL.
 ///
-/// Syntax: `booland_agg(<expr>)`
+/// Syntax: `boolor_agg(<expr>)`
 
 #[derive(Debug, Clone)]
-pub struct BoolAndAggUDAF {
+pub struct BoolOrAggUDAF {
     signature: Signature,
 }
 
-impl Default for BoolAndAggUDAF {
+impl Default for BoolOrAggUDAF {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl BoolAndAggUDAF {
+impl BoolOrAggUDAF {
     pub fn new() -> Self {
         Self {
             signature: Signature::any(1, Volatility::Immutable),
@@ -34,13 +35,13 @@ impl BoolAndAggUDAF {
     }
 }
 
-impl AggregateUDFImpl for BoolAndAggUDAF {
+impl AggregateUDFImpl for BoolOrAggUDAF {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &'static str {
-        "booland_agg"
+        "boolor_agg"
     }
 
     fn signature(&self) -> &Signature {
@@ -52,22 +53,22 @@ impl AggregateUDFImpl for BoolAndAggUDAF {
     }
 
     fn accumulator(&self, _acc_args: AccumulatorArgs) -> DFResult<Box<dyn Accumulator>> {
-        Ok(Box::new(BoolAndAggAccumulator::new()))
+        Ok(Box::new(BoolOrAggAccumulator::new()))
     }
 }
 
 #[derive(Debug)]
-struct BoolAndAggAccumulator {
+struct BoolOrAggAccumulator {
     state: Option<bool>,
 }
 
-impl BoolAndAggAccumulator {
+impl BoolOrAggAccumulator {
     pub const fn new() -> Self {
         Self { state: None }
     }
 }
 
-impl Accumulator for BoolAndAggAccumulator {
+impl Accumulator for BoolOrAggAccumulator {
     fn update_batch(&mut self, values: &[ArrayRef]) -> DFResult<()> {
         if values.is_empty() {
             return Ok(());
@@ -77,18 +78,19 @@ impl Accumulator for BoolAndAggAccumulator {
         }
 
         let barr = array_to_boolean(&values[0])?;
+
         let mut non_null = false;
         for val in &barr {
             if val.is_some() {
                 non_null = true;
             }
-            if matches!(val, Some(false)) {
-                self.state = Some(false);
+            if matches!(val, Some(true)) {
+                self.state = Some(true);
                 return Ok(());
             }
         }
         if non_null {
-            self.state = Some(true);
+            self.state = Some(false);
         }
 
         Ok(())
@@ -117,21 +119,21 @@ impl Accumulator for BoolAndAggAccumulator {
             if !v.is_null() {
                 non_null = true;
             }
-            if matches!(v, ScalarValue::Boolean(Some(false))) {
-                self.state = Some(false);
+            if matches!(v, ScalarValue::Boolean(Some(true))) {
+                self.state = Some(true);
                 return Ok(());
             }
         }
 
         if non_null {
-            self.state = Some(true);
+            self.state = Some(false);
         }
 
         Ok(())
     }
 }
 
-make_udaf_function!(BoolAndAggUDAF);
+make_udaf_function!(BoolOrAggUDAF);
 
 #[cfg(test)]
 mod tests {
@@ -144,42 +146,42 @@ mod tests {
 
     #[tokio::test]
     async fn test_merge() -> DFResult<()> {
-        let mut acc = BoolAndAggAccumulator::new();
+        let mut acc = BoolOrAggAccumulator::new();
         acc.merge_batch(&[
             Arc::new(BooleanArray::from(vec![Some(true)])),
             Arc::new(BooleanArray::from(vec![Some(true)])),
         ])?;
         assert_eq!(acc.state, Some(true));
 
-        let mut acc = BoolAndAggAccumulator::new();
+        let mut acc = BoolOrAggAccumulator::new();
         acc.merge_batch(&[
             Arc::new(BooleanArray::from(vec![Some(true)])),
             Arc::new(BooleanArray::from(vec![Some(false)])),
         ])?;
-        assert_eq!(acc.state, Some(false));
+        assert_eq!(acc.state, Some(true));
 
-        let mut acc = BoolAndAggAccumulator::new();
+        let mut acc = BoolOrAggAccumulator::new();
         acc.merge_batch(&[
             Arc::new(BooleanArray::from(vec![Some(false)])),
             Arc::new(BooleanArray::from(vec![Some(false)])),
         ])?;
         assert_eq!(acc.state, Some(false));
 
-        let mut acc = BoolAndAggAccumulator::new();
+        let mut acc = BoolOrAggAccumulator::new();
         acc.merge_batch(&[
             Arc::new(BooleanArray::from(vec![Some(true)])),
             Arc::new(BooleanArray::from(vec![None])),
         ])?;
         assert_eq!(acc.state, Some(true));
 
-        let mut acc = BoolAndAggAccumulator::new();
+        let mut acc = BoolOrAggAccumulator::new();
         acc.merge_batch(&[
             Arc::new(BooleanArray::from(vec![Some(false)])),
             Arc::new(BooleanArray::from(vec![None])),
         ])?;
         assert_eq!(acc.state, Some(false));
 
-        let mut acc = BoolAndAggAccumulator::new();
+        let mut acc = BoolOrAggAccumulator::new();
         acc.merge_batch(&[
             Arc::new(BooleanArray::from(vec![None])),
             Arc::new(BooleanArray::from(vec![None])),
@@ -193,7 +195,7 @@ mod tests {
     async fn test_sql() -> DFResult<()> {
         let config = SessionConfig::new();
         let ctx = SessionContext::new_with_config(config);
-        ctx.register_udaf(AggregateUDF::from(BoolAndAggUDAF::new()));
+        ctx.register_udaf(AggregateUDF::from(BoolOrAggUDAF::new()));
         ctx.sql(
             "create table test_boolean_agg
 (
@@ -214,70 +216,22 @@ mod tests {
         .await?;
 
         let result = ctx
-            .sql("select id, booland_agg(c) from test_boolean_agg group by id order by id;")
+            .sql("select id, boolor_agg(c) from test_boolean_agg group by id order by id;")
             .await?
             .collect()
             .await?;
 
         assert_batches_eq!(
             &[
-                "+----+---------------------------------+",
-                "| id | booland_agg(test_boolean_agg.c) |",
-                "+----+---------------------------------+",
-                "| 1  | true                            |",
-                "| 2  | false                           |",
-                "| 3  | true                            |",
-                "| 4  | false                           |",
-                "| 5  |                                 |",
-                "+----+---------------------------------+",
-            ],
-            &result
-        );
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_numeric() -> DFResult<()> {
-        let config = SessionConfig::new();
-        let ctx = SessionContext::new_with_config(config);
-        ctx.register_udaf(AggregateUDF::from(BoolAndAggUDAF::new()));
-        ctx.sql(
-            "create table test_boolean_agg
-(
-    id integer,
-    c  integer
-) as values
-    (1, 1),
-    (1, 1),
-    (2, 1),
-    (2, 0),
-    (3, 1),
-    (3, null),
-    (4, 0),
-    (4, null),
-    (5, null),
-    (5, null);",
-        )
-        .await?;
-
-        let result = ctx
-            .sql("select id, booland_agg(c) from test_boolean_agg group by id order by id;")
-            .await?
-            .collect()
-            .await?;
-
-        assert_batches_eq!(
-            &[
-                "+----+---------------------------------+",
-                "| id | booland_agg(test_boolean_agg.c) |",
-                "+----+---------------------------------+",
-                "| 1  | true                            |",
-                "| 2  | false                           |",
-                "| 3  | true                            |",
-                "| 4  | false                           |",
-                "| 5  |                                 |",
-                "+----+---------------------------------+",
+                "+----+--------------------------------+",
+                "| id | boolor_agg(test_boolean_agg.c) |",
+                "+----+--------------------------------+",
+                "| 1  | true                           |",
+                "| 2  | true                           |",
+                "| 3  | true                           |",
+                "| 4  | false                          |",
+                "| 5  |                                |",
+                "+----+--------------------------------+",
             ],
             &result
         );

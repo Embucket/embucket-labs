@@ -14,7 +14,7 @@ use datafusion::arrow::datatypes::{
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion_common::types::{logical_date, logical_int64, logical_string};
-use datafusion_common::{exec_err, internal_err, Result, ScalarValue, _exec_datafusion_err};
+use datafusion_common::{_exec_datafusion_err, Result, ScalarValue, exec_err, internal_err};
 use datafusion_expr::{
     Coercion, ColumnarValue, ReturnInfo, ReturnTypeArgs, ScalarUDFImpl, Signature, Volatility,
 };
@@ -228,8 +228,16 @@ fn timestamps_from_components(
 ) -> Result<PrimitiveArray<TimestampNanosecondType>> {
     let (years, months, days, hours, minutes, seconds, nanoseconds, time_zone) = match args.len() {
         8 => {
-            let [years, months, days, hours, minutes, seconds, nanoseconds, time_zone] =
-                take_function_args("timestamp_from_parts", args)?;
+            let [
+                years,
+                months,
+                days,
+                hours,
+                minutes,
+                seconds,
+                nanoseconds,
+                time_zone,
+            ] = take_function_args("timestamp_from_parts", args)?;
             (
                 years,
                 months,
@@ -388,7 +396,7 @@ pub fn take_function_args<const N: usize, T>(
 
 pub fn to_primitive_array<T>(col: &ColumnarValue) -> Result<PrimitiveArray<T>>
 where
-    T: arrow::datatypes::ArrowPrimitiveType,
+    T: datafusion::arrow::datatypes::ArrowPrimitiveType,
 {
     match col {
         ColumnarValue::Array(array) => Ok(array.as_primitive::<T>().to_owned()),
@@ -421,9 +429,7 @@ super::macros::make_udf_function!(TimestampFromPartsFunc);
 
 #[cfg(test)]
 mod test {
-    use crate::execution::datafusion::functions::timestamp_from_parts::{
-        to_primitive_array, TimestampFromPartsFunc,
-    };
+    use crate::timestamp_from_parts::{TimestampFromPartsFunc, to_primitive_array};
     use chrono::DateTime;
     use datafusion::arrow::datatypes::TimestampNanosecondType;
     use datafusion::logical_expr::ColumnarValue;
@@ -558,8 +564,8 @@ mod test {
                     .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
                         args: fn_args,
                         number_rows: 1,
-                        return_type: &arrow::datatypes::DataType::Timestamp(
-                            arrow_schema::TimeUnit::Nanosecond,
+                        return_type: &datafusion::arrow::datatypes::DataType::Timestamp(
+                            datafusion::arrow::datatypes::TimeUnit::Nanosecond,
                             None,
                         ),
                     })
@@ -593,8 +599,8 @@ mod test {
                     .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
                         args: fn_args,
                         number_rows: 1,
-                        return_type: &arrow::datatypes::DataType::Timestamp(
-                            arrow_schema::TimeUnit::Nanosecond,
+                        return_type: &datafusion::arrow::datatypes::DataType::Timestamp(
+                            datafusion::arrow::datatypes::TimeUnit::Nanosecond,
                             None,
                         ),
                     })

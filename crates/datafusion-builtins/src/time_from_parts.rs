@@ -1,9 +1,7 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use crate::execution::datafusion::functions::timestamp_from_parts::{
-    make_time, take_function_args, to_primitive_array,
-};
+use crate::timestamp_from_parts::{make_time, take_function_args, to_primitive_array};
 use datafusion::arrow::array::builder::PrimitiveBuilder;
 use datafusion::arrow::array::{Array, PrimitiveArray};
 use datafusion::arrow::datatypes::DataType::{Int64, Time64};
@@ -12,7 +10,7 @@ use datafusion::arrow::datatypes::{DataType, Int64Type, Time64NanosecondType};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion_common::types::logical_int64;
-use datafusion_common::{internal_err, Result, ScalarValue};
+use datafusion_common::{Result, ScalarValue, internal_err};
 use datafusion_expr::{Coercion, ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion_macros::user_doc;
 
@@ -165,8 +163,8 @@ super::macros::make_udf_function!(TimeFromPartsFunc);
 
 #[cfg(test)]
 mod test {
-    use crate::execution::datafusion::functions::time_from_parts::TimeFromPartsFunc;
-    use crate::execution::datafusion::functions::timestamp_from_parts::to_primitive_array;
+    use crate::time_from_parts::TimeFromPartsFunc;
+    use crate::timestamp_from_parts::to_primitive_array;
     use chrono::NaiveTime;
     use datafusion::arrow::datatypes::Time64NanosecondType;
     use datafusion::logical_expr::ColumnarValue;
@@ -215,8 +213,8 @@ mod test {
                     .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
                         args: fn_args,
                         number_rows: 1,
-                        return_type: &arrow::datatypes::DataType::Time64(
-                            arrow_schema::TimeUnit::Nanosecond,
+                        return_type: &datafusion::arrow::datatypes::DataType::Time64(
+                            datafusion::arrow::datatypes::TimeUnit::Nanosecond,
                         ),
                     })
                     .unwrap();

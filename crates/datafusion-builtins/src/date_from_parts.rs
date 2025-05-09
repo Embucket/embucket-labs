@@ -1,9 +1,7 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use crate::execution::datafusion::functions::timestamp_from_parts::{
-    make_date, take_function_args, to_primitive_array,
-};
+use crate::timestamp_from_parts::{make_date, take_function_args, to_primitive_array};
 use datafusion::arrow::array::builder::PrimitiveBuilder;
 use datafusion::arrow::array::{Array, PrimitiveArray};
 use datafusion::arrow::datatypes::DataType::{
@@ -139,10 +137,8 @@ super::macros::make_udf_function!(DateFromPartsFunc);
 
 #[cfg(test)]
 mod test {
-    use crate::execution::datafusion::functions::date_from_parts::DateFromPartsFunc;
-    use crate::execution::datafusion::functions::timestamp_from_parts::{
-        to_primitive_array, UNIX_DAYS_FROM_CE,
-    };
+    use crate::date_from_parts::DateFromPartsFunc;
+    use crate::timestamp_from_parts::{UNIX_DAYS_FROM_CE, to_primitive_array};
     use chrono::NaiveDate;
     use datafusion::arrow::datatypes::Date32Type;
     use datafusion_common::ScalarValue;
@@ -188,7 +184,7 @@ mod test {
                     .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
                         args: fn_args,
                         number_rows: 1,
-                        return_type: &arrow::datatypes::DataType::Date32,
+                        return_type: &datafusion::arrow::datatypes::DataType::Date32,
                     })
                     .unwrap();
                 let result = to_primitive_array::<Date32Type>(&result).unwrap();

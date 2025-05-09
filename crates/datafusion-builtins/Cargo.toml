@@ -1,0 +1,23 @@
+[package]
+name = "datafusion-builtins"
+version = "0.1.0"
+edition = "2024"
+license-file.workspace = true
+
+[dependencies]
+chrono = { workspace = true }
+datafusion = { workspace = true }
+datafusion-common = { workspace = true }
+datafusion-doc = { workspace = true }
+datafusion-expr = { workspace = true }
+datafusion-macros = { workspace = true }
+datafusion-physical-plan = { workspace = true }
+paste = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true

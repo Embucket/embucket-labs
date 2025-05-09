@@ -2,12 +2,12 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::compute::kernels::numeric::add_wrapping;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::TimeUnit::Nanosecond;
-use datafusion::common::{plan_err, Result};
+use datafusion::common::{Result, plan_err};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
-use datafusion_common::types::{logical_date, logical_int64, logical_string, NativeType};
+use datafusion_common::types::{NativeType, logical_date, logical_int64, logical_string};
 use datafusion_expr::Coercion;
 use std::any::Any;
 use std::sync::Arc;
@@ -226,8 +226,8 @@ mod tests {
         let fn_args = ScalarFunctionArgs {
             args,
             number_rows: 0,
-            return_type: &arrow_schema::DataType::Timestamp(
-                arrow_schema::TimeUnit::Microsecond,
+            return_type: &datafusion::arrow::datatypes::DataType::Timestamp(
+                datafusion::arrow::datatypes::TimeUnit::Microsecond,
                 Some(Arc::from(String::from("+00").into_boxed_str())),
             ),
         };
@@ -259,8 +259,8 @@ mod tests {
         let fn_args = ScalarFunctionArgs {
             args,
             number_rows: 0,
-            return_type: &arrow_schema::DataType::Timestamp(
-                arrow_schema::TimeUnit::Microsecond,
+            return_type: &datafusion::arrow::datatypes::DataType::Timestamp(
+                datafusion::arrow::datatypes::TimeUnit::Microsecond,
                 Some(Arc::from(String::from("+00").into_boxed_str())),
             ),
         };
@@ -294,8 +294,8 @@ mod tests {
         let fn_args = ScalarFunctionArgs {
             args,
             number_rows: 0,
-            return_type: &arrow_schema::DataType::Timestamp(
-                arrow_schema::TimeUnit::Microsecond,
+            return_type: &datafusion::arrow::datatypes::DataType::Timestamp(
+                datafusion::arrow::datatypes::TimeUnit::Microsecond,
                 Some(Arc::from(String::from("+00").into_boxed_str())),
             ),
         };

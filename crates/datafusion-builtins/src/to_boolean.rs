@@ -1,7 +1,7 @@
-use crate::execution::datafusion::functions::array_to_boolean;
+use crate::array_to_boolean;
+use datafusion::arrow::array::Array;
 use datafusion::arrow::array::builder::BooleanBuilder;
 use datafusion::arrow::array::cast::as_string_array;
-use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};

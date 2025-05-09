@@ -1,9 +1,10 @@
-use crate::execution::datafusion::functions::to_boolean::ToBooleanFunc;
-use crate::execution::datafusion::functions::to_time::ToTimeFunc;
+pub use crate::aggregate::register_udafs;
+use crate::to_boolean::ToBooleanFunc;
+use crate::to_time::ToTimeFunc;
 use datafusion::arrow::array::{
     Array, ArrayRef, ArrowNativeTypeOp, BooleanArray, Decimal128Array, Decimal256Array,
-    Float16Array, Float32Array, Float64Array, Int16Array, Int32Array, Int64Array, Int8Array,
-    StringViewArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
+    Float16Array, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array, Int64Array,
+    StringViewArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
 };
 use datafusion::arrow::datatypes::DataType;
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
@@ -142,7 +143,7 @@ pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
             return Err(DataFusionError::Internal(format!(
                 "unsupported {:?} type. Only supports boolean, numeric, decimal, float types",
                 arr.data_type()
-            )))
+            )));
         }
     })
 }

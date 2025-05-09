@@ -1,4 +1,4 @@
-use crate::execution::datafusion::functions::table::flatten::FlattenTableFunc;
+use crate::table::flatten::FlattenTableFunc;
 use datafusion::prelude::SessionContext;
 use std::sync::Arc;
 

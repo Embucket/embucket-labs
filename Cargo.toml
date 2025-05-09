@@ -5,11 +5,12 @@ members = [
   "crates/api-internal-rest",
   "crates/api-snowflake-rest",
   "crates/api-ui",
-  "crates/datafusion-functions",
+  "crates/datafusion-builtins",
   "crates/datafusion-catalog",
   "crates/core-executor",
   "crates/core-history",
   "crates/core-metastore",
+  "crates/core-utils",
 ]
 resolver = "2"
 package.license-file = "LICENSE"

@@ -1,7 +1,7 @@
-use crate::execution::datafusion::functions::array_to_boolean;
-use arrow_schema::DataType;
+use crate::array_to_boolean;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
-use datafusion_common::{exec_err, ScalarValue};
+use datafusion_common::{ScalarValue, exec_err};
 use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 
@@ -67,14 +67,14 @@ impl ScalarUDFImpl for IffFunc {
         let lhs = match &args.args[1] {
             ColumnarValue::Scalar(val) => val.to_owned(),
             ColumnarValue::Array(_) => {
-                return exec_err!("Iff function requires the second argument to be a scalar")
+                return exec_err!("Iff function requires the second argument to be a scalar");
             }
         };
 
         let rhs = match &args.args[2] {
             ColumnarValue::Scalar(val) => val.to_owned(),
             ColumnarValue::Array(_) => {
-                return exec_err!("Iff function requires the third argument to be a scalar")
+                return exec_err!("Iff function requires the third argument to be a scalar");
             }
         };
 
