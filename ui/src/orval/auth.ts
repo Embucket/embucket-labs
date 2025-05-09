@@ -136,46 +136,58 @@ export const useLogout = <TError = ErrorType<AuthErrorResponse>, TContext = unkn
 
   return useMutation(mutationOptions, queryClient);
 };
-export const refresh = (
+export const refreshAuthToken = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
   return useAxiosMutator<AuthResponse>({ url: `/auth/refresh`, method: 'POST', signal }, options);
 };
 
-export const getRefreshMutationOptions = <
+export const getRefreshAuthTokenMutationOptions = <
   TError = ErrorType<AuthErrorResponse>,
   TContext = unknown,
 >(options?: {
-  mutation?: UseMutationOptions<Awaited<ReturnType<typeof refresh>>, TError, void, TContext>;
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshAuthToken>>,
+    TError,
+    void,
+    TContext
+  >;
   request?: SecondParameter<typeof useAxiosMutator>;
-}): UseMutationOptions<Awaited<ReturnType<typeof refresh>>, TError, void, TContext> => {
-  const mutationKey = ['refresh'];
+}): UseMutationOptions<Awaited<ReturnType<typeof refreshAuthToken>>, TError, void, TContext> => {
+  const mutationKey = ['refreshAuthToken'];
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
     : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<Awaited<ReturnType<typeof refresh>>, void> = () => {
-    return refresh(requestOptions);
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshAuthToken>>, void> = () => {
+    return refreshAuthToken(requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type RefreshMutationResult = NonNullable<Awaited<ReturnType<typeof refresh>>>;
+export type RefreshAuthTokenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof refreshAuthToken>>
+>;
 
-export type RefreshMutationError = ErrorType<AuthErrorResponse>;
+export type RefreshAuthTokenMutationError = ErrorType<AuthErrorResponse>;
 
-export const useRefresh = <TError = ErrorType<AuthErrorResponse>, TContext = unknown>(
+export const useRefreshAuthToken = <TError = ErrorType<AuthErrorResponse>, TContext = unknown>(
   options?: {
-    mutation?: UseMutationOptions<Awaited<ReturnType<typeof refresh>>, TError, void, TContext>;
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof refreshAuthToken>>,
+      TError,
+      void,
+      TContext
+    >;
     request?: SecondParameter<typeof useAxiosMutator>;
   },
   queryClient?: QueryClient,
-): UseMutationResult<Awaited<ReturnType<typeof refresh>>, TError, void, TContext> => {
-  const mutationOptions = getRefreshMutationOptions(options);
+): UseMutationResult<Awaited<ReturnType<typeof refreshAuthToken>>, TError, void, TContext> => {
+  const mutationOptions = getRefreshAuthTokenMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

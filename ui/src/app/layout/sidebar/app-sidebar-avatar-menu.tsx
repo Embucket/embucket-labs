@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { useAuth } from '@/modules/auth/AuthProvider';
-import { useAccount } from '@/orval/account';
+import { useGetAccount } from '@/orval/account';
 import { useLogout } from '@/orval/auth';
 
 const USER = {
@@ -25,7 +25,7 @@ export function AppSidebarAvatarMenu() {
   const { resetAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  const { data: account, isPending: isAccountPending } = useAccount();
+  const { data: account, isPending: isAccountPending } = useGetAccount();
 
   const { mutate: logout, isPending: isLogoutPending } = useLogout({
     mutation: {
@@ -42,7 +42,7 @@ export function AppSidebarAvatarMenu() {
     logout();
   };
 
-  const userName = (account as { username?: string } | undefined)?.username ?? '';
+  const userName = account?.username ?? '';
 
   return (
     <SidebarMenu>

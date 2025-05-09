@@ -8,8 +8,8 @@
 import type { AuthErrorResponseErrorKind } from './authErrorResponseErrorKind';
 
 export interface AuthErrorResponse {
-  error_kind?: AuthErrorResponseErrorKind;
+  errorKind?: AuthErrorResponseErrorKind;
   message: string;
   /** @minimum 0 */
-  status_code: number;
+  statusCode: number;
 }

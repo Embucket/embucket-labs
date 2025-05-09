@@ -5,6 +5,7 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
-import type { TokenErrorKind } from './tokenErrorKind';
 
-export type AuthErrorResponseErrorKind = null | TokenErrorKind;
+export interface AccountResponse {
+  username: string;
+}

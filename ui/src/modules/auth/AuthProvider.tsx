@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 import { flushSync } from 'react-dom';
 
-import { useRefresh } from '@/orval/auth';
+import { useRefreshAuthToken } from '@/orval/auth';
 import type { AuthResponse } from '@/orval/models';
 
 import { AxiosInterceptors } from './AxiosInterceptors';
@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     mutate: refresh,
     isPending,
     isIdle,
-  } = useRefresh({
+  } = useRefreshAuthToken({
     mutation: {
       onSuccess: (data) => {
         setAuthenticated(data);

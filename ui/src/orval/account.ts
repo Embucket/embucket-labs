@@ -24,56 +24,56 @@ import type {
 
 import { useAxiosMutator } from '../lib/axiosMutator';
 import type { ErrorType } from '../lib/axiosMutator';
-import type { AuthErrorResponse } from './models';
+import type { AccountResponse, AuthErrorResponse } from './models';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
-export const account = (
+export const getAccount = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<void>({ url: `/account`, method: 'GET', signal }, options);
+  return useAxiosMutator<AccountResponse>({ url: `/account`, method: 'GET', signal }, options);
 };
 
-export const getAccountQueryKey = () => {
+export const getGetAccountQueryKey = () => {
   return [`/account`] as const;
 };
 
-export const getAccountInfiniteQueryOptions = <
-  TData = InfiniteData<Awaited<ReturnType<typeof account>>>,
+export const getGetAccountInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof getAccount>>>,
   TError = ErrorType<AuthErrorResponse>,
 >(options?: {
-  query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>>;
+  query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAccount>>, TError, TData>>;
   request?: SecondParameter<typeof useAxiosMutator>;
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getAccountQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getGetAccountQueryKey();
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof account>>> = ({ signal }) =>
-    account(requestOptions, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAccount>>> = ({ signal }) =>
+    getAccount(requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
-    Awaited<ReturnType<typeof account>>,
+    Awaited<ReturnType<typeof getAccount>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type AccountInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof account>>>;
-export type AccountInfiniteQueryError = ErrorType<AuthErrorResponse>;
+export type GetAccountInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof getAccount>>>;
+export type GetAccountInfiniteQueryError = ErrorType<AuthErrorResponse>;
 
-export function useAccountInfinite<
-  TData = InfiniteData<Awaited<ReturnType<typeof account>>>,
+export function useGetAccountInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getAccount>>>,
   TError = ErrorType<AuthErrorResponse>,
 >(
   options: {
-    query: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>> &
+    query: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAccount>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof account>>,
+          Awaited<ReturnType<typeof getAccount>>,
           TError,
-          Awaited<ReturnType<typeof account>>
+          Awaited<ReturnType<typeof getAccount>>
         >,
         'initialData'
       >;
@@ -81,17 +81,19 @@ export function useAccountInfinite<
   },
   queryClient?: QueryClient,
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useAccountInfinite<
-  TData = InfiniteData<Awaited<ReturnType<typeof account>>>,
+export function useGetAccountInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getAccount>>>,
   TError = ErrorType<AuthErrorResponse>,
 >(
   options?: {
-    query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>> &
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAccount>>, TError, TData>
+    > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof account>>,
+          Awaited<ReturnType<typeof getAccount>>,
           TError,
-          Awaited<ReturnType<typeof account>>
+          Awaited<ReturnType<typeof getAccount>>
         >,
         'initialData'
       >;
@@ -99,28 +101,28 @@ export function useAccountInfinite<
   },
   queryClient?: QueryClient,
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useAccountInfinite<
-  TData = InfiniteData<Awaited<ReturnType<typeof account>>>,
+export function useGetAccountInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getAccount>>>,
   TError = ErrorType<AuthErrorResponse>,
 >(
   options?: {
-    query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>>;
+    query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAccount>>, TError, TData>>;
     request?: SecondParameter<typeof useAxiosMutator>;
   },
   queryClient?: QueryClient,
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
-export function useAccountInfinite<
-  TData = InfiniteData<Awaited<ReturnType<typeof account>>>,
+export function useGetAccountInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getAccount>>>,
   TError = ErrorType<AuthErrorResponse>,
 >(
   options?: {
-    query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>>;
+    query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAccount>>, TError, TData>>;
     request?: SecondParameter<typeof useAxiosMutator>;
   },
   queryClient?: QueryClient,
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getAccountInfiniteQueryOptions(options);
+  const queryOptions = getGetAccountInfiniteQueryOptions(options);
 
   const query = useInfiniteQuery(queryOptions, queryClient) as UseInfiniteQueryResult<
     TData,
@@ -132,41 +134,41 @@ export function useAccountInfinite<
   return query;
 }
 
-export const getAccountQueryOptions = <
-  TData = Awaited<ReturnType<typeof account>>,
+export const getGetAccountQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAccount>>,
   TError = ErrorType<AuthErrorResponse>,
 >(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>>;
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccount>>, TError, TData>>;
   request?: SecondParameter<typeof useAxiosMutator>;
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getAccountQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getGetAccountQueryKey();
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof account>>> = ({ signal }) =>
-    account(requestOptions, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAccount>>> = ({ signal }) =>
+    getAccount(requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof account>>,
+    Awaited<ReturnType<typeof getAccount>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type AccountQueryResult = NonNullable<Awaited<ReturnType<typeof account>>>;
-export type AccountQueryError = ErrorType<AuthErrorResponse>;
+export type GetAccountQueryResult = NonNullable<Awaited<ReturnType<typeof getAccount>>>;
+export type GetAccountQueryError = ErrorType<AuthErrorResponse>;
 
-export function useAccount<
-  TData = Awaited<ReturnType<typeof account>>,
+export function useGetAccount<
+  TData = Awaited<ReturnType<typeof getAccount>>,
   TError = ErrorType<AuthErrorResponse>,
 >(
   options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>> &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccount>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof account>>,
+          Awaited<ReturnType<typeof getAccount>>,
           TError,
-          Awaited<ReturnType<typeof account>>
+          Awaited<ReturnType<typeof getAccount>>
         >,
         'initialData'
       >;
@@ -174,17 +176,17 @@ export function useAccount<
   },
   queryClient?: QueryClient,
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useAccount<
-  TData = Awaited<ReturnType<typeof account>>,
+export function useGetAccount<
+  TData = Awaited<ReturnType<typeof getAccount>>,
   TError = ErrorType<AuthErrorResponse>,
 >(
   options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>> &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccount>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof account>>,
+          Awaited<ReturnType<typeof getAccount>>,
           TError,
-          Awaited<ReturnType<typeof account>>
+          Awaited<ReturnType<typeof getAccount>>
         >,
         'initialData'
       >;
@@ -192,28 +194,28 @@ export function useAccount<
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useAccount<
-  TData = Awaited<ReturnType<typeof account>>,
+export function useGetAccount<
+  TData = Awaited<ReturnType<typeof getAccount>>,
   TError = ErrorType<AuthErrorResponse>,
 >(
   options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>>;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccount>>, TError, TData>>;
     request?: SecondParameter<typeof useAxiosMutator>;
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
-export function useAccount<
-  TData = Awaited<ReturnType<typeof account>>,
+export function useGetAccount<
+  TData = Awaited<ReturnType<typeof getAccount>>,
   TError = ErrorType<AuthErrorResponse>,
 >(
   options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>>;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccount>>, TError, TData>>;
     request?: SecondParameter<typeof useAxiosMutator>;
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getAccountQueryOptions(options);
+  const queryOptions = getGetAccountQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

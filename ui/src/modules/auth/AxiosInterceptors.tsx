@@ -4,11 +4,10 @@ import type { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 
 
 import { UNAUTHORIZED_STATUS_CODE } from '@/constants';
 import axiosInstance from '@/lib/axios';
-import { refresh as refreshToken } from '@/orval/auth';
-import type { AuthErrorResponse, AuthResponse } from '@/orval/models';
+import { refreshAuthToken } from '@/orval/auth';
+import { type AuthErrorResponse, type AuthResponse } from '@/orval/models';
 
 const AUTHORIZATION_HEADER_PREFIX = 'Bearer';
-const EXPIRED_SIGNATURE_ERROR_KIND = 'ExpiredSignature';
 
 interface AxiosInterceptorsProps {
   onSetAuthenticated: (data: AuthResponse) => void;
@@ -23,7 +22,7 @@ const isTokenExpiredError = (error: InterceptorError, originalRequest: OriginalR
   return (
     error.response &&
     error.response.status === UNAUTHORIZED_STATUS_CODE &&
-    error.response.data.error_kind === EXPIRED_SIGNATURE_ERROR_KIND &&
+    error.response.data.errorKind === 'expiredSignature' &&
     !originalRequest._retry
   );
 };
@@ -56,7 +55,7 @@ export const AxiosInterceptors = ({
           originalRequest._retry = true;
 
           try {
-            const authResponse = await refreshToken();
+            const authResponse = await refreshAuthToken();
             onSetAuthenticated(authResponse);
 
             if (originalRequest.headers) {
