@@ -59,7 +59,6 @@ pub enum TokenErrorKind {
     InvalidKeyFormat,
 
     // validation errors
-
     MissingRequiredClaim,
     ExpiredSignature,
     InvalidIssuer,
