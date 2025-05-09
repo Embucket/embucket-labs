@@ -559,11 +559,12 @@ impl UserQuery {
                     .drop_table(&iceberg_ident)
                     .await
                     .context(ex_error::IcebergSnafu)?;
+            } else {
+                return Err(ExecutionError::ObjectAlreadyExists {
+                    type_name: "table".to_string(),
+                    name: ident.to_string(),
+                });
             }
-            return Err(ExecutionError::ObjectAlreadyExists {
-                type_name: "table".to_string(),
-                name: ident.to_string(),
-            });
         }
 
         let fields_with_ids = StructType::try_from(&new_fields_with_ids(
