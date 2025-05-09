@@ -66,6 +66,7 @@ export function SQLEditor({ readonly, content }: SQLEditorProps) {
             worksheetId: +worksheetId,
           });
         },
+        delay: 3000,
       }),
     ],
     [readonly, worksheet, mutate, worksheetId],
