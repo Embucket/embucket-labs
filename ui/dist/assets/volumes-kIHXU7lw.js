@@ -1,1 +1,0 @@
-import{ak as n,al as y}from"./index-Cv8s3Nzg.js";const q=(u,r,e)=>y({url:"/ui/volumes",method:"GET",params:u,signal:e},r),i=u=>["/ui/volumes"],m=(u,r)=>{const{query:e,request:t}={};return{queryKey:(e==null?void 0:e.queryKey)??i(),queryFn:({signal:o})=>q(u,t,o),...e}};function a(u,r,e){const t=m(u),s=n(t);return s.queryKey=t.queryKey,s}export{a as u};
