@@ -13,21 +13,21 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { useAuth } from '@/modules/auth/AuthProvider';
+import { useAccount } from '@/orval/account';
 import { useLogout } from '@/orval/auth';
 
-export function AppSidebarAvatarMenu({
-  user,
-}: {
-  user: {
-    name: string;
-    email: string;
-    avatar: string;
-  };
-}) {
+const USER = {
+  email: 'johndoe@gmail.com',
+  avatar: 'https://ui.shadcn.com/avatars/04.png',
+};
+
+export function AppSidebarAvatarMenu() {
   const { resetAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  const { mutate: logout, isPending } = useLogout({
+  const { data: account, isPending: isAccountPending } = useAccount();
+
+  const { mutate: logout, isPending: isLogoutPending } = useLogout({
     mutation: {
       onSuccess: () => {
         resetAuthenticated();
@@ -42,19 +42,21 @@ export function AppSidebarAvatarMenu({
     logout();
   };
 
+  const userName = (account as { username?: string } | undefined)?.username ?? '';
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton size="lg">
+            <SidebarMenuButton size="lg" disabled={isAccountPending}>
               <Avatar className="h-8 w-8 rounded-lg hover:brightness-120">
-                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarImage src={USER.avatar} alt={userName} />
                 <AvatarFallback className="rounded-lg">CN</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="truncate font-semibold">{user.name}</span>
-                <span className="text-muted-foreground truncate text-xs">{user.email}</span>
+                <span className="truncate font-semibold capitalize">{userName}</span>
+                <span className="text-muted-foreground truncate text-xs">{USER.email}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
@@ -68,12 +70,12 @@ export function AppSidebarAvatarMenu({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarImage src={USER.avatar} alt={userName} />
                   <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">{user.name}</span>
-                  <span className="truncate text-xs">{user.email}</span>
+                  <span className="truncate font-semibold">{userName}</span>
+                  <span className="truncate text-xs">{USER.email}</span>
                 </div>
               </div>
             </DropdownMenuLabel>
@@ -85,7 +87,7 @@ export function AppSidebarAvatarMenu({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} disabled={isPending}>
+            <DropdownMenuItem onClick={handleLogout} disabled={isLogoutPending}>
               <LogOut />
               Log out
             </DropdownMenuItem>

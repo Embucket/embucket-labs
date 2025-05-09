@@ -2,10 +2,13 @@ import { useEffect } from 'react';
 
 import type { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 
-import { AUTHORIZATION_HEADER_PREFIX, UNAUTHORIZED_STATUS_CODE } from '@/constants';
+import { UNAUTHORIZED_STATUS_CODE } from '@/constants';
 import axiosInstance from '@/lib/axios';
 import { refresh as refreshToken } from '@/orval/auth';
-import type { AuthResponse } from '@/orval/models';
+import type { AuthErrorResponse, AuthResponse } from '@/orval/models';
+
+const AUTHORIZATION_HEADER_PREFIX = 'Bearer';
+const EXPIRED_SIGNATURE_ERROR_KIND = 'ExpiredSignature';
 
 interface AxiosInterceptorsProps {
   onSetAuthenticated: (data: AuthResponse) => void;
@@ -14,14 +17,13 @@ interface AxiosInterceptorsProps {
 }
 
 type OriginalRequest = AxiosRequestConfig & { _retry?: boolean };
-type InterceptorError = AxiosError<{ message: string }>;
+type InterceptorError = AxiosError<AuthErrorResponse>;
 
 const isTokenExpiredError = (error: InterceptorError, originalRequest: OriginalRequest) => {
   return (
     error.response &&
     error.response.status === UNAUTHORIZED_STATUS_CODE &&
-    // TODO: Handle type from error.response.data
-    error.response.data.message === 'Bad authentication token. ExpiredSignature' &&
+    error.response.data.error_kind === EXPIRED_SIGNATURE_ERROR_KIND &&
     !originalRequest._retry
   );
 };

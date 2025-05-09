@@ -19,7 +19,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
-  const { mutate: refresh, isPending } = useRefresh({
+  const {
+    mutate: refresh,
+    isPending,
+    isIdle,
+  } = useRefresh({
     mutation: {
       onSuccess: (data) => {
         setAuthenticated(data);
@@ -32,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [accessToken]);
 
   const setAuthenticated = useCallback((data: AuthResponse) => {
-    // Use flushSync, so TanStack Router beforeLoad context is updated
+    // Important to use flushSync, so TanStack Router beforeLoad context is updated
     flushSync(() => {
       setAccessToken(data.accessToken);
     });
@@ -56,7 +60,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     [isAuthenticated, setAuthenticated, resetAuthenticated, getAccessToken],
   );
 
-  if (isPending) {
+  // Important to return null here, so TanStack Router context is correctly initialized
+  if (isIdle || isPending) {
     return null;
   }
 

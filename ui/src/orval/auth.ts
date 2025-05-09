@@ -15,7 +15,7 @@ import type {
 
 import { useAxiosMutator } from '../lib/axiosMutator';
 import type { ErrorType } from '../lib/axiosMutator';
-import type { AuthResponse, ErrorResponse, LoginPayload } from './models';
+import type { AuthErrorResponse, AuthResponse, LoginPayload } from './models';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
@@ -37,7 +37,7 @@ export const login = (
 };
 
 export const getLoginMutationOptions = <
-  TError = ErrorType<ErrorResponse>,
+  TError = ErrorType<AuthErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -73,9 +73,9 @@ export const getLoginMutationOptions = <
 
 export type LoginMutationResult = NonNullable<Awaited<ReturnType<typeof login>>>;
 export type LoginMutationBody = LoginPayload;
-export type LoginMutationError = ErrorType<ErrorResponse>;
+export type LoginMutationError = ErrorType<AuthErrorResponse>;
 
-export const useLogin = <TError = ErrorType<ErrorResponse>, TContext = unknown>(
+export const useLogin = <TError = ErrorType<AuthErrorResponse>, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof login>>,
@@ -101,7 +101,7 @@ export const logout = (options?: SecondParameter<typeof useAxiosMutator>, signal
 };
 
 export const getLogoutMutationOptions = <
-  TError = ErrorType<ErrorResponse>,
+  TError = ErrorType<AuthErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<Awaited<ReturnType<typeof logout>>, TError, void, TContext>;
@@ -123,9 +123,9 @@ export const getLogoutMutationOptions = <
 
 export type LogoutMutationResult = NonNullable<Awaited<ReturnType<typeof logout>>>;
 
-export type LogoutMutationError = ErrorType<ErrorResponse>;
+export type LogoutMutationError = ErrorType<AuthErrorResponse>;
 
-export const useLogout = <TError = ErrorType<ErrorResponse>, TContext = unknown>(
+export const useLogout = <TError = ErrorType<AuthErrorResponse>, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<Awaited<ReturnType<typeof logout>>, TError, void, TContext>;
     request?: SecondParameter<typeof useAxiosMutator>;
@@ -144,7 +144,7 @@ export const refresh = (
 };
 
 export const getRefreshMutationOptions = <
-  TError = ErrorType<ErrorResponse>,
+  TError = ErrorType<AuthErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<Awaited<ReturnType<typeof refresh>>, TError, void, TContext>;
@@ -166,9 +166,9 @@ export const getRefreshMutationOptions = <
 
 export type RefreshMutationResult = NonNullable<Awaited<ReturnType<typeof refresh>>>;
 
-export type RefreshMutationError = ErrorType<ErrorResponse>;
+export type RefreshMutationError = ErrorType<AuthErrorResponse>;
 
-export const useRefresh = <TError = ErrorType<ErrorResponse>, TContext = unknown>(
+export const useRefresh = <TError = ErrorType<AuthErrorResponse>, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<Awaited<ReturnType<typeof refresh>>, TError, void, TContext>;
     request?: SecondParameter<typeof useAxiosMutator>;

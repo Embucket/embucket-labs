@@ -22,19 +22,11 @@ export const Route = createRootRouteWithContext<{
   component: Root,
   notFoundComponent: () => <Navigate to="/" />,
   beforeLoad: ({ location, context }) => {
-    const { pathname } = location;
     if (!context.auth.isAuthenticated) {
       // Redirect to "/" page if not authenticated and trying to access a private route (not in PUBLIC_PATHS)
-      if (!PUBLIC_PATHS.includes(pathname as keyof FileRoutesByTo)) {
+      if (!PUBLIC_PATHS.includes(location.pathname as keyof FileRoutesByTo)) {
         throw redirect({
           to: '/',
-        });
-      }
-    } else {
-      // Redirect authenticated users from public routes to the home page
-      if (PUBLIC_PATHS.includes(pathname as keyof FileRoutesByTo)) {
-        throw redirect({
-          to: '/home',
         });
       }
     }

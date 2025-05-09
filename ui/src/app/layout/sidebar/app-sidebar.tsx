@@ -30,6 +30,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/modules/auth/AuthProvider';
 import { useSqlEditorSettingsStore } from '@/modules/sql-editor/sql-editor-settings-store';
 import { getGetWorksheetsQueryKey, useCreateWorksheet, useGetWorksheets } from '@/orval/worksheets';
 
@@ -127,6 +128,8 @@ function SidebarGroupComponent({ items, open }: { items: SidebarNavOption[]; ope
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { open } = useSidebar();
   const { data: { items: worksheets } = {}, isFetching: isFetchingWorksheets } = useGetWorksheets();
+  const { isAuthenticated } = useAuth();
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -178,7 +181,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {...props}
     >
       <SidebarHeader className="flex flex-row items-center justify-between">
-        <Link to="/">
+        <Link to={isAuthenticated ? '/home' : '/'}>
           <div className={cn('flex items-center gap-1 transition-all', open && 'ml-2')}>
             <EmbucketLogo />
             {open && <EmbucketLogoText />}
@@ -246,13 +249,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         )}
       </SidebarContent>
       <SidebarFooter>
-        <AppSidebarAvatarMenu
-          user={{
-            name: 'John Doe',
-            email: 'johndoe@gmail.com',
-            avatar: 'https://ui.shadcn.com/avatars/04.png',
-          }}
-        />
+        <AppSidebarAvatarMenu />
       </SidebarFooter>
     </Sidebar>
   );

@@ -6,6 +6,8 @@
  * OpenAPI spec version: 1.0.2
  */
 
+export * from './authErrorResponse';
+export * from './authErrorResponseErrorKind';
 export * from './authResponse';
 export * from './awsAccessKeyCredentials';
 export * from './awsCredentials';

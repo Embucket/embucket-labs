@@ -40,7 +40,7 @@ export function SignInForm() {
     mutation: {
       onSuccess: (data: AuthResponse) => {
         setAuthenticated(data);
-        navigate({ to: '/home' });
+        navigate({ to: '/home', replace: true });
       },
     },
   });
