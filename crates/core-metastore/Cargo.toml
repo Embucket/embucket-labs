@@ -24,7 +24,7 @@ tracing = { workspace = true }
 url = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
-validator = { version = "0.20.0", features = ["derive"] }
+validator = { workspace = true }
 
 [dev-dependencies]
 insta = { version = "1.42.0", features = ["yaml", "filters", "redactions"] }

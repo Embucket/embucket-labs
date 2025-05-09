@@ -1,11 +1,18 @@
-use crate::http::error::ErrorResponse;
-use axum::{response::IntoResponse, Json};
-use embucket_metastore::error::MetastoreError;
+use axum::{Json, response::IntoResponse};
+use core_metastore::error::MetastoreError;
+use http;
+use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
 pub struct MetastoreAPIError(pub MetastoreError);
 pub type MetastoreAPIResult<T> = Result<T, MetastoreAPIError>;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorResponse {
+    pub message: String,
+    pub status_code: u16,
+}
 
 impl IntoResponse for MetastoreAPIError {
     fn into_response(self) -> axum::response::Response {

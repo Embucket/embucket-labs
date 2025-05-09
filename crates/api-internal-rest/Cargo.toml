@@ -5,6 +5,16 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+core-metastore = { path = "../core-metastore" }
+core-utils = { path = "../core-utils" }
+
+axum = { workspace = true }
+http = "1.2.0"
+serde = { workspace = true }
+serde_json = { workspace = true }
+snafu = { workspace = true }
+validator = { workspace = true }
+tracing = { workspace = true }
 
 [lints]
 workspace = true
