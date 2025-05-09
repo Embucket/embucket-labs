@@ -1,11 +1,15 @@
 [workspace]
-default-members = ["bin/bucketd"]
+default-members = ["crates/embucketd"]
 members = [
-  "bin/bucketd",
-  "crates/metastore",
-  "crates/history",
-  "crates/runtime",
-  "crates/utils",
+  "crates/embucketd",
+  "crates/api-internal-rest",
+  "crates/api-snowflake-rest",
+  "crates/api-ui",
+  "crates/datafusion-functions",
+  "crates/datafusion-catalog",
+  "crates/core-executor",
+  "crates/core-history",
+  "crates/core-metastore",
 ]
 resolver = "2"
 package.license-file = "LICENSE"
