@@ -490,7 +490,7 @@ impl UserQuery {
             }
             let schema_name = name
                 .schema()
-                .ok_or(ExecutionError::InvalidTableIdentifier {
+                .ok_or(ExecutionError::InvalidSchemaIdentifier {
                     ident: name.to_string(),
                 })?;
 
@@ -547,10 +547,7 @@ impl UserQuery {
             .await
             .is_ok();
         if table_exists && statement.if_not_exists {
-            return Err(ExecutionError::ObjectAlreadyExists {
-                type_name: "table".to_string(),
-                name: ident.to_string(),
-            });
+            return created_entity_response();
         }
 
         if table_exists && statement.or_replace {
@@ -931,13 +928,10 @@ impl UserQuery {
             .await
             .context(ex_error::IcebergSnafu)?
             .iter()
-            .any(|namespace| namespace.to_string() == ident.schema);
+            .any(|namespace| namespace.join(".") == ident.schema);
 
         if schema_exists && if_not_exists {
-            return Err(ExecutionError::ObjectAlreadyExists {
-                type_name: "schema".to_string(),
-                name: ident.schema,
-            });
+            return created_entity_response();
         }
         let namespace = Namespace::try_new(&[ident.schema])
             .map_err(|err| DataFusionError::External(Box::new(err)))
