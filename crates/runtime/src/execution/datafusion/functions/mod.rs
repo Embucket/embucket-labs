@@ -39,6 +39,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         booland::get_udf(),
         boolor::get_udf(),
         boolxor::get_udf(),
+        iff::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),

@@ -103,6 +103,9 @@ fn return_type(lhs: &DataType, rhs: &DataType) -> DataType {
         _ => rhs.clone(),
     }
 }
+
+super::macros::make_udf_function!(IffFunc);
+
 #[cfg(test)]
 mod tests {
     use super::*;
