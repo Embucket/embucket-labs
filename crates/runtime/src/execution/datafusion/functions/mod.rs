@@ -19,13 +19,13 @@ mod date_from_parts;
 mod booland;
 mod boolor;
 mod boolxor;
+mod iff;
 mod parse_json;
 pub mod table;
 mod time_from_parts;
 mod timestamp_from_parts;
 mod to_boolean;
 mod to_time;
-mod iff;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
@@ -94,6 +94,13 @@ macro_rules! numeric_to_boolean {
 #[allow(clippy::cognitive_complexity, clippy::unwrap_used)]
 pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
     Ok(match arr.data_type() {
+        DataType::Null => {
+            let mut boolean_array = BooleanArray::builder(arr.len());
+            for _ in 0..arr.len() {
+                boolean_array.append_null();
+            }
+            boolean_array.finish()
+        }
         DataType::Boolean => {
             let mut boolean_array = BooleanArray::builder(arr.len());
             let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
