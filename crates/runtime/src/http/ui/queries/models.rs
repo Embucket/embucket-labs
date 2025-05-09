@@ -3,9 +3,9 @@ use super::error::{
 };
 use crate::execution::models::ColumnInfo;
 use crate::http::ui::default_limit;
-use arrow::array::RecordBatch;
-use arrow_json::{writer::JsonArray, WriterBuilder};
 use chrono::{DateTime, Utc};
+use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::json::{writer::JsonArray, WriterBuilder};
 use embucket_history::{QueryRecordId, QueryStatus as QueryStatusItem, WorksheetId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};

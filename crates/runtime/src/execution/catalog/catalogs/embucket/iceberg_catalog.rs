@@ -269,10 +269,7 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
                     IcebergError::External(Box::new(MetastoreError::UtilSlateDB { source: e }))
                 })?;
             for schema in schemas {
-                namespaces.push(IcebergNamespace::try_new(&[
-                    schema.ident.database.clone(),
-                    schema.ident.schema.clone(),
-                ])?);
+                namespaces.push(IcebergNamespace::try_new(&[schema.ident.schema.clone()])?);
             }
         }
         Ok(namespaces)

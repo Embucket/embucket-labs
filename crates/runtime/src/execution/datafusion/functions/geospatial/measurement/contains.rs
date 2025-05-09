@@ -1,5 +1,5 @@
 use crate::execution::datafusion::functions::geospatial::data_types::parse_to_native_array;
-use arrow_schema::DataType;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{
     ColumnarValue, Documentation, ScalarUDFImpl, Signature, Volatility,
@@ -127,8 +127,8 @@ fn contains(args: &[ColumnarValue]) -> Result<ColumnarValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrow_array::cast::AsArray;
-    use arrow_array::ArrayRef;
+    use datafusion::arrow::array::cast::AsArray;
+    use datafusion::arrow::array::ArrayRef;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::{line_string, point, polygon};
     use geoarrow::array::LineStringBuilder;

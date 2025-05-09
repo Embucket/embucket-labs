@@ -4,11 +4,11 @@ use std::sync::Arc;
 use crate::execution::datafusion::functions::timestamp_from_parts::{
     make_time, take_function_args, to_primitive_array,
 };
-use arrow::array::builder::PrimitiveBuilder;
-use arrow::array::{Array, PrimitiveArray};
-use arrow::datatypes::{DataType, Int64Type, Time64NanosecondType};
-use arrow_schema::DataType::{Int64, Time64};
-use arrow_schema::TimeUnit;
+use datafusion::arrow::array::builder::PrimitiveBuilder;
+use datafusion::arrow::array::{Array, PrimitiveArray};
+use datafusion::arrow::datatypes::DataType::{Int64, Time64};
+use datafusion::arrow::datatypes::TimeUnit;
+use datafusion::arrow::datatypes::{DataType, Int64Type, Time64NanosecondType};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion_common::types::logical_int64;
@@ -167,8 +167,8 @@ super::macros::make_udf_function!(TimeFromPartsFunc);
 mod test {
     use crate::execution::datafusion::functions::time_from_parts::TimeFromPartsFunc;
     use crate::execution::datafusion::functions::timestamp_from_parts::to_primitive_array;
-    use arrow::datatypes::Time64NanosecondType;
     use chrono::NaiveTime;
+    use datafusion::arrow::datatypes::Time64NanosecondType;
     use datafusion::logical_expr::ColumnarValue;
     use datafusion_common::ScalarValue;
     use datafusion_expr::ScalarUDFImpl;

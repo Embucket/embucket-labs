@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use arrow_array::builder::{StringBuilder, UInt64Builder};
-use arrow_array::{ArrayRef, RecordBatch, StringArray, UInt64Array};
-use arrow_schema::{DataType, Field, Schema, SchemaRef};
+use datafusion::arrow::array::builder::{StringBuilder, UInt64Builder};
+use datafusion::arrow::array::{ArrayRef, RecordBatch, StringArray, UInt64Array};
+use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use datafusion::catalog::{TableFunctionImpl, TableProvider};
 use datafusion::datasource::MemTable;
 use datafusion::physical_expr::create_physical_expr;

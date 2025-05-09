@@ -87,7 +87,7 @@ CATALOG_URL=http://127.0.0.1:3000
 
 # Optional: CORS settings
 CORS_ENABLED=true
-CORS_ALLOW_ORIGIN=http://localhost:3000
+CORS_ALLOW_ORIGIN=http://localhost:8080
 
 EOF
 

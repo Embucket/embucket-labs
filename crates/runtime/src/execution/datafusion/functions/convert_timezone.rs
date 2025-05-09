@@ -1,7 +1,7 @@
-use arrow::array::timezone::Tz;
-use arrow::datatypes::DataType;
-use arrow::datatypes::DataType::{Timestamp, Utf8};
-use arrow::datatypes::TimeUnit::{self, Microsecond, Millisecond, Nanosecond, Second};
+use datafusion::arrow::array::timezone::Tz;
+use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::DataType::{Timestamp, Utf8};
+use datafusion::arrow::datatypes::TimeUnit::{self, Microsecond, Millisecond, Nanosecond, Second};
 use datafusion::common::{internal_err, plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Exact;
 use datafusion::logical_expr::{
@@ -299,7 +299,7 @@ super::macros::make_udf_function!(ConvertTimezoneFunc);
 #[allow(clippy::unwrap_in_result)]
 mod tests {
     use super::ConvertTimezoneFunc;
-    use arrow_schema::{DataType, TimeUnit};
+    use datafusion::arrow::datatypes::{DataType, TimeUnit};
     use datafusion_common::ScalarValue;
     use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
     use std::sync::Arc;

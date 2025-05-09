@@ -1,16 +1,16 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use arrow::array::builder::PrimitiveBuilder;
-use arrow::array::timezone::Tz;
-use arrow::array::{Array, AsArray, PrimitiveArray, StringArray};
-use arrow::datatypes::{
-    DataType, Date32Type, Int32Type, Int64Type, Time64NanosecondType, TimestampNanosecondType,
-};
-use arrow_schema::DataType::{Date32, Int32, Int64, Time64};
-use arrow_schema::TimeUnit;
 use chrono::prelude::*;
 use chrono::{Duration, Months};
+use datafusion::arrow::array::builder::PrimitiveBuilder;
+use datafusion::arrow::array::timezone::Tz;
+use datafusion::arrow::array::{Array, AsArray, PrimitiveArray, StringArray};
+use datafusion::arrow::datatypes::DataType::{Date32, Int32, Int64, Time64};
+use datafusion::arrow::datatypes::TimeUnit;
+use datafusion::arrow::datatypes::{
+    DataType, Date32Type, Int32Type, Int64Type, Time64NanosecondType, TimestampNanosecondType,
+};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion_common::types::{logical_date, logical_int64, logical_string};
@@ -424,8 +424,8 @@ mod test {
     use crate::execution::datafusion::functions::timestamp_from_parts::{
         to_primitive_array, TimestampFromPartsFunc,
     };
-    use arrow::datatypes::TimestampNanosecondType;
     use chrono::DateTime;
+    use datafusion::arrow::datatypes::TimestampNanosecondType;
     use datafusion::logical_expr::ColumnarValue;
     use datafusion_common::ScalarValue;
     use datafusion_expr::ScalarUDFImpl;

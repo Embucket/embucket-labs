@@ -1,12 +1,12 @@
-use crate::http::auth::models::RefreshTokenResponse;
+use crate::http::auth::models::{AccountResponse, RefreshTokenResponse};
 use std::collections::HashMap;
 
+use super::error::AuthErrorResponse;
 use super::error::CreateJwtSnafu;
 use crate::http::auth::error::{
     AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu, SetCookieSnafu,
 };
 use crate::http::auth::models::{AuthResponse, Claims, LoginPayload};
-use crate::http::error::ErrorResponse;
 use crate::http::state::AppState;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -20,6 +20,7 @@ use snafu::ResultExt;
 use time::Duration;
 use tower_sessions::cookie::{Cookie, SameSite};
 use tracing;
+use tracing::Level;
 use utoipa::OpenApi;
 
 pub const REFRESH_TOKEN_EXPIRATION_HOURS: u32 = 24 * 7;
@@ -137,13 +138,14 @@ fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
         login,
         refresh_access_token,
         logout,
+        account,
     ),
     components(
         schemas(
             LoginPayload,
             AuthResponse,
             RefreshTokenResponse,
-            ErrorResponse,
+            AuthErrorResponse,
         )
     ),
     tags(
@@ -165,11 +167,11 @@ pub struct ApiDoc;
          headers(
             ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
          ),
-         body = ErrorResponse),
-        (status = 500, description = "Internal server error", body = ErrorResponse),
+         body = AuthErrorResponse),
+        (status = 500, description = "Internal server error", body = AuthErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state, password), err)]
+#[tracing::instrument(level = Level::ERROR, skip_all, err)]
 pub async fn login(
     State(state): State<AppState>,
     Json(LoginPayload { username, password }): Json<LoginPayload>,
@@ -211,11 +213,16 @@ pub async fn login(
     tags = ["auth"],
     responses(
         (status = 200, description = "Successful Response", body = AuthResponse),
-        (status = 401, description = "Unauthorized", body = ErrorResponse),
-        (status = 500, description = "Internal server error", body = ErrorResponse),
+        (status = 401,
+            description = "Unauthorized", 
+            headers(
+               ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+            ),
+            body = AuthErrorResponse),
+        (status = 500, description = "Internal server error", body = AuthErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err)]
+#[tracing::instrument(level = Level::ERROR, skip_all, err)]
 pub async fn refresh_access_token(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -256,10 +263,16 @@ pub async fn refresh_access_token(
     tags = ["auth"],
     responses(
         (status = 200, description = "Successful Response"),
-        (status = 500, description = "Internal server error", body = ErrorResponse),
+        (status = 401,
+            description = "Unauthorized", 
+            headers(
+               ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+            ),
+            body = AuthErrorResponse),
+        (status = 500, description = "Internal server error", body = AuthErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err)]
+#[tracing::instrument(level = Level::ERROR, skip_all, err)]
 pub async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -286,4 +299,42 @@ pub async fn logout(
     set_cookies(&mut headers, "")?;
 
     Ok((headers, ()))
+}
+
+#[utoipa::path(
+    get,
+    path = "/account",
+    operation_id = "account",
+    tags = ["account"],
+    responses(
+        (status = 200, description = "Successful Response"),
+        (status = 401,
+            description = "Unauthorized", 
+            headers(
+               ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+            ),
+            body = AuthErrorResponse),
+    )
+)]
+#[tracing::instrument(level = Level::ERROR, skip_all, err)]
+pub async fn account(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> AuthResult<impl IntoResponse> {
+    // Simplest account info, also no auth checks.
+    // TODO:
+    // Move it to proper place when working with real account
+    // Check authentication
+
+    let auth = headers.get(http::header::AUTHORIZATION);
+    if auth.is_some() {
+        Ok((
+            headers,
+            Json(AccountResponse {
+                username: state.auth_config.demo_user().to_string(),
+            }),
+        ))
+    } else {
+        Err(AuthError::NoAuthHeader)
+    }
 }

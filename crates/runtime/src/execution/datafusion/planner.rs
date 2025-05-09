@@ -1,4 +1,4 @@
-use arrow::datatypes::{Field, Schema};
+use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::Result;
 use datafusion::common::{plan_err, ToDFSchema};
 use datafusion::logical_expr::sqlparser::ast::{Ident, ObjectName};
@@ -44,25 +44,11 @@ where
         }
     }
 
-    /// Custom implementation of `sql_statement_to_plan`
-    pub fn sql_statement_to_plan(&self, statement: Statement) -> Result<LogicalPlan> {
-        // Check for a custom statement type
-        match self.handle_custom_statement(statement.clone()) {
-            Ok(plan) => return Ok(plan),
-            Err(e) => {
-                tracing::debug!("Custom statement parsing skipped: {} {}", statement, e);
-            }
-        }
-
-        // For all other statements, delegate to the wrapped SqlToRel
-        self.inner.sql_statement_to_plan(statement)
-    }
-
     /// Handle custom statements not supported by the original `SqlToRel`
     #[allow(clippy::too_many_lines)]
-    fn handle_custom_statement(&self, statement: Statement) -> Result<LogicalPlan> {
+    pub fn sql_statement_to_plan(&self, statement: Statement) -> Result<LogicalPlan> {
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
-        // Example: Custom handling for a specific statement
+        // TODO: Refactor what statements are handleded here vs UserQuery `sql_to_statement`
         match statement.clone() {
             Statement::AlterTable { .. }
             | Statement::StartTransaction { .. }
@@ -80,42 +66,36 @@ where
                 self.show_objects_to_plan(&parent_name)
             }
             Statement::Drop {
-                object_type,
+                object_type: ObjectType::Database,
                 if_exists,
                 mut names,
                 cascade,
                 ..
-            } => match object_type {
-                ObjectType::Database => {
-                    #[allow(clippy::unwrap_used)]
-                    let name = object_name_to_table_reference(
-                        names.pop().unwrap(),
-                        self.options.enable_ident_normalization,
-                    )?;
-                    let schema_name = match name {
-                        TableReference::Bare { table } => {
-                            Ok(SchemaReference::Bare { schema: table })
-                        }
-                        TableReference::Partial { schema, table } => Ok(SchemaReference::Full {
-                            schema: table,
-                            catalog: schema,
-                        }),
-                        TableReference::Full { .. } => {
-                            plan_err!("Invalid schema specifier (has 3 parts)")
-                        }
-                    }?;
-
-                    Ok(LogicalPlan::Ddl(DdlStatement::DropCatalogSchema(
-                        DropCatalogSchema {
-                            name: schema_name,
-                            if_exists,
-                            cascade,
-                            schema: DFSchemaRef::new(DFSchema::empty()),
-                        },
-                    )))
-                }
-                _ => plan_err!("Unsupported drop: {:?}", object_type),
-            },
+            } => {
+                #[allow(clippy::unwrap_used)]
+                let name = object_name_to_table_reference(
+                    names.pop().unwrap(),
+                    self.options.enable_ident_normalization,
+                )?;
+                let schema_name = match name {
+                    TableReference::Bare { table } => Ok(SchemaReference::Bare { schema: table }),
+                    TableReference::Partial { schema, table } => Ok(SchemaReference::Full {
+                        schema: table,
+                        catalog: schema,
+                    }),
+                    TableReference::Full { .. } => {
+                        plan_err!("Invalid schema specifier (has 3 parts)")
+                    }
+                }?;
+                Ok(LogicalPlan::Ddl(DdlStatement::DropCatalogSchema(
+                    DropCatalogSchema {
+                        name: schema_name,
+                        if_exists,
+                        cascade,
+                        schema: DFSchemaRef::new(DFSchema::empty()),
+                    },
+                )))
+            }
             Statement::CreateTable(CreateTableStatement {
                 query,
                 name,
@@ -167,7 +147,7 @@ where
                     )))
                 }
             }
-            _ => plan_err!("Unsupported statement: {:?}", statement),
+            _ => self.inner.sql_statement_to_plan(statement),
         }
     }
 

@@ -18,9 +18,9 @@
 //! Defines the `ANY_VALUE` aggregation function.
 
 use super::macros::make_udaf_function;
-use arrow::array::{ArrayRef, AsArray};
-use arrow::datatypes::{DataType, Field};
-use arrow_array::Array;
+use datafusion::arrow::array::Array;
+use datafusion::arrow::array::{ArrayRef, AsArray};
+use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion_common::utils::get_row_at_idx;
 use datafusion_common::{Result, ScalarValue};
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
@@ -199,7 +199,7 @@ make_udaf_function!(AnyValue);
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::Int64Array;
+    use datafusion::arrow::array::Int64Array;
     use std::sync::Arc;
 
     use super::*;

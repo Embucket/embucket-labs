@@ -1,7 +1,7 @@
-use arrow::array::Array;
-use arrow::compute::{date_part, DatePart};
-use arrow::datatypes::DataType;
-use arrow::datatypes::DataType::Int64;
+use datafusion::arrow::array::Array;
+use datafusion::arrow::compute::{date_part, DatePart};
+use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::DataType::Int64;
 use datafusion::common::{plan_err, Result};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;

@@ -3,7 +3,7 @@ use snafu::prelude::*;
 
 use super::schemas::JsonResponse;
 use crate::execution::error::ExecutionError;
-use arrow::error::ArrowError;
+use datafusion::arrow::error::ArrowError;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]

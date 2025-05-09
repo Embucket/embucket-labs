@@ -3,7 +3,7 @@ use crate::execution::datafusion::functions::geospatial::data_types::{
 };
 use crate::execution::datafusion::functions::geospatial::error as geo_error;
 use crate::execution::datafusion::functions::macros::make_udf_function;
-use arrow_schema::DataType;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
@@ -14,11 +14,11 @@ use geo_traits::{LineStringTrait, MultiPointTrait, PointTrait};
 use geoarrow::array::{
     AsNativeArray, LineStringArray, LineStringBuilder, MultiPointArray, PointArray,
 };
-use geoarrow_schema::{CoordType, Dimension};
-use geoarrow::datatypes::{NativeType};
+use geoarrow::datatypes::NativeType;
 use geoarrow::error::GeoArrowError;
 use geoarrow::trait_::ArrayAccessor;
 use geoarrow::ArrayBase;
+use geoarrow_schema::{CoordType, Dimension};
 use geozero::GeomProcessor;
 use snafu::ResultExt;
 use std::any::Any;
@@ -226,7 +226,7 @@ make_udf_function!(MakeLine);
 mod tests {
     use super::*;
     use crate::execution::datafusion::functions::geospatial::data_types::LINE_STRING_TYPE;
-    use arrow_array::Array;
+    use datafusion::arrow::array::Array;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::{line_string, point};
     use geoarrow::array::{LineStringArray, LineStringBuilder, PointBuilder};

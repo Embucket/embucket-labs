@@ -1,10 +1,10 @@
-use crate::http::error::ErrorResponse;
 use axum::{http, response::IntoResponse, Json};
 use http::header;
 use http::header::InvalidHeaderValue;
 use http::HeaderValue;
 use http::{header::MaxSizeReached, StatusCode};
 use jsonwebtoken::errors::Error as JwtError;
+use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
 
 #[derive(Snafu, Debug)]
@@ -46,6 +46,14 @@ pub enum AuthError {
     Custom { message: String },
 }
 
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct AuthErrorResponse {
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_kind: Option<String>,
+    pub status_code: u16,
+}
+
 // WwwAuthenticate is error related so placed closer to error
 // Return WwwAuthenticate header along with Unauthorized status code
 #[cfg_attr(test, derive(Debug))]
@@ -59,23 +67,24 @@ pub struct WwwAuthenticate {
 impl TryFrom<AuthError> for WwwAuthenticate {
     type Error = Option<Self>;
     fn try_from(value: AuthError) -> Result<Self, Self::Error> {
+        let auth = "Bearer".to_string();
         let error = value.to_string();
         match value {
             AuthError::Login => Ok(Self {
-                auth: "Basic".to_string(),
+                auth,
                 realm: "login".to_string(),
                 error,
                 kind: None,
             }),
             AuthError::NoAuthHeader | AuthError::NoRefreshTokenCookie => Ok(Self {
-                auth: "Bearer".to_string(),
+                auth,
                 realm: "api-auth".to_string(),
                 error,
                 kind: None,
             }),
             AuthError::BadRefreshToken { source } | AuthError::BadAuthToken { source } => {
                 Ok(Self {
-                    auth: "Bearer".to_string(),
+                    auth,
                     realm: "api-auth".to_string(),
                     error,
                     kind: Some(source.to_string()),
@@ -120,16 +129,18 @@ impl IntoResponse for AuthError {
                             HeaderValue::from_static("Error adding www_authenticate header")
                         }),
                 )],
-                Json(ErrorResponse {
+                Json(AuthErrorResponse {
                     message,
+                    error_kind: www_value.kind,
                     status_code: StatusCode::UNAUTHORIZED.as_u16(),
                 }),
             )
                 .into_response(),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
+                Json(AuthErrorResponse {
                     message,
+                    error_kind: None,
                     status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
                 }),
             )

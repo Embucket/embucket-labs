@@ -4,10 +4,12 @@ use std::sync::Arc;
 use crate::execution::datafusion::functions::timestamp_from_parts::{
     make_date, take_function_args, to_primitive_array,
 };
-use arrow::array::builder::PrimitiveBuilder;
-use arrow::array::{Array, PrimitiveArray};
-use arrow::datatypes::{DataType, Date32Type, Int32Type};
-use arrow_schema::DataType::{Date32, Int32, Int64, UInt32, UInt64, Utf8, Utf8View};
+use datafusion::arrow::array::builder::PrimitiveBuilder;
+use datafusion::arrow::array::{Array, PrimitiveArray};
+use datafusion::arrow::datatypes::DataType::{
+    Date32, Int32, Int64, UInt32, UInt64, Utf8, Utf8View,
+};
+use datafusion::arrow::datatypes::{DataType, Date32Type, Int32Type};
 use datafusion_common::{Result, ScalarValue};
 use datafusion_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion_macros::user_doc;
@@ -141,8 +143,8 @@ mod test {
     use crate::execution::datafusion::functions::timestamp_from_parts::{
         to_primitive_array, UNIX_DAYS_FROM_CE,
     };
-    use arrow::datatypes::Date32Type;
     use chrono::NaiveDate;
+    use datafusion::arrow::datatypes::Date32Type;
     use datafusion_common::ScalarValue;
     use datafusion_expr::{ColumnarValue, ScalarUDFImpl};
 

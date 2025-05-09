@@ -191,7 +191,7 @@ where
 
     if let Ok(body) = std::str::from_utf8(&bytes) {
         // Skip upload endpoint logs as they can be large
-        if !uri.contains("upload") {
+        if !uri.contains("upload") && !uri.contains("auth") {
             tracing::debug!("{direction} {method} {uri} body = {body}");
         }
     }

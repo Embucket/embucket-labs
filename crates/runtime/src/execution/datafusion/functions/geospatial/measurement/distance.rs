@@ -1,7 +1,7 @@
 use crate::execution::datafusion::functions::geospatial::data_types::parse_to_native_array;
-use arrow_array::builder::Float64Builder;
-use arrow_array::{Array, Float64Array};
-use arrow_schema::DataType;
+use datafusion::arrow::array::builder::Float64Builder;
+use datafusion::arrow::array::{Array, Float64Array};
+use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{
     ColumnarValue, Documentation, ScalarUDFImpl, Signature, Volatility,
@@ -175,9 +175,9 @@ fn to_meters(array: &Float64Array) -> Float64Array {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrow_array::cast::AsArray;
-    use arrow_array::types::Float64Type;
-    use arrow_array::ArrayRef;
+    use datafusion::arrow::array::cast::AsArray;
+    use datafusion::arrow::array::types::Float64Type;
+    use datafusion::arrow::array::ArrayRef;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::{line_string, point, polygon};
     use geoarrow::array::LineStringBuilder;

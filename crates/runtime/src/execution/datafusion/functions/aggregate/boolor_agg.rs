@@ -1,7 +1,7 @@
 use crate::execution::datafusion::functions::aggregate::macros::make_udaf_function;
 use crate::execution::datafusion::functions::array_to_boolean;
-use arrow_array::ArrayRef;
-use arrow_schema::DataType;
+use datafusion::arrow::array::ArrayRef;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::Accumulator;
 use datafusion_common::ScalarValue;
@@ -138,7 +138,7 @@ make_udaf_function!(BoolOrAggUDAF);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrow_array::BooleanArray;
+    use datafusion::arrow::array::BooleanArray;
     use datafusion::prelude::{SessionConfig, SessionContext};
     use datafusion_common::assert_batches_eq;
     use datafusion_expr::AggregateUDF;

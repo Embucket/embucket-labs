@@ -1,5 +1,5 @@
-use arrow::array::RecordBatch;
-use arrow::datatypes::{DataType, Field, TimeUnit};
+use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::datatypes::{DataType, Field, TimeUnit};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -131,7 +131,7 @@ impl ColumnInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrow::datatypes::TimeUnit;
+    use datafusion::arrow::datatypes::TimeUnit;
 
     #[tokio::test]
     #[allow(clippy::unwrap_used)]

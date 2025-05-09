@@ -35,6 +35,13 @@ pub struct LoginPayload {
     pub password: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountResponse {
+    pub username: String,
+}
+
+// For internal use, should not be included into open api spec
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug))]
 pub struct Claims {
