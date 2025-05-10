@@ -1,23 +1,22 @@
-use super::error::{self as dbt_error, DbtError, DbtResult};
-use crate::execution::query::QueryContext;
-use crate::execution::utils::DataSerializationFormat;
-use crate::http::dbt::schemas::{
+use crate::error::{self as dbt_error, DbtError, DbtResult};
+use crate::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
     QueryRequestBody, ResponseData,
 };
-use crate::http::session::DFSessionId;
-use crate::http::state::AppState;
+use crate::state::AppState;
+use api_sessions::DFSessionId;
+use axum::Json;
 use axum::body::Bytes;
 use axum::extract::{Query, State};
 use axum::http::HeaderMap;
-use axum::Json;
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
-use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
+use core_executor::{query::QueryContext, utils::DataSerializationFormat};
 use datafusion::arrow::ipc::MetadataVersion;
-use datafusion::arrow::json::writer::JsonArray;
+use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
 use datafusion::arrow::json::WriterBuilder;
+use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
 use flate2::read::GzDecoder;
 use regex::Regex;

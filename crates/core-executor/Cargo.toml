@@ -30,7 +30,7 @@ iceberg-rust = { workspace = true }
 iceberg-s3tables-catalog = { workspace = true }
 
 object_store = { workspace = true }
-regex = { version = "1.11.0" }
+regex = { workspace = true }
 snafu = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -1,5 +1,5 @@
 use super::error::{self as dbt_error, DbtResult};
-use crate::execution::models::ColumnInfo as ColumnInfoModel;
+use core_executor::models::ColumnInfo as ColumnInfoModel;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;

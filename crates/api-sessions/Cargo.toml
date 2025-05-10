@@ -1,23 +1,21 @@
 [package]
-name = "api-snowflake-rest"
+name = "api-sessions"
 version = "0.1.0"
 edition = "2024"
 license-file.workspace = true
 
 [dependencies]
-api-sessions = { path = "../api-sessions" }
-core-metastore = { path = "../core-metastore" }
 core-executor = { path = "../core-executor" }
 
+async-trait = { workspace = true }
 axum = { workspace = true }
-flate2 = "1"
-regex = { workspace = true }
-base64 = "0.22"
-indexmap = { workspace = true }
-datafusion = { workspace = true }
-snafu = { workspace = true }
+tower-sessions = "0.14"
+tokio = { workspace = true }
+time = "0.3.37"
+http = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+snafu = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 

@@ -1,17 +1,19 @@
-use crate::http::error::ErrorResponse;
-use axum::{extract::FromRequestParts, response::IntoResponse, Json};
+use axum::{Json, extract::FromRequestParts, response::IntoResponse};
 use http::request::Parts;
-use snafu::prelude::*;
+use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
+use snafu::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use tower_sessions::{
+    ExpiredDeletion, Session, SessionStore,
     session::{Id, Record},
-    session_store, ExpiredDeletion, Session, SessionStore,
+    session_store,
 };
 
-use crate::execution::service::ExecutionService;
+use core_executor::service::ExecutionService;
+use uuid;
 
 pub type RequestSessionMemory = Arc<Mutex<HashMap<Id, Record>>>;
 
@@ -108,11 +110,7 @@ impl ExpiredDeletion for RequestSessionStore {
             .iter()
             .filter_map(
                 |(id, Record { expiry_date, .. })| {
-                    if *expiry_date <= now {
-                        Some(*id)
-                    } else {
-                        None
-                    }
+                    if *expiry_date <= now { Some(*id) } else { None }
                 },
             )
             .collect::<Vec<_>>();
@@ -174,6 +172,12 @@ pub enum SessionError {
     SessionPersist {
         source: tower_sessions::session::Error,
     },
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorResponse {
+    pub message: String,
+    pub status_code: u16,
 }
 
 impl IntoResponse for SessionError {

@@ -11,7 +11,7 @@ members = [
   "crates/core-executor",
   "crates/core-history",
   "crates/core-metastore",
-  "crates/core-utils",
+  "crates/core-utils", "crates/api-sessions",
 ]
 resolver = "2"
 package.license-file = "LICENSE"
@@ -33,6 +33,8 @@ uuid = { version = "1.10.0", features = ["v4", "serde"] }
 axum = { version = "0.8.1", features = ["multipart", "macros"] }
 axum-macros = "0.5"
 dashmap = "6.1.0"
+regex = "1.11"
+indexmap = "2.7.1"
 url = "2.5"
 tokio = { version = "1", features = ["full"] }
 async-trait = { version = "0.1.84" }
