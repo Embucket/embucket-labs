@@ -18,7 +18,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 slatedb = { workspace = true }
 snafu = { workspace = true }
-strum = { version = "0.26.3", features = ["derive"] }
+strum = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }

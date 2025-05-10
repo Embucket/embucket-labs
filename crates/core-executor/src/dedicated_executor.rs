@@ -14,7 +14,6 @@ use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_common::DataFusionError;
 use datafusion_common::error::GenericError;
 use datafusion_physical_plan::SendableRecordBatchStream;
-use futures::executor;
 use futures::stream::BoxStream;
 use futures::{
     Future, FutureExt, Stream, StreamExt, TryFutureExt,

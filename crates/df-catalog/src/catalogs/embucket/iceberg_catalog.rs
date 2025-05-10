@@ -29,7 +29,6 @@ use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
 use object_store::ObjectStore;
-use snafu::ResultExt;
 
 #[derive(Debug)]
 pub struct EmbucketIcebergCatalog {

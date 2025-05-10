@@ -21,7 +21,7 @@ use std::sync::Arc;
 use strum::{Display, EnumString};
 
 // This isn't the best way to do this, but it'll do for now
-// TODO: Revisit
+// TODO: Should be moved to api-snowflake-rest
 pub struct Config {
     pub dbt_serialization_format: DataSerializationFormat,
 }
