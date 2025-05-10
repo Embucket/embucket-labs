@@ -5,6 +5,48 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+core-utils = { path = "../core-utils" }
+core-metastore = { path = "../core-metastore" }
+df-builtins = { path = "../df-builtins" }
+df-catalog = { path = "../df-catalog" }
+
+async-trait = { workspace = true }
+aws-config = { workspace = true }
+aws-credential-types = { workspace = true }
+bytes = { workspace = true }
+chrono = { workspace = true }
+datafusion = { workspace = true }
+datafusion-common = { workspace = true }
+datafusion-doc = { workspace = true }
+datafusion-expr = { workspace = true }
+datafusion-functions-json = { workspace = true }
+datafusion-physical-plan = { workspace = true }
+datafusion_iceberg = { workspace = true }
+futures = { workspace = true }
+sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "ed416548dcfe4a73a3240bbf625fb9010a4925c8", features = [
+  "visitor",
+] }
+iceberg-rust = { workspace = true }
+iceberg-s3tables-catalog = { workspace = true }
+
+object_store = { workspace = true }
+regex = { version = "1.11.0" }
+snafu = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+strum = { workspace = true }
+tracing = { workspace = true }
+tracing-attributes = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = "0.1.17"
+
+url = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+bytes = { workspace = true }
+insta = { version = "1.42.0", features = ["yaml", "filters"] }
 
 [lints]
 workspace = true

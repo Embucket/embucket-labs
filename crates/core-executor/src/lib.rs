@@ -1,14 +1,12 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub use df_catalog as catalog;
+pub mod datafusion;
+pub mod dedicated_executor;
+pub mod error;
+pub mod models;
+pub mod query;
+pub mod service;
+pub mod session;
+pub mod utils;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod tests;

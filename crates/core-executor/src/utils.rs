@@ -1,20 +1,20 @@
 use super::models::ColumnInfo;
 use chrono::DateTime;
+use core_metastore::SchemaIdent as MetastoreSchemaIdent;
+use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::array::{
     Array, Decimal128Array, Int16Array, Int32Array, Int64Array, StringArray,
     TimestampMicrosecondArray, TimestampMillisecondArray, TimestampNanosecondArray,
-    TimestampSecondArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array, UnionArray,
+    TimestampSecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array, UnionArray,
 };
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::{Field, Schema, TimeUnit};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::Result as DataFusionResult;
-use datafusion_common::ScalarValue;
+use datafusion::common::ScalarValue;
 use datafusion_expr::{Expr, LogicalPlan};
-use embucket_metastore::SchemaIdent as MetastoreSchemaIdent;
-use embucket_metastore::TableIdent as MetastoreTableIdent;
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -670,21 +670,23 @@ mod tests {
 
     #[test]
     fn test_convert_record_batches_uint() {
-        let record_batches = vec![RecordBatch::try_new(
-            Arc::new(Schema::new(vec![
-                Field::new("row_num_uint64", DataType::UInt64, false),
-                Field::new("row_num_uint32", DataType::UInt32, false),
-                Field::new("row_num_uint16", DataType::UInt16, false),
-                Field::new("row_num_uint8", DataType::UInt8, false),
-            ])),
-            vec![
-                Arc::new(UInt64Array::from(vec![0, 1, u64::MAX])),
-                Arc::new(UInt32Array::from(vec![0, 1, u32::MAX])),
-                Arc::new(UInt16Array::from(vec![0, 1, u16::MAX])),
-                Arc::new(UInt8Array::from(vec![0, 1, u8::MAX])),
-            ],
-        )
-        .unwrap()];
+        let record_batches = vec![
+            RecordBatch::try_new(
+                Arc::new(Schema::new(vec![
+                    Field::new("row_num_uint64", DataType::UInt64, false),
+                    Field::new("row_num_uint32", DataType::UInt32, false),
+                    Field::new("row_num_uint16", DataType::UInt16, false),
+                    Field::new("row_num_uint8", DataType::UInt8, false),
+                ])),
+                vec![
+                    Arc::new(UInt64Array::from(vec![0, 1, u64::MAX])),
+                    Arc::new(UInt32Array::from(vec![0, 1, u32::MAX])),
+                    Arc::new(UInt16Array::from(vec![0, 1, u16::MAX])),
+                    Arc::new(UInt8Array::from(vec![0, 1, u8::MAX])),
+                ],
+            )
+            .unwrap(),
+        ];
 
         let (converted_batches, column_infos) =
             convert_record_batches(record_batches.clone(), DataSerializationFormat::Arrow).unwrap();

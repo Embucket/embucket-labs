@@ -3,8 +3,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use bytes::{Buf, Bytes};
 use datafusion::arrow::array::RecordBatch;
-use datafusion::arrow::csv::reader::Format;
 use datafusion::arrow::csv::ReaderBuilder;
+use datafusion::arrow::csv::reader::Format;
 use datafusion::catalog::CatalogProvider;
 use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
 use datafusion::datasource::memory::MemTable;
@@ -15,9 +15,9 @@ use super::{
     models::ColumnInfo,
     query::QueryContext,
     session::UserSession,
-    utils::{convert_record_batches, Config},
+    utils::{Config, convert_record_batches},
 };
-use embucket_metastore::{Metastore, TableIdent as MetastoreTableIdent};
+use core_metastore::{Metastore, TableIdent as MetastoreTableIdent};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 

@@ -3,6 +3,8 @@ use datafusion::arrow::datatypes::{DataType, Field, TimeUnit};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+// TODO: We should not have serde dependency here
+// Instead it should be in api-snowflake-rest
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ColumnInfo {
     pub name: String,

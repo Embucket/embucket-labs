@@ -1,20 +1,20 @@
-use crate::execution::query::{QueryContext, UserQuery};
-use crate::execution::session::UserSession;
+use crate::query::{QueryContext, UserQuery};
+use crate::session::UserSession;
 
-use crate::execution::error::{ExecutionError, ExecutionResult};
-use crate::execution::service::{CoreExecutionService, ExecutionService};
-use crate::execution::utils::{Config, DataSerializationFormat};
-use crate::SlateDBMetastore;
-use datafusion::assert_batches_eq;
-use datafusion::sql::parser::{DFParser, Statement as DFStatement};
-use datafusion::sql::sqlparser::ast::visit_expressions;
-use datafusion::sql::sqlparser::ast::Statement as SQLStatement;
-use datafusion::sql::sqlparser::ast::{Expr, ObjectName, ObjectNamePart};
-use embucket_metastore::Metastore;
-use embucket_metastore::{
+use crate::error::{ExecutionError, ExecutionResult};
+use crate::service::{CoreExecutionService, ExecutionService};
+use crate::utils::{Config, DataSerializationFormat};
+use core_metastore::Metastore;
+use core_metastore::SlateDBMetastore;
+use core_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     TableIdent as MetastoreTableIdent, Volume as MetastoreVolume,
 };
+use datafusion::assert_batches_eq;
+use datafusion::sql::parser::{DFParser, Statement as DFStatement};
+use datafusion::sql::sqlparser::ast::Statement as SQLStatement;
+use datafusion::sql::sqlparser::ast::visit_expressions;
+use datafusion::sql::sqlparser::ast::{Expr, ObjectName, ObjectNamePart};
 use sqlparser::ast::{
     Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
 };
@@ -299,7 +299,10 @@ async fn test_create_table_with_timestamp_nanosecond() {
         table: "target_table".to_string(),
     };
     // Verify that the file was uploaded successfully by running select * from the table
-    let query = format!("CREATE TABLE {}.{}.{} (id INT, ts TIMESTAMP_NTZ(9)) as VALUES (1, '2025-04-09T21:11:23'), (2, '2025-04-09T21:11:00');", table_ident.database, table_ident.schema, table_ident.table);
+    let query = format!(
+        "CREATE TABLE {}.{}.{} (id INT, ts TIMESTAMP_NTZ(9)) as VALUES (1, '2025-04-09T21:11:23'), (2, '2025-04-09T21:11:00');",
+        table_ident.database, table_ident.schema, table_ident.table
+    );
     let (rows, _) = execution_svc
         .query(&session_id, &query, QueryContext::default())
         .await
@@ -489,7 +492,7 @@ async fn prepare_env() -> (CoreExecutionService, Arc<SlateDBMetastore>, String) 
             &"test_volume".to_string(),
             MetastoreVolume::new(
                 "test_volume".to_string(),
-                embucket_metastore::VolumeType::Memory,
+                core_metastore::VolumeType::Memory,
             ),
         )
         .await

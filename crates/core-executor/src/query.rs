@@ -1,5 +1,10 @@
 use super::catalog::information_schema::information_schema::{
-    InformationSchemaProvider, INFORMATION_SCHEMA,
+    INFORMATION_SCHEMA, InformationSchemaProvider,
+};
+use core_metastore::{
+    Metastore, SchemaIdent as MetastoreSchemaIdent,
+    TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
+    TableIdent as MetastoreTableIdent,
 };
 use datafusion::arrow::array::{Int64Array, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
@@ -8,7 +13,7 @@ use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
-use datafusion::logical_expr::{sqlparser::ast::Insert, LogicalPlan, TableSource};
+use datafusion::logical_expr::{LogicalPlan, TableSource, sqlparser::ast::Insert};
 use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
@@ -16,18 +21,13 @@ use datafusion::sql::sqlparser::ast::{
     TableFactor, TableObject, TableWithJoins,
 };
 use datafusion_common::{
-    plan_datafusion_err, DataFusionError, ResolvedTableReference, TableReference,
+    DataFusionError, ResolvedTableReference, TableReference, plan_datafusion_err,
 };
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
-use embucket_metastore::{
-    Metastore, SchemaIdent as MetastoreSchemaIdent,
-    TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
-    TableIdent as MetastoreTableIdent,
-};
-use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::Catalog;
+use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
@@ -40,8 +40,8 @@ use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
     ObjectType, Query as AstQuery, Select, SelectItem, UpdateTableFromKind, Use,
 };
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use url::Url;
 
@@ -49,19 +49,19 @@ use super::catalog::{
     catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
 };
 use super::datafusion::planner::ExtendedSqlToRel;
-use super::error::{self as ex_error, ExecutionError, ExecutionResult};
+use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu};
 use super::session::UserSession;
-use super::utils::{is_logical_plan_effectively_empty, NormalizedIdent};
-use crate::execution::catalog::catalog::CachingCatalog;
-use crate::execution::datafusion::visitors::{functions_rewriter, json_element};
-use embucket_history::WorksheetId;
+use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
+use crate::datafusion::visitors::{functions_rewriter, json_element};
+use df_catalog::catalog::CachingCatalog;
 use tracing_attributes::instrument;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct QueryContext {
     pub database: Option<String>,
     pub schema: Option<String>,
-    pub worksheet_id: Option<WorksheetId>,
+    // TODO: Remove this
+    pub worksheet_id: Option<i64>,
 }
 
 impl QueryContext {
@@ -69,7 +69,7 @@ impl QueryContext {
     pub const fn new(
         database: Option<String>,
         schema: Option<String>,
-        worksheet_id: Option<WorksheetId>,
+        worksheet_id: Option<i64>,
     ) -> Self {
         Self {
             database,
@@ -145,12 +145,12 @@ impl UserQuery {
             .as_any()
             .downcast_ref::<EmbucketCatalogList>()
         {
-            catalog_list_impl.refresh().await
-        } else {
-            Err(ExecutionError::RefreshCatalogList {
-                message: "Catalog list implementation is not castable".to_string(),
-            })
+            catalog_list_impl
+                .refresh()
+                .await
+                .context(RefreshCatalogListSnafu)?;
         }
+        Ok(())
     }
 
     #[allow(clippy::unwrap_used)]
@@ -387,7 +387,7 @@ impl UserQuery {
                 return match result {
                     Ok(_) => status_response(),
                     Err(err) => Err(err),
-                }
+                };
             }
         };
 
@@ -536,7 +536,7 @@ impl UserQuery {
                 return match result {
                     Ok(_) => created_entity_response(),
                     Err(err) => Err(err),
-                }
+                };
             }
         };
 
@@ -695,7 +695,7 @@ impl UserQuery {
             _ => {
                 return Err(ExecutionError::InvalidTableIdentifier {
                     ident: name.to_string(),
-                })
+                });
             }
         };
 
@@ -887,8 +887,9 @@ impl UserQuery {
                 }
             }
         }
-        let select_query =
-            format!("SELECT {values} FROM {source_query} LEFT JOIN {target_table} {target_alias} ON {on}{where_clause_str}");
+        let select_query = format!(
+            "SELECT {values} FROM {source_query} LEFT JOIN {target_table} {target_alias} ON {on}{where_clause_str}"
+        );
 
         // Construct the INSERT statement
         let insert_query = format!("INSERT INTO {target_table} ({columns}) {select_query}");
@@ -930,7 +931,7 @@ impl UserQuery {
                 return match result {
                     Ok(_) => created_entity_response(),
                     Err(err) => Err(err),
-                }
+                };
             }
         };
 
@@ -1496,7 +1497,7 @@ impl UserQuery {
                                     "Table functions are not supported in INSERT statements"
                                         .to_string(),
                                 ),
-                            })
+                            });
                         }
                     };
 
@@ -1814,11 +1815,10 @@ pub fn created_entity_response() -> ExecutionResult<Vec<RecordBatch>> {
         DataType::Int64,
         false,
     )]));
-    Ok(vec![RecordBatch::try_new(
-        schema,
-        vec![Arc::new(Int64Array::from(vec![0]))],
-    )
-    .context(ex_error::ArrowSnafu)?])
+    Ok(vec![
+        RecordBatch::try_new(schema, vec![Arc::new(Int64Array::from(vec![0]))])
+            .context(ex_error::ArrowSnafu)?,
+    ])
 }
 
 pub fn status_response() -> ExecutionResult<Vec<RecordBatch>> {

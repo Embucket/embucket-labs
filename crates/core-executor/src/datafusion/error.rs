@@ -5,7 +5,9 @@ use snafu::prelude::*;
 #[snafu(visibility(pub(crate)))]
 pub enum SQLError {
     #[snafu(display("Arrow error: {source}"))]
-    Arrow { source: arrow::error::ArrowError },
+    Arrow {
+        source: datafusion::arrow::error::ArrowError,
+    },
 
     #[snafu(display("DataFusion error: {source}"))]
     DataFusion { source: DataFusionError },

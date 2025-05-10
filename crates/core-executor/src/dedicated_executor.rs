@@ -11,13 +11,14 @@
 
 use async_trait::async_trait;
 use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
-use datafusion_common::error::GenericError;
 use datafusion_common::DataFusionError;
+use datafusion_common::error::GenericError;
 use datafusion_physical_plan::SendableRecordBatchStream;
+use futures::executor;
 use futures::stream::BoxStream;
 use futures::{
-    future::{BoxFuture, Shared},
     Future, FutureExt, Stream, StreamExt, TryFutureExt,
+    future::{BoxFuture, Shared},
 };
 use object_store::path::Path;
 use object_store::{
@@ -33,7 +34,7 @@ use tokio::runtime::Builder;
 use tokio::task::JoinHandle;
 use tokio::{
     runtime::Handle,
-    sync::{oneshot::error::RecvError, Notify},
+    sync::{Notify, oneshot::error::RecvError},
     task::JoinSet,
 };
 use tokio_stream::wrappers::ReceiverStream;
@@ -277,28 +278,23 @@ impl DedicatedExecutor {
         // make a copy to send any job error results back
         let error_tx = tx.clone();
 
-        // This task will run on the CPU runtime
-        let task = self.spawn(async move {
-            // drive the stream forward on the CPU runtime, sending results
-            // back to the original (presumably IO) runtime
-            let mut stream = Box::pin(stream);
-            while let Some(result) = stream.next().await {
-                // try to send to the sender, if error means the
-                // receiver has been closed and we terminate early
-                if tx.send(result).await.is_err() {
-                    return;
-                }
-            }
-        });
-
-        // fire up a task on the current runtime which transfers results back
-        // from the CPU runtime to the calling runtime
+        // run the stream on the CPU runtime and forward errors/results back
+        let executor = self.clone();
         let mut set = JoinSet::new();
         set.spawn(async move {
-            if let Err(e) = task.await {
-                // error running task, try and report it back. An error sending
-                // means the receiver was dropped so there is nowhere to
-                // report errors. Thus ignored via ok()
+            // schedule on CPU runtime and await completion
+            if let Err(e) = executor
+                .spawn(async move {
+                    let mut stream = Box::pin(stream);
+                    while let Some(result) = stream.next().await {
+                        if tx.send(result).await.is_err() {
+                            return;
+                        }
+                    }
+                })
+                .await
+            {
+                // error running task, report back if possible
                 error_tx.send(Err(converter(e))).await.ok();
             }
         });
@@ -946,9 +942,9 @@ mod tests {
     #[tokio::test]
     async fn basic_clone() {
         let barrier = Arc::new(Barrier::new(2));
-        let exec = exec();
+        let exec = exec().clone();
         // Run task on clone should work fine
-        let dedicated_task = exec.clone().spawn(do_work(42, Arc::clone(&barrier)));
+        let dedicated_task = exec.spawn(do_work(42, Arc::clone(&barrier)));
         barrier.wait();
         assert_eq!(dedicated_task.await.unwrap(), 42);
 
@@ -1071,13 +1067,7 @@ mod tests {
     #[tokio::test]
     async fn panic_on_executor_other() {
         let exec = exec();
-        let dedicated_task = exec.spawn(async move {
-            if true {
-                panic_any(1)
-            } else {
-                42
-            }
-        });
+        let dedicated_task = exec.spawn(async move { if true { panic_any(1) } else { 42 } });
 
         // should not be able to get the result
         let err = dedicated_task.await.unwrap_err();

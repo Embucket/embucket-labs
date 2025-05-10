@@ -1,28 +1,31 @@
 //use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
-use super::datafusion::functions::aggregate::register_udafs;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
-use super::error::{self as ex_error, ExecutionError, ExecutionResult};
+use super::error::{
+    self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu,
+    RegisterCatalogSnafu,
+};
 use super::query::{QueryContext, UserQuery};
-use crate::execution::catalog::catalog_list::{EmbucketCatalogList, DEFAULT_CATALOG};
-use crate::execution::datafusion::analyzer::IcebergTypesAnalyzer;
+use crate::datafusion::analyzer::IcebergTypesAnalyzer;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
-use aws_credential_types::provider::SharedCredentialsProvider;
 use aws_credential_types::Credentials;
+use aws_credential_types::provider::SharedCredentialsProvider;
+use core_metastore::error::MetastoreError;
+use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
+use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::CatalogProvider;
 use datafusion::common::error::Result as DFResult;
-use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::execution::SessionStateBuilder;
+use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_functions_json::register_all as register_json_udfs;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use datafusion_iceberg::planner::IcebergQueryPlanner;
-use embucket_metastore::error::MetastoreError;
-use embucket_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
-use embucket_utils::scan_iterator::ScanIterator;
+use df_builtins::register_udafs;
+use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
 use iceberg_rust::object_store::ObjectStoreBuilder;
@@ -76,8 +79,14 @@ impl UserSession {
         //register_geo_native(&ctx);
         //register_geo_udfs(&ctx);
 
-        catalog_list_impl.register_catalogs().await?;
-        catalog_list_impl.refresh().await?;
+        catalog_list_impl
+            .register_catalogs()
+            .await
+            .context(RegisterCatalogSnafu)?;
+        catalog_list_impl
+            .refresh()
+            .await
+            .context(RefreshCatalogListSnafu)?;
 
         let enable_ident_normalization = ctx.enable_ident_normalization();
         let session = Self {

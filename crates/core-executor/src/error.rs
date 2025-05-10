@@ -1,6 +1,7 @@
 use std::backtrace::Backtrace;
 
 use datafusion_common::DataFusionError;
+use df_catalog::error::Error as CatalogError;
 use iceberg_rust::error::Error as IcebergError;
 use iceberg_s3tables_catalog::error::Error as S3tablesError;
 use snafu::prelude::*;
@@ -30,7 +31,9 @@ pub enum ExecutionError {
     InvalidBucketIdentifier { ident: String },
 
     #[snafu(display("Arrow error: {source}"))]
-    Arrow { source: arrow::error::ArrowError },
+    Arrow {
+        source: datafusion::arrow::error::ArrowError,
+    },
 
     #[snafu(display("No Table Provider found for table: {table_name}"))]
     TableProviderNotFound { table_name: String },
@@ -49,7 +52,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Metastore error: {source}"))]
     Metastore {
-        source: embucket_metastore::error::MetastoreError,
+        source: core_metastore::error::MetastoreError,
     },
 
     #[snafu(display("Database {db} not found"))]
@@ -73,8 +76,8 @@ pub enum ExecutionError {
     #[snafu(display("Unsupported file format {format}"))]
     UnsupportedFileFormat { format: String },
 
-    #[snafu(display("Cannot refresh catalog list"))]
-    RefreshCatalogList { message: String },
+    #[snafu(display("Cannot refresh catalog list: {source}"))]
+    RefreshCatalogList { source: CatalogError },
 
     #[snafu(display("Catalog {catalog} cannot be downcasted"))]
     CatalogDownCast { catalog: String },
@@ -93,7 +96,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Threaded Job error: {source}: {backtrace}"))]
     JobError {
-        source: crate::execution::dedicated_executor::JobError,
+        source: crate::dedicated_executor::JobError,
         backtrace: Backtrace,
     },
 
@@ -103,8 +106,8 @@ pub enum ExecutionError {
     #[snafu(display("CatalogList failed"))]
     CatalogListDowncast,
 
-    #[snafu(display("Failed to register catalog {catalog}"))]
-    RegisterCatalog { catalog: String },
+    #[snafu(display("Failed to register catalog: {source}"))]
+    RegisterCatalog { source: CatalogError },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;

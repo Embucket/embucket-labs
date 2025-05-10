@@ -23,6 +23,9 @@ debug = true
 codegen-units = 16
 
 [workspace.dependencies]
+aws-config = { version = "1.5.17" }
+aws-credential-types = { version = "1.2.1",  features = ["hardcoded-credentials"]}
+
 jsonwebtoken = "9.3.1"
 chrono = { version = "0.4.41", default-features = false, features = ["serde",  "clock"] }
 futures = { version = "0.3" }
@@ -34,6 +37,7 @@ url = "2.5"
 tokio = { version = "1", features = ["full"] }
 async-trait = { version = "0.1.84" }
 serde = { version = "1.0", features = ["derive"] }
+strum = { version = "0.26.3", features = ["derive"] }
 slatedb = { version = "0.6.1" }
 bytes = { version = "1.8.0" }
 snmalloc-rs = { version = "0.3" }
