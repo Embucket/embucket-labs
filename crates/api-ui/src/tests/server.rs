@@ -2,6 +2,7 @@ use crate::layers::make_cors_middleware;
 use crate::router;
 use crate::state;
 use crate::{config::AuthConfig, config::WebConfig};
+use api_sessions::{RequestSessionMemory, RequestSessionStore};
 use axum::Router;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config;
@@ -11,6 +12,8 @@ use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use time::Duration;
+use tower_sessions::{Expiry, SessionManagerLayer};
 
 #[allow(clippy::unwrap_used)]
 pub async fn run_test_server_with_demo_auth(
@@ -64,6 +67,11 @@ pub fn make_app(
         execution_svc,
         history_store.clone(),
     ));
+    let session_memory = RequestSessionMemory::default();
+    let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_secure(false)
+        .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
     // Create the application state
     let app_state = state::AppState::new(
@@ -74,11 +82,13 @@ pub fn make_app(
         Arc::new(auth_config),
     );
 
-    let mut app = router::create_router().with_state(app_state);
+    let mut router = Router::new()
+        .nest("/ui", router::create_router().with_state(app_state))
+        .layer(session_layer);
 
     if let Some(allow_origin) = config.allow_origin.as_ref() {
-        app = app.layer(make_cors_middleware(allow_origin));
+        router = router.layer(make_cors_middleware(allow_origin));
     }
 
-    Ok(app)
+    Ok(router)
 }

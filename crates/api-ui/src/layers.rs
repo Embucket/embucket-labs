@@ -7,8 +7,6 @@ use std::str::FromStr;
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
-use super::error;
-
 #[derive(Clone)]
 struct RequestMetadata {
     request_id: Uuid,

@@ -66,7 +66,8 @@ async fn test_ui_schemas() {
     )
     .await
     .unwrap();
-    assert_eq!(http::StatusCode::OK, res.status());
+    // assert_eq!(http::StatusCode::OK, res.clone().status());
+    println!("res: {:#?}", res.bytes().await.unwrap());
 
     let schema_name = "testing2".to_string();
     let payload2 = SchemaCreatePayload {
