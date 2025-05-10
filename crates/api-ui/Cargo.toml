@@ -5,6 +5,40 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+api-sessions = { path = "../api-sessions" }
+core-metastore = { path = "../core-metastore" }
+core-utils = { path = "../core-utils" }
+core-executor = { path = "../core-executor" }
+core-history = { path = "../core-history" }
+
+axum = { workspace = true }
+chrono = { workspace = true }
+datafusion = { workspace = true }
+indexmap = { workspace = true }
+jsonwebtoken = { workspace = true }
+http = { workspace = true }
+mime_guess = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+snafu = { workspace = true }
+tar = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tower-http = { version = "0.6.1", features = [
+  "catch-panic",
+  "timeout",
+  "sensitive-headers",
+  "cors",
+  "trace",
+] }
+tower-sessions = { workspace = true }
+time = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+validator = { workspace = true }
+
+[dev-dependencies]
+reqwest = "0.12.14"
 
 [lints]
 workspace = true

@@ -1,14 +1,23 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
-
+pub mod auth;
+pub mod config;
+pub mod dashboard;
+pub mod databases;
+pub mod error;
+pub mod layers;
+pub mod navigation_trees;
+pub mod queries;
+pub mod router;
+pub mod schemas;
+pub mod state;
+pub mod tables;
 #[cfg(test)]
-mod tests {
-    use super::*;
+pub mod tests;
+pub mod volumes;
+pub mod web_assets;
+pub mod worksheets;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+//Default limit for pagination
+#[allow(clippy::unnecessary_wraps)]
+const fn default_limit() -> Option<u16> {
+    Some(250)
 }

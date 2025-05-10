@@ -9,9 +9,9 @@ core-executor = { path = "../core-executor" }
 
 async-trait = { workspace = true }
 axum = { workspace = true }
-tower-sessions = "0.14"
+tower-sessions = { workspace = true }
 tokio = { workspace = true }
-time = "0.3.37"
+time = { workspace = true }
 http = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
