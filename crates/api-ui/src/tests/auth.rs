@@ -1,14 +1,13 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-use crate::http::auth::error::AuthError;
-use crate::http::auth::error::*;
-use crate::http::auth::handlers::{create_jwt, get_claims_validate_jwt_token, jwt_claims};
-use crate::http::auth::models::{AccountResponse, AuthResponse, LoginPayload};
-use crate::http::metastore::handlers::RwObjectVec;
-use crate::http::ui::queries::models::{QueryCreatePayload, QueryCreateResponse};
-use crate::http::ui::tests::common::{http_req_with_headers, TestHttpError};
-use crate::tests::run_test_server_with_demo_auth;
-use embucket_metastore::models::Volume;
-use http::{header, HeaderMap, HeaderValue, Method, StatusCode};
+use crate::auth::error::AuthError;
+use crate::auth::error::*;
+use crate::auth::handlers::{create_jwt, get_claims_validate_jwt_token, jwt_claims};
+use crate::auth::models::{AccountResponse, AuthResponse, LoginPayload};
+use crate::queries::models::{QueryCreatePayload, QueryCreateResponse};
+use crate::tests::common::{TestHttpError, http_req_with_headers};
+use crate::tests::server::run_test_server_with_demo_auth;
+use core_metastore::RwObject;
+use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use serde_json::json;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -17,6 +16,8 @@ use time::Duration;
 const JWT_SECRET: &str = "test";
 const DEMO_USER: &str = "demo_user";
 const DEMO_PASSWORD: &str = "demo_password";
+
+pub type RwObjectVec<T> = Vec<RwObject<T>>;
 
 #[allow(clippy::explicit_iter_loop)]
 fn get_set_cookie_from_response_headers(
@@ -52,7 +53,7 @@ where
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json"),
         )]),
-        &format!("http://{addr}/auth/login"),
+        &format!("http://{addr}/ui/auth/login"),
         json!(LoginPayload {
             username: String::from(username),
             password: String::from(password),
@@ -76,7 +77,7 @@ where
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json"),
         )]),
-        &format!("http://{addr}/auth/logout"),
+        &format!("http://{addr}/ui/auth/logout"),
         String::new(),
     )
     .await
@@ -104,7 +105,7 @@ where
                     .expect("Can't convert to HeaderValue"),
             ),
         ]),
-        &format!("http://{addr}/auth/refresh"),
+        &format!("http://{addr}/ui/auth/refresh"),
         String::new(),
     )
     .await
@@ -140,34 +141,6 @@ where
             context: None,
         })
         .to_string(),
-    )
-    .await
-}
-
-async fn metastore<T>(
-    client: &reqwest::Client,
-    addr: &SocketAddr,
-    access_token: &String,
-) -> Result<(HeaderMap, T), TestHttpError>
-where
-    T: serde::de::DeserializeOwned,
-{
-    http_req_with_headers::<T>(
-        client,
-        Method::POST,
-        HeaderMap::from_iter(vec![
-            (
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("application/json"),
-            ),
-            (
-                header::AUTHORIZATION,
-                HeaderValue::from_str(format!("Bearer {access_token}").as_str())
-                    .expect("Can't convert to HeaderValue"),
-            ),
-        ]),
-        &format!("http://{addr}/v1/metastore/volumes"),
-        String::new(),
     )
     .await
 }
@@ -213,51 +186,6 @@ async fn test_bad_login() {
         www_auth.to_str().expect("Bad header encoding"),
         "Bearer realm=\"login\", error=\"Login error\""
     );
-}
-
-#[tokio::test]
-#[allow(clippy::too_many_lines)]
-async fn test_metastore_request_unauthorized() {
-    let addr = run_test_server_with_demo_auth(
-        JWT_SECRET.to_string(),
-        DEMO_USER.to_string(),
-        DEMO_PASSWORD.to_string(),
-    )
-    .await;
-    let client = reqwest::Client::new();
-
-    let _ = login::<()>(&client, &addr, "", "")
-        .await
-        .expect_err("Login should fail");
-
-    // Unauthorized error while running metastore request
-    let metastore_err = metastore::<()>(&client, &addr, &"xyz".to_string())
-        .await
-        .expect_err("Metastore request should fail");
-    assert_eq!(metastore_err.status, StatusCode::UNAUTHORIZED);
-}
-
-#[tokio::test]
-#[allow(clippy::too_many_lines)]
-async fn test_metastore_request_passes_authorization() {
-    let addr = run_test_server_with_demo_auth(
-        JWT_SECRET.to_string(),
-        DEMO_USER.to_string(),
-        DEMO_PASSWORD.to_string(),
-    )
-    .await;
-    let client = reqwest::Client::new();
-
-    let (_, login_response) = login::<AuthResponse>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
-        .await
-        .expect("Failed to login");
-
-    // Metastore request not returning auth error
-    let metastore_res =
-        metastore::<RwObjectVec<Volume>>(&client, &addr, &login_response.access_token).await;
-    if let Err(e) = metastore_res {
-        assert_ne!(e.status, StatusCode::UNAUTHORIZED);
-    }
 }
 
 #[tokio::test]
@@ -377,18 +305,24 @@ async fn test_login_refresh() {
         .get("refresh_token")
         .expect("No Set-Cookie found with refresh_token");
 
-    assert!(refresh_token_cookie
-        .to_str()
-        .expect("Bad cookie")
-        .contains("HttpOnly"));
-    assert!(refresh_token_cookie
-        .to_str()
-        .expect("Bad cookie")
-        .contains("Secure"));
-    assert!(refresh_token_cookie
-        .to_str()
-        .expect("Bad cookie")
-        .contains("SameSite=Strict"));
+    assert!(
+        refresh_token_cookie
+            .to_str()
+            .expect("Bad cookie")
+            .contains("HttpOnly")
+    );
+    assert!(
+        refresh_token_cookie
+            .to_str()
+            .expect("Bad cookie")
+            .contains("Secure")
+    );
+    assert!(
+        refresh_token_cookie
+            .to_str()
+            .expect("Bad cookie")
+            .contains("SameSite=Strict")
+    );
 
     // Successfuly run query
     let (_, query_response) =
@@ -410,18 +344,24 @@ async fn test_login_refresh() {
         .get("refresh_token")
         .expect("No Set-Cookie found with refresh_token");
 
-    assert!(refresh_token_cookie
-        .to_str()
-        .expect("Bad cookie")
-        .contains("HttpOnly"));
-    assert!(refresh_token_cookie
-        .to_str()
-        .expect("Bad cookie")
-        .contains("Secure"));
-    assert!(refresh_token_cookie
-        .to_str()
-        .expect("Bad cookie")
-        .contains("SameSite=Strict"));
+    assert!(
+        refresh_token_cookie
+            .to_str()
+            .expect("Bad cookie")
+            .contains("HttpOnly")
+    );
+    assert!(
+        refresh_token_cookie
+            .to_str()
+            .expect("Bad cookie")
+            .contains("Secure")
+    );
+    assert!(
+        refresh_token_cookie
+            .to_str()
+            .expect("Bad cookie")
+            .contains("SameSite=Strict")
+    );
 }
 
 #[tokio::test]
@@ -491,7 +431,7 @@ async fn test_account_ok() {
                     .expect("Can't convert to HeaderValue"),
             ),
         ]),
-        &format!("http://{addr}/account"),
+        &format!("http://{addr}/ui/auth/account"),
         String::new().to_string(),
     )
     .await
@@ -521,7 +461,7 @@ async fn test_account_unauthorized() {
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json"),
         )]),
-        &format!("http://{addr}/account"),
+        &format!("http://{addr}/ui/auth/account"),
         String::new().to_string(),
     )
     .await

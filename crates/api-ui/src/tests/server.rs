@@ -1,9 +1,12 @@
+use crate::auth::layer::require_auth;
+use crate::auth::router as auth_router;
 use crate::layers::make_cors_middleware;
 use crate::router;
 use crate::state;
 use crate::{config::AuthConfig, config::WebConfig};
 use api_sessions::{RequestSessionMemory, RequestSessionStore};
 use axum::Router;
+use axum::middleware;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config;
 use core_history::RecordingExecutionService;
@@ -82,8 +85,17 @@ pub fn make_app(
         Arc::new(auth_config),
     );
 
+    let ui_router = router::create_router().with_state(app_state.clone());
+    let ui_router = ui_router.layer(middleware::from_fn_with_state(
+        app_state.clone(),
+        require_auth,
+    ));
     let mut router = Router::new()
-        .nest("/ui", router::create_router().with_state(app_state))
+        .nest("/ui", ui_router)
+        .nest(
+            "/ui/auth",
+            auth_router::create_router().with_state(app_state),
+        )
         .layer(session_layer);
 
     if let Some(allow_origin) = config.allow_origin.as_ref() {
