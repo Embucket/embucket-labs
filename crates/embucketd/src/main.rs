@@ -169,7 +169,7 @@ async fn main() {
     let router = Router::new()
         .merge(ui_router)
         .nest("/v1/metastore", internal_router)
-        .nest("/v1", snowflake_router)
+        .merge(snowflake_router)
         .nest("/catalog", iceberg_router)
         .merge(
             SwaggerUi::new("/")
