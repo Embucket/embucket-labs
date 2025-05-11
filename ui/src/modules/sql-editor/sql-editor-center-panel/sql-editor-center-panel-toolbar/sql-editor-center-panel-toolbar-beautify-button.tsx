@@ -13,7 +13,7 @@ export const SqlEditorCenterPanelToolbarBeautifyButton = () => {
 
     const fullContent = activeEditor.editorView.state.doc.toString();
     const beautified = format(fullContent);
-    // console.log(beautified, beautified.length);
+
     activeEditor.editorView.dispatch({
       changes: { from: 0, to: activeEditor.editorView.state.doc.length, insert: beautified },
       selection: { anchor: activeEditor.editorView.state.doc.length },
