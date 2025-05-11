@@ -2,7 +2,7 @@ use datafusion::arrow::array::{
     Array, ArrayRef, BooleanArray, Float64Array, Int64Array, StringArray, StructArray,
 };
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
-use datafusion::common::{exec_err, Result};
+use datafusion::common::{Result, exec_err};
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
 use serde_json::Value;

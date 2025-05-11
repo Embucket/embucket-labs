@@ -8,8 +8,8 @@ use std::sync::Arc;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::{ArrayRef, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
+use datafusion_common::{Result, ScalarValue, plan_err};
 use datafusion_common::{internal_err, not_impl_datafusion_err, not_impl_err};
-use datafusion_common::{plan_err, Result, ScalarValue};
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
 use datafusion_expr::type_coercion::aggregates::{INTEGERS, NUMERICS};
 use datafusion_expr::utils::format_state_name;
@@ -71,19 +71,18 @@ fn get_scalar_value(expr: &Arc<dyn PhysicalExpr>) -> Result<ScalarValue> {
 }
 
 fn validate_input_percentile_expr(expr: &Arc<dyn PhysicalExpr>) -> Result<f64> {
-    let percentile = match get_scalar_value(expr)
-        .map_err(|_| not_impl_datafusion_err!("Percentile value for 'PERCENTILE_CONT' must be a literal, got: {expr}"))? {
-        ScalarValue::Float32(Some(value)) => {
-            f64::from(value)
-        }
-        ScalarValue::Float64(Some(value)) => {
-            value
-        }
+    let percentile = match get_scalar_value(expr).map_err(|_| {
+        not_impl_datafusion_err!(
+            "Percentile value for 'PERCENTILE_CONT' must be a literal, got: {expr}"
+        )
+    })? {
+        ScalarValue::Float32(Some(value)) => f64::from(value),
+        ScalarValue::Float64(Some(value)) => value,
         sv => {
             return not_impl_err!(
                 "Percentile value for 'PERCENTILE_CONT' must be Float32 or Float64 literal (got data type {})",
                 sv.data_type()
-            )
+            );
         }
     };
 

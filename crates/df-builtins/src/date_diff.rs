@@ -1,8 +1,8 @@
 use datafusion::arrow::array::Array;
-use datafusion::arrow::compute::{date_part, DatePart};
+use datafusion::arrow::compute::{DatePart, date_part};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::DataType::Int64;
-use datafusion::common::{plan_err, Result};
+use datafusion::common::{Result, plan_err};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};

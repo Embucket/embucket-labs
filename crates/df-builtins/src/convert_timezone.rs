@@ -2,10 +2,10 @@ use datafusion::arrow::array::timezone::Tz;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::DataType::{Timestamp, Utf8};
 use datafusion::arrow::datatypes::TimeUnit::{self, Microsecond, Millisecond, Nanosecond, Second};
-use datafusion::common::{internal_err, plan_err, Result};
+use datafusion::common::{Result, internal_err, plan_err};
 use datafusion::logical_expr::TypeSignature::Exact;
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarUDFImpl, Signature, Volatility, TIMEZONE_WILDCARD,
+    ColumnarValue, ScalarUDFImpl, Signature, TIMEZONE_WILDCARD, Volatility,
 };
 use datafusion::scalar::ScalarValue;
 use datafusion_expr::{ReturnInfo, ReturnTypeArgs};

@@ -1,12 +1,12 @@
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::Result;
-use datafusion::common::{plan_err, ToDFSchema};
+use datafusion::common::{ToDFSchema, plan_err};
 use datafusion::logical_expr::sqlparser::ast::{Ident, ObjectName};
 use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{
-    object_name_to_table_reference, ContextProvider, IdentNormalizer, ParserOptions,
-    PlannerContext, SqlToRel,
+    ContextProvider, IdentNormalizer, ParserOptions, PlannerContext, SqlToRel,
+    object_name_to_table_reference,
 };
 use datafusion::sql::sqlparser::ast::{
     ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement,

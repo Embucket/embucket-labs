@@ -4,7 +4,7 @@ use datafusion::logical_expr::planner::TypePlanner;
 use datafusion::logical_expr::sqlparser::ast;
 use datafusion::sql::sqlparser::ast::DataType as SQLDataType;
 use datafusion::sql::utils::make_decimal_type;
-use datafusion_common::{not_impl_err, DataFusionError};
+use datafusion_common::{DataFusionError, not_impl_err};
 
 #[derive(Debug)]
 pub struct CustomTypePlanner {}

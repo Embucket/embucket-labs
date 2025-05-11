@@ -5,7 +5,7 @@ use super::error::{
 use axum::{
     body::Body,
     extract::Path,
-    http::{header, StatusCode},
+    http::{StatusCode, header},
     response::{IntoResponse, Redirect, Response},
 };
 use mime_guess;

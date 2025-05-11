@@ -9,7 +9,7 @@ use datafusion::arrow::compute::kernels::cast_utils::Parser;
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::ColumnarValue;
-use datafusion_common::{exec_err, ScalarValue};
+use datafusion_common::{ScalarValue, exec_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
 use std::any::Any;
 use std::sync::Arc;
