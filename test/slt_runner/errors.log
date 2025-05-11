@@ -1,0 +1,2702 @@
+Page name: comment
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DDL/comment.slt:4)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT comment
+FROM information_schema.schemata
+WHERE schema_name LIKE '%MY_SCHEMA%';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+this is comment1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DDL/comment.slt:14)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT comment
+FROM information_schema.schemata
+WHERE schema_name LIKE '%MY_SCHEMA%';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+now comment2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DDL/comment.slt:27)!
+Expected 0 rows, but got 12 rows
+================================================================================
+DESC TABLE my_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+MY_COLUMN	VARCHAR(16777216)	COLUMN	Y	NULL	N	N	NULL	NULL	now comment4	NULL	NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DDL/comment.slt:35)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT comment
+FROM information_schema.views
+WHERE table_name LIKE '%MY_VIEW%';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+this is comment5
+
+Page name: show-tables
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/show-tables.slt:5)!
+Expected 0 rows, but got 5 rows
+================================================================================
+SHOW TERSE TABLES IN tpch_sf100 STARTS WITH 'LINE';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+'2025-04-09T09:14:39.720000-07:00'	LINES	TABLE	SNOWFLAKE_SAMPLE_DATA	TPCH_SF100
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/show-tables.slt:10)!
+Expected 0 rows, but got 10 rows
+================================================================================
+SHOW TERSE TABLES LIKE '%AGGR%' IN tpch_sf100;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+'2025-04-09T09:21:00.269000-07:00'	AGGR	TABLE	SNOWFLAKE_SAMPLE_DATA	TPCH_SF100
+'2025-04-09T09:19:29.818000-07:00'	AGGR2	TABLE	SNOWFLAKE_SAMPLE_DATA	TPCH_SF100
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/show-tables.slt:16)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SHOW TERSE TABLES IN tpch_sf100 LIMIT 3 FROM 'J';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+'2025-04-30T13:06:49.946000-07:00'	JDEMO1	TABLE	SNOWFLAKE_SAMPLE_DATA	TPCH_SF100
+'2025-04-30T13:06:51.819000-07:00'	JDEMO2	TABLE	SNOWFLAKE_SAMPLE_DATA	TPCH_SF100
+'2025-04-09T09:17:54.673000-07:00'	JDEMO3	TABLE	SNOWFLAKE_SAMPLE_DATA	TPCH_SF100
+
+Page name: select
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:31)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT * FROM employee_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	Montgomery	Pat	1
+102	Levine	Terry	2
+103	Comstock	Dana	2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:43)!
+Expected 0 rows, but got 9 rows
+================================================================================
+SELECT employee_ID, last_name, first_name FROM employee_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	Montgomery	Pat
+102	Levine	Terry
+103	Comstock	Dana
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:50)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT last_name, first_name FROM employee_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Montgomery	Pat
+Levine	Terry
+Comstock	Dana
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:57)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT last_name, first_name FROM employee_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Montgomery	Pat
+Levine	Terry
+Comstock	Dana
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:64)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT employee_ID AS id, last_name, first_name, department_ID FROM employee_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	Montgomery	Pat	1
+102	Levine	Terry	2
+103	Comstock	Dana	2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:71)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT employee_ID AS id, last_name, first_name, department_ID AS department FROM employee_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	Montgomery	Pat	1
+102	Levine	Terry	2
+103	Comstock	Dana	2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:78)!
+Expected 0 rows, but got 9 rows
+================================================================================
+SELECT employee_ID AS id, last_name, department_ID AS department FROM employee_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	Montgomery	1
+102	Levine	2
+103	Comstock	2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:85)!
+Expected 0 rows, but got 9 rows
+================================================================================
+SELECT employee_ID AS id, last_name, department_ID AS department FROM employee_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	Montgomery	1
+102	Levine	2
+103	Comstock	2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:92)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT employee_ID, last_name, first_name, 'DEPT-' || department_ID AS department_id FROM employee_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	Montgomery	Pat	DEPT-1
+102	Levine	Terry	DEPT-2
+103	Comstock	Dana	DEPT-2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:99)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT employee_ID, last_name, first_name, 'DEPT-' || department_ID AS department FROM employee_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	Montgomery	Pat	DEPT-1
+102	Levine	Terry	DEPT-2
+103	Comstock	Dana	DEPT-2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:106)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT employee_ID, last_name, first_name, 'DEPT-' || department_ID AS department_id FROM employee_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	Montgomery	Pat	DEPT-1
+102	Levine	Terry	DEPT-2
+103	Comstock	Dana	DEPT-2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:113)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT
+  employee_table.employee_ID,
+  employee_table.last_name,
+  employee_table.first_name,
+  department_table.department_name AS department
+FROM employee_table INNER JOIN department_table
+  ON employee_table.department_ID = department_table.department_ID
+ORDER BY department, last_name, first_name;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+103	Comstock	Dana	Customer Support
+102	Levine	Terry	Customer Support
+101	Montgomery	Pat	Engineering
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:127)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT last_name FROM employee_table WHERE employee_ID = 101;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Montgomery
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:132)!
+Expected 0 rows, but got 9 rows
+================================================================================
+SELECT department_name, last_name, first_name
+FROM employee_table INNER JOIN department_table
+  ON employee_table.department_ID = department_table.department_ID
+ORDER BY department_name, last_name, first_name;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Customer Support	Comstock	Dana
+Customer Support	Levine	Terry
+Engineering	Montgomery	Pat
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:142)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT last_name FROM employee_table ORDER BY last_name;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Comstock
+Levine
+Montgomery
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/select.slt:149)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT pi() * 2.0 * 2.0 AS area_of_circle;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+12.566370614359172
+
+Page name: connect-by
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/connect-by.slt:19)!
+Expected 0 rows, but got 18 rows
+================================================================================
+SELECT employee_ID, manager_ID, title
+  FROM employees
+    START WITH title = 'President'
+    CONNECT BY manager_ID = PRIOR employee_id
+  ORDER BY employee_ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	NULL	President
+10	1	Vice President Engineering
+20	1	Vice President HR
+100	10	Programmer
+101	10	QA Engineer
+200	20	Health Insurance Analyst
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/connect-by.slt:33)!
+Expected 0 rows, but got 24 rows
+================================================================================
+SELECT SYS_CONNECT_BY_PATH(title, ' -> ') AS path, employee_ID, manager_ID, title
+  FROM employees
+    START WITH title = 'President'
+    CONNECT BY manager_ID = PRIOR employee_id
+  ORDER BY employee_ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+ -> President	1	NULL	President
+ -> President -> Vice President Engineering	10	1	Vice President Engineering
+ -> President -> Vice President HR	20	1	Vice President HR
+ -> President -> Vice President Engineering -> Programmer	100	10	Programmer
+ -> President -> Vice President Engineering -> QA Engineer	101	10	QA Engineer
+ -> President -> Vice President HR -> Health Insurance Analyst	200	20	Health Insurance Analyst
+
+Page name: join
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join.slt:24)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT tab1.col1, tab2.col1
+    FROM tab1 INNER JOIN tab2
+        ON tab2.col1 = tab1.col1
+    ORDER BY 1,2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	2
+2	2
+3	3
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join.slt:34)!
+Expected 0 rows, but got 8 rows
+================================================================================
+SELECT tab1.col1, tab2.col1
+    FROM tab1 LEFT OUTER JOIN tab2
+        ON tab2.col1 = tab1.col1
+    ORDER BY 1,2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	2
+2	2
+3	3
+4	NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join.slt:45)!
+Expected 0 rows, but got 8 rows
+================================================================================
+SELECT tab1.col1, tab2.col1
+    FROM tab1 RIGHT OUTER JOIN tab2
+        ON tab2.col1 = tab1.col1
+    ORDER BY 1,2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	2
+2	2
+3	3
+NULL	1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join.slt:56)!
+Expected 0 rows, but got 10 rows
+================================================================================
+SELECT tab1.col1, tab2.col1
+    FROM tab1 FULL OUTER JOIN tab2
+        ON tab2.col1 = tab1.col1
+    ORDER BY 1,2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	2
+2	2
+3	3
+4	NULL
+NULL	1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join.slt:68)!
+Expected 0 rows, but got 24 rows
+================================================================================
+SELECT tab1.col1, tab2.col1
+    FROM tab1 CROSS JOIN tab2
+    ORDER BY 1, 2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	1
+2	2
+2	2
+2	3
+3	1
+3	2
+3	2
+3	3
+4	1
+4	2
+4	2
+4	3
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join.slt:86)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT tab1.col1, tab2.col1
+    FROM tab1 CROSS JOIN tab2
+    WHERE tab2.col1 = tab1.col1
+    ORDER BY 1, 2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	2
+2	2
+3	3
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join.slt:124)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT *
+    FROM d1 NATURAL INNER JOIN d2
+    ORDER BY id;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	a	xx
+2	b	yy
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join.slt:132)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT *
+  FROM d1 NATURAL FULL OUTER JOIN d2
+  ORDER BY ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	a	xx
+2	b	yy
+4	c	NULL
+5	NULL	zz
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join.slt:152)!
+Expected 0 rows, but got 1 rows
+================================================================================
+WITH
+    l AS (
+         SELECT 'a' AS userid
+         ),
+    r AS (
+         SELECT 'b' AS userid
+         )
+  SELECT *
+    FROM l LEFT JOIN r USING(userid);
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+a
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join.slt:165)!
+Expected 0 rows, but got 2 rows
+================================================================================
+WITH
+    l AS (
+         SELECT 'a' AS userid
+       ),
+    r AS (
+         SELECT 'b' AS userid
+         )
+  SELECT l.userid as UI_L,
+         r.userid as UI_R
+    FROM l LEFT JOIN r USING(userid);
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+a	NULL
+
+Page name: drop-table
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/drop-table.slt:5)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT table_name
+FROM information_schema.tables
+WHERE table_name = 'T2';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+T2
+
+Page name: delete
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/delete.slt:24)!
+Expected 0 rows, but got 1 rows
+================================================================================
+DELETE FROM leased_bicycles WHERE bicycle_id = 105;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/delete.slt:29)!
+Expected 0 rows, but got 8 rows
+================================================================================
+SELECT * FROM leased_bicycles ORDER BY bicycle_id;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	1111
+102	2222
+103	3333
+104	4444
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/delete.slt:46)!
+Expected 0 rows, but got 4 rows
+================================================================================
+SELECT * FROM leased_bicycles ORDER BY bicycle_id;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	1111
+103	3333
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/delete.slt:52)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT * FROM returned_bicycles ORDER BY bicycle_id;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+102
+104
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/delete.slt:82)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT * FROM leased_bicycles ORDER BY bicycle_id;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	1111
+
+Page name: at-before
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/at-before.slt:21)!
+Expected 0 rows, but got 4 rows
+================================================================================
+SELECT * FROM tt1 AT(OFFSET => -10);
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	2
+2	3
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/at-before.slt:35)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT * FROM tt1 BEFORE(STATEMENT => $last_query_id);
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	2
+2	3
+3	4
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/at-before.slt:42)!
+Expected 0 rows, but got 4 rows
+================================================================================
+SELECT oldt.c1, oldt.c2, newt.c1, newt.c2
+  FROM tt1 BEFORE(STATEMENT => $last_query_id) AS oldt
+  FULL OUTER JOIN tt1 AT(STATEMENT => $last_query_id) AS newt
+  ON oldt.c1 = newt.c1
+  WHERE oldt.c1 IS NULL OR newt.c1 IS NULL;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+NULL	NULL	4	5
+
+Page name: changes
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/changes.slt:30)!
+Expected 0 rows, but got 8 rows
+================================================================================
+SELECT id, c1, METADATA$ACTION, METADATA$ISUPDATE
+FROM t1
+  CHANGES(INFORMATION => DEFAULT)
+  AT(TIMESTAMP => $ts1);
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	purple	INSERT	FALSE
+3	green	INSERT	FALSE
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/changes.slt:39)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT id, c1, METADATA$ACTION, METADATA$ISUPDATE
+FROM t1
+  CHANGES(INFORMATION => APPEND_ONLY)
+  AT(TIMESTAMP => $ts1);
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	red	INSERT	FALSE
+2	blue	INSERT	FALSE
+3	green	INSERT	FALSE
+
+Page name: desc-table
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/desc-table.slt:10)!
+Expected 0 rows, but got 60 rows
+================================================================================
+DESCRIBE TABLE desc_example;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+C1	NUMBER(38,0)	COLUMN	N	NULL	Y	N	NULL	NULL	NULL	NULL	NULL
+C2	NUMBER(38,0)	COLUMN	Y	NULL	N	N	NULL	NULL	NULL	NULL	NULL
+C3	NUMBER(38,0)	COLUMN	Y	NULL	N	Y	NULL	NULL	NULL	NULL	NULL
+C4	VARCHAR(30)	COLUMN	Y	'Not applicable'	N	N	NULL	NULL	This column is rarely populated	NULL	NULL
+C5	VARCHAR(100)	COLUMN	Y	NULL	N	N	NULL	NULL	NULL	NULL	NULL
+
+Page name: operators-arithmetic
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-arithmetic.slt:1)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT 10.01 n1, 1.1 n2, 10.01 * 1.1;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+10.01	1.1	11.011
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-arithmetic.slt:6)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT 10.001 n1, .001 n2, 10.001 * .001;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+10.001	0.001	0.010001
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-arithmetic.slt:11)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT .1 n1, .0000000000001 n2, .1 * .0000000000001;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+0.1	1E-13	0E-13
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-arithmetic.slt:16)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT 2 n1, 7 n2, n1 / n2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	7	0.285714
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-arithmetic.slt:21)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT 10.1 n1, 2.1 n2, n1 / n2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+10.1	2.1	4.8095238
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-arithmetic.slt:26)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT 10.001 n1, .001 n2, n1 / n2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+10.001	0.001	10001.000000000
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-arithmetic.slt:31)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT .1 n1, .0000000000001 n2, n1 / n2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+0.1	1E-13	1000000000000.0000000
+
+Page name: having
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/having.slt:21)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT department_id
+FROM employees
+GROUP BY department_id
+HAVING count(*) < 10;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101
+
+Page name: pivot
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:29)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SELECT *
+  FROM quarterly_sales
+    PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter))
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	10400	8000	11000	18000
+2	39500	90700	12000	5300
+3	NULL	NULL	2700	28900
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:52)!
+Expected 0 rows, but got 9 rows
+================================================================================
+SELECT *
+  FROM quarterly_sales
+    PIVOT(SUM(amount) FOR quarter IN (
+      SELECT DISTINCT quarter
+        FROM ad_campaign_types_by_quarter
+        WHERE television = TRUE
+        ORDER BY quarter))
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	10400	18000
+2	39500	5300
+3	NULL	28900
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:66)!
+Expected 0 rows, but got 90 rows
+================================================================================
+SELECT 'Average sale amount' AS aggregate, *
+  FROM quarterly_sales
+    PIVOT(AVG(amount) FOR quarter IN (ANY ORDER BY quarter))
+UNION
+SELECT 'Highest value sale' AS aggregate, *
+  FROM quarterly_sales
+    PIVOT(MAX(amount) FOR quarter IN (ANY ORDER BY quarter))
+UNION
+SELECT 'Lowest value sale' AS aggregate, *
+  FROM quarterly_sales
+    PIVOT(MIN(amount) FOR quarter IN (ANY ORDER BY quarter))
+UNION
+SELECT 'Number of sales' AS aggregate, *
+  FROM quarterly_sales
+    PIVOT(COUNT(amount) FOR quarter IN (ANY ORDER BY quarter))
+UNION
+SELECT 'Total amount' AS aggregate, *
+  FROM quarterly_sales
+    PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter))
+ORDER BY aggregate, empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Average sale amount	1	5200.000000	4000.000000	5500.000000	9000.000000
+Average sale amount	2	19750.000000	45350.000000	6000.000000	2650.000000
+Average sale amount	3	NULL	NULL	2700.000000	9633.333333
+Highest value sale	1	10000.000000	5000.000000	6000.000000	10000.000000
+Highest value sale	2	35000.000000	90500.000000	9500.000000	4500.000000
+Highest value sale	3	NULL	NULL	2700.000000	16000.000000
+Lowest value sale	1	400.000000	3000.000000	5000.000000	8000.000000
+Lowest value sale	2	4500.000000	200.000000	2500.000000	800.000000
+Lowest value sale	3	NULL	NULL	2700.000000	2700.000000
+Number of sales	1	2.000000	2.000000	2.000000	2.000000
+Number of sales	2	2.000000	2.000000	2.000000	2.000000
+Number of sales	3	0.000000	0.000000	1.000000	3.000000
+Total amount	1	10400.000000	8000.000000	11000.000000	18000.000000
+Total amount	2	39500.000000	90700.000000	12000.000000	5300.000000
+Total amount	3	NULL	NULL	2700.000000	28900.000000
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:114)!
+Expected 0 rows, but got 18 rows
+================================================================================
+WITH
+  src AS
+  (
+    SELECT *
+      FROM quarterly_sales
+        PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter))
+  )
+SELECT em.managerid, src.*
+  FROM emp_manager em
+  JOIN src ON em.empid = src.empid
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+7	1	10400	8000	11000	18000
+8	2	39500	90700	12000	5300
+9	3	NULL	NULL	2700	28900
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:131)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT *
+  FROM quarterly_sales
+    PIVOT(SUM(amount) FOR quarter IN (
+      '2023_Q1',
+      '2023_Q2',
+      '2023_Q3'))
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	10400	8000	11000
+2	39500	90700	12000
+3	NULL	NULL	2700
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:144)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SELECT *
+  FROM quarterly_sales
+    PIVOT(SUM(amount) FOR quarter IN (
+      '2023_Q1',
+      '2023_Q2',
+      '2023_Q3',
+      '2023_Q4'))
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	10400	8000	11000	18000
+2	39500	90700	12000	5300
+3	NULL	NULL	2700	28900
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:158)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SELECT *
+  FROM quarterly_sales
+    PIVOT(SUM(amount) FOR quarter IN (
+      '2023_Q1',
+      '2023_Q2',
+      '2023_Q3',
+      '2023_Q4')) AS p (employee, q1, q2, q3, q4)
+  ORDER BY employee;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	10400	8000	11000	18000
+2	39500	90700	12000	5300
+3	NULL	NULL	2700	28900
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:172)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SELECT empid,
+       "'2023_Q1'" AS q1,
+       "'2023_Q2'" AS q2,
+       "'2023_Q3'" AS q3,
+       "'2023_Q4'" AS q4
+  FROM quarterly_sales
+    PIVOT(sum(amount) FOR quarter IN (
+      '2023_Q1',
+      '2023_Q2',
+      '2023_Q3',
+      '2023_Q4'))
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	10400	8000	11000	18000
+2	39500	90700	12000	5300
+3	NULL	NULL	2700	28900
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:190)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SELECT *
+  FROM quarterly_sales
+    PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter)
+      DEFAULT ON NULL (0))
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	10400	8000	11000	18000
+2	39500	90700	12000	5300
+3	0	0	2700	28900
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:201)!
+Expected 0 rows, but got 9 rows
+================================================================================
+SELECT *
+  FROM quarterly_sales
+    PIVOT(SUM(amount)
+      FOR quarter IN (
+        '2023_Q1',
+        '2023_Q2')
+      DEFAULT ON NULL (0))
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	10400	8000
+2	39500	90700
+3	0	0
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:225)!
+Expected 0 rows, but got 15 rows
+================================================================================
+WITH
+  sales_without_discount AS
+    (SELECT * EXCLUDE(discount_percent) FROM quarterly_sales)
+SELECT *
+  FROM sales_without_discount
+    PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter))
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	10400	8000	11000	18000
+2	39500	90700	12000	5300
+3	NULL	NULL	2700	28900
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:238)!
+Expected 0 rows, but got 15 rows
+================================================================================
+WITH
+  sales_without_amount AS
+    (SELECT * EXCLUDE(amount) FROM quarterly_sales)
+SELECT *
+  FROM sales_without_amount
+    PIVOT(AVG(discount_percent) FOR quarter IN (ANY ORDER BY quarter))
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	2.000000	2.000000	2.000000	2.000000
+2	2.000000	2.000000	2.000000	2.000000
+3	NULL	NULL	2.000000	2.000000
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/pivot.slt:251)!
+Expected 0 rows, but got 8 rows
+================================================================================
+SELECT SUM($1) AS q1_sales_total,
+       SUM($2) AS q2_sales_total,
+       SUM($3) AS q3_sales_total,
+       SUM($4) AS q4_sales_total,
+       MAX($5) AS q1_maximum_discount,
+       MAX($6) AS q2_maximum_discount,
+       MAX($7) AS q3_maximum_discount,
+       MAX($8) AS q4_maximum_discount
+  FROM
+    (SELECT amount,
+            quarter AS quarter_amount,
+            quarter AS quarter_discount,
+            discount_percent
+      FROM quarterly_sales)
+  PIVOT (
+    SUM(amount)
+    FOR quarter_amount IN (
+      '2023_Q1',
+      '2023_Q2',
+      '2023_Q3',
+      '2023_Q4'))
+  PIVOT (
+    MAX(discount_percent)
+    FOR quarter_discount IN (
+      '2023_Q1',
+      '2023_Q2',
+      '2023_Q3',
+      '2023_Q4'));
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+49900	98700	25700	52200	2	2	2	2
+
+Page name: join-lateral
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join-lateral.slt:23)!
+Expected 0 rows, but got 18 rows
+================================================================================
+SELECT * 
+    FROM departments AS d, LATERAL (SELECT * FROM employees AS e WHERE e.department_ID = d.department_ID) AS iv2
+    ORDER BY employee_ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	Engineering	101	Richards	1	NULL
+1	Engineering	102	Paulson	1	NULL
+2	Support	103	Johnson	2	NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join-lateral.slt:50)!
+Expected 0 rows, but got 16 rows
+================================================================================
+SELECT emp.employee_ID, emp.last_name, index, value AS project_name
+    FROM employees AS emp, LATERAL FLATTEN(INPUT => emp.project_names) AS proj_names
+    ORDER BY employee_ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+101	Richards	0	"Materialized Views"
+101	Richards	1	"UDFs"
+102	Paulson	0	"Materialized Views"
+102	Paulson	1	"Lateral Joins"
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/join-lateral.slt:60)!
+Expected 0 rows, but got 18 rows
+================================================================================
+SELECT * 
+    FROM departments AS d INNER JOIN LATERAL (SELECT * FROM employees AS e WHERE e.department_ID = d.department_ID) AS iv2
+    ORDER BY employee_ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	Engineering	101	Richards	1	'["Materialized Views","UDFs"]'
+1	Engineering	102	Paulson	1	'["Materialized Views","Lateral Joins"]'
+2	Support	103	Johnson	2	NULL
+
+Page name: update
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/update.slt:33)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT * FROM target;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+0	11
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/update.slt:38)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT * FROM src;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+0	11
+0	12
+0	13
+
+Page name: set
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Sessions/set.slt:8)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT $V1;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+10
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Sessions/set.slt:16)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT $V2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+example
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Sessions/set.slt:24)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT $V1;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+10
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Sessions/set.slt:29)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT $V2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+example
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Sessions/set.slt:37)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT $id_threshold;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+0.5
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Sessions/set.slt:48)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT $max;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+80
+
+Page name: limit
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/limit.slt:23)!
+Expected 0 rows, but got 3 rows
+================================================================================
+select c1 from testtable limit 3 offset 3;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+20
+19
+18
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/limit.slt:30)!
+Expected 0 rows, but got 3 rows
+================================================================================
+select c1 from testtable order by c1 limit 3 offset 3;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+19
+2
+2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/limit.slt:45)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT * FROM demo1 ORDER BY i LIMIT NULL OFFSET NULL;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1
+2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/limit.slt:51)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT * FROM demo1 ORDER BY i LIMIT NULL OFFSET NULL;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1
+2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/limit.slt:57)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT * FROM demo1 ORDER BY i LIMIT NULL OFFSET NULL;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1
+2
+
+Page name: show-columns
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/show-columns.slt:12)!
+Expected 0 rows, but got 240 rows
+================================================================================
+show columns in table dt_test;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+DT_TEST	PUBLIC	N1	'{"type":"FIXED","precision":38,"scale":0,"nullable":true}'	true	5	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	N2_INT	'{"type":"FIXED","precision":38,"scale":0,"nullable":true}'	true	DT_TEST.N1 + 5	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	N3_BIGINT	'{"type":"FIXED","precision":38,"scale":0,"nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	IDENTITY START 1 INCREMENT 1 NOORDER	NULL
+DT_TEST	PUBLIC	N4_DEC	'{"type":"FIXED","precision":38,"scale":0,"nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	IDENTITY START 1 INCREMENT 10 NOORDER	NULL
+DT_TEST	PUBLIC	F1	'{"type":"REAL","nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	F2_DOUBLE	'{"type":"REAL","nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	F3_REAL	'{"type":"REAL","nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	S1	'{"type":"TEXT","length":16777216,"byteLength":16777216,"nullable":true,"fixed":false}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	S2_VAR	'{"type":"TEXT","length":16777216,"byteLength":16777216,"nullable":true,"fixed":false}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	S3_CHAR	'{"type":"TEXT","length":1,"byteLength":4,"nullable":true,"fixed":false}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	S4_TEXT	'{"type":"TEXT","length":16777216,"byteLength":16777216,"nullable":true,"fixed":false}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	B1	'{"type":"BINARY","length":8388608,"byteLength":8388608,"nullable":true,"fixed":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	B2_VAR	'{"type":"BINARY","length":8388608,"byteLength":8388608,"nullable":true,"fixed":false}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	BOOL1	'{"type":"BOOLEAN","nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	D1	'{"type":"DATE","nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	T1	'{"type":"TIME","precision":0,"scale":9,"nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	TS1	'{"type":"TIMESTAMP_NTZ","precision":0,"scale":9,"nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	TS2_LTZ	'{"type":"TIMESTAMP_LTZ","precision":0,"scale":9,"nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	TS3_NTZ	'{"type":"TIMESTAMP_NTZ","precision":0,"scale":9,"nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+DT_TEST	PUBLIC	TS4_TZ	'{"type":"TIMESTAMP_TZ","precision":0,"scale":9,"nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+
+Page name: operators-logical
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:21)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT * FROM logical_test1 WHERE a > 20 AND b = 'Down';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	25	Down
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:26)!
+Expected 0 rows, but got 9 rows
+================================================================================
+SELECT * FROM logical_test1 WHERE a > 20 OR b = 'Down';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	25	Down
+3	15	Down
+4	47	Up
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:33)!
+Expected 0 rows, but got 9 rows
+================================================================================
+SELECT * FROM logical_test1 WHERE a > 20 OR b = 'Up';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	8	Up
+2	25	Down
+4	47	Up
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:40)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT * FROM logical_test1 WHERE NOT a > 20;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	8	Up
+3	15	Down
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:46)!
+Expected 0 rows, but got 9 rows
+================================================================================
+SELECT * FROM logical_test1 WHERE b = 'Down' OR a = 8 AND b = 'Up';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	8	Up
+2	25	Down
+3	15	Down
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:53)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT * FROM logical_test1 WHERE (b = 'Down' OR a = 8) AND b = 'Up';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	8	Up
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:58)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT * FROM logical_test1 WHERE NOT a = 15 AND b = 'Down';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	25	Down
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:63)!
+Expected 0 rows, but got 9 rows
+================================================================================
+SELECT * FROM logical_test1 WHERE NOT (a = 15 AND b = 'Down');
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	8	Up
+2	25	Down
+4	47	Up
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:78)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT a, b FROM logical_test2 WHERE a OR b;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+FALSE	TRUE
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:88)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT a, b FROM logical_test2 WHERE b AND NOT a;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+FALSE	TRUE
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:106)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT x AS "OR", x OR False AS "FALSE", x OR True AS "TRUE", x OR NULL AS "NULL" FROM logical_test3;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+FALSE	FALSE	TRUE	NULL
+TRUE	TRUE	TRUE	TRUE
+NULL	NULL	TRUE	NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-logical.slt:113)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT x AS "AND", x AND False AS "FALSE", x AND True AS "TRUE", x AND NULL AS "NULL" FROM logical_test3;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+FALSE	FALSE	FALSE	FALSE
+TRUE	FALSE	TRUE	NULL
+NULL	FALSE	NULL	NULL
+
+Page name: top_n
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/top_n.slt:22)!
+Expected 0 rows, but got 4 rows
+================================================================================
+select TOP 4 c1 from testtable;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1
+2
+3
+20
+
+Page name: insert
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/insert.slt:13)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT * FROM mytable;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+'2013-05-08'	'2013-05-08T23:39:20.123000'	'2013-05-08T23:39:20.123000'
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/insert.slt:22)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT * FROM mytable;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+'2013-05-08'	'2013-05-08T23:39:20.123000'	'2013-05-08T23:39:20.123000'
+'2013-05-08'	NULL	'2013-05-08T23:39:20.123000'
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/insert.slt:48)!
+Expected 0 rows, but got 10 rows
+================================================================================
+SELECT * FROM employees;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Lysandra	Reeves	1-212-759-3751	New York	10018
+Michael	Arnett	1-650-230-8467	San Francisco	94116
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/insert.slt:87)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SELECT * FROM contractors;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Alice	Johnson	451	Chicago	60616
+Bob	Martinez	782	Denver	80204
+Clara	Nguyen	650	Austin	73301
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/insert.slt:101)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SELECT * FROM employees;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Lysandra	Reeves	1-212-759-3751	New York	10018
+Michael	Arnett	1-650-230-8467	San Francisco	94116
+Clara	Nguyen	650	NULL	73301
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/insert.slt:183)!
+Expected 0 rows, but got 30 rows
+================================================================================
+SELECT * FROM employees;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Lysandra	Reeves	1-212-759-3751	New York	10018
+Michael	Arnett	1-650-230-8467	San Francisco	94116
+Clara	Nguyen	650	NULL	73301
+Alice	Johnson	451	Chicago	60616
+Bob	Martinez	782	Denver	80204
+Clara	Nguyen	650	Austin	73301
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/insert.slt:204)!
+Expected 0 rows, but got 5 rows
+================================================================================
+SELECT * FROM sf_employees;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Michael	Arnett	1-650-230-8467	San Francisco	94116
+
+Page name: create-table
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:8)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT table_name
+FROM information_schema.tables
+WHERE table_name = 'MYTABLE';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+MYTABLE
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:15)!
+Expected 0 rows, but got 12 rows
+================================================================================
+DESC TABLE mytable;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+AMOUNT	NUMBER(38,0)	COLUMN	Y	NULL	N	N	NULL	NULL	NULL	NULL	NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:23)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT comment
+FROM information_schema.tables
+WHERE table_name = 'EXAMPLE';
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+a table comment
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:30)!
+Expected 0 rows, but got 12 rows
+================================================================================
+DESC TABLE example;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+COL1	NUMBER(38,0)	COLUMN	Y	NULL	N	N	NULL	NULL	a column comment	NULL	NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:38)!
+Expected 0 rows, but got 12 rows
+================================================================================
+DESC TABLE mytable_copy;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+B	NUMBER(38,0)	COLUMN	Y	NULL	N	N	NULL	NULL	NULL	NULL	NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:46)!
+Expected 0 rows, but got 12 rows
+================================================================================
+DESC TABLE mytable_copy2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+C	NUMBER(38,0)	COLUMN	Y	NULL	N	N	NULL	NULL	NULL	NULL	NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:51)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT * FROM mytable_copy2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:68)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT * FROM mytable;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:76)!
+Expected 0 rows, but got 12 rows
+================================================================================
+DESC TABLE mytable_2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+AMOUNT	NUMBER(38,0)	COLUMN	Y	NULL	N	N	NULL	NULL	NULL	NULL	NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:162)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT * FROM my_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	NULL
+2	NULL
+3	NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:182)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT * FROM my_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	10
+2	20
+3	30
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/create-table.slt:195)!
+Expected 0 rows, but got 12 rows
+================================================================================
+DESC TABLE t;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+A	NUMBER(38,0)	COLUMN	N	NULL	Y	N	NULL	NULL	NULL	NULL	NULL
+
+Page name: operators-subquery
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-subquery.slt:32)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT department_id
+  FROM departments d
+  WHERE d.department_id != ALL (
+    SELECT e.department_id
+      FROM employees e);
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+102
+103
+
+Page name: with
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/with.slt:59)!
+Expected 0 rows, but got 3 rows
+================================================================================
+with
+  albums_1976 as (select * from music_albums where album_year = 1976)
+select album_name from albums_1976 order by album_name;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Abraxas
+Escape
+Infinity
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/with.slt:68)!
+Expected 0 rows, but got 4 rows
+================================================================================
+with
+   album_info_1976 as (select m.album_ID, m.album_name, b.band_name
+      from music_albums as m inner join music_bands as b
+      where m.band_id = b.band_id and album_year = 1976),
+   Journey_album_info_1976 as (select *
+      from album_info_1976 
+      where band_name = 'Journey')
+select album_name, band_name 
+   from Journey_album_info_1976;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Escape	Journey
+Infinity	Journey
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/with.slt:82)!
+Expected 0 rows, but got 2 rows
+================================================================================
+select distinct musicians.musician_id, musician_name
+ from musicians inner join musicians_and_albums inner join music_albums inner join music_bands
+ where musicians.musician_ID = musicians_and_albums.musician_ID
+   and musicians_and_albums.album_ID = music_albums.album_ID
+   and music_albums.band_ID = music_bands.band_ID
+   and music_bands.band_name = 'Santana'
+intersect
+select distinct musicians.musician_id, musician_name
+ from musicians inner join musicians_and_albums inner join music_albums inner join music_bands
+ where musicians.musician_ID = musicians_and_albums.musician_ID
+   and musicians_and_albums.album_ID = music_albums.album_ID
+   and music_albums.band_ID = music_bands.band_ID
+   and music_bands.band_name = 'Journey'
+order by musician_ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+203	Neal Schon
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/with.slt:109)!
+Expected 0 rows, but got 2 rows
+================================================================================
+select musician_id, musician_name from view_musicians_in_bands where band_name = 'Santana'
+intersect
+select musician_id, musician_name from view_musicians_in_bands where band_name = 'Journey'
+order by musician_ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+203	Neal Schon
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/with.slt:117)!
+Expected 0 rows, but got 2 rows
+================================================================================
+with
+  musicians_in_bands as (
+     select distinct musicians.musician_id, musician_name, band_name
+      from musicians inner join musicians_and_albums inner join music_albums inner join music_bands
+      where musicians.musician_ID = musicians_and_albums.musician_ID
+        and musicians_and_albums.album_ID = music_albums.album_ID
+        and music_albums.band_ID = music_bands.band_ID)
+select musician_ID, musician_name from musicians_in_bands where band_name = 'Santana'
+intersect
+select musician_ID, musician_name from musicians_in_bands where band_name = 'Journey'
+order by musician_ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+203	Neal Schon
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/with.slt:147)!
+Expected 0 rows, but got 2 rows
+================================================================================
+with
+  album_IDs_by_bands as (select album_ID, music_bands.band_id, band_name
+                          from music_albums inner join music_bands
+                          where music_albums.band_id = music_bands.band_ID),
+  musicians_in_bands as (select distinct musicians.musician_id, musician_name, band_name
+                          from musicians inner join musicians_and_albums inner join album_IDs_by_bands
+                          where musicians.musician_ID = musicians_and_albums.musician_ID
+                            and musicians_and_albums.album_ID = album_IDs_by_bands.album_ID)
+select musician_ID, musician_name from musicians_in_bands where band_name = 'Santana'
+intersect
+select musician_ID, musician_name from musicians_in_bands where band_name = 'Journey'
+order by musician_ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+203	Neal Schon
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/with.slt:163)!
+Expected 0 rows, but got 12 rows
+================================================================================
+WITH RECURSIVE current_f (current_val, previous_val) AS
+    (
+    SELECT 0, 1
+    UNION ALL 
+    SELECT current_val + previous_val, current_val FROM current_f
+      WHERE current_val + previous_val < 100
+    )
+  SELECT current_val FROM current_f ORDER BY current_val;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+0
+1
+1
+2
+3
+5
+8
+13
+21
+34
+55
+89
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/with.slt:209)!
+Expected 0 rows, but got 30 rows
+================================================================================
+WITH RECURSIVE current_layer (indent, layer_ID, parent_component_ID, component_id, description, sort_key) AS (
+  SELECT 
+      '...', 
+      1, 
+      parent_component_ID, 
+      component_id, 
+      description, 
+      '0001'
+    FROM components WHERE component_id = 1
+  UNION ALL
+  SELECT indent || '...',
+      layer_ID + 1,
+      components.parent_component_ID,
+      components.component_id, 
+      components.description,
+      sort_key || SUBSTRING('000' || components.component_ID, -4)
+    FROM current_layer JOIN components 
+      ON (components.parent_component_id = current_layer.component_id)
+  )
+SELECT
+  indent || description AS description, 
+  component_id,
+  parent_component_ID
+  FROM current_layer
+  ORDER BY sort_key;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+...car	1	0
+......wheel	11	1
+.........tire	111	11
+.........#112 bolt	112	11
+.........brake	113	11
+............brake pad	1131	113
+......engine	12	1
+.........#112 bolt	112	12
+.........piston	121	12
+.........cylinder block	122	12
+
+Page name: group-by
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/group-by.slt:35)!
+Expected 0 rows, but got 4 rows
+================================================================================
+SELECT product_ID, SUM(retail_price * quantity) AS gross_revenue
+  FROM sales
+  GROUP BY product_ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	6.0
+2	620.0
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/group-by.slt:43)!
+Expected 0 rows, but got 4 rows
+================================================================================
+SELECT p.product_ID, SUM((s.retail_price - p.wholesale_price) * s.quantity) AS profit
+  FROM products AS p, sales AS s
+  WHERE s.product_ID = p.product_ID
+  GROUP BY p.product_ID;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	3.0
+2	372.0
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/group-by.slt:52)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SELECT state, city, SUM(retail_price * quantity) AS gross_revenue
+  FROM sales
+  GROUP BY state, city;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+CA	SF	22.0
+CA	SJ	44.0
+FL	Miami	80.0
+FL	Orlando	160.0
+PR	SJ	320.0
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/group-by.slt:63)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SELECT state, city, SUM(retail_price * quantity) AS gross_revenue
+  FROM sales
+  GROUP BY ALL;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+CA	SF	22.0
+CA	SJ	44.0
+FL	Miami	80.0
+FL	Orlando	160.0
+PR	SJ	320.0
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/group-by.slt:85)!
+Expected 0 rows, but got 4 rows
+================================================================================
+select sum(salary), ANY_VALUE(employment_state)
+    from employees
+    group by employment_state;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+140000.0	Active
+70000.0	On leave
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/group-by.slt:93)!
+Expected 0 rows, but got 4 rows
+================================================================================
+select sum(salary), ANY_VALUE(employment_state) as state
+    from employees
+    group by state;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+130000.0	Active
+80000.0	Active
+
+Page name: values
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/values.slt:1)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT * FROM (VALUES (1, 'one'), (2, 'two'), (3, 'three'));
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	one
+2	two
+3	three
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/values.slt:8)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT column1, $2 FROM (VALUES (1, 'one'), (2, 'two'), (3, 'three'));
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	one
+2	two
+3	three
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/values.slt:15)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT v1.$2, v2.$2
+  FROM (VALUES (1, 'one'), (2, 'two')) AS v1
+        INNER JOIN (VALUES (1, 'One'), (3, 'three')) AS v2
+  WHERE v2.$1 = v1.$1;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+one	One
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/values.slt:23)!
+Expected 0 rows, but got 4 rows
+================================================================================
+SELECT c1, c2
+  FROM (VALUES (1, 'one'), (2, 'two')) AS v1 (c1, c2);
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	one
+2	two
+
+Page name: qualify
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/qualify.slt:13)!
+Expected 0 rows, but got 8 rows
+================================================================================
+SELECT * 
+    FROM (
+         SELECT i, p, o, 
+                ROW_NUMBER() OVER (PARTITION BY p ORDER BY o) AS row_num
+            FROM qt
+        )
+    WHERE row_num = 1;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	A	1	1
+3	B	1	1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/qualify.slt:25)!
+Expected 0 rows, but got 6 rows
+================================================================================
+SELECT i, p, o
+    FROM qt
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY p ORDER BY o) = 1;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	A	1
+3	B	1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/qualify.slt:33)!
+Expected 0 rows, but got 8 rows
+================================================================================
+SELECT i, p, o, ROW_NUMBER() OVER (PARTITION BY p ORDER BY o) AS row_num
+    FROM qt
+    QUALIFY row_num = 1;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	A	1	1
+3	B	1	1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/qualify.slt:41)!
+Expected 0 rows, but got 16 rows
+================================================================================
+SELECT i, p, o, ROW_NUMBER() OVER (PARTITION BY p ORDER BY o) AS row_num
+    FROM qt;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	A	1	1
+2	A	2	2
+3	B	1	1
+4	B	2	2
+
+Page name: operators-query
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-query.slt:45)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT zip FROM sales_office_zip_example
+INTERSECT
+SELECT zip FROM customer_zip_example;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+98005
+94061
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-query.slt:53)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT zip FROM sales_office_zip_example
+MINUS
+SELECT zip FROM customer_zip_example;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+94070
+98116
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-query.slt:61)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT zip FROM customer_zip_example
+MINUS
+SELECT zip FROM sales_office_zip_example;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+98444
+94066
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-query.slt:69)!
+Expected 0 rows, but got 16 rows
+================================================================================
+SELECT office_name office_or_customer, zip FROM sales_office_zip_example
+UNION
+SELECT customer, zip FROM customer_zip_example
+ORDER BY zip;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+customer2	94061
+sales1	94061
+customer1	94066
+sales2	94070
+sales4	98005
+customer4	98005
+sales3	98116
+customer3	98444
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-query.slt:100)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT v FROM union_test1
+UNION
+SELECT i::VARCHAR FROM union_test2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Adams, Douglas
+42
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_operators/operators-query.slt:108)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT v::VARCHAR FROM union_test1
+UNION
+SELECT i::VARCHAR FROM union_test2;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+Adams, Douglas
+42
+
+Page name: unpivot
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/unpivot.slt:19)!
+Expected 0 rows, but got 60 rows
+================================================================================
+SELECT *
+  FROM monthly_sales
+    UNPIVOT (sales FOR month IN (jan, feb, mar, apr))
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	electronics	JAN	100
+1	electronics	FEB	200
+1	electronics	MAR	300
+1	electronics	APR	100
+2	clothes	JAN	100
+2	clothes	FEB	300
+2	clothes	MAR	150
+2	clothes	APR	200
+3	cars	JAN	200
+3	cars	FEB	400
+3	cars	MAR	100
+3	cars	APR	50
+4	appliances	JAN	100
+4	appliances	MAR	100
+4	appliances	APR	50
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/unpivot.slt:41)!
+Expected 0 rows, but got 64 rows
+================================================================================
+SELECT *
+  FROM monthly_sales
+    UNPIVOT INCLUDE NULLS (sales FOR month IN (jan, feb, mar, apr))
+  ORDER BY empid;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	electronics	JAN	100
+1	electronics	FEB	200
+1	electronics	MAR	300
+1	electronics	APR	100
+2	clothes	JAN	100
+2	clothes	FEB	300
+2	clothes	MAR	150
+2	clothes	APR	200
+3	cars	JAN	200
+3	cars	FEB	400
+3	cars	MAR	100
+3	cars	APR	50
+4	appliances	JAN	100
+4	appliances	FEB	NULL
+4	appliances	MAR	100
+4	appliances	APR	50
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/unpivot.slt:64)!
+Expected 0 rows, but got 48 rows
+================================================================================
+SELECT dept, month, sales
+  FROM monthly_sales
+    UNPIVOT INCLUDE NULLS (sales FOR month IN (jan, feb, mar, apr))
+  ORDER BY dept;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+appliances	JAN	100
+appliances	FEB	NULL
+appliances	MAR	100
+appliances	APR	50
+cars	JAN	200
+cars	FEB	400
+cars	MAR	100
+cars	APR	50
+clothes	JAN	100
+clothes	FEB	300
+clothes	MAR	150
+clothes	APR	200
+electronics	JAN	100
+electronics	FEB	200
+electronics	MAR	300
+electronics	APR	100
+
+Page name: into
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/into.slt:1)!
+Expected 0 rows, but got 1 rows
+================================================================================
+EXECUTE IMMEDIATE $$
+DECLARE
+  v_id INT;
+  v_name STRING;
+BEGIN
+  SELECT 1, 'Alice'
+  INTO :v_id, :v_name;
+  RETURN v_id || ' ' || v_name;
+END;
+$$;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1 Alice
+
+Page name: truncate-table
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/truncate-table.slt:9)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT COUNT (*) FROM temp;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+20
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Tables,_views,_&_sequences/truncate-table.slt:17)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT COUNT (*) FROM temp;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+0
+
+Page name: merge
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/merge.slt:21)!
+Expected 0 rows, but got 1 rows
+================================================================================
+MERGE INTO target_table USING source_table 
+    ON target_table.id = source_table.id
+    WHEN MATCHED THEN 
+        UPDATE SET target_table.description = source_table.description;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/merge.slt:29)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT * FROM target_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+10	To be updated (this is the new value)
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/merge.slt:65)!
+Expected 0 rows, but got 2 rows
+================================================================================
+MERGE INTO target_table USING source_table 
+    ON target_table.id = source_table.id
+    WHEN MATCHED THEN 
+        UPDATE SET target_table.description = source_table.description
+    WHEN NOT MATCHED THEN
+        INSERT (ID, description) VALUES (source_table.id, source_table.description);
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+2	0
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/merge.slt:75)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT ID FROM target_table;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+50
+50
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/merge.slt:126)!
+Expected 0 rows, but got 1 rows
+================================================================================
+MERGE INTO target
+  USING src ON target.k = src.k
+  WHEN MATCHED AND src.v <= 12 THEN DELETE;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/merge.slt:141)!
+Expected 0 rows, but got 1 rows
+================================================================================
+MERGE INTO target
+  USING src ON target.k = src.k
+  WHEN MATCHED AND src.v = 11 THEN UPDATE SET target.v = src.v;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/merge.slt:148)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT * FROM target;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+0	11
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/merge.slt:157)!
+Expected 0 rows, but got 2 rows
+================================================================================
+MERGE INTO target USING (select k, max(v) as v from src group by k) AS b ON target.k = b.k
+  WHEN MATCHED THEN UPDATE SET target.v = b.v
+  WHEN NOT MATCHED THEN INSERT (k, v) VALUES (b.k, b.v);
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+0	1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/General_DML/merge.slt:164)!
+Expected 0 rows, but got 2 rows
+================================================================================
+SELECT * FROM target;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+0	13
+
+Page name: order-by
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/order-by.slt:1)!
+Expected 0 rows, but got 12 rows
+================================================================================
+SELECT column1
+  FROM VALUES ('a'), ('1'), ('B'), (null), ('2'), ('01'), ('05'), (' this'), ('this'), ('this and that'), ('&'), ('%')
+  ORDER BY column1;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+ this
+%
+&
+01
+05
+1
+2
+B
+a
+this
+this and that
+NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/order-by.slt:19)!
+Expected 0 rows, but got 11 rows
+================================================================================
+SELECT column1
+  FROM VALUES (3), (4), (null), (1), (2), (6), (5), (0005), (.05), (.5), (.5000)
+  ORDER BY column1;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+0.05
+0.50
+0.50
+1.00
+2.00
+3.00
+4.00
+5.00
+5.00
+6.00
+NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/order-by.slt:36)!
+Expected 0 rows, but got 5 rows
+================================================================================
+SELECT column1
+  FROM VALUES (1), (null), (2), (null), (3)
+  ORDER BY column1;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1
+2
+3
+NULL
+NULL
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/order-by.slt:47)!
+Expected 0 rows, but got 5 rows
+================================================================================
+SELECT column1
+  FROM VALUES (1), (null), (2), (null), (3)
+  ORDER BY column1 NULLS FIRST;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+NULL
+NULL
+1
+2
+3
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/order-by.slt:58)!
+Expected 0 rows, but got 5 rows
+================================================================================
+SELECT column1
+  FROM VALUES (1), (null), (2), (null), (3)
+  ORDER BY column1 DESC;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+NULL
+NULL
+3
+2
+1
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/order-by.slt:69)!
+Expected 0 rows, but got 5 rows
+================================================================================
+SELECT column1
+  FROM VALUES (1), (null), (2), (null), (3)
+  ORDER BY column1 DESC NULLS LAST;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+3
+2
+1
+NULL
+NULL
+
+Page name: group-by-grouping-sets
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/group-by-grouping-sets.slt:22)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SELECT COUNT(*), medical_license, radio_license
+  FROM nurses
+  GROUP BY GROUPING SETS (medical_license, radio_license);
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+3	LVN	NULL
+1	RN	NULL
+1	NULL	General
+1	NULL	Amateur Extra
+2	NULL	Technician
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/group-by-grouping-sets.slt:43)!
+Expected 0 rows, but got 15 rows
+================================================================================
+SELECT COUNT(*), medical_license, radio_license
+  FROM nurses
+  GROUP BY medical_license, radio_license;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+1	LVN	General
+2	LVN	Technician
+1	RN	Amateur Extra
+2	LVN	NULL
+1	RN	NULL
+
+Page name: from
+
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/from.slt:10)!
+Expected 0 rows, but got 3 rows
+================================================================================
+SELECT description, retail_price, wholesale_cost 
+    FROM ftable1;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+bling	14.0	6.0
+
+================================================================================
+Wrong row count in query! (../../embucket/test/sql/sql-reference-commands/Query_syntax/from.slt:16)!
+Expected 0 rows, but got 1 rows
+================================================================================
+SELECT v.profit 
+    FROM (SELECT retail_price - wholesale_cost AS profit FROM ftable1) AS v;
+================================================================================
+Expected result:
+================================================================================
+Actual result:
+8.0
+
