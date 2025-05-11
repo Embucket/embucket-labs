@@ -5,6 +5,29 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+core-executor = { path = "../core-executor" }
+core-metastore = { path = "../core-metastore" }
+core-utils = { path = "../core-utils" }
+core-history = { path = "../core-history" }
+api-ui = { path = "../api-ui" }
+api-sessions = { path = "../api-sessions" }
+api-snowflake-rest = { path = "../api-snowflake-rest" }
+api-iceberg-rest = { path = "../api-iceberg-rest" }
+api-internal-rest = { path = "../api-internal-rest" }
+
+axum = { workspace = true }
+clap = { version = "4.5.27", features = ["env", "derive"] }
+dotenv = "0.15.0"
+object_store = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+snmalloc-rs = { workspace = true }
+time = { workspace = true }
+tower = { workspace = true }
+tokio = { workspace = true }
+slatedb = { workspace = true }
+tower-sessions = { workspace = true }
+tower-http = { workspace = true }
 
 [lints]
 workspace = true

@@ -1,7 +1,7 @@
 use clap::{Parser, ValueEnum};
 use object_store::{
-    aws::AmazonS3Builder, aws::S3ConditionalPut, local::LocalFileSystem, memory::InMemory,
-    ObjectStore, Result as ObjectStoreResult,
+    ObjectStore, Result as ObjectStoreResult, aws::AmazonS3Builder, aws::S3ConditionalPut,
+    local::LocalFileSystem, memory::InMemory,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -213,7 +213,9 @@ impl CliOpts {
 
     // method resets a secret env
     pub fn jwt_secret(&self) -> String {
-        std::env::remove_var("JWT_SECRET");
+        unsafe {
+            std::env::remove_var("JWT_SECRET");
+        }
         self.jwt_secret.clone().unwrap_or_default()
     }
 }

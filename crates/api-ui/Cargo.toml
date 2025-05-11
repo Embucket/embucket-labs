@@ -24,13 +24,7 @@ snafu = { workspace = true }
 tar = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-tower-http = { version = "0.6.1", features = [
-  "catch-panic",
-  "timeout",
-  "sensitive-headers",
-  "cors",
-  "trace",
-] }
+tower-http = { workspace = true }
 tower-sessions = { workspace = true }
 time = { workspace = true }
 utoipa = { workspace = true }
