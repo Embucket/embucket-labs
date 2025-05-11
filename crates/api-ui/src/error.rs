@@ -1,4 +1,5 @@
-use axum::{Json, response::IntoResponse, response::Response};
+use axum::Json;
+use axum::{response::IntoResponse, response::Response};
 use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
@@ -41,13 +42,13 @@ pub struct ErrorResponse {
 impl IntoResponse for UIError {
     fn into_response(self) -> Response<axum::body::Body> {
         match self {
-            Self::Execution { source } => exec_error_into_response(source),
-            Self::Metastore { source } => metastore_error_into_response(source),
+            Self::Execution { source } => exec_error_into_response(&source),
+            Self::Metastore { source } => metastore_error_into_response(&source),
         }
     }
 }
 
-fn metastore_error_into_response(error: MetastoreError) -> axum::response::Response {
+fn metastore_error_into_response(error: &MetastoreError) -> axum::response::Response {
     let message = error.to_string();
     let code = match error {
         MetastoreError::TableDataExists { .. }
@@ -86,8 +87,8 @@ fn metastore_error_into_response(error: MetastoreError) -> axum::response::Respo
     (code, Json(error)).into_response()
 }
 
-fn exec_error_into_response(error: ExecutionError) -> axum::response::Response {
-    let status_code = match &error {
+fn exec_error_into_response(error: &ExecutionError) -> axum::response::Response {
+    let status_code = match error {
         ExecutionError::RegisterUDF { .. }
         | ExecutionError::RegisterUDAF { .. }
         | ExecutionError::InvalidTableIdentifier { .. }
