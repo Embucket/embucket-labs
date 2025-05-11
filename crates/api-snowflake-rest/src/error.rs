@@ -132,7 +132,7 @@ fn convert_into_response(error: &ExecutionError) -> axum::response::Response {
         ExecutionError::Arrow { .. }
         | ExecutionError::S3Tables { .. }
         | ExecutionError::Iceberg { .. }
-        | ExecutionError::CatalogListDowncast {}
+        | ExecutionError::CatalogListDowncast
         | ExecutionError::CatalogDownCast { .. }
         | ExecutionError::RegisterCatalog { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
         ExecutionError::DatabaseNotFound { .. }
