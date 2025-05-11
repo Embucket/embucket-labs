@@ -8,10 +8,17 @@ use api_internal_rest::state::State as InternalAppState;
 use api_sessions::{RequestSessionMemory, RequestSessionStore};
 use api_snowflake_rest::router::create_router as create_snowflake_router;
 use api_snowflake_rest::state::AppState as SnowflakeAppState;
+use api_ui::auth::layer::require_auth;
+use api_ui::auth::router::create_router as create_ui_auth_router;
 use api_ui::config::AuthConfig as UIAuthConfig;
 use api_ui::config::WebConfig as UIWebConfig;
+use api_ui::layers::make_cors_middleware;
 use api_ui::router::create_router as create_ui_router;
+use api_ui::router::ui_open_api_spec;
 use api_ui::state::AppState as UIAppState;
+use api_ui::web_assets::config::StaticWebConfig;
+use api_ui::web_assets::server::run_web_assets_server;
+use axum::middleware;
 use axum::{
     Json, Router,
     routing::{get, post},
@@ -26,6 +33,7 @@ use core_utils::Db;
 use dotenv::dotenv;
 use object_store::path::Path;
 use slatedb::{Db as SlateDb, config::DbOptions};
+use std::fs;
 use std::sync::Arc;
 use time::Duration;
 use tokio::signal;
@@ -34,12 +42,20 @@ use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use tower_sessions::{Expiry, SessionManagerLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use utoipa::OpenApi;
+use utoipa::openapi;
+use utoipa_swagger_ui::SwaggerUi;
 
 #[global_allocator]
 static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 
 #[tokio::main]
-#[allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stdout)]
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::print_stdout,
+    clippy::too_many_lines
+)]
 async fn main() {
     dotenv().ok();
 
@@ -71,6 +87,10 @@ async fn main() {
     };
     let iceberg_config = IcebergConfig {
         iceberg_catalog_url: opts.catalog_url.clone().unwrap(),
+    };
+    let static_web_config = StaticWebConfig {
+        host: web_config.host.clone(),
+        port: opts.assets_port.unwrap(),
     };
 
     let object_store = opts
@@ -108,15 +128,21 @@ async fn main() {
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
-    let _internal_router: Router<InternalAppState> =
+    let internal_router =
         create_internal_router().with_state(InternalAppState::new(metastore.clone()));
-    let ui_router = create_ui_router().with_state(UIAppState::new(
+    let ui_state = UIAppState::new(
         metastore.clone(),
         history_store,
         execution_svc.clone(),
         Arc::new(web_config.clone()),
         Arc::new(auth_config),
+    );
+    let ui_router = create_ui_router().with_state(ui_state.clone());
+    let ui_router = ui_router.layer(middleware::from_fn_with_state(
+        ui_state.clone(),
+        require_auth,
     ));
+    let ui_auth_router = create_ui_auth_router().with_state(ui_state.clone());
     let snowflake_router =
         create_snowflake_router().with_state(SnowflakeAppState { execution_svc });
     let iceberg_router = create_iceberg_router().with_state(IcebergAppState {
@@ -124,24 +150,43 @@ async fn main() {
         config: Arc::new(iceberg_config),
     });
 
-    // TODO: Restore internal router + restore database handlers
-    // TODO: Restore auth router
-    // TODO: Restore CORS settings
-    // TODO: Restore web assets serving
-    // TOOD: Restore OpenAPI spec serving
-    // TODO: Reconsider .expect() calls back to errors
-    // TODO: Restore build script to build web assets
-    let router = Router::new()
-        // .nest("/v1/metastore", internal_router)
+    // --- OpenAPI specs ---
+    let mut spec = ApiDoc::openapi();
+    if let Some(extra_spec) = load_openapi_spec() {
+        spec = spec.merge_from(extra_spec);
+    }
+
+    let ui_spec = ui_open_api_spec();
+
+    let ui_router = Router::new()
         .nest("/ui", ui_router)
+        .nest("/ui/auth", ui_auth_router);
+    let ui_router = match web_config.allow_origin {
+        Some(allow_origin) => ui_router.layer(make_cors_middleware(&allow_origin)),
+        None => ui_router,
+    };
+
+    let router = Router::new()
+        .merge(ui_router)
+        .nest("/v1/metastore", internal_router)
         .nest("/v1", snowflake_router)
         .nest("/catalog", iceberg_router)
+        .merge(
+            SwaggerUi::new("/")
+                .url("/openapi.json", spec)
+                .url("/ui_openapi.json", ui_spec),
+        )
         .route("/health", get(|| async { Json("OK") }))
         .route("/telemetry/send", post(|| async { Json("OK") }))
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
         .layer(TimeoutLayer::new(std::time::Duration::from_secs(1200)))
         .layer(CatchPanicLayer::new());
+
+    // Runs static assets server in background
+    run_web_assets_server(&static_web_config)
+        .await
+        .expect("Failed to start static assets server");
 
     let host = web_config.host.clone();
     let port = web_config.port;
@@ -196,4 +241,17 @@ async fn shutdown_signal(db: Arc<Db>) {
     }
 
     tracing::warn!("signal received, starting graceful shutdown");
+}
+
+// TODO: Fix OpenAPI spec generation
+#[derive(OpenApi)]
+#[openapi()]
+pub struct ApiDoc;
+
+fn load_openapi_spec() -> Option<openapi::OpenApi> {
+    let openapi_yaml_content = fs::read_to_string("rest-catalog-open-api.yaml").ok()?;
+    let mut original_spec = serde_yaml::from_str::<openapi::OpenApi>(&openapi_yaml_content).ok()?;
+    // Dropping all paths from the original spec
+    original_spec.paths = openapi::Paths::new();
+    Some(original_spec)
 }

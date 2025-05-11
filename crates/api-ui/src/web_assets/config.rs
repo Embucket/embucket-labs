@@ -4,5 +4,4 @@ use serde::{Deserialize, Serialize};
 pub struct StaticWebConfig {
     pub host: String,
     pub port: u16,
-    pub allow_origin: Option<String>,
 }

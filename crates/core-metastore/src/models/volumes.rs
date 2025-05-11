@@ -1,5 +1,5 @@
 use crate::error::{self as metastore_error, MetastoreResult};
-use object_store::{aws::AmazonS3Builder, path::Path, ObjectStore};
+use object_store::{ObjectStore, aws::AmazonS3Builder, path::Path};
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use std::sync::Arc;

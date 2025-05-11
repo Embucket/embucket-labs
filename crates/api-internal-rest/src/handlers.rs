@@ -112,3 +112,47 @@ pub fn hide_sensitive(volume: RwObject<Volume>) -> RwObject<Volume> {
     }
     new_volume
 }
+
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+pub async fn list_databases(
+    State(state): State<AppState>,
+) -> MetastoreAPIResult<Json<Vec<RwObject<Database>>>> {
+    state
+        .metastore
+        .iter_databases()
+        .collect()
+        .await
+        .map_err(|e| MetastoreAPIError(MetastoreError::UtilSlateDB { source: e }))
+        .map(Json)
+}
+
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+pub async fn get_database(
+    State(state): State<AppState>,
+    Path(database_name): Path<String>,
+) -> MetastoreAPIResult<Json<RwObject<Database>>> {
+    match state.metastore.get_database(&database_name).await {
+        Ok(Some(db)) => Ok(Json(db)),
+        Ok(None) => Err(MetastoreError::DatabaseNotFound {
+            db: database_name.clone(),
+        }
+        .into()),
+        Err(e) => Err(e.into()),
+    }
+}
+
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+pub async fn create_database(
+    State(state): State<AppState>,
+    Json(database): Json<Database>,
+) -> MetastoreAPIResult<Json<RwObject<Database>>> {
+    database
+        .validate()
+        .context(metastore_error::ValidationSnafu)?;
+    state
+        .metastore
+        .create_database(&database.ident.clone(), database)
+        .await
+        .map_err(MetastoreAPIError)
+        .map(Json)
+}

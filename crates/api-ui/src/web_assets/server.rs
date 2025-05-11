@@ -1,22 +1,19 @@
 use super::handler::WEB_ASSETS_MOUNT_PATH;
 use super::handler::{root_handler, tar_handler};
 use crate::config::StaticWebConfig;
-use crate::layers::make_cors_middleware;
 use axum::{Router, routing::get};
 use core::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 
+// TODO: Refactor this: move wiring and serve logic to embucketd
+// This layer should not bother with wiring and serve logic
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
 pub async fn run_web_assets_server(
     config: &StaticWebConfig,
 ) -> Result<SocketAddr, Box<dyn std::error::Error>> {
-    let StaticWebConfig {
-        host,
-        port,
-        allow_origin,
-    } = config;
+    let StaticWebConfig { host, port } = config;
 
-    let mut app = Router::new()
+    let app = Router::new()
         .route(WEB_ASSETS_MOUNT_PATH, get(root_handler))
         .route(
             format!("{WEB_ASSETS_MOUNT_PATH}{{*path}}").as_str(),
@@ -24,9 +21,10 @@ pub async fn run_web_assets_server(
         )
         .layer(TraceLayer::new_for_http());
 
-    if let Some(allow_origin) = allow_origin.as_ref() {
-        app = app.layer(make_cors_middleware(allow_origin));
-    }
+    // TODO: CORS settings are now handled by embucketd
+    // if let Some(allow_origin) = allow_origin.as_ref() {
+    // app = app.layer(make_cors_middleware(allow_origin));
+    // }
 
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
     let addr = listener.local_addr()?;

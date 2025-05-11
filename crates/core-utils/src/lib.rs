@@ -5,7 +5,7 @@ use crate::scan_iterator::{ScanIterator, VecScanIterator};
 use async_trait::async_trait;
 use bytes::Bytes;
 use iterable::IterableEntity;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use serde_json::de;
 use serde_json::ser;
 use slatedb::Db as SlateDb;

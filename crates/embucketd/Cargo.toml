@@ -28,6 +28,14 @@ tokio = { workspace = true }
 slatedb = { workspace = true }
 tower-sessions = { workspace = true }
 tower-http = { workspace = true }
+serde_yaml = { workspace = true }
+utoipa = { workspace = true }
+utoipa-axum = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+
+[build-dependencies]
+tar = { workspace = true }
+tokio = { workspace = true }
 
 [lints]
 workspace = true
