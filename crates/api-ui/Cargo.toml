@@ -10,6 +10,7 @@ core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }
 core-executor = { path = "../core-executor" }
 core-history = { path = "../core-history" }
+static-assets = { path = "../static-assets" }
 
 axum = { workspace = true }
 chrono = { workspace = true }
