@@ -102,7 +102,6 @@ impl SessionStore for RequestSessionStore {
 
 #[async_trait::async_trait]
 impl ExpiredDeletion for RequestSessionStore {
-    #[allow(clippy::unwrap_used)]
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     async fn delete_expired(&self) -> session_store::Result<()> {
         let store_guard = self.store.lock().await;
