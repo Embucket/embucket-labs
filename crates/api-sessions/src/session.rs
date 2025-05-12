@@ -86,7 +86,8 @@ impl SessionStore for RequestSessionStore {
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     async fn delete(&self, id: &Id) -> session_store::Result<()> {
-        if let Some(record) = self.store.lock().await.get(id) {
+        let mut store_guard = self.store.lock().await;
+        if let Some(record) = store_guard.get(id) {
             if let Some(df_session_id) = record.data.get("DF_SESSION_ID").and_then(|v| v.as_str()) {
                 self.execution_svc
                     .delete_session(df_session_id.to_string())
@@ -94,7 +95,7 @@ impl SessionStore for RequestSessionStore {
                     .map_err(|e| session_store::Error::Backend(e.to_string()))?;
             }
         }
-        self.store.lock().await.remove(id);
+        store_guard.remove(id);
         Ok(())
     }
 }
