@@ -13,7 +13,7 @@ import {
 import { useGetVolumes } from '@/orval/volumes';
 
 export const SqlEditorCenterPanelToolbarVolumeSelect = () => {
-  const [selectedOption, setSelectedOption] = useState<string | undefined>();
+  const [selectedOption, setSelectedOption] = useState<string>('');
   const { data: { items: volumes } = {}, isPending } = useGetVolumes();
 
   useEffect(() => {
@@ -25,15 +25,13 @@ export const SqlEditorCenterPanelToolbarVolumeSelect = () => {
   return (
     <Select
       value={selectedOption}
-      onValueChange={(value) => {
-        setSelectedOption(value); // No error now, as the type matches
-      }}
-      disabled
+      onValueChange={setSelectedOption}
+      disabled={isPending || !volumes?.length}
     >
       <SelectTrigger className="hover:bg-sidebar-secondary-accent! h-8! border-none bg-transparent! outline-0">
         <div className="flex items-center gap-2">
           <Database className="size-4" />
-          <SelectValue />
+          <SelectValue placeholder="Select volume" />
         </div>
       </SelectTrigger>
       <SelectContent>

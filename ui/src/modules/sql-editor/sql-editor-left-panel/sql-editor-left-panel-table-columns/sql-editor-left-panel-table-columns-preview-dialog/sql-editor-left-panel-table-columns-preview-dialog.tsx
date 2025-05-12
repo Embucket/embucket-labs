@@ -22,7 +22,7 @@ export function SqlEditorLeftPanelTableColumnsPreviewDialog({
     selectedTree.tableName,
   );
 
-  if (!columns) {
+  if (!columns?.length) {
     return null;
   }
 

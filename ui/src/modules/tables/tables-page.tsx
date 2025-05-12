@@ -1,13 +1,58 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { Table } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
 import { DataPageHeader } from '../shared/data-page/data-page-header';
 import { DataPageTrees } from '../shared/data-page/databases-page-trees';
+import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
 
 export function TablesPage() {
+  const navigate = useNavigate();
+
+  const { databaseName, schemaName } = useParams({
+    from: '/databases/$databaseName/schemas/$schemaName/tables/',
+  });
+
+  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
+  const setSelectedTree = useSqlEditorSettingsStore((state) => state.setSelectedTree);
+  const queryClient = useQueryClient();
+
+  const { mutateAsync, isPending } = useCreateWorksheet({
+    mutation: {
+      onSuccess: (worksheet) => {
+        addTab(worksheet);
+        setSelectedTree({
+          databaseName: databaseName,
+          schemaName: schemaName,
+          tableName: '',
+        });
+        navigate({
+          to: '/sql-editor/$worksheetId',
+          params: {
+            worksheetId: worksheet.id.toString(),
+          },
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetWorksheetsQueryKey(),
+        });
+      },
+    },
+  });
+
+  const handleCreateTable = () => {
+    mutateAsync({
+      data: {
+        name: '',
+        content: `CREATE TABLE ${databaseName}.${schemaName}.<table_name> (<col1_name> <col1_type>, <col2_name> <col2_type>)`,
+      },
+    });
+  };
+
   return (
     <>
       <ResizablePanelGroup direction="horizontal">
@@ -19,7 +64,11 @@ export function TablesPage() {
           <DataPageHeader
             title="Schema tables"
             secondaryText="0 tables found"
-            Action={<Button>Add Table</Button>}
+            Action={
+              <Button disabled={isPending} onClick={handleCreateTable}>
+                Add Table
+              </Button>
+            }
           />
           <EmptyContainer
             // TODO: Hardcode
