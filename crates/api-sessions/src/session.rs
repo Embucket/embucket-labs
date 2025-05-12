@@ -108,14 +108,11 @@ impl ExpiredDeletion for RequestSessionStore {
         let now = OffsetDateTime::now_utc();
         let expired = store_guard
             .iter()
-            .filter_map(|(id, Record { expiry_date, .. })| {
-                if *expiry_date <= now {
-                    tracing::debug!("Deleting expired session: {}", id);
-                    Some(*id)
-                } else {
-                    None
-                }
-            })
+            .filter_map(
+                |(id, Record { expiry_date, .. })| {
+                    if *expiry_date <= now { Some(*id) } else { None }
+                },
+            )
             .collect::<Vec<_>>();
         drop(store_guard);
 
