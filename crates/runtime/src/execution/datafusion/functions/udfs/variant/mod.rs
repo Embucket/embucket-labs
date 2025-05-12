@@ -39,7 +39,7 @@ pub mod arrays_overlap;
 pub mod arrays_to_object;
 pub mod arrays_zip;
 mod json;
-//pub mod object_construct;
+pub mod object_construct;
 pub mod object_delete;
 pub mod object_insert;
 pub mod object_pick;
@@ -75,5 +75,6 @@ pub fn register_udfs(ctx: &mut SessionContext) -> Result<()> {
     object_delete::register_udf(ctx);
     object_insert::register_udf(ctx);
     object_pick::register_udf(ctx);
+    object_construct::register_udf(ctx);
     Ok(())
 }
