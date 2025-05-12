@@ -108,11 +108,14 @@ impl ExpiredDeletion for RequestSessionStore {
         let now = OffsetDateTime::now_utc();
         let expired = store_guard
             .iter()
-            .filter_map(
-                |(id, Record { expiry_date, .. })| {
-                    if *expiry_date <= now { Some(*id) } else { None }
-                },
-            )
+            .filter_map(|(id, Record { expiry_date, .. })| {
+                if *expiry_date <= now {
+                    tracing::debug!("Deleting expired session: {}", id);
+                    Some(*id)
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>();
         drop(store_guard);
 
@@ -187,5 +190,53 @@ impl IntoResponse for SessionError {
             status_code: 500,
         };
         (http::StatusCode::INTERNAL_SERVER_ERROR, Json(er)).into_response()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core_executor::query::QueryContext;
+    use core_executor::service::ExecutionService;
+    use core_executor::service::make_text_execution_svc;
+    use serde_json::json;
+    use std::collections::HashMap;
+    use time::OffsetDateTime;
+    use tokio::time::sleep;
+    use tower_sessions::SessionStore;
+    use tower_sessions::session::{Id, Record};
+
+    #[tokio::test]
+    #[allow(clippy::expect_used, clippy::too_many_lines)]
+    async fn test_expiration() {
+        let execution_svc = make_text_execution_svc().await;
+
+        let session_memory = RequestSessionMemory::default();
+        let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
+
+        let df_session_id = "fasfsafsfasafsass".to_string();
+        let data = HashMap::new();
+        let mut record = Record {
+            id: Id::default(),
+            data,
+            expiry_date: OffsetDateTime::now_utc(),
+        };
+        record
+            .data
+            .insert("DF_SESSION_ID".to_string(), json!(df_session_id.clone()));
+        tokio::task::spawn(
+            session_store
+                .clone()
+                .continuously_delete_expired(tokio::time::Duration::from_secs(5)),
+        );
+        let () = session_store
+            .create(&mut record)
+            .await
+            .expect("Failed to create session");
+        let () = sleep(core::time::Duration::from_secs(11)).await;
+        execution_svc
+            .query(&df_session_id, "SELECT 1", QueryContext::default())
+            .await
+            .expect_err("Failed to execute query (session deleted)");
     }
 }
