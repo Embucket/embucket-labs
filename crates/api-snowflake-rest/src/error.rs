@@ -123,12 +123,12 @@ fn convert_into_response(error: &ExecutionError) -> axum::response::Response {
         | ExecutionError::Utf8 { .. }
         | ExecutionError::VolumeNotFound { .. }
         | ExecutionError::ObjectStore { .. }
-        | ExecutionError::ObjectAlreadyExists { .. }
         | ExecutionError::UnsupportedFileFormat { .. }
         | ExecutionError::RefreshCatalogList { .. }
         | ExecutionError::UrlParse { .. }
         | ExecutionError::JobError { .. }
         | ExecutionError::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
+        ExecutionError::ObjectAlreadyExists { .. } => http::StatusCode::CONFLICT,
         ExecutionError::Arrow { .. }
         | ExecutionError::S3Tables { .. }
         | ExecutionError::Iceberg { .. }
