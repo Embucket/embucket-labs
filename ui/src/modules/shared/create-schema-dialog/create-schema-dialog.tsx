@@ -39,7 +39,7 @@ export function CreateSchemaDialog({ opened, onSetOpened, databaseName }: Create
           }),
         ]);
         onSetOpened(false);
-        toast.success('Database was successfully created');
+        toast.success('Schema was successfully created');
       },
     },
   });
