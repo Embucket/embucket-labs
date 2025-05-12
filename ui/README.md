@@ -18,41 +18,48 @@ Follow these steps to get the application up and running in your local developme
 ### 1. Environment variables setup
 
 - **Setup BE .env file (`root` folder)**
-#####
-   ```bash
-   # Use .env.example as a reference
-   cp .env.example .env
 
-   # Configure CORS to match dev server
-   CORS_ENABLED=true
-   CORS_ALLOW_ORIGIN=http://localhost:5173
-   ```
+#####
+
+```bash
+# Use .env.example as a reference
+cp .env.example .env
+
+# Configure CORS to match dev server
+CORS_ENABLED=true
+CORS_ALLOW_ORIGIN=http://localhost:5173
+```
 
 - **Setup FE .env file (`./ui` folder)**
+
 #####
-   ```bash
-   # Use .env.example as a reference
-   cp .env.example .env
-   ```
+
+```bash
+# Use .env.example as a reference
+cp .env.example .env
+```
 
 ### 2. FE Installation and Setup (`./ui` folder)
 
--  **Install Dependencies**
-   ```bash
-   pnpm install
-   ```
+- **Install Dependencies**
+
+  ```bash
+  pnpm install
+  ```
 
 - **Start the Development Server**
 
-   ```bash
-   pnpm dev
-   ```
+  ```bash
+  pnpm dev
+  ```
 
 ### 3. Run BE server (`root` folder)
+
 #####
-   ```bash
-   cargo run
-   ```
+
+```bash
+cargo run
+```
 
 ### 4. Verification
 
@@ -61,7 +68,6 @@ To ensure everything is working correctly:
 - The backend server should be running on http://localhost:3000.
 - The frontend development server should be running on http://localhost:5173.
 - You should be able to log in using the demo credentials from your `.env` file.
-
 
 ## BE -> FE communication
 
