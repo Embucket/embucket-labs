@@ -112,7 +112,7 @@ export function SQLEditor({ readonly, content }: SQLEditorProps) {
         upperCaseKeywords: true,
         schema: transformNavigationTreeToSqlConfigSchema(navigationTrees),
       }}
-      extraExts={[...exts]}
+      extraExts={exts}
     />
   );
 }
