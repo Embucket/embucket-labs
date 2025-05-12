@@ -152,7 +152,7 @@ mod tests {
             .column(0)
             .as_any()
             .downcast_ref::<BooleanArray>()
-            .unwrap();
+            .expect("Failed to downcast an array");
         assert_eq!(bool_array.value(0), true);
 
         let q = "SELECT STARTSWITH('coffee', 'fee')";
@@ -161,7 +161,7 @@ mod tests {
             .column(0)
             .as_any()
             .downcast_ref::<BooleanArray>()
-            .unwrap();
+            .expect("Failed to downcast an array");
         assert_eq!(bool_array.value(0), false);
 
         Ok(())
@@ -178,7 +178,7 @@ mod tests {
             .column(0)
             .as_any()
             .downcast_ref::<BooleanArray>()
-            .unwrap();
+            .expect("Failed to downcast an array");
         assert!(bool_array.is_null(0));
 
         let q = "SELECT STARTSWITH('coffee', NULL)";
@@ -187,7 +187,7 @@ mod tests {
             .column(0)
             .as_any()
             .downcast_ref::<BooleanArray>()
-            .unwrap();
+            .expect("Failed to downcast an array");
         assert!(bool_array.is_null(0));
 
         Ok(())
@@ -210,7 +210,7 @@ mod tests {
             .column(0)
             .as_any()
             .downcast_ref::<BooleanArray>()
-            .unwrap();
+            .expect("Failed to downcast an array");
 
         assert_eq!(
             bool_array.value(0),
