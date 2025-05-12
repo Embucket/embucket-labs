@@ -22,6 +22,7 @@ mod boolor;
 mod boolxor;
 mod iff;
 mod parse_json;
+mod startswith;
 pub mod table;
 mod time_from_parts;
 mod timestamp_from_parts;
@@ -41,6 +42,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         boolor::get_udf(),
         boolxor::get_udf(),
         iff::get_udf(),
+        startswith::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
