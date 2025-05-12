@@ -54,6 +54,9 @@ use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::visitors::{functions_rewriter, json_element};
 use df_catalog::catalog::CachingCatalog;
+use df_catalog::catalogs::slatedb::schema::{
+    SLATEDB_CATALOG, SLATEDB_SCHEMA, SlateDBViewSchemaProvider,
+};
 use tracing_attributes::instrument;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -1173,6 +1176,12 @@ impl UserQuery {
                 Arc::clone(self.session.ctx.state().catalog_list()),
                 resolved_ref.catalog,
             )));
+        }
+
+        if *resolved_ref.catalog == *SLATEDB_CATALOG && *resolved_ref.schema == *SLATEDB_SCHEMA {
+            return Ok(Arc::new(SlateDBViewSchemaProvider::new(Arc::clone(
+                &self.metastore,
+            ))));
         }
 
         self.session

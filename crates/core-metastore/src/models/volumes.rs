@@ -2,6 +2,7 @@ use crate::error::{self as metastore_error, MetastoreResult};
 use object_store::{ObjectStore, aws::AmazonS3Builder, path::Path};
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
+use std::fmt::Display;
 use std::sync::Arc;
 use validator::{Validate, ValidationError, ValidationErrors};
 
@@ -133,6 +134,17 @@ pub enum VolumeType {
     S3Tables(S3TablesVolume),
     File(FileVolume),
     Memory,
+}
+
+impl Display for VolumeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::S3(_) => write!(f, "s3"),
+            Self::S3Tables(_) => write!(f, "s3_tables"),
+            Self::File(_) => write!(f, "file"),
+            Self::Memory => write!(f, "memory"),
+        }
+    }
 }
 
 impl Validate for VolumeType {
