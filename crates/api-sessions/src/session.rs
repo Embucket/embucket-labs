@@ -1,4 +1,5 @@
 use axum::{Json, extract::FromRequestParts, response::IntoResponse};
+use core_executor::service::ExecutionService;
 use http::request::Parts;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
@@ -11,8 +12,6 @@ use tower_sessions::{
     session::{Id, Record},
     session_store,
 };
-
-use core_executor::service::ExecutionService;
 use uuid;
 
 pub type RequestSessionMemory = Arc<Mutex<HashMap<Id, Record>>>;
@@ -87,7 +86,7 @@ impl SessionStore for RequestSessionStore {
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     async fn delete(&self, id: &Id) -> session_store::Result<()> {
-        if let Some(record) = self.load(id).await? {
+        if let Some(record) = self.store.lock().await.get(id) {
             if let Some(df_session_id) = record.data.get("DF_SESSION_ID").and_then(|v| v.as_str()) {
                 self.execution_svc
                     .delete_session(df_session_id.to_string())
@@ -102,6 +101,7 @@ impl SessionStore for RequestSessionStore {
 
 #[async_trait::async_trait]
 impl ExpiredDeletion for RequestSessionStore {
+    #[allow(clippy::unwrap_used)]
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     async fn delete_expired(&self) -> session_store::Result<()> {
         let store_guard = self.store.lock().await;
