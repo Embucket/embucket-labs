@@ -32,11 +32,14 @@ export const getAccount = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<AccountResponse>({ url: `/account`, method: 'GET', signal }, options);
+  return useAxiosMutator<AccountResponse>(
+    { url: `/ui/auth/account`, method: 'GET', signal },
+    options,
+  );
 };
 
 export const getGetAccountQueryKey = () => {
-  return [`/account`] as const;
+  return [`/ui/auth/account`] as const;
 };
 
 export const getGetAccountInfiniteQueryOptions = <

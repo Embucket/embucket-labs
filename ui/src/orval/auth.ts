@@ -26,7 +26,7 @@ export const login = (
 ) => {
   return useAxiosMutator<AuthResponse>(
     {
-      url: `/auth/login`,
+      url: `/ui/auth/login`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       data: loginPayload,
@@ -97,7 +97,7 @@ export const useLogin = <TError = ErrorType<AuthErrorResponse>, TContext = unkno
   return useMutation(mutationOptions, queryClient);
 };
 export const logout = (options?: SecondParameter<typeof useAxiosMutator>, signal?: AbortSignal) => {
-  return useAxiosMutator<void>({ url: `/auth/logout`, method: 'POST', signal }, options);
+  return useAxiosMutator<void>({ url: `/ui/auth/logout`, method: 'POST', signal }, options);
 };
 
 export const getLogoutMutationOptions = <
@@ -140,7 +140,10 @@ export const refreshAuthToken = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<AuthResponse>({ url: `/auth/refresh`, method: 'POST', signal }, options);
+  return useAxiosMutator<AuthResponse>(
+    { url: `/ui/auth/refresh`, method: 'POST', signal },
+    options,
+  );
 };
 
 export const getRefreshAuthTokenMutationOptions = <
