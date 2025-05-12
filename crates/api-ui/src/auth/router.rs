@@ -9,5 +9,6 @@ pub fn create_router() -> Router<AppState> {
         .route("/login", post(login))
         .route("/refresh", post(refresh_access_token))
         .route("/logout", post(logout))
+        // Consider moving account from /ui/auth/ to another path
         .route("/account", get(account))
 }

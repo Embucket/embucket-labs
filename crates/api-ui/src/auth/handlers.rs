@@ -158,7 +158,7 @@ pub struct ApiDoc;
 
 #[utoipa::path(
     post,
-    path = "/auth/login",
+    path = "/ui/auth/login",
     operation_id = "login",
     tags = ["auth"],
     request_body = LoginPayload,
@@ -210,7 +210,7 @@ pub async fn login(
 
 #[utoipa::path(
     post,
-    path = "/auth/refresh",
+    path = "/ui/auth/refresh",
     operation_id = "refreshAuthToken",
     tags = ["auth"],
     responses(
@@ -260,7 +260,7 @@ pub async fn refresh_access_token(
 
 #[utoipa::path(
     post,
-    path = "/auth/logout",
+    path = "/ui/auth/logout",
     operation_id = "logout",
     tags = ["auth"],
     responses(
@@ -305,7 +305,7 @@ pub async fn logout(
 
 #[utoipa::path(
     get,
-    path = "/account",
+    path = "/ui/auth/account",
     operation_id = "getAccount",
     tags = ["account"],
     responses(
