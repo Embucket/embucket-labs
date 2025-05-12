@@ -28,6 +28,7 @@ use df_builtins::register_udafs;
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
+use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
 use snafu::ResultExt;
@@ -71,6 +72,7 @@ impl UserSession {
             .with_query_planner(Arc::new(IcebergQueryPlanner::new()))
             .with_type_planner(Arc::new(CustomTypePlanner {}))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
+            .with_physical_optimizer_rules(physical_optimizer_rules())
             .build();
         let mut ctx = SessionContext::new_with_state(state);
         register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;

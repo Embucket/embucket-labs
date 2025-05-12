@@ -2,6 +2,7 @@
 //pub mod error;
 pub mod analyzer;
 pub mod error;
+pub mod physical_optimizer;
 pub mod planner;
 pub mod type_planner;
 pub mod visitors;
