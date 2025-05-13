@@ -112,7 +112,7 @@ async fn test_ui_databases_navigation() {
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
     assert_eq!(4, databases_navigation.items.len());
-    assert_eq!(1, databases_navigation.items.first().unwrap().schemas.len());
+    assert_eq!(2, databases_navigation.items.first().unwrap().schemas.len());
     assert_eq!(1, databases_navigation.items.last().unwrap().schemas.len());
 
     let res = req(

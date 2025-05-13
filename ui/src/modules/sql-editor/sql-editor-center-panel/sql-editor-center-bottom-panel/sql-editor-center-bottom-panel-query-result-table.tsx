@@ -17,10 +17,10 @@ export function SqlEditorCenterBottomPanelQueryResultTable({
 }: QueryResultDataTableProps) {
   const columnHelper = createColumnHelper<unknown[]>();
 
-  const tableColumns: ColumnDef<Row, string>[] = columns.map((column) =>
+  const tableColumns: ColumnDef<Row>[] = columns.map((column) =>
     columnHelper.accessor((row) => row[columns.indexOf(column)], {
       header: column.name,
-      cell: (info) => info.getValue(),
+      cell: (info) => String(info.getValue()),
       meta: {
         headerClassName: 'capitalize',
       },

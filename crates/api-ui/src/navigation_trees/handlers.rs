@@ -60,11 +60,11 @@ pub async fn get_navigation_trees(
     Query(params): Query<NavigationTreesParameters>,
     State(state): State<AppState>,
 ) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
-    let (database_batches, _) = state
+    let (tree_batches, _) = state
         .execution_svc
         .query(
             &session_id,
-            "SELECT * FROM information_schema.databases",
+            "SELECT * FROM information_schema.navigation_tree",
             QueryContext::default(),
         )
         .await
@@ -72,37 +72,24 @@ pub async fn get_navigation_trees(
 
     let mut catalogs_tree: BTreeMap<String, BTreeMap<String, Vec<String>>> = BTreeMap::new();
 
-    for db_batch in database_batches {
-        let catalog_col = downcast_string_column(&db_batch, "database_name")?;
+    for batch in tree_batches {
+        let databases = downcast_string_column(&batch, "database")?;
+        let schemas = downcast_string_column(&batch, "schema")?;
+        let tables = downcast_string_column(&batch, "table")?;
 
-        for i in 0..db_batch.num_rows() {
-            let catalog = catalog_col.value(i);
+        for j in 0..batch.num_rows() {
+            let database = databases.value(j).to_string();
+            let schema = schemas.value(j).to_string();
+            let table = tables.value(j).to_string();
 
-            let query = format!(
-                "SELECT table_schema, table_name FROM {catalog}.information_schema.tables",
-            );
+            let db_entry = catalogs_tree.entry(database).or_default();
 
-            let (table_batches, _) = state
-                .execution_svc
-                .query(&session_id, &query, QueryContext::default())
-                .await
-                .map_err(|e| NavigationTreesAPIError::Execution { source: e })?;
-
-            for table_batch in table_batches {
-                let schema_col = downcast_string_column(&table_batch, "table_schema")?;
-                let name_col = downcast_string_column(&table_batch, "table_name")?;
-
-                for j in 0..table_batch.num_rows() {
-                    let schema = schema_col.value(j).to_string();
-                    let name = name_col.value(j).to_string();
-
-                    catalogs_tree
-                        .entry(catalog.to_string())
-                        .or_default()
-                        .entry(schema)
-                        .or_default()
-                        .push(name);
-                }
+            if schema.is_empty() {
+                continue;
+            }
+            let schema_entry = db_entry.entry(schema).or_default();
+            if !table.is_empty() {
+                schema_entry.push(table);
             }
         }
     }
