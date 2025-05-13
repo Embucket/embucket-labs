@@ -10,7 +10,7 @@ use axum::{
 };
 use mime_guess;
 use snafu::ResultExt;
-use static_assets::WEB_ASSETS_TARBALL;
+use api_ui_static_assets::WEB_ASSETS_TARBALL;
 use std::io::Cursor;
 use std::io::Read;
 

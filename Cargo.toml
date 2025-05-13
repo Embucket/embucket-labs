@@ -6,6 +6,7 @@ members = [
   "crates/api-internal-rest",
   "crates/api-snowflake-rest",
   "crates/api-ui",
+  "crates/api-ui-static-assets",
   "crates/df-builtins",
   "crates/df-catalog",
   "crates/core-executor",
