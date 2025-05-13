@@ -2,6 +2,7 @@ use super::error::{
     ArchiveError, BadArchiveSnafu, HandlerError, NonUnicodeEntryPathInArchiveSnafu,
     ReadEntryDataSnafu, ResponseBodySnafu, Result,
 };
+use api_ui_static_assets::WEB_ASSETS_TARBALL;
 use axum::{
     body::Body,
     extract::Path,
@@ -10,7 +11,6 @@ use axum::{
 };
 use mime_guess;
 use snafu::ResultExt;
-use api_ui_static_assets::WEB_ASSETS_TARBALL;
 use std::io::Cursor;
 use std::io::Read;
 
