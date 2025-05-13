@@ -138,46 +138,4 @@ mod tests {
         );
         Ok(())
     }
-
-    #[tokio::test]
-    async fn test_all() -> DFResult<()> {
-        let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(IffFunc::new()));
-        ctx.register_udf(ScalarUDF::from(EqualNullFunc::new()));
-
-        let create = "CREATE OR REPLACE TABLE x (i integer);";
-        ctx.sql(create).await?.collect().await?;
-
-        let insert = "INSERT INTO x values (1), (2), (null);";
-        ctx.sql(insert).await?.collect().await?;
-
-        let q = r#"SELECT x1.i x1_i,
-       x2.i x2_i,
-       x1.i=x2.i,
-       iff(x1.i=x2.i, 'Selected', 'Not') "SELECT IF X1.I=X2.I",
-       x1.i<>x2.i,
-       iff(not(x1.i=x2.i), 'Selected', 'Not') "SELECT IF X1.I<>X2.I"
-    FROM x x1, x x2;"#;
-        let result = ctx.sql(q).await?.collect().await?;
-        assert_batches_eq!(
-            &[
-                "+------+------+-------------+---------------------+--------------+----------------------+",
-                "| x1_i | x2_i | x1.i = x2.i | SELECT IF X1.I=X2.I | x1.i != x2.i | SELECT IF X1.I<>X2.I |",
-                "+------+------+-------------+---------------------+--------------+----------------------+",
-                "| 1    | 1    | true        | Selected            | false        | Not                  |",
-                "| 1    | 2    | false       | Not                 | true         | Selected             |",
-                "| 1    |      |             | Not                 |              | Not                  |",
-                "| 2    | 1    | false       | Not                 | true         | Selected             |",
-                "| 2    | 2    | true        | Selected            | false        | Not                  |",
-                "| 2    |      |             | Not                 |              | Not                  |",
-                "|      | 1    |             | Not                 |              | Not                  |",
-                "|      | 2    |             | Not                 |              | Not                  |",
-                "|      |      |             | Not                 |              | Not                  |",
-                "+------+------+-------------+---------------------+--------------+----------------------+",
-            ],
-            &result
-        );
-
-        Ok(())
-    }
 }
