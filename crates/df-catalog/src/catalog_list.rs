@@ -185,7 +185,7 @@ impl EmbucketCatalogList {
                         catalog
                             .schemas_cache
                             .insert(schema.name.clone(), Arc::new(schema));
-                    };
+                    }
                 }
                 // Cleanup removed schemas from the cache
                 for schema in &catalog.schemas_cache {

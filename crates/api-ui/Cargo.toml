@@ -5,6 +5,7 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+api-ui-static-assets = { path = "../api-ui-static-assets" }
 api-sessions = { path = "../api-sessions" }
 core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }

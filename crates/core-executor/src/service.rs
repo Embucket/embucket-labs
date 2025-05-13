@@ -11,17 +11,18 @@ use datafusion::datasource::memory::MemTable;
 use datafusion_common::TableReference;
 use snafu::ResultExt;
 
+use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::{
     models::ColumnInfo,
     query::QueryContext,
     session::UserSession,
     utils::{Config, convert_record_batches},
 };
-use core_metastore::{Metastore, TableIdent as MetastoreTableIdent};
+use crate::utils::DataSerializationFormat;
+use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableIdent};
+use core_utils::Db;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-
-use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 
 #[async_trait::async_trait]
 pub trait ExecutionService: Send + Sync {
@@ -242,4 +243,17 @@ impl ExecutionService for CoreExecutionService {
     fn config(&self) -> &Config {
         &self.config
     }
+}
+
+//Test environment
+pub async fn make_text_execution_svc() -> Arc<CoreExecutionService> {
+    let db = Db::memory().await;
+    let metastore = Arc::new(SlateDBMetastore::new(db));
+
+    Arc::new(CoreExecutionService::new(
+        metastore,
+        Config {
+            dbt_serialization_format: DataSerializationFormat::Json,
+        },
+    ))
 }

@@ -1,4 +1,5 @@
 use axum::{Json, extract::FromRequestParts, response::IntoResponse};
+use core_executor::service::ExecutionService;
 use http::request::Parts;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
@@ -11,8 +12,6 @@ use tower_sessions::{
     session::{Id, Record},
     session_store,
 };
-
-use core_executor::service::ExecutionService;
 use uuid;
 
 pub type RequestSessionMemory = Arc<Mutex<HashMap<Id, Record>>>;
@@ -87,7 +86,8 @@ impl SessionStore for RequestSessionStore {
 
     #[tracing::instrument(level = "trace", skip(self), err, ret)]
     async fn delete(&self, id: &Id) -> session_store::Result<()> {
-        if let Some(record) = self.load(id).await? {
+        let mut store_guard = self.store.lock().await;
+        if let Some(record) = store_guard.get(id) {
             if let Some(df_session_id) = record.data.get("DF_SESSION_ID").and_then(|v| v.as_str()) {
                 self.execution_svc
                     .delete_session(df_session_id.to_string())
@@ -95,7 +95,7 @@ impl SessionStore for RequestSessionStore {
                     .map_err(|e| session_store::Error::Backend(e.to_string()))?;
             }
         }
-        self.store.lock().await.remove(id);
+        store_guard.remove(id);
         Ok(())
     }
 }
@@ -187,5 +187,53 @@ impl IntoResponse for SessionError {
             status_code: 500,
         };
         (http::StatusCode::INTERNAL_SERVER_ERROR, Json(er)).into_response()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core_executor::query::QueryContext;
+    use core_executor::service::ExecutionService;
+    use core_executor::service::make_text_execution_svc;
+    use serde_json::json;
+    use std::collections::HashMap;
+    use time::OffsetDateTime;
+    use tokio::time::sleep;
+    use tower_sessions::SessionStore;
+    use tower_sessions::session::{Id, Record};
+
+    #[tokio::test]
+    #[allow(clippy::expect_used, clippy::too_many_lines)]
+    async fn test_expiration() {
+        let execution_svc = make_text_execution_svc().await;
+
+        let session_memory = RequestSessionMemory::default();
+        let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
+
+        let df_session_id = "fasfsafsfasafsass".to_string();
+        let data = HashMap::new();
+        let mut record = Record {
+            id: Id::default(),
+            data,
+            expiry_date: OffsetDateTime::now_utc(),
+        };
+        record
+            .data
+            .insert("DF_SESSION_ID".to_string(), json!(df_session_id.clone()));
+        tokio::task::spawn(
+            session_store
+                .clone()
+                .continuously_delete_expired(tokio::time::Duration::from_secs(5)),
+        );
+        let () = session_store
+            .create(&mut record)
+            .await
+            .expect("Failed to create session");
+        let () = sleep(core::time::Duration::from_secs(11)).await;
+        execution_svc
+            .query(&df_session_id, "SELECT 1", QueryContext::default())
+            .await
+            .expect_err("Failed to execute query (session deleted)");
     }
 }
