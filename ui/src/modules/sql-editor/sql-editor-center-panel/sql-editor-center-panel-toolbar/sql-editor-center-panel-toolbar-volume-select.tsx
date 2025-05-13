@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import { useGetVolumes } from '@/orval/volumes';
 
+// TODO: Not used
 export const SqlEditorCenterPanelToolbarVolumeSelect = () => {
   const [selectedOption, setSelectedOption] = useState<string>('');
   const { data: { items: volumes } = {}, isPending } = useGetVolumes();

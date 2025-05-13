@@ -60,7 +60,7 @@ export const SqlEditorLeftPanel = () => {
                   <SqlEditorResizablePanel minSize={10} order={1} defaultSize={100}>
                     <SqlEditorLeftPanelTrees />
                   </SqlEditorResizablePanel>
-                  {selectedTree && <SqlEditorResizableHandle />}
+                  {selectedTree?.tableName && <SqlEditorResizableHandle />}
                   <SqlEditorResizablePanel
                     ref={leftBottomRef}
                     order={2}

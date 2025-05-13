@@ -16,8 +16,9 @@ interface SqlEditorSettingsStore {
   removeTab: (tabId: Worksheet['id']) => void;
   setTabs: (tabs: Worksheet[]) => void;
 
-  selectedQueryRecord?: QueryRecord;
-  setSelectedQueryRecord: (queryRecord: QueryRecord) => void;
+  selectedQueryRecords: Record<Worksheet['id'], QueryRecord>;
+  setSelectedQueryRecord: (worksheetId: Worksheet['id'], queryRecord: QueryRecord) => void;
+  getSelectedQueryRecord: (worksheetId: Worksheet['id']) => QueryRecord | undefined;
 
   selectedTree?: SelectedTree;
   setSelectedTree: (selectedTree: SelectedTree) => void;
@@ -25,7 +26,7 @@ interface SqlEditorSettingsStore {
 
 const initialState = {
   selectedLeftPanelTab: 'databases' as LeftPanelTab,
-  selectedQueryRecord: undefined,
+  selectedQueryRecords: {},
   selectedTree: undefined,
   tabs: [],
 };
@@ -50,8 +51,18 @@ export const useSqlEditorSettingsStore = create<SqlEditorSettingsStore>()(
       setTabs: (tabs: Worksheet[]) => {
         set({ tabs });
       },
-      setSelectedQueryRecord: (queryRecord: QueryRecord) => {
-        set({ selectedQueryRecord: queryRecord });
+      setSelectedQueryRecord: (worksheetId: Worksheet['id'], queryRecord: QueryRecord) => {
+        const { selectedQueryRecords } = get();
+        set({
+          selectedQueryRecords: {
+            ...selectedQueryRecords,
+            [worksheetId]: queryRecord,
+          },
+        });
+      },
+      getSelectedQueryRecord: (worksheetId: Worksheet['id']) => {
+        const { selectedQueryRecords } = get();
+        return selectedQueryRecords[worksheetId];
       },
       setSelectedTree: (selectedTree: SelectedTree) => {
         set({ selectedTree });

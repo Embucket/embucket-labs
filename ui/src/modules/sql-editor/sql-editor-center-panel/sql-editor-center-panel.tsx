@@ -18,7 +18,9 @@ import { SqlEditorCenterPanelToolbar } from './sql-editor-center-panel-toolbar/s
 
 export function SqlEditorCenterPanel() {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
-  const selectedQueryRecord = useSqlEditorSettingsStore((state) => state.selectedQueryRecord);
+  const selectedQueryRecord = useSqlEditorSettingsStore((state) =>
+    state.getSelectedQueryRecord(+worksheetId),
+  );
   const setSelectedQueryRecord = useSqlEditorSettingsStore((state) => state.setSelectedQueryRecord);
 
   const {
@@ -48,7 +50,7 @@ export function SqlEditorCenterPanel() {
           }),
         ]);
         if (newQueryRecord) {
-          setSelectedQueryRecord(newQueryRecord);
+          setSelectedQueryRecord(+worksheetId, newQueryRecord);
         }
       },
     },

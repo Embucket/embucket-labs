@@ -1,3 +1,5 @@
+import { useParams } from '@tanstack/react-router';
+
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
@@ -13,7 +15,10 @@ interface SqlEditorRightPanelQueriesProps {
 }
 
 export const SqlEditorRightPanelQuery = ({ query }: SqlEditorRightPanelQueriesProps) => {
-  const selectedQueryRecord = useSqlEditorSettingsStore((state) => state.selectedQueryRecord);
+  const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
+  const selectedQueryRecord = useSqlEditorSettingsStore((state) =>
+    state.getSelectedQueryRecord(+worksheetId),
+  );
   const setSelectedQueryRecord = useSqlEditorSettingsStore((state) => state.setSelectedQueryRecord);
 
   return (
@@ -22,7 +27,7 @@ export const SqlEditorRightPanelQuery = ({ query }: SqlEditorRightPanelQueriesPr
         <SidebarMenuItem>
           <SidebarMenuButton
             isActive={query.id === selectedQueryRecord?.id}
-            onClick={() => setSelectedQueryRecord(query)}
+            onClick={() => setSelectedQueryRecord(+worksheetId, query)}
             className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent! data-[active=true]:font-light"
           >
             <SqlEditorRightPanelQueryItem

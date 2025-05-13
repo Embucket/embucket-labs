@@ -29,13 +29,14 @@ export function SqlEditorCenterBottomPanel({
 
   return (
     <>
-      {isIdle && !queryRecord && (
-        <EmptyContainer
-          Icon={TextSearch}
-          title="No Results Yet"
-          description="Once you run a query, results will be displayed here."
-        />
-      )}
+      {isIdle ||
+        (!queryRecord && (
+          <EmptyContainer
+            Icon={TextSearch}
+            title="No Results Yet"
+            description="Once you run a query, results will be displayed here."
+          />
+        ))}
 
       {!noFields && (
         <Tabs defaultValue="results" className="size-full">

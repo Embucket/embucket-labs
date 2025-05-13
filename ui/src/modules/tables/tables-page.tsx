@@ -13,6 +13,11 @@ import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
 import { TablesTable } from './tables-page-table';
 
+const CREATE_TABLE_QUERY = `-- Replace <table_name> with the desired one (e.g., 's'), and specify appropriate column names and data types.
+-- Example: CREATE TABLE mydb1.myschema1.s (id INT, name VARCHAR(100));
+CREATE TABLE mydb1.myschema1.<table_name> (<col1_name> <col1_type>, <col2_name> <col2_type>);
+`;
+
 export function TablesPage() {
   const navigate = useNavigate();
 
@@ -51,7 +56,7 @@ export function TablesPage() {
     mutateAsync({
       data: {
         name: '',
-        content: `CREATE TABLE ${databaseName}.${schemaName}.<table_name> (<col1_name> <col1_type>, <col2_name> <col2_type>)`,
+        content: CREATE_TABLE_QUERY,
       },
     });
   };
