@@ -55,8 +55,12 @@ class EmbucketHelper:
                                    ):
         headers = {'Content-Type': 'application/json'}
 
-        response = requests.delete(f"{embucket_url}/v1/metastore/databases/{database}/schemas/{schema}?cascade=true")
-        print(response)
+        query = f"DROP SCHEMA IF EXISTS {schema} CASCADE"
+        requests.request(
+            "POST", f"{embucket_url}/ui/queries",
+            headers=headers,
+            data=json.dumps({"query": query})
+        ).json()
 
         payload = json.dumps({
                 "type": "memory",
@@ -70,14 +74,11 @@ class EmbucketHelper:
         })
         requests.request("POST", f'{embucket_url}/v1/metastore/databases', headers=headers, data=payload).json()
 
+        query = f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}"
         requests.request(
-            "POST", f"{embucket_url}/v1/metastore/databases/{database}/schemas", headers=headers,
-            data=json.dumps({
-                "ident": {
-                    "schema": schema,
-                    "database": database
-                }
-            })
+            "POST", f"{embucket_url}/ui/queries",
+            headers=headers,
+            data=json.dumps({"query": query})
         ).json()
 
 def reset_database(config, con: SnowflakeConnection):
@@ -353,7 +354,7 @@ class SQLLogicTestExecutor(SQLLogicRunner):
         # Create context and execute test
         context = SQLLogicContext(pool, self, test.statements, keywords, update_value)
         context.is_loop = False
-        pool.initialize_connection(context, pool.get_connection())
+        pool.initialize_connection(context)
 
         context.verify_statements()
         res = context.execute()

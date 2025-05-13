@@ -1,4 +1,4 @@
-import{j as h,c as V,r as X}from"./index-DbTAX3j1.js";function he({className:e,...o}){return h.jsx("div",{"data-slot":"skeleton",className:V("bg-accent animate-pulse rounded-md",e),...o})}/**
+import{j as h,c as V,r as X}from"./index-CjoQ4fRC.js";function he({className:e,...o}){return h.jsx("div",{"data-slot":"skeleton",className:V("bg-accent animate-pulse rounded-md",e),...o})}/**
    * table-core
    *
    * Copyright (c) TanStack

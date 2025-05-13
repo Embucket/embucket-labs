@@ -15,7 +15,12 @@ export function SqlEditorLeftBottomPanel() {
     selectedTree?.databaseName ?? '',
     selectedTree?.schemaName ?? '',
     selectedTree?.tableName ?? '',
-    { query: { enabled: !!selectedTree } },
+    {
+      query: {
+        enabled:
+          !!selectedTree?.databaseName && !!selectedTree.schemaName && !!selectedTree.tableName,
+      },
+    },
   );
 
   if (!columns?.length) {
