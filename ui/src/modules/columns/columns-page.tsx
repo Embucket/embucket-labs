@@ -1,21 +1,28 @@
 import { useState } from 'react';
 
 import { useParams } from '@tanstack/react-router';
-import { Columns } from 'lucide-react';
+import { Columns, Table } from 'lucide-react';
 
-import { EmptyContainer } from '@/components/empty-container';
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { TableDataUploadDialog } from '@/modules/shared/table-data-upload-dialog/table-data-upload-dialog';
+import { useGetTableColumns } from '@/orval/tables';
 
+import { DataPageContent } from '../shared/data-page/data-page-content';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
-import { DataPageTrees } from '../shared/data-page/databases-page-trees';
+import { DataPageTrees } from '../shared/data-page/data-page-trees';
+import { ColumnsTable } from './columns-page-table';
 
 export function ColumnsPage() {
   const [isLoadDataDialogOpened, setIsLoadDataDialogOpened] = useState(false);
   const { databaseName, schemaName, tableName } = useParams({
     from: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/',
   });
+  const { data: { items: columns } = {}, isFetching } = useGetTableColumns(
+    databaseName,
+    schemaName,
+    tableName,
+  );
 
   return (
     <>
@@ -26,20 +33,21 @@ export function ColumnsPage() {
         <ResizableHandle withHandle />
         <ResizablePanel collapsible defaultSize={20} order={1}>
           <DataPageHeader
-            title="Table columns"
-            secondaryText="0 columns found"
+            title={tableName}
+            Icon={Table}
+            secondaryText={`${columns?.length} columns found`}
             Action={
-              <Button onClick={() => setIsLoadDataDialogOpened(true)} disabled={!tableName}>
+              <Button onClick={() => setIsLoadDataDialogOpened(true)} disabled={isFetching}>
                 Load Data
               </Button>
             }
           />
-          <EmptyContainer
-            // TODO: Hardcode
-            className="h-[calc(100vh-117px-32px-2px)]"
-            Icon={Columns}
-            title="No Columns Found"
-            description="No columns have been created yet. Create a column to get started."
+          <DataPageContent
+            isEmpty={!columns?.length}
+            Table={<ColumnsTable isLoading={isFetching} columns={columns ?? []} />}
+            emptyStateIcon={Columns}
+            emptyStateTitle="No Columns Found"
+            emptyStateDescription="No columns have been created yet. Create a column to get started."
           />
         </ResizablePanel>
       </ResizablePanelGroup>

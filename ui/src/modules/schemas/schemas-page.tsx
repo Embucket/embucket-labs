@@ -1,17 +1,16 @@
 import { useState } from 'react';
 
 import { useParams } from '@tanstack/react-router';
-import { FolderTree } from 'lucide-react';
+import { Database, FolderTree } from 'lucide-react';
 
-import { EmptyContainer } from '@/components/empty-container';
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useGetSchemas } from '@/orval/schemas';
 
 import { CreateSchemaDialog } from '../shared/create-schema-dialog/create-schema-dialog';
+import { DataPageContent } from '../shared/data-page/data-page-content';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
-import { DataPageTrees } from '../shared/data-page/databases-page-trees';
+import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { SchemasTable } from './schemas-page-table';
 
 export function SchemasPage() {
@@ -28,30 +27,22 @@ export function SchemasPage() {
         <ResizableHandle withHandle />
         <ResizablePanel collapsible defaultSize={20} order={1}>
           <DataPageHeader
-            title="Database schemas"
+            title={databaseName}
+            Icon={Database}
             secondaryText={`${schemas?.length} schemas found`}
-            Action={<Button onClick={() => setOpened(true)}>Add Schema</Button>}
+            Action={
+              <Button disabled={isFetching} onClick={() => setOpened(true)}>
+                Add Schema
+              </Button>
+            }
           />
-          {schemas?.length ? (
-            // TODO: Hardcode
-            <ScrollArea className="h-[calc(100vh-117px-32px-2px)]">
-              <div className="flex size-full flex-col p-4">
-                <ScrollArea tableViewport>
-                  <SchemasTable schemas={schemas} isLoading={isFetching} />
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
-              </div>
-              <ScrollBar orientation="vertical" />
-            </ScrollArea>
-          ) : (
-            <EmptyContainer
-              // TODO: Hardcode
-              className="h-[calc(100vh-117px-32px-2px)]"
-              Icon={FolderTree}
-              title="No Schemas Found"
-              description="No schemas have been created yet. Create a schema to get started."
-            />
-          )}
+          <DataPageContent
+            isEmpty={!schemas?.length}
+            Table={<SchemasTable isLoading={isFetching} schemas={schemas ?? []} />}
+            emptyStateIcon={FolderTree}
+            emptyStateTitle="No Schemas Found"
+            emptyStateDescription="No schemas have been created yet. Create a schema to get started."
+          />
         </ResizablePanel>
       </ResizablePanelGroup>
       <CreateSchemaDialog opened={opened} onSetOpened={setOpened} databaseName={databaseName} />
