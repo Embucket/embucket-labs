@@ -84,6 +84,17 @@ class SQLLogicTestLogger:
         parts.append(self.print_line_sep())
         return '\n'.join(parts)
 
+    def no_error_but_expected(self, expected_error):
+        parts = []
+        parts.append(self.print_error_header(f"Query did not fail, but expected error!"))
+        parts.append(self.print_line_sep())
+        parts.append(self.get_sql())
+        parts.append(self.print_line_sep())
+        parts.append('Expected error:')
+        parts.append(str(expected_error))
+        parts.append(self.print_line_sep())
+        return '\n'.join(parts)
+
     def output_hash(self, hash_value):
         parts = []
         parts.append(self.print_line_sep())

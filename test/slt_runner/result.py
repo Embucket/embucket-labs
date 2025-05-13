@@ -852,11 +852,10 @@ class SQLLogicContext:
             if self.runner.benchmark_mode:
                 self.runner.capture_query_id(conn)
 
-            result = conn.fetchall()
             if expected_result.type != ExpectedResult.Type.UNKNOWN:
-                if statement.header.type == TokenType.SQLLOGIC_STATEMENT and \
+                if statement.header.parameters[0] == 'ok' and \
                         expected_result.lines is not None:
-                    self.fail("'statement ok' doesn't expect results section: '----'")
+                        self.fail("'statement ok' doesn't expect results section: '----'")
                 assert expected_result.lines == None
         except Exception as e:
             if expected_result.type == ExpectedResult.Type.SUCCESS:
@@ -879,6 +878,9 @@ class SQLLogicContext:
                 error_message = ' '.join(str(e).split())  # Normalize whitespace & newlines
                 sanitized_expected = ' '.join(sanitized_expected.split())  # Normalize expected error too
 
+                if not error_message:
+                    error_msg = test_logger.no_error_but_expected(expected)
+                    self.fail(error_msg)
                 if sanitized_expected not in error_message:
                     error_msg = test_logger.expected_failure_with_wrong_error(expected, e)
                     self.fail(error_msg)
