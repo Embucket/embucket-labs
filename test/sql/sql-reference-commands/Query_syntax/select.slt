@@ -185,7 +185,7 @@ exclude-from-coverage
 statement ok
 INSERT INTO sel_test VALUES (2),(1);
 
-query TT
+query T
 SELECT val AS num
 FROM sel_test
 ORDER BY num;

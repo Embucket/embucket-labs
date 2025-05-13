@@ -29,7 +29,7 @@ SELECT c1, c2
 
 # Test using a VALUES clause inside a CTE
 
-statement ok
+query TT
 WITH vals AS (
   SELECT *
   FROM VALUES (1,'x'),(2,'y') AS t(num, letter)
