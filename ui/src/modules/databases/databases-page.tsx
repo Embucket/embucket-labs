@@ -28,7 +28,11 @@ export function DatabasesPage() {
             title="Databases"
             Icon={Database}
             secondaryText={`${databases?.length} databases found`}
-            Action={<Button onClick={() => setOpened(true)}>Add Database</Button>}
+            Action={
+              <Button disabled={isFetching} onClick={() => setOpened(true)}>
+                Add Database
+              </Button>
+            }
           />
           <DataPageContent
             isEmpty={!databases?.length}

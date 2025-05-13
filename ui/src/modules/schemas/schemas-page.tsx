@@ -30,7 +30,11 @@ export function SchemasPage() {
             title={databaseName}
             Icon={Database}
             secondaryText={`${schemas?.length} schemas found`}
-            Action={<Button onClick={() => setOpened(true)}>Add Schema</Button>}
+            Action={
+              <Button disabled={isFetching} onClick={() => setOpened(true)}>
+                Add Schema
+              </Button>
+            }
           />
           <DataPageContent
             isEmpty={!schemas?.length}
