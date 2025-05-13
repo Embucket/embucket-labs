@@ -1,15 +1,84 @@
-# Embucket
+# Embucket UI
 
 ## About
+
+Main frontend application for the Embucket backend.
+
+## Local development prerequisites
+
+Before you begin, make sure you have the following installed on your machine:
+
+- **Node.js** (LTS version) - [Download](https://nodejs.org)
+- **pnpm** (Package Manager) - [Installation Guide](https://pnpm.io)
+
+## Quick Start
+
+Follow these steps to get the application up and running in your local development environment.
+
+### 1. Environment variables setup
+
+- **Setup BE .env file (`root` folder)**
+
+#####
+
+```bash
+# Use .env.example as a reference
+cp .env.example .env
+
+# Configure CORS to match dev server
+CORS_ENABLED=true
+CORS_ALLOW_ORIGIN=http://localhost:5173
+```
+
+- **Setup FE .env file (`./ui` folder)**
+
+#####
+
+```bash
+# Use .env.example as a reference
+cp .env.example .env
+```
+
+### 2. FE Installation and Setup (`./ui` folder)
+
+- **Install Dependencies**
+
+  ```bash
+  pnpm install
+  ```
+
+- **Start the Development Server**
+
+  ```bash
+  pnpm dev
+  ```
+
+### 3. Run BE server (`root` folder)
+
+#####
+
+```bash
+cargo run
+```
+
+### 4. Verification
+
+To ensure everything is working correctly:
+
+- The backend server should be running on http://localhost:3000.
+- The frontend development server should be running on http://localhost:5173.
+- You should be able to log in using the demo credentials from your `.env` file.
+
+## BE -> FE communication
 
 The following diagram illustrates the fundamental communication architecture:
 
 ![diagram-export-24 09 2024-02_31_36](https://github.com/user-attachments/assets/3ddd4026-876a-4667-9c11-21f2f32760c5)
 
-1. **Rust Backend**: Implements core backend logic and generates an OpenAPI contract for API specifications.
-2. **OpenAPI Contract**: Provides API documentation derived from the Rust backend.
-3. **Codegen**: Transforms the OpenAPI contract into corresponding TypeScript types, typed Api request functions and React Query hooks.
-4. **React App**: The frontend application that communicates with the Rust backend through the generated Api client.
+1. **BE**: Implements core backend logic and generates an OpenAPI contract for API specifications.
+2. **OpenAPI Contract**: Provides API documentation derived from the backend.
+3. **Codegen**: Transforms the OpenAPI contract into corresponding TypeScript types, typed API request functions and React Query hooks.
+4. **React App**: The frontend application that communicates with the BE through the generated Api client.
 
 ### Project structure (main files and folders)
 
@@ -45,48 +114,6 @@ src
   └─ ...
 ```
 
-## Prerequisites
-
-Make sure you have the following installed on your machine:
-
-1. [Node.js LTS](https://nodejs.org)
-2. [pnpm](https://pnpm.io)
-
-## Quick Start
-
-You suppose to run all the commands from the root folder.
-
-### 1. Create `.env` file and fill it with the required environment variables
-
-```bash
-# Use `.env.example` as a reference.
-cp .env.example .env
-```
-
-### 2. Setup dependencies
-
-```bash
-pnpm i
-```
-
-### 3. Start the development server
-
-```bash
-pnpm dev
-```
-
-### 4. Open the app in your browser
-
-```bash
-open http://localhost:5173
-```
-
-### 5. Run BE server
-
-```bash
-cargo run -- --backend memory --slatedb-prefix sdb --cors-enabled=true --cors-allow-origin=http://localhost:5173 --allow-http=true
-```
-
 ## Common scripts
 
 | Script      | Description                               |
@@ -111,7 +138,6 @@ cargo run -- --backend memory --slatedb-prefix sdb --cors-enabled=true --cors-al
 - [Orval](https://orval.dev)
 - [React-hook-form](https://react-hook-form.com)
 - [React-i18next](https://react.i18next.com)
-- [Shadcn UI](https://ui.shadcn.com)
 - [CVA](https://cva.style/docs)
 - [Radix](https://www.radix-ui.com)
 - [Zod](https://zod.dev)

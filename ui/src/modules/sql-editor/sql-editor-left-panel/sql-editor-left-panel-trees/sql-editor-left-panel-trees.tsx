@@ -40,14 +40,15 @@ export function SqlEditorLeftPanelTrees() {
           defaultOpen={(db) =>
             db.schemas.some((schema) =>
               schema.tables.some((table) => table.name === selectedTree?.tableName),
-            )
+            ) || db.name === selectedTree?.databaseName
           }
         >
           {(database) => (
             <TreesSchemas
               schemas={database.schemas}
               defaultOpen={(schema) =>
-                schema.tables.some((table) => table.name === selectedTree?.tableName)
+                schema.tables.some((table) => table.name === selectedTree?.tableName) ||
+                schema.name === selectedTree?.schemaName
               }
             >
               {(schema) => (
@@ -67,9 +68,7 @@ export function SqlEditorLeftPanelTrees() {
                     selectedTree.schemaName === schema.name &&
                     selectedTree.databaseName === database.name
                   }
-                  defaultOpen={schema.tables.some(
-                    (table) => table.name === selectedTree?.tableName,
-                  )}
+                  defaultOpen={true}
                   renderDropdownMenu={(tree, hovered) => (
                     <SqlEditorLeftPanelTreesTableDropdown
                       onLoadDataClick={() => {

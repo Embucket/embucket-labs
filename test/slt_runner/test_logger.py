@@ -1,5 +1,3 @@
-import logging
-import termcolor
 from typing import Union
 from slt_runner.statement import Query, Statement
 from slt_runner.logger import logger
@@ -14,7 +12,6 @@ class SQLLogicTestLogger:
     def _build_output(self, parts):
         """Build output string from parts list"""
         return '\n'.join(parts) if isinstance(parts, list) else str(parts)
-
 
     def print_expected_result(self, values, columns, row_wise):
         logger.debug(f'{columns}, {values}')
@@ -33,14 +30,7 @@ class SQLLogicTestLogger:
                     print()
 
     def print_line_sep(self):
-        line_sep = "=" * 80
-        return termcolor.colored(line_sep, 'grey')
-
-    def print_header(self, header):
-        return termcolor.colored(header, 'white', attrs=['bold'])
-
-    def print_file_header(self):
-        self.print_header(f"File {self.file_name}:{self.query_line})")
+        return "=" * 80
 
     def get_sql(self) -> str:
         query = self.sql_query.strip()
@@ -48,16 +38,11 @@ class SQLLogicTestLogger:
             query += ";"
         return query
 
-    def print_sql(self):
-        return self.get_sql()
-
-
     def print_error_header(self, description):
         parts = []
         parts.append("")
         parts.append(self.print_line_sep())
-        parts.append(
-            f"{termcolor.colored(description, 'red', attrs=['bold'])} {termcolor.colored(f'({self.file_name}:{self.query_line})!', attrs=['bold'])}")
+        parts.append(f"{description} ({self.file_name}:{self.query_line})!")
         return '\n'.join(parts)
 
     def unexpected_failure(self, error):
@@ -108,17 +93,16 @@ class SQLLogicTestLogger:
         parts = []
         parts.append(self.print_error_header("Wrong column count in query!"))
         parts.append(
-            f"Expected {termcolor.colored(expected_column_count, 'white', attrs=['bold'])} columns, but got {termcolor.colored(result.column_count, 'white', attrs=['bold'])} columns"
+            f"Expected {expected_column_count} columns, but got {result.column_count} columns"
         )
         parts.append(self.print_line_sep())
         parts.append(self.get_sql())
         parts.append(self.print_line_sep())
 
         # Add expected result section
-        parts.append(self.print_header("Expected result:"))
+        parts.append("Expected result:")
 
         if result_values_string:
-            # For list of strings with tab-separated values (actual format)
             parts.extend(result_values_string)
         else:
             parts.append(f"(Expected schema with {expected_column_count} columns)")
@@ -128,13 +112,11 @@ class SQLLogicTestLogger:
         parts.append(self.print_line_sep())
 
         # Add actual result section
-        parts.append(self.print_header("Actual result:"))
+        parts.append("Actual result:")
 
         if result._result and len(result._result) > 0:
-            # Format actual results
             actual_lines = ['\t'.join(r) for r in result._result]
             parts.extend(actual_lines)
-
         else:
             parts.append("(No result rows)")
             parts.append(self.print_line_sep())
@@ -154,27 +136,25 @@ class SQLLogicTestLogger:
         parts.append(self.print_error_header("Wrong row count in query!"))
         row_count = len(result_values_string)
         parts.append(
-            f"Expected {termcolor.colored(int(expected_rows), 'white', attrs=['bold'])} rows, but got {termcolor.colored(row_count, 'white', attrs=['bold'])} rows"
+            f"Expected {int(expected_rows)} rows, but got {row_count} rows"
         )
         parts.append(self.print_line_sep())
-        parts.append(self.print_sql())
+        parts.append(self.get_sql())
         parts.append(self.print_line_sep())
 
         # Add expected results
-        parts.append(self.print_header("Expected result:"))
+        parts.append("Expected result:")
         expected_output = []
         self._format_expected_result(expected_output, comparison_values, expected_column_count, row_wise)
         parts.extend(expected_output)
 
         # Add actual results
         parts.append(self.print_line_sep())
-        parts.append(self.print_header("Actual result:"))
+        parts.append("Actual result:")
         actual_output = []
         self._format_expected_result(actual_output, result_values_string, expected_column_count, False)
         parts.extend(actual_output)
         parts.append(self.print_line_sep())
-
-
         return '\n'.join(parts)
 
     # Helper for formatting results without printing
@@ -202,13 +182,13 @@ class SQLLogicTestLogger:
         parts.append(self.print_line_sep())
         parts.append(self.print_error_header("Wrong column count in query!"))
         parts.append(
-            f"Expected {termcolor.colored(original_expected_columns, 'white', attrs=['bold'])} columns, but got {termcolor.colored(expected_column_count, 'white', attrs=['bold'])} columns"
+            f"Expected {original_expected_columns} columns, but got {expected_column_count} columns"
         )
         parts.append(self.print_line_sep())
         parts.append(self.get_sql())
-        parts.append(f"The expected result {termcolor.colored('matched', 'white', attrs=['bold'])} the query result.")
+        parts.append(f"The expected result matched the query result.")
         parts.append(
-            f"Suggested fix: modify header to \"{termcolor.colored('query', 'green')} {'I' * result.column_count}{termcolor.colored('', 'white')}\""
+            f"Suggested fix: modify header to \"query {'I' * result.column_count}\""
         )
         parts.append(self.print_line_sep())
         return '\n'.join(parts)
@@ -219,7 +199,7 @@ class SQLLogicTestLogger:
         parts.append(self.print_error_header(
             f"Error in test! Column count mismatch after splitting on tab on row {row_number}!"))
         parts.append(
-            f"Expected {termcolor.colored(int(expected_column_count), 'white', attrs=['bold'])} columns, but got {termcolor.colored(split_count, 'white', attrs=['bold'])} columns"
+            f"Expected {int(expected_column_count)} columns, but got {split_count} columns"
         )
         parts.append("Does the result contain tab values? In that case, place every value on a single row.")
         parts.append(self.print_line_sep())
@@ -235,14 +215,14 @@ class SQLLogicTestLogger:
         parts.append(self.print_line_sep())
 
         # Format expected results
-        parts.append(self.print_header("Expected result:"))
+        parts.append("Expected result:")
         expected_output = []
         self._format_expected_result(expected_output, expected_values, expected_column_count, row_wise)
         parts.extend(expected_output)
 
         # Format actual results
         parts.append(self.print_line_sep())
-        parts.append(self.print_header("Actual result:"))
+        parts.append("Actual result:")
         actual_output = []
         self._format_expected_result(actual_output, result_values_string, expected_column_count, False)
         parts.extend(actual_output)
@@ -260,6 +240,6 @@ class SQLLogicTestLogger:
         parts.append(self.print_line_sep())
         parts.append(self.get_sql())
         parts.append(self.print_line_sep())
-        parts.append(self.print_header("Expected result:"))
-        parts.append(self.print_header("Actual result:"))
+        parts.append("Expected result:")
+        parts.append("Actual result:")
         return '\n'.join(parts)
