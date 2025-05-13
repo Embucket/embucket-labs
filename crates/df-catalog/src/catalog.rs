@@ -29,21 +29,30 @@ impl CatalogProvider for CachingCatalog {
     }
 
     fn schema_names(&self) -> Vec<String> {
-        if self.schemas_cache.is_empty() {
-            for name in self.catalog.schema_names() {
-                if let Some(schema) = self.catalog.schema(&name) {
-                    self.schemas_cache.insert(
-                        name.clone(),
-                        Arc::new(CachingSchema {
-                            name,
-                            schema,
-                            tables_cache: DashMap::new(),
-                        }),
-                    );
-                }
+        let schema_names = self.catalog.schema_names();
+
+        // Remove outdated records
+        let schema_names_set: std::collections::HashSet<_> = schema_names.iter().cloned().collect();
+        self.schemas_cache
+            .retain(|name, _| schema_names_set.contains(name));
+
+        for name in &schema_names {
+            if self.schemas_cache.contains_key(name) {
+                continue;
+            }
+
+            if let Some(schema) = self.catalog.schema(name) {
+                self.schemas_cache.insert(
+                    name.clone(),
+                    Arc::new(CachingSchema {
+                        name: name.clone(),
+                        schema,
+                        tables_cache: DashMap::new(),
+                    }),
+                );
             }
         }
-        self.schemas_cache.iter().map(|e| e.key().clone()).collect()
+        schema_names
     }
 
     #[allow(clippy::as_conversions)]

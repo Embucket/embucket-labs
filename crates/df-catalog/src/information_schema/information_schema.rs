@@ -6,6 +6,7 @@ use crate::information_schema::columns::InformationSchemaColumns;
 use crate::information_schema::config::InformationSchemaConfig;
 use crate::information_schema::databases::InformationSchemaDatabases;
 use crate::information_schema::df_settings::InformationSchemaDfSettings;
+use crate::information_schema::navigation_tree::InformationSchemaNavigationTree;
 use crate::information_schema::parameters::InformationSchemaParameters;
 use crate::information_schema::routines::InformationSchemaRoutines;
 use crate::information_schema::schemata::InformationSchemata;
@@ -30,6 +31,7 @@ pub const DATABASES: &str = "databases";
 pub const DF_SETTINGS: &str = "df_settings";
 pub const ROUTINES: &str = "routines";
 pub const PARAMETERS: &str = "parameters";
+pub const NAVIGATION_TREE: &str = "navigation_tree";
 
 /// All information schema tables
 pub const INFORMATION_SCHEMA_TABLES: &[&str] = &[
@@ -90,6 +92,7 @@ impl SchemaProvider for InformationSchemaProvider {
             DF_SETTINGS => Arc::new(InformationSchemaDfSettings::new()),
             ROUTINES => Arc::new(InformationSchemaRoutines::new()),
             PARAMETERS => Arc::new(InformationSchemaParameters::new()),
+            NAVIGATION_TREE => Arc::new(InformationSchemaNavigationTree::new(config)),
             _ => return Ok(None),
         };
 

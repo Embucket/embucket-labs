@@ -10,6 +10,7 @@ use super::schemata::InformationSchemataBuilder;
 use super::tables::InformationSchemaTablesBuilder;
 use super::views::InformationSchemaViewBuilder;
 use crate::information_schema::databases::InformationSchemaDatabasesBuilder;
+use crate::information_schema::navigation_tree::InformationSchemaNavigationTreeBuilder;
 use datafusion::catalog::CatalogProviderList;
 use datafusion::logical_expr::{Signature, TypeSignature, Volatility};
 use datafusion_common::DataFusionError;
@@ -64,6 +65,46 @@ impl InformationSchemaConfig {
                 table_name,
                 TableType::View,
             );
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn make_navigation_tree(
+        &self,
+        builder: &mut InformationSchemaNavigationTreeBuilder,
+    ) -> datafusion_common::Result<(), DataFusionError> {
+        for catalog_name in self.catalog_list.catalog_names() {
+            let Some(catalog) = self.catalog_list.catalog(&catalog_name) else {
+                return Err(DataFusionError::Plan(format!(
+                    "Catalog '{catalog_name}' not found in catalog list",
+                )));
+            };
+
+            builder.add_navigation_tree(&catalog_name, None, None);
+
+            for schema_name in catalog.schema_names() {
+                builder.add_navigation_tree(&catalog_name, Some(schema_name.clone()), None);
+
+                if let Some(schema) = catalog.schema(&schema_name) {
+                    for table_name in schema.table_names() {
+                        builder.add_navigation_tree(
+                            &catalog_name,
+                            Some(schema_name.clone()),
+                            Some(table_name),
+                        );
+                    }
+                }
+            }
+
+            // Add a final list for the information schema tables themselves
+            for table_name in INFORMATION_SCHEMA_TABLES {
+                builder.add_navigation_tree(
+                    &catalog_name,
+                    Some(INFORMATION_SCHEMA.to_string()),
+                    Some((*table_name).to_string()),
+                );
+            }
         }
 
         Ok(())
