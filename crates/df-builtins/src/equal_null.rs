@@ -105,7 +105,6 @@ super::macros::make_udf_function!(EqualNullFunc);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iff::IffFunc;
     use datafusion::prelude::SessionContext;
     use datafusion_common::assert_batches_eq;
     use datafusion_expr::ScalarUDF;
