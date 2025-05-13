@@ -20,12 +20,7 @@ export function SqlEditorCenterBottomPanelQueryResultTable({
   const tableColumns: ColumnDef<Row>[] = columns.map((column) =>
     columnHelper.accessor((row) => row[columns.indexOf(column)], {
       header: column.name,
-      cell: (info) => {
-        const value = info.getValue();
-        if (value === null || value === undefined) return 'NULL';
-        if (typeof value == 'boolean') return value.toString();
-        return value;
-      },
+      cell: (info) => String(info.getValue()),
       meta: {
         headerClassName: 'capitalize',
       },
