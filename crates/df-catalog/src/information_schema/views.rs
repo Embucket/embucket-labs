@@ -91,14 +91,11 @@ impl InformationSchemaViewBuilder {
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
-        RecordBatch::try_new(
-            Arc::clone(&self.schema),
-            vec![
-                Arc::new(self.catalog_names.finish()),
-                Arc::new(self.schema_names.finish()),
-                Arc::new(self.table_names.finish()),
-                Arc::new(self.definitions.finish()),
-            ],
-        )
+        RecordBatch::try_new(Arc::clone(&self.schema), vec![
+            Arc::new(self.catalog_names.finish()),
+            Arc::new(self.schema_names.finish()),
+            Arc::new(self.table_names.finish()),
+            Arc::new(self.definitions.finish()),
+        ])
     }
 }

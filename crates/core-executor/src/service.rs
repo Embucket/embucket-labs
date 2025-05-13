@@ -250,10 +250,7 @@ pub async fn make_text_execution_svc() -> Arc<CoreExecutionService> {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db));
 
-    Arc::new(CoreExecutionService::new(
-        metastore,
-        Config {
-            dbt_serialization_format: DataSerializationFormat::Json,
-        },
-    ))
+    Arc::new(CoreExecutionService::new(metastore, Config {
+        dbt_serialization_format: DataSerializationFormat::Json,
+    }))
 }

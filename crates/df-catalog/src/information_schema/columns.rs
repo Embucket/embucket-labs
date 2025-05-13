@@ -211,25 +211,22 @@ impl InformationSchemaColumnsBuilder {
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
-        RecordBatch::try_new(
-            Arc::clone(&self.schema),
-            vec![
-                Arc::new(self.catalog_names.finish()),
-                Arc::new(self.schema_names.finish()),
-                Arc::new(self.table_names.finish()),
-                Arc::new(self.column_names.finish()),
-                Arc::new(self.ordinal_positions.finish()),
-                Arc::new(self.column_defaults.finish()),
-                Arc::new(self.is_nullables.finish()),
-                Arc::new(self.data_types.finish()),
-                Arc::new(self.character_maximum_lengths.finish()),
-                Arc::new(self.character_octet_lengths.finish()),
-                Arc::new(self.numeric_precisions.finish()),
-                Arc::new(self.numeric_precision_radixes.finish()),
-                Arc::new(self.numeric_scales.finish()),
-                Arc::new(self.datetime_precisions.finish()),
-                Arc::new(self.interval_types.finish()),
-            ],
-        )
+        RecordBatch::try_new(Arc::clone(&self.schema), vec![
+            Arc::new(self.catalog_names.finish()),
+            Arc::new(self.schema_names.finish()),
+            Arc::new(self.table_names.finish()),
+            Arc::new(self.column_names.finish()),
+            Arc::new(self.ordinal_positions.finish()),
+            Arc::new(self.column_defaults.finish()),
+            Arc::new(self.is_nullables.finish()),
+            Arc::new(self.data_types.finish()),
+            Arc::new(self.character_maximum_lengths.finish()),
+            Arc::new(self.character_octet_lengths.finish()),
+            Arc::new(self.numeric_precisions.finish()),
+            Arc::new(self.numeric_precision_radixes.finish()),
+            Arc::new(self.numeric_scales.finish()),
+            Arc::new(self.datetime_precisions.finish()),
+            Arc::new(self.interval_types.finish()),
+        ])
     }
 }

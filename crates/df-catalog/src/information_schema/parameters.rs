@@ -131,21 +131,18 @@ impl InformationSchemaParametersBuilder {
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
-        RecordBatch::try_new(
-            Arc::clone(&self.schema),
-            vec![
-                Arc::new(self.specific_catalog.finish()),
-                Arc::new(self.specific_schema.finish()),
-                Arc::new(self.specific_name.finish()),
-                Arc::new(self.ordinal_position.finish()),
-                Arc::new(self.parameter_mode.finish()),
-                Arc::new(self.parameter_name.finish()),
-                Arc::new(self.data_type.finish()),
-                Arc::new(self.parameter_default.finish()),
-                Arc::new(self.is_variadic.finish()),
-                Arc::new(self.rid.finish()),
-            ],
-        )
+        RecordBatch::try_new(Arc::clone(&self.schema), vec![
+            Arc::new(self.specific_catalog.finish()),
+            Arc::new(self.specific_schema.finish()),
+            Arc::new(self.specific_name.finish()),
+            Arc::new(self.ordinal_position.finish()),
+            Arc::new(self.parameter_mode.finish()),
+            Arc::new(self.parameter_name.finish()),
+            Arc::new(self.data_type.finish()),
+            Arc::new(self.parameter_default.finish()),
+            Arc::new(self.is_variadic.finish()),
+            Arc::new(self.rid.finish()),
+        ])
     }
 }
 

@@ -85,13 +85,10 @@ impl InformationSchemaDatabasesBuilder {
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
-        RecordBatch::try_new(
-            Arc::clone(&self.schema),
-            vec![
-                Arc::new(self.database_names.finish()),
-                Arc::new(self.database_owners.finish()),
-                Arc::new(self.database_types.finish()),
-            ],
-        )
+        RecordBatch::try_new(Arc::clone(&self.schema), vec![
+            Arc::new(self.database_names.finish()),
+            Arc::new(self.database_owners.finish()),
+            Arc::new(self.database_types.finish()),
+        ])
     }
 }

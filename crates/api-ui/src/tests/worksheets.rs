@@ -147,25 +147,15 @@ async fn test_ui_worksheets_sort() {
     );
 
     // update worksheets
-    update_worksheet(
-        &client,
-        &addr,
-        created[0].id,
-        WorksheetUpdatePayload {
-            name: Some("name91-updated".to_string()),
-            content: None,
-        },
-    )
+    update_worksheet(&client, &addr, created[0].id, WorksheetUpdatePayload {
+        name: Some("name91-updated".to_string()),
+        content: None,
+    })
     .await;
-    update_worksheet(
-        &client,
-        &addr,
-        created[2].id,
-        WorksheetUpdatePayload {
-            name: Some("name31-updated".to_string()),
-            content: None,
-        },
-    )
+    update_worksheet(&client, &addr, created[2].id, WorksheetUpdatePayload {
+        name: Some("name31-updated".to_string()),
+        content: None,
+    })
     .await;
 
     // check sort by created_at after update (nothing changed)

@@ -192,12 +192,9 @@ mod tests {
         let db = Db::memory().await;
         let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
         let history_store = Arc::new(SlateDBWorksheetsStore::new(db));
-        let execution_svc = Arc::new(CoreExecutionService::new(
-            metastore.clone(),
-            Config {
-                dbt_serialization_format: DataSerializationFormat::Json,
-            },
-        ));
+        let execution_svc = Arc::new(CoreExecutionService::new(metastore.clone(), Config {
+            dbt_serialization_format: DataSerializationFormat::Json,
+        }));
         let execution_svc =
             RecordingExecutionService::new(execution_svc.clone(), history_store.clone());
 
@@ -215,14 +212,11 @@ mod tests {
         let database_name = "embucket".to_string();
 
         metastore
-            .create_database(
-                &database_name.clone(),
-                MetastoreDatabase {
-                    ident: "embucket".to_string(),
-                    properties: None,
-                    volume: "test_volume".to_string(),
-                },
-            )
+            .create_database(&database_name.clone(), MetastoreDatabase {
+                ident: "embucket".to_string(),
+                properties: None,
+                volume: "test_volume".to_string(),
+            })
             .await
             .expect("Failed to create database");
 

@@ -95,22 +95,19 @@ async fn test_ui_queries_with_worksheet() {
     )
     .await
     .expect("Create query error");
-    assert_eq!(
-        query.result,
-        ResultSet {
-            columns: vec![
-                Column {
-                    name: "Int64(1)".to_string(),
-                    r#type: "fixed".to_string(),
-                },
-                Column {
-                    name: "Int64(2)".to_string(),
-                    r#type: "fixed".to_string(),
-                }
-            ],
-            rows: serde_json::from_str("[[1,2]]").unwrap()
-        }
-    );
+    assert_eq!(query.result, ResultSet {
+        columns: vec![
+            Column {
+                name: "Int64(1)".to_string(),
+                r#type: "fixed".to_string(),
+            },
+            Column {
+                name: "Int64(2)".to_string(),
+                r#type: "fixed".to_string(),
+            }
+        ],
+        rows: serde_json::from_str("[[1,2]]").unwrap()
+    });
 
     let query2 = http_req::<QueryRecord>(
         &client,
@@ -126,16 +123,13 @@ async fn test_ui_queries_with_worksheet() {
     .await
     .expect("Create query error");
 
-    assert_eq!(
-        query2.result,
-        ResultSet {
-            columns: vec![Column {
-                name: "Int64(2)".to_string(),
-                r#type: "fixed".to_string(),
-            }],
-            rows: serde_json::from_str("[[2]]").unwrap()
-        }
-    );
+    assert_eq!(query2.result, ResultSet {
+        columns: vec![Column {
+            name: "Int64(2)".to_string(),
+            r#type: "fixed".to_string(),
+        }],
+        rows: serde_json::from_str("[[2]]").unwrap()
+    });
     // assert_eq!(query_run_resp2.result, "[{\"Int64(2)\":2}]");
 
     let res = http_req::<()>(
