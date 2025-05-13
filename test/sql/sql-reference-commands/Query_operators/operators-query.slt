@@ -113,3 +113,17 @@ SELECT i::VARCHAR FROM union_test2
 Adams, Douglas
 42
 
+# Test that UNION with mismatched column counts fails
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE u1(a INT);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE u2(a INT, b INT);
+
+statement error
+SELECT * FROM u1 UNION SELECT * FROM u2;
+----
+# (Expect an error due to different number of columns)

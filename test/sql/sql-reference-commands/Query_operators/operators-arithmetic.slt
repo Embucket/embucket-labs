@@ -33,3 +33,17 @@ SELECT .1 n1, .0000000000001 n2, n1 / n2;
 ----
 0.1	1E-13	1000000000000.0000000
 
+# Test division by zero behavior (should error)
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE arith_test(val INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO arith_test VALUES (10);
+
+statement error
+SELECT val/0 FROM arith_test;
+----
+# (Expect a division by zero error)

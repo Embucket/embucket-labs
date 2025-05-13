@@ -47,3 +47,29 @@ SELECT oldt.c1, oldt.c2, newt.c1, newt.c2
   WHERE oldt.c1 IS NULL OR newt.c1 IS NULL;
 ----
 NULL	NULL	4	5
+
+# Test BEFORE clause returns data prior to a specific statement
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE travel_test(id INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO travel_test VALUES (100);
+
+exclude-from-coverage
+statement ok
+SELECT COUNT(*) FROM travel_test;
+# (Now $last_query_id corresponds to the SELECT that returned count=1)
+
+exclude-from-coverage
+statement ok
+INSERT INTO travel_test VALUES (200);
+
+query I
+SELECT COUNT(*) FROM travel_test
+  BEFORE (STATEMENT => $last_query_id);
+----
+1
+# (Only the first insert is counted when querying the state before the last SELECT)

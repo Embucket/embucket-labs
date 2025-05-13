@@ -51,3 +51,25 @@ SELECT COUNT(*), medical_license, radio_license
 2	LVN	NULL
 1	RN	NULL
 
+# Test GROUPING() function with GROUPING SETS (including rollup totals)
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE gs_test(c1 INT, c2 INT, val INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO gs_test VALUES (1,10,100),(1,20,200),(2,10,300);
+
+query TTTT
+SELECT c1, c2, GROUPING(c1) AS g1, GROUPING(c2) AS g2, SUM(val)
+FROM gs_test
+GROUP BY GROUPING SETS ((c1, c2), (c1), ())
+ORDER BY c1 NULLS LAST, c2 NULLS LAST;
+----
+1	10	0	0	100
+1	20	0	0	200
+1	NULL	0	1	300
+2	10	0	0	300
+2	NULL	0	1	300
+NULL	NULL	1	1	900

@@ -98,3 +98,20 @@ select sum(salary), ANY_VALUE(employment_state) as state
 130000.0	Active
 80000.0	Active
 
+# Test grouping by column position (ordinal) in GROUP BY
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE grp_test(a INT, b STRING);
+exclude-from-coverage
+statement ok
+INSERT INTO grp_test VALUES (1,'X'),(1,'Y'),(2,'Z');
+
+query TT
+SELECT a, COUNT(*)
+FROM grp_test
+GROUP BY 1
+ORDER BY a;
+----
+1	2
+2	1

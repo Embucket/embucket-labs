@@ -24,3 +24,39 @@ exclude-from-coverage
 statement ok
 USE SCHEMA COMPATIBILITY_TESTS.PUBLIC;
 
+# Test SHOW TABLES in an empty schema
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE SCHEMA empty_schema;
+
+exclude-from-coverage
+statement ok
+USE SCHEMA empty_schema;
+
+statement ok
+SHOW TABLES;
+
+query I
+SELECT COUNT(*) FROM TABLE(result_scan(last_query_id()));
+----
+0
+
+# Test that SHOW TABLES does not list views
+
+exclude-from-coverage
+statement ok
+USE SCHEMA PUBLIC;
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE VIEW dummy_view AS SELECT 1;
+
+statement ok
+SHOW TABLES;
+
+query I
+SELECT COUNT(*) FROM TABLE(result_scan(last_query_id()))
+WHERE "name"='DUMMY_VIEW';
+----
+0

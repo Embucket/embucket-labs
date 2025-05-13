@@ -168,3 +168,27 @@ GROUP BY prod_id, t2.prod_id;
 001104 (42601): SQL compilation error: error line 1 at position 7
 'T1.PRODUCT_ID' in select clause is neither an aggregate nor in the group by clause.
 
+# Test SELECT of a constant without a FROM clause
+
+query I
+SELECT 42;
+----
+42
+
+# Test SELECT with an alias used in ORDER BY
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE sel_test(val INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO sel_test VALUES (2),(1);
+
+query TT
+SELECT val AS num
+FROM sel_test
+ORDER BY num;
+----
+1
+2

@@ -244,3 +244,14 @@ SELECT
 .........piston	121	12
 .........cylinder block	122	12
 
+# Test recursive CTE without RECURSIVE keyword (should error)
+
+statement error
+WITH bad_cte AS (
+  SELECT 1
+  UNION
+  SELECT * FROM bad_cte
+)
+SELECT * FROM bad_cte;
+----
+# (Expect an error due to recursive reference without RECURSIVE)

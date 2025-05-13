@@ -26,3 +26,20 @@ HAVING count(*) < 10
 ----
 101
 
+# Test HAVING without explicit GROUP BY (single implicit group)
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE hav_test(n INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO hav_test VALUES (10),(15);
+
+query II
+SELECT SUM(n)
+FROM hav_test
+HAVING SUM(n) > 20;
+----
+25
+# (The two values form one group; SUM = 25 is returned since 25 > 20)

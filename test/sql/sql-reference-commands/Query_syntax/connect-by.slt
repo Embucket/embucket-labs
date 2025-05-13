@@ -43,3 +43,21 @@ SELECT SYS_CONNECT_BY_PATH(title, ' -> ') AS path, employee_ID, manager_ID, titl
  -> President -> Vice President Engineering -> Programmer	100	10	Programmer
  -> President -> Vice President Engineering -> QA Engineer	101	10	QA Engineer
  -> President -> Vice President HR -> Health Insurance Analyst	200	20	Health Insurance Analyst
+
+ # Test CONNECT BY with a cyclic relationship (should error to prevent infinite loop)
+
+ exclude-from-coverage
+ statement ok
+ CREATE OR REPLACE TABLE tree_test(id INT, parent_id INT);
+
+ exclude-from-coverage
+ statement ok
+ INSERT INTO tree_test VALUES (1,2),(2,1);  -- cycle: 1 <-> 2
+
+ statement error
+ SELECT id, parent_id
+ FROM tree_test
+ START WITH id = 1
+ CONNECT BY PRIOR id = parent_id;
+ ----
+ # (Expect an error indicating a CONNECT BY loop in the data)

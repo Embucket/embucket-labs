@@ -84,3 +84,37 @@ SELECT * FROM leased_bicycles ORDER BY bicycle_id
 ----
 101	1111
 
+# Test DELETE with USING when source table has duplicate matching keys
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE tgt_del(id INT, val STRING);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE src_del(id INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO tgt_del VALUES (1,'A'),(2,'B');
+
+exclude-from-coverage
+statement ok
+INSERT INTO src_del VALUES (1),(1);  -- duplicate 'id' in source
+
+statement error
+DELETE FROM tgt_del USING src_del
+WHERE tgt_del.id = src_del.id;
+----
+# (Expect an error due to one target row matching multiple source rows)
+
+# Test DELETE using a subquery in the WHERE clause
+
+statement ok
+DELETE FROM tgt_del
+WHERE id IN (SELECT id FROM src_del);
+
+query I
+SELECT COUNT(*) FROM tgt_del;
+----
+1

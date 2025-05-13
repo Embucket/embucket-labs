@@ -206,3 +206,46 @@ SELECT * FROM sf_employees
 ----
 Michael	Arnett	1-650-230-8467	San Francisco	94116
 
+# Test INSERT with columns specified out of order
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE ins_test(a INT, b STRING);
+
+statement ok
+INSERT INTO ins_test(b, a) VALUES ('Hello', 42);
+
+query TT
+SELECT a, b FROM ins_test;
+----
+42	Hello
+
+# Test INSERT with incompatible data type (should error)
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE ins_types(x INT);
+
+statement error
+INSERT INTO ins_types VALUES ('not an integer');
+----
+# (Expect a data type mismatch error)
+
+# Test INSERT ... SELECT from another table
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE ins_src(i INT);
+
+statement ok
+INSERT INTO ins_src VALUES (5),(6);
+
+statement ok
+INSERT INTO ins_test
+SELECT i, 'Number ' || CAST(i AS STRING)
+FROM ins_src;
+
+query II
+SELECT COUNT(*) FROM ins_test WHERE a IN (5,6);
+----
+2

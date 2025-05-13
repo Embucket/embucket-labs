@@ -66,3 +66,33 @@ SELECT *
 1	Engineering	102	Paulson	1	'["Materialized Views","Lateral Joins"]'
 2	Support	103	Johnson	2	NULL
 
+# Test LATERAL subquery with LEFT JOIN returning no rows from subquery
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE t_main(id INT, val STRING);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE t_sub(x INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO t_main VALUES (1,'A'),(2,'B');
+
+exclude-from-coverage
+statement ok
+INSERT INTO t_sub VALUES (1);
+
+query TT
+SELECT m.id, sub.x
+FROM t_main AS m
+LEFT JOIN LATERAL (
+  SELECT x FROM t_sub
+  WHERE t_sub.x = m.id AND x < 0
+) AS sub ON TRUE
+ORDER BY m.id;
+----
+1	NULL
+2	NULL
+# (For each row in t_main, the lateral subquery returns no rows, left join yields NULLs)

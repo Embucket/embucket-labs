@@ -19,3 +19,33 @@ SELECT COUNT (*) FROM temp
 ----
 0
 
+# Test if TRUNCATE resets an identity/sequence value
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE tr_test(
+  id INT AUTOINCREMENT,
+  val STRING
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO tr_test(val) VALUES ('A'),('B');
+
+query I
+SELECT MAX(id) FROM tr_test;
+----
+2
+
+statement ok
+TRUNCATE TABLE tr_test;
+
+exclude-from-coverage
+statement ok
+INSERT INTO tr_test(val) VALUES ('C');
+
+# (After truncate, the next generated id continues from 3, not reset to 1)
+query I
+SELECT MIN(id) FROM tr_test;
+----
+3

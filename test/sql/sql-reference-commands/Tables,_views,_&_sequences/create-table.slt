@@ -199,3 +199,17 @@ A	NUMBER(38,0)	COLUMN	N	NULL	Y	N	NULL	NULL	NULL	NULL	NULL
 
 statement ok
 CREATE OR REPLACE TABLE t(a INT);
+
+# Test creating a table with duplicate column names (should error)
+
+statement error
+CREATE TABLE dup_col_test(x INT, x INT);
+----
+# (Expect an error about duplicate column name)
+
+# Test creating a table with an invalid/unsupported data type
+
+statement error
+CREATE TABLE bad_type_test(col XYZ);
+----
+# (Expect a syntax or unsupported type error)

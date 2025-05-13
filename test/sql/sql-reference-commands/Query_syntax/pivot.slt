@@ -280,3 +280,27 @@ SELECT SUM($1) AS q1_sales_total,
 ----
 49900	98700	25700	52200	2	2	2	2
 
+# Test PIVOT with multiple aggregate measures
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE piv_test(category STRING, val1 INT, val2 INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO piv_test VALUES ('A',1,10),('A',2,20),('B',5,50);
+
+query TTTT
+SELECT COALESCE(A_SUM_V1,0), COALESCE(A_SUM_V2,0),
+       COALESCE(B_SUM_V1,0), COALESCE(B_SUM_V2,0)
+FROM (
+  SELECT *
+  FROM piv_test
+  PIVOT(
+    SUM(val1) AS sum_v1, SUM(val2) AS sum_v2
+    FOR category IN ('A','B')
+  )
+);
+----
+3	30	5	50
+# (Aggregates val1 and val2 are pivoted for categories A and B)

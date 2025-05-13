@@ -182,3 +182,52 @@ MERGE INTO members m
   WHERE DATEDIFF(day, CURRENT_DATE(), signup.date::DATE) < -30) s ON m.id = s.id
   WHEN MATCHED THEN UPDATE SET m.fee = 40;
 
+# Test MERGE with a WHEN MATCHED ... DELETE clause
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE merge_tgt(id INT, val STRING);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE merge_src(id INT, val STRING);
+
+exclude-from-coverage
+statement ok
+INSERT INTO merge_tgt VALUES (1,'Old'),(2,'Keep');
+
+exclude-from-coverage
+statement ok
+INSERT INTO merge_src VALUES (1,'New'),(3,'Extra');
+
+statement ok
+MERGE INTO merge_tgt t
+USING merge_src s
+ON t.id = s.id
+WHEN MATCHED THEN DELETE
+WHEN NOT MATCHED THEN INSERT (id, val) VALUES(s.id, s.val);
+
+query TT
+SELECT * FROM merge_tgt ORDER BY id;
+----
+2	Keep
+3	Extra
+
+# Test MERGE behavior when source has duplicate keys or matches
+
+exclude-from-coverage
+statement ok
+INSERT INTO merge_src VALUES (3,'Extra2');  -- duplicate 'id=3' in source
+
+exclude-from-coverage
+statement ok
+INSERT INTO merge_tgt VALUES(1,'AnotherOld');  -- reintroduce id=1 in target
+
+statement error
+MERGE INTO merge_tgt t
+USING merge_src s
+ON t.id = s.id
+WHEN MATCHED THEN UPDATE SET val = s.val
+WHEN NOT MATCHED THEN INSERT (id, val) VALUES(s.id, s.val);
+----
+# (Expect an error since target id=3 would match two source rows)

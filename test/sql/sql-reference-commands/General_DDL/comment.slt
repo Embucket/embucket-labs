@@ -39,3 +39,29 @@ WHERE table_name LIKE '%MY_VIEW%';
 ----
 this is comment5
 
+# Test adding comments to a database and a view
+
+statement ok
+CREATE OR REPLACE DATABASE my_db COMMENT='initial database comment';
+
+query T
+SELECT comment
+FROM information_schema.databases
+WHERE database_name='MY_DB';
+----
+initial database comment
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE VIEW my_view AS SELECT 1 AS col;
+
+statement ok
+COMMENT ON VIEW my_view IS 'view comment';
+
+query T
+SELECT comment
+FROM information_schema.views
+WHERE table_name='MY_VIEW';
+----
+view comment
+

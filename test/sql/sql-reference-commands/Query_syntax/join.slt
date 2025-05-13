@@ -176,3 +176,9 @@ WITH
 ----
 a	NULL
 
+# Test selecting from the dummy DUAL table (Oracle compatibility)
+
+query I
+SELECT 5 FROM DUAL;
+----
+5

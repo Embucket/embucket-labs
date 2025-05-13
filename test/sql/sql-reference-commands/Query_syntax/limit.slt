@@ -60,3 +60,17 @@ SELECT * FROM demo1 ORDER BY i LIMIT NULL OFFSET NULL
 1
 2
 
+# Test that a negative OFFSET is not allowed (should error)
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE lim_test(x INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO lim_test VALUES (1),(2);
+
+statement error
+SELECT * FROM lim_test LIMIT 1 OFFSET -1;
+----
+# (Expect an error for negative offset)

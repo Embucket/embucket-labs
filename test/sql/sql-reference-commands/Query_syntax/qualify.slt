@@ -47,3 +47,17 @@ SELECT i, p, o, ROW_NUMBER() OVER (PARTITION BY p ORDER BY o) AS row_num
 3	B	1	1
 4	B	2	2
 
+# Test QUALIFY without any window function (should error)
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE qual_test(x INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO qual_test VALUES (1),(2);
+
+statement error
+SELECT * FROM qual_test QUALIFY x > 0;
+----
+# (QUALIFY clause is not allowed without a window function in the query)

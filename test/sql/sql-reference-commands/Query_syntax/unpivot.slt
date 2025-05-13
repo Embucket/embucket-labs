@@ -84,3 +84,24 @@ electronics	FEB	200
 electronics	MAR	300
 electronics	APR	100
 
+# Test UNPIVOT excluding completely NULL values
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE unp_test(id INT, attr1 INT, attr2 INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO unp_test VALUES (1, 10, 20), (2, NULL, NULL);
+
+query TT
+SELECT id, attr, val
+FROM unp_test
+UNPIVOT( val FOR attr IN (attr1, attr2) ) AS u
+ORDER BY id, attr;
+----
+1	ATTR1	10
+1	ATTR2	20
+2	ATTR1	NULL
+2	ATTR2	NULL
+# (Row 2 still appears for each attr, showing NULLs were included)

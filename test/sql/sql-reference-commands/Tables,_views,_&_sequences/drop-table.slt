@@ -22,3 +22,24 @@ WHERE table_name = 'T2';
 statement ok
 DROP TABLE IF EXISTS t2;
 
+# Test dropping a table that has a dependent view (should fail)
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE drop_t1(id INT);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE VIEW drop_v1 AS SELECT * FROM drop_t1;
+
+statement error
+DROP TABLE drop_t1;
+----
+# (Expect an error because drop_t1 is referenced by drop_v1)
+
+# Test dropping a non-existent table without IF EXISTS
+
+statement error
+DROP TABLE nonexistent_table;
+----
+# (Expect an error because dropping a non-existent table without IF EXISTS)

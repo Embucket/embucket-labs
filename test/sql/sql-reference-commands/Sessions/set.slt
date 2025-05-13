@@ -50,3 +50,22 @@ SELECT $max;
 ----
 80
 
+# Test selecting an unset session variable (should error)
+
+statement error
+SELECT $undefined_var;
+----
+# (Expect an error because the session variable is not defined)
+
+# Test reassigning a session variable to a new type
+
+statement ok
+SET var1 = 100;
+
+statement ok
+SET var1 = 'changed';
+
+query T
+SELECT $var1;
+----
+changed

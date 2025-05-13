@@ -77,3 +77,30 @@ SELECT column1
 NULL
 NULL
 
+# Test ORDER BY with an alias to ensure correct sorting
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE ord_test(val INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO ord_test VALUES (2),(1);
+
+query TT
+SELECT val AS cnt
+FROM ord_test
+ORDER BY cnt;
+----
+1
+2
+
+# Test ORDER BY NULLS LAST explicitly
+
+query TT
+SELECT val
+FROM ord_test
+ORDER BY val DESC NULLS LAST;
+----
+2
+1

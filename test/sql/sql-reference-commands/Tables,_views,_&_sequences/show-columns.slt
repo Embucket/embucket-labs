@@ -32,3 +32,10 @@ DT_TEST	PUBLIC	TS1	'{"type":"TIMESTAMP_NTZ","precision":0,"scale":9,"nullable":t
 DT_TEST	PUBLIC	TS2_LTZ	'{"type":"TIMESTAMP_LTZ","precision":0,"scale":9,"nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
 DT_TEST	PUBLIC	TS3_NTZ	'{"type":"TIMESTAMP_NTZ","precision":0,"scale":9,"nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
 DT_TEST	PUBLIC	TS4_TZ	'{"type":"TIMESTAMP_TZ","precision":0,"scale":9,"nullable":true}'	true	''	COLUMN	''	''	EMBUCKET	''	NULL
+
+# Test SHOW COLUMNS on a non-existent table (should error)
+
+statement error
+SHOW COLUMNS IN missing_table;
+----
+# (Expect an object does not exist error)

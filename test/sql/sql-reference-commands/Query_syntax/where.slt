@@ -127,3 +127,26 @@ SELECT d.department_name, p.project_name, e.employee_name
             e.project_id(+) = p.project_id
     ORDER BY d.department_id, p.project_id, e.employee_id;
 
+# Test using a SELECT alias in WHERE (should error)
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE wh_test(a INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO wh_test VALUES (1),(2);
+
+statement error
+SELECT a AS num FROM wh_test
+WHERE num > 1;
+----
+# (Alias 'num' from SELECT cannot be used in WHERE)
+
+# Test using an aggregate directly in WHERE (should error)
+
+statement error
+SELECT * FROM wh_test
+WHERE SUM(a) > 0;
+----
+# (Aggregate functions not allowed in WHERE without GROUP BY/HAVING)

@@ -27,3 +27,17 @@ select TOP 4 c1 from testtable
 3
 20
 
+# Test that TOP <percent> is not supported (should error)
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE top_test(x INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO top_test VALUES (1);
+
+statement error
+SELECT TOP 50 PERCENT * FROM top_test;
+----
+# (Snowflake does not support TOP PERCENT syntax, expect parse error)

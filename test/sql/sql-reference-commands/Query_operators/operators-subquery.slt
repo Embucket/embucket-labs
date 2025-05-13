@@ -39,3 +39,44 @@ SELECT department_id
 102
 103
 
+# Test ANY/ALL with subquery returning no rows
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE subq_test(x INT);
+
+exclude-from-coverage
+statement ok
+INSERT INTO subq_test VALUES (5),(10);
+
+query T
+SELECT 1
+WHERE 5 > ALL(SELECT x FROM subq_test WHERE x < 0);
+----
+1
+
+query T
+SELECT 1
+WHERE 5 < ANY(SELECT x FROM subq_test WHERE x < 0);
+----
+# (No output, since subquery is empty and condition is false)
+
+# Test ANY/ALL with subquery containing NULL
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE subq_null(x INT);
+
+statement ok
+INSERT INTO subq_null VALUES (NULL);
+query T
+SELECT 1
+WHERE 5 > ALL(SELECT x FROM subq_null);
+----
+# (No output, ALL returns UNKNOWN -> false due to NULL)
+
+query T
+SELECT 1
+WHERE 5 < ANY(SELECT x FROM subq_null);
+----
+# (No output, ANY returns UNKNOWN -> false due to NULL)
