@@ -11,6 +11,7 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root';
+import { Route as VolumesImport } from './routes/volumes';
 import { Route as QueriesHistoryImport } from './routes/queries-history';
 import { Route as HomeImport } from './routes/home';
 import { Route as IndexImport } from './routes/index';
@@ -21,6 +22,12 @@ import { Route as DatabasesDatabaseNameSchemasSchemaNameTablesIndexImport } from
 import { Route as DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexImport } from './routes/databases/$databaseName.schemas.$schemaName.tables.$tableName.columns.index';
 
 // Create/Update Routes
+
+const VolumesRoute = VolumesImport.update({
+  id: '/volumes',
+  path: '/volumes',
+  getParentRoute: () => rootRoute,
+} as any);
 
 const QueriesHistoryRoute = QueriesHistoryImport.update({
   id: '/queries-history',
@@ -100,6 +107,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QueriesHistoryImport;
       parentRoute: typeof rootRoute;
     };
+    '/volumes': {
+      id: '/volumes';
+      path: '/volumes';
+      fullPath: '/volumes';
+      preLoaderRoute: typeof VolumesImport;
+      parentRoute: typeof rootRoute;
+    };
     '/databases/': {
       id: '/databases/';
       path: '/databases';
@@ -144,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute;
   '/home': typeof HomeRoute;
   '/queries-history': typeof QueriesHistoryRoute;
+  '/volumes': typeof VolumesRoute;
   '/databases': typeof DatabasesIndexRoute;
   '/sql-editor/$worksheetId': typeof SqlEditorWorksheetIdIndexRoute;
   '/databases/$databaseName/schemas': typeof DatabasesDatabaseNameSchemasIndexRoute;
@@ -155,6 +170,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute;
   '/home': typeof HomeRoute;
   '/queries-history': typeof QueriesHistoryRoute;
+  '/volumes': typeof VolumesRoute;
   '/databases': typeof DatabasesIndexRoute;
   '/sql-editor/$worksheetId': typeof SqlEditorWorksheetIdIndexRoute;
   '/databases/$databaseName/schemas': typeof DatabasesDatabaseNameSchemasIndexRoute;
@@ -167,6 +183,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute;
   '/home': typeof HomeRoute;
   '/queries-history': typeof QueriesHistoryRoute;
+  '/volumes': typeof VolumesRoute;
   '/databases/': typeof DatabasesIndexRoute;
   '/sql-editor/$worksheetId/': typeof SqlEditorWorksheetIdIndexRoute;
   '/databases/$databaseName/schemas/': typeof DatabasesDatabaseNameSchemasIndexRoute;
@@ -180,6 +197,7 @@ export interface FileRouteTypes {
     | '/'
     | '/home'
     | '/queries-history'
+    | '/volumes'
     | '/databases'
     | '/sql-editor/$worksheetId'
     | '/databases/$databaseName/schemas'
@@ -190,6 +208,7 @@ export interface FileRouteTypes {
     | '/'
     | '/home'
     | '/queries-history'
+    | '/volumes'
     | '/databases'
     | '/sql-editor/$worksheetId'
     | '/databases/$databaseName/schemas'
@@ -200,6 +219,7 @@ export interface FileRouteTypes {
     | '/'
     | '/home'
     | '/queries-history'
+    | '/volumes'
     | '/databases/'
     | '/sql-editor/$worksheetId/'
     | '/databases/$databaseName/schemas/'
@@ -212,6 +232,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
   HomeRoute: typeof HomeRoute;
   QueriesHistoryRoute: typeof QueriesHistoryRoute;
+  VolumesRoute: typeof VolumesRoute;
   DatabasesIndexRoute: typeof DatabasesIndexRoute;
   SqlEditorWorksheetIdIndexRoute: typeof SqlEditorWorksheetIdIndexRoute;
   DatabasesDatabaseNameSchemasIndexRoute: typeof DatabasesDatabaseNameSchemasIndexRoute;
@@ -223,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HomeRoute: HomeRoute,
   QueriesHistoryRoute: QueriesHistoryRoute,
+  VolumesRoute: VolumesRoute,
   DatabasesIndexRoute: DatabasesIndexRoute,
   SqlEditorWorksheetIdIndexRoute: SqlEditorWorksheetIdIndexRoute,
   DatabasesDatabaseNameSchemasIndexRoute:
@@ -246,6 +268,7 @@ export const routeTree = rootRoute
         "/",
         "/home",
         "/queries-history",
+        "/volumes",
         "/databases/",
         "/sql-editor/$worksheetId/",
         "/databases/$databaseName/schemas/",
@@ -261,6 +284,9 @@ export const routeTree = rootRoute
     },
     "/queries-history": {
       "filePath": "queries-history.tsx"
+    },
+    "/volumes": {
+      "filePath": "volumes.tsx"
     },
     "/databases/": {
       "filePath": "databases/index.tsx"
