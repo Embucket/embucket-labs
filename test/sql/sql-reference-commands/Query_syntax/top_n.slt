@@ -40,4 +40,5 @@ INSERT INTO top_test VALUES (1);
 statement error
 SELECT TOP 50 PERCENT * FROM top_test;
 ----
-# (Snowflake does not support TOP PERCENT syntax, expect parse error)
+001003 (42000): SQL compilation error:
+syntax error line 1 at position 24 unexpected 'FROM'.

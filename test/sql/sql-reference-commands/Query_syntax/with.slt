@@ -254,4 +254,5 @@ WITH bad_cte AS (
 )
 SELECT * FROM bad_cte;
 ----
-# (Expect an error due to recursive reference without RECURSIVE)
+001102 (42601): SQL compilation error:
+UNION not yet supported within a Recursive CTE

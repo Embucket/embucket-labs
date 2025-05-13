@@ -73,4 +73,5 @@ INSERT INTO lim_test VALUES (1),(2);
 statement error
 SELECT * FROM lim_test LIMIT 1 OFFSET -1;
 ----
-# (Expect an error for negative offset)
+001003 (42000): SQL compilation error:
+syntax error line 1 at position 38 unexpected '-'.

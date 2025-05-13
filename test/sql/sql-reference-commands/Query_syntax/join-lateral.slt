@@ -95,4 +95,3 @@ ORDER BY m.id;
 ----
 1	NULL
 2	NULL
-# (For each row in t_main, the lateral subquery returns no rows, left join yields NULLs)

@@ -137,11 +137,11 @@ exclude-from-coverage
 statement ok
 INSERT INTO wh_test VALUES (1),(2);
 
-statement error
+query T
 SELECT a AS num FROM wh_test
 WHERE num > 1;
 ----
-# (Alias 'num' from SELECT cannot be used in WHERE)
+2
 
 # Test using an aggregate directly in WHERE (should error)
 
@@ -149,4 +149,5 @@ statement error
 SELECT * FROM wh_test
 WHERE SUM(a) > 0;
 ----
-# (Aggregate functions not allowed in WHERE without GROUP BY/HAVING)
+002035 (42601): SQL compilation error:
+Invalid aggregate function in where clause [SUM(WH_TEST.A)]

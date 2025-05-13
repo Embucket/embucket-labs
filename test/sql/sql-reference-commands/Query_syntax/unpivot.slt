@@ -94,7 +94,7 @@ exclude-from-coverage
 statement ok
 INSERT INTO unp_test VALUES (1, 10, 20), (2, NULL, NULL);
 
-query TT
+query TTT
 SELECT id, attr, val
 FROM unp_test
 UNPIVOT( val FOR attr IN (attr1, attr2) ) AS u
@@ -104,4 +104,3 @@ ORDER BY id, attr;
 1	ATTR2	20
 2	ATTR1	NULL
 2	ATTR2	NULL
-# (Row 2 still appears for each attr, showing NULLs were included)

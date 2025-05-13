@@ -60,4 +60,5 @@ INSERT INTO qual_test VALUES (1),(2);
 statement error
 SELECT * FROM qual_test QUALIFY x > 0;
 ----
-# (QUALIFY clause is not allowed without a window function in the query)
+000992 (42601): SQL compilation error: error line 1 at position 24
+found QUALIFY clause but no window function.
