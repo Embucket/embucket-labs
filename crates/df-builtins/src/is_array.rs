@@ -97,6 +97,8 @@ impl ScalarUDFImpl for IsArrayFunc {
     }
 }
 
+super::macros::make_udf_function!(IsArrayFunc);
+
 #[cfg(test)]
 mod tests {
     use super::*;
