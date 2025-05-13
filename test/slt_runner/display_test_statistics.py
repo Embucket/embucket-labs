@@ -29,10 +29,14 @@ def display_page_results(all_results, total_tests, total_successful, total_faile
         failed_color = f"\033[91m{result['failed_tests']}\033[0m"
         percentage_color = f"\033[92m{result['success_percentage']:.2f}%\033[0m" if result[
                                                                                         "success_percentage"] >= 50 else f"\033[91m{result['success_percentage']:.2f}%\033[0m"
+        # Truncate category and page names if too long
+        max_length = 20
+        display_category = result['category'] if len(result['category']) <= max_length else result['category'][:max_length-3] + "..."
+        display_page_name = result['page_name'] if len(result['page_name']) <= max_length else result['page_name'][:max_length-3] + "..."
 
         table.add_row([
-            result['category'],
-            result['page_name'],
+            display_category,
+            display_page_name,
             result["total_tests"],
             successful_color,
             failed_color,
@@ -72,8 +76,12 @@ def display_category_results(all_results):
         fail_color = f"\033[91m{totals['failed_tests']}\033[0m"
         percentage_color = f"\033[92m{success_percentage:.2f}%\033[0m" if success_percentage >= 50 else f"\033[91m{success_percentage:.2f}%\033[0m"
 
+        # Truncate category name if too long
+        max_length = 20
+        display_category = category if len(category) <= max_length else category[:max_length-3] + "..."
+
         table.add_row([
-            category,
+            display_category,
             totals["total_tests"],
             success_color,
             fail_color,
