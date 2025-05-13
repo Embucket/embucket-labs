@@ -150,7 +150,6 @@ class QueryResult:
 
     @property
     def column_count(self) -> int:
-        assert self._column_count != 0
         return self._column_count
 
     def has_error(self) -> bool:
@@ -182,10 +181,7 @@ class QueryResult:
             context.fail(error_msg)
 
         row_count = self.row_count()
-        try:
-            column_count = self.column_count
-        except AssertionError as e:
-            context.fail(f"No columns returned, but expected {expected_column_count}")
+        column_count = self.column_count
         total_value_count = row_count * column_count
 
         if len(expected_values) == 1 and result_is_hash(expected_values[0]):
@@ -244,7 +240,7 @@ class QueryResult:
             try:
                 expected_rows = len(expected_values) / expected_column_count
             except ZeroDivisionError:
-                print("ddd")
+                expected_rows = 0
             row_wise = expected_column_count > 1 and len(expected_values) == self.row_count()
 
             if not row_wise:
@@ -256,16 +252,14 @@ class QueryResult:
                 row_wise = True
             elif len(expected_values) % expected_column_count != 0:
                 if column_count_mismatch:
-                    error_msg = test_logger.column_count_mismatch(self, expected_values, original_expected_columns,
-                                                                  row_wise)
+                    error_msg = test_logger.column_count_mismatch(self, expected_values, original_expected_columns)
                 else:
                     error_msg = test_logger.not_cleanly_divisible(expected_column_count, len(expected_values))
                 context.fail(error_msg)
 
             if expected_rows != self.row_count():
                 if column_count_mismatch:
-                    error_msg = test_logger.column_count_mismatch(self, expected_values, original_expected_columns,
-                                                                  row_wise)
+                    error_msg = test_logger.column_count_mismatch(self, expected_values, original_expected_columns)
                 else:
                     error_msg = test_logger.wrong_row_count(expected_rows, result_values_string, expected_values,
                                                             expected_column_count, row_wise)
@@ -279,8 +273,7 @@ class QueryResult:
                 if row_wise and len(row) != expected_column_count:
                     error_msg = ""
                     if column_count_mismatch:
-                        error_msg += test_logger.column_count_mismatch(self, expected_values, original_expected_columns,
-                                                                       False)
+                        error_msg += test_logger.column_count_mismatch(self, expected_values, original_expected_columns)
                     error_msg += test_logger.split_mismatch(current_row + 1, expected_column_count, len(row))
                     context.fail(error_msg)
                 for current_column, column_value in enumerate(row):
@@ -343,27 +336,20 @@ class SQLLogicConnectionPool:
         self.cursors = {}
         self.connection = con
 
-    def initialize_connection(self, context: "SQLLogicContext", con):
-        runner = context.runner
+    def initialize_connection(self, con):
         try:
             con.execute("SET timezone='UTC'")
         except Exception:
             pass
 
-    def get_connection(self, name: Optional[str] = None) -> SnowflakeCursor:
+    def get_connection(self, name: Optional[str] = None) -> SnowflakeConnection | None:
         """
-        Either fetch the 'self.connection' object if name is None
-        Or get-or-create the cursor identified by name
+        Fetch the 'self.connection' object if name is None
         """
         assert self.connection
         if name is None:
             return self.connection
 
-        logger.debug(f'get_connection name:{name}')
-        if name not in self.cursors:
-            # TODO: do we need to run any set up on a new named connection ??
-            self.cursors[name] = self.connection
-        return self.cursors[name]
 
 
 class SQLLogicDatabase:
@@ -392,7 +378,6 @@ class SQLLogicDatabase:
         self.path = path
 
         # Now re-open the current database
-        read_only = 'access_mode' in self.config and self.config['access_mode'] == 'read_only'
         if 'access_mode' not in self.config:
             self.config['access_mode'] = 'automatic'
         self.database = connector.connect(**self.config)
@@ -420,11 +405,6 @@ def matches_regex(input: str, actual_str: str) -> bool:
     else:
         should_match = False
         regex_str = input.replace("<!REGEX>:", "")
-    # The exact match will never be the same, allow leading and trailing messages
-    # if regex_str[:2] != '.*':
-    #     regex_str = ".*" + regex_str
-    # if regex_str[-2:] != '.*':
-    #     regex_str = regex_str + '.*'
 
     re_options = re.DOTALL
     re_pattern = re.compile(regex_str, re_options)
@@ -442,7 +422,6 @@ def compare_values(result: QueryResult, actual_str, expected_str, current_column
         return matches_regex(expected_str, actual_str)
 
     col = result.metadata[current_column]
-    sql_type = FIELD_ID_TO_NAME[col.type_code]
     logger.debug(f'compare_values::current_column: {current_column}')
     sql_type = result.types[current_column]
 
@@ -450,30 +429,10 @@ def compare_values(result: QueryResult, actual_str, expected_str, current_column
         from snowflake.connector.constants import is_number_type_name
         return is_number_type_name(str(type))
 
-    # if is_numeric(sql_type):
-        # if sql_type in [duckdb.typing.FLOAT, duckdb.typing.DOUBLE]:
-        #     # ApproxEqual
-        #     expected = convert_value(expected_str, sql_type)
-        #     actual = convert_value(actual_str, sql_type)
-        #     if expected == actual:
-        #         return True
-        #     if math.isnan(expected) and math.isnan(actual):
-        #         return True
-        #     epsilon = abs(actual) * 0.01 + 0.00000001
-        #     if abs(expected - actual) <= epsilon:
-        #         return True
-        #     return False
-        # expected = convert_value(expected_str, sql_type)
-        # actual = convert_value(actual_str, sql_type)
-        # return expected == actual
-
     if is_numeric(sql_type) or sql_type == 'BOOLEAN' or sql_type == 'TIMESTAMP_TZ':
-        #expected = convert_value(expected_str, col)
         expected = convert_value2(expected_str, sql_type)
-        # actual = convert_value(actual_str, col)
         actual = convert_value2(actual_str, sql_type)
         return expected == actual
-    # expected = sql_logic_test_convert_value(expected_str, col, False)
     expected = expected_str
     actual = actual_str
     error = actual != expected
@@ -500,7 +459,7 @@ def convert_value2(value, sql_type):
     converter_method = CONVERTER.to_python_method(sql_type.upper(), col)
     if converter_method is None:
         return value
-    return converter_method(value)    
+    return converter_method(value)
 
 def convert_value(value, col: ResultMetadata):
     if value is None or value == 'NULL':
@@ -558,12 +517,7 @@ def sql_logic_test_convert_value(value, col, is_sqlite_test: bool) -> str:
     if value is None or value == 'NULL':
         return 'NULL'
     sql_type = FIELD_ID_TO_NAME[col.type_code]
-    # if is_sqlite_test:
-    #     if sql_type in [
-    #         'BOOLEAN',
-    #         'REAL',
-    #     ] or any([type_str in str(sql_type) for type_str in ['DECIMAL', 'HUGEINT']]):
-    #         return convert_value(value, 'BIGINT::VARCHAR')
+
     if sql_type == 'BOOLEAN':
         return "1" if convert_value(value, col) else "0"
     else:
@@ -586,7 +540,6 @@ def db_convert_result(result: QueryResult, is_sqlite_test: bool) -> List[str]:
         for c in range(column_count):
             col = result.metadata[c]
             value = result.get_value(c, r)
-            # converted_value = sql_logic_test_convert_value(value, col, is_sqlite_test)
             out_result.append(value)
 
     return out_result
@@ -676,9 +629,6 @@ class SQLLogicRunner:
     def is_embucket(self):
         return 'embucket' in self.config
 
-    def is_required(self, param):
-        return param in self.required_requires
-
 
 class SQLLogicContext:
     __slots__ = [
@@ -764,26 +714,16 @@ class SQLLogicContext:
     def skiptest(self, message: str):
         self.error = SkipException(self.current_statement, message)
         raise self.error
-    
+
     def fail_query(self, message):
         self.error = TestException(
             self.current_statement, message
         )
         raise self.error
 
-    def in_loop(self) -> bool:
-        return self.is_loop
-
     def get_connection(self, name: Optional[str] = None) -> SnowflakeConnection:
         return self.pool.get_connection(name)
 
-    def extract_statements(self, query: str):
-        from snowflake.connector.util_text import split_statements
-        from io import StringIO
-        with StringIO(query) as stream:
-            split_statements_list = split_statements(stream, remove_comments=True)           
-            # Note: split_statements_list is a list of tuples of sql statements and whether they are put/get
-            return [e for e in split_statements_list if e[0]]
 
     def execute_query(self, query: Query):
         assert isinstance(query, Query)
@@ -988,10 +928,10 @@ class SQLLogicContext:
                     context.remove_keyword(key)
 
             loop_context = SQLLogicContext(
-                self.pool, 
-                self.runner, 
-                statements, 
-                self.keywords.copy(), 
+                self.pool,
+                self.runner,
+                statements,
+                self.keywords.copy(),
                 update_value,
             )
             try:
@@ -1048,10 +988,10 @@ class SQLLogicContext:
                         context.remove_keyword(key)
 
             loop_context = SQLLogicContext(
-                self.pool, 
-                self.runner, 
-                statements, 
-                self.keywords.copy(), 
+                self.pool,
+                self.runner,
+                statements,
+                self.keywords.copy(),
                 update_value,
             )
             loop_context.execute()
@@ -1142,16 +1082,16 @@ class SQLLogicContext:
                     self.skiptest("Not supported by the runner")
                 logger.debug(f"statement type: {statement.header.type}")
                 if isinstance(statement, Statement) or isinstance(statement, Query):
-                    logger.debug(f"statement sql: {statement.get_one_liner()}")
+                    logger.debug(f"statement sql: {statement.get_query_line()}")
                 try:
                     start_time = time.time()
                     method(statement)
                     # If successful, log individual query as SUCCESS
-                    results.queries.append(QueryExecuteResult(statement.get_one_liner(), execution_time_s=time.time() - start_time, success=True, exclude_from_coverage=exclude_from_coverage))
+                    results.queries.append(QueryExecuteResult(statement.get_query_line(), execution_time_s=time.time() - start_time, success=True, exclude_from_coverage=exclude_from_coverage))
                 except TestException as e:
                     # If execution fails, log the failure for the current query
                     results.queries.append(
-                        QueryExecuteResult(statement.get_one_liner(), execution_time_s=time.time() - start_time, success=False, error_message=e.message, exclude_from_coverage=exclude_from_coverage)
+                        QueryExecuteResult(statement.get_query_line(), execution_time_s=time.time() - start_time, success=False, error_message=e.message, exclude_from_coverage=exclude_from_coverage)
                     )
 
         return results

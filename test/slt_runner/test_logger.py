@@ -93,7 +93,7 @@ class SQLLogicTestLogger:
         parts.append(self.print_line_sep())
         return '\n'.join(parts)
 
-    def column_count_mismatch(self, result, result_values_string, expected_column_count, row_wise):
+    def column_count_mismatch(self, result, result_values_string, expected_column_count):
         parts = []
         parts.append(self.print_error_header("Wrong column count in query!"))
         parts.append(
@@ -103,11 +103,32 @@ class SQLLogicTestLogger:
         parts.append(self.get_sql())
         parts.append(self.print_line_sep())
 
-        # Format expected/actual results
-        result_parts = []
-        self._format_expected_result(result_parts, ['\t'.join(r) for r in result._result], expected_column_count, True)
-        parts.extend(result_parts)
+        # Add expected result section
+        parts.append(self.print_header("Expected result:"))
 
+        if result_values_string:
+            # For list of strings with tab-separated values (actual format)
+            parts.extend(result_values_string)
+        else:
+            parts.append(f"(Expected schema with {expected_column_count} columns)")
+            parts.append("(No expected values provided)")
+
+        # Add line separator
+        parts.append(self.print_line_sep())
+
+        # Add actual result section
+        parts.append(self.print_header("Actual result:"))
+
+        if result._result and len(result._result) > 0:
+            # Format actual results
+            actual_lines = ['\t'.join(r) for r in result._result]
+            parts.extend(actual_lines)
+
+        else:
+            parts.append("(No result rows)")
+            parts.append(self.print_line_sep())
+
+        parts.append("")
         return '\n'.join(parts)
 
     def not_cleanly_divisible(self, expected_column_count, actual_column_count):
