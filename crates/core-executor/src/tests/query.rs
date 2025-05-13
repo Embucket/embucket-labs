@@ -498,11 +498,14 @@ async fn prepare_env() -> (CoreExecutionService, Arc<SlateDBMetastore>, String) 
         .await
         .expect("Failed to create volume");
     metastore
-        .create_database(&"embucket".to_string(), MetastoreDatabase {
-            ident: "embucket".to_string(),
-            properties: None,
-            volume: "test_volume".to_string(),
-        })
+        .create_database(
+            &"embucket".to_string(),
+            MetastoreDatabase {
+                ident: "embucket".to_string(),
+                properties: None,
+                volume: "test_volume".to_string(),
+            },
+        )
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
@@ -510,16 +513,22 @@ async fn prepare_env() -> (CoreExecutionService, Arc<SlateDBMetastore>, String) 
         schema: "public".to_string(),
     };
     metastore
-        .create_schema(&schema_ident.clone(), MetastoreSchema {
-            ident: schema_ident,
-            properties: None,
-        })
+        .create_schema(
+            &schema_ident.clone(),
+            MetastoreSchema {
+                ident: schema_ident,
+                properties: None,
+            },
+        )
         .await
         .expect("Failed to create schema");
 
-    let execution_svc = CoreExecutionService::new(metastore.clone(), Config {
-        dbt_serialization_format: DataSerializationFormat::Json,
-    });
+    let execution_svc = CoreExecutionService::new(
+        metastore.clone(),
+        Config {
+            dbt_serialization_format: DataSerializationFormat::Json,
+        },
+    );
 
     let session_id = "test_session_id";
     execution_svc
@@ -545,11 +554,14 @@ pub async fn create_df_session() -> Arc<UserSession> {
         .await
         .expect("Failed to create volume");
     metastore
-        .create_database(&"embucket".to_string(), MetastoreDatabase {
-            ident: "embucket".to_string(),
-            properties: None,
-            volume: "test_volume".to_string(),
-        })
+        .create_database(
+            &"embucket".to_string(),
+            MetastoreDatabase {
+                ident: "embucket".to_string(),
+                properties: None,
+                volume: "test_volume".to_string(),
+            },
+        )
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
@@ -557,10 +569,13 @@ pub async fn create_df_session() -> Arc<UserSession> {
         schema: "public".to_string(),
     };
     metastore
-        .create_schema(&schema_ident.clone(), MetastoreSchema {
-            ident: schema_ident,
-            properties: None,
-        })
+        .create_schema(
+            &schema_ident.clone(),
+            MetastoreSchema {
+                ident: schema_ident,
+                properties: None,
+            },
+        )
         .await
         .expect("Failed to create schema");
 

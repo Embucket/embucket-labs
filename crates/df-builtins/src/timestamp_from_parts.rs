@@ -106,16 +106,22 @@ impl TimestampFromPartsFunc {
                     // TIMESTAMP_FROM_PARTS( <year>, <month>, <day>, <hour>, <minute>, <second> [, <nanosecond> ] [, <time_zone> ] )
                     Coercible(basic_signature.clone()),
                     Coercible(
-                        [basic_signature.clone(), vec![Coercion::new_exact(
-                            TypeSignatureClass::Native(logical_int64()),
-                        )]]
+                        [
+                            basic_signature.clone(),
+                            vec![Coercion::new_exact(TypeSignatureClass::Native(
+                                logical_int64(),
+                            ))],
+                        ]
                         .concat(),
                     ),
                     Coercible(
-                        [basic_signature, vec![
-                            Coercion::new_exact(TypeSignatureClass::Native(logical_int64())),
-                            Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                        ]]
+                        [
+                            basic_signature,
+                            vec![
+                                Coercion::new_exact(TypeSignatureClass::Native(logical_int64())),
+                                Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                            ],
+                        ]
                         .concat(),
                     ),
                     // TIMESTAMP_FROM_PARTS( <date_expr>, <time_expr> )

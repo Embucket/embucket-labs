@@ -14,9 +14,12 @@ use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
 #[allow(clippy::expect_used)]
 async fn test_execute_always_returns_schema() {
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let execution_svc = CoreExecutionService::new(metastore.clone(), Config {
-        dbt_serialization_format: DataSerializationFormat::Json,
-    });
+    let execution_svc = CoreExecutionService::new(
+        metastore.clone(),
+        Config {
+            dbt_serialization_format: DataSerializationFormat::Json,
+        },
+    );
 
     execution_svc
         .create_session("test_session_id".to_string())
@@ -53,11 +56,14 @@ async fn test_service_upload_file() {
         .await
         .expect("Failed to create volume");
     metastore
-        .create_database(&"embucket".to_string(), MetastoreDatabase {
-            ident: "embucket".to_string(),
-            properties: None,
-            volume: "test_volume".to_string(),
-        })
+        .create_database(
+            &"embucket".to_string(),
+            MetastoreDatabase {
+                ident: "embucket".to_string(),
+                properties: None,
+                volume: "test_volume".to_string(),
+            },
+        )
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
@@ -65,10 +71,13 @@ async fn test_service_upload_file() {
         schema: "public".to_string(),
     };
     metastore
-        .create_schema(&schema_ident.clone(), MetastoreSchema {
-            ident: schema_ident,
-            properties: None,
-        })
+        .create_schema(
+            &schema_ident.clone(),
+            MetastoreSchema {
+                ident: schema_ident,
+                properties: None,
+            },
+        )
         .await
         .expect("Failed to create schema");
 
@@ -83,9 +92,12 @@ async fn test_service_upload_file() {
     let csv_content = "id,name,value\n1,test1,100\n2,test2,200\n3,test3,300";
     let data = csv_content.as_bytes().to_vec();
 
-    let execution_svc = CoreExecutionService::new(metastore.clone(), Config {
-        dbt_serialization_format: DataSerializationFormat::Json,
-    });
+    let execution_svc = CoreExecutionService::new(
+        metastore.clone(),
+        Config {
+            dbt_serialization_format: DataSerializationFormat::Json,
+        },
+    );
 
     let session_id = "test_session_id";
     execution_svc
@@ -177,11 +189,14 @@ async fn test_service_create_table_file_volume() {
         .await
         .expect("Failed to create volume");
     metastore
-        .create_database(&"embucket".to_string(), MetastoreDatabase {
-            ident: "embucket".to_string(),
-            properties: None,
-            volume: "test_volume".to_string(),
-        })
+        .create_database(
+            &"embucket".to_string(),
+            MetastoreDatabase {
+                ident: "embucket".to_string(),
+                properties: None,
+                volume: "test_volume".to_string(),
+            },
+        )
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
@@ -189,10 +204,13 @@ async fn test_service_create_table_file_volume() {
         schema: "public".to_string(),
     };
     metastore
-        .create_schema(&schema_ident.clone(), MetastoreSchema {
-            ident: schema_ident,
-            properties: None,
-        })
+        .create_schema(
+            &schema_ident.clone(),
+            MetastoreSchema {
+                ident: schema_ident,
+                properties: None,
+            },
+        )
         .await
         .expect("Failed to create schema");
 
@@ -201,9 +219,12 @@ async fn test_service_create_table_file_volume() {
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };
-    let execution_svc = CoreExecutionService::new(metastore.clone(), Config {
-        dbt_serialization_format: DataSerializationFormat::Json,
-    });
+    let execution_svc = CoreExecutionService::new(
+        metastore.clone(),
+        Config {
+            dbt_serialization_format: DataSerializationFormat::Json,
+        },
+    );
     let session_id = "test_session_id";
     execution_svc
         .create_session(session_id.to_string())

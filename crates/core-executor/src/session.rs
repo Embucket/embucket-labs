@@ -280,11 +280,14 @@ mod tests {
             .await
             .expect("Failed to create volume");
         metastore
-            .create_database(&"benchmark".to_string(), MetastoreDatabase {
-                ident: "benchmark".to_string(),
-                properties: None,
-                volume: "test_volume".to_string(),
-            })
+            .create_database(
+                &"benchmark".to_string(),
+                MetastoreDatabase {
+                    ident: "benchmark".to_string(),
+                    properties: None,
+                    volume: "test_volume".to_string(),
+                },
+            )
             .await
             .expect("Failed to create database");
         let schema_ident = MetastoreSchemaIdent {
@@ -292,10 +295,13 @@ mod tests {
             schema: "public".to_string(),
         };
         metastore
-            .create_schema(&schema_ident.clone(), MetastoreSchema {
-                ident: schema_ident,
-                properties: None,
-            })
+            .create_schema(
+                &schema_ident.clone(),
+                MetastoreSchema {
+                    ident: schema_ident,
+                    properties: None,
+                },
+            )
             .await
             .expect("Failed to create schema");
         let session = Arc::new(

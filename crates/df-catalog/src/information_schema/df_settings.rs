@@ -72,10 +72,13 @@ impl InformationSchemaDfSettingsBuilder {
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
-        RecordBatch::try_new(Arc::clone(&self.schema), vec![
-            Arc::new(self.names.finish()),
-            Arc::new(self.values.finish()),
-            Arc::new(self.descriptions.finish()),
-        ])
+        RecordBatch::try_new(
+            Arc::clone(&self.schema),
+            vec![
+                Arc::new(self.names.finish()),
+                Arc::new(self.values.finish()),
+                Arc::new(self.descriptions.finish()),
+            ],
+        )
     }
 }

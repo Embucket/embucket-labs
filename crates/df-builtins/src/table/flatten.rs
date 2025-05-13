@@ -136,24 +136,31 @@ impl FlattenTableFunc {
         let batch = if null {
             let last_outer_ = last_outer.map(|v| serde_json::to_string_pretty(&v).unwrap());
 
-            RecordBatch::try_new(schema.clone(), vec![
-                Arc::new(UInt64Array::from(vec![self.row_id.load(Ordering::Acquire)])) as ArrayRef,
-                Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
-                Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
-                Arc::new(UInt64Array::from(vec![None])) as ArrayRef,
-                Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
-                Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef,
-            ])
+            RecordBatch::try_new(
+                schema.clone(),
+                vec![
+                    Arc::new(UInt64Array::from(vec![self.row_id.load(Ordering::Acquire)]))
+                        as ArrayRef,
+                    Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
+                    Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
+                    Arc::new(UInt64Array::from(vec![None])) as ArrayRef,
+                    Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
+                    Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef,
+                ],
+            )
             .unwrap()
         } else {
-            RecordBatch::try_new(schema.clone(), vec![
-                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-            ])
+            RecordBatch::try_new(
+                schema.clone(),
+                vec![
+                    Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+                    Arc::new(StringArray::new_null(0)) as ArrayRef,
+                    Arc::new(StringArray::new_null(0)) as ArrayRef,
+                    Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+                    Arc::new(StringArray::new_null(0)) as ArrayRef,
+                    Arc::new(StringArray::new_null(0)) as ArrayRef,
+                ],
+            )
             .unwrap()
         };
 

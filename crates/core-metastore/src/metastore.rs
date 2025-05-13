@@ -996,11 +996,14 @@ mod tests {
         ms.create_volume(&"testv1".to_owned(), volume)
             .await
             .expect("create volume failed");
-        ms.create_database(&"testdb".to_owned(), Database {
-            ident: "testdb".to_owned(),
-            volume: "testv1".to_owned(),
-            properties: None,
-        })
+        ms.create_database(
+            &"testdb".to_owned(),
+            Database {
+                ident: "testdb".to_owned(),
+                volume: "testv1".to_owned(),
+                properties: None,
+            },
+        )
         .await
         .expect("create database failed");
         let schema_create = ms
@@ -1085,11 +1088,14 @@ mod tests {
         ms.create_volume(&"testv1".to_owned(), volume)
             .await
             .expect("create volume failed");
-        ms.create_database(&"testdb".to_owned(), Database {
-            ident: "testdb".to_owned(),
-            volume: "testv1".to_owned(),
-            properties: None,
-        })
+        ms.create_database(
+            &"testdb".to_owned(),
+            Database {
+                ident: "testdb".to_owned(),
+                volume: "testv1".to_owned(),
+                properties: None,
+            },
+        )
         .await
         .expect("create database failed");
         ms.create_schema(
@@ -1204,11 +1210,14 @@ mod tests {
         ms.create_volume(&"testv1".to_owned(), volume)
             .await
             .expect("create volume failed");
-        ms.create_database(&"testdb".to_owned(), Database {
-            ident: "testdb".to_owned(),
-            volume: "testv1".to_owned(),
-            properties: None,
-        })
+        ms.create_database(
+            &"testdb".to_owned(),
+            Database {
+                ident: "testdb".to_owned(),
+                volume: "testv1".to_owned(),
+                properties: None,
+            },
+        )
         .await
         .expect("create database failed");
         ms.create_schema(

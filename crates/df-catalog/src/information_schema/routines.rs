@@ -127,19 +127,22 @@ impl InformationSchemaRoutinesBuilder {
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
-        RecordBatch::try_new(Arc::clone(&self.schema), vec![
-            Arc::new(self.specific_catalog.finish()),
-            Arc::new(self.specific_schema.finish()),
-            Arc::new(self.specific_name.finish()),
-            Arc::new(self.routine_catalog.finish()),
-            Arc::new(self.routine_schema.finish()),
-            Arc::new(self.routine_name.finish()),
-            Arc::new(self.routine_type.finish()),
-            Arc::new(self.is_deterministic.finish()),
-            Arc::new(self.data_type.finish()),
-            Arc::new(self.function_type.finish()),
-            Arc::new(self.description.finish()),
-            Arc::new(self.syntax_example.finish()),
-        ])
+        RecordBatch::try_new(
+            Arc::clone(&self.schema),
+            vec![
+                Arc::new(self.specific_catalog.finish()),
+                Arc::new(self.specific_schema.finish()),
+                Arc::new(self.specific_name.finish()),
+                Arc::new(self.routine_catalog.finish()),
+                Arc::new(self.routine_schema.finish()),
+                Arc::new(self.routine_name.finish()),
+                Arc::new(self.routine_type.finish()),
+                Arc::new(self.is_deterministic.finish()),
+                Arc::new(self.data_type.finish()),
+                Arc::new(self.function_type.finish()),
+                Arc::new(self.description.finish()),
+                Arc::new(self.syntax_example.finish()),
+            ],
+        )
     }
 }

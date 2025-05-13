@@ -82,15 +82,18 @@ impl InformationSchemataBuilder {
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
-        RecordBatch::try_new(Arc::clone(&self.schema), vec![
-            Arc::new(self.catalog_name.finish()),
-            Arc::new(self.schema_name.finish()),
-            Arc::new(self.schema_owner.finish()),
-            Arc::new(self.default_character_set_catalog.finish()),
-            Arc::new(self.default_character_set_schema.finish()),
-            Arc::new(self.default_character_set_name.finish()),
-            Arc::new(self.sql_path.finish()),
-        ])
+        RecordBatch::try_new(
+            Arc::clone(&self.schema),
+            vec![
+                Arc::new(self.catalog_name.finish()),
+                Arc::new(self.schema_name.finish()),
+                Arc::new(self.schema_owner.finish()),
+                Arc::new(self.default_character_set_catalog.finish()),
+                Arc::new(self.default_character_set_schema.finish()),
+                Arc::new(self.default_character_set_name.finish()),
+                Arc::new(self.sql_path.finish()),
+            ],
+        )
     }
 }
 
