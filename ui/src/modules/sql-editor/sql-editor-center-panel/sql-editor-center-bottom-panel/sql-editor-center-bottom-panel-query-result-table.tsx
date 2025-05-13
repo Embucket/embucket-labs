@@ -17,10 +17,15 @@ export function SqlEditorCenterBottomPanelQueryResultTable({
 }: QueryResultDataTableProps) {
   const columnHelper = createColumnHelper<unknown[]>();
 
-  const tableColumns: ColumnDef<Row, string>[] = columns.map((column) =>
+  const tableColumns: ColumnDef<Row>[] = columns.map((column) =>
     columnHelper.accessor((row) => row[columns.indexOf(column)], {
       header: column.name,
-      cell: (info) => info.getValue(),
+      cell: (info) => {
+        const value = info.getValue();
+        if (value === null || value === undefined) return 'NULL';
+        if (typeof value == 'boolean') return value.toString();
+        return value;
+      },
       meta: {
         headerClassName: 'capitalize',
       },
