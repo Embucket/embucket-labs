@@ -132,4 +132,3 @@ SELECT COUNT(*) FROM bool_test
 WHERE v = 1 OR v = 2 AND v = 3;
 ----
 1
-# (Only v=1 satisfies the expression because AND binds tighter than OR)

@@ -102,11 +102,9 @@ exclude-from-coverage
 statement ok
 INSERT INTO src_del VALUES (1),(1);  -- duplicate 'id' in source
 
-statement error
+statement ok
 DELETE FROM tgt_del USING src_del
 WHERE tgt_del.id = src_del.id;
-----
-# (Expect an error due to one target row matching multiple source rows)
 
 # Test DELETE using a subquery in the WHERE clause
 

@@ -55,7 +55,8 @@ SELECT $max;
 statement error
 SELECT $undefined_var;
 ----
-# (Expect an error because the session variable is not defined)
+002211 (02000): SQL compilation error: error line 1 at position 7
+Session variable '$UNDEFINED_VAR' does not exist
 
 # Test reassigning a session variable to a new type
 

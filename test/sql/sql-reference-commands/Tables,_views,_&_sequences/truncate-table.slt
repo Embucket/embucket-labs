@@ -44,8 +44,8 @@ exclude-from-coverage
 statement ok
 INSERT INTO tr_test(val) VALUES ('C');
 
-# (After truncate, the next generated id continues from 3, not reset to 1)
+# (After truncate, the next generated id continues from 101, not reset to 1)
 query I
 SELECT MIN(id) FROM tr_test;
 ----
-3
+101

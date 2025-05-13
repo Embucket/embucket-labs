@@ -38,4 +38,5 @@ DT_TEST	PUBLIC	TS4_TZ	'{"type":"TIMESTAMP_TZ","precision":0,"scale":9,"nullable"
 statement error
 SHOW COLUMNS IN missing_table;
 ----
-# (Expect an object does not exist error)
+002003 (42S02): SQL compilation error:
+Table 'MISSING_TABLE' does not exist or not authorized.

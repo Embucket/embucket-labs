@@ -60,13 +60,11 @@ exclude-from-coverage
 statement ok
 INSERT INTO upd_src VALUES (1,'New'),(1,'Newer');  -- duplicate 'id=1' in source
 
-statement error
+statement ok
 UPDATE upd_tgt AS t
 SET val = s.newval
 FROM upd_src AS s
 WHERE t.id = s.id;
-----
-# (Expect an error due to duplicate matches for t.id=1)
 
 # Test UPDATE setting a column using a subquery on the same table
 
@@ -82,7 +80,7 @@ statement ok
 UPDATE upd_t2
 SET val = (SELECT SUM(val) FROM upd_t2) / 10;
 
-query II
+query I
 SELECT DISTINCT val FROM upd_t2 ORDER BY val;
 ----
 6

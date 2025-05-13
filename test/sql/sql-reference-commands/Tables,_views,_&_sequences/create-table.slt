@@ -205,11 +205,13 @@ CREATE OR REPLACE TABLE t(a INT);
 statement error
 CREATE TABLE dup_col_test(x INT, x INT);
 ----
-# (Expect an error about duplicate column name)
+002025 (42S21): SQL compilation error:
+duplicate column name 'X'
 
 # Test creating a table with an invalid/unsupported data type
 
 statement error
 CREATE TABLE bad_type_test(col XYZ);
 ----
-# (Expect a syntax or unsupported type error)
+002040 (42601): SQL compilation error:
+Unsupported data type 'XYZ'.

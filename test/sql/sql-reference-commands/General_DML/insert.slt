@@ -229,7 +229,7 @@ CREATE OR REPLACE TABLE ins_types(x INT);
 statement error
 INSERT INTO ins_types VALUES ('not an integer');
 ----
-# (Expect a data type mismatch error)
+100038 (22018): DML operation to table INS_TYPES failed on column X with error: Numeric value 'not an integer' is not recognized
 
 # Test INSERT ... SELECT from another table
 
@@ -245,7 +245,7 @@ INSERT INTO ins_test
 SELECT i, 'Number ' || CAST(i AS STRING)
 FROM ins_src;
 
-query II
+query I
 SELECT COUNT(*) FROM ins_test WHERE a IN (5,6);
 ----
 2

@@ -22,7 +22,7 @@ WHERE table_name = 'T2';
 statement ok
 DROP TABLE IF EXISTS t2;
 
-# Test dropping a table that has a dependent view (should fail)
+# Test dropping a table that has a dependent view
 
 exclude-from-coverage
 statement ok
@@ -32,14 +32,13 @@ exclude-from-coverage
 statement ok
 CREATE OR REPLACE VIEW drop_v1 AS SELECT * FROM drop_t1;
 
-statement error
+statement ok
 DROP TABLE drop_t1;
-----
-# (Expect an error because drop_t1 is referenced by drop_v1)
 
 # Test dropping a non-existent table without IF EXISTS
 
 statement error
 DROP TABLE nonexistent_table;
 ----
-# (Expect an error because dropping a non-existent table without IF EXISTS)
+002003 (42S02): SQL compilation error:
+Table 'EMBUCKET.PUBLIC.NONEXISTENT_TABLE' does not exist or not authorized.

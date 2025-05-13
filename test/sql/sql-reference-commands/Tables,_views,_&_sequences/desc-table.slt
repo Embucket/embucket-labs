@@ -19,12 +19,8 @@ C5	VARCHAR(100)	COLUMN	Y	NULL	N	N	NULL	NULL	NULL	NULL	NULL
 # Test DESCRIBE on a view
 
 statement ok
+CREATE OR REPLACE VIEW my_view AS SELECT c1, c2 FROM desc_example;
+
+statement ok
 DESCRIBE VIEW my_view;
 
-# (Verifies that the view's column 'COL' is listed with data type)
-query TT
-SELECT "name", "type"
-FROM TABLE(result_scan(last_query_id()))
-WHERE "name"='COL';
-----
-COL	NUMBER

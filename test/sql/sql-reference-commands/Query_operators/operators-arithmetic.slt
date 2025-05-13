@@ -46,4 +46,4 @@ INSERT INTO arith_test VALUES (10);
 statement error
 SELECT val/0 FROM arith_test;
 ----
-# (Expect a division by zero error)
+100051 (22012): Division by zero

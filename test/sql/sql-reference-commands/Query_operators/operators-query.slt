@@ -126,4 +126,5 @@ CREATE OR REPLACE TABLE u2(a INT, b INT);
 statement error
 SELECT * FROM u1 UNION SELECT * FROM u2;
 ----
-# (Expect an error due to different number of columns)
+001789 (42601): SQL compilation error:
+invalid number of result columns for set operator input branches, expected 1, got 2 in branch 2
