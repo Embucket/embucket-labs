@@ -52,7 +52,7 @@ use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu};
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
-use crate::datafusion::visitors::{functions_rewriter, json_element};
+use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element};
 use df_catalog::catalog::CachingCatalog;
 use tracing_attributes::instrument;
 
@@ -159,6 +159,7 @@ impl UserQuery {
         if let DFStatement::Statement(value) = statement {
             json_element::visit(value);
             functions_rewriter::visit(value);
+            copy_into_identifiers::visit(value);
         }
     }
 
@@ -302,16 +303,9 @@ impl UserQuery {
     pub fn preprocess_query(query: &str) -> String {
         // TODO: This regex should be a static allocation
         let alter_iceberg_table = regex::Regex::new(r"alter\s+iceberg\s+table").unwrap();
-        let mut query = alter_iceberg_table
+        alter_iceberg_table
             .replace_all(query, "alter table")
-            .to_string();
-        // TODO remove this check after release of https://github.com/Embucket/datafusion-sqlparser-rs/pull/8
-        if query.to_lowercase().contains("alter session") {
-            query = query.replace(';', "");
-        }
-        query
-            .replace("skip_header=1", "skip_header=TRUE")
-            .replace("FROM @~/", "FROM ")
+            .to_string()
     }
 
     pub fn get_catalog(&self, name: &str) -> ExecutionResult<Arc<dyn CatalogProvider>> {
@@ -701,7 +695,7 @@ impl UserQuery {
 
         let skip_header = file_format.options.iter().any(|option| {
             option.option_name.eq_ignore_ascii_case("skip_header")
-                && option.value.eq_ignore_ascii_case("true")
+                && option.value.eq_ignore_ascii_case("1")
         });
 
         let field_optionally_enclosed_by = file_format
@@ -789,7 +783,6 @@ impl UserQuery {
                 ),
             });
         };
-
         if let Some(from_obj) = from_obj {
             let from_stage: Vec<ObjectNamePart> = from_obj
                 .0
