@@ -6,7 +6,11 @@ We have a set of `.slt` files that represent our SQL Logic Tests. You can run th
 2. Set up a connection
    1. Snowflake - replace Snowflake credentials in `.env` file from `test` to your credentials.
    2. Embucket - launch Embucket locally, set `ICEBUCKET_ENABLED=true` in `.env` file, make sure connection parameters match Embucket launch parameters (if you have default settings, you don't need to change anything).
-3. Run
+3. Install requirements
+``` bash
+pip install -r slt_runner/requirements.txt
+```
+4. Run SLTs
 ``` bash
 python -m slt_runner --test-file sql/sql-reference-commands/Query_syntax/select.slt
 ```
