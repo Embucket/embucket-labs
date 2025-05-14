@@ -17,7 +17,6 @@ use std::sync::Arc;
 // Example SELECT IS_ARRAY('[1,2,3]') as v;;
 // Note `is_array` returns
 // Returns a BOOLEAN value or NULL.
-// Returns a BOOLEAN value or NULL.
 //
 // - Returns TRUE if the VARIANT value contains an ARRAY value. Otherwise, returns FALSE.
 // - If the input is NULL, returns NULL without reporting an error.
