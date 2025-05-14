@@ -13,7 +13,7 @@ use axum::{
     extract::{Path, Query, State},
 };
 use core_metastore::error::MetastoreError;
-use core_metastore::models::Volume as MetastoreVolume;
+use core_metastore::models::{Volume as MetastoreVolume, AwsCredentials, AwsAccessKeyCredentials};
 use core_utils::scan_iterator::ScanIterator;
 use utoipa::OpenApi;
 use validator::Validate;
@@ -36,6 +36,8 @@ use validator::Validate;
             S3Volume,
             S3TablesVolume,
             FileVolume,
+            AwsCredentials,
+            AwsAccessKeyCredentials,
             VolumeResponse,
             VolumesResponse,
             ErrorResponse,
