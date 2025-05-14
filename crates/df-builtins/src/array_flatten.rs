@@ -16,10 +16,10 @@ use std::sync::Arc;
 // 
 // Arguments:
 // - <array_expr>
-// The ARRAY of ARRAYs to flatten.
-// If any element of array is not an ARRAY, the function reports an error.
+//   The ARRAY of ARRAYs to flatten.
+//   If any element of array is not an ARRAY, the function reports an error.
 //
-// Note: `array_flatten` returns
+// Return:
 // This function produces a single ARRAY by joining together all the ARRAYs within the input array. If the input array is NULL or contains any NULL elements, the function returns NULL.
 #[derive(Debug)]
 pub struct ArrayFlattenFunc {
