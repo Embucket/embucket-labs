@@ -3,6 +3,7 @@ use datafusion::arrow::array::{Array, as_string_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
+use datafusion_common::ScalarValue;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
 use std::any::Any;
@@ -64,35 +65,27 @@ impl ScalarUDFImpl for IsArrayFunc {
             ColumnarValue::Scalar(v) => v.to_array()?,
         };
 
-        let mut res = BooleanBuilder::with_capacity(arr.len());
-        match arr.data_type() {
-            DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8 => {
-                let input = as_string_array(&arr);
-                for v in input {
-                    if let Some(v) = v {
-                        match serde_json::from_str::<Value>(v) {
-                            Ok(v) => {
-                                res.append_value(v.is_array());
-                            }
-                            Err(_) => res.append_value(false),
-                        }
-                    } else {
-                        res.append_null();
+        let mut b = BooleanBuilder::with_capacity(arr.len());
+        let input = as_string_array(&arr);
+        for v in input {
+            if let Some(v) = v {
+                match serde_json::from_str::<Value>(v) {
+                    Ok(v) => {
+                        b.append_value(v.is_array());
                     }
+                    Err(_) => b.append_value(false),
                 }
-            }
-            _ => {
-                for i in 0..arr.len() {
-                    if arr.is_null(i) {
-                        res.append_null();
-                    } else {
-                        res.append_value(false);
-                    }
-                }
+            } else {
+                b.append_null();
             }
         }
 
-        Ok(ColumnarValue::Array(Arc::new(res.finish())))
+        let res = b.finish();
+        Ok(if res.len() == 1 {
+            return Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&res, 0)?));
+        } else {
+            ColumnarValue::Array(Arc::new(b.finish()))
+        })
     }
 }
 
