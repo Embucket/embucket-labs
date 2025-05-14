@@ -57,6 +57,7 @@ impl ScalarUDFImpl for ArrayFlattenFunc {
         Ok(DataType::Utf8)
     }
 
+    #[allow(clippy::unwrap_used)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
 
@@ -93,9 +94,7 @@ impl ScalarUDFImpl for ArrayFlattenFunc {
 fn flatten_inner(v: Value) -> DFResult<Value> {
     Ok(match v {
         Value::Null => Value::String("undefined".to_string()),
-        Value::Bool(_) => v,
-        Value::Number(_) => v,
-        Value::String(_) => v,
+        Value::Bool(_) | Value::Number(_) | Value::String(_) => v,
         Value::Array(arr) => {
             let mut res = vec![];
 
@@ -119,7 +118,7 @@ fn flatten_inner(v: Value) -> DFResult<Value> {
 fn flatten(v: &str) -> DFResult<Option<String>> {
     let v = v.to_lowercase(); // normalize to lowercase so NULL become null
     let v = serde_json::from_str::<Value>(&v).map_err(|err| {
-        DataFusionError::Execution(format!("failed to deserialize JSON: {:?}", err))
+        DataFusionError::Execution(format!("failed to deserialize JSON: {err:?}"))
     })?;
 
     let v = match v {
@@ -152,13 +151,14 @@ fn flatten(v: &str) -> DFResult<Option<String>> {
         }
     };
 
-    Ok(Some(serde_json::to_string(&v).unwrap()))
+    Ok(Some(serde_json::to_string(&v).map_err(|err| {
+        DataFusionError::Execution(format!("failed to serialize JSON: {err:?}"))
+    })?))
 }
 
 super::macros::make_udf_function!(ArrayFlattenFunc);
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
     use datafusion::arrow::util::pretty::print_batches;
