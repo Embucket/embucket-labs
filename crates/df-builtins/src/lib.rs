@@ -22,6 +22,8 @@ mod boolor;
 mod boolxor;
 mod equal_null;
 mod iff;
+mod is_array;
+mod is_object;
 mod nullifzero;
 mod parse_json;
 pub mod table;
@@ -29,8 +31,6 @@ mod time_from_parts;
 mod timestamp_from_parts;
 mod to_boolean;
 mod to_time;
-mod is_array;
-mod is_object;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
