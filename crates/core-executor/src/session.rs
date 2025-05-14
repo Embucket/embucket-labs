@@ -89,7 +89,7 @@ impl UserSession {
             .refresh()
             .await
             .context(RefreshCatalogListSnafu)?;
-
+        catalog_list_impl.start_refresh_internal_catalogs_task();
         let enable_ident_normalization = ctx.enable_ident_normalization();
         let session = Self {
             metastore,
