@@ -22,7 +22,6 @@ mod boolor;
 mod boolxor;
 mod equal_null;
 mod iff;
-mod is_array;
 mod nullifzero;
 mod parse_json;
 pub mod table;
@@ -46,6 +45,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         iff::get_udf(),
         equal_null::get_udf(),
         nullifzero::get_udf(),
+        is_object::get_udf(),
         is_array::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
