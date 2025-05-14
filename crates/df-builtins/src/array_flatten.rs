@@ -11,9 +11,9 @@ use std::sync::Arc;
 
 // array_flatten SQL function
 // Transforms a nested ARRAY (an ARRAY of ARRAYs) into a single, flat ARRAY by combining all inner ARRAYs into one continuous sequence.
-// 
+//
 // Syntax: ARRAY_FLATTEN( <array_expr> )
-// 
+//
 // Arguments:
 // - <array_expr>
 //   The ARRAY of ARRAYs to flatten.
