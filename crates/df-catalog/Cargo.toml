@@ -31,3 +31,8 @@ tracing = { workspace = true }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+bytes = { workspace = true }
+insta = { version = "1.42.0", features = ["yaml", "filters", "redactions"] }
+paste = "1.0.15"

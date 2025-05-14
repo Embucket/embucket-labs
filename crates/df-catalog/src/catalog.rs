@@ -73,4 +73,28 @@ impl CatalogProvider for CachingCatalog {
             None
         }
     }
+
+    fn register_schema(
+        &self,
+        name: &str,
+        schema: Arc<dyn SchemaProvider>,
+    ) -> datafusion_common::Result<Option<Arc<dyn SchemaProvider>>> {
+        let caching_schema = Arc::new(CachingSchema {
+            name: name.to_string(),
+            schema: Arc::clone(&schema),
+            tables_cache: DashMap::new(),
+        });
+        self.schemas_cache
+            .insert(name.to_string(), Arc::clone(&caching_schema));
+        self.catalog.register_schema(name, schema)
+    }
+
+    fn deregister_schema(
+        &self,
+        name: &str,
+        cascade: bool,
+    ) -> datafusion_common::Result<Option<Arc<dyn SchemaProvider>>> {
+        self.schemas_cache.remove(name);
+        self.catalog.deregister_schema(name, cascade)
+    }
 }

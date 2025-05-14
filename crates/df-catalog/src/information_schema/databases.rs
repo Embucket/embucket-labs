@@ -28,7 +28,7 @@ impl InformationSchemaDatabases {
         let schema = Arc::new(Schema::new(vec![
             Field::new("database_name", DataType::Utf8, false),
             Field::new("database_owner", DataType::Utf8, false),
-            Field::new("database_types", DataType::Utf8, false),
+            Field::new("database_type", DataType::Utf8, false),
             // TODO add fields from https://docs.snowflake.com/en/sql-reference/info-schema/databases
         ]));
 
