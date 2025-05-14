@@ -10,17 +10,16 @@ use std::any::Any;
 use std::sync::Arc;
 
 // is_array SQL function
-// Returns TRUE if the VARIANT argument holds an ARRAY value.
-// Syntax: IS_ARRAY( <variant_expr> )
+// Returns TRUE if the VARIANT argument holds a value of type OBJECT.
+// Syntax: IS_OBJECT( <variant_expr> )
 // Arguments:
 // - variant_expr
 // An expression that evaluates to a value of type VARIANT.
-// Example SELECT IS_ARRAY('[1,2,3]') as v;;
-// Note `is_array` returns
-// Returns a BOOLEAN value or NULL.
+// Example SELECT IS_OBJECT('{"a":1}') as v;
+// Note `is_object` returns
 // Returns a BOOLEAN value or NULL.
 //
-// - Returns TRUE if the VARIANT value contains an ARRAY value. Otherwise, returns FALSE.
+// - Returns TRUE if the VARIANT value contains an OBJECT value. Otherwise, returns FALSE.
 // - If the input is NULL, returns NULL without reporting an error.
 #[derive(Debug)]
 pub struct IsObjectFunc {
