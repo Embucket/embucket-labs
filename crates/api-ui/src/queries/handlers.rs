@@ -12,8 +12,9 @@ use axum::{
     Json,
     extract::{Query, State},
 };
+use core_executor::models::QueryResultData;
 use core_executor::query::QueryContext;
-use core_history::{QueryRecordActions, QueryRecordId, WorksheetId};
+use core_history::{ExecutionQueryRecord, QueryRecordId, WorksheetId};
 use core_utils::iterable::IterableEntity;
 use std::collections::HashMap;
 use utoipa::OpenApi;
@@ -103,8 +104,8 @@ pub async fn query(
         .await;
 
     match query_res {
-        Ok((ref records, ref columns)) => {
-            let result_set = ResultSet::query_result_to_result_set(records, columns);
+        Ok(QueryResultData { ref records, ref columns_info, ..}) => {
+            let result_set = ResultSet::query_result_to_result_set(records, columns_info);
             match result_set {
                 Ok(result_set) => {
                     let encoded_res = serde_json::to_string(&result_set);

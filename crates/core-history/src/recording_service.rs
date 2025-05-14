@@ -1,8 +1,8 @@
-use crate::{QueryRecord, QueryRecordActions, WorksheetsStore};
+use crate::{QueryRecord, ExecutionQueryRecord, WorksheetsStore};
 use bytes::Bytes;
 use core_executor::{
     error::ExecutionResult, models::ColumnInfo, query::QueryContext, service::ExecutionService,
-    session::UserSession, utils::Config,
+    session::UserSession, utils::Config, models::QueryResultData,
 };
 use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::RecordBatch;
@@ -47,12 +47,13 @@ impl ExecutionService for RecordingExecutionService {
         session_id: &str,
         query: &str,
         query_context: QueryContext,
-    ) -> ExecutionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
+    ) -> ExecutionResult<QueryResultData> {
         let mut query_record = QueryRecord::query_start(query, query_context.worksheet_id);
+        let query_context = query_context.clone().with_query_id(query_record.id);
         let query_res = self.execution.query(session_id, query, query_context).await;
         match query_res {
-            Ok((ref records, ref columns)) => {
-                let result_set = ResultSet::query_result_to_result_set(records, columns);
+            Ok(QueryResultData {ref records, ref columns_info, .. }) => {
+                let result_set = ResultSet::query_result_to_result_set(records, columns_info);
                 match result_set {
                     Ok(result_set) => {
                         let encoded_res = serde_json::to_string(&result_set);

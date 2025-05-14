@@ -33,7 +33,9 @@ pub struct QueryRecord {
 }
 
 #[cfg_attr(test, automock)]
-pub trait QueryRecordActions {
+pub trait ExecutionQueryRecord {
+    fn query_id(&self) -> QueryRecordId;
+
     fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
 
     fn query_finished(&mut self, result_count: i64, result: Option<String>);
@@ -74,7 +76,11 @@ impl QueryRecord {
     }
 }
 
-impl QueryRecordActions for QueryRecord {
+impl ExecutionQueryRecord for QueryRecord {
+    fn query_id(&self) -> QueryRecordId {
+        self.id
+    }
+
     #[must_use]
     fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
         let start_time = Utc::now();

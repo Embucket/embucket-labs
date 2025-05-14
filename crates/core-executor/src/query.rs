@@ -65,6 +65,7 @@ pub struct QueryContext {
     pub schema: Option<String>,
     // TODO: Remove this
     pub worksheet_id: Option<i64>,
+    pub query_id: Option<i64>,
 }
 
 impl QueryContext {
@@ -78,7 +79,13 @@ impl QueryContext {
             database,
             schema,
             worksheet_id,
+            query_id: None,
         }
+    }
+
+    pub fn with_query_id(mut self, query_id: i64) -> Self {
+        self.query_id = Some(query_id);
+        self
     }
 }
 

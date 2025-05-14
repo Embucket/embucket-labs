@@ -8,8 +8,7 @@ use crate::state::AppState;
 use api_sessions::DFSessionId;
 use axum::extract::Query;
 use axum::{Json, extract::State};
-use core_executor::error::ExecutionError;
-use core_executor::query::QueryContext;
+use core_executor::{error::ExecutionError, models::QueryResultData, query::QueryContext};
 use datafusion::arrow::array::{RecordBatch, StringArray};
 use datafusion::common::DataFusionError;
 use std::collections::BTreeMap;
@@ -60,7 +59,10 @@ pub async fn get_navigation_trees(
     Query(params): Query<NavigationTreesParameters>,
     State(state): State<AppState>,
 ) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
-    let (tree_batches, _) = state
+    let QueryResultData {
+        records: tree_batches,
+        ..
+    } = state
         .execution_svc
         .query(
             &session_id,

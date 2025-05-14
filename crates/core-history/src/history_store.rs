@@ -300,7 +300,7 @@ mod tests {
     fn create_query_records(templates: &[(Option<i64>, QueryStatus)]) -> Vec<QueryRecord> {
         let mut created: Vec<QueryRecord> = vec![];
         for (i, (worksheet_id, query_status)) in templates.iter().enumerate() {
-            let ctx = MockQueryRecordActions::query_start_context();
+            let ctx = MockExecutionQueryRecord::query_start_context();
             ctx.expect().returning(move |query, worksheet_id| {
                 let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
                     + Duration::milliseconds(
@@ -320,12 +320,12 @@ mod tests {
                 }
             });
             let query_record = match query_status {
-                QueryStatus::Running => MockQueryRecordActions::query_start(
+                QueryStatus::Running => MockExecutionQueryRecord::query_start(
                     format!("select {i}").as_str(),
                     *worksheet_id,
                 ),
                 QueryStatus::Successful => {
-                    let mut item = MockQueryRecordActions::query_start(
+                    let mut item = MockExecutionQueryRecord::query_start(
                         format!("select {i}").as_str(),
                         *worksheet_id,
                     );
@@ -333,7 +333,7 @@ mod tests {
                     item
                 }
                 QueryStatus::Failed => {
-                    let mut item = MockQueryRecordActions::query_start(
+                    let mut item = MockExecutionQueryRecord::query_start(
                         format!("select {i}").as_str(),
                         *worksheet_id,
                     );

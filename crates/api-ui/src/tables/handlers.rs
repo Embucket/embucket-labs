@@ -15,7 +15,7 @@ use axum::{
     Json,
     extract::{Multipart, Path, State},
 };
-use core_executor::query::QueryContext;
+use core_executor::{query::QueryContext, models::QueryResultData};
 use core_metastore::error::MetastoreError;
 use core_metastore::{SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent};
 use core_utils::scan_iterator::ScanIterator;
@@ -156,12 +156,12 @@ pub async fn get_table_columns(
 ) -> TablesResult<Json<TableColumnsResponse>> {
     let context = QueryContext::new(Some(database.clone()), Some(schema.clone()), None);
     let sql_string = format!("SELECT * FROM {database}.{schema}.{table} LIMIT 0");
-    let (_, column_infos) = state
+    let QueryResultData { columns_info, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
         .map_err(|e| TablesAPIError::Execution { source: e })?;
-    let items: Vec<TableColumn> = column_infos
+    let items: Vec<TableColumn> = columns_info
         .iter()
         .map(|column_info| TableColumn {
             name: column_info.name.clone(),
@@ -221,7 +221,7 @@ pub async fn get_table_preview_data(
     let sql_string = parameters.limit.map_or(sql_string.clone(), |limit| {
         format!("{sql_string} LIMIT {limit}")
     });
-    let (batches, _) = state
+    let QueryResultData { records: batches, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await

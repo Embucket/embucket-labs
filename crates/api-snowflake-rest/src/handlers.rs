@@ -12,7 +12,7 @@ use axum::http::HeaderMap;
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
-use core_executor::{query::QueryContext, utils::DataSerializationFormat};
+use core_executor::{query::QueryContext, utils::DataSerializationFormat, models::QueryResultData};
 use datafusion::arrow::ipc::MetadataVersion;
 use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
 use datafusion::arrow::json::WriterBuilder;
@@ -112,7 +112,7 @@ pub async fn query(
         return Err(DbtError::MissingAuthToken);
     };
 
-    let (records, columns) = state
+    let QueryResultData {records, columns_info, .. } = state
         .execution_svc
         .query(&session_id, &body_json.sql_text, QueryContext::default())
         .await
@@ -126,7 +126,7 @@ pub async fn query(
     let serialization_format = state.execution_svc.config().dbt_serialization_format;
     let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {
-            row_type: columns.into_iter().map(Into::into).collect(),
+            row_type: columns_info.into_iter().map(Into::into).collect(),
             query_result_format: Some(serialization_format.to_string().to_lowercase()),
             row_set: if serialization_format == DataSerializationFormat::Json {
                 Option::from(ResponseData::rows_to_vec(
