@@ -12,7 +12,8 @@ members = [
   "crates/core-executor",
   "crates/core-history",
   "crates/core-metastore",
-  "crates/core-utils", "crates/api-sessions",
+  "crates/core-utils",
+  "crates/api-sessions",
 ]
 resolver = "2"
 package.license-file = "LICENSE"
@@ -24,21 +25,49 @@ debug = true
 codegen-units = 16
 
 [workspace.dependencies]
+async-trait = { version = "0.1.84" }
 aws-config = { version = "1.5.17" }
 aws-credential-types = { version = "1.2.1",  features = ["hardcoded-credentials"]}
-
-jsonwebtoken = "9.3.1"
-chrono = { version = "0.4.41", default-features = false, features = ["serde",  "clock"] }
-futures = { version = "0.3" }
-uuid = { version = "1.10.0", features = ["v4", "serde"] }
 axum = { version = "0.8.1", features = ["multipart", "macros"] }
 axum-macros = "0.5"
+bytes = { version = "1.8.0" }
+chrono = { version = "0.4.41", default-features = false, features = ["serde",  "clock"] }
 dashmap = "6.1.0"
-regex = "1.11"
+datafusion = { version = "47.0.0" }
+datafusion-common = { version = "47.0.0" }
+datafusion-doc = { version = "47.0.0" }
+datafusion-expr = { version = "47.0.0" }
+datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "4a431bc89fb88731685609618799d392cb0a74e7" }
+datafusion-macros = { version = "47.0.0" }
+datafusion-physical-plan = { version = "47.0.0" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
+embucket_history = { version = "0.1.0", path = "crates/history" }
+futures = { version = "0.3" }
+http = "1.2"
+http-body-util = "0.1.0"
+iceberg = { git = "https://github.com/apache/iceberg-rust.git", rev="7a5ad1fcaf00d4638857812bab788105f6c60573"}
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
+iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
+iceberg-s3tables-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
 indexmap = "2.7.1"
+jsonwebtoken = "9.3.1"
+lazy_static = { version = "1.5" }
+# Should be updated to 0.12.0 after slate db update
+object_store = { version = "0.12.0", features = ["aws", "gcp", "azure"] }
+regex = "1.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+slatedb = { version = "0.6.1" }
+snafu = { version = "0.8.5", features = ["futures"] }
+snmalloc-rs = { version = "0.3" }
+strum = { version = "0.26.3", features = ["derive"] }
+tar = "0.4.44"
+tempfile = { version = "3" }
 time = "0.3.37"
-tower-sessions = { version = "0.14.0" }
-url = "2.5"
+tokio = { version = "1", features = ["full"] }
+tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6.1", features = [
   "catch-panic",
   "timeout",
@@ -46,48 +75,15 @@ tower-http = { version = "0.6.1", features = [
   "cors",
   "trace",
 ] }
-tokio = { version = "1", features = ["full"] }
-async-trait = { version = "0.1.84" }
-serde = { version = "1.0", features = ["derive"] }
-strum = { version = "0.26.3", features = ["derive"] }
-slatedb = { version = "0.6.1" }
-bytes = { version = "1.8.0" }
-snmalloc-rs = { version = "0.3" }
-# Should be updated to 0.12.0 after slate db update
-object_store = { version = "0.12.0", features = ["aws", "gcp", "azure"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-tar = "0.4.44"
-http = "1.2"
-tower = { version = "0.5", features = ["util"] }
-http-body-util = "0.1.0"
-#iceberg = { git = "https://github.com/hansetag/iceberg-rust.git", branch = "ct/builder-upstream-20241002" }
-#iceberg = { version = "0.4.0" }
-iceberg = { git = "https://github.com/apache/iceberg-rust.git", rev="7a5ad1fcaf00d4638857812bab788105f6c60573"}
-tempfile = { version = "3" }
+tower-sessions = { version = "0.14.0" }
+tracing = { version = "0.1", features = ["attributes"] }
+tracing-attributes = { version = "0.1.28" }
+url = "2.5"
 utoipa = { version = "5.3.1", features = ["uuid", "chrono"] }
 utoipa-axum = { version = "0.2.0" }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
-lazy_static = { version = "1.5" }
-snafu = { version = "0.8.5", features = ["futures"] }
-tracing = { version = "0.1", features = ["attributes"] }
-tracing-attributes = { version = "0.1.28" }
-embucket_history = { version = "0.1.0", path = "crates/history" }
+uuid = { version = "1.10.0", features = ["v4", "serde"] }
 validator = { version = "0.20.0", features = ["derive"] }
-
-datafusion = { version = "47.0.0" }
-datafusion-common = { version = "47.0.0" }
-datafusion-expr = { version = "47.0.0" }
-datafusion-physical-plan = { version = "47.0.0" }
-datafusion-doc = { version = "47.0.0" }
-datafusion-macros = { version = "47.0.0" }
-
-datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "4a431bc89fb88731685609618799d392cb0a74e7" }
-iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
-iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
-iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
-iceberg-s3tables-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
-datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "a4700e4e2b083ce88d070915372f451c575b519a" }
 
 [patch.crates-io]
 datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "9b365ace92c83842aa395f481361137ed5676267" }
@@ -119,4 +115,3 @@ missing_panics_doc = { level = "allow", priority = 2 }
 significant_drop_tightening = { level = "allow", priority = 2 }
 module_name_repetitions = { level = "allow", priority = 2 }
 option_if_let_else = { level = "allow", priority = 2 }
-
