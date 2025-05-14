@@ -4,8 +4,8 @@ use crate::{
     error::ErrorResponse,
     volumes::error::{VolumesAPIError, VolumesResult},
     volumes::models::{
-        VolumeCreatePayload, VolumeCreateResponse, VolumeResponse, VolumeUpdatePayload,
-        VolumeUpdateResponse, VolumesResponse,
+        FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
+        VolumeResponse, VolumeType, VolumeUpdatePayload, VolumeUpdateResponse, VolumesResponse,
     },
 };
 use axum::{
@@ -21,15 +21,21 @@ use validator::Validate;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        // create_volume,
+        create_volume,
         get_volume,
-        // delete_volume,
+        delete_volume,
         list_volumes,
         // update_volume,
     ),
     components(
         schemas(
-            // VolumePayload,
+            VolumeCreatePayload,
+            VolumeCreateResponse,
+            Volume,
+            VolumeType,
+            S3Volume,
+            S3TablesVolume,
+            FileVolume,
             VolumeResponse,
             VolumesResponse,
             ErrorResponse,
