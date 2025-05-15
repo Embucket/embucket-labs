@@ -35,8 +35,8 @@ pub enum WorksheetsStoreError {
     #[snafu(display("Error adding query record: {source}"))]
     QueryAdd { source: core_utils::Error },
 
-    #[snafu(display("Can't locate query record by key: {message}"))]
-    QueryNotFound { message: String },
+    #[snafu(display("Can't locate query record by key: {key}"))]
+    QueryNotFound { key: String },
 
     #[snafu(display("Error adding query record reference: {source}"))]
     QueryReferenceAdd { source: core_utils::Error },
@@ -243,7 +243,7 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 
         let res: Option<QueryRecord> = self.db.get(key_str).await.context(QueryGetSnafu)?;
         res.ok_or_else(|| WorksheetsStoreError::QueryNotFound {
-            message: key_str.to_string(),
+            key: key_str.to_string(),
         })
     }
 
