@@ -76,15 +76,10 @@ impl ScalarUDFImpl for ArrayFlattenFunc {
 
                 Ok(ColumnarValue::Array(Arc::new(res.finish())))
             }
-            ColumnarValue::Scalar(v) => {
-                if let ScalarValue::Utf8(v) = v {
-                    Ok(ColumnarValue::Scalar(ScalarValue::Utf8(
-                        if let Some(v) = v { flatten(v)? } else { None },
-                    )))
-                } else {
-                    internal_err!("array_flatten function requires a string")
-                }
-            }
+            ColumnarValue::Scalar(ScalarValue::Utf8(v)) => Ok(ColumnarValue::Scalar(
+                ScalarValue::Utf8(if let Some(v) = v { flatten(v)? } else { None }),
+            )),
+            _ => internal_err!("array_flatten function requires a string"),
         }
     }
 }
