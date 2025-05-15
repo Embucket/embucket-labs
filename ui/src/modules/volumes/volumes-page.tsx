@@ -1,4 +1,4 @@
-import { DatabaseZap } from 'lucide-react';
+import { Box } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -24,7 +24,7 @@ export function VolumesPage() {
             <EmptyContainer
               // TODO: Hardcode
               className="min-h-[calc(100vh-32px-65px-32px)]"
-              Icon={DatabaseZap}
+              Icon={Box}
               title="No Volumes Found"
               description="No volumes have been created yet. Create a volume to get started."
             />

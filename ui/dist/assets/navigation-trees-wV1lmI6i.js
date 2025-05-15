@@ -1,4 +1,4 @@
-import{d as n,n as u,o as y}from"./index-B0DnALV2.js";/**
+import{d as n,o as u,p as y}from"./index-336s_lcr.js";/**
  * @license lucide-react v0.510.0 - ISC
  *
  * This source code is licensed under the ISC license.
@@ -8,4 +8,4 @@ import{d as n,n as u,o as y}from"./index-B0DnALV2.js";/**
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
- */const h=[["path",{d:"M12 3v18",key:"108xh3"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M3 9h18",key:"1pudct"}],["path",{d:"M3 15h18",key:"5xshup"}]],k=n("table",h),c=(t,r,e)=>y({url:"/ui/navigation-trees",method:"GET",params:t,signal:e},r),d=t=>["/ui/navigation-trees"],p=(t,r)=>{const{query:e,request:a}={};return{queryKey:(e==null?void 0:e.queryKey)??d(),queryFn:({signal:s})=>c(t,a,s),...e}};function l(t,r,e){const a=p(t),o=u(a);return o.queryKey=a.queryKey,o}export{g as F,k as T,d as g,l as u};
+ */const h=[["path",{d:"M12 3v18",key:"108xh3"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M3 9h18",key:"1pudct"}],["path",{d:"M3 15h18",key:"5xshup"}]],k=n("table",h),c=(t,r,e)=>y({url:"/ui/navigation-trees",method:"GET",params:t,signal:e},r),p=t=>["/ui/navigation-trees"],d=(t,r)=>{const{query:e,request:a}={};return{queryKey:(e==null?void 0:e.queryKey)??p(),queryFn:({signal:s})=>c(t,a,s),...e}};function l(t,r,e){const a=d(t),o=u(a);return o.queryKey=a.queryKey,o}export{g as F,k as T,p as g,l as u};
