@@ -49,7 +49,6 @@ impl ExecutionService for RecordingExecutionService {
         query_context: QueryContext,
     ) -> ExecutionResult<QueryResultData> {
         let mut query_record = QueryRecord::query_start(query, query_context.worksheet_id);
-        let query_context = query_context.with_query_id(query_record.id);
         let query_res = self.execution.query(session_id, query, query_context).await;
         match query_res {
             Ok(QueryResultData {
@@ -88,7 +87,17 @@ impl ExecutionService for RecordingExecutionService {
             // do not raise error, just log ?
             tracing::error!("{err}");
         }
-        query_res
+        query_res.map(
+            |QueryResultData {
+                 records,
+                 columns_info,
+                 ..
+             }: QueryResultData| QueryResultData {
+                records,
+                columns_info,
+                query_id: query_record.id,
+            },
+        )
     }
     async fn upload_data_to_table(
         &self,

@@ -106,7 +106,6 @@ impl ExecutionService for CoreExecutionService {
                     id: session_id.to_string(),
                 })?;
 
-        let query_id = query_context.query_id.unwrap_or_default(); // default value for query_id is meaningless
         let mut query_obj = user_session.query(query, query_context);
 
         let records: Vec<RecordBatch> = query_obj.execute().await?;
@@ -135,7 +134,7 @@ impl ExecutionService for CoreExecutionService {
         Ok(QueryResultData {
             records,
             columns_info,
-            query_id,
+            query_id: i64::default(), // default value for query_id is meaningless,
         })
     }
 
