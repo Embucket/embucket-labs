@@ -127,7 +127,7 @@ fn to_string(v: &Value, sep: &str) -> DFResult<String> {
                         })?;
                         res.push(r);
                     }
-                    Value::Null => res.push("".to_string()),
+                    Value::Null => res.push(String::new()),
                 }
             }
         }
