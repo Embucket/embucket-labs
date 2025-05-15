@@ -1,4 +1,4 @@
-use datafusion::arrow::array::StringArray;
+use datafusion::arrow::array::{StringArray, as_string_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
@@ -65,7 +65,7 @@ impl ScalarUDFImpl for ArrayFlattenFunc {
             ColumnarValue::Array(arr) => {
                 let mut res = StringBuilder::with_capacity(arr.len(), 1024);
 
-                let arr = arr.as_any().downcast_ref::<StringArray>().unwrap();
+                let arr = as_string_array(arr);
                 for v in arr {
                     if let Some(v) = v {
                         res.append_option(flatten(v)?);
