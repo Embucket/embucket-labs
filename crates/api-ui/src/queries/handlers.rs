@@ -99,7 +99,6 @@ pub async fn query(
         .query(&session_id, &payload.query, query_context)
         .await;
 
-
     match query_res {
         Ok(QueryResultData { query_id, .. }) => {
             // Error getting QueryRecord
@@ -115,7 +114,7 @@ pub async fn query(
         }
         Err(err) => Err(QueriesAPIError::Query {
             source: QueryError::Execution { source: err },
-        })
+        }),
     }
 }
 

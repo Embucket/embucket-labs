@@ -241,9 +241,7 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
         let key_bytes = QueryRecord::get_key(id);
         let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
 
-        let res: Option<QueryRecord> = self.db.get(key_str)
-            .await
-            .context(QueryGetSnafu)?;
+        let res: Option<QueryRecord> = self.db.get(key_str).await.context(QueryGetSnafu)?;
         res.ok_or_else(|| WorksheetsStoreError::QueryNotFound {
             message: key_str.to_string(),
         })

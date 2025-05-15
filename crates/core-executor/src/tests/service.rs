@@ -27,7 +27,10 @@ async fn test_execute_always_returns_schema() {
         .await
         .expect("Failed to create session");
 
-    let QueryResultData { columns_info: columns, .. } = execution_svc
+    let QueryResultData {
+        columns_info: columns,
+        ..
+    } = execution_svc
         .query(
             "test_session_id",
             "SELECT 1 AS a, 2.0 AS b, '3' AS c WHERE False",

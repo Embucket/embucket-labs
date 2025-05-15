@@ -1,8 +1,8 @@
-use crate::{QueryRecord, ExecutionQueryRecord, WorksheetsStore};
+use crate::{ExecutionQueryRecord, QueryRecord, WorksheetsStore};
 use bytes::Bytes;
 use core_executor::{
-    error::ExecutionResult, models::ColumnInfo, query::QueryContext, service::ExecutionService,
-    session::UserSession, utils::Config, models::QueryResultData,
+    error::ExecutionResult, models::ColumnInfo, models::QueryResultData, query::QueryContext,
+    service::ExecutionService, session::UserSession, utils::Config,
 };
 use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::RecordBatch;
@@ -52,7 +52,11 @@ impl ExecutionService for RecordingExecutionService {
         let query_context = query_context.with_query_id(query_record.id);
         let query_res = self.execution.query(session_id, query, query_context).await;
         match query_res {
-            Ok(QueryResultData {ref records, ref columns_info, .. }) => {
+            Ok(QueryResultData {
+                ref records,
+                ref columns_info,
+                ..
+            }) => {
                 let result_set = ResultSet::query_result_to_result_set(records, columns_info);
                 match result_set {
                     Ok(result_set) => {

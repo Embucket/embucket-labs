@@ -132,7 +132,11 @@ impl ExecutionService for CoreExecutionService {
             columns
         };
 
-        Ok(QueryResultData { records, columns_info, query_id })
+        Ok(QueryResultData {
+            records,
+            columns_info,
+            query_id,
+        })
     }
 
     #[tracing::instrument(level = "debug", skip(self, data))]
