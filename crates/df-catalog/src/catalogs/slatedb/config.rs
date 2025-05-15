@@ -56,8 +56,8 @@ impl SlateDBViewConfig {
             .map_err(|e| DataFusionError::Execution(format!("failed to get schemas: {e}")))?;
         for schema in schemas {
             builder.add_schema(
-                schema.ident.schema.as_str(),
-                schema.ident.database.as_str(),
+                &schema.ident.schema,
+                &schema.ident.database,
                 schema.created_at.to_string(),
                 schema.updated_at.to_string(),
             );
