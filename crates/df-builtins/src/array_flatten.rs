@@ -167,7 +167,7 @@ mod tests {
     use datafusion_expr::ScalarUDF;
 
     #[tokio::test]
-    async fn test_basic() -> DFResult<()> {
+    async fn test_scalar() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(ArrayFlattenFunc::new()));
         let q = "SELECT ARRAY_FLATTEN('[ [ [1, 2], [3] ], [ [4], [5] ] ]') as v;";
@@ -223,7 +223,42 @@ mod tests {
         let q = "SELECT ARRAY_FLATTEN('[[1, 2, 3], [NULL], [5, 6]]') as v;";
         let result = ctx.sql(q).await?.collect().await?;
 
-        print_batches(&result)?;
+        assert_batches_eq!(
+            &[
+                "+-------------------------+",
+                "| v                       |",
+                "+-------------------------+",
+                "| [1,2,3,\"undefined\",5,6] |",
+                "+-------------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_array() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ArrayFlattenFunc::new()));
+        ctx.sql("CREATE TABLE t(v STRING)").await?;
+        ctx.sql("INSERT INTO t (v) VALUES('[ [ [1, 2], [3] ], [ [4], [5] ] ]')")
+            .await?
+            .collect()
+            .await?;
+        let q = "SELECT ARRAY_FLATTEN(v) from t;";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------------+",
+                "| array_flatten(t.v)  |",
+                "+---------------------+",
+                "| [[1,2],[3],[4],[5]] |",
+                "+---------------------+",
+            ],
+            &result
+        );
 
         Ok(())
     }
