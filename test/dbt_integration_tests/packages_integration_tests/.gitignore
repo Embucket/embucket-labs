@@ -1,0 +1,7 @@
+.env
+.user.yml
+target/
+data/
+packages/
+logs/
+.DS_Store
