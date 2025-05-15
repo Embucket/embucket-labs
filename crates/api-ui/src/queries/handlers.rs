@@ -101,7 +101,6 @@ pub async fn query(
 
     match query_res {
         Ok(QueryResultData { query_id, .. }) => {
-            // Error getting QueryRecord
             match state.history_store.get_query(query_id).await {
                 Err(err) => Err(QueriesAPIError::Query {
                     source: QueryError::Store { source: err },

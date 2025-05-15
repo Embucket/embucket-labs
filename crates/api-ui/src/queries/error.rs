@@ -18,14 +18,18 @@ pub enum QueryError {
     Execution {
         source: core_executor::error::ExecutionError,
     },
+
     #[snafu(transparent)]
     Store { source: WorksheetsStoreError },
-    #[snafu(display("Query history error: {source}"))]
+
+    #[snafu(display("Failed to parse row JSON: {source}"))]
     ResultParse { source: serde_json::Error },
+
     #[snafu(display("ResultSet create error: {source}"))]
     CreateResultSet {
         source: datafusion::arrow::error::ArrowError,
     },
+
     #[snafu(display("Error encoding UTF8 string: {source}"))]
     Utf8 { source: std::string::FromUtf8Error },
 }
