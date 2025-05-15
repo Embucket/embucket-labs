@@ -34,17 +34,6 @@ pub const ROUTINES: &str = "routines";
 pub const PARAMETERS: &str = "parameters";
 pub const NAVIGATION_TREE: &str = "navigation_tree";
 
-/// All information schema tables
-pub const INFORMATION_SCHEMA_TABLES: &[&str] = &[
-    TABLES,
-    VIEWS,
-    COLUMNS,
-    SCHEMATA,
-    DF_SETTINGS,
-    ROUTINES,
-    PARAMETERS,
-];
-
 /// Implements the `information_schema` virtual schema and tables
 ///
 /// The underlying tables in the `information_schema` are created on
