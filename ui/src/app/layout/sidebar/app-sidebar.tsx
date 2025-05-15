@@ -87,7 +87,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 to: '/volumes',
               },
               Icon: Box,
-              disabled: true,
             },
           ]}
           open={open}

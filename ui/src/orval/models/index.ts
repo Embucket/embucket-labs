@@ -101,6 +101,8 @@ export * from './uploadParametersQuote';
 export * from './uploadParametersTerminator';
 export * from './volume';
 export * from './volumeAllOf';
+export * from './volumeCreatePayload';
+export * from './volumeCreateResponse';
 export * from './volumeResponse';
 export * from './volumeType';
 export * from './volumeTypeOneOf';

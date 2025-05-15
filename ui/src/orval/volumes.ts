@@ -5,26 +5,36 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseInfiniteQueryResult,
   DefinedUseQueryResult,
   InfiniteData,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
   UseInfiniteQueryOptions,
   UseInfiniteQueryResult,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
 
 import { useAxiosMutator } from '../lib/axiosMutator';
 import type { ErrorType } from '../lib/axiosMutator';
-import type { ErrorResponse, GetVolumesParams, VolumeResponse, VolumesResponse } from './models';
+import type {
+  ErrorResponse,
+  GetVolumesParams,
+  VolumeCreatePayload,
+  VolumeCreateResponse,
+  VolumeResponse,
+  VolumesResponse,
+} from './models';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
@@ -244,6 +254,84 @@ export function useGetVolumes<
   return query;
 }
 
+export const createVolume = (
+  volumeCreatePayload: VolumeCreatePayload,
+  options?: SecondParameter<typeof useAxiosMutator>,
+  signal?: AbortSignal,
+) => {
+  return useAxiosMutator<VolumeCreateResponse>(
+    {
+      url: `/ui/volumes`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: volumeCreatePayload,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCreateVolumeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createVolume>>,
+    TError,
+    { data: VolumeCreatePayload },
+    TContext
+  >;
+  request?: SecondParameter<typeof useAxiosMutator>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createVolume>>,
+  TError,
+  { data: VolumeCreatePayload },
+  TContext
+> => {
+  const mutationKey = ['createVolume'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createVolume>>,
+    { data: VolumeCreatePayload }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createVolume(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateVolumeMutationResult = NonNullable<Awaited<ReturnType<typeof createVolume>>>;
+export type CreateVolumeMutationBody = VolumeCreatePayload;
+export type CreateVolumeMutationError = ErrorType<ErrorResponse>;
+
+export const useCreateVolume = <TError = ErrorType<ErrorResponse>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createVolume>>,
+      TError,
+      { data: VolumeCreatePayload },
+      TContext
+    >;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createVolume>>,
+  TError,
+  { data: VolumeCreatePayload },
+  TContext
+> => {
+  const mutationOptions = getCreateVolumeMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 export const getVolume = (
   volumeName: string,
   options?: SecondParameter<typeof useAxiosMutator>,
@@ -457,3 +545,72 @@ export function useGetVolume<
 
   return query;
 }
+
+export const deleteVolume = (
+  volumeName: string,
+  options?: SecondParameter<typeof useAxiosMutator>,
+) => {
+  return useAxiosMutator<void>({ url: `/ui/volumes/${volumeName}`, method: 'DELETE' }, options);
+};
+
+export const getDeleteVolumeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteVolume>>,
+    TError,
+    { volumeName: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof useAxiosMutator>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteVolume>>,
+  TError,
+  { volumeName: string },
+  TContext
+> => {
+  const mutationKey = ['deleteVolume'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteVolume>>,
+    { volumeName: string }
+  > = (props) => {
+    const { volumeName } = props ?? {};
+
+    return deleteVolume(volumeName, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteVolumeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVolume>>>;
+
+export type DeleteVolumeMutationError = ErrorType<ErrorResponse>;
+
+export const useDeleteVolume = <TError = ErrorType<ErrorResponse>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteVolume>>,
+      TError,
+      { volumeName: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteVolume>>,
+  TError,
+  { volumeName: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteVolumeMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
