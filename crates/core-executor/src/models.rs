@@ -8,8 +8,6 @@ use std::collections::HashMap;
 pub struct QueryResultData {
     pub records: Vec<RecordBatch>,
     pub columns_info: Vec<ColumnInfo>,
-    // Can't add query_id here, since on error QueryResultData is not returned 
-    // but we need it for both Ok,
     // query_id is QueryRecordId, but we won't add dependency on history crate here
     pub query_id: i64, 
 }
