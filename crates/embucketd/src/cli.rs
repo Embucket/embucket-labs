@@ -122,7 +122,7 @@ pub struct CliOpts {
     #[arg(
         long,
         env = "CORS_ALLOW_ORIGIN",
-        default_value = "http://127.0.0.1:8080",
+        default_value = "http://localhost:8080",
         required_if_eq("cors_enabled", "true"),
         help = "CORS Allow Origin"
     )]
