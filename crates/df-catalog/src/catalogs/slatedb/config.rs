@@ -4,6 +4,7 @@ use core_metastore::Metastore;
 use core_utils::scan_iterator::ScanIterator;
 use datafusion_common::DataFusionError;
 use std::sync::Arc;
+use crate::catalogs::slatedb::schemas::SchemasViewBuilder;
 
 #[derive(Clone, Debug)]
 pub struct SlateDBViewConfig {
@@ -40,6 +41,21 @@ impl SlateDBViewConfig {
             .map_err(|e| DataFusionError::Execution(format!("failed to get databases: {e}")))?;
         for database in databases {
             builder.add_database(database.ident.as_str(), &database.volume);
+        }
+        Ok(())
+    }
+    pub async fn make_schemas(
+        &self,
+        builder: &mut SchemasViewBuilder,
+    ) -> datafusion_common::Result<(), DataFusionError> {
+        let schemas = self
+            .metastore
+            .iter_schemas()
+            .collect()
+            .await
+            .map_err(|e| DataFusionError::Execution(format!("failed to get databases: {e}")))?;
+        for schema in schemas {
+            builder.add_schema(schema.ident.schema, &database.volume);
         }
         Ok(())
     }

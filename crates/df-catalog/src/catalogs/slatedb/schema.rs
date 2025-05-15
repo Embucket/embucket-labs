@@ -9,13 +9,15 @@ use datafusion_common::DataFusionError;
 use datafusion_physical_plan::streaming::PartitionStream;
 use std::any::Any;
 use std::sync::Arc;
+use crate::catalogs::slatedb::schemas::SchemasView;
 
 pub const SLATEDB_SCHEMA: &str = "public";
 pub const SLATEDB_CATALOG: &str = "slatedb";
 pub const DATABASES: &str = "databases";
 pub const VOLUMES: &str = "volumes";
+pub const SCHEMAS: &str = "schemas";
 
-pub const VIEW_TABLES: &[&str] = &[DATABASES, VOLUMES];
+pub const VIEW_TABLES: &[&str] = &[SCHEMAS, DATABASES, VOLUMES];
 
 pub struct SlateDBViewSchemaProvider {
     config: SlateDBViewConfig,
@@ -54,6 +56,7 @@ impl SchemaProvider for SlateDBViewSchemaProvider {
         let table: Arc<dyn PartitionStream> = match name.to_ascii_lowercase().as_str() {
             DATABASES => Arc::new(DatabasesView::new(config)),
             VOLUMES => Arc::new(VolumesView::new(config)),
+            SCHEMAS => Arc::new(SchemasView::new(config)),
             _ => return Ok(None),
         };
 
