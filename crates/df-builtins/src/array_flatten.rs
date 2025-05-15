@@ -1,4 +1,4 @@
-use datafusion::arrow::array::{StringArray, as_string_array};
+use datafusion::arrow::array::as_string_array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
@@ -79,7 +79,7 @@ impl ScalarUDFImpl for ArrayFlattenFunc {
             ColumnarValue::Scalar(ScalarValue::Utf8(v)) => Ok(ColumnarValue::Scalar(
                 ScalarValue::Utf8(if let Some(v) = v { flatten(v)? } else { None }),
             )),
-            _ => internal_err!("array_flatten function requires a string"),
+            ColumnarValue::Scalar(_) => internal_err!("array_flatten function requires a string"),
         }
     }
 }
