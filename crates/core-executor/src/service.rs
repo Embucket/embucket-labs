@@ -24,19 +24,6 @@ use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableId
 use core_utils::Db;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-
-
-#[cfg_attr(test, automock)]
-pub trait ExecutionQueryRecord {
-    fn query_id(&self) -> QueryRecordId;
-
-    fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
-
-    fn query_finished(&mut self, result_count: i64, result: Option<String>);
-
-    fn query_finished_with_error(&mut self, error: String);
-}
-
 #[async_trait::async_trait]
 pub trait ExecutionService: Send + Sync {
     async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>>;
@@ -119,6 +106,7 @@ impl ExecutionService for CoreExecutionService {
                     id: session_id.to_string(),
                 })?;
 
+        let query_id = query_context.query_id.unwrap_or_default(); // default value for query_id is meaningless
         let mut query_obj = user_session.query(query, query_context);
 
         let records: Vec<RecordBatch> = query_obj.execute().await?;
@@ -144,8 +132,7 @@ impl ExecutionService for CoreExecutionService {
             columns
         };
 
-        // TODO: assign an id
-        Ok(QueryResultData { records, columns_info, query_id: String::new() })
+        Ok(QueryResultData { records, columns_info, query_id })
     }
 
     #[tracing::instrument(level = "debug", skip(self, data))]

@@ -1,3 +1,4 @@
+use crate::models::QueryResultData;
 use crate::query::{QueryContext, UserQuery};
 use crate::session::UserSession;
 
@@ -303,7 +304,7 @@ async fn test_create_table_with_timestamp_nanosecond() {
         "CREATE TABLE {}.{}.{} (id INT, ts TIMESTAMP_NTZ(9)) as VALUES (1, '2025-04-09T21:11:23'), (2, '2025-04-09T21:11:00');",
         table_ident.database, table_ident.schema, table_ident.table
     );
-    let (rows, _) = execution_svc
+    let QueryResultData { records: rows, .. } = execution_svc
         .query(&session_id, &query, QueryContext::default())
         .await
         .expect("Failed to execute query");
@@ -330,7 +331,7 @@ async fn test_drop_table() {
     };
     // Verify that the file was uploaded successfully by running select * from the table
     let query = format!("CREATE TABLE {table_ident} (id INT) as VALUES (1), (2);");
-    let (rows, _) = execution_svc
+    let QueryResultData { records: rows, .. } = execution_svc
         .query(&session_id, &query, QueryContext::default())
         .await
         .expect("Failed to execute query");

@@ -1,6 +1,5 @@
 use crate::queries::models::{
     GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryRecord,
-    ResultSet,
 };
 use crate::state::AppState;
 use crate::{
@@ -14,7 +13,7 @@ use axum::{
 };
 use core_executor::models::QueryResultData;
 use core_executor::query::QueryContext;
-use core_history::{ExecutionQueryRecord, QueryRecordId, WorksheetId};
+use core_history::{QueryRecordId, WorksheetId};
 use core_utils::iterable::IterableEntity;
 use std::collections::HashMap;
 use utoipa::OpenApi;
@@ -95,58 +94,28 @@ pub async fn query(
         payload.worksheet_id,
     );
 
-    //TODO: map to result correctly without using duplicate code
-    let mut query_record =
-        core_history::QueryRecord::query_start(&payload.query, payload.worksheet_id);
     let query_res = state
         .execution_svc
         .query(&session_id, &payload.query, query_context)
         .await;
 
-    match query_res {
-        Ok(QueryResultData { ref records, ref columns_info, ..}) => {
-            let result_set = ResultSet::query_result_to_result_set(records, columns_info);
-            match result_set {
-                Ok(result_set) => {
-                    let encoded_res = serde_json::to_string(&result_set);
 
-                    if let Ok(encoded_res) = encoded_res {
-                        let result_count = i64::try_from(records.len()).unwrap_or(0);
-                        query_record.query_finished(result_count, Some(encoded_res));
-                    }
-                    // failed to wrap query results
-                    else if let Err(err) = encoded_res {
-                        query_record.query_finished_with_error(err.to_string());
-                    }
-                }
-                // error getting result_set
-                Err(err) => {
-                    query_record.query_finished_with_error(err.to_string());
-                }
+    match query_res {
+        Ok(QueryResultData { query_id, .. }) => {
+            // Error getting QueryRecord
+            match state.history_store.get_query(query_id).await {
+                Err(err) => Err(QueriesAPIError::Query {
+                    source: QueryError::Store { source: err },
+                }),
+                Ok(query_record) => Ok(Json(QueryCreateResponse {
+                    data: QueryRecord::try_from(query_record)
+                        .map_err(|e| QueriesAPIError::Query { source: e })?,
+                })),
             }
         }
-        // query error
-        Err(ref err) => {
-            // query execution error
-            query_record.query_finished_with_error(err.to_string());
-        }
-    }
-
-    // // add query record
-    // if let Err(err) = state.history_store.add_query(&query_record).await {
-    //     // do not raise error, just log ?
-    //     tracing::error!("{err}");
-    // }
-
-    if let Err(err) = query_res {
-        Err(QueriesAPIError::Query {
+        Err(err) => Err(QueriesAPIError::Query {
             source: QueryError::Execution { source: err },
         })
-    } else {
-        Ok(Json(QueryCreateResponse {
-            data: QueryRecord::try_from(query_record)
-                .map_err(|e| QueriesAPIError::Query { source: e })?,
-        }))
     }
 }
 

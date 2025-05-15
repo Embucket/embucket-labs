@@ -35,6 +35,9 @@ pub enum WorksheetsStoreError {
     #[snafu(display("Error adding query record: {source}"))]
     QueryAdd { source: core_utils::Error },
 
+    #[snafu(display("Can't locate query record by key: {message}"))]
+    QueryNotFound { message: String },
+
     #[snafu(display("Error adding query record reference: {source}"))]
     QueryReferenceAdd { source: core_utils::Error },
 
@@ -124,6 +127,7 @@ pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
     async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>>;
 
     async fn add_query(&self, item: &QueryRecord) -> WorksheetsStoreResult<()>;
+    async fn get_query(&self, id: QueryRecordId) -> WorksheetsStoreResult<QueryRecord>;
     async fn get_queries(&self, params: GetQueries) -> WorksheetsStoreResult<Vec<QueryRecord>>;
 }
 
@@ -231,6 +235,18 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
             .put_iterable_entity(item)
             .await
             .context(QueryAddSnafu)?)
+    }
+
+    async fn get_query(&self, id: QueryRecordId) -> WorksheetsStoreResult<QueryRecord> {
+        let key_bytes = QueryRecord::get_key(id);
+        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
+
+        let res: Option<QueryRecord> = self.db.get(key_str)
+            .await
+            .context(QueryGetSnafu)?;
+        res.ok_or_else(|| WorksheetsStoreError::QueryNotFound {
+            message: key_str.to_string(),
+        })
     }
 
     async fn get_queries(&self, params: GetQueries) -> WorksheetsStoreResult<Vec<QueryRecord>> {

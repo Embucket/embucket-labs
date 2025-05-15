@@ -20,7 +20,7 @@ pub enum QueryError {
     },
     #[snafu(transparent)]
     Store { source: WorksheetsStoreError },
-    #[snafu(display("Failed to parse row JSON: {source}"))]
+    #[snafu(display("Query history error: {source}"))]
     ResultParse { source: serde_json::Error },
     #[snafu(display("ResultSet create error: {source}"))]
     CreateResultSet {

@@ -83,7 +83,8 @@ impl QueryContext {
         }
     }
 
-    pub fn with_query_id(mut self, query_id: i64) -> Self {
+    #[must_use]
+    pub const fn with_query_id(mut self, query_id: i64) -> Self {
         self.query_id = Some(query_id);
         self
     }

@@ -49,7 +49,7 @@ impl ExecutionService for RecordingExecutionService {
         query_context: QueryContext,
     ) -> ExecutionResult<QueryResultData> {
         let mut query_record = QueryRecord::query_start(query, query_context.worksheet_id);
-        let query_context = query_context.clone().with_query_id(query_record.id);
+        let query_context = query_context.with_query_id(query_record.id);
         let query_res = self.execution.query(session_id, query, query_context).await;
         match query_res {
             Ok(QueryResultData {ref records, ref columns_info, .. }) => {
