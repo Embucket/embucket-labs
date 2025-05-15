@@ -118,9 +118,6 @@ fn flatten(v: &str) -> DFResult<Option<String>> {
         Value::Array(arr) => {
             let mut result = Vec::new();
             for item in arr {
-                if item.is_null() {
-                    return Ok(None);
-                }
                 match item {
                     Value::Null => return Ok(None),
                     Value::Array(inner) => {
