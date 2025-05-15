@@ -215,9 +215,9 @@ impl EmbucketCatalogList {
     ///
     /// This ensures that newly created databases are gradually recognized and integrated
     /// into the query engine without requiring a full session restart.
-    pub fn start_refresh_internal_catalogs_task(self: Arc<Self>) {
+    pub fn start_refresh_internal_catalogs_task(self: Arc<Self>, interval_secs: u64) {
         tokio::spawn(async move {
-            let mut interval = interval(Duration::from_secs(10));
+            let mut interval = interval(Duration::from_secs(interval_secs));
             loop {
                 interval.tick().await;
                 match self.internal_catalogs().await {
