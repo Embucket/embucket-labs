@@ -78,11 +78,9 @@ impl ScalarUDFImpl for ArrayFlattenFunc {
             }
             ColumnarValue::Scalar(v) => {
                 if let ScalarValue::Utf8(v) = v {
-                    if let Some(v) = v {
-                        Ok(ColumnarValue::Scalar(ScalarValue::Utf8(flatten(v)?)))
-                    } else {
-                        Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)))
-                    }
+                    Ok(ColumnarValue::Scalar(ScalarValue::Utf8(
+                        if let Some(v) = v { flatten(v)? } else { None },
+                    )))
                 } else {
                     internal_err!("array_flatten function requires a string")
                 }
@@ -161,7 +159,6 @@ super::macros::make_udf_function!(ArrayFlattenFunc);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datafusion::arrow::util::pretty::print_batches;
     use datafusion::prelude::SessionContext;
     use datafusion_common::assert_batches_eq;
     use datafusion_expr::ScalarUDF;
