@@ -71,7 +71,13 @@ pub struct SchemasViewBuilder {
 }
 
 impl SchemasViewBuilder {
-    pub fn add_schema(&mut self, schema_name: impl AsRef<str>, database_name: impl AsRef<str>, created_at: impl AsRef<str>, updated_at: impl AsRef<str>) {
+    pub fn add_schema(
+        &mut self,
+        schema_name: impl AsRef<str>,
+        database_name: impl AsRef<str>,
+        created_at: impl AsRef<str>,
+        updated_at: impl AsRef<str>,
+    ) {
         // Note: append_value is actually infallible.
         self.schema_names.append_value(schema_name.as_ref());
         self.database_names.append_value(database_name.as_ref());
@@ -86,7 +92,7 @@ impl SchemasViewBuilder {
                 Arc::new(self.schema_names.finish()),
                 Arc::new(self.database_names.finish()),
                 Arc::new(self.created_at_timestamps.finish()),
-                Arc::new(self.updated_at_timestamps.finish()),           
+                Arc::new(self.updated_at_timestamps.finish()),
             ],
         )
     }

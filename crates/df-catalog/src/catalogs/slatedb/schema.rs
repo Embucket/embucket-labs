@@ -1,5 +1,6 @@
 use crate::catalogs::slatedb::config::SlateDBViewConfig;
 use crate::catalogs::slatedb::databases::DatabasesView;
+use crate::catalogs::slatedb::schemas::SchemasView;
 use crate::catalogs::slatedb::volumes::VolumesView;
 use async_trait::async_trait;
 use core_metastore::Metastore;
@@ -9,7 +10,6 @@ use datafusion_common::DataFusionError;
 use datafusion_physical_plan::streaming::PartitionStream;
 use std::any::Any;
 use std::sync::Arc;
-use crate::catalogs::slatedb::schemas::SchemasView;
 
 pub const SLATEDB_SCHEMA: &str = "public";
 pub const SLATEDB_CATALOG: &str = "slatedb";

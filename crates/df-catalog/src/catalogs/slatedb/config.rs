@@ -1,10 +1,10 @@
 use crate::catalogs::slatedb::databases::DatabasesViewBuilder;
+use crate::catalogs::slatedb::schemas::SchemasViewBuilder;
 use crate::catalogs::slatedb::volumes::VolumesViewBuilder;
 use core_metastore::Metastore;
 use core_utils::scan_iterator::ScanIterator;
 use datafusion_common::DataFusionError;
 use std::sync::Arc;
-use crate::catalogs::slatedb::schemas::SchemasViewBuilder;
 
 #[derive(Clone, Debug)]
 pub struct SlateDBViewConfig {
@@ -50,12 +50,17 @@ impl SlateDBViewConfig {
     ) -> datafusion_common::Result<(), DataFusionError> {
         let schemas = self
             .metastore
-            .iter_schemas(&"".to_string())
+            .iter_schemas(&String::new())
             .collect()
             .await
             .map_err(|e| DataFusionError::Execution(format!("failed to get schemas: {e}")))?;
         for schema in schemas {
-            builder.add_schema(schema.ident.schema.as_str(), schema.ident.database.as_str(), schema.created_at.to_string(), schema.updated_at.to_string());
+            builder.add_schema(
+                schema.ident.schema.as_str(),
+                schema.ident.database.as_str(),
+                schema.created_at.to_string(),
+                schema.updated_at.to_string(),
+            );
         }
         Ok(())
     }
