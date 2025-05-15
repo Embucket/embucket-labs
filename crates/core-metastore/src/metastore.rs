@@ -380,7 +380,11 @@ impl Metastore for SlateDBMetastore {
     }
 
     fn iter_schemas(&self, database: &DatabaseIdent) -> VecScanIterator<RwObject<Schema>> {
-        let key = format!("{KEY_SCHEMA}/{database}");
+        let key = if database.len() != 0 {
+            format!("{KEY_SCHEMA}/{database}")
+        } else {
+            format!("{KEY_SCHEMA}")
+        };
         self.iter_objects(key)
     }
 
