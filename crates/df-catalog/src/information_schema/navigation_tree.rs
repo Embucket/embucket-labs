@@ -20,13 +20,15 @@ pub struct InformationSchemaNavigationTree {
 }
 
 impl InformationSchemaNavigationTree {
-    pub(crate) fn new(config: InformationSchemaConfig) -> Self {
-        let schema = Arc::new(Schema::new(vec![
+    pub fn schema() -> Arc<Schema> {
+        Arc::new(Schema::new(vec![
             Field::new("database", DataType::Utf8, false),
             Field::new("schema", DataType::Utf8, true),
             Field::new("table", DataType::Utf8, true),
-        ]));
-
+        ]))
+    }
+    pub(crate) fn new(config: InformationSchemaConfig) -> Self {
+        let schema = Self::schema();
         Self { schema, config }
     }
 

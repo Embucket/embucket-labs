@@ -13,6 +13,7 @@ use crate::information_schema::schemata::InformationSchemata;
 use crate::information_schema::tables::InformationSchemaTables;
 use crate::information_schema::views::InformationSchemaViews;
 use async_trait::async_trait;
+use dashmap::DashMap;
 use datafusion::catalog::streaming::StreamingTable;
 use datafusion::catalog::{CatalogProviderList, SchemaProvider, TableProvider};
 use datafusion_common::DataFusionError;
@@ -58,10 +59,30 @@ pub struct InformationSchemaProvider {
 impl InformationSchemaProvider {
     /// Creates a new [`InformationSchemaProvider`] for the provided `catalog_list`
     pub fn new(catalog_list: Arc<dyn CatalogProviderList>, catalog_name: Arc<str>) -> Self {
+        let views_schemas = {
+            let mut map = DashMap::new();
+            map.extend(
+                [
+                    (TABLES, InformationSchemaTables::schema()),
+                    (VIEWS, InformationSchemaViews::schema()),
+                    (COLUMNS, InformationSchemaColumns::schema()),
+                    (SCHEMATA, InformationSchemata::schema()),
+                    (DATABASES, InformationSchemaDatabases::schema()),
+                    (DF_SETTINGS, InformationSchemaDfSettings::schema()),
+                    (ROUTINES, InformationSchemaRoutines::schema()),
+                    (PARAMETERS, InformationSchemaParameters::schema()),
+                    (NAVIGATION_TREE, InformationSchemaNavigationTree::schema()),
+                ]
+                .into_iter()
+                .map(|(name, schema)| (name.to_string(), schema)),
+            );
+            map
+        };
         Self {
             config: InformationSchemaConfig {
                 catalog_list,
                 catalog_name,
+                views_schemas,
             },
         }
     }
@@ -74,9 +95,10 @@ impl SchemaProvider for InformationSchemaProvider {
     }
 
     fn table_names(&self) -> Vec<String> {
-        INFORMATION_SCHEMA_TABLES
+        self.config
+            .views_schemas
             .iter()
-            .map(ToString::to_string)
+            .map(|entry| entry.key().clone())
             .collect()
     }
 
@@ -103,6 +125,8 @@ impl SchemaProvider for InformationSchemaProvider {
     }
 
     fn table_exist(&self, name: &str) -> bool {
-        INFORMATION_SCHEMA_TABLES.contains(&name.to_ascii_lowercase().as_str())
+        self.config
+            .views_schemas
+            .contains_key(&name.to_ascii_lowercase())
     }
 }

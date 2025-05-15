@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SHOW COLUMNS IN employee_table STARTS WITH 'last_'\""
+snapshot_kind: text
+---
+Ok(
+    [
+        "+----------------+-------------+-------------+-----------+---------+-------+--------+------------+---------------+---------------+",
+        "| table_name     | schema_name | column_name | data_type | default | null? | kind   | expression | database_name | autoincrement |",
+        "+----------------+-------------+-------------+-----------+---------+-------+--------+------------+---------------+---------------+",
+        "| employee_table | public      | last_name   | Utf8      |         | YES   | COLUMN |            | embucket      |               |",
+        "+----------------+-------------+-------------+-----------+---------+-------+--------+------------+---------------+---------------+",
+    ],
+)

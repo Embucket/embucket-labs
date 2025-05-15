@@ -38,7 +38,8 @@ use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
-    ObjectType, Query as AstQuery, Select, SelectItem, UpdateTableFromKind, Use,
+    ObjectType, Query as AstQuery, Select, SelectItem, ShowStatementIn, UpdateTableFromKind, Use,
+    Value,
 };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -268,11 +269,18 @@ impl UserQuery {
                 | Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
                 | Statement::Insert { .. }
-                | Statement::ShowSchemas { .. }
                 | Statement::ShowVariable { .. }
                 | Statement::ShowObjects { .. }
                 | Statement::Update { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&self.query)).await;
+                }
+                Statement::ShowDatabases { .. }
+                | Statement::ShowSchemas { .. }
+                | Statement::ShowTables { .. }
+                | Statement::ShowColumns { .. }
+                | Statement::ShowViews { .. }
+                | Statement::ShowFunctions { .. } => {
+                    return Box::pin(self.show_query(*s)).await;
                 }
                 Statement::Query(mut subquery) => {
                     self.update_qualify_in_query(subquery.as_mut());
@@ -955,6 +963,122 @@ impl UserQuery {
             .await
             .context(ex_error::IcebergSnafu)?;
         created_entity_response()
+    }
+
+    #[allow(clippy::too_many_lines)]
+    pub async fn show_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
+        let catalog = self.current_database();
+        let query = match statement {
+            Statement::ShowDatabases { .. } => {
+                format!(
+                    "SELECT
+                    NULL as created_on,
+                    database_name as name,
+                    'STANDARD' as kind,
+                    NULL as database_name,
+                    NULL as schema_name
+                FROM {catalog}.information_schema.databases"
+                )
+            }
+            Statement::ShowSchemas { show_options, .. } => {
+                let catalog_name = resolve_show_in_name(show_options.show_in, &catalog);
+                let sql = format!(
+                    "SELECT
+                    NULL as created_on,
+                    schema_name as name,
+                    NULL as kind,
+                    catalog_name as database_name,
+                    NULL as schema_name
+                FROM {catalog_name}.information_schema.schemata"
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "schema_name")
+                {
+                    filters.push(filter);
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowTables { show_options, .. } => {
+                let schema = resolve_show_in_name(show_options.show_in, "");
+                let sql = format!(
+                    "SELECT
+                    NULL as created_on,
+                    table_name as name,
+                    table_type as kind,
+                    table_catalog as database_name,
+                    table_schema as schema_name
+                FROM {catalog}.information_schema.tables"
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "table_name")
+                {
+                    filters.push(filter);
+                }
+                if !schema.is_empty() {
+                    filters.push(format!("table_schema = '{schema}'"));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowViews { show_options, .. } => {
+                let schema = resolve_show_in_name(show_options.show_in, "");
+                let sql = format!(
+                    "SELECT
+                    NULL as created_on,
+                    view_name as name,
+                    view_type as kind,
+                    view_catalog as database_name,
+                    view_schema as schema_name
+                FROM {catalog}.information_schema.views"
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "view_name")
+                {
+                    filters.push(filter);
+                }
+                if !schema.is_empty() {
+                    filters.push(format!("view_schema = '{schema}'"));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowColumns { show_options, .. } => {
+                let table = resolve_show_in_name(show_options.show_in, "");
+                let sql = format!(
+                    "SELECT
+                    table_name as table_name,
+                    table_schema as schema_name,
+                    column_name as column_name,
+                    data_type as data_type,
+                    column_default as default,
+                    is_nullable as 'null?',
+                    column_type as kind,
+                    NULL as expression,
+                    table_catalog as database_name,
+                    NULL as autoincrement
+                FROM {catalog}.information_schema.columns"
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "column_name")
+                {
+                    filters.push(filter);
+                }
+                if !table.is_empty() {
+                    filters.push(format!("table_name = '{table}'"));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            _ => {
+                return Err(ExecutionError::DataFusion {
+                    source: DataFusionError::NotImplemented(format!(
+                        "unsupported SHOW statement: {statement}"
+                    )),
+                });
+            }
+        };
+        Box::pin(self.execute_with_custom_plan(&query)).await
     }
 
     #[instrument(level = "trace", skip(self), err, ret)]
@@ -1808,6 +1932,35 @@ impl UserQuery {
             }
         }
         Ok(())
+    }
+}
+
+fn resolve_show_in_name(show_in: Option<ShowStatementIn>, default: &str) -> String {
+    if let Some(in_clause) = show_in {
+        in_clause
+            .parent_name
+            .as_ref()
+            .and_then(|name| name.0.first())
+            .map_or_else(|| default.to_string(), std::string::ToString::to_string)
+    } else {
+        default.to_string()
+    }
+}
+
+fn build_starts_with_filter(starts_with: Option<Value>, column_name: &str) -> Option<String> {
+    if let Some(Value::SingleQuotedString(prefix)) = starts_with {
+        let escaped = prefix.replace('\'', "''");
+        Some(format!("{column_name} LIKE '{escaped}%'"))
+    } else {
+        None
+    }
+}
+
+fn apply_show_filters(sql: String, filters: &[String]) -> String {
+    if filters.is_empty() {
+        sql
+    } else {
+        format!("{} WHERE {}", sql, filters.join(" AND "))
     }
 }
 

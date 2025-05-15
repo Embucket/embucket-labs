@@ -6,6 +6,7 @@ use core_metastore::SlateDBMetastore;
 use datafusion::execution::SessionStateBuilder;
 use datafusion::execution::context::SessionContext;
 use datafusion::prelude::SessionConfig;
+use datafusion::sql::planner::IdentNormalizer;
 use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]
@@ -33,13 +34,14 @@ async fn create_session_context() -> Arc<SessionContext> {
             )),
         )
         .unwrap();
-    ctx.sql("CREATE TABLE test (id INT)").await.unwrap();
+    ctx.sql("CREATE TABLE first (id INT)").await.unwrap();
+    ctx.sql("CREATE TABLE second (id INT)").await.unwrap();
     Arc::new(ctx)
 }
 
 #[macro_export]
 macro_rules! test_query {
-    ($test_name:ident, $query:expr) => {
+    ($test_name:ident, $query:expr $(, $snapshot_path:expr)?) => {
         paste::paste! {
             #[tokio::test]
             async fn [< test_ $test_name >]() {
@@ -54,14 +56,15 @@ macro_rules! test_query {
                 insta::with_settings!({
                     description => $query,
                     omit_expression => true,
-                    prepend_module_to_snapshot => false
+                    prepend_module_to_snapshot => false,
+                    $( snapshot_path => $snapshot_path, )?
                 }, {
                     let formatted = datafusion::arrow::util::pretty::pretty_format_batches(&record_batches).unwrap().to_string();
                     insta::assert_snapshot!(stringify!($test_name), formatted);
                 })
             }
         }
-    };
+    }
 }
 
 test_query!(

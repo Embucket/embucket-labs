@@ -20,8 +20,8 @@ pub struct InformationSchemaRoutines {
 }
 
 impl InformationSchemaRoutines {
-    pub fn new() -> Self {
-        let schema = Arc::new(Schema::new(vec![
+    pub fn schema() -> Arc<Schema> {
+        Arc::new(Schema::new(vec![
             Field::new("specific_catalog", DataType::Utf8, false),
             Field::new("specific_schema", DataType::Utf8, false),
             Field::new("specific_name", DataType::Utf8, false),
@@ -34,8 +34,10 @@ impl InformationSchemaRoutines {
             Field::new("function_type", DataType::Utf8, true),
             Field::new("description", DataType::Utf8, true),
             Field::new("syntax_example", DataType::Utf8, true),
-        ]));
-
+        ]))
+    }
+    pub fn new() -> Self {
+        let schema = Self::schema();
         Self { schema }
     }
 

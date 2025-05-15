@@ -16,6 +16,7 @@ use datafusion::arrow::{
 };
 use datafusion::execution::TaskContext;
 use datafusion_common::DataFusionError;
+use datafusion_expr::TableType;
 use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
@@ -29,12 +30,13 @@ pub struct InformationSchemaColumns {
 }
 
 impl InformationSchemaColumns {
-    pub fn new(config: InformationSchemaConfig) -> Self {
-        let schema = Arc::new(Schema::new(vec![
+    pub fn schema() -> Arc<Schema> {
+        Arc::new(Schema::new(vec![
             Field::new("table_catalog", Utf8, false),
             Field::new("table_schema", Utf8, false),
             Field::new("table_name", Utf8, false),
             Field::new("column_name", Utf8, false),
+            Field::new("column_type", Utf8, false),
             Field::new("ordinal_position", UInt64, false),
             Field::new("column_default", Utf8, true),
             Field::new("is_nullable", Utf8, false),
@@ -46,8 +48,10 @@ impl InformationSchemaColumns {
             Field::new("numeric_scale", UInt64, true),
             Field::new("datetime_precision", UInt64, true),
             Field::new("interval_type", Utf8, true),
-        ]));
-
+        ]))
+    }
+    pub fn new(config: InformationSchemaConfig) -> Self {
+        let schema = Self::schema();
         Self { schema, config }
     }
 
@@ -62,6 +66,7 @@ impl InformationSchemaColumns {
             schema_names: StringBuilder::new(),
             table_names: StringBuilder::new(),
             column_names: StringBuilder::new(),
+            column_types: StringBuilder::new(),
             ordinal_positions: UInt64Builder::with_capacity(default_capacity),
             column_defaults: StringBuilder::new(),
             is_nullables: StringBuilder::new(),
@@ -105,6 +110,7 @@ pub struct InformationSchemaColumnsBuilder {
     schema_names: StringBuilder,
     table_names: StringBuilder,
     column_names: StringBuilder,
+    column_types: StringBuilder,
     ordinal_positions: UInt64Builder,
     column_defaults: StringBuilder,
     is_nullables: StringBuilder,
@@ -125,6 +131,7 @@ impl InformationSchemaColumnsBuilder {
         catalog_name: &str,
         schema_name: &str,
         table_name: &str,
+        table_type: TableType,
         field_position: usize,
         field: &Field,
     ) {
@@ -134,6 +141,10 @@ impl InformationSchemaColumnsBuilder {
         self.table_names.append_value(table_name);
 
         self.column_names.append_value(field.name());
+        self.column_types.append_value(match table_type {
+            TableType::View => "VIEW_COLUMN",
+            TableType::Base | TableType::Temporary => "COLUMN",
+        });
 
         self.ordinal_positions.append_value(field_position as u64);
 
@@ -218,6 +229,7 @@ impl InformationSchemaColumnsBuilder {
                 Arc::new(self.schema_names.finish()),
                 Arc::new(self.table_names.finish()),
                 Arc::new(self.column_names.finish()),
+                Arc::new(self.column_types.finish()),
                 Arc::new(self.ordinal_positions.finish()),
                 Arc::new(self.column_defaults.finish()),
                 Arc::new(self.is_nullables.finish()),

@@ -1,6 +1,7 @@
 ---
-source: crates/runtime/src/tests/session.rs
+source: crates/core-executor/src/session.rs
 expression: "(statement, result, all_query, insert_query, select_query)"
+snapshot_kind: text
 ---
 (
     Statement(
@@ -275,7 +276,15 @@ expression: "(statement, result, all_query, insert_query, select_query)"
             schema: Schema {
                 fields: [
                     Field {
-                        name: "table_catalog",
+                        name: "created_on",
+                        data_type: Null,
+                        nullable: true,
+                        dict_id: 0,
+                        dict_is_ordered: false,
+                        metadata: {},
+                    },
+                    Field {
+                        name: "name",
                         data_type: Utf8,
                         nullable: false,
                         dict_id: 0,
@@ -283,7 +292,7 @@ expression: "(statement, result, all_query, insert_query, select_query)"
                         metadata: {},
                     },
                     Field {
-                        name: "table_schema",
+                        name: "kind",
                         data_type: Utf8,
                         nullable: false,
                         dict_id: 0,
@@ -291,7 +300,7 @@ expression: "(statement, result, all_query, insert_query, select_query)"
                         metadata: {},
                     },
                     Field {
-                        name: "table_name",
+                        name: "database_name",
                         data_type: Utf8,
                         nullable: false,
                         dict_id: 0,
@@ -299,7 +308,7 @@ expression: "(statement, result, all_query, insert_query, select_query)"
                         metadata: {},
                     },
                     Field {
-                        name: "table_type",
+                        name: "schema_name",
                         data_type: Utf8,
                         nullable: false,
                         dict_id: 0,
@@ -310,52 +319,21 @@ expression: "(statement, result, all_query, insert_query, select_query)"
                 metadata: {},
             },
             columns: [
+                NullArray(0),
                 StringArray
                 [
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
                 ],
                 StringArray
                 [
-                  "public",
-                  "information_schema",
-                  "information_schema",
-                  "information_schema",
-                  "information_schema",
-                  "information_schema",
-                  "information_schema",
-                  "information_schema",
                 ],
                 StringArray
                 [
-                  "hits",
-                  "tables",
-                  "views",
-                  "columns",
-                  "df_settings",
-                  "schemata",
-                  "routines",
-                  "parameters",
                 ],
                 StringArray
                 [
-                  "BASE TABLE",
-                  "VIEW",
-                  "VIEW",
-                  "VIEW",
-                  "VIEW",
-                  "VIEW",
-                  "VIEW",
-                  "VIEW",
                 ],
             ],
-            row_count: 8,
+            row_count: 0,
         },
     ],
     [
