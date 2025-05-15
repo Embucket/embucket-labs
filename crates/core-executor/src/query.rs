@@ -972,24 +972,24 @@ impl UserQuery {
             Statement::ShowDatabases { .. } => {
                 format!(
                     "SELECT
-                    NULL as created_on,
-                    database_name as name,
-                    'STANDARD' as kind,
-                    NULL as database_name,
-                    NULL as schema_name
-                FROM {catalog}.information_schema.databases"
+                        NULL as created_on,
+                        database_name as name,
+                        'STANDARD' as kind,
+                        NULL as database_name,
+                        NULL as schema_name
+                    FROM {catalog}.information_schema.databases"
                 )
             }
             Statement::ShowSchemas { show_options, .. } => {
                 let catalog_name = resolve_show_in_name(show_options.show_in, &catalog);
                 let sql = format!(
                     "SELECT
-                    NULL as created_on,
-                    schema_name as name,
-                    NULL as kind,
-                    catalog_name as database_name,
-                    NULL as schema_name
-                FROM {catalog_name}.information_schema.schemata"
+                        NULL as created_on,
+                        schema_name as name,
+                        NULL as kind,
+                        catalog_name as database_name,
+                        NULL as schema_name
+                    FROM {catalog_name}.information_schema.schemata"
                 );
                 let mut filters = Vec::new();
                 if let Some(filter) =
@@ -1003,12 +1003,12 @@ impl UserQuery {
                 let schema = resolve_show_in_name(show_options.show_in, "");
                 let sql = format!(
                     "SELECT
-                    NULL as created_on,
-                    table_name as name,
-                    table_type as kind,
-                    table_catalog as database_name,
-                    table_schema as schema_name
-                FROM {catalog}.information_schema.tables"
+                        NULL as created_on,
+                        table_name as name,
+                        table_type as kind,
+                        table_catalog as database_name,
+                        table_schema as schema_name
+                    FROM {catalog}.information_schema.tables"
                 );
                 let mut filters = Vec::new();
                 if let Some(filter) =
@@ -1025,12 +1025,12 @@ impl UserQuery {
                 let schema = resolve_show_in_name(show_options.show_in, "");
                 let sql = format!(
                     "SELECT
-                    NULL as created_on,
-                    view_name as name,
-                    view_type as kind,
-                    view_catalog as database_name,
-                    view_schema as schema_name
-                FROM {catalog}.information_schema.views"
+                        NULL as created_on,
+                        view_name as name,
+                        view_type as kind,
+                        view_catalog as database_name,
+                        view_schema as schema_name
+                    FROM {catalog}.information_schema.views"
                 );
                 let mut filters = Vec::new();
                 if let Some(filter) =
@@ -1047,17 +1047,17 @@ impl UserQuery {
                 let table = resolve_show_in_name(show_options.show_in, "");
                 let sql = format!(
                     "SELECT
-                    table_name as table_name,
-                    table_schema as schema_name,
-                    column_name as column_name,
-                    data_type as data_type,
-                    column_default as default,
-                    is_nullable as 'null?',
-                    column_type as kind,
-                    NULL as expression,
-                    table_catalog as database_name,
-                    NULL as autoincrement
-                FROM {catalog}.information_schema.columns"
+                        table_name as table_name,
+                        table_schema as schema_name,
+                        column_name as column_name,
+                        data_type as data_type,
+                        column_default as default,
+                        is_nullable as 'null?',
+                        column_type as kind,
+                        NULL as expression,
+                        table_catalog as database_name,
+                        NULL as autoincrement
+                    FROM {catalog}.information_schema.columns"
                 );
                 let mut filters = Vec::new();
                 if let Some(filter) =
