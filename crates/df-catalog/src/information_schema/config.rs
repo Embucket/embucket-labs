@@ -49,17 +49,25 @@ impl InformationSchemaConfig {
             };
             for table_name in schema.table_names() {
                 if let Some(table) = schema.table(&table_name).await? {
-                    if table.table_type() != TableType::View {
-                        builder.add_table(
-                            &self.catalog_name,
-                            &schema_name,
-                            &table_name,
-                            table.table_type(),
-                        );
-                    }
+                    builder.add_table(
+                        &self.catalog_name,
+                        &schema_name,
+                        &table_name,
+                        table.table_type(),
+                    );
                 }
             }
         }
+
+        for table in &self.views_schemas {
+            builder.add_table(
+                &self.catalog_name,
+                INFORMATION_SCHEMA,
+                table.key(),
+                TableType::View,
+            );
+        }
+
         Ok(())
     }
 

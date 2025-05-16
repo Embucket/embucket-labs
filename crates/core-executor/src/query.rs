@@ -16,6 +16,7 @@ use datafusion::execution::session_state::SessionState;
 use datafusion::logical_expr::{LogicalPlan, TableSource, sqlparser::ast::Insert};
 use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
+use datafusion::sql::planner::object_name_to_table_reference;
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableObject, TableWithJoins,
@@ -38,8 +39,8 @@ use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
-    ObjectType, Query as AstQuery, Select, SelectItem, ShowStatementIn, UpdateTableFromKind, Use,
-    Value,
+    ObjectType, Query as AstQuery, Select, SelectItem, ShowObjects, ShowStatementIn,
+    UpdateTableFromKind, Use, Value,
 };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -270,7 +271,6 @@ impl UserQuery {
                 | Statement::Commit { .. }
                 | Statement::Insert { .. }
                 | Statement::ShowVariable { .. }
-                | Statement::ShowObjects { .. }
                 | Statement::Update { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&self.query)).await;
                 }
@@ -279,7 +279,8 @@ impl UserQuery {
                 | Statement::ShowTables { .. }
                 | Statement::ShowColumns { .. }
                 | Statement::ShowViews { .. }
-                | Statement::ShowFunctions { .. } => {
+                | Statement::ShowFunctions { .. }
+                | Statement::ShowObjects { .. } => {
                     return Box::pin(self.show_query(*s)).await;
                 }
                 Statement::Query(mut subquery) => {
@@ -967,9 +968,10 @@ impl UserQuery {
 
     #[allow(clippy::too_many_lines)]
     pub async fn show_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
-        let catalog = self.current_database();
+        let current_catalog = self.current_database();
         let query = match statement {
             Statement::ShowDatabases { .. } => {
+                let catalog = self.current_database();
                 format!(
                     "SELECT
                         NULL as created_on,
@@ -981,7 +983,11 @@ impl UserQuery {
                 )
             }
             Statement::ShowSchemas { show_options, .. } => {
-                let catalog_name = resolve_show_in_name(show_options.show_in, &catalog);
+                let reference = self.resolve_show_in_name(show_options.show_in)?;
+                let catalog = reference
+                    .as_ref()
+                    .and_then(|r| r.catalog())
+                    .unwrap_or_else(|| &current_catalog);
                 let sql = format!(
                     "SELECT
                         NULL as created_on,
@@ -989,7 +995,7 @@ impl UserQuery {
                         NULL as kind,
                         catalog_name as database_name,
                         NULL as schema_name
-                    FROM {catalog_name}.information_schema.schemata"
+                    FROM {catalog}.information_schema.schemata"
                 );
                 let mut filters = Vec::new();
                 if let Some(filter) =
@@ -1000,7 +1006,11 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowTables { show_options, .. } => {
-                let schema = resolve_show_in_name(show_options.show_in, "");
+                let reference = self.resolve_show_in_name(show_options.show_in)?;
+                let catalog = reference
+                    .as_ref()
+                    .and_then(|r| r.catalog())
+                    .unwrap_or_else(|| &current_catalog);
                 let sql = format!(
                     "SELECT
                         NULL as created_on,
@@ -1010,19 +1020,25 @@ impl UserQuery {
                         table_schema as schema_name
                     FROM {catalog}.information_schema.tables"
                 );
-                let mut filters = Vec::new();
+                let mut filters = vec!["table_type = 'TABLE'".to_string()];
                 if let Some(filter) =
                     build_starts_with_filter(show_options.starts_with, "table_name")
                 {
                     filters.push(filter);
                 }
-                if !schema.is_empty() {
-                    filters.push(format!("table_schema = '{schema}'"));
+                if let Some(table_ref) = &reference {
+                    if let Some(schema) = table_ref.schema() {
+                        filters.push(format!("table_schema = '{schema}'"));
+                    }
                 }
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowViews { show_options, .. } => {
-                let schema = resolve_show_in_name(show_options.show_in, "");
+                let reference = self.resolve_show_in_name(show_options.show_in)?;
+                let catalog = reference
+                    .as_ref()
+                    .and_then(|r| r.catalog())
+                    .unwrap_or_else(|| &current_catalog);
                 let sql = format!(
                     "SELECT
                         NULL as created_on,
@@ -1038,13 +1054,48 @@ impl UserQuery {
                 {
                     filters.push(filter);
                 }
-                if !schema.is_empty() {
-                    filters.push(format!("view_schema = '{schema}'"));
+                if let Some(table_ref) = &reference {
+                    if let Some(schema) = table_ref.schema() {
+                        filters.push(format!("view_schema = '{schema}'"));
+                    }
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowObjects(ShowObjects { show_options, .. }) => {
+                let reference = self.resolve_show_in_name(show_options.show_in)?;
+                let catalog = reference
+                    .as_ref()
+                    .and_then(|r| r.catalog())
+                    .unwrap_or_else(|| &current_catalog);
+                let sql = format!(
+                    "SELECT
+                        NULL as created_on,
+                        table_name as name,
+                        table_type as kind,
+                        table_catalog as database_name,
+                        table_schema as schema_name,
+                        CASE WHEN table_type='TABLE' then 'Y' else 'N' end as is_iceberg
+                    FROM {catalog}.information_schema.tables"
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "table_name")
+                {
+                    filters.push(filter);
+                }
+                if let Some(table_ref) = &reference {
+                    if let Some(schema) = table_ref.schema() {
+                        filters.push(format!("table_schema = '{schema}'"));
+                    }
                 }
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowColumns { show_options, .. } => {
-                let table = resolve_show_in_name(show_options.show_in, "");
+                let reference = self.resolve_show_in_name(show_options.show_in)?;
+                let catalog = reference
+                    .as_ref()
+                    .and_then(|r| r.catalog())
+                    .unwrap_or_else(|| &current_catalog);
                 let sql = format!(
                     "SELECT
                         table_name as table_name,
@@ -1065,8 +1116,11 @@ impl UserQuery {
                 {
                     filters.push(filter);
                 }
-                if !table.is_empty() {
-                    filters.push(format!("table_name = '{table}'"));
+                if let Some(table_ref) = &reference {
+                    if let Some(schema) = table_ref.schema() {
+                        filters.push(format!("table_schema = '{schema}'"));
+                    }
+                    filters.push(format!("table_name = '{}'", table_ref.table()));
                 }
                 apply_show_filters(sql, &filters)
             }
@@ -1079,6 +1133,23 @@ impl UserQuery {
             }
         };
         Box::pin(self.execute_with_custom_plan(&query)).await
+    }
+
+    pub fn resolve_show_in_name(
+        &self,
+        show_in: Option<ShowStatementIn>,
+    ) -> ExecutionResult<Option<TableReference>> {
+        if let Some(in_clause) = show_in {
+            if let Some(object_name) = in_clause.parent_name.as_ref() {
+                return object_name_to_table_reference(
+                    object_name.clone(),
+                    self.session.ctx.enable_ident_normalization(),
+                )
+                .map(Some)
+                .map_err(|e| ExecutionError::DataFusion { source: e });
+            }
+        }
+        Ok(None)
     }
 
     #[instrument(level = "trace", skip(self), err, ret)]
@@ -1932,18 +2003,6 @@ impl UserQuery {
             }
         }
         Ok(())
-    }
-}
-
-fn resolve_show_in_name(show_in: Option<ShowStatementIn>, default: &str) -> String {
-    if let Some(in_clause) = show_in {
-        in_clause
-            .parent_name
-            .as_ref()
-            .and_then(|name| name.0.first())
-            .map_or_else(|| default.to_string(), std::string::ToString::to_string)
-    } else {
-        default.to_string()
     }
 }
 

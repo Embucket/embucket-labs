@@ -271,71 +271,7 @@ snapshot_kind: text
             row_count: 1,
         },
     ],
-    [
-        RecordBatch {
-            schema: Schema {
-                fields: [
-                    Field {
-                        name: "created_on",
-                        data_type: Null,
-                        nullable: true,
-                        dict_id: 0,
-                        dict_is_ordered: false,
-                        metadata: {},
-                    },
-                    Field {
-                        name: "name",
-                        data_type: Utf8,
-                        nullable: false,
-                        dict_id: 0,
-                        dict_is_ordered: false,
-                        metadata: {},
-                    },
-                    Field {
-                        name: "kind",
-                        data_type: Utf8,
-                        nullable: false,
-                        dict_id: 0,
-                        dict_is_ordered: false,
-                        metadata: {},
-                    },
-                    Field {
-                        name: "database_name",
-                        data_type: Utf8,
-                        nullable: false,
-                        dict_id: 0,
-                        dict_is_ordered: false,
-                        metadata: {},
-                    },
-                    Field {
-                        name: "schema_name",
-                        data_type: Utf8,
-                        nullable: false,
-                        dict_id: 0,
-                        dict_is_ordered: false,
-                        metadata: {},
-                    },
-                ],
-                metadata: {},
-            },
-            columns: [
-                NullArray(0),
-                StringArray
-                [
-                ],
-                StringArray
-                [
-                ],
-                StringArray
-                [
-                ],
-                StringArray
-                [
-                ],
-            ],
-            row_count: 0,
-        },
-    ],
+    [],
     [
         RecordBatch {
             schema: Schema {

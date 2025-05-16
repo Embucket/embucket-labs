@@ -748,7 +748,35 @@ test_query!(
     sort_all = true
 );
 test_query!(
+    show_columns_in_table_full,
+    "SHOW COLUMNS IN embucket.public.employee_table",
+    sort_all = true
+);
+test_query!(
     show_columns_starts_with,
     "SHOW COLUMNS IN employee_table STARTS WITH 'last_'",
+    sort_all = true
+);
+
+// SHOW OBJECTS
+test_query!(show_objects, "SHOW OBJECTS", sort_all = true);
+test_query!(
+    show_objects_starts_with,
+    "SHOW OBJECTS STARTS WITH 'dep'",
+    sort_all = true
+);
+test_query!(
+    show_objects_in_schema,
+    "SHOW OBJECTS IN public",
+    sort_all = true
+);
+test_query!(
+    show_objects_in_schema_full,
+    "SHOW OBJECTS IN embucket.public",
+    sort_all = true
+);
+test_query!(
+    show_objects_in_schema_and_prefix,
+    "SHOW OBJECTS IN public STARTS WITH 'dep'",
     sort_all = true
 );
