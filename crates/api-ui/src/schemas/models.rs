@@ -14,18 +14,6 @@ pub struct Schema {
     pub updated_at: String,
 }
 
-impl Schema {
-    #[must_use]
-    pub fn new(name: String, database: String) -> Self {
-        Self {
-            name,
-            database,
-            created_at: chrono::Utc::now().naive_utc().to_string(),
-            updated_at: chrono::Utc::now().naive_utc().to_string(),
-        }
-    }
-}
-
 impl From<RwObject<MetastoreSchema>> for Schema {
     fn from(rw_schema: RwObject<MetastoreSchema>) -> Self {
         Self {

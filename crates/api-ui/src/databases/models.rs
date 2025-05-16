@@ -2,11 +2,14 @@ use crate::default_limit;
 use core_metastore::models::Database as MetastoreDatabase;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
+use core_metastore::RwObject;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 pub struct Database {
     pub name: String,
     pub volume: String,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 impl From<MetastoreDatabase> for Database {
@@ -14,6 +17,19 @@ impl From<MetastoreDatabase> for Database {
         Self {
             name: db.ident,
             volume: db.volume,
+            created_at: "ERROR".to_string(),
+            updated_at: "ERROR".to_string(),
+        }
+    }
+}
+
+impl From<RwObject<MetastoreDatabase>> for Database {
+    fn from(db: RwObject<MetastoreDatabase>) -> Self {
+        Self {
+            name: db.data.ident,
+            volume: db.data.volume,
+            created_at: db.created_at.to_string(),
+            updated_at: db.updated_at.to_string(),       
         }
     }
 }
@@ -70,14 +86,14 @@ pub struct DatabaseResponse {
 #[serde(rename_all = "camelCase")]
 pub struct DatabasesResponse {
     pub items: Vec<Database>,
-    pub current_cursor: Option<String>,
-    pub next_cursor: String,
 }
 
 #[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct DatabasesParameters {
-    pub cursor: Option<String>,
+    pub offset: Option<usize>,
     #[serde(default = "default_limit")]
     pub limit: Option<u16>,
     pub search: Option<String>,
+    pub order_by: Option<String>,
+    pub order_direction: Option<String>,
 }

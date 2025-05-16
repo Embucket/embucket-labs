@@ -168,7 +168,8 @@ async fn test_ui_databases() {
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
     assert_eq!(http::StatusCode::OK, res.status());
     let created_database = res.json::<DatabaseResponse>().await.unwrap();
-    assert_eq!(expected1.data, created_database.data);
+    assert_eq!(expected1.data.name, created_database.data.name);
+    assert_eq!(expected1.data.volume, created_database.data.volume);
 
     let expected2 = DatabaseCreatePayload {
         data: MetastoreDatabase {
@@ -239,15 +240,14 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test".to_string(),
+        "test4".to_string(),
         databases_response.items.first().unwrap().name
     );
-    let cursor = databases_response.next_cursor;
     //Get list schemas with parameters
     let res = req(
         &client,
         Method::GET,
-        &format!("http://{addr}/ui/databases?cursor={cursor}",).to_string(),
+        &format!("http://{addr}/ui/databases?offset=2",).to_string(),
         String::new(),
     )
     .await
@@ -256,7 +256,7 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test3".to_string(),
+        "test2".to_string(),
         databases_response.items.first().unwrap().name
     );
 
@@ -291,7 +291,7 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(4, databases_response.items.len());
     assert_eq!(
-        "test".to_string(),
+        "test4".to_string(),
         databases_response.items.first().unwrap().name
     );
 
@@ -308,18 +308,17 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test".to_string(),
+        "test4".to_string(),
         databases_response.items.first().unwrap().name
     );
-    let cursor = databases_response.next_cursor;
 
     //Get list schemas with parameters
     let res = req(
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases?search={}&cursor={cursor}",
-            "tes"
+            "http://{addr}/ui/databases?search={}&offset=2",
+            "test"
         )
         .to_string(),
         String::new(),
@@ -330,7 +329,7 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test3".to_string(),
+        "test2".to_string(),
         databases_response.items.first().unwrap().name
     );
 

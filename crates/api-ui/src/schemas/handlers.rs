@@ -92,9 +92,19 @@ pub async fn create_schema(
         .query(&session_id, sql_string.as_str(), context)
         .await
         .map_err(|e| SchemasAPIError::Create { source: e })?;
-    Ok(Json(SchemaCreateResponse {
-        data: Schema::new(payload.name, database_name),
-    }))
+    let schema_ident = MetastoreSchemaIdent::new(database_name.clone(), payload.name.clone());
+    match state.metastore.get_schema(&schema_ident).await {
+        Ok(Some(rw_object)) => Ok(Json(SchemaCreateResponse {
+            data: Schema::from(rw_object),
+        })),
+        Ok(None) => Err(SchemasAPIError::Get {
+            source: MetastoreError::SchemaNotFound {
+                db: database_name.clone(),
+                schema: payload.name.clone(),
+            },
+        }),
+        Err(e) => Err(SchemasAPIError::Get { source: e }),
+    }
 }
 
 #[utoipa::path(
@@ -235,7 +245,7 @@ pub async fn update_schema(
         ("limit" = Option<u16>, Query, description = "Schemas limit"),
         ("search" = Option<String>, Query, description = "Schemas search"),
         ("order_by" = Option<String>, Query, description = "Order by: schema_name (default), database_name, created_at, updated_at"),
-        ("order_direction" = Option<String>, Query, description = "Order direction: ASC (default), DESC"),
+        ("order_direction" = Option<String>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     responses(
         (status = 200, body = SchemasResponse),

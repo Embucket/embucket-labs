@@ -5,6 +5,7 @@ use axum::response::IntoResponse;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::prelude::*;
+use core_executor::error::ExecutionError;
 
 pub type DatabasesResult<T> = Result<T, DatabasesAPIError>;
 
@@ -20,7 +21,7 @@ pub enum DatabasesAPIError {
     #[snafu(display("Update database error: {source}"))]
     Update { source: MetastoreError },
     #[snafu(display("Get databases error: {source}"))]
-    List { source: MetastoreError },
+    List { source: ExecutionError },
 }
 
 // Select which status code to return.
