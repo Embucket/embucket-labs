@@ -133,18 +133,7 @@ async fn test_ui_databases_navigation() {
     let query_payload = QueryCreatePayload {
         worksheet_id: Some(worksheet.id),
         query: format!(
-            "create or replace Iceberg TABLE {}.{}.{}
-        external_volume = ''
-	    catalog = ''
-	    base_location = ''
-        (
-	    APP_ID TEXT,
-	    PLATFORM TEXT,
-	    ETL_TSTAMP TEXT,
-	    COLLECTOR_TSTAMP TEXT NOT NULL,
-	    DVCE_CREATED_TSTAMP TEXT,
-	    EVENT TEXT,
-	    EVENT_ID TEXT);",
+            "CREATE TABLE {}.{}.{} (APP_ID TEXT)",
             expected1.data.name.clone(),
             schema_name.clone(),
             "tested1"
@@ -179,7 +168,7 @@ async fn test_ui_databases_navigation() {
             .tables
             .len()
     );
-    // Information schema tables
+    // Information schema views
     assert_eq!(
         8,
         databases_navigation
@@ -189,7 +178,7 @@ async fn test_ui_databases_navigation() {
             .schemas
             .first()
             .unwrap()
-            .tables
+            .views
             .len()
     );
 

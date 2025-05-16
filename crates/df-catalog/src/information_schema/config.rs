@@ -81,10 +81,10 @@ impl InformationSchemaConfig {
                     "Catalog '{catalog_name}' not found in catalog list"
                 ))
             })?;
-            builder.add_navigation_tree(&catalog_name, None, None);
+            builder.add_navigation_tree(&catalog_name, None, None, None);
 
             for schema_name in catalog.schema_names() {
-                builder.add_navigation_tree(&catalog_name, Some(schema_name.clone()), None);
+                builder.add_navigation_tree(&catalog_name, Some(schema_name.clone()), None, None);
 
                 if let Some(schema) = catalog.schema(&schema_name) {
                     for table_name in schema.table_names() {
@@ -92,6 +92,7 @@ impl InformationSchemaConfig {
                             &catalog_name,
                             Some(schema_name.clone()),
                             Some(table_name),
+                            Some(TableType::Base),
                         );
                     }
                 }
@@ -103,6 +104,7 @@ impl InformationSchemaConfig {
                     &catalog_name,
                     Some(INFORMATION_SCHEMA.to_string()),
                     Some(table.key().to_string()),
+                    Some(TableType::View),
                 );
             }
         }
