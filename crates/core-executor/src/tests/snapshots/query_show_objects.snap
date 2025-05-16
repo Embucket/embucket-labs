@@ -20,7 +20,6 @@ Ok(
         "|            | ftable1           | TABLE | embucket      | public             | Y          |",
         "|            | leased_bicycles   | TABLE | embucket      | public             | Y          |",
         "|            | monthly_sales     | TABLE | embucket      | public             | Y          |",
-        "|            | navigation_tree   | VIEW  | embucket      | information_schema | N          |",
         "|            | parameters        | VIEW  | embucket      | information_schema | N          |",
         "|            | products          | TABLE | embucket      | public             | Y          |",
         "|            | quarterly_sales   | TABLE | embucket      | public             | Y          |",

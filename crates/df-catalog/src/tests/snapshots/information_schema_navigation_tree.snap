@@ -10,7 +10,6 @@ snapshot_kind: text
 | embucket | information_schema | databases       |
 | embucket | information_schema | df_settings     |
 | embucket | information_schema | navigation_tree |
-| embucket | information_schema | navigation_tree |
 | embucket | information_schema | parameters      |
 | embucket | information_schema | routines        |
 | embucket | information_schema | schemata        |
