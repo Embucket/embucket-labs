@@ -231,9 +231,11 @@ pub async fn update_schema(
     tags = ["schemas"],
     params(
         ("databaseName" = String, description = "Database Name"),
-        ("cursor" = Option<String>, Query, description = "Schemas cursor"),
-        ("limit" = Option<usize>, Query, description = "Schemas limit"),
-        ("search" = Option<String>, Query, description = "Schemas search (start with)"),
+        ("offset" = Option<usize>, Query, description = "Schemas offset"),
+        ("limit" = Option<u16>, Query, description = "Schemas limit"),
+        ("search" = Option<String>, Query, description = "Schemas search"),
+        ("order_by" = Option<String>, Query, description = "Order by: schema_name (default), database_name, created_at, updated_at"),
+        ("order_direction" = Option<String>, Query, description = "Order direction: ASC (default), DESC"),
     ),
     responses(
         (status = 200, body = SchemasResponse),
@@ -262,7 +264,9 @@ pub async fn list_schemas(
         "SELECT * FROM slatedb.public.schemas WHERE database_name = '{}'",
         database_name.clone()
     );
-    let sql_string = parameters.search.map_or(sql_string.clone(), |search| format!("{sql_string} AND schema_name LIKE '%{search}%'"));
+    let sql_string = parameters.search.map_or(sql_string.clone(), |search| 
+        format!("{sql_string} AND (schema_name LIKE '%{search}%' OR database_name LIKE '%{search}%' OR created_at LIKE '%{search}%' OR updated_at LIKE '%{search}%')")
+    );
     let sql_string = parameters.order_by.map_or(format!("{sql_string} ORDER BY schema_name"), |order_by| format!("{sql_string} ORDER BY {order_by}"));
     let sql_string = parameters.order_direction.map_or(format!("{sql_string} DESC"), |order_direction| format!("{sql_string} {order_direction}"));
     let sql_string = parameters.offset.map_or(sql_string.clone(), |offset| format!("{sql_string} OFFSET {offset}"));
@@ -271,7 +275,7 @@ pub async fn list_schemas(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| SchemasAPIError::Create { source: e })?;
+        .map_err(|e| SchemasAPIError::List { source: e })?;
     let mut items = Vec::new();
     for record in records {
         let schema_names = record.column_by_name("schema_name").unwrap().as_ref();
@@ -282,8 +286,8 @@ pub async fn list_schemas(
             items.push(Schema {
                 name: array_value_to_string(schema_names, i).unwrap_or("ERROR".to_string()),
                 database: array_value_to_string(database_names, i).unwrap_or("ERROR".to_string()),
-                created_at: array_value_to_string(created_at_timestamps, i).unwrap_or("ERROR".to_string()).parse::<NaiveDateTime>().unwrap(),
-                updated_at: array_value_to_string(updated_at_timestamps, i).unwrap_or("ERROR".to_string()).parse::<NaiveDateTime>().unwrap(),
+                created_at: array_value_to_string(created_at_timestamps, i).unwrap_or("ERROR".to_string()),
+                updated_at: array_value_to_string(updated_at_timestamps, i).unwrap_or("ERROR".to_string()),
             })
         }
     }

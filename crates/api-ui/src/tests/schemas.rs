@@ -140,16 +140,15 @@ async fn test_ui_schemas() {
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(1, schemas_response.items.len());
     assert_eq!(
-        "testing1".to_string(),
+        "testing3".to_string(),
         schemas_response.items.first().unwrap().name
     );
-    let cursor = schemas_response.next_cursor;
     //Get list schemas with parameters
     let res = req(
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas?cursor={cursor}",
+            "http://{addr}/ui/databases/{}/schemas?offset=1",
             database_name.clone()
         )
         .to_string(),
@@ -191,7 +190,7 @@ async fn test_ui_schemas() {
         &format!(
             "http://{addr}/ui/databases/{}/schemas?search={}",
             database_name.clone(),
-            "tes"
+            "testing"
         )
         .to_string(),
         String::new(),
@@ -209,7 +208,7 @@ async fn test_ui_schemas() {
         &format!(
             "http://{addr}/ui/databases/{}/schemas?search={}&limit=1",
             database_name.clone(),
-            "tes"
+            "testing"
         )
         .to_string(),
         String::new(),
@@ -220,18 +219,17 @@ async fn test_ui_schemas() {
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(1, schemas_response.items.len());
     assert_eq!(
-        "testing1".to_string(),
+        "testing3".to_string(),
         schemas_response.items.first().unwrap().name
     );
-    let cursor = schemas_response.next_cursor;
     //Get list schemas with parameters
     let res = req(
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas?search={}&cursor={cursor}",
+            "http://{addr}/ui/databases/{}/schemas?search={}&offset=1",
             database_name.clone(),
-            "tes"
+            "testing"
         )
         .to_string(),
         String::new(),

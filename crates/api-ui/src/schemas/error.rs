@@ -21,7 +21,7 @@ pub enum SchemasAPIError {
     #[snafu(display("Update schema error: {source}"))]
     Update { source: MetastoreError },
     #[snafu(display("Get schemas error: {source}"))]
-    List { source: MetastoreError },
+    List { source: ExecutionError },
 }
 
 // Select which status code to return.

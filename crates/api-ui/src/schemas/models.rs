@@ -10,8 +10,8 @@ use utoipa::{IntoParams, ToSchema};
 pub struct Schema {
     pub name: String,
     pub database: String,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 impl Schema {
@@ -20,8 +20,8 @@ impl Schema {
         Self {
             name,
             database,
-            created_at: chrono::Utc::now().naive_utc(),
-            updated_at: chrono::Utc::now().naive_utc(),
+            created_at: chrono::Utc::now().naive_utc().to_string(),
+            updated_at: chrono::Utc::now().naive_utc().to_string(),
         }
     }
 }
@@ -31,8 +31,8 @@ impl From<RwObject<MetastoreSchema>> for Schema {
         Self {
             name: rw_schema.data.ident.schema,
             database: rw_schema.data.ident.database,
-            created_at: rw_schema.created_at,
-            updated_at: rw_schema.updated_at,
+            created_at: rw_schema.created_at.to_string(),
+            updated_at: rw_schema.updated_at.to_string(),
         }
     }
 }
