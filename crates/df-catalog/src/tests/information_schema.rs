@@ -2,11 +2,12 @@ use crate::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use crate::information_schema::information_schema::{
     INFORMATION_SCHEMA, InformationSchemaProvider,
 };
+use crate::test_utils::sort_record_batch_by_sortable_columns;
 use core_metastore::SlateDBMetastore;
+use datafusion::arrow::compute::{SortColumn, SortOptions, take_record_batch};
 use datafusion::execution::SessionStateBuilder;
 use datafusion::execution::context::SessionContext;
 use datafusion::prelude::SessionConfig;
-use datafusion::sql::planner::IdentNormalizer;
 use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]
@@ -46,7 +47,7 @@ macro_rules! test_query {
             #[tokio::test]
             async fn [< test_ $test_name >]() {
                 let ctx = create_session_context().await;
-                let record_batches = ctx
+                let mut record_batches = ctx
                     .sql($query)
                     .await
                     .unwrap()
@@ -59,6 +60,9 @@ macro_rules! test_query {
                     prepend_module_to_snapshot => false,
                     $( snapshot_path => $snapshot_path, )?
                 }, {
+                    for batch in &mut record_batches {
+                        *batch = sort_record_batch_by_sortable_columns(batch);
+                    }
                     let formatted = datafusion::arrow::util::pretty::pretty_format_batches(&record_batches).unwrap().to_string();
                     insta::assert_snapshot!(stringify!($test_name), formatted);
                 })
@@ -69,7 +73,7 @@ macro_rules! test_query {
 
 test_query!(
     information_schema_tables,
-    "SELECT * FROM embucket.information_schema.tables "
+    "SELECT * FROM embucket.information_schema.tables"
 );
 test_query!(
     information_schema_databases,
@@ -97,20 +101,12 @@ test_query!(
     "SELECT * FROM embucket.information_schema.navigation_tree ORDER BY database, schema, table"
 );
 
-// These information_schema tables (routines, parameters) can return rows in a non-deterministic order,
-// causing snapshot tests to randomly fail.
-// To avoid flakiness, we group results by primary identifying columns and count the rows per group.
-// This makes the output deterministic and ensures stable test snapshots.
 test_query!(
     information_schema_routines,
-    "SELECT routine_name FROM embucket.information_schema.routines \
-     GROUP BY routine_name \
-     ORDER BY routine_name"
+    "SELECT routine_name FROM embucket.information_schema.routines"
 );
 
 test_query!(
     information_schema_parameters,
-    "SELECT specific_name FROM embucket.information_schema.parameters \
-     GROUP BY specific_name \
-     ORDER BY specific_name"
+    "SELECT specific_name FROM embucket.information_schema.parameters"
 );

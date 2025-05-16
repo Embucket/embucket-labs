@@ -179,10 +179,9 @@ async fn test_ui_databases_navigation() {
             .tables
             .len()
     );
-
     // Information schema tables
     assert_eq!(
-        7,
+        8,
         databases_navigation
             .items
             .first()

@@ -6,6 +6,8 @@ snapshot_kind: text
 +----------+--------------------+-----------------+
 | database | schema             | table           |
 +----------+--------------------+-----------------+
+| embucket |                    |                 |
+| embucket | information_schema |                 |
 | embucket | information_schema | columns         |
 | embucket | information_schema | databases       |
 | embucket | information_schema | df_settings     |
@@ -15,9 +17,7 @@ snapshot_kind: text
 | embucket | information_schema | schemata        |
 | embucket | information_schema | tables          |
 | embucket | information_schema | views           |
-| embucket | information_schema |                 |
+| embucket | public             |                 |
 | embucket | public             | first           |
 | embucket | public             | second          |
-| embucket | public             |                 |
-| embucket |                    |                 |
 +----------+--------------------+-----------------+

@@ -11,14 +11,13 @@ use core_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     TableIdent as MetastoreTableIdent, Volume as MetastoreVolume,
 };
-use datafusion::arrow::array::RecordBatch;
-use datafusion::arrow::compute::{SortColumn, SortOptions, lexsort_to_indices, take_record_batch};
-use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::compute::{SortColumn, SortOptions, take_record_batch};
 use datafusion::assert_batches_eq;
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::Statement as SQLStatement;
 use datafusion::sql::sqlparser::ast::visit_expressions;
 use datafusion::sql::sqlparser::ast::{Expr, ObjectName, ObjectNamePart};
+use df_catalog::test_utils::sort_record_batch_by_sortable_columns;
 use sqlparser::ast::{
     Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
 };
@@ -597,31 +596,6 @@ pub async fn create_df_session() -> Arc<UserSession> {
         }
     }
     user_session
-}
-
-#[allow(clippy::unwrap_used)]
-pub fn sort_record_batch_by_sortable_columns(batch: &RecordBatch) -> RecordBatch {
-    let sort_columns: Vec<SortColumn> = (0..batch.num_columns())
-        .filter_map(|i| {
-            let col = batch.column(i).clone();
-            let field = batch.schema().field(i).clone();
-            if matches!(field.data_type(), DataType::Null) {
-                None
-            } else {
-                Some(SortColumn {
-                    values: col,
-                    options: Some(SortOptions::default()),
-                })
-            }
-        })
-        .collect();
-
-    if sort_columns.is_empty() {
-        return batch.clone();
-    }
-
-    let indices = lexsort_to_indices(&sort_columns, Some(batch.num_rows())).unwrap();
-    take_record_batch(batch, &indices).unwrap()
 }
 
 #[macro_export]
