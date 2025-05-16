@@ -8,21 +8,18 @@ use crate::{
     },
     error::ErrorResponse,
 };
+use api_sessions::DFSessionId;
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use datafusion::arrow::util::display::array_value_to_string;
-use core_metastore::Database as MetastoreDatabase;
-use core_metastore::error::MetastoreError;
-use core_utils::scan_iterator::ScanIterator;
-use utoipa::OpenApi;
-use validator::Validate;
-use api_sessions::DFSessionId;
 use core_executor::models::QueryResultData;
 use core_executor::query::QueryContext;
-use crate::schemas::error::SchemasAPIError;
-use crate::schemas::models::Schema;
+use core_metastore::Database as MetastoreDatabase;
+use core_metastore::error::MetastoreError;
+use datafusion::arrow::util::display::array_value_to_string;
+use utoipa::OpenApi;
+use validator::Validate;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -87,11 +84,7 @@ pub async fn create_database(
         .create_database(&database.ident.clone(), database)
         .await
         .map_err(|e| DatabasesAPIError::Create { source: e })
-        .map(|o| {
-            Json(DatabaseCreateResponse {
-                data: o.into(),
-            })
-        })
+        .map(|o| Json(DatabaseCreateResponse { data: o.into() }))
 }
 
 #[utoipa::path(
@@ -119,9 +112,7 @@ pub async fn get_database(
     Path(database_name): Path<String>,
 ) -> DatabasesResult<Json<DatabaseResponse>> {
     match state.metastore.get_database(&database_name).await {
-        Ok(Some(db)) => Ok(Json(DatabaseResponse {
-            data: db.into(),
-        })),
+        Ok(Some(db)) => Ok(Json(DatabaseResponse { data: db.into() })),
         Ok(None) => Err(DatabasesAPIError::Get {
             source: MetastoreError::DatabaseNotFound {
                 db: database_name.clone(),
@@ -200,11 +191,7 @@ pub async fn update_database(
         .update_database(&database_name, database)
         .await
         .map_err(|e| DatabasesAPIError::Update { source: e })
-        .map(|o| {
-            Json(DatabaseUpdateResponse {
-                data: o.into(),
-            })
-        })
+        .map(|o| Json(DatabaseUpdateResponse { data: o.into() }))
 }
 
 #[utoipa::path(
@@ -231,24 +218,33 @@ pub async fn update_database(
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[allow(clippy::unwrap_used)]
 pub async fn list_databases(
     DFSessionId(session_id): DFSessionId,
     Query(parameters): Query<DatabasesParameters>,
     State(state): State<AppState>,
 ) -> DatabasesResult<Json<DatabasesResponse>> {
-    let context = QueryContext::new(
-        None,
-        None,
-        None,
-    );
+    let context = QueryContext::new(None, None, None);
     let sql_string = "SELECT * FROM slatedb.public.databases".to_string();
-    let sql_string = parameters.search.map_or(sql_string.clone(), |search|
+    let sql_string = parameters.search.map_or_else(|| sql_string.clone(), |search|
         format!("{sql_string} WHERE (database_name LIKE '%{search}%' OR volume_name LIKE '%{search}%' OR created_at LIKE '%{search}%' OR updated_at LIKE '%{search}%')")
     );
-    let sql_string = parameters.order_by.map_or(format!("{sql_string} ORDER BY database_name"), |order_by| format!("{sql_string} ORDER BY {order_by}"));
-    let sql_string = parameters.order_direction.map_or(format!("{sql_string} DESC"), |order_direction| format!("{sql_string} {order_direction}"));
-    let sql_string = parameters.offset.map_or(sql_string.clone(), |offset| format!("{sql_string} OFFSET {offset}"));
-    let sql_string = parameters.limit.map_or(sql_string.clone(), |limit| format!("{sql_string} LIMIT {limit}"));
+    let sql_string = parameters.order_by.map_or_else(
+        || format!("{sql_string} ORDER BY database_name"),
+        |order_by| format!("{sql_string} ORDER BY {order_by}"),
+    );
+    let sql_string = parameters.order_direction.map_or_else(
+        || format!("{sql_string} DESC"),
+        |order_direction| format!("{sql_string} {order_direction}"),
+    );
+    let sql_string = parameters.offset.map_or_else(
+        || sql_string.clone(),
+        |offset| format!("{sql_string} OFFSET {offset}"),
+    );
+    let sql_string = parameters.limit.map_or_else(
+        || sql_string.clone(),
+        |limit| format!("{sql_string} LIMIT {limit}"),
+    );
     let QueryResultData { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
@@ -262,14 +258,12 @@ pub async fn list_databases(
         let updated_at_timestamps = record.column_by_name("updated_at").unwrap().as_ref();
         for i in 0..record.num_rows() {
             items.push(Database {
-                name: array_value_to_string(database_names, i).unwrap_or("ERROR".to_string()),
-                volume: array_value_to_string(volume_names, i).unwrap_or("ERROR".to_string()),
-                created_at: array_value_to_string(created_at_timestamps, i).unwrap_or("ERROR".to_string()),
-                updated_at: array_value_to_string(updated_at_timestamps, i).unwrap_or("ERROR".to_string()),
-            })
+                name: array_value_to_string(database_names, i).unwrap(),
+                volume: array_value_to_string(volume_names, i).unwrap(),
+                created_at: array_value_to_string(created_at_timestamps, i).unwrap(),
+                updated_at: array_value_to_string(updated_at_timestamps, i).unwrap(),
+            });
         }
     }
-    Ok(Json(DatabasesResponse {
-        items,
-    }))
+    Ok(Json(DatabasesResponse { items }))
 }

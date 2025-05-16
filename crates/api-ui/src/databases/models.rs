@@ -1,8 +1,8 @@
 use crate::default_limit;
+use core_metastore::RwObject;
 use core_metastore::models::Database as MetastoreDatabase;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
-use core_metastore::RwObject;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 pub struct Database {
@@ -29,7 +29,7 @@ impl From<RwObject<MetastoreDatabase>> for Database {
             name: db.data.ident,
             volume: db.data.volume,
             created_at: db.created_at.to_string(),
-            updated_at: db.updated_at.to_string(),       
+            updated_at: db.updated_at.to_string(),
         }
     }
 }

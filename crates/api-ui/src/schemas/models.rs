@@ -1,5 +1,4 @@
 use crate::default_limit;
-use chrono::NaiveDateTime;
 use core_metastore::RwObject;
 use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
 use serde::{Deserialize, Serialize};

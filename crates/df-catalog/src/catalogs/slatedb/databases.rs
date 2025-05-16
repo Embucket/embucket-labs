@@ -71,7 +71,13 @@ pub struct DatabasesViewBuilder {
 }
 
 impl DatabasesViewBuilder {
-    pub fn add_database(&mut self, database_name: impl AsRef<str>, volume_name: impl AsRef<str>, created_at: impl AsRef<str>, updated_at: impl AsRef<str>) {
+    pub fn add_database(
+        &mut self,
+        database_name: impl AsRef<str>,
+        volume_name: impl AsRef<str>,
+        created_at: impl AsRef<str>,
+        updated_at: impl AsRef<str>,
+    ) {
         // Note: append_value is actually infallible.
         self.database_names.append_value(database_name.as_ref());
         self.volume_names.append_value(volume_name.as_ref());

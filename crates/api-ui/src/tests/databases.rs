@@ -316,11 +316,7 @@ async fn test_ui_databases() {
     let res = req(
         &client,
         Method::GET,
-        &format!(
-            "http://{addr}/ui/databases?search={}&offset=2",
-            "test"
-        )
-        .to_string(),
+        &format!("http://{addr}/ui/databases?search={}&offset=2", "test").to_string(),
         String::new(),
     )
     .await

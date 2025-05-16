@@ -71,7 +71,13 @@ pub struct VolumesViewBuilder {
 }
 
 impl VolumesViewBuilder {
-    pub fn add_volume(&mut self, volume_name: impl AsRef<str>, volume_type: impl AsRef<str>, created_at: impl AsRef<str>, updated_at: impl AsRef<str>) {
+    pub fn add_volume(
+        &mut self,
+        volume_name: impl AsRef<str>,
+        volume_type: impl AsRef<str>,
+        created_at: impl AsRef<str>,
+        updated_at: impl AsRef<str>,
+    ) {
         // Note: append_value is actually infallible.
         self.volume_names.append_value(volume_name.as_ref());
         self.volume_types.append_value(volume_type.as_ref());
