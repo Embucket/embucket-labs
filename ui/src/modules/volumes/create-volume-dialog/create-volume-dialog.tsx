@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
+import type { Volume } from '@/orval/models';
 import { getGetVolumesQueryKey, useCreateVolume } from '@/orval/volumes';
 
 import { CreateVolumeDialogForm } from './create-volume-dialog-form';
@@ -41,18 +42,18 @@ export function CreateVolumeDialog({ opened, onSetOpened }: CreateVolumeDialogPr
 
   return (
     <Dialog open={opened} onOpenChange={onSetOpened}>
-      <DialogContent>
+      <DialogContent className="min-w-[596px]">
         <DialogHeader>
           <DialogTitle>Create Volume</DialogTitle>
         </DialogHeader>
         {error && (
           <Alert variant="destructive">
-            <AlertDescription>{JSON.stringify(error.response?.data)}</AlertDescription>
+            <AlertDescription>{JSON.stringify(error.response?.data.message)}</AlertDescription>
           </Alert>
         )}
         <CreateVolumeDialogForm
           onSubmit={(formData) => {
-            mutate({ data: { type: 'memory', name: formData.name } });
+            mutate({ data: formData as Volume });
           }}
         />
         <DialogFooter>

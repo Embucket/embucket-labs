@@ -20,7 +20,6 @@ export function VolumesPage() {
     <>
       <DataPageHeader
         title="Volumes"
-        Icon={Box}
         secondaryText={`${volumes?.length} volumes found`}
         Action={
           <Button disabled={isFetching} onClick={() => setOpened(true)}>

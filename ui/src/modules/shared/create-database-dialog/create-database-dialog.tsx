@@ -54,7 +54,7 @@ export function CreateDatabaseDialog({ opened, onSetOpened }: CreateDatabaseDial
         </DialogHeader>
         {error && (
           <Alert variant="destructive">
-            <AlertDescription>{JSON.stringify(error.response?.data)}</AlertDescription>
+            <AlertDescription>{JSON.stringify(error.response?.data.message)}</AlertDescription>
           </Alert>
         )}
         <CreateDatabaseDialogForm

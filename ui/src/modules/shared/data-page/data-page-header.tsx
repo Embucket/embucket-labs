@@ -5,7 +5,7 @@ import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 
 interface DataPageHeaderProps {
   title: string;
-  Icon: LucideIcon;
+  Icon?: LucideIcon;
   Action?: React.ReactNode;
   secondaryText?: string;
 }
@@ -15,7 +15,7 @@ export const DataPageHeader = ({ title, secondaryText, Action, Icon }: DataPageH
     <div className="border-b p-4">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Icon className="text-muted-foreground size-5" />
+          {Icon && <Icon className="text-muted-foreground size-5" />}
           <h1 className="text-lg">{title}</h1>
         </div>
         {Action}
