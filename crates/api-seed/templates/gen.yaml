@@ -1,9 +1,13 @@
-database_gen: 
+volume_name: foo
+databases_gen: 
   count: 1
   generator: 
-    schema_gen:
+    schemas_gen:
       count: 1
       generator:
-        table_gen: 
+        tables_gen: 
           count: 1
           generator:
+            columns_gen:
+              count: 1
+              generator:

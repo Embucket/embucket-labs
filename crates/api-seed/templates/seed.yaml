@@ -1,4 +1,4 @@
-name: memory
+volume_name: memory
 databases:
   - name: analytics
     schemas:

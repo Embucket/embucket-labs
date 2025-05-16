@@ -11,7 +11,6 @@ pub trait Generator<T> {
     fn generate(&self, index: usize) -> T;
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct WithCount<T, G>
 where
@@ -38,7 +37,6 @@ where
     }
 }
 
-
 ///// Super Volume
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -50,6 +48,7 @@ pub enum SuperVolumeType {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SuperVolume {
+    #[serde(flatten)]
     pub volume: SuperVolumeType,
 }
 
@@ -64,28 +63,26 @@ impl SuperVolume {
 
 ///// Volume
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Volume {
-    pub name: String,
+    pub volume_name: String,
     pub databases: Vec<Database>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VolumeGenerator {
-    name: Option<String>, // if None value will be generated
-    database_gen: WithCount<Database, DatabaseGenerator>,
+    databases_gen: WithCount<Database, DatabaseGenerator>,
+    volume_name: Option<String>, // if None value will be generated    
 }
 
 impl Generator<Volume> for VolumeGenerator {
     fn generate(&self, _index: usize) -> Volume {
         Volume {
-            name: self.name.clone().unwrap_or_else(|| Name(EN).fake()),
-            databases: self.database_gen.generate(),
+            databases: self.databases_gen.generate(),
+            volume_name: self.volume_name.clone().unwrap_or_else(|| Name(EN).fake()),
         }
     }
 }
-
 
 ///// Database
 
@@ -98,14 +95,14 @@ pub struct Database {
 #[derive(Debug, Serialize, Deserialize)]
 struct DatabaseGenerator {
     name: Option<String>, // if None value will be generated
-    schema_gen: WithCount<Schema, SchemaGenerator>,
+    schemas_gen: WithCount<Schema, SchemaGenerator>,
 }
 
 impl Generator<Database> for DatabaseGenerator {
     fn generate(&self, _index: usize) -> Database {
         Database {
             name: Name(EN).fake(),
-            schemas: self.schema_gen.generate(),
+            schemas: self.schemas_gen.generate(),
         }
     }
 }
@@ -122,14 +119,14 @@ pub struct Schema {
 #[derive(Debug, Serialize, Deserialize)]
 struct SchemaGenerator {
     name: Option<String>, // if None value will be generated
-    table_gen: WithCount<Table, TableGenerator>,
+    tables_gen: WithCount<Table, TableGenerator>,
 }
 
 impl Generator<Schema> for SchemaGenerator {
     fn generate(&self, _index: usize) -> Schema {
         Schema {
             name: Name(EN).fake(),
-            tables: self.table_gen.generate(),
+            tables: self.tables_gen.generate(),
         }
     }
 }
@@ -155,7 +152,6 @@ impl Generator<Table> for TableGenerator {
         }
     }
 }
-
 
 
 ///// Column

@@ -1,11 +1,17 @@
-volume:
-  name: foo
-  database_gen:
-    count: 1
-    generator: 
-      schema_gen:
-        count: 1
-        generator:
-          table_gen: 
-            count: 1
-            generator:
+volume_name:
+databases_gen:
+  count: 1
+  generator:
+    name: null
+    schemas_gen:
+      count: 1
+      generator:
+        name: null
+        tables_gen:
+          count: 1
+          generator:
+            name: null
+            columns_gen:
+              count: 1
+              generator:
+                name: null
