@@ -8,6 +8,7 @@ use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
 use std::any::Any;
 use std::sync::Arc;
+use crate::macros::make_udf_function;
 
 // array_to_string SQL function
 // Converts the input array to a string by first casting each element to a string,
@@ -137,7 +138,7 @@ fn to_string(v: &Value, sep: &str) -> DFResult<String> {
     Ok(res.join(sep))
 }
 
-super::macros::make_udf_function!(ArrayToStringFunc);
+make_udf_function!(ArrayToStringFunc);
 
 #[cfg(test)]
 mod tests {

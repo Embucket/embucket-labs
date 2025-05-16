@@ -37,6 +37,7 @@ use snafu::ResultExt;
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
+use df_builtins::table::register_udtfs;
 
 pub struct UserSession {
     pub metastore: Arc<dyn Metastore>,
@@ -91,6 +92,7 @@ impl UserSession {
         let mut ctx = SessionContext::new_with_state(state);
         register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         register_udafs(&mut ctx).context(ex_error::RegisterUDAFSnafu)?;
+        register_udtfs(&mut ctx);
         register_json_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         //register_geo_native(&ctx);
         //register_geo_udfs(&ctx);

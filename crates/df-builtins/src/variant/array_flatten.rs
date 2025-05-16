@@ -8,6 +8,7 @@ use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::{Map, Value};
 use std::any::Any;
 use std::sync::Arc;
+use crate::macros::make_udf_function;
 
 // array_flatten SQL function
 // Transforms a nested ARRAY (an ARRAY of ARRAYs) into a single, flat ARRAY by combining all inner ARRAYs into one continuous sequence.
@@ -146,7 +147,7 @@ fn flatten(v: &str) -> DFResult<Option<String>> {
     })?))
 }
 
-super::macros::make_udf_function!(ArrayFlattenFunc);
+make_udf_function!(ArrayFlattenFunc);
 
 #[cfg(test)]
 mod tests {
