@@ -1,0 +1,11 @@
+volume:
+  name: foo
+  database_gen:
+    count: 1
+    generator: 
+      schema_gen:
+        count: 1
+        generator:
+          table_gen: 
+            count: 1
+            generator:

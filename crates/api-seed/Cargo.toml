@@ -1,0 +1,11 @@
+[package]
+name = "api-seed"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_yaml = { workspace = true }
+serde = { workspace = true }
+core-metastore = { path = "../core-metastore" }
+fake = "4.3.0"
+rand = "0.9.1"
