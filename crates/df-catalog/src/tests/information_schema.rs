@@ -91,9 +91,11 @@ test_query!(
     information_schema_schemata,
     "SELECT * FROM embucket.information_schema.schemata"
 );
+
+// Note: Some df_settings values depend on the system environment (e.g., CPU core count).
 test_query!(
     information_schema_df_settings,
-    "SELECT * FROM embucket.information_schema.df_settings"
+    "SELECT name FROM embucket.information_schema.df_settings"
 );
 
 test_query!(
