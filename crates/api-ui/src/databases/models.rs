@@ -17,6 +17,7 @@ impl From<MetastoreDatabase> for Database {
         Self {
             name: db.ident,
             volume: db.volume,
+            //TODO: fix this, we must use a different payload or change the test suite for dbs
             created_at: "ERROR".to_string(),
             updated_at: "ERROR".to_string(),
         }

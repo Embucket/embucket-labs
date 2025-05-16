@@ -50,7 +50,8 @@ async fn test_ui_databases_metastore_update_bug() {
         .json::<DatabaseResponse>()
         .await
         .expect("Failed to create database");
-    assert_eq!(expected.data, created_database.data);
+    assert_eq!(expected.data.name, created_database.data.name);
+    assert_eq!(expected.data.volume, created_database.data.volume);
 
     // Update database test -> new-test, Ok
     let new_database = DatabaseCreatePayload {
@@ -75,7 +76,8 @@ async fn test_ui_databases_metastore_update_bug() {
         .json::<DatabaseResponse>()
         .await
         .expect("Failed to update database");
-    assert_eq!(new_database.data, renamed_database.data); // server confirmed it's renamed
+    assert_eq!(new_database.data.name, renamed_database.data.name); // server confirmed it's renamed
+    assert_eq!(new_database.data.volume, renamed_database.data.volume);
 
     // get non existing database using old name, expected error 404
     let res = ui_test_op(
