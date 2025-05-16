@@ -73,6 +73,16 @@ pub enum TableFormat {
     Iceberg,
 }
 
+impl Display for TableFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Self::Parquet => "parquet".to_string(),
+            Self::Iceberg => "iceberg".to_string(),
+        };
+        write!(f, "{str}")
+    }
+}
+
 impl From<String> for TableFormat {
     fn from(value: String) -> Self {
         match value.to_lowercase().as_str() {

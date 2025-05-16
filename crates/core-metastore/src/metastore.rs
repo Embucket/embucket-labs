@@ -439,7 +439,12 @@ impl Metastore for SlateDBMetastore {
     }
 
     fn iter_tables(&self, schema: &SchemaIdent) -> VecScanIterator<RwObject<Table>> {
-        let key = format!("{KEY_TABLE}/{}/{}", schema.database, schema.schema);
+        //If database and schema is empty, we are iterating over all tables
+        let key = if schema.schema.is_empty() && schema.database.is_empty() {
+            KEY_TABLE.to_string()
+        } else {
+            format!("{KEY_TABLE}/{}/{}", schema.database, schema.schema)
+        };
         self.iter_objects(key)
     }
 
