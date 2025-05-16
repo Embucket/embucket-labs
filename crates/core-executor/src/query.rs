@@ -16,7 +16,6 @@ use datafusion::execution::session_state::SessionState;
 use datafusion::logical_expr::{LogicalPlan, TableSource, sqlparser::ast::Insert};
 use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
-use datafusion::sql::planner::object_name_to_table_reference;
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableObject, TableWithJoins,
@@ -968,10 +967,8 @@ impl UserQuery {
 
     #[allow(clippy::too_many_lines)]
     pub async fn show_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
-        let current_catalog = self.current_database();
         let query = match statement {
             Statement::ShowDatabases { .. } => {
-                let catalog = self.current_database();
                 format!(
                     "SELECT
                         NULL as created_on,
@@ -979,15 +976,15 @@ impl UserQuery {
                         'STANDARD' as kind,
                         NULL as database_name,
                         NULL as schema_name
-                    FROM {catalog}.information_schema.databases"
+                    FROM {}.information_schema.databases",
+                    self.current_database()
                 )
             }
             Statement::ShowSchemas { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in)?;
-                let catalog = reference
-                    .as_ref()
-                    .and_then(|r| r.catalog())
-                    .unwrap_or_else(|| &current_catalog);
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
                 let sql = format!(
                     "SELECT
                         NULL as created_on,
@@ -995,7 +992,7 @@ impl UserQuery {
                         NULL as kind,
                         catalog_name as database_name,
                         NULL as schema_name
-                    FROM {catalog}.information_schema.schemata"
+                    FROM {catalog}.information_schema.schemata",
                 );
                 let mut filters = Vec::new();
                 if let Some(filter) =
@@ -1006,11 +1003,10 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowTables { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in)?;
-                let catalog = reference
-                    .as_ref()
-                    .and_then(|r| r.catalog())
-                    .unwrap_or_else(|| &current_catalog);
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
                 let sql = format!(
                     "SELECT
                         NULL as created_on,
@@ -1026,19 +1022,16 @@ impl UserQuery {
                 {
                     filters.push(filter);
                 }
-                if let Some(table_ref) = &reference {
-                    if let Some(schema) = table_ref.schema() {
-                        filters.push(format!("table_schema = '{schema}'"));
-                    }
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("table_schema = '{schema}'"));
                 }
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowViews { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in)?;
-                let catalog = reference
-                    .as_ref()
-                    .and_then(|r| r.catalog())
-                    .unwrap_or_else(|| &current_catalog);
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
                 let sql = format!(
                     "SELECT
                         NULL as created_on,
@@ -1054,19 +1047,16 @@ impl UserQuery {
                 {
                     filters.push(filter);
                 }
-                if let Some(table_ref) = &reference {
-                    if let Some(schema) = table_ref.schema() {
-                        filters.push(format!("view_schema = '{schema}'"));
-                    }
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("view_schema = '{schema}'"));
                 }
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowObjects(ShowObjects { show_options, .. }) => {
-                let reference = self.resolve_show_in_name(show_options.show_in)?;
-                let catalog = reference
-                    .as_ref()
-                    .and_then(|r| r.catalog())
-                    .unwrap_or_else(|| &current_catalog);
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
                 let sql = format!(
                     "SELECT
                         NULL as created_on,
@@ -1083,19 +1073,16 @@ impl UserQuery {
                 {
                     filters.push(filter);
                 }
-                if let Some(table_ref) = &reference {
-                    if let Some(schema) = table_ref.schema() {
-                        filters.push(format!("table_schema = '{schema}'"));
-                    }
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("table_schema = '{schema}'"));
                 }
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowColumns { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in)?;
-                let catalog = reference
-                    .as_ref()
-                    .and_then(|r| r.catalog())
-                    .unwrap_or_else(|| &current_catalog);
+                let reference = self.resolve_show_in_name(show_options.show_in.clone(), true);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
                 let sql = format!(
                     "SELECT
                         table_name as table_name,
@@ -1116,11 +1103,11 @@ impl UserQuery {
                 {
                     filters.push(filter);
                 }
-                if let Some(table_ref) = &reference {
-                    if let Some(schema) = table_ref.schema() {
-                        filters.push(format!("table_schema = '{schema}'"));
-                    }
-                    filters.push(format!("table_name = '{}'", table_ref.table()));
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("table_schema = '{schema}'"));
+                }
+                if show_options.show_in.is_some() {
+                    filters.push(format!("table_name = '{}'", reference.table()));
                 }
                 apply_show_filters(sql, &filters)
             }
@@ -1135,21 +1122,26 @@ impl UserQuery {
         Box::pin(self.execute_with_custom_plan(&query)).await
     }
 
+    #[must_use]
     pub fn resolve_show_in_name(
         &self,
         show_in: Option<ShowStatementIn>,
-    ) -> ExecutionResult<Option<TableReference>> {
-        if let Some(in_clause) = show_in {
-            if let Some(object_name) = in_clause.parent_name.as_ref() {
-                return object_name_to_table_reference(
-                    object_name.clone(),
-                    self.session.ctx.enable_ident_normalization(),
-                )
-                .map(Some)
-                .map_err(|e| ExecutionError::DataFusion { source: e });
-            }
-        }
-        Ok(None)
+        table: bool,
+    ) -> TableReference {
+        let parts: Vec<String> = show_in
+            .and_then(|in_clause| in_clause.parent_name)
+            .map(|obj| obj.0.into_iter().map(|ident| ident.to_string()).collect())
+            .unwrap_or_default();
+
+        let (catalog, schema, table_name) = match parts.as_slice() {
+            [one] if table => (self.current_database(), self.current_schema(), one.clone()),
+            [one] => (self.current_database(), one.clone(), String::new()),
+            [s, t] if table => (self.current_database(), s.clone(), t.clone()),
+            [d, s] => (d.clone(), s.clone(), String::new()),
+            [d, s, t] => (d.clone(), s.clone(), t.clone()),
+            _ => (self.current_database(), String::new(), String::new()),
+        };
+        TableReference::full(catalog, schema, table_name)
     }
 
     #[instrument(level = "trace", skip(self), err, ret)]

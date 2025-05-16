@@ -717,6 +717,11 @@ test_query!(
     sort_all = true
 );
 test_query!(
+    show_tables_in_schema_full,
+    "SHOW TABLES IN embucket.public",
+    sort_all = true
+);
+test_query!(
     show_tables_in_schema_and_prefix,
     "SHOW TABLES IN public STARTS WITH 'dep'",
     sort_all = true
@@ -732,6 +737,11 @@ test_query!(
 test_query!(
     show_views_in_schema,
     "SHOW VIEWS IN information_schema",
+    sort_all = true
+);
+test_query!(
+    show_views_in_schema_full,
+    "SHOW VIEWS IN embucket.information_schema",
     sort_all = true
 );
 test_query!(
