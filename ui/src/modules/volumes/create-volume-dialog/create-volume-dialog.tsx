@@ -11,37 +11,30 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
-import { getGetDatabasesQueryKey, useCreateDatabase } from '@/orval/databases';
-import { getGetNavigationTreesQueryKey } from '@/orval/navigation-trees';
-import { useGetVolumes } from '@/orval/volumes';
+import { getGetVolumesQueryKey, useCreateVolume } from '@/orval/volumes';
 
-import { CreateDatabaseDialogForm } from './create-database-dialog-form';
+import { CreateVolumeDialogForm } from './create-volume-dialog-form';
 
-interface CreateDatabaseDialogProps {
+interface CreateVolumeDialogProps {
   opened: boolean;
   onSetOpened: (opened: boolean) => void;
 }
 
-export function CreateDatabaseDialog({ opened, onSetOpened }: CreateDatabaseDialogProps) {
-  const { data: { items: volumes } = {} } = useGetVolumes();
-
+export function CreateVolumeDialog({ opened, onSetOpened }: CreateVolumeDialogProps) {
   const queryClient = useQueryClient();
-  const { mutate, isPending, error } = useCreateDatabase({
+  const { mutate, isPending, error } = useCreateVolume({
     mutation: {
       onSuccess: async () => {
         await Promise.all([
           queryClient.invalidateQueries({
-            queryKey: getGetNavigationTreesQueryKey(),
-          }),
-          queryClient.invalidateQueries({
             queryKey: getGetDashboardQueryKey(),
           }),
           queryClient.invalidateQueries({
-            queryKey: getGetDatabasesQueryKey(),
+            queryKey: getGetVolumesQueryKey(),
           }),
         ]);
         onSetOpened(false);
-        toast.success('Database was successfully created');
+        toast.success('Volume was successfully created');
       },
     },
   });
@@ -50,24 +43,23 @@ export function CreateDatabaseDialog({ opened, onSetOpened }: CreateDatabaseDial
     <Dialog open={opened} onOpenChange={onSetOpened}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Database</DialogTitle>
+          <DialogTitle>Create Volume</DialogTitle>
         </DialogHeader>
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{JSON.stringify(error.response?.data)}</AlertDescription>
           </Alert>
         )}
-        <CreateDatabaseDialogForm
-          volumes={volumes ?? []}
+        <CreateVolumeDialogForm
           onSubmit={(formData) => {
-            mutate({ data: { name: formData.name, volume: formData.volumeName } });
+            mutate({ data: { type: 'memory', name: formData.name } });
           }}
         />
         <DialogFooter>
           <Button disabled={isPending} variant="outline" onClick={() => onSetOpened(false)}>
             Cancel
           </Button>
-          <Button disabled={isPending} form="createDatabaseDialogForm" type="submit">
+          <Button disabled={isPending} form="createVolumeDialogForm" type="submit">
             Create
           </Button>
         </DialogFooter>
