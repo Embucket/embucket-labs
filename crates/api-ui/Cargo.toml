@@ -11,6 +11,7 @@ core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }
 core-executor = { path = "../core-executor" }
 core-history = { path = "../core-history" }
+api-structs = { path = "../api-structs", features = ["schema", "serde", "partial", "eq"] }
 
 axum = { workspace = true }
 chrono = { workspace = true }
@@ -19,6 +20,7 @@ indexmap = { workspace = true }
 jsonwebtoken = { workspace = true }
 http = { workspace = true }
 mime_guess = "2"
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 snafu = { workspace = true }
@@ -31,9 +33,6 @@ time = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
 validator = { workspace = true }
-
-[dev-dependencies]
-reqwest = "0.12.14"
 
 [lints]
 workspace = true

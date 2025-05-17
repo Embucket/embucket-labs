@@ -5,10 +5,19 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+api-ui = { path = "../api-ui" }
+api-structs = { path = "../api-structs", features = ["serde", "partial", "eq"] }
+
+http = { workspace = true }
 serde_yaml = { workspace = true }
 serde = { workspace = true }
 snafu = { workspace = true }
 core-metastore = { path = "../core-metastore" }
 core-executor = { path = "../core-executor" }
 fake = "4.3.0"
+reqwest = { workspace = true }
 rand = "0.9.1"
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

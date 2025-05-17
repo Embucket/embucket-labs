@@ -1,26 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive(Clone, PartialEq, Eq, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(Debug, Deserialize))]
-pub struct AuthResponse {
-    pub access_token: String,
-    pub token_type: String,
-    pub expires_in: u32,
-}
-
-impl AuthResponse {
-    #[must_use]
-    pub fn new(access_token: String, expires_in: u32) -> Self {
-        Self {
-            access_token,
-            token_type: "Bearer".to_string(),
-            expires_in,
-        }
-    }
-}
-
 #[derive(Serialize, Clone, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(Debug, Deserialize))]

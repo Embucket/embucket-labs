@@ -1,0 +1,18 @@
+[package]
+name = "api-structs"
+version = "0.1.0"
+edition = "2024"
+license-file.workspace = true
+
+[features]
+schema = ["dep:utoipa"]
+serde = ["dep:serde"]
+partial = []
+eq = []
+
+[dependencies]
+serde = { workspace = true, optional = true, features = ["derive"] }
+utoipa = { workspace = true, optional = true }
+
+[lints]
+workspace = true

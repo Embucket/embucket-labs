@@ -4,7 +4,7 @@ use crate::error::ErrorResponse;
 use crate::queries::models::{
     Column, QueriesResponse, QueryCreatePayload, QueryRecord, QueryStatus, ResultSet,
 };
-use crate::tests::common::http_req;
+use crate::common::http_requests::http_req;
 use crate::tests::server::run_test_server;
 use crate::worksheets::models::{Worksheet, WorksheetCreatePayload, WorksheetsResponse};
 use http::Method;

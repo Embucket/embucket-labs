@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::error::ErrorResponse;
-use crate::tests::common::http_req;
+use crate::common::http_requests::http_req;
 use crate::tests::server::run_test_server;
 use crate::worksheets::{
     SortBy, SortOrder, Worksheet, WorksheetCreatePayload, WorksheetUpdatePayload,
