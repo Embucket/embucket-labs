@@ -9,6 +9,7 @@ core-executor = { path = "../core-executor" }
 core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }
 core-history = { path = "../core-history" }
+api-seed = { path = "../api-seed" }
 api-ui = { path = "../api-ui" }
 api-sessions = { path = "../api-sessions" }
 api-snowflake-rest = { path = "../api-snowflake-rest" }

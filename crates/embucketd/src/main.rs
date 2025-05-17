@@ -8,6 +8,7 @@ use api_internal_rest::state::State as InternalAppState;
 use api_sessions::{RequestSessionMemory, RequestSessionStore};
 use api_snowflake_rest::router::create_router as create_snowflake_router;
 use api_snowflake_rest::state::AppState as SnowflakeAppState;
+use api_seed::SeedApi;
 use api_ui::auth::layer::require_auth;
 use api_ui::auth::router::create_router as create_ui_auth_router;
 use api_ui::config::AuthConfig as UIAuthConfig;

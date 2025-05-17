@@ -1,9 +1,7 @@
-use super::Volume;
-
-use crate::{
-    SEED_FOR_RANDOMIZER, read_super_template, read_seed_template, read_gen_template, init_rng,
-};
-use crate::models::{Generator, SuperVolume, SuperVolumeType, VolumeGenerator,};
+use crate::seed::{read_super_template, read_seed_template, read_gen_template, read_seed_root_template};
+use crate::seed::rng::{SEED_FOR_RANDOMIZER, init_rng};
+use crate::seed::models::{Volume, Generator, SuperVolume, SuperVolumeType, VolumeGenerator,};
+use core_metastore::{VolumeType, FileVolume};
 
 #[test]
 fn test_seed() {
@@ -27,6 +25,7 @@ fn test_super_gen() {
     let super_volume = SuperVolume { 
         volume: SuperVolumeType::Volume(Volume {
             volume_name: "foo".to_string(),
+            volume_type: VolumeType::File(core_metastore::FileVolume { path: "bar".to_string() }),
             databases: vec![],
         })
     };
@@ -44,4 +43,11 @@ fn test_super_gen() {
     let data = seed_gen.materialize();
     eprintln!("materialized: {:#?}", data);
     assert!(false);
+}
+
+#[test]
+fn test_seed_root() {
+    init_rng(SEED_FOR_RANDOMIZER);
+    let seed_root = read_seed_root_template().expect("Failed to read seed root");
+    eprintln!("{:#?}", seed_root);
 }

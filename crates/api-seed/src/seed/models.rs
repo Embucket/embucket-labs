@@ -1,9 +1,25 @@
 use fake::locales::Data;
-use fake::faker::{name::raw::Name, lorem::en::Word};
+use fake::faker::{name::raw::Name, lorem::en::Word, internet::en::SafeEmail};
 use fake::{Dummy, Fake, locales::EN};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use core_metastore::VolumeType;
+
+struct FakeProvider;
+
+impl FakeProvider {
+    pub fn volume_type () -> VolumeType {
+        VolumeType::Memory // no random volume type
+    }
+    pub fn person_name () -> String {
+        Name(EN).fake()
+    }
+    pub fn entity_name () -> String {
+        let one: String = Word().fake();
+        let two: String = Word().fake();
+        format!("{}_{}", one.to_lowercase(), two.to_lowercase())
+    }
+}
 
 ///// Traits
 
@@ -37,6 +53,13 @@ where
     }
 }
 
+///// Seed Root
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SeedRoot {
+    pub volumes: Vec<SuperVolume>,
+}
+
 ///// Super Volume
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -66,20 +89,23 @@ impl SuperVolume {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Volume {
     pub volume_name: String,
+    pub volume_type: VolumeType,
     pub databases: Vec<Database>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VolumeGenerator {
-    databases_gen: WithCount<Database, DatabaseGenerator>,
-    volume_name: Option<String>, // if None value will be generated    
+    pub volume_name: Option<String>, // if None value will be generated
+    pub volume_type: Option<VolumeType>,
+    pub databases_gen: WithCount<Database, DatabaseGenerator>,
 }
 
 impl Generator<Volume> for VolumeGenerator {
     fn generate(&self, _index: usize) -> Volume {
         Volume {
+            volume_name: self.volume_name.clone().unwrap_or_else(|| FakeProvider::entity_name()),
+            volume_type: self.volume_type.clone().unwrap_or(VolumeType::Memory),
             databases: self.databases_gen.generate(),
-            volume_name: self.volume_name.clone().unwrap_or_else(|| Name(EN).fake()),
         }
     }
 }
@@ -101,7 +127,7 @@ struct DatabaseGenerator {
 impl Generator<Database> for DatabaseGenerator {
     fn generate(&self, _index: usize) -> Database {
         Database {
-            name: Name(EN).fake(),
+            name: FakeProvider::entity_name(),
             schemas: self.schemas_gen.generate(),
         }
     }
@@ -125,7 +151,7 @@ struct SchemaGenerator {
 impl Generator<Schema> for SchemaGenerator {
     fn generate(&self, _index: usize) -> Schema {
         Schema {
-            name: Name(EN).fake(),
+            name: FakeProvider::entity_name(),
             tables: self.tables_gen.generate(),
         }
     }
@@ -148,7 +174,7 @@ struct TableGenerator {
 impl Generator<Table> for TableGenerator {
     fn generate(&self, _index: usize) -> Table {
         Table {
-            name: Name(EN).fake(),
+            name: FakeProvider::entity_name(),
         }
     }
 }
@@ -171,7 +197,7 @@ struct ColumnGenerator {
 impl Generator<Column> for ColumnGenerator {
     fn generate(&self, _index: usize) -> Column {
         Column {
-            name: Name(EN).fake(),
+            name: FakeProvider::entity_name(),
             col_type: "".to_string(),
         }
     }
