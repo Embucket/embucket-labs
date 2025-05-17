@@ -1,14 +1,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-use api_ui::auth::error::AuthError;
-use api_ui::auth::handlers::{create_jwt, get_claims_validate_jwt_token, jwt_claims};
-use api_ui::auth::models::{AccountResponse};
-use api_ui::queries::models::{QueryCreatePayload, QueryCreateResponse};
+use api_ui::queries::models::QueryCreatePayload;
 use api_ui::common::http_requests::{http_req_with_headers, TestHttpError};
 use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use serde_json::json;
-use serde::{Serialize, de::DeserializeOwned};
 use std::net::SocketAddr;
 use reqwest;
+use serde::{de, de::Deserialize, de::DeserializeOwned};
 use api_structs::auth::{LoginPayload, AuthResponse};
 use snafu::prelude::*;
 
@@ -33,21 +30,28 @@ pub struct QueryRequest {
     pub refresh_token: String,
 }
 
+#[async_trait::async_trait]
 pub trait AuthenticatedQueryRequest {
-    async fn query<T: serde::de::DeserializeOwned>(
+    async fn login(mut self, user: &str, password: &str);
+    async fn query<T: DeserializeOwned + Send>(
         &self,
         query: &str,
     ) -> AuthenticatedQueryResult<T>;
 }
 
+#[async_trait::async_trait]
 impl AuthenticatedQueryRequest for QueryRequest {
-    async fn query<T>(
+    async fn login(mut self, user: &str, password: &str) {
+        let QueryRequest { client, addr, .. } = self;
+        let login_resp = login::<AuthResponse>(&client, &addr, user, password)
+            .await;
+        
+    }
+
+    async fn query<T: DeserializeOwned + Send>(
         &self,
         q: &str,
-    ) ->  AuthenticatedQueryResult<T>
-    where
-        T: serde::de::DeserializeOwned,
-    {
+    ) -> AuthenticatedQueryResult<T> {
         let QueryRequest { client, addr, access_token, refresh_token } = self;
 
         match query::<T>(client, addr, access_token, q).await {

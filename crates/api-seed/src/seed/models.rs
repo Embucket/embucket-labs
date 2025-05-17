@@ -1,6 +1,5 @@
-use fake::locales::Data;
-use fake::faker::{name::raw::Name, lorem::en::Word, internet::en::SafeEmail};
-use fake::{Dummy, Fake, locales::EN};
+use fake::faker::{name::raw::Name, lorem::en::Word};
+use fake::{Fake, locales::EN};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use core_metastore::VolumeType;

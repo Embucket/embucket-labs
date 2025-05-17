@@ -1,9 +1,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::common::http_requests::{http_req_with_headers, TestHttpError};
 use api_structs::{auth::LoginPayload, query::QueryCreatePayload};
-use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
+use http::{HeaderMap, HeaderValue, Method, header};
 use serde_json::json;
-use serde::{Serialize, de::DeserializeOwned};
 use std::net::SocketAddr;
 use reqwest;
 

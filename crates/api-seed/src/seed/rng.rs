@@ -1,5 +1,5 @@
 use rand::{SeedableRng, rngs::StdRng};
-use fake::{Dummy, Fake, };
+use fake::Dummy;
 use std::cell::RefCell;
 
 pub const SEED_FOR_RANDOMIZER: u64 = 1024;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use snafu::ResultExt;
-use core_metastore::{metastore, Metastore};
+use core_metastore::Metastore;
 use core_executor::service::ExecutionService;
 use super::error::*;
 use crate::seed::{read_super_template, Volume};
