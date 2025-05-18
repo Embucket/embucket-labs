@@ -33,7 +33,6 @@ use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;
-use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
@@ -54,34 +53,14 @@ use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCat
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element};
+use api_structs::query_context::QueryContext as QueryContext_;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalogs::slatedb::schema::{
     SLATEDB_CATALOG, SLATEDB_SCHEMA, SlateDBViewSchemaProvider,
 };
 use tracing_attributes::instrument;
 
-#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct QueryContext {
-    pub database: Option<String>,
-    pub schema: Option<String>,
-    // TODO: Remove this
-    pub worksheet_id: Option<i64>,
-}
-
-impl QueryContext {
-    #[must_use]
-    pub const fn new(
-        database: Option<String>,
-        schema: Option<String>,
-        worksheet_id: Option<i64>,
-    ) -> Self {
-        Self {
-            database,
-            schema,
-            worksheet_id,
-        }
-    }
-}
+pub type QueryContext = QueryContext_;
 
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,

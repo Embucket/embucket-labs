@@ -1,9 +1,9 @@
 use super::with_derives;
 #[cfg(feature = "schema")] use utoipa::ToSchema;
 #[cfg(feature = "serde")]  use serde::{Deserialize, Serialize};
-#[cfg(feature = "serde")]  use serde_json::Value;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
+use super::result_set::ResultSet;
 
 with_derives! {
     #[derive(Clone, Debug)]
@@ -22,6 +22,7 @@ with_derives! {
     }
 }
 
+// QueryRecord used by REST
 with_derives! {
     #[derive(Debug, Clone)]
     pub struct QueryRecord {
@@ -45,27 +46,5 @@ with_derives! {
         Running,
         Successful,
         Failed,
-    }
-}
-
-with_derives! {
-    #[derive(Debug, Clone)]
-    pub struct Column {
-        pub name: String,
-        pub r#type: String,
-    }
-}
-
-with_derives! {
-    #[derive(Debug, Clone)]
-    #[cfg_attr(feature = "schema", schema(as = Row, value_type = Vec<Value>))]
-    pub struct Row(Vec<Value>);
-}
-
-with_derives! {
-    #[derive(Debug, Clone)]
-    pub struct ResultSet {
-        pub columns: Vec<Column>,
-        pub rows: Vec<Row>,
     }
 }

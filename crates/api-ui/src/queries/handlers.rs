@@ -1,10 +1,11 @@
-use crate::queries::models::{
-    GetQueriesParams, QueriesResponse, QueryCreateResponse, QueryRecord,
-};
+use crate::queries::models::{GetQueriesParams, QueriesResponse};
+use api_structs::query::{QueryCreateResponse, QueryRecord};
+use api_structs::result_set::ResultSetError;
+use snafu::ResultExt;
 use crate::state::AppState;
 use crate::{
     error::ErrorResponse,
-    queries::error::{QueriesAPIError, QueriesResult, QueryError},
+    queries::error::{QuerySnafu, QueriesAPIError, QueriesResult, QueryError},
 };
 use api_structs::query::QueryCreatePayload;
 use api_sessions::DFSessionId;
@@ -18,6 +19,8 @@ use core_history::{QueryRecordId, WorksheetId};
 use core_utils::iterable::IterableEntity;
 use std::collections::HashMap;
 use utoipa::OpenApi;
+
+use super::error::ResultSetSnafu;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -106,8 +109,10 @@ pub async fn query(
                 Err(err) => Err(QueriesAPIError::Query {
                     source: QueryError::Store { source: err },
                 }),
+                // query_record fetched from store should be converted to other QueryRecord for REST
                 Ok(query_record) => Ok(Json(QueryCreateResponse {
-                    data: QueryRecord::try_from(query_record)
+                    data: query_record.try_into()
+                        .context(ResultSetSnafu)
                         .map_err(|e| QueriesAPIError::Query { source: e })?,
                 })),
             }
@@ -156,16 +161,22 @@ pub async fn queries(
             } else {
                 core_history::QueryRecord::min_cursor() // no items in range -> go to beginning
             };
+            // QueryRecord fetched from store should be converted to QueryRecord used by REST
             let queries: Vec<QueryRecord> = recs
                 .clone()
                 .into_iter()
-                .map(QueryRecord::try_from)
+                .map(|query_record| query_record.try_into())
                 .filter_map(Result::ok)
                 .collect();
 
             let queries_failed_to_load: Vec<QueryError> = recs
                 .into_iter()
-                .map(QueryRecord::try_from)
+                .map(|query_record| {
+                    let qr: Result<QueryRecord, QueryError> = query_record
+                        .try_into()
+                        .context(ResultSetSnafu);
+                    qr
+                })
                 .filter_map(Result::err)
                 .collect();
             if !queries_failed_to_load.is_empty() {

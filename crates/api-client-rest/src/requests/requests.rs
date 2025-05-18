@@ -9,44 +9,8 @@ use std::net::SocketAddr;
 use reqwest;
 use serde::{de, de::Deserialize, de::DeserializeOwned};
 use serde_json::json;
-use api_structs::auth::{LoginPayload, };
+use api_structs::{auth::LoginPayload, query_context::QueryContext};
 use super::error::*;
-
-
-pub async fn query<T>(
-    client: &reqwest::Client,
-    addr: &SocketAddr,
-    access_token: &str,
-    query: &str,
-) -> Result<(HeaderMap, T), HttpErrorData>
-where
-    T: serde::de::DeserializeOwned,
-{
-    http_req_with_headers::<T>(
-        client,
-        Method::POST,
-        HeaderMap::from_iter(vec![
-            (
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("application/json"),
-            ),
-            (
-                header::AUTHORIZATION,
-                HeaderValue::from_str(format!("Bearer {access_token}").as_str())
-                    .expect("Can't convert to HeaderValue"),
-            ),
-        ]),
-        &format!("http://{addr}/ui/queries"),
-        json!(QueryCreatePayload {
-            worksheet_id: None,
-            query: query.to_string(),
-            context: None,
-        })
-        .to_string(),
-    )
-    .await
-}
-
 
 pub struct AuthenticatedClient {
     pub client: reqwest::Client,
@@ -63,20 +27,33 @@ pub trait AuthenticatedRequests {
     ) -> HttpRequestResult<AuthResponse>;
 
     async fn query<T: DeserializeOwned + Send>(
-        &self,
+        &mut self,
         query: &str,
     ) -> HttpRequestResult<T>
     where
         Self: Sized;
 
     async fn generic_request<I, T>(
+        &mut self,
         method: Method,
         url: &String,
-        payload: I,
+        payload: &I,
     ) -> HttpRequestResult<T>
     where
-        I: serde::Serialize,
-        T: serde::de::DeserializeOwned;
+        Self: Sized,
+        I: serde::Serialize + Sync,
+        T: serde::de::DeserializeOwned + Send;
+
+    async fn generic_request_no_refresh<I, T>(
+        &self,
+        method: Method,
+        url: &String,
+        payload: &I,
+    ) -> HttpRequestResult<T>
+    where
+        Self: Sized,
+        I: serde::Serialize + Sync,
+        T: serde::de::DeserializeOwned + Send;
 }
 
 #[async_trait::async_trait]
@@ -93,46 +70,84 @@ impl AuthenticatedRequests for AuthenticatedClient {
         login_result
     }
 
-
+    // sets access_token at refresh if expired
     async fn query<T: DeserializeOwned + Send>(
-        &self,
-        q: &str,
+        &mut self,
+        query: &str,
     ) -> HttpRequestResult<T>
     where
         Self: Sized
     {
-        let AuthenticatedClient { client, addr, access_token, refresh_token } = &self;
+        let url = format!("http://{}/ui/queries", self.addr);
+        let query_payload = QueryCreatePayload {
+            worksheet_id: None,
+            query: query.to_string(),
+            context: None,
+        };
 
-        match query::<T>(client, addr, access_token, q).await {
-            Ok((_, t)) => Ok(t),
-            Err(HttpErrorData { status: StatusCode::UNAUTHORIZED, .. }) => {
-                let refresh_result = refresh::<AuthResponse>(client, addr, refresh_token)
-                    .await
-                    .map_err(HttpRequestError::from);
+        match self.generic_request_no_refresh(Method::POST, &url, &query_payload).await {
+            Ok(t) => Ok(t),
+            Err(HttpRequestError::HttpRequest { status: StatusCode::UNAUTHORIZED, .. }) => {
+                let refresh_result = refresh::<AuthResponse>(
+                    &self.client, &self.addr, &self.refresh_token
+                ).await.map_err(HttpRequestError::from);
+
                 match refresh_result {
                     Ok((_, AuthResponse{ ref access_token, .. })) => {
-                        query::<T>(client, addr, access_token, q)
-                            .await
-                            .map(|(_, t)| t)
-                            .map_err(HttpRequestError::from)
+                        self.access_token = access_token.clone();
+                        self.generic_request_no_refresh(Method::POST, &url, &query_payload).await
                     }
                     Err(err) => Err(err),
                 }
 
             },
-            Err(err) => Err(HttpRequestError::from(err)),
+            Err(err) => Err(err),
         }
     }
 
+    async fn generic_request<I, T>(
+        &mut self,
+        method: Method,
+        url: &String,
+        payload: &I,
+    ) -> HttpRequestResult<T>
+    where
+        Self: Sized,
+        I: serde::Serialize + Sync,
+        T: serde::de::DeserializeOwned + Send
+    {
+        match self.generic_request_no_refresh(method.clone(), &url, payload).await {
+            Ok(t) => Ok(t),
+            Err(HttpRequestError::HttpRequest { status: StatusCode::UNAUTHORIZED, .. }) => {
+                let refresh_result = refresh::<AuthResponse>(
+                    &self.client, &self.addr, &self.refresh_token
+                ).await.map_err(HttpRequestError::from);
 
-    async fn generic_request<I:serde::Serialize, T: serde::de::DeserializeOwned>(
+                match refresh_result {
+                    Ok((_, AuthResponse{ ref access_token, .. })) => {
+                        self.access_token = access_token.clone();
+                        self.generic_request_no_refresh(method, &url, payload).await
+                    }
+                    Err(err) => Err(err),
+                }
+
+            },
+            Err(err) => Err(err),
+        }
+    }
+
+    async fn generic_request_no_refresh<I:serde::Serialize + Sync, T: serde::de::DeserializeOwned + Send>(
         &self,
         method: Method,
         url: &String,
-        payload: I,
-    ) -> HttpRequestResult<T> {
+        payload: &I,
+    ) -> HttpRequestResult<T> 
+    where
+        Self: Sized
+    {
+        let Self { access_token, client, .. } = self;
         http_req_with_headers::<T>(
-            client,
+            &client,
             method,
             HeaderMap::from_iter(vec![
                 (

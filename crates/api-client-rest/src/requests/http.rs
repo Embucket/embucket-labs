@@ -2,7 +2,6 @@
 
 use reqwest;
 use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
-use snafu::prelude::*;
 use std::fmt::Display;
 use super::error::HttpRequestError;
 
@@ -18,7 +17,8 @@ pub struct HttpErrorData {
 
 impl From <HttpErrorData> for HttpRequestError {
     fn from(value: HttpErrorData) -> Self {
-        HttpRequestError::HttpRequest{message: value.error.to_string()}
+        let HttpErrorData { error, status, .. } = value;
+        HttpRequestError::HttpRequest{message: error.to_string(), status}
     }
 }
 
@@ -66,7 +66,7 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
                         headers,
                         status,
                         body: text,
-                        error: HttpRequestError::HttpRequest{message: err.to_string()},
+                        error: HttpRequestError::HttpRequest{message: err.to_string(), status},
                     })
                 }
             }
@@ -81,8 +81,8 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
             url: url.clone(),
             headers: response.headers().clone(),
             status: response.status(),
+            error: HttpRequestError::HttpRequest{message: error.to_string(), status: response.status()},
             body: response.text().await.expect("Failed to get response text"),
-            error: HttpRequestError::HttpRequest{message: error.to_string()},
         })
     }
 }

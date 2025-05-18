@@ -5,6 +5,7 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+api-structs = { path = "../api-structs", features = [] }
 core-utils = { path = "../core-utils" }
 core-executor = { path = "../core-executor" }
 core-metastore = { path = "../core-metastore" }

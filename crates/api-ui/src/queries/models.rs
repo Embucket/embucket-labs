@@ -1,110 +1,22 @@
-use super::error::{
-    CreateResultSetSnafu, QueryError, QueryRecordResult, ResultParseSnafu, Utf8Snafu,
-};
 use crate::default_limit;
-use api_structs::query::{QueryRecord, ResultSet, Row, Column};
-use chrono::{DateTime, Utc};
-use core_executor::models::ColumnInfo;
-use core_history::{QueryRecordId, QueryStatus as QueryStatusItem, WorksheetId};
-use datafusion::arrow::array::RecordBatch;
-use datafusion::arrow::json::{WriterBuilder, writer::JsonArray};
-use indexmap::IndexMap;
+use api_structs::{query::QueryRecord};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use snafu::ResultExt;
-use std::collections::HashMap;
 use utoipa::ToSchema;
+use core_history::QueryRecordId;
+use core_history::WorksheetId;
 
 pub type ExecutionContext = core_executor::query::QueryContext;
 
 
-impl ResultSet {
-    pub fn query_result_to_result_set(
-        records: &[RecordBatch],
-        columns: &[ColumnInfo],
-    ) -> std::result::Result<Self, QueryError> {
-        let buf = Vec::new();
-        let write_builder = WriterBuilder::new().with_explicit_nulls(true);
-        let mut writer = write_builder.build::<_, JsonArray>(buf);
-
-        // serialize records to str
-        let records: Vec<&RecordBatch> = records.iter().collect();
-        writer
-            .write_batches(&records)
-            .context(CreateResultSetSnafu)?;
-        writer.finish().context(CreateResultSetSnafu)?;
-
-        // Get the underlying buffer back,
-        let buf = writer.into_inner();
-        let record_batch_str = String::from_utf8(buf).context(Utf8Snafu)?;
-
-        // convert to array, leaving only values
-        let rows: Vec<IndexMap<String, Value>> =
-            serde_json::from_str(record_batch_str.as_str()).context(ResultParseSnafu)?;
-        let rows: Vec<Row> = rows
-            .into_iter()
-            .map(|obj| Row(obj.values().cloned().collect()))
-            .collect();
-
-        let columns = columns
-            .iter()
-            .map(|ci| Column {
-                name: ci.name.clone(),
-                r#type: ci.r#type.clone(),
-            })
-            .collect();
-
-        Ok(Self { columns, rows })
-    }
-}
-
-impl TryFrom<&str> for ResultSet {
-    type Error = QueryError;
-
-    fn try_from(result: &str) -> QueryRecordResult<Self> {
-        serde_json::from_str(result).context(ResultParseSnafu)
-    }
-}
-
-impl From<QueryStatusItem> for QueryStatus {
-    fn from(value: QueryStatusItem) -> Self {
-        match value {
-            QueryStatusItem::Running => Self::Running,
-            QueryStatusItem::Successful => Self::Successful,
-            QueryStatusItem::Failed => Self::Failed,
-        }
-    }
-}
-
-
-impl TryFrom<core_history::QueryRecord> for QueryRecord {
-    type Error = QueryError;
-
-    fn try_from(query: core_history::QueryRecord) -> QueryRecordResult<Self> {
-        let query_result = query.result.unwrap_or_default();
-        let query_error = query.error.unwrap_or_default();
-        let result_set = if query_result.is_empty() {
-            ResultSet {
-                rows: vec![],
-                columns: vec![],
-            }
-        } else {
-            ResultSet::try_from(query_result.as_str())?
-        };
-        Ok(Self {
-            id: query.id,
-            worksheet_id: query.worksheet_id,
-            query: query.query,
-            start_time: query.start_time,
-            end_time: query.end_time,
-            duration_ms: query.duration_ms,
-            result_count: query.result_count,
-            status: query.status.into(),
-            result: result_set,
-            error: query_error,
-        })
-    }
-}
+// impl From<QueryStatusItem> for QueryStatus {
+//     fn from(value: QueryStatusItem) -> Self {
+//         match value {
+//             QueryStatusItem::Running => Self::Running,
+//             QueryStatusItem::Successful => Self::Successful,
+//             QueryStatusItem::Failed => Self::Failed,
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

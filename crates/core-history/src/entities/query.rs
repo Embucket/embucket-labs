@@ -5,18 +5,27 @@ use core_utils::iterable::IterableEntity;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
+use api_structs::query::{QueryStatus, QueryRecord as QueryRecordRest};
+use api_structs::result_set::{ResultSet, ResultSetError};
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum QueryStatus {
-    Running,
-    Successful,
-    Failed,
-}
 
 pub type QueryRecordId = i64;
 
+#[cfg_attr(test, automock)]
+pub trait ExecutionQueryRecord {
+    fn query_id(&self) -> QueryRecordId;
+
+    fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
+
+    fn query_finished(&mut self, result_count: i64, result: Option<String>);
+
+    fn query_finished_with_error(&mut self, error: String);
+}
+
 // QueryRecord struct is used for storing QueryRecord History result and also used in http response
+// It's bit different from api_structs::query::QueryRecord, migrate 
+// Migrate with caution to api_structs::query::QueryRecord as result_set differs, 
+// worksheet_id  serializes with empty values when stored
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryRecord {
@@ -32,15 +41,34 @@ pub struct QueryRecord {
     pub error: Option<String>,
 }
 
-#[cfg_attr(test, automock)]
-pub trait ExecutionQueryRecord {
-    fn query_id(&self) -> QueryRecordId;
+impl TryInto<QueryRecordRest> for QueryRecord {
+    type Error = ResultSetError;
+    
+    fn try_into(self) -> Result<QueryRecordRest, Self::Error> {
+        let query_result = self.result.unwrap_or_default();
+        let query_error = self.error.unwrap_or_default();
+        let result_set = if query_result.is_empty() {
+            ResultSet {
+                rows: vec![],
+                columns: vec![],
+            }
+        } else {
+            ResultSet::try_from(query_result.as_str())?
+        };
 
-    fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
-
-    fn query_finished(&mut self, result_count: i64, result: Option<String>);
-
-    fn query_finished_with_error(&mut self, error: String);
+        Ok(QueryRecordRest {
+            id: self.id,
+            worksheet_id: self.worksheet_id,
+            query: self.query,
+            start_time: self.start_time,
+            end_time: self.end_time,
+            duration_ms: self.duration_ms,
+            result_count: self.result_count,
+            status: self.status,
+            result: result_set,
+            error: query_error,
+        })
+    }
 }
 
 impl QueryRecord {

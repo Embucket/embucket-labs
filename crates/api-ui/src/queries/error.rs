@@ -22,16 +22,8 @@ pub enum QueryError {
     #[snafu(transparent)]
     Store { source: WorksheetsStoreError },
 
-    #[snafu(display("Failed to parse row JSON: {source}"))]
-    ResultParse { source: serde_json::Error },
-
-    #[snafu(display("ResultSet create error: {source}"))]
-    CreateResultSet {
-        source: datafusion::arrow::error::ArrowError,
-    },
-
-    #[snafu(display("Error encoding UTF8 string: {source}"))]
-    Utf8 { source: std::string::FromUtf8Error },
+    #[snafu(display("Failed to convert to ResultSet: {source}"))]
+    ResultSet { source: api_structs::result_set::ResultSetError },
 }
 
 #[derive(Debug, Snafu)]
@@ -52,9 +44,7 @@ impl IntoStatusCode for QueriesAPIError {
             Self::Query { source } => match &source {
                 QueryError::Execution { .. } => StatusCode::UNPROCESSABLE_ENTITY,
                 QueryError::Store { .. } => StatusCode::BAD_REQUEST,
-                QueryError::ResultParse { .. }
-                | QueryError::Utf8 { .. }
-                | QueryError::CreateResultSet { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+                QueryError::ResultSet { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Queries { source } => match &source {
                 QueryError::Store { source } => match &source {
@@ -63,7 +53,7 @@ impl IntoStatusCode for QueriesAPIError {
                     }
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 },
-                QueryError::ResultParse { .. } => StatusCode::UNPROCESSABLE_ENTITY,
+                QueryError::ResultSet { .. } => StatusCode::UNPROCESSABLE_ENTITY,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
         }

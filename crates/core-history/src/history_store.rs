@@ -13,6 +13,7 @@ use snafu::{ResultExt, Snafu};
 use std::str;
 
 #[derive(Snafu, Debug)]
+#[snafu(visibility(pub))]
 pub enum WorksheetsStoreError {
     #[snafu(display("Error using key: {source}"))]
     BadKey { source: std::str::Utf8Error },
@@ -61,6 +62,9 @@ pub enum WorksheetsStoreError {
 
     #[snafu(display("Deserialize error: {source}"))]
     DeserializeValue { source: serde_json::Error },
+
+    #[snafu(display("Failed to convert to ResultSet: {source}"))]
+    ConvertToResultSet { source: api_structs::result_set::ResultSetError },
 }
 
 pub type WorksheetsStoreResult<T> = std::result::Result<T, WorksheetsStoreError>;
@@ -310,6 +314,7 @@ mod tests {
     use chrono::{Duration, TimeZone, Utc};
     use core_utils::iterable::{IterableCursor, IterableEntity};
     use tokio;
+    use api_structs::query::QueryStatus;
 
     fn create_query_records(templates: &[(Option<i64>, QueryStatus)]) -> Vec<QueryRecord> {
         let mut created: Vec<QueryRecord> = vec![];

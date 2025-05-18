@@ -15,6 +15,7 @@ use snafu::ResultExt;
 use snafu::prelude::*;
 use std::sync::Arc;
 use utoipa::ToSchema;
+use api_structs::result_set::ResultSet;
 
 //
 // TODO: This module is pending a rewrite
@@ -114,76 +115,6 @@ impl ExecutionService for RecordingExecutionService {
 
     fn config(&self) -> &Config {
         self.execution.config()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct Column {
-    pub name: String,
-    pub r#type: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[schema(as = Row, value_type = Vec<Value>)]
-pub struct Row(Vec<Value>);
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct ResultSet {
-    pub columns: Vec<Column>,
-    pub rows: Vec<Row>,
-}
-
-#[derive(Debug, Snafu)]
-pub enum ResultSetError {
-    #[snafu(display("Failed to create result set: {source}"))]
-    CreateResultSet {
-        source: datafusion::arrow::error::ArrowError,
-    },
-    #[snafu(display("Failed to convert to utf8: {source}"))]
-    Utf8 { source: std::string::FromUtf8Error },
-    #[snafu(display("Failed to parse result: {source}"))]
-    ResultParse { source: serde_json::Error },
-}
-
-impl ResultSet {
-    pub fn query_result_to_result_set(
-        records: &[RecordBatch],
-        columns: &[ColumnInfo],
-    ) -> std::result::Result<Self, ResultSetError> {
-        let buf = Vec::new();
-        let write_builder = WriterBuilder::new().with_explicit_nulls(true);
-        let mut writer = write_builder.build::<_, JsonArray>(buf);
-
-        // serialize records to str
-        let records: Vec<&RecordBatch> = records.iter().collect();
-        writer
-            .write_batches(&records)
-            .context(CreateResultSetSnafu)?;
-        writer.finish().context(CreateResultSetSnafu)?;
-
-        // Get the underlying buffer back,
-        let buf = writer.into_inner();
-        let record_batch_str = String::from_utf8(buf).context(Utf8Snafu)?;
-
-        // convert to array, leaving only values
-        let rows: Vec<IndexMap<String, Value>> =
-            serde_json::from_str(record_batch_str.as_str()).context(ResultParseSnafu)?;
-        let rows: Vec<Row> = rows
-            .into_iter()
-            .map(|obj| Row(obj.values().cloned().collect()))
-            .collect();
-
-        let columns = columns
-            .iter()
-            .map(|ci| Column {
-                name: ci.name.clone(),
-                r#type: ci.r#type.clone(),
-            })
-            .collect();
-
-        Ok(Self { columns, rows })
     }
 }
 
