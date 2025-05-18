@@ -1,7 +1,5 @@
 use std::sync::Arc;
 use snafu::ResultExt;
-use core_metastore::Metastore;
-use core_executor::service::ExecutionService;
 use super::error::*;
 use crate::seed::{read_super_template, Volume};
 
@@ -13,24 +11,12 @@ pub enum SeedVariant {
     Insane,
 }
 
+#[derive(Default)]
 pub struct SeedDatabase {
-    pub metastore: Arc<dyn Metastore + Send + Sync>,
-    pub execution_svc: Arc<dyn ExecutionService + Send + Sync>,
     pub seed_data: Option<Volume>,
 }
 
 impl SeedDatabase {
-    pub fn new(
-        metastore: Arc<dyn Metastore + Send + Sync>,
-        execution_svc: Arc<dyn ExecutionService + Send + Sync>,
-    ) -> Self {
-        Self {
-            metastore,
-            execution_svc,
-            seed_data: None,
-        }
-    }
-
     pub fn try_load_seed(&mut self, _seed_variant: SeedVariant) -> SeedResult<()> {
         let raw_seed_data = read_super_template().context(LoadSeedSnafu)?;
         self.seed_data = Some(raw_seed_data.materialize());

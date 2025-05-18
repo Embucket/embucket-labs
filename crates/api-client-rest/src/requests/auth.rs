@@ -1,17 +1,16 @@
-#![allow(clippy::unwrap_used, clippy::expect_used)]
-use crate::common::http_requests::{http_req_with_headers, TestHttpError};
+use super::http::{http_req_with_headers, HttpErrorData};
 use api_structs::{auth::LoginPayload, query::QueryCreatePayload};
 use http::{HeaderMap, HeaderValue, Method, header};
 use serde_json::json;
 use std::net::SocketAddr;
 use reqwest;
 
-async fn login<T>(
+pub async fn login<T>(
     client: &reqwest::Client,
     addr: &SocketAddr,
     username: &str,
     password: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> Result<(HeaderMap, T), HttpErrorData>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -33,11 +32,11 @@ where
 }
 
 
-async fn refresh<T>(
+pub async fn refresh<T>(
     client: &reqwest::Client,
     addr: &SocketAddr,
     refresh_token: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> Result<(HeaderMap, T), HttpErrorData>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -57,40 +56,6 @@ where
         ]),
         &format!("http://{addr}/ui/auth/refresh"),
         String::new(),
-    )
-    .await
-}
-
-async fn query<T>(
-    client: &reqwest::Client,
-    addr: &SocketAddr,
-    access_token: &String,
-    query: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
-where
-    T: serde::de::DeserializeOwned,
-{
-    http_req_with_headers::<T>(
-        client,
-        Method::POST,
-        HeaderMap::from_iter(vec![
-            (
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("application/json"),
-            ),
-            (
-                header::AUTHORIZATION,
-                HeaderValue::from_str(format!("Bearer {access_token}").as_str())
-                    .expect("Can't convert to HeaderValue"),
-            ),
-        ]),
-        &format!("http://{addr}/ui/queries"),
-        json!(QueryCreatePayload {
-            worksheet_id: None,
-            query: query.to_string(),
-            context: None,
-        })
-        .to_string(),
     )
     .await
 }

@@ -3,8 +3,9 @@ use crate::auth::error::AuthError;
 use crate::auth::error::*;
 use crate::auth::handlers::{create_jwt, get_claims_validate_jwt_token, jwt_claims};
 use crate::auth::models::{AccountResponse};
-use crate::queries::models::{QueryCreatePayload, QueryCreateResponse};
-use crate::common::http_requests::{TestHttpError, http_req_with_headers};
+use crate::queries::models::{QueryCreateResponse};
+use api_structs::query::QueryCreatePayload;
+use api_client_rest::requests::error::HttpErrorData;
 use crate::tests::server::run_test_server_with_demo_auth;
 use core_metastore::RwObject;
 use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
@@ -43,7 +44,7 @@ async fn login<T>(
     addr: &SocketAddr,
     username: &str,
     password: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> Result<(HeaderMap, T), HttpErrorData>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -67,7 +68,7 @@ where
 async fn logout<T>(
     client: &reqwest::Client,
     addr: &SocketAddr,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> Result<(HeaderMap, T), HttpErrorData>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -88,7 +89,7 @@ async fn refresh<T>(
     client: &reqwest::Client,
     addr: &SocketAddr,
     refresh_token: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> Result<(HeaderMap, T), HttpErrorData>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -117,7 +118,7 @@ async fn query<T>(
     addr: &SocketAddr,
     access_token: &String,
     query: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> Result<(HeaderMap, T), HttpErrorData>
 where
     T: serde::de::DeserializeOwned,
 {

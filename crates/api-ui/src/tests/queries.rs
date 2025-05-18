@@ -2,8 +2,9 @@
 
 use crate::error::ErrorResponse;
 use crate::queries::models::{
-    Column, QueriesResponse, QueryCreatePayload, QueryRecord, QueryStatus, ResultSet,
+    Column, QueriesResponse, QueryRecord, QueryStatus, ResultSet,
 };
+use api_structs::query::QueryCreatePayload;
 use crate::common::http_requests::http_req;
 use crate::tests::server::run_test_server;
 use crate::worksheets::models::{Worksheet, WorksheetCreatePayload, WorksheetsResponse};

@@ -2,18 +2,37 @@
 
 use reqwest;
 use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
+use snafu::prelude::*;
+use std::fmt::Display;
+use crate::requests::error::QueryRequestError;
 
+#[derive(Snafu, Debug)]
+pub enum HttpRequestError {
+    #[snafu(display("HTTP request error: {message}"))]
+    HttpReq{message: String},
+}
 
 #[derive(Debug)]
-pub struct TestHttpError {
+pub struct HttpErrorData {
     pub method: Method,
     pub url: String,
     pub headers: HeaderMap<HeaderValue>,
     pub status: StatusCode,
     pub body: String,
-    pub error: String,
+    pub error: HttpRequestError,
 }
 
+impl Into<QueryRequestError> for HttpErrorData {
+    fn into(self) -> QueryRequestError {
+        QueryRequestError::QueryRequest { source: self.error }
+    }
+}
+
+impl Display for HttpErrorData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.error)
+    }
+}
 
 /// As of minimalistic interface this doesn't support checking request/response headers
 pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
@@ -22,7 +41,7 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
     headers: HeaderMap,
     url: &String,
     payload: String,
-) -> Result<(HeaderMap, T), TestHttpError> {
+) -> Result<(HeaderMap, T), HttpErrorData> {
     let res = client
         .request(method.clone(), url)
         .headers(headers)
@@ -47,13 +66,13 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
                 Ok(json) => Ok((headers, json)),
                 Err(err) => {
                     // Normally we don't expect error here, and only have http related error to return
-                    Err(TestHttpError {
+                    Err(HttpErrorData {
                         method,
                         url: url.clone(),
                         headers,
                         status,
                         body: text,
-                        error: err.to_string(),
+                        error: HttpRequestError::HttpReq{message: err.to_string()},
                     })
                 }
             }
@@ -63,13 +82,13 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
             .error_for_status_ref()
             .expect_err("Expected error, http code not OK");
         // Return custom error as reqwest error has no body contents
-        Err(TestHttpError {
+        Err(HttpErrorData {
             method,
             url: url.clone(),
             headers: response.headers().clone(),
             status: response.status(),
             body: response.text().await.expect("Failed to get response text"),
-            error: format!("{error:?}"),
+            error: HttpRequestError::HttpReq{message: error.to_string()},
         })
     }
 }
@@ -80,7 +99,7 @@ pub async fn http_req<T: serde::de::DeserializeOwned>(
     method: Method,
     url: &String,
     payload: String,
-) -> Result<T, TestHttpError> {
+) -> Result<T, HttpErrorData> {
     let headers = HeaderMap::from_iter(vec![(
         header::CONTENT_TYPE,
         HeaderValue::from_static("application/json"),

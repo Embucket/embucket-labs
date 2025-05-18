@@ -11,6 +11,7 @@ partial = []
 eq = []
 
 [dependencies]
+core-metastore = { path = "../core-metastore" }
 serde = { workspace = true, optional = true, features = ["derive"] }
 utoipa = { workspace = true, optional = true }
 

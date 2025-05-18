@@ -10,7 +10,7 @@ pub mod router;
 pub mod schemas;
 pub mod state;
 pub mod tables;
-pub mod common;
+
 #[cfg(test)]
 pub mod tests;
 pub mod volumes;

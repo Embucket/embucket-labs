@@ -5,13 +5,13 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+api-structs = { path = "../api-structs", features = ["schema", "serde", "partial", "eq"] }
 api-ui-static-assets = { path = "../api-ui-static-assets" }
 api-sessions = { path = "../api-sessions" }
 core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }
 core-executor = { path = "../core-executor" }
 core-history = { path = "../core-history" }
-api-structs = { path = "../api-structs", features = ["schema", "serde", "partial", "eq"] }
 
 axum = { workspace = true }
 chrono = { workspace = true }
@@ -33,6 +33,9 @@ time = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
 validator = { workspace = true }
+
+[dev-dependencies]
+api-client-rest = { path = "../api-client-rest" }
 
 [lints]
 workspace = true

@@ -4,7 +4,7 @@ use crate::databases::models::{Database, DatabaseCreatePayload};
 use crate::schemas::models::{SchemaCreatePayload, SchemasResponse};
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
+use api_structs::volumes::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use core_metastore::{
     Database as MetastoreDatabase, Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
 };

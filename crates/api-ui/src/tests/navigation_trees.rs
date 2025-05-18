@@ -2,12 +2,12 @@
 
 use crate::databases::models::DatabaseCreatePayload;
 use crate::navigation_trees::models::NavigationTreesResponse;
-use crate::queries::models::QueryCreatePayload;
+use api_structs::query::QueryCreatePayload;
 use crate::schemas::models::SchemaCreatePayload;
 use crate::tests::common::req;
 use crate::tests::common::{Entity, Op, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
+use api_structs::volumes::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use crate::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use core_metastore::VolumeType as MetastoreVolumeType;
 use core_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};

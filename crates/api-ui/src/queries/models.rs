@@ -84,14 +84,6 @@ impl TryFrom<&str> for ResultSet {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct QueryCreatePayload {
-    pub worksheet_id: Option<WorksheetId>,
-    pub query: String,
-    pub context: Option<HashMap<String, String>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
 pub struct QueryCreateResponse {
     #[serde(flatten)]
     pub data: QueryRecord,

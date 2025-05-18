@@ -1,14 +1,14 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::databases::models::DatabaseCreatePayload;
-use crate::queries::models::QueryCreatePayload;
+use api_structs::query::QueryCreatePayload;
 use crate::schemas::models::SchemaCreatePayload;
 use crate::tables::models::{
     TableColumnsResponse, TablePreviewDataResponse, TableStatisticsResponse, TablesResponse,
 };
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse};
+use api_structs::volumes::{VolumeCreatePayload, VolumeCreateResponse};
 use crate::worksheets::{WorksheetCreatePayload, WorksheetResponse};
 use core_metastore::VolumeType as MetastoreVolumeType;
 use core_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};

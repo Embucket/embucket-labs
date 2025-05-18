@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::databases::models::DatabaseCreatePayload;
-use crate::volumes::models::VolumeCreatePayload;
+use api_structs::volumes::VolumeCreatePayload;
 use crate::common::requests::*;
 use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use serde_json::json;

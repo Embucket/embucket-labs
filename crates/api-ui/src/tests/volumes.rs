@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::tests::common::{Entity, Op, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
+use api_structs::volumes::{Volume, VolumeCreatePayload, VolumeCreateResponse};
 use core_metastore::Volume as MetastoreVolume;
 use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume as MetastoreFileVolume,

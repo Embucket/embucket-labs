@@ -1,27 +1,22 @@
+use super::with_derives;
 #[cfg(feature = "schema")] use utoipa::ToSchema;
 #[cfg(feature = "serde")]  use serde::{Deserialize, Serialize};
 
-#[derive(Clone)]
-#[cfg_attr(feature = "schema", derive(ToSchema))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "partial", derive(PartialEq))]
-#[cfg_attr(feature = "eq", derive(Eq))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-pub struct LoginPayload {
-    pub username: String,
-    pub password: String,
+with_derives! {
+    #[derive(Clone)]
+    pub struct LoginPayload {
+        pub username: String,
+        pub password: String,
+    }
 }
 
-#[derive(Clone)]
-#[cfg_attr(feature = "schema", derive(ToSchema))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "partial", derive(PartialEq))]
-#[cfg_attr(feature = "eq", derive(Eq))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-pub struct AuthResponse {
-    pub access_token: String,
-    pub token_type: String,
-    pub expires_in: u32,
+with_derives! {
+    #[derive(Clone)]
+    pub struct AuthResponse {
+        pub access_token: String,
+        pub token_type: String,
+        pub expires_in: u32,
+    }
 }
 
 impl AuthResponse {

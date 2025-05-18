@@ -1,11 +1,12 @@
 use crate::queries::models::{
-    GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryRecord,
+    GetQueriesParams, QueriesResponse, QueryCreateResponse, QueryRecord,
 };
 use crate::state::AppState;
 use crate::{
     error::ErrorResponse,
     queries::error::{QueriesAPIError, QueriesResult, QueryError},
 };
+use api_structs::query::QueryCreatePayload;
 use api_sessions::DFSessionId;
 use axum::{
     Json,
