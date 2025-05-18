@@ -1,9 +1,13 @@
 use super::http::{http_req_with_headers, HttpErrorData};
-use api_structs::{auth::LoginPayload, query::QueryCreatePayload};
+use api_structs::{auth::LoginPayload};
+use snafu::ResultExt;
+use super::error::{HttpRequestResult, HttpRequestError, SerializeSnafu};
 use http::{HeaderMap, HeaderValue, Method, header};
 use serde_json::json;
 use std::net::SocketAddr;
 use reqwest;
+
+// Auth helpers
 
 pub async fn login<T>(
     client: &reqwest::Client,

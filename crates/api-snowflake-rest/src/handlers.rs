@@ -1,6 +1,6 @@
 use crate::error::{self as dbt_error, DbtError, DbtResult};
 use crate::schemas::{
-    JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
+    JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, AuthenticatedClient,
     QueryRequestBody, ResponseData,
 };
 use crate::state::AppState;
@@ -94,7 +94,7 @@ fn records_to_json_string(recs: &[RecordBatch]) -> Result<String, DbtError> {
 pub async fn query(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
-    Query(query): Query<QueryRequest>,
+    Query(query): Query<AuthenticatedClient>,
     headers: HeaderMap,
     body: Bytes,
 ) -> DbtResult<Json<JsonResponse>> {

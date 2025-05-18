@@ -1,4 +1,4 @@
-pub mod query;
+pub mod requests;
 pub mod error;
 pub mod http;
-pub mod auth;
+pub mod auth_helpers;

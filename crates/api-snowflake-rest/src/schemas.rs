@@ -66,7 +66,7 @@ pub struct ClientEnvironment {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct QueryRequest {
+pub struct AuthenticatedClient {
     #[serde(rename = "requestId")]
     pub request_id: String,
 }

@@ -1,11 +1,16 @@
 use snafu::prelude::*;
-use super::http::HttpRequestError;
 
-pub type AuthenticatedQueryResult<T> = std::result::Result<T, QueryRequestError>;
+pub type HttpRequestResult<T> = std::result::Result<T, HttpRequestError>;
 
-#[derive(Debug, Snafu)]
+#[derive(Snafu, Debug)]
 #[snafu(visibility(pub))]
-pub enum QueryRequestError {
-    #[snafu(display("Query error: {source}"))]
-    QueryRequest { source: HttpRequestError },
+pub enum HttpRequestError {
+    #[snafu(display("HTTP request error: {message}"))]
+    HttpRequest{message: String},
+
+    #[snafu(display("Authenticated request error: {message}"))]
+    AuthenticatedRequest { message: String },
+
+    #[snafu(display("Serialize error: {source}"))]
+    Serialize { source: serde_json::Error },
 }

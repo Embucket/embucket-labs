@@ -4,13 +4,7 @@ use reqwest;
 use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use snafu::prelude::*;
 use std::fmt::Display;
-use crate::requests::error::QueryRequestError;
-
-#[derive(Snafu, Debug)]
-pub enum HttpRequestError {
-    #[snafu(display("HTTP request error: {message}"))]
-    HttpReq{message: String},
-}
+use super::error::HttpRequestError;
 
 #[derive(Debug)]
 pub struct HttpErrorData {
@@ -22,9 +16,9 @@ pub struct HttpErrorData {
     pub error: HttpRequestError,
 }
 
-impl Into<QueryRequestError> for HttpErrorData {
-    fn into(self) -> QueryRequestError {
-        QueryRequestError::QueryRequest { source: self.error }
+impl From <HttpErrorData> for HttpRequestError {
+    fn from(value: HttpErrorData) -> Self {
+        HttpRequestError::HttpRequest{message: value.error.to_string()}
     }
 }
 
@@ -72,7 +66,7 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
                         headers,
                         status,
                         body: text,
-                        error: HttpRequestError::HttpReq{message: err.to_string()},
+                        error: HttpRequestError::HttpRequest{message: err.to_string()},
                     })
                 }
             }
@@ -88,7 +82,7 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
             headers: response.headers().clone(),
             status: response.status(),
             body: response.text().await.expect("Failed to get response text"),
-            error: HttpRequestError::HttpReq{message: error.to_string()},
+            error: HttpRequestError::HttpRequest{message: error.to_string()},
         })
     }
 }
@@ -107,4 +101,3 @@ pub async fn http_req<T: serde::de::DeserializeOwned>(
     let (_, res) = http_req_with_headers(client, method, headers, url, payload).await?;
     Ok(res)
 }
-

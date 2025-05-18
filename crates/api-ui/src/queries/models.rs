@@ -2,6 +2,7 @@ use super::error::{
     CreateResultSetSnafu, QueryError, QueryRecordResult, ResultParseSnafu, Utf8Snafu,
 };
 use crate::default_limit;
+use api_structs::query::{QueryRecord, ResultSet, Row, Column};
 use chrono::{DateTime, Utc};
 use core_executor::models::ColumnInfo;
 use core_history::{QueryRecordId, QueryStatus as QueryStatusItem, WorksheetId};
@@ -16,23 +17,6 @@ use utoipa::ToSchema;
 
 pub type ExecutionContext = core_executor::query::QueryContext;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct Column {
-    pub name: String,
-    pub r#type: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[schema(as = Row, value_type = Vec<Value>)]
-pub struct Row(Vec<Value>);
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct ResultSet {
-    pub columns: Vec<Column>,
-    pub rows: Vec<Row>,
-}
 
 impl ResultSet {
     pub fn query_result_to_result_set(
@@ -82,21 +66,6 @@ impl TryFrom<&str> for ResultSet {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct QueryCreateResponse {
-    #[serde(flatten)]
-    pub data: QueryRecord,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum QueryStatus {
-    Running,
-    Successful,
-    Failed,
-}
-
 impl From<QueryStatusItem> for QueryStatus {
     fn from(value: QueryStatusItem) -> Self {
         match value {
@@ -107,21 +76,6 @@ impl From<QueryStatusItem> for QueryStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct QueryRecord {
-    pub id: QueryRecordId,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub worksheet_id: Option<WorksheetId>,
-    pub query: String,
-    pub start_time: DateTime<Utc>,
-    pub end_time: DateTime<Utc>,
-    pub duration_ms: i64,
-    pub result_count: i64,
-    pub result: ResultSet,
-    pub status: QueryStatus,
-    pub error: String, // empty error - ok
-}
 
 impl TryFrom<core_history::QueryRecord> for QueryRecord {
     type Error = QueryError;

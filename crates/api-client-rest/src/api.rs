@@ -1,38 +1,40 @@
 use snafu::{Snafu, ResultExt};
 use api_structs::{auth::AuthResponse, volumes::{Volume, VolumeCreatePayload}};
 
-use crate::requests::query::AuthenticatedQueryRequest;
-use crate::requests::error::QueryRequestError;
+use crate::requests::requests::AuthenticatedRequests;
+use crate::requests::error::HttpRequestError;
 // use api_structs::databases::DatabaseCreatePayload;
 
-#[derive(Snafu, Debug)]
-pub enum DatabaseApiError {
-    #[snafu(display("Database API error: {source}"))]
-    Api{source: QueryRequestError},
-}
-
-pub type DatabaseApiResult<T> = Result<T, DatabaseApiError>;
+pub type ApiClientResult<T> = Result<T, HttpRequestError>;
 
 pub struct Database {
-    pub query: Box<dyn AuthenticatedQueryRequest>,
+    pub requests: Box<dyn AuthenticatedRequests>,
 }
 
 #[async_trait::async_trait]
 pub trait DatabaseApi {
-    async fn login(&mut self, user: String, password: String) -> DatabaseApiResult<AuthResponse>;
-    async fn create_volume(&self, volume: Volume) -> DatabaseApiResult<()>;
-    async fn create_database(&self) -> DatabaseApiResult<()>;
-    async fn create_schema(&self) -> DatabaseApiResult<()>;
-    async fn create_table(&self) -> DatabaseApiResult<()>;
+    async fn login(&mut self, user: String, password: String) -> ApiClientResult<AuthResponse>;
+    async fn create_volume(&self, volume: Volume) -> ApiClientResult<()>;
+    async fn create_database(&self) -> ApiClientResult<()>;
+    async fn create_schema(&self) -> ApiClientResult<()>;
+    async fn create_table(&self) -> ApiClientResult<()>;
 }
 
 impl DatabaseApi for Database {
-    async fn login(&mut self, user: String, password: String) -> DatabaseApiResult<AuthResponse> {
-        self.query.login(user, password).await.context(ApiSnafu)
+    async fn login(&mut self, user: String, password: String) -> ApiClientResult<AuthResponse> {
+        self.requests.login(user, password).await
     }
 
-    fn create_volume(&self, volume: Volume) -> DatabaseApiResult<()> {
-        self.query.query(query)
+    fn create_volume(&self, volume: Volume) -> ApiClientResult<()> {
+        self.requests.authenticated_request::<VolumeCreatePayload, VolumeCreateResponse>(
+            client: &reqwest::Client,
+            access_token: &str,
+            method: Method,
+            url: &String,
+            payload: I,
+        ) -> HttpRequestResult<T>
+        self.requests.query(query)
+
         // VolumeCreatePayload {
         //     data: volume,
         // };
@@ -41,16 +43,16 @@ impl DatabaseApi for Database {
         Ok(())
     }
 
-    fn create_database(&self) -> DatabaseApiResult<()> {
+    fn create_database(&self) -> ApiClientResult<()> {
         // self.metastore.create_database(name, database)
         Ok(())
     }
 
-    fn create_schema(&self) -> DatabaseApiResult<()> {
+    fn create_schema(&self) -> ApiClientResult<()> {
         Ok(())
     }
 
-    fn create_table(&self) -> DatabaseApiResult<()> {
+    fn create_table(&self) -> ApiClientResult<()> {
         Ok(())
     }
 }

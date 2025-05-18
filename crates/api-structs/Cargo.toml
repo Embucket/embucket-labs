@@ -6,13 +6,15 @@ license-file.workspace = true
 
 [features]
 schema = ["dep:utoipa"]
-serde = ["dep:serde"]
+serde = ["dep:serde", "dep:serde_json"]
 partial = []
 eq = []
 
 [dependencies]
 core-metastore = { path = "../core-metastore" }
 serde = { workspace = true, optional = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true }
+chrono = { workspace = true }
 utoipa = { workspace = true, optional = true }
 
 [lints]
