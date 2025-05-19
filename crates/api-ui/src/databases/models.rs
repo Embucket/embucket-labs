@@ -3,7 +3,6 @@ use api_structs::databases::{
     Database as DatabaseRest, DatabaseCreatePayload as DatabaseCreatePayloadRest,
     DatabaseCreateResponse as DatabaseCreateResponseRest,
 };
-use core_metastore::models::Database as MetastoreDatabase;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 

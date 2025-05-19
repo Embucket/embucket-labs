@@ -5,7 +5,6 @@ use api_iceberg_rest::state::Config as IcebergConfig;
 use api_iceberg_rest::state::State as IcebergAppState;
 use api_internal_rest::router::create_router as create_internal_router;
 use api_internal_rest::state::State as InternalAppState;
-use api_seed::SeedApi;
 use api_sessions::{RequestSessionMemory, RequestSessionStore};
 use api_snowflake_rest::router::create_router as create_snowflake_router;
 use api_snowflake_rest::state::AppState as SnowflakeAppState;

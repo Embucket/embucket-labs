@@ -1,10 +1,5 @@
 use crate::default_limit;
 use api_structs::volumes::Volume;
-use core_metastore::S3TablesVolume as MetastoreS3TablesVolume;
-use core_metastore::models::{
-    AwsCredentials, FileVolume as MetastoreFileVolume, S3Volume as MetastoreS3Volume,
-    Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
-};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 

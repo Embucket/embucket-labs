@@ -2,12 +2,11 @@ use crate::queries::models::{GetQueriesParams, QueriesResponse};
 use crate::state::AppState;
 use crate::{
     error::ErrorResponse,
-    queries::error::{QueriesAPIError, QueriesResult, QueryError, QuerySnafu},
+    queries::error::{QueriesAPIError, QueriesResult, QueryError},
 };
 use api_sessions::DFSessionId;
 use api_structs::query::QueryCreatePayload;
 use api_structs::query::{QueryCreateResponse, QueryRecord};
-use api_structs::result_set::ResultSetError;
 use axum::{
     Json,
     extract::{Query, State},

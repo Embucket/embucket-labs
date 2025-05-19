@@ -3,9 +3,6 @@ use api_structs::schemas::{
     Schema as SchemaRest, SchemaCreatePayload as SchemaCreatePayloadRest,
     SchemaCreateResponse as SchemaCreateResponseRest,
 };
-use chrono::NaiveDateTime;
-use core_metastore::RwObject;
-use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 use utoipa::{IntoParams, ToSchema};

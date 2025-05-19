@@ -1,9 +1,9 @@
-use crate::seed::models::{Generator, SuperVolume, SuperVolumeType, Volume, VolumeGenerator};
+use crate::seed::models::{Generator, SuperVolume, SuperVolumeType, Volume};
 use crate::seed::rng::{SEED_FOR_RANDOMIZER, init_rng};
 use crate::seed::{
     read_gen_template, read_seed_root_template, read_seed_template, read_super_template,
 };
-use core_metastore::{FileVolume, VolumeType};
+use core_metastore::VolumeType;
 
 #[test]
 fn test_seed() {

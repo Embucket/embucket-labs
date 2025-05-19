@@ -1,7 +1,6 @@
 use super::error::*;
 use crate::seed::{Volume, read_super_template};
 use snafu::ResultExt;
-use std::sync::Arc;
 
 pub enum SeedVariant {
     Minimal,
