@@ -11,6 +11,7 @@ use datafusion_expr::utils::format_state_name;
 use std::any::Any;
 use std::collections::HashSet;
 use std::sync::Arc;
+use crate::aggregate::macros::make_udaf_function;
 
 // array_unique_agg function
 // Returns an ARRAY that contains all of the distinct values from the specified column.
@@ -145,6 +146,8 @@ fn array_to_scalar_vec(arr: &ArrayRef) -> DFResult<Vec<ScalarValue>> {
         .map(|i| ScalarValue::try_from_array(arr, i))
         .collect::<DFResult<Vec<_>>>()
 }
+
+make_udaf_function!(ArrayUniqueAggUDAF);
 
 #[cfg(test)]
 mod tests {
