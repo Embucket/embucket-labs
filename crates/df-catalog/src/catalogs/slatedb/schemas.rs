@@ -24,8 +24,8 @@ impl SchemasView {
         let schema = Arc::new(Schema::new(vec![
             Field::new("schema_name", DataType::Utf8, false),
             Field::new("database_name", DataType::Utf8, false),
-            Field::new("created_at", DataType::Utf8, true),
-            Field::new("updated_at", DataType::Utf8, true),
+            Field::new("created_at", DataType::Utf8, false),
+            Field::new("updated_at", DataType::Utf8, false),
         ]));
 
         Self { schema, config }

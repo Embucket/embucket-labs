@@ -1,3 +1,4 @@
+use crate::OrderDirection;
 use crate::state::AppState;
 use crate::{
     SearchParameters, downcast_string_column,
@@ -242,7 +243,7 @@ pub async fn update_schema(
         ("limit" = Option<u16>, Query, description = "Schemas limit"),
         ("search" = Option<String>, Query, description = "Schemas search"),
         ("order_by" = Option<String>, Query, description = "Order by: schema_name (default), database_name, created_at, updated_at"),
-        ("order_direction" = Option<String>, Query, description = "Order direction: ASC, DESC (default)"),
+        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     responses(
         (status = 200, body = SchemasResponse),

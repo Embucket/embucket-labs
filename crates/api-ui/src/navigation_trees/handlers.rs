@@ -81,6 +81,8 @@ pub async fn get_navigation_trees(
             .map_err(|e| NavigationTreesAPIError::Execution { source: e })?;
         let tables = downcast_string_column(&batch, "table")
             .map_err(|e| NavigationTreesAPIError::Execution { source: e })?;
+        let table_types = downcast_string_column(&batch, "table_type")
+            .map_err(|e| NavigationTreesAPIError::Execution { source: e })?;
         for j in 0..batch.num_rows() {
             let database = databases.value(j).to_string();
             let schema = schemas.value(j).to_string();

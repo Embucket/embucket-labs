@@ -1,3 +1,4 @@
+use crate::OrderDirection;
 use crate::state::AppState;
 use crate::{
     SearchParameters,
@@ -202,7 +203,7 @@ pub async fn update_database(
         ("limit" = Option<usize>, Query, description = "Databases limit"),
         ("search" = Option<String>, Query, description = "Databases search"),
         ("order_by" = Option<String>, Query, description = "Order by: database_name (default), volume_name, created_at, updated_at"),
-        ("order_direction" = Option<String>, Query, description = "Order direction: ASC, DESC (default)"),
+        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     tags = ["databases"],
     path = "/ui/databases",
