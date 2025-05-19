@@ -52,7 +52,7 @@ export function ColumnsPage() {
               <TabsTrigger value="columns">Columns</TabsTrigger>
               <TabsTrigger value="data-preview">Data Preview</TabsTrigger>
             </TabsList>
-            <TabsContent value="columns" className="m-0 p-0">
+            <TabsContent value="columns" className="m-0">
               <DataPageContent
                 hasTabs
                 isEmpty={!columns?.length}
@@ -62,7 +62,7 @@ export function ColumnsPage() {
                 emptyStateDescription="No columns have been created yet. Create a column to get started."
               />
             </TabsContent>
-            <TabsContent value="data-preview">
+            <TabsContent value="data-preview" className="m-0">
               <DataPageContent
                 hasTabs
                 isEmpty={!previewData?.length}
@@ -70,8 +70,8 @@ export function ColumnsPage() {
                   <DataPreviewTable isLoading={isPreviewDataFetching} columns={previewData ?? []} />
                 }
                 emptyStateIcon={Columns}
-                emptyStateTitle="No Data Preview Found"
-                emptyStateDescription="No data preview has been created yet."
+                emptyStateTitle="No Data Found"
+                emptyStateDescription="No data has been loaded for this table yet."
               />
             </TabsContent>
           </Tabs>
