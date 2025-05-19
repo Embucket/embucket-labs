@@ -37,7 +37,7 @@ with_derives! {
 with_derives! {
     #[derive(Debug, Clone)]
     pub struct FileVolume {
-        path: String,
+        pub path: String,
     }
 }
 

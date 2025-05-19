@@ -1,9 +1,10 @@
-use crate::seed::models::{Generator, SuperVolume, SuperVolumeType, Volume};
+use crate::seed::models::{Generator, VolumeSeed, VolumeSeedType, Volume};
 use crate::seed::rng::{SEED_FOR_RANDOMIZER, init_rng};
 use crate::seed::{
-    read_gen_template, read_seed_root_template, read_seed_template, read_super_template,
+    read_gen_template, read_seed_root_template, read_seed_template, read_super_template, SeedRoot,
 };
-use core_metastore::VolumeType;
+use api_structs::volumes::VolumeType;
+use api_structs::volumes::FileVolume;
 
 #[test]
 fn test_seed() {
@@ -24,22 +25,39 @@ fn test_gen() {
 #[test]
 fn test_super_gen() {
     init_rng(SEED_FOR_RANDOMIZER);
-    let super_volume = SuperVolume {
-        volume: SuperVolumeType::Volume(Volume {
-            volume_name: "foo".to_string(),
-            volume_type: VolumeType::File(core_metastore::FileVolume {
-                path: "bar".to_string(),
+    let seed_root = SeedRoot {
+        volumes: vec![VolumeSeed {
+            volume: VolumeSeedType::Volume(Volume {
+                volume_name: "foo".to_string(),
+                volume_type: VolumeType::File(FileVolume {
+                    path: "bar".to_string(),
+                }),
+                databases: vec![
+                    Database {
+                        name: "baz".to_string(),
+                        schemas: vec![
+                            Schema {
+                                name: "qux".to_string(),
+                                tables: vec![
+                                    Table {
+                                        name: "quux".to_string(),
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
             }),
-            databases: vec![],
-        }),
+        }],
     };
+
     eprintln!(
         "programmatically created #1: \n{}",
         serde_yaml::to_string(&super_volume).unwrap()
     );
 
-    let super_volume = SuperVolume {
-        volume: SuperVolumeType::VolumeGenerator(
+    let super_volume = VolumeSeed {
+        volume: VolumeSeedType::VolumeGenerator(
             read_gen_template().expect("Failed to read seed gen"),
         ),
     };

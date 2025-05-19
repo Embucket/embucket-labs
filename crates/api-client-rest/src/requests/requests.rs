@@ -12,11 +12,11 @@ use snafu::ResultExt;
 use std::net::SocketAddr;
 
 pub struct AuthenticatedClient {
-    pub client: reqwest::Client,
-    pub addr: SocketAddr,
-    pub access_token: String,
-    pub refresh_token: String,
-    pub session_id: Option<String>,
+    client: reqwest::Client,
+    addr: SocketAddr,
+    access_token: String,
+    refresh_token: String,
+    session_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -42,6 +42,17 @@ pub trait AuthenticatedRequests {
 }
 
 impl AuthenticatedClient {
+    #[must_use]
+    pub fn new(addr: SocketAddr) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            addr,
+            access_token: String::new(),
+            refresh_token: String::new(),
+            session_id: None,
+        }
+    }
+
     fn set_tokens_from_auth_response(&mut self, headers: &HeaderMap, auth_response: &AuthResponse) {
         let from_set_cookies = get_set_cookie_name_value_map(&headers);
         self.refresh_token = from_set_cookies.get("refresh_token").unwrap().clone();
@@ -67,23 +78,43 @@ impl AuthenticatedClient {
     {
         let Self {
             access_token,
+            refresh_token,
             client,
             ..
         } = self;
+
+        let mut headers = HeaderMap::from_iter(vec![
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            ),
+            (
+                header::AUTHORIZATION,
+                HeaderValue::from_str(format!("Bearer {access_token}").as_str())
+                    .expect("Can't convert to HeaderValue"),
+            ),
+        ]);
+
+        // prepare cookies
+        let mut cookies = Vec::new();
+        if !refresh_token.is_empty() {
+            cookies.push(format!("refresh_token={refresh_token}"));
+        }
+        if let Some(session_id) = &self.session_id {
+            cookies.push(format!("id={session_id}"));
+        }
+        if !cookies.is_empty() {
+            headers.insert(
+                header::COOKIE,
+                HeaderValue::from_str(cookies.join(";").as_str())
+                    .context(InvalidHeaderValueSnafu)?,
+            );
+        }
+
         let res = http_req_with_headers::<T>(
             &client,
             method,
-            HeaderMap::from_iter(vec![
-                (
-                    header::CONTENT_TYPE,
-                    HeaderValue::from_static("application/json"),
-                ),
-                (
-                    header::AUTHORIZATION,
-                    HeaderValue::from_str(format!("Bearer {access_token}").as_str())
-                        .expect("Can't convert to HeaderValue"),
-                ),
-            ]),
+            headers,
             url,
             serde_json::to_string(&payload).context(SerializeSnafu)?,
         )

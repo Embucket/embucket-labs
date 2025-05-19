@@ -1,4 +1,4 @@
-use super::models::{SeedRoot, SuperVolume, Volume, VolumeGenerator};
+use super::models::{SeedRoot, VolumeSeed, Volume, VolumeGenerator};
 
 const SEED_DATA: &str = include_str!("../../templates/seed.yaml");
 const GEN_DATA: &str = include_str!("../../templates/gen.yaml");
@@ -13,8 +13,8 @@ pub fn read_gen_template() -> Result<VolumeGenerator, Box<dyn std::error::Error>
     serde_yaml::from_str::<VolumeGenerator>(GEN_DATA).map_err(|e| e.into())
 }
 
-pub fn read_super_template() -> Result<SuperVolume, Box<dyn std::error::Error>> {
-    serde_yaml::from_str::<SuperVolume>(SUPER_GEN_DATA).map_err(|e| e.into())
+pub fn read_super_template() -> Result<VolumeSeed, Box<dyn std::error::Error>> {
+    serde_yaml::from_str::<VolumeSeed>(SUPER_GEN_DATA).map_err(|e| e.into())
 }
 
 pub fn read_seed_root_template() -> Result<SeedRoot, Box<dyn std::error::Error>> {

@@ -9,6 +9,7 @@ use api_structs::{
 };
 use http::Method;
 use snafu::{ResultExt, Snafu};
+use std::net::SocketAddr;
 
 pub type ApiClientResult<T> = Result<T, HttpRequestError>;
 
@@ -23,6 +24,14 @@ pub trait DatabaseClientApi {
     async fn create_database(&mut self, volume: &str, database: &str) -> ApiClientResult<()>;
     async fn create_schema(&mut self, database: &str, schema: &str) -> ApiClientResult<()>;
     // async fn upload_to_table(&self, table_name: String, payload: TableUploadPayload) -> ApiClientResult<TableUploadResponse>;
+}
+
+impl DatabaseClient {
+    pub fn new(addr: SocketAddr) -> Self {
+        Self {
+            client: AuthenticatedClient::new(addr),
+        }
+    }
 }
 
 #[async_trait::async_trait]

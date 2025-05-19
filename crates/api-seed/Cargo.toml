@@ -5,9 +5,9 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
-api-ui = { path = "../api-ui" }
+# api-ui = { path = "../api-ui" }
+api-client-rest = { path = "../api-client-rest" }
 api-structs = { path = "../api-structs", features = ["serde", "partial", "eq"] }
-core-metastore = { path = "../core-metastore" }
 
 async-trait = { workspace = true }
 http = { workspace = true }

@@ -9,6 +9,9 @@ pub enum HttpRequestError {
     #[snafu(display("HTTP request error: {message}, status code: {status}"))]
     HttpRequest { message: String, status: StatusCode },
 
+    #[snafu(display("Invalid header value: {source}"))]
+    InvalidHeaderValue { source: http::header::InvalidHeaderValue },
+
     #[snafu(display("Authenticated request error: {message}"))]
     AuthenticatedRequest { message: String },
 
