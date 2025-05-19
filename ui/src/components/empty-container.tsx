@@ -31,7 +31,7 @@ export function EmptyContainer({
       <h3 className="mb-2 text-sm font-medium tracking-tight">{title}</h3>
       {description && <p className="text-muted-foreground text-sm">{description}</p>}
       {onCtaClick && ctaText && (
-        <Button disabled onClick={onCtaClick} size="sm" className="mt-4">
+        <Button onClick={onCtaClick} size="sm" className="mt-4">
           <Plus className="mr-2 size-4" />
           {ctaText}
         </Button>

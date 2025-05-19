@@ -11,6 +11,7 @@ use datafusion::arrow::{
 };
 use datafusion::execution::TaskContext;
 use datafusion_common::DataFusionError;
+use datafusion_expr::TableType;
 use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
@@ -24,22 +25,26 @@ pub struct InformationSchemaViews {
 }
 
 impl InformationSchemaViews {
-    pub fn new(config: InformationSchemaConfig) -> Self {
-        let schema = Arc::new(Schema::new(vec![
-            Field::new("table_catalog", DataType::Utf8, false),
-            Field::new("table_schema", DataType::Utf8, false),
-            Field::new("table_name", DataType::Utf8, false),
+    pub fn schema() -> Arc<Schema> {
+        Arc::new(Schema::new(vec![
+            Field::new("view_catalog", DataType::Utf8, false),
+            Field::new("view_schema", DataType::Utf8, false),
+            Field::new("view_name", DataType::Utf8, false),
+            Field::new("view_type", DataType::Utf8, false),
             Field::new("definition", DataType::Utf8, true),
-        ]));
-
+        ]))
+    }
+    pub fn new(config: InformationSchemaConfig) -> Self {
+        let schema = Self::schema();
         Self { schema, config }
     }
 
     fn builder(&self) -> InformationSchemaViewBuilder {
         InformationSchemaViewBuilder {
-            catalog_names: StringBuilder::new(),
-            schema_names: StringBuilder::new(),
-            table_names: StringBuilder::new(),
+            view_catalogs: StringBuilder::new(),
+            view_schemas: StringBuilder::new(),
+            view_names: StringBuilder::new(),
+            view_types: StringBuilder::new(),
             definitions: StringBuilder::new(),
             schema: Arc::clone(&self.schema),
         }
@@ -69,9 +74,10 @@ impl PartitionStream for InformationSchemaViews {
 
 pub struct InformationSchemaViewBuilder {
     schema: SchemaRef,
-    catalog_names: StringBuilder,
-    schema_names: StringBuilder,
-    table_names: StringBuilder,
+    view_catalogs: StringBuilder,
+    view_schemas: StringBuilder,
+    view_names: StringBuilder,
+    view_types: StringBuilder,
     definitions: StringBuilder,
 }
 
@@ -80,13 +86,19 @@ impl InformationSchemaViewBuilder {
         &mut self,
         catalog_name: impl AsRef<str>,
         schema_name: impl AsRef<str>,
-        table_name: impl AsRef<str>,
+        view_name: impl AsRef<str>,
+        view_type: TableType,
         definition: Option<&str>,
     ) {
         // Note: append_value is actually infallible.
-        self.catalog_names.append_value(catalog_name.as_ref());
-        self.schema_names.append_value(schema_name.as_ref());
-        self.table_names.append_value(table_name.as_ref());
+        self.view_catalogs.append_value(catalog_name.as_ref());
+        self.view_schemas.append_value(schema_name.as_ref());
+        self.view_names.append_value(view_name.as_ref());
+        self.view_types.append_value(match view_type {
+            TableType::Base => "TABLE",
+            TableType::View => "VIEW",
+            TableType::Temporary => "TEMPORARY",
+        });
         self.definitions.append_option(definition.as_ref());
     }
 
@@ -94,9 +106,10 @@ impl InformationSchemaViewBuilder {
         RecordBatch::try_new(
             Arc::clone(&self.schema),
             vec![
-                Arc::new(self.catalog_names.finish()),
-                Arc::new(self.schema_names.finish()),
-                Arc::new(self.table_names.finish()),
+                Arc::new(self.view_catalogs.finish()),
+                Arc::new(self.view_schemas.finish()),
+                Arc::new(self.view_names.finish()),
+                Arc::new(self.view_types.finish()),
                 Arc::new(self.definitions.finish()),
             ],
         )

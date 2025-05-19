@@ -25,14 +25,16 @@ pub struct InformationSchemaTables {
 }
 
 impl InformationSchemaTables {
-    pub(crate) fn new(config: InformationSchemaConfig) -> Self {
-        let schema = Arc::new(Schema::new(vec![
+    pub fn schema() -> Arc<Schema> {
+        Arc::new(Schema::new(vec![
             Field::new("table_catalog", DataType::Utf8, false),
             Field::new("table_schema", DataType::Utf8, false),
             Field::new("table_name", DataType::Utf8, false),
             Field::new("table_type", DataType::Utf8, false),
-        ]));
-
+        ]))
+    }
+    pub(crate) fn new(config: InformationSchemaConfig) -> Self {
+        let schema = Self::schema();
         Self { schema, config }
     }
 
@@ -89,9 +91,9 @@ impl InformationSchemaTablesBuilder {
         self.schema_names.append_value(schema_name.as_ref());
         self.table_names.append_value(table_name.as_ref());
         self.table_types.append_value(match table_type {
-            TableType::Base => "BASE TABLE",
+            TableType::Base => "TABLE",
             TableType::View => "VIEW",
-            TableType::Temporary => "TEMPORARY TABLE",
+            TableType::Temporary => "TEMPORARY",
         });
     }
 

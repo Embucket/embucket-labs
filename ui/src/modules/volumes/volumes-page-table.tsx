@@ -15,6 +15,9 @@ export function VolumesTable({ isLoading, volumes }: VolumesTableProps) {
     columnHelper.accessor('name', {
       header: 'Name',
     }),
+    columnHelper.accessor('type', {
+      header: 'Type',
+    }),
   ];
 
   return <DataTable rounded columns={tableColumns} data={volumes} isLoading={isLoading} />;

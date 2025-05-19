@@ -33,7 +33,7 @@ export const CreateSchemaDialogForm = ({ onSubmit }: CreateSchemaDialogForm) => 
       <form
         id="createSchemaDialogForm"
         onSubmit={form.handleSubmit(onSubmit)}
-        className="flex flex-col gap-2"
+        className="flex flex-col gap-4"
       >
         <FormField
           control={form.control}

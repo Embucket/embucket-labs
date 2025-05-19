@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SHOW DATABASES\""
+snapshot_kind: text
+---
+Ok(
+    [
+        "+------------+----------+----------+---------------+-------------+",
+        "| created_on | name     | kind     | database_name | schema_name |",
+        "+------------+----------+----------+---------------+-------------+",
+        "|            | embucket | STANDARD |               |             |",
+        "+------------+----------+----------+---------------+-------------+",
+    ],
+)

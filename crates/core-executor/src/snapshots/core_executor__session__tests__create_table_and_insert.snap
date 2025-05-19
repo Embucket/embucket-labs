@@ -1,6 +1,7 @@
 ---
-source: crates/runtime/src/tests/session.rs
+source: crates/core-executor/src/session.rs
 expression: "(statement, result, all_query, insert_query, select_query)"
+snapshot_kind: text
 ---
 (
     Statement(
@@ -270,94 +271,7 @@ expression: "(statement, result, all_query, insert_query, select_query)"
             row_count: 1,
         },
     ],
-    [
-        RecordBatch {
-            schema: Schema {
-                fields: [
-                    Field {
-                        name: "table_catalog",
-                        data_type: Utf8,
-                        nullable: false,
-                        dict_id: 0,
-                        dict_is_ordered: false,
-                        metadata: {},
-                    },
-                    Field {
-                        name: "table_schema",
-                        data_type: Utf8,
-                        nullable: false,
-                        dict_id: 0,
-                        dict_is_ordered: false,
-                        metadata: {},
-                    },
-                    Field {
-                        name: "table_name",
-                        data_type: Utf8,
-                        nullable: false,
-                        dict_id: 0,
-                        dict_is_ordered: false,
-                        metadata: {},
-                    },
-                    Field {
-                        name: "table_type",
-                        data_type: Utf8,
-                        nullable: false,
-                        dict_id: 0,
-                        dict_is_ordered: false,
-                        metadata: {},
-                    },
-                ],
-                metadata: {},
-            },
-            columns: [
-                StringArray
-                [
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
-                  "benchmark",
-                ],
-                StringArray
-                [
-                  "public",
-                  "information_schema",
-                  "information_schema",
-                  "information_schema",
-                  "information_schema",
-                  "information_schema",
-                  "information_schema",
-                  "information_schema",
-                ],
-                StringArray
-                [
-                  "hits",
-                  "tables",
-                  "views",
-                  "columns",
-                  "df_settings",
-                  "schemata",
-                  "routines",
-                  "parameters",
-                ],
-                StringArray
-                [
-                  "BASE TABLE",
-                  "VIEW",
-                  "VIEW",
-                  "VIEW",
-                  "VIEW",
-                  "VIEW",
-                  "VIEW",
-                  "VIEW",
-                ],
-            ],
-            row_count: 8,
-        },
-    ],
+    [],
     [
         RecordBatch {
             schema: Schema {

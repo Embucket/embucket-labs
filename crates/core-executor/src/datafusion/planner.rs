@@ -54,7 +54,6 @@ where
             | Statement::StartTransaction { .. }
             | Statement::Commit { .. }
             | Statement::Update { .. } => Ok(LogicalPlan::default()),
-            Statement::ShowSchemas { .. } => self.show_variable_to_plan(&["schemas".into()]),
             Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
             Statement::ShowObjects(show_objects) => {
                 let Some(show_in) = show_objects.show_options.show_in else {

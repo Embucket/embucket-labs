@@ -10,4 +10,5 @@ import type { NavigationTreeTable } from './navigationTreeTable';
 export interface NavigationTreeSchema {
   name: string;
   tables: NavigationTreeTable[];
+  views: NavigationTreeTable[];
 }

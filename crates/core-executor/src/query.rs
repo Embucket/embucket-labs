@@ -38,7 +38,8 @@ use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
-    ObjectType, Query as AstQuery, Select, SelectItem, UpdateTableFromKind, Use,
+    ObjectType, Query as AstQuery, Select, SelectItem, ShowObjects, ShowStatementIn,
+    UpdateTableFromKind, Use, Value,
 };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -268,11 +269,18 @@ impl UserQuery {
                 | Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
                 | Statement::Insert { .. }
-                | Statement::ShowSchemas { .. }
                 | Statement::ShowVariable { .. }
-                | Statement::ShowObjects { .. }
                 | Statement::Update { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&self.query)).await;
+                }
+                Statement::ShowDatabases { .. }
+                | Statement::ShowSchemas { .. }
+                | Statement::ShowTables { .. }
+                | Statement::ShowColumns { .. }
+                | Statement::ShowViews { .. }
+                | Statement::ShowFunctions { .. }
+                | Statement::ShowObjects { .. } => {
+                    return Box::pin(self.show_query(*s)).await;
                 }
                 Statement::Query(mut subquery) => {
                     self.update_qualify_in_query(subquery.as_mut());
@@ -955,6 +963,185 @@ impl UserQuery {
             .await
             .context(ex_error::IcebergSnafu)?;
         created_entity_response()
+    }
+
+    #[allow(clippy::too_many_lines)]
+    pub async fn show_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
+        let query = match statement {
+            Statement::ShowDatabases { .. } => {
+                format!(
+                    "SELECT
+                        NULL as created_on,
+                        database_name as name,
+                        'STANDARD' as kind,
+                        NULL as database_name,
+                        NULL as schema_name
+                    FROM {}.information_schema.databases",
+                    self.current_database()
+                )
+            }
+            Statement::ShowSchemas { show_options, .. } => {
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
+                let sql = format!(
+                    "SELECT
+                        NULL as created_on,
+                        schema_name as name,
+                        NULL as kind,
+                        catalog_name as database_name,
+                        NULL as schema_name
+                    FROM {catalog}.information_schema.schemata",
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "schema_name")
+                {
+                    filters.push(filter);
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowTables { show_options, .. } => {
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
+                let sql = format!(
+                    "SELECT
+                        NULL as created_on,
+                        table_name as name,
+                        table_type as kind,
+                        table_catalog as database_name,
+                        table_schema as schema_name
+                    FROM {catalog}.information_schema.tables"
+                );
+                let mut filters = vec!["table_type = 'TABLE'".to_string()];
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "table_name")
+                {
+                    filters.push(filter);
+                }
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("table_schema = '{schema}'"));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowViews { show_options, .. } => {
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
+                let sql = format!(
+                    "SELECT
+                        NULL as created_on,
+                        view_name as name,
+                        view_type as kind,
+                        view_catalog as database_name,
+                        view_schema as schema_name
+                    FROM {catalog}.information_schema.views"
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "view_name")
+                {
+                    filters.push(filter);
+                }
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("view_schema = '{schema}'"));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowObjects(ShowObjects { show_options, .. }) => {
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
+                let sql = format!(
+                    "SELECT
+                        NULL as created_on,
+                        table_name as name,
+                        table_type as kind,
+                        table_catalog as database_name,
+                        table_schema as schema_name,
+                        CASE WHEN table_type='TABLE' then 'Y' else 'N' end as is_iceberg
+                    FROM {catalog}.information_schema.tables"
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "table_name")
+                {
+                    filters.push(filter);
+                }
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("table_schema = '{schema}'"));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowColumns { show_options, .. } => {
+                let reference = self.resolve_show_in_name(show_options.show_in.clone(), true);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
+                let sql = format!(
+                    "SELECT
+                        table_name as table_name,
+                        table_schema as schema_name,
+                        column_name as column_name,
+                        data_type as data_type,
+                        column_default as default,
+                        is_nullable as 'null?',
+                        column_type as kind,
+                        NULL as expression,
+                        table_catalog as database_name,
+                        NULL as autoincrement
+                    FROM {catalog}.information_schema.columns"
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "column_name")
+                {
+                    filters.push(filter);
+                }
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("table_schema = '{schema}'"));
+                }
+                if show_options.show_in.is_some() {
+                    filters.push(format!("table_name = '{}'", reference.table()));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            _ => {
+                return Err(ExecutionError::DataFusion {
+                    source: DataFusionError::NotImplemented(format!(
+                        "unsupported SHOW statement: {statement}"
+                    )),
+                });
+            }
+        };
+        Box::pin(self.execute_with_custom_plan(&query)).await
+    }
+
+    #[must_use]
+    pub fn resolve_show_in_name(
+        &self,
+        show_in: Option<ShowStatementIn>,
+        table: bool,
+    ) -> TableReference {
+        let parts: Vec<String> = show_in
+            .and_then(|in_clause| in_clause.parent_name)
+            .map(|obj| obj.0.into_iter().map(|ident| ident.to_string()).collect())
+            .unwrap_or_default();
+
+        let (catalog, schema, table_name) = match parts.as_slice() {
+            [one] if table => (self.current_database(), self.current_schema(), one.clone()),
+            [one] => (self.current_database(), one.clone(), String::new()),
+            [s, t] if table => (self.current_database(), s.clone(), t.clone()),
+            [d, s] => (d.clone(), s.clone(), String::new()),
+            [d, s, t] => (d.clone(), s.clone(), t.clone()),
+            _ => (self.current_database(), String::new(), String::new()),
+        };
+        TableReference::full(catalog, schema, table_name)
     }
 
     #[instrument(level = "trace", skip(self), err, ret)]
@@ -1808,6 +1995,23 @@ impl UserQuery {
             }
         }
         Ok(())
+    }
+}
+
+fn build_starts_with_filter(starts_with: Option<Value>, column_name: &str) -> Option<String> {
+    if let Some(Value::SingleQuotedString(prefix)) = starts_with {
+        let escaped = prefix.replace('\'', "''");
+        Some(format!("{column_name} LIKE '{escaped}%'"))
+    } else {
+        None
+    }
+}
+
+fn apply_show_filters(sql: String, filters: &[String]) -> String {
+    if filters.is_empty() {
+        sql
+    } else {
+        format!("{} WHERE {}", sql, filters.join(" AND "))
     }
 }
 

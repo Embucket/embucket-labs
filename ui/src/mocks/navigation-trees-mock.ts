@@ -6,6 +6,7 @@ export const NAVIGATION_TREES_MOCK: NavigationTreeDatabase[] = [
     schemas: [
       {
         name: 'schema1',
+        views: [],
         tables: [
           {
             name: 'table1',
@@ -20,6 +21,7 @@ export const NAVIGATION_TREES_MOCK: NavigationTreeDatabase[] = [
       },
       {
         name: 'schema2',
+        views: [],
         tables: [
           {
             name: 'table4',
@@ -39,6 +41,7 @@ export const NAVIGATION_TREES_MOCK: NavigationTreeDatabase[] = [
     schemas: [
       {
         name: 'schema3',
+        views: [],
         tables: [
           {
             name: 'table7',
@@ -53,6 +56,7 @@ export const NAVIGATION_TREES_MOCK: NavigationTreeDatabase[] = [
       },
       {
         name: 'schema4',
+        views: [],
         tables: [
           {
             name: 'table10',
@@ -72,6 +76,7 @@ export const NAVIGATION_TREES_MOCK: NavigationTreeDatabase[] = [
     schemas: [
       {
         name: 'schema5',
+        views: [],
         tables: [
           {
             name: 'table13',
@@ -86,6 +91,7 @@ export const NAVIGATION_TREES_MOCK: NavigationTreeDatabase[] = [
       },
       {
         name: 'schema6',
+        views: [],
         tables: [
           {
             name: 'table16',

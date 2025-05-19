@@ -16,6 +16,7 @@ use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::Statement as SQLStatement;
 use datafusion::sql::sqlparser::ast::visit_expressions;
 use datafusion::sql::sqlparser::ast::{Expr, ObjectName, ObjectNamePart};
+use df_catalog::test_utils::sort_record_batch_by_sortable_columns;
 use sqlparser::ast::{
     Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
 };
@@ -596,33 +597,42 @@ pub async fn create_df_session() -> Arc<UserSession> {
     user_session
 }
 
+#[macro_export]
 macro_rules! test_query {
-        ($test_fn_name:ident, $query:expr) => {
-            paste::paste! {
-                #[tokio::test]
-                async fn [< query_ $test_fn_name >]() {
-                    let ctx = create_df_session().await;
+    ($test_fn_name:ident, $query:expr $(, sort_all = $sort_all:expr)? ) => {
+        paste::paste! {
+            #[tokio::test]
+            async fn [< query_ $test_fn_name >]() {
+                let ctx = create_df_session().await;
 
-                    let mut query = ctx.query($query, crate::query::QueryContext::default());
-                    let res = query.execute().await;
-                    insta::with_settings!({
-                        description => stringify!($query),
-                        omit_expression => true,
-                        prepend_module_to_snapshot => false
-                    }, {
-                        let df =  match res {
-                            Ok(record_batches) => {
-                                Ok(datafusion::arrow::util::pretty::pretty_format_batches(&record_batches).unwrap().to_string())
-                            },
-                            Err(e) => Err(format!("Error: {e}"))
-                        };
-                        let df = df.map(|df| df.split("\n").map(|s| s.to_string()).collect::<Vec<String>>());
-                        insta::assert_debug_snapshot!((df));
-                    })
-                }
+                let mut query = ctx.query($query, crate::query::QueryContext::default());
+                let res = query.execute().await;
+                let sort_all = false $(|| $sort_all)?;
+
+                insta::with_settings!({
+                    description => stringify!($query),
+                    omit_expression => true,
+                    prepend_module_to_snapshot => false
+                }, {
+                    let df = match res {
+                        Ok(mut record_batches) => {
+                            if sort_all {
+                                for batch in &mut record_batches {
+                                    *batch = sort_record_batch_by_sortable_columns(batch);
+                                }
+                            }
+                            Ok(datafusion::arrow::util::pretty::pretty_format_batches(&record_batches).unwrap().to_string())
+                        },
+                        Err(e) => Err(format!("Error: {e}"))
+                    };
+
+                    let df = df.map(|df| df.split('\n').map(|s| s.to_string()).collect::<Vec<String>>());
+                    insta::assert_debug_snapshot!((df));
+                });
             }
         }
-    }
+    };
+}
 
 test_query!(select_date_add_diff, "SELECT dateadd(day, 5, '2025-06-01')");
 test_query!(func_date_add, "SELECT date_add(day, 30, '2025-01-06')");
@@ -643,6 +653,113 @@ test_query!(
     qualify,
     "SELECT product_id, retail_price, quantity, city
     FROM sales
-    QUALIFY ROW_NUMBER() OVER (PARTITION BY city ORDER BY retail_price) = 1
-    ;"
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY city ORDER BY retail_price) = 1;"
+);
+
+// SHOW DATABASES
+test_query!(show_databases, "SHOW DATABASES", sort_all = true);
+
+// SHOW SCHEMAS
+test_query!(show_schemas, "SHOW SCHEMAS", sort_all = true);
+test_query!(
+    show_schemas_starts_with,
+    "SHOW SCHEMAS STARTS WITH 'publ'",
+    sort_all = true
+);
+test_query!(
+    show_schemas_in_db,
+    "SHOW SCHEMAS IN embucket",
+    sort_all = true
+);
+test_query!(
+    show_schemas_in_db_and_prefix,
+    "SHOW SCHEMAS IN embucket STARTS WITH 'pub'",
+    sort_all = true
+);
+
+// SHOW TABLES
+test_query!(show_tables, "SHOW TABLES", sort_all = true);
+test_query!(
+    show_tables_starts_with,
+    "SHOW TABLES STARTS WITH 'dep'",
+    sort_all = true
+);
+test_query!(
+    show_tables_in_schema,
+    "SHOW TABLES IN public",
+    sort_all = true
+);
+test_query!(
+    show_tables_in_schema_full,
+    "SHOW TABLES IN embucket.public",
+    sort_all = true
+);
+test_query!(
+    show_tables_in_schema_and_prefix,
+    "SHOW TABLES IN public STARTS WITH 'dep'",
+    sort_all = true
+);
+
+// SHOW VIEWS
+test_query!(show_views, "SHOW VIEWS", sort_all = true);
+test_query!(
+    show_views_starts_with,
+    "SHOW VIEWS STARTS WITH 'schem'",
+    sort_all = true
+);
+test_query!(
+    show_views_in_schema,
+    "SHOW VIEWS IN information_schema",
+    sort_all = true
+);
+test_query!(
+    show_views_in_schema_full,
+    "SHOW VIEWS IN embucket.information_schema",
+    sort_all = true
+);
+test_query!(
+    show_views_in_schema_and_prefix,
+    "SHOW VIEWS IN information_schema STARTS WITH 'schem'",
+    sort_all = true
+);
+
+// SHOW COLUMNS
+test_query!(show_columns, "SHOW COLUMNS", sort_all = true);
+test_query!(
+    show_columns_in_table,
+    "SHOW COLUMNS IN employee_table",
+    sort_all = true
+);
+test_query!(
+    show_columns_in_table_full,
+    "SHOW COLUMNS IN embucket.public.employee_table",
+    sort_all = true
+);
+test_query!(
+    show_columns_starts_with,
+    "SHOW COLUMNS IN employee_table STARTS WITH 'last_'",
+    sort_all = true
+);
+
+// SHOW OBJECTS
+test_query!(show_objects, "SHOW OBJECTS", sort_all = true);
+test_query!(
+    show_objects_starts_with,
+    "SHOW OBJECTS STARTS WITH 'dep'",
+    sort_all = true
+);
+test_query!(
+    show_objects_in_schema,
+    "SHOW OBJECTS IN public",
+    sort_all = true
+);
+test_query!(
+    show_objects_in_schema_full,
+    "SHOW OBJECTS IN embucket.public",
+    sort_all = true
+);
+test_query!(
+    show_objects_in_schema_and_prefix,
+    "SHOW OBJECTS IN public STARTS WITH 'dep'",
+    sort_all = true
 );

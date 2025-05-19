@@ -1,37 +1,40 @@
+import { useState } from 'react';
+
 import { Box } from 'lucide-react';
 
-import { EmptyContainer } from '@/components/empty-container';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { useGetVolumes } from '@/orval/volumes';
 
-import { PageHeader } from '../shared/page/page-header';
+import { DataPageContent } from '../shared/data-page/data-page-content';
+import { DataPageHeader } from '../shared/data-page/data-page-header';
+import { CreateVolumeDialog } from './create-volume-dialog/create-volume-dialog';
 import { VolumesTable } from './volumes-page-table';
 
+// TODO: Not a data page
 export function VolumesPage() {
+  const [opened, setOpened] = useState(false);
+
   const { data: { items: volumes } = {}, isFetching } = useGetVolumes();
 
   return (
     <>
-      <PageHeader title="Volumes" />
-      <ScrollArea className="h-[calc(100vh-65px-32px)] p-4">
-        <div className="flex size-full flex-col">
-          {volumes?.length ? (
-            <ScrollArea tableViewport>
-              <VolumesTable volumes={volumes} isLoading={isFetching} />
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
-          ) : (
-            <EmptyContainer
-              // TODO: Hardcode
-              className="min-h-[calc(100vh-32px-65px-32px)]"
-              Icon={Box}
-              title="No Volumes Found"
-              description="No volumes have been created yet. Create a volume to get started."
-            />
-          )}
-        </div>
-        <ScrollBar orientation="vertical" />
-      </ScrollArea>
+      <DataPageHeader
+        title="Volumes"
+        secondaryText={`${volumes?.length} volumes found`}
+        Action={
+          <Button disabled={isFetching} onClick={() => setOpened(true)}>
+            Add Volume
+          </Button>
+        }
+      />
+      <DataPageContent
+        isEmpty={!volumes?.length}
+        Table={<VolumesTable volumes={volumes ?? []} isLoading={isFetching} />}
+        emptyStateIcon={Box}
+        emptyStateTitle="No Volumes Found"
+        emptyStateDescription="No volumes have been created yet. Create a volume to get started."
+      />
+      <CreateVolumeDialog opened={opened} onSetOpened={setOpened} />
     </>
   );
 }

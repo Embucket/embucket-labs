@@ -21,6 +21,7 @@ pub struct NavigationTreeDatabase {
 pub struct NavigationTreeSchema {
     pub name: String,
     pub tables: Vec<NavigationTreeTable>,
+    pub views: Vec<NavigationTreeTable>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]

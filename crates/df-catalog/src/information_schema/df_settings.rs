@@ -20,13 +20,16 @@ pub struct InformationSchemaDfSettings {
 }
 
 impl InformationSchemaDfSettings {
-    pub fn new() -> Self {
-        let schema = Arc::new(Schema::new(vec![
+    pub fn schema() -> Arc<Schema> {
+        Arc::new(Schema::new(vec![
             Field::new("name", DataType::Utf8, false),
             Field::new("value", DataType::Utf8, true),
             Field::new("description", DataType::Utf8, true),
-        ]));
+        ]))
+    }
 
+    pub fn new() -> Self {
+        let schema = Self::schema();
         Self { schema }
     }
 

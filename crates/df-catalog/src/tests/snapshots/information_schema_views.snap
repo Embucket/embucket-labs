@@ -3,8 +3,15 @@ source: crates/df-catalog/src/tests/information_schema.rs
 description: SELECT * FROM embucket.information_schema.views
 snapshot_kind: text
 ---
-+---------------+--------------+------------+------------+
-| table_catalog | table_schema | table_name | definition |
-+---------------+--------------+------------+------------+
-| embucket      | public       | test       |            |
-+---------------+--------------+------------+------------+
++--------------+--------------------+-------------+-----------+------------+
+| view_catalog | view_schema        | view_name   | view_type | definition |
++--------------+--------------------+-------------+-----------+------------+
+| embucket     | information_schema | columns     | VIEW      |            |
+| embucket     | information_schema | databases   | VIEW      |            |
+| embucket     | information_schema | df_settings | VIEW      |            |
+| embucket     | information_schema | parameters  | VIEW      |            |
+| embucket     | information_schema | routines    | VIEW      |            |
+| embucket     | information_schema | schemata    | VIEW      |            |
+| embucket     | information_schema | tables      | VIEW      |            |
+| embucket     | information_schema | views       | VIEW      |            |
++--------------+--------------------+-------------+-----------+------------+
