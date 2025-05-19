@@ -1,3 +1,4 @@
+use crate::aggregate::macros::make_udaf_function;
 use crate::json::encode_array;
 use ahash::RandomState;
 use datafusion::arrow::array::{Array, ArrayRef, as_list_array};
@@ -11,7 +12,6 @@ use datafusion_expr::utils::format_state_name;
 use std::any::Any;
 use std::collections::HashSet;
 use std::sync::Arc;
-use crate::aggregate::macros::make_udaf_function;
 
 // array_unique_agg function
 // Returns an ARRAY that contains all of the distinct values from the specified column.
