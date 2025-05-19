@@ -1060,10 +1060,10 @@ impl UserQuery {
                 let sql = format!(
                     "SELECT
                         NULL as created_on,
-                        table_name as name,
+                        upper(table_name) as name,
                         table_type as kind,
-                        table_catalog as database_name,
-                        table_schema as schema_name,
+                        upper(table_catalog) as database_name,
+                        upper(table_schema) as schema_name,
                         CASE WHEN table_type='TABLE' then 'Y' else 'N' end as is_iceberg
                     FROM {catalog}.information_schema.tables"
                 );
