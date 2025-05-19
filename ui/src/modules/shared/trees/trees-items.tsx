@@ -41,6 +41,7 @@ interface TreesTablesProps extends TreeItemProps<NavigationTreeTable> {
   schema: NavigationTreeSchema;
   tables: NavigationTreeTable[];
   defaultOpen?: boolean;
+  label: string;
   renderDropdownMenu?: (tree: SelectedTree, hovered: boolean) => ReactNode;
 }
 
@@ -48,6 +49,7 @@ export function TreesTables({
   database,
   schema,
   tables,
+  label,
   onClick,
   isActive,
   renderDropdownMenu,
@@ -59,7 +61,7 @@ export function TreesTables({
   return (
     <TreeCollapsibleItem
       icon={Folder}
-      label="Tables"
+      label={label}
       triggerComponent={SidebarMenuSubButton}
       defaultOpen={defaultOpen}
       open={open}
