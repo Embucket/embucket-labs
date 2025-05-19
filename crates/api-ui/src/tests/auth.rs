@@ -2,18 +2,18 @@
 use crate::auth::error::AuthError;
 use crate::auth::error::*;
 use crate::auth::handlers::{create_jwt, get_claims_validate_jwt_token, jwt_claims};
-use crate::auth::models::{AccountResponse};
-use crate::queries::models::{QueryCreateResponse};
-use api_structs::query::QueryCreatePayload;
-use api_client_rest::requests::error::HttpErrorData;
+use crate::auth::models::AccountResponse;
+use crate::queries::models::QueryCreateResponse;
 use crate::tests::server::run_test_server_with_demo_auth;
+use api_client_rest::requests::http::{HttpErrorData, http_req_with_headers};
+use api_structs::auth::{AuthResponse, LoginPayload};
+use api_structs::query::QueryCreatePayload;
 use core_metastore::RwObject;
 use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use serde_json::json;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use time::Duration;
-use api_structs::auth::{LoginPayload, AuthResponse};
 
 const JWT_SECRET: &str = "test";
 const DEMO_USER: &str = "demo_user";

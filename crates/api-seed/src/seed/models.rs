@@ -1,19 +1,19 @@
-use fake::faker::{name::raw::Name, lorem::en::Word};
+use core_metastore::VolumeType;
+use fake::faker::{lorem::en::Word, name::raw::Name};
 use fake::{Fake, locales::EN};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use core_metastore::VolumeType;
 
 struct FakeProvider;
 
 impl FakeProvider {
-    pub fn volume_type () -> VolumeType {
+    pub fn volume_type() -> VolumeType {
         VolumeType::Memory // no random volume type
     }
-    pub fn person_name () -> String {
+    pub fn person_name() -> String {
         Name(EN).fake()
     }
-    pub fn entity_name () -> String {
+    pub fn entity_name() -> String {
         let one: String = Word().fake();
         let two: String = Word().fake();
         format!("{}_{}", one.to_lowercase(), two.to_lowercase())
@@ -42,7 +42,11 @@ where
     G: Generator<T>,
 {
     pub fn new(count: usize, generator: G) -> Self {
-        Self { count, generator, _marker: PhantomData }
+        Self {
+            count,
+            generator,
+            _marker: PhantomData,
+        }
     }
 
     pub fn generate(&self) -> Vec<T> {
@@ -102,7 +106,10 @@ pub struct VolumeGenerator {
 impl Generator<Volume> for VolumeGenerator {
     fn generate(&self, _index: usize) -> Volume {
         Volume {
-            volume_name: self.volume_name.clone().unwrap_or_else(|| FakeProvider::entity_name()),
+            volume_name: self
+                .volume_name
+                .clone()
+                .unwrap_or_else(|| FakeProvider::entity_name()),
             volume_type: self.volume_type.clone().unwrap_or(VolumeType::Memory),
             databases: self.databases_gen.generate(),
         }
@@ -132,7 +139,6 @@ impl Generator<Database> for DatabaseGenerator {
     }
 }
 
-
 ///// Schema
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -156,7 +162,6 @@ impl Generator<Schema> for SchemaGenerator {
     }
 }
 
-
 ///// Table
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -177,7 +182,6 @@ impl Generator<Table> for TableGenerator {
         }
     }
 }
-
 
 ///// Column
 
@@ -202,17 +206,15 @@ impl Generator<Column> for ColumnGenerator {
     }
 }
 
+// let table_gen = TableGenerator;
+// let schema_gen = SchemaGenerator {
+//     table_gen: WithCount::new(3, table_gen),
+// };
+// let db_gen = DatabaseGenerator {
+//     schema_gen: WithCount::new(2, schema_gen),
+// };
 
-    // let table_gen = TableGenerator;
-    // let schema_gen = SchemaGenerator {
-    //     table_gen: WithCount::new(3, table_gen),
-    // };
-    // let db_gen = DatabaseGenerator {
-    //     schema_gen: WithCount::new(2, schema_gen),
-    // };
-
-    // let dbs = WithCount::new(1, db_gen).generate();
-
+// let dbs = WithCount::new(1, db_gen).generate();
 
 // #[derive(Debug, Serialize, Deserialize)]
 // struct SeedFactor {

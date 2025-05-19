@@ -1,6 +1,6 @@
+use api_structs::column_info::ColumnInfo as ColumnInfo_;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{DataType, Field, TimeUnit};
-use api_structs::column_info::ColumnInfo as ColumnInfo_;
 
 // to keep existing imports unchanged
 pub type ColumnInfo = ColumnInfo_;

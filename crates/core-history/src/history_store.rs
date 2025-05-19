@@ -64,7 +64,9 @@ pub enum WorksheetsStoreError {
     DeserializeValue { source: serde_json::Error },
 
     #[snafu(display("Failed to convert to ResultSet: {source}"))]
-    ConvertToResultSet { source: api_structs::result_set::ResultSetError },
+    ConvertToResultSet {
+        source: api_structs::result_set::ResultSetError,
+    },
 }
 
 pub type WorksheetsStoreResult<T> = std::result::Result<T, WorksheetsStoreError>;
@@ -311,10 +313,10 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 mod tests {
     use super::*;
     use crate::*;
+    use api_structs::query::QueryStatus;
     use chrono::{Duration, TimeZone, Utc};
     use core_utils::iterable::{IterableCursor, IterableEntity};
     use tokio;
-    use api_structs::query::QueryStatus;
 
     fn create_query_records(templates: &[(Option<i64>, QueryStatus)]) -> Vec<QueryRecord> {
         let mut created: Vec<QueryRecord> = vec![];

@@ -1,22 +1,16 @@
 use crate::default_limit;
-use api_structs::{query::QueryRecord};
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use core_history::QueryRecordId;
 use core_history::WorksheetId;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
+pub type QueryCreatePayload = api_structs::query::QueryCreatePayload;
+pub type QueryCreateResponse = api_structs::query::QueryCreateResponse;
+pub type QueryRecord = api_structs::query::QueryRecord;
+pub type QueryStatus = api_structs::query::QueryStatus;
+pub type Column = api_structs::result_set::Column;
 pub type ExecutionContext = core_executor::query::QueryContext;
-
-
-// impl From<QueryStatusItem> for QueryStatus {
-//     fn from(value: QueryStatusItem) -> Self {
-//         match value {
-//             QueryStatusItem::Running => Self::Running,
-//             QueryStatusItem::Successful => Self::Successful,
-//             QueryStatusItem::Failed => Self::Failed,
-//         }
-//     }
-// }
+pub type ResultSet = api_structs::result_set::ResultSet;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

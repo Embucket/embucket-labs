@@ -1,6 +1,6 @@
-pub mod seed;
 pub mod api;
 pub mod error;
+pub mod seed;
 
 pub use api::*;
 pub use error::*;

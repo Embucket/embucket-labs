@@ -1,9 +1,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use reqwest;
-use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
-use std::fmt::Display;
 use super::error::HttpRequestError;
+use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
+use reqwest;
+use std::fmt::Display;
 
 #[derive(Debug)]
 pub struct HttpErrorData {
@@ -15,10 +15,13 @@ pub struct HttpErrorData {
     pub error: HttpRequestError,
 }
 
-impl From <HttpErrorData> for HttpRequestError {
+impl From<HttpErrorData> for HttpRequestError {
     fn from(value: HttpErrorData) -> Self {
         let HttpErrorData { error, status, .. } = value;
-        HttpRequestError::HttpRequest{message: error.to_string(), status}
+        HttpRequestError::HttpRequest {
+            message: error.to_string(),
+            status,
+        }
     }
 }
 
@@ -33,7 +36,7 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
     client: &reqwest::Client,
     method: Method,
     headers: HeaderMap,
-    url: &String,
+    url: &str,
     payload: String,
 ) -> Result<(HeaderMap, T), HttpErrorData> {
     let res = client
@@ -62,11 +65,14 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
                     // Normally we don't expect error here, and only have http related error to return
                     Err(HttpErrorData {
                         method,
-                        url: url.clone(),
+                        url: url.to_string(),
                         headers,
                         status,
                         body: text,
-                        error: HttpRequestError::HttpRequest{message: err.to_string(), status},
+                        error: HttpRequestError::HttpRequest {
+                            message: err.to_string(),
+                            status,
+                        },
                     })
                 }
             }
@@ -78,10 +84,13 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
         // Return custom error as reqwest error has no body contents
         Err(HttpErrorData {
             method,
-            url: url.clone(),
+            url: url.to_string(),
             headers: response.headers().clone(),
             status: response.status(),
-            error: HttpRequestError::HttpRequest{message: error.to_string(), status: response.status()},
+            error: HttpRequestError::HttpRequest {
+                message: error.to_string(),
+                status: response.status(),
+            },
             body: response.text().await.expect("Failed to get response text"),
         })
     }
@@ -91,7 +100,7 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
 pub async fn http_req<T: serde::de::DeserializeOwned>(
     client: &reqwest::Client,
     method: Method,
-    url: &String,
+    url: &str,
     payload: String,
 ) -> Result<T, HttpErrorData> {
     let headers = HeaderMap::from_iter(vec![(

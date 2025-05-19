@@ -1,8 +1,8 @@
+pub mod models;
+pub mod rng;
+pub mod static_assets;
 #[cfg(test)]
 pub mod tests;
-pub mod models;
-pub mod static_assets;
-pub mod rng;
 
-pub use static_assets::*;
 pub use models::*;
+pub use static_assets::*;

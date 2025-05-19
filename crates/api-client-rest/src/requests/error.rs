@@ -1,5 +1,5 @@
-use snafu::prelude::*;
 use http::StatusCode;
+use snafu::prelude::*;
 
 pub type HttpRequestResult<T> = std::result::Result<T, HttpRequestError>;
 
@@ -7,7 +7,7 @@ pub type HttpRequestResult<T> = std::result::Result<T, HttpRequestError>;
 #[snafu(visibility(pub))]
 pub enum HttpRequestError {
     #[snafu(display("HTTP request error: {message}, status code: {status}"))]
-    HttpRequest{message: String, status: StatusCode},
+    HttpRequest { message: String, status: StatusCode },
 
     #[snafu(display("Authenticated request error: {message}"))]
     AuthenticatedRequest { message: String },

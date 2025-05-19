@@ -2,11 +2,9 @@
 
 use crate::databases::models::DatabaseCreatePayload;
 use api_structs::volumes::VolumeCreatePayload;
-use crate::common::requests::*;
-use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
+use http::Method;
 use serde_json::json;
 use std::net::SocketAddr;
-
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]

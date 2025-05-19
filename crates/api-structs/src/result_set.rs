@@ -1,14 +1,17 @@
 use super::with_derives;
-#[cfg(feature = "schema")] use utoipa::ToSchema;
-#[cfg(feature = "serde")]  use serde::{Deserialize, Serialize};
-#[cfg(feature = "serde")]  use serde_json::Value;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_json::Value;
+#[cfg(feature = "schema")]
+use utoipa::ToSchema;
 
+use super::column_info::ColumnInfo;
 use arrow::array::RecordBatch;
 use arrow::json::{WriterBuilder, writer::JsonArray};
 use indexmap::IndexMap;
-use snafu::Snafu;
 use snafu::ResultExt;
-use super::column_info::ColumnInfo;
+use snafu::Snafu;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -17,9 +20,7 @@ pub enum ResultSetError {
     ResultParse { source: serde_json::Error },
 
     #[snafu(display("ResultSet create error: {source}"))]
-    CreateResultSet {
-        source: arrow::error::ArrowError,
-    },
+    CreateResultSet { source: arrow::error::ArrowError },
 
     #[snafu(display("Error encoding UTF8 string: {source}"))]
     Utf8 { source: std::string::FromUtf8Error },

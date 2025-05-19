@@ -1,13 +1,13 @@
-use super::http::{http_req_with_headers, HttpErrorData};
-use api_structs::{auth::LoginPayload};
-use snafu::ResultExt;
-use super::error::{HttpRequestResult, HttpRequestError, SerializeSnafu};
-use http::{HeaderMap, HeaderValue, Method, header};
-use serde_json::json;
-use std::net::SocketAddr;
-use reqwest;
-use std::collections::HashMap;
+use super::error::{HttpRequestError, HttpRequestResult, SerializeSnafu};
+use super::http::{HttpErrorData, http_req_with_headers};
+use api_structs::auth::LoginPayload;
 use cookie::Cookie;
+use http::{HeaderMap, HeaderValue, Method, header};
+use reqwest;
+use serde_json::json;
+use snafu::ResultExt;
+use std::collections::HashMap;
+use std::net::SocketAddr;
 
 pub fn get_set_cookie_from_response_headers(
     headers: &HeaderMap,

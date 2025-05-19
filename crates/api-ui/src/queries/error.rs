@@ -23,7 +23,9 @@ pub enum QueryError {
     Store { source: WorksheetsStoreError },
 
     #[snafu(display("Failed to convert to ResultSet: {source}"))]
-    ResultSet { source: api_structs::result_set::ResultSetError },
+    ResultSet {
+        source: api_structs::result_set::ResultSetError,
+    },
 }
 
 #[derive(Debug, Snafu)]

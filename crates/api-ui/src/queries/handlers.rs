@@ -1,14 +1,13 @@
 use crate::queries::models::{GetQueriesParams, QueriesResponse};
-use api_structs::query::{QueryCreateResponse, QueryRecord};
-use api_structs::result_set::ResultSetError;
-use snafu::ResultExt;
 use crate::state::AppState;
 use crate::{
     error::ErrorResponse,
-    queries::error::{QuerySnafu, QueriesAPIError, QueriesResult, QueryError},
+    queries::error::{QueriesAPIError, QueriesResult, QueryError, QuerySnafu},
 };
-use api_structs::query::QueryCreatePayload;
 use api_sessions::DFSessionId;
+use api_structs::query::QueryCreatePayload;
+use api_structs::query::{QueryCreateResponse, QueryRecord};
+use api_structs::result_set::ResultSetError;
 use axum::{
     Json,
     extract::{Query, State},
@@ -17,6 +16,7 @@ use core_executor::models::QueryResultData;
 use core_executor::query::QueryContext;
 use core_history::{QueryRecordId, WorksheetId};
 use core_utils::iterable::IterableEntity;
+use snafu::ResultExt;
 use std::collections::HashMap;
 use utoipa::OpenApi;
 
@@ -111,7 +111,8 @@ pub async fn query(
                 }),
                 // query_record fetched from store should be converted to other QueryRecord for REST
                 Ok(query_record) => Ok(Json(QueryCreateResponse {
-                    data: query_record.try_into()
+                    data: query_record
+                        .try_into()
                         .context(ResultSetSnafu)
                         .map_err(|e| QueriesAPIError::Query { source: e })?,
                 })),
@@ -172,9 +173,8 @@ pub async fn queries(
             let queries_failed_to_load: Vec<QueryError> = recs
                 .into_iter()
                 .map(|query_record| {
-                    let qr: Result<QueryRecord, QueryError> = query_record
-                        .try_into()
-                        .context(ResultSetSnafu);
+                    let qr: Result<QueryRecord, QueryError> =
+                        query_record.try_into().context(ResultSetSnafu);
                     qr
                 })
                 .filter_map(Result::err)

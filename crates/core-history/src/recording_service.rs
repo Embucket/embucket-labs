@@ -1,4 +1,5 @@
 use crate::{ExecutionQueryRecord, QueryRecord, WorksheetsStore};
+use api_structs::result_set::ResultSet;
 use bytes::Bytes;
 use core_executor::{
     error::ExecutionResult, models::ColumnInfo, models::QueryResultData, query::QueryContext,
@@ -15,7 +16,6 @@ use snafu::ResultExt;
 use snafu::prelude::*;
 use std::sync::Arc;
 use utoipa::ToSchema;
-use api_structs::result_set::ResultSet;
 
 //
 // TODO: This module is pending a rewrite

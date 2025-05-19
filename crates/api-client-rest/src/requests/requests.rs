@@ -1,17 +1,15 @@
-use super::http::{http_req_with_headers, HttpErrorData};
-use super::error::{HttpRequestError, HttpRequestSnafu};
-use super::helpers::{login, refresh, get_set_cookie_name_value_map};
+use super::error::HttpRequestError;
+use super::error::*;
+use super::helpers::get_set_cookie_name_value_map;
+use super::http::http_req_with_headers;
+use api_structs::auth::{AuthResponse, LoginPayload};
 use api_structs::query::QueryCreatePayload;
-use api_structs::auth::AuthResponse;
-use http::{header, StatusCode, Method, HeaderMap, HeaderValue};
+use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
+use reqwest;
+use serde::de::DeserializeOwned;
+use serde_json::json;
 use snafu::ResultExt;
 use std::net::SocketAddr;
-use reqwest;
-use serde::{de, de::Deserialize, de::DeserializeOwned};
-use serde_json::json;
-use api_structs::{auth::LoginPayload, query_context::QueryContext};
-use cookie::Cookie;
-use super::error::*;
 
 pub struct AuthenticatedClient {
     pub client: reqwest::Client,
@@ -24,16 +22,11 @@ pub struct AuthenticatedClient {
 #[async_trait::async_trait]
 pub trait AuthenticatedRequests {
     /// should login before run queries
-    async fn login(
-        &mut self, user: String, password: String
-    ) -> HttpRequestResult<AuthResponse>;
+    async fn login(&mut self, user: &str, password: &str) -> HttpRequestResult<AuthResponse>;
 
     async fn refresh(&mut self) -> HttpRequestResult<AuthResponse>;
 
-    async fn query<T: DeserializeOwned + Send>(
-        &mut self,
-        query: &str,
-    ) -> HttpRequestResult<T>
+    async fn query<T: DeserializeOwned + Send>(&mut self, query: &str) -> HttpRequestResult<T>
     where
         Self: Sized;
 
@@ -44,33 +37,39 @@ pub trait AuthenticatedRequests {
         payload: &I,
     ) -> HttpRequestResult<T>
     where
-        Self: Sized,
         I: serde::Serialize + Sync,
         T: serde::de::DeserializeOwned + Send;
 }
 
 impl AuthenticatedClient {
-    fn set_tokens_from_auth_response (&mut self, headers: &HeaderMap, auth_response: &AuthResponse) {
+    fn set_tokens_from_auth_response(&mut self, headers: &HeaderMap, auth_response: &AuthResponse) {
         let from_set_cookies = get_set_cookie_name_value_map(&headers);
-        self.refresh_token = from_set_cookies.get("refresh_token").unwrap();
+        self.refresh_token = from_set_cookies.get("refresh_token").unwrap().clone();
         self.access_token = auth_response.access_token.clone();
     }
 
     fn set_session_id_from_response_headers(&mut self, headers: &HeaderMap) {
         let from_set_cookies = get_set_cookie_name_value_map(&headers);
-        self.session_id = from_set_cookies.get("id");
+        self.session_id = from_set_cookies.get("id").cloned();
     }
 
-    async fn generic_request_no_refresh<I:serde::Serialize + Sync, T: serde::de::DeserializeOwned + Send>(
-        &self,
+    async fn generic_request_no_refresh<
+        I: serde::Serialize + Sync,
+        T: serde::de::DeserializeOwned + Send,
+    >(
+        &mut self,
         method: Method,
         url: &str,
         payload: &I,
-    ) -> HttpRequestResult<T> 
+    ) -> HttpRequestResult<T>
     where
-        Self: Sized
+        Self: Sized,
     {
-        let Self { access_token, client, .. } = self;
+        let Self {
+            access_token,
+            client,
+            ..
+        } = self;
         let res = http_req_with_headers::<T>(
             &client,
             method,
@@ -89,7 +88,6 @@ impl AuthenticatedClient {
             serde_json::to_string(&payload).context(SerializeSnafu)?,
         )
         .await
-        .map(|(_, t)| t)
         .map_err(HttpRequestError::from);
 
         match res {
@@ -104,7 +102,7 @@ impl AuthenticatedClient {
 
 #[async_trait::async_trait]
 impl AuthenticatedRequests for AuthenticatedClient {
-    async fn login(&mut self, user: String, password: String) -> HttpRequestResult<AuthResponse> {
+    async fn login(&mut self, user: &str, password: &str) -> HttpRequestResult<AuthResponse> {
         let AuthenticatedClient { client, addr, .. } = self;
 
         let login_result = http_req_with_headers::<AuthResponse>(
@@ -116,8 +114,8 @@ impl AuthenticatedRequests for AuthenticatedClient {
             )]),
             &format!("http://{addr}/ui/auth/login"),
             json!(LoginPayload {
-                username: user,
-                password: password,
+                username: user.to_string(),
+                password: password.to_string(),
             })
             .to_string(),
         )
@@ -133,7 +131,12 @@ impl AuthenticatedRequests for AuthenticatedClient {
     }
 
     async fn refresh(&mut self) -> HttpRequestResult<AuthResponse> {
-        let AuthenticatedClient { client, addr, refresh_token, .. } = self;
+        let AuthenticatedClient {
+            client,
+            addr,
+            refresh_token,
+            ..
+        } = self;
 
         let refresh_result = http_req_with_headers::<AuthResponse>(
             client,
@@ -164,12 +167,9 @@ impl AuthenticatedRequests for AuthenticatedClient {
     }
 
     // sets access_token at refresh if expired
-    async fn query<T: DeserializeOwned + Send>(
-        &mut self,
-        query: &str,
-    ) -> HttpRequestResult<T>
+    async fn query<T: DeserializeOwned + Send>(&mut self, query: &str) -> HttpRequestResult<T>
     where
-        Self: Sized
+        Self: Sized,
     {
         let url = format!("http://{}/ui/queries", self.addr);
         let query_payload = QueryCreatePayload {
@@ -178,24 +178,8 @@ impl AuthenticatedRequests for AuthenticatedClient {
             context: None,
         };
 
-        match self.generic_request_no_refresh(Method::POST, &url, &query_payload).await {
-            Ok(t) => Ok(t),
-            Err(HttpRequestError::HttpRequest { status: StatusCode::UNAUTHORIZED, .. }) => {
-                let refresh_result = refresh::<AuthResponse>(
-                    &self.client, &self.addr, &self.refresh_token
-                ).await.map_err(HttpRequestError::from);
-
-                match refresh_result {
-                    Ok((_, AuthResponse{ ref access_token, .. })) => {
-                        self.access_token = access_token.clone();
-                        self.generic_request_no_refresh(Method::POST, &url, &query_payload).await
-                    }
-                    Err(err) => Err(err),
-                }
-
-            },
-            Err(err) => Err(err),
-        }
+        self.generic_request(Method::POST, &url, &query_payload)
+            .await
     }
 
     async fn generic_request<I, T>(
@@ -205,28 +189,22 @@ impl AuthenticatedRequests for AuthenticatedClient {
         payload: &I,
     ) -> HttpRequestResult<T>
     where
-        Self: Sized,
         I: serde::Serialize + Sync,
-        T: serde::de::DeserializeOwned + Send
+        T: serde::de::DeserializeOwned + Send,
     {
-        match self.generic_request_no_refresh(method.clone(), &url, payload).await {
+        match self
+            .generic_request_no_refresh(method.clone(), &url, payload)
+            .await
+        {
             Ok(t) => Ok(t),
-            Err(HttpRequestError::HttpRequest { status: StatusCode::UNAUTHORIZED, .. }) => {
-                let refresh_result = refresh::<AuthResponse>(
-                    &self.client, &self.addr, &self.refresh_token
-                ).await.map_err(HttpRequestError::from);
-
-                match refresh_result {
-                    Ok((_, AuthResponse{ ref access_token, .. })) => {
-                        self.access_token = access_token.clone();
-                        self.generic_request_no_refresh(method, &url, payload).await
-                    }
-                    Err(err) => Err(err),
-                }
-
-            },
+            Err(HttpRequestError::HttpRequest {
+                status: StatusCode::UNAUTHORIZED,
+                ..
+            }) => {
+                let _refresh_resp = self.refresh().await?;
+                self.generic_request_no_refresh(method, &url, payload).await
+            }
             Err(err) => Err(err),
         }
     }
-
 }

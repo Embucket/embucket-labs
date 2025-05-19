@@ -1,5 +1,5 @@
-use rand::{SeedableRng, rngs::StdRng};
 use fake::Dummy;
+use rand::{SeedableRng, rngs::StdRng};
 use std::cell::RefCell;
 
 pub const SEED_FOR_RANDOMIZER: u64 = 1024;
@@ -10,7 +10,10 @@ thread_local! {
 
 /// Faker that uses a thread-local seeded RNG
 pub trait GlobalFaker: Dummy<StdRng> {
-    fn fake_global() -> Self where Self: Sized {
+    fn fake_global() -> Self
+    where
+        Self: Sized,
+    {
         RNG.with(|rng| Self::dummy(&mut *rng.borrow_mut()))
     }
 }

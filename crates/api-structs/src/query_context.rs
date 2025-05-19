@@ -1,9 +1,11 @@
 use super::with_derives;
-#[cfg(feature = "schema")] use utoipa::ToSchema;
-#[cfg(feature = "serde")]  use serde::{Deserialize, Serialize};
-use arrow::datatypes::{DataType, Field, TimeUnit};
 use arrow::array::RecordBatch;
+use arrow::datatypes::{DataType, Field, TimeUnit};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+#[cfg(feature = "schema")]
+use utoipa::ToSchema;
 
 with_derives! {
 #[derive(Default, Debug, Clone)]

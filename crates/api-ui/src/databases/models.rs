@@ -1,53 +1,20 @@
 use crate::default_limit;
+use api_structs::databases::{
+    Database as DatabaseRest, DatabaseCreatePayload as DatabaseCreatePayloadRest,
+    DatabaseCreateResponse as DatabaseCreateResponseRest,
+};
 use core_metastore::models::Database as MetastoreDatabase;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
-pub struct Database {
-    pub name: String,
-    pub volume: String,
-}
-
-impl From<MetastoreDatabase> for Database {
-    fn from(db: MetastoreDatabase) -> Self {
-        Self {
-            name: db.ident,
-            volume: db.volume,
-        }
-    }
-}
-
-// TODO: Remove it when found why it can't locate .into() if only From trait implemeted
-#[allow(clippy::from_over_into)]
-impl Into<MetastoreDatabase> for Database {
-    fn into(self) -> MetastoreDatabase {
-        MetastoreDatabase {
-            ident: self.name,
-            volume: self.volume,
-            properties: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct DatabaseCreatePayload {
-    #[serde(flatten)]
-    pub data: Database,
-}
+pub type Database = DatabaseRest;
+pub type DatabaseCreatePayload = DatabaseCreatePayloadRest;
+pub type DatabaseCreateResponse = DatabaseCreateResponseRest;
 
 // TODO: make Database fields optional in update payload, not used currently
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseUpdatePayload {
-    #[serde(flatten)]
-    pub data: Database,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct DatabaseCreateResponse {
     #[serde(flatten)]
     pub data: Database,
 }

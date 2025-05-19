@@ -3,12 +3,11 @@ use crate::volumes::models::VolumesParameters;
 use crate::{
     error::ErrorResponse,
     volumes::error::{VolumesAPIError, VolumesResult},
-    volumes::models::{
-        VolumeResponse, VolumeUpdatePayload, VolumeUpdateResponse, VolumesResponse,
-    },
+    volumes::models::{VolumeResponse, VolumeUpdatePayload, VolumeUpdateResponse, VolumesResponse},
 };
 use api_structs::volumes::{
-    VolumeType, FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
+    FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
+    VolumeType,
 };
 use axum::{
     Json,

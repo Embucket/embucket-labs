@@ -1,13 +1,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::error::ErrorResponse;
-use crate::queries::models::{
-    Column, QueriesResponse, QueryRecord, QueryStatus, ResultSet,
-};
-use api_structs::query::QueryCreatePayload;
-use crate::common::http_requests::http_req;
+use crate::queries::models::{Column, QueriesResponse, QueryRecord, QueryStatus, ResultSet};
 use crate::tests::server::run_test_server;
 use crate::worksheets::models::{Worksheet, WorksheetCreatePayload, WorksheetsResponse};
+use api_client_rest::requests::http::http_req;
+use api_structs::query::QueryCreatePayload;
 use http::Method;
 use serde_json::json;
 

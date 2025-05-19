@@ -1,9 +1,11 @@
-use super::with_derives;
-#[cfg(feature = "schema")] use utoipa::ToSchema;
-#[cfg(feature = "serde")]  use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
-use std::collections::HashMap;
 use super::result_set::ResultSet;
+use super::with_derives;
+use chrono::{DateTime, Utc};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+#[cfg(feature = "schema")]
+use utoipa::ToSchema;
 
 with_derives! {
     #[derive(Clone, Debug)]

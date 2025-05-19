@@ -1,7 +1,7 @@
 use crate::error::{self as dbt_error, DbtError, DbtResult};
 use crate::schemas::{
-    JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, AuthenticatedClient,
-    QueryRequestBody, ResponseData,
+    AuthenticatedClient, JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery,
+    LoginResponse, QueryRequestBody, ResponseData,
 };
 use crate::state::AppState;
 use api_sessions::DFSessionId;

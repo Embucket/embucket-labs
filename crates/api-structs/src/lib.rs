@@ -1,9 +1,12 @@
 pub mod auth;
+pub mod column_info;
+pub mod databases;
 pub mod query;
 pub mod query_context;
-pub mod volumes;
 pub mod result_set;
-pub mod column_info;
+pub mod schemas;
+pub mod tables;
+pub mod volumes;
 
 pub mod derive_features;
 

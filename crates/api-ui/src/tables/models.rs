@@ -1,8 +1,14 @@
 use crate::default_limit;
+use api_structs::tables::{
+    TableUploadPayload as TableUploadPayloadRest, TableUploadResponse as TableUploadResponseRest,
+};
 use chrono::NaiveDateTime;
 use datafusion::arrow::csv::reader::Format;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
+
+pub type TableUploadPayload = TableUploadPayloadRest;
+pub type TableUploadResponse = TableUploadResponseRest;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -58,20 +64,6 @@ pub struct TablePreviewDataParameters {
     pub offset: Option<u32>,
     #[serde(default = "default_limit")]
     pub limit: Option<u16>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct TableUploadPayload {
-    #[schema(format = "binary")]
-    pub upload_file: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct TableUploadResponse {
-    pub count: usize,
-    pub duration_ms: u128,
 }
 
 // header – Whether the CSV file have a header, defaults to `false`

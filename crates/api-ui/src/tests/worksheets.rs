@@ -1,12 +1,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-
 use crate::error::ErrorResponse;
-use crate::common::http_requests::http_req;
 use crate::tests::server::run_test_server;
 use crate::worksheets::{
     SortBy, SortOrder, Worksheet, WorksheetCreatePayload, WorksheetUpdatePayload,
     WorksheetsResponse,
 };
+use api_client_rest::requests::http::http_req;
 use http::Method;
 use reqwest;
 use serde_json::json;

@@ -7,8 +7,9 @@ use crate::auth::error::{
     AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu, SetCookieSnafu,
     TokenErrorKind,
 };
-use crate::auth::models::{Claims};
+use crate::auth::models::Claims;
 use crate::state::AppState;
+use api_structs::auth::AuthResponse;
 use api_structs::auth::LoginPayload;
 use axum::Json;
 use axum::extract::State;
@@ -24,7 +25,6 @@ use tower_sessions::cookie::{Cookie, SameSite};
 use tracing;
 use tracing::Level;
 use utoipa::OpenApi;
-use api_structs::auth::AuthResponse;
 
 pub const REFRESH_TOKEN_EXPIRATION_HOURS: u32 = 24 * 7;
 pub const ACCESS_TOKEN_EXPIRATION_SECONDS: u32 = 15 * 60;

@@ -17,7 +17,6 @@ pub mod volumes;
 pub mod web_assets;
 pub mod worksheets;
 
-
 //Default limit for pagination
 #[allow(clippy::unnecessary_wraps)]
 const fn default_limit() -> Option<u16> {

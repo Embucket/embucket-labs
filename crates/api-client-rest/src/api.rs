@@ -1,48 +1,73 @@
-use snafu::{Snafu, ResultExt};
-use api_structs::{auth::AuthResponse, volumes::{Volume, VolumeCreatePayload}};
-
-use crate::requests::requests::AuthenticatedRequests;
 use crate::requests::error::HttpRequestError;
-// use api_structs::databases::DatabaseCreatePayload;
+use crate::requests::requests::{AuthenticatedClient, AuthenticatedRequests};
+use api_structs::{
+    auth::AuthResponse,
+    databases::{Database, DatabaseCreatePayload, DatabaseCreateResponse},
+    schemas::{Schema, SchemaCreatePayload, SchemaCreateResponse},
+    tables::{TableUploadPayload, TableUploadResponse},
+    volumes::{Volume, VolumeCreatePayload, VolumeCreateResponse},
+};
+use http::Method;
+use snafu::{ResultExt, Snafu};
 
 pub type ApiClientResult<T> = Result<T, HttpRequestError>;
 
-pub struct Database {
-    pub requests: Box<dyn AuthenticatedRequests>,
+pub struct DatabaseClient {
+    pub client: AuthenticatedClient,
 }
 
 #[async_trait::async_trait]
-pub trait DatabaseApi {
-    async fn login(&mut self, user: String, password: String) -> ApiClientResult<AuthResponse>;
-    async fn create_volume(&self, volume: Volume) -> ApiClientResult<()>;
-    async fn create_database(&self) -> ApiClientResult<()>;
-    async fn create_schema(&self) -> ApiClientResult<()>;
-    async fn create_table(&self) -> ApiClientResult<()>;
+pub trait DatabaseClientApi {
+    async fn login(&mut self, user: &str, password: &str) -> ApiClientResult<AuthResponse>;
+    async fn create_volume(&mut self, volume: Volume) -> ApiClientResult<()>;
+    async fn create_database(&mut self, volume: &str, database: &str) -> ApiClientResult<()>;
+    async fn create_schema(&mut self, database: &str, schema: &str) -> ApiClientResult<()>;
+    // async fn upload_to_table(&self, table_name: String, payload: TableUploadPayload) -> ApiClientResult<TableUploadResponse>;
 }
 
-impl DatabaseApi for Database {
-    async fn login(&mut self, user: String, password: String) -> ApiClientResult<AuthResponse> {
-        self.requests.login(user, password).await
+#[async_trait::async_trait]
+impl DatabaseClientApi for DatabaseClient {
+    async fn login(&mut self, user: &str, password: &str) -> ApiClientResult<AuthResponse> {
+        self.client.login(user, password).await
     }
 
-    async fn create_volume(&self, volume: Volume) -> ApiClientResult<()> {
-        self.requests.generic_request::<VolumeCreatePayload, VolumeCreateResponse>(
-            Method::POST, "/ui/volumes",
-            &VolumeCreatePayload { data: volume },
-        ).await?;
+    async fn create_volume(&mut self, volume: Volume) -> ApiClientResult<()> {
+        self.client
+            .generic_request::<VolumeCreatePayload, VolumeCreateResponse>(
+                Method::POST,
+                "/ui/volumes",
+                &VolumeCreatePayload { data: volume },
+            )
+            .await?;
         Ok(())
     }
 
-    async fn create_database(&self) -> ApiClientResult<()> {
-        // self.metastore.create_database(name, database)
+    async fn create_database(&mut self, volume: &str, database: &str) -> ApiClientResult<()> {
+        self.client
+            .generic_request::<DatabaseCreatePayload, DatabaseCreateResponse>(
+                Method::POST,
+                "/ui/databases",
+                &DatabaseCreatePayload {
+                    data: Database {
+                        name: database.to_string(),
+                        volume: volume.to_string(),
+                    },
+                },
+            )
+            .await?;
         Ok(())
     }
 
-    async fn create_schema(&self) -> ApiClientResult<()> {
-        Ok(())
+    async fn create_schema(&mut self, database: &str, schema: &str) -> ApiClientResult<()> {
+        self.client
+            .query(&format!("CREATE SCHEMA {database}.{schema}"))
+            .await
     }
 
-    async fn create_table(&self) -> ApiClientResult<()> {
-        Ok(())
-    }
+    // async fn upload_to_table(&self, database: &str, schema: &str, table: &str) -> ApiClientResult<TableUploadResponse> {
+    //     self.client.generic_request::<TableUploadPayload, TableUploadResponse>(
+    //         Method::POST, format!("/ui/databases/{database}/schemas/{schema}/tables/{table}/rows"),
+    //         &TableUploadPayload { upload_file:  },
+    //     ).await
+    // }
 }

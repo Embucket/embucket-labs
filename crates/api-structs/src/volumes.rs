@@ -1,6 +1,8 @@
 use super::with_derives;
-#[cfg(feature = "schema")] use utoipa::ToSchema;
-#[cfg(feature = "serde")]  use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "schema")]
+use utoipa::ToSchema;
 
 use core_metastore::S3TablesVolume as MetastoreS3TablesVolume;
 use core_metastore::models::{
