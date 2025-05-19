@@ -1,9 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { DataPreviewTable } from '@/modules/shared/data-preview-table/data-preview-table';
 import type { SelectedTree } from '@/modules/shared/trees/trees-items';
 import { useGetTablePreviewData } from '@/orval/tables';
-
-import { SqlEditorLeftPanelTableColumnsPreviewDialogTable } from './sql-editor-left-panel-table-columns-preview-dialog-table';
 
 interface SqlEditorLeftPanelTableColumnsPreviewDialogProps {
   opened: boolean;
@@ -38,10 +37,7 @@ export function SqlEditorLeftPanelTableColumnsPreviewDialog({
           tableViewport
           className="size-full max-h-[calc(100vh-32px-48px-18px-24px)]! max-w-[calc(100vw-32px-48px)]!"
         >
-          <SqlEditorLeftPanelTableColumnsPreviewDialogTable
-            columns={columns}
-            isLoading={isFetching}
-          />
+          <DataPreviewTable columns={columns} isLoading={isFetching} />
           <ScrollBar orientation="horizontal" />
           <ScrollBar orientation="vertical" />
         </ScrollArea>

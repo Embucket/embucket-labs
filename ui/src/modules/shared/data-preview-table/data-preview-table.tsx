@@ -4,15 +4,12 @@ import { createColumnHelper } from '@tanstack/react-table';
 import { DataTable } from '@/components/data-table/data-table';
 import type { TablePreviewDataColumn } from '@/orval/models';
 
-interface SqlEditorLeftPanelTableColumnsPreviewDialogTableProps {
+interface DataPreviewTableProps {
   isLoading: boolean;
   columns: TablePreviewDataColumn[];
 }
 
-export function SqlEditorLeftPanelTableColumnsPreviewDialogTable({
-  isLoading,
-  columns,
-}: SqlEditorLeftPanelTableColumnsPreviewDialogTableProps) {
+export function DataPreviewTable({ isLoading, columns }: DataPreviewTableProps) {
   const columnHelper = createColumnHelper<Record<string, string>>();
 
   const tableColumns: ColumnDef<Record<string, string>, string>[] = columns.map((column) =>
