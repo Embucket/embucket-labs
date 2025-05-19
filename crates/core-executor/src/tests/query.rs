@@ -530,3 +530,4 @@ test_query!(
     truncate_table_full_quotes,
     "TRUNCATE TABLE 'EMBUCKET'.'PUBLIC'.'EMPLOYEE_TABLE'"
 );
+test_query!(truncate_missing, "TRUNCATE TABLE missing_table");
