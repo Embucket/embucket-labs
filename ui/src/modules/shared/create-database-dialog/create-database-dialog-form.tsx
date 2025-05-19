@@ -65,7 +65,7 @@ export const CreateDatabaseDialogForm = ({ onSubmit, volumes }: CreateDatabaseDi
           render={({ field }) => (
             <FormItem>
               <FormLabel>Volume</FormLabel>
-              <Select {...field}>
+              <Select onValueChange={(value) => field.onChange(value)} value={String(field.value)}>
                 <SelectTrigger className="w-full bg-transparent!">
                   <SelectValue />
                 </SelectTrigger>

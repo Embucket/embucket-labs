@@ -20,6 +20,7 @@ import type {
 } from '@/orval/models';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
 
+import { CreateDatabaseDialog } from '../create-database-dialog/create-database-dialog';
 import { TreeCollapsibleItem } from './trees-collapsible-item';
 import { TreesToolbar } from './trees-toolbar';
 
@@ -144,21 +145,25 @@ export function TreesDatabases({
   open,
   children,
 }: TreesDatabasesProps) {
+  const [opened, setOpened] = useState(false);
+
   if (isFetchingDatabases) {
     return null;
   }
 
   if (!databases?.length) {
     return (
-      <EmptyContainer
-        className="absolute text-center text-wrap"
-        Icon={Database}
-        title="No Databases Available"
-        description="Create a database to start organizing your data."
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onCtaClick={() => {}}
-        ctaText="Create database"
-      />
+      <>
+        <EmptyContainer
+          className="absolute text-center text-wrap"
+          Icon={Database}
+          title="No Databases Available"
+          description="Create a database to start organizing your data."
+          onCtaClick={() => setOpened(true)}
+          ctaText="Create database"
+        />
+        <CreateDatabaseDialog opened={opened} onSetOpened={setOpened} />
+      </>
     );
   }
 
