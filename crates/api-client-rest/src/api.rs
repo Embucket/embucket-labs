@@ -25,34 +25,24 @@ impl DatabaseApi for Database {
         self.requests.login(user, password).await
     }
 
-    fn create_volume(&self, volume: Volume) -> ApiClientResult<()> {
-        self.requests.authenticated_request::<VolumeCreatePayload, VolumeCreateResponse>(
-            client: &reqwest::Client,
-            access_token: &str,
-            method: Method,
-            url: &String,
-            payload: I,
-        ) -> HttpRequestResult<T>
-        self.requests.query(query)
-
-        // VolumeCreatePayload {
-        //     data: volume,
-        // };
-        // self.metastore.create_volume(name, volume)
-        // self.seed_data.volume_name
+    async fn create_volume(&self, volume: Volume) -> ApiClientResult<()> {
+        self.requests.generic_request::<VolumeCreatePayload, VolumeCreateResponse>(
+            Method::POST, "/ui/volumes",
+            &VolumeCreatePayload { data: volume },
+        ).await?;
         Ok(())
     }
 
-    fn create_database(&self) -> ApiClientResult<()> {
+    async fn create_database(&self) -> ApiClientResult<()> {
         // self.metastore.create_database(name, database)
         Ok(())
     }
 
-    fn create_schema(&self) -> ApiClientResult<()> {
+    async fn create_schema(&self) -> ApiClientResult<()> {
         Ok(())
     }
 
-    fn create_table(&self) -> ApiClientResult<()> {
+    async fn create_table(&self) -> ApiClientResult<()> {
         Ok(())
     }
 }
