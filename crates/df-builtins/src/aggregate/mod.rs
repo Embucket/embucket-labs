@@ -20,11 +20,11 @@ use datafusion_expr::registry::FunctionRegistry;
 use std::sync::Arc;
 
 pub mod any_value;
+mod array_unique_agg;
 pub mod booland_agg;
 pub mod boolor_agg;
 pub mod boolxor_agg;
 pub mod percentile_cont;
-mod array_unique_agg;
 
 pub fn register_udafs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let aggregate_functions: Vec<Arc<AggregateUDF>> = vec![
