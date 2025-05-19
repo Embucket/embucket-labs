@@ -421,6 +421,25 @@ async fn test_ui_tables() {
     assert_eq!(4, tables.items.len());
     assert_eq!("tested4".to_string(), tables.items.first().unwrap().name);
 
+    //GET LIST Tables with search
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables?search={}&orderDirection=ASC",
+            database_name.clone(),
+            schema_name.clone(),
+            "tested"
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let tables: TablesResponse = res.json().await.unwrap();
+    assert_eq!(4, tables.items.len());
+    assert_eq!("tested1".to_string(), tables.items.first().unwrap().name);
+
     //GET LIST Tables with search and limit
     let res = req(
         &client,
