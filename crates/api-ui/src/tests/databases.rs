@@ -12,7 +12,7 @@ use http::Method;
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 #[should_panic(
-    expected = "Failed to get error response: reqwest::Error { kind: Decode, source: Error(\"missing field `message`\", line: 1, column: 32) }"
+    expected = "Failed to get error response: reqwest::Error { kind: Decode, source: Error(\"missing field `message`\", line: 1, column: 122) }"
 )]
 async fn test_ui_databases_metastore_update_bug() {
     let addr = run_test_server().await;
@@ -50,7 +50,8 @@ async fn test_ui_databases_metastore_update_bug() {
         .json::<DatabaseResponse>()
         .await
         .expect("Failed to create database");
-    assert_eq!(expected.data, created_database.data);
+    assert_eq!(expected.data.name, created_database.data.name);
+    assert_eq!(expected.data.volume, created_database.data.volume);
 
     // Update database test -> new-test, Ok
     let new_database = DatabaseCreatePayload {
@@ -75,7 +76,8 @@ async fn test_ui_databases_metastore_update_bug() {
         .json::<DatabaseResponse>()
         .await
         .expect("Failed to update database");
-    assert_eq!(new_database.data, renamed_database.data); // server confirmed it's renamed
+    assert_eq!(new_database.data.name, renamed_database.data.name); // server confirmed it's renamed
+    assert_eq!(new_database.data.volume, renamed_database.data.volume);
 
     // get non existing database using old name, expected error 404
     let res = ui_test_op(
@@ -168,7 +170,8 @@ async fn test_ui_databases() {
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
     assert_eq!(http::StatusCode::OK, res.status());
     let created_database = res.json::<DatabaseResponse>().await.unwrap();
-    assert_eq!(expected1.data, created_database.data);
+    assert_eq!(expected1.data.name, created_database.data.name);
+    assert_eq!(expected1.data.volume, created_database.data.volume);
 
     let expected2 = DatabaseCreatePayload {
         data: MetastoreDatabase {
@@ -226,7 +229,7 @@ async fn test_ui_databases() {
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
     assert_eq!(http::StatusCode::OK, res.status());
 
-    //Get list schemas with parameters
+    //Get list databases with parameters
     let res = req(
         &client,
         Method::GET,
@@ -239,15 +242,14 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test".to_string(),
+        "test4".to_string(),
         databases_response.items.first().unwrap().name
     );
-    let cursor = databases_response.next_cursor;
-    //Get list schemas with parameters
+    //Get list databases with parameters
     let res = req(
         &client,
         Method::GET,
-        &format!("http://{addr}/ui/databases?cursor={cursor}",).to_string(),
+        &format!("http://{addr}/ui/databases?offset=2",).to_string(),
         String::new(),
     )
     .await
@@ -256,7 +258,7 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test3".to_string(),
+        "test2".to_string(),
         databases_response.items.first().unwrap().name
     );
 
@@ -278,7 +280,7 @@ async fn test_ui_databases() {
     .await;
     assert_eq!(http::StatusCode::OK, res.status());
 
-    //Get list schemas with search
+    //Get list databases with search
     let res = req(
         &client,
         Method::GET,
@@ -291,11 +293,31 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(4, databases_response.items.len());
     assert_eq!(
+        "test4".to_string(),
+        databases_response.items.first().unwrap().name
+    );
+
+    //Get list databases with search
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases?search={}&orderDirection=ASC",
+            "tes"
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let databases_response: DatabasesResponse = res.json().await.unwrap();
+    assert_eq!(
         "test".to_string(),
         databases_response.items.first().unwrap().name
     );
 
-    //Get list schemas with search
+    //Get list databases with search
     let res = req(
         &client,
         Method::GET,
@@ -308,20 +330,15 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test".to_string(),
+        "test4".to_string(),
         databases_response.items.first().unwrap().name
     );
-    let cursor = databases_response.next_cursor;
 
-    //Get list schemas with parameters
+    //Get list databases with parameters
     let res = req(
         &client,
         Method::GET,
-        &format!(
-            "http://{addr}/ui/databases?search={}&cursor={cursor}",
-            "tes"
-        )
-        .to_string(),
+        &format!("http://{addr}/ui/databases?search={}&offset=2", "test").to_string(),
         String::new(),
     )
     .await
@@ -330,11 +347,11 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test3".to_string(),
+        "test2".to_string(),
         databases_response.items.first().unwrap().name
     );
 
-    //Get list schemas with search fro another name
+    //Get list databases with search fro another name
     let res = req(
         &client,
         Method::GET,

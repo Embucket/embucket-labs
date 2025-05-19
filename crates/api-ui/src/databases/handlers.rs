@@ -1,20 +1,24 @@
-use crate::databases::models::DatabasesParameters;
+use crate::OrderDirection;
 use crate::state::AppState;
 use crate::{
+    SearchParameters,
     databases::error::{DatabasesAPIError, DatabasesResult},
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
         DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
     },
+    downcast_string_column,
     error::ErrorResponse,
 };
+use api_sessions::DFSessionId;
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use core_executor::models::QueryResultData;
+use core_executor::query::QueryContext;
 use core_metastore::Database as MetastoreDatabase;
 use core_metastore::error::MetastoreError;
-use core_utils::scan_iterator::ScanIterator;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -81,11 +85,7 @@ pub async fn create_database(
         .create_database(&database.ident.clone(), database)
         .await
         .map_err(|e| DatabasesAPIError::Create { source: e })
-        .map(|o| {
-            Json(DatabaseCreateResponse {
-                data: o.data.into(),
-            })
-        })
+        .map(|o| Json(DatabaseCreateResponse { data: o.into() }))
 }
 
 #[utoipa::path(
@@ -113,9 +113,7 @@ pub async fn get_database(
     Path(database_name): Path<String>,
 ) -> DatabasesResult<Json<DatabaseResponse>> {
     match state.metastore.get_database(&database_name).await {
-        Ok(Some(db)) => Ok(Json(DatabaseResponse {
-            data: db.data.into(),
-        })),
+        Ok(Some(db)) => Ok(Json(DatabaseResponse { data: db.into() })),
         Ok(None) => Err(DatabasesAPIError::Get {
             source: MetastoreError::DatabaseNotFound {
                 db: database_name.clone(),
@@ -194,20 +192,18 @@ pub async fn update_database(
         .update_database(&database_name, database)
         .await
         .map_err(|e| DatabasesAPIError::Update { source: e })
-        .map(|o| {
-            Json(DatabaseUpdateResponse {
-                data: o.data.into(),
-            })
-        })
+        .map(|o| Json(DatabaseUpdateResponse { data: o.into() }))
 }
 
 #[utoipa::path(
     get,
     operation_id = "getDatabases",
     params(
-        ("cursor" = Option<String>, Query, description = "Databases cursor"),
+        ("offset" = Option<usize>, Query, description = "Databases offset"),
         ("limit" = Option<usize>, Query, description = "Databases limit"),
-        ("search" = Option<String>, Query, description = "Databases search (start with)"),
+        ("search" = Option<String>, Query, description = "Databases search"),
+        ("order_by" = Option<String>, Query, description = "Order by: database_name (default), volume_name, created_at, updated_at"),
+        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     tags = ["databases"],
     path = "/ui/databases",
@@ -223,30 +219,56 @@ pub async fn update_database(
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[allow(clippy::unwrap_used)]
 pub async fn list_databases(
-    Query(parameters): Query<DatabasesParameters>,
+    DFSessionId(session_id): DFSessionId,
+    Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
 ) -> DatabasesResult<Json<DatabasesResponse>> {
-    state
-        .metastore
-        .iter_databases()
-        .cursor(parameters.cursor.clone())
-        .limit(parameters.limit)
-        .token(parameters.search)
-        .collect()
+    let context = QueryContext::default();
+    let sql_string = "SELECT * FROM slatedb.public.databases".to_string();
+    let sql_string = parameters.search.map_or_else(|| sql_string.clone(), |search|
+        format!("{sql_string} WHERE (database_name ILIKE '%{search}%' OR volume_name ILIKE '%{search}%')")
+    );
+    let sql_string = parameters.order_by.map_or_else(
+        || format!("{sql_string} ORDER BY database_name"),
+        |order_by| format!("{sql_string} ORDER BY {order_by}"),
+    );
+    let sql_string = parameters.order_direction.map_or_else(
+        || format!("{sql_string} DESC"),
+        |order_direction| format!("{sql_string} {order_direction}"),
+    );
+    let sql_string = parameters.offset.map_or_else(
+        || sql_string.clone(),
+        |offset| format!("{sql_string} OFFSET {offset}"),
+    );
+    let sql_string = parameters.limit.map_or_else(
+        || sql_string.clone(),
+        |limit| format!("{sql_string} LIMIT {limit}"),
+    );
+    let QueryResultData { records, .. } = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| DatabasesAPIError::List {
-            source: MetastoreError::UtilSlateDB { source: e },
-        })
-        .map(|o| {
-            let next_cursor = o
-                .iter()
-                .last()
-                .map_or(String::new(), |rw_object| rw_object.ident.clone());
-            Json(DatabasesResponse {
-                items: o.into_iter().map(|x| x.data.into()).collect(),
-                current_cursor: parameters.cursor,
-                next_cursor,
-            })
-        })
+        .map_err(|e| DatabasesAPIError::List { source: e })?;
+    let mut items = Vec::new();
+    for record in records {
+        let database_names = downcast_string_column(&record, "database_name")
+            .map_err(|e| DatabasesAPIError::List { source: e })?;
+        let volume_names = downcast_string_column(&record, "volume_name")
+            .map_err(|e| DatabasesAPIError::List { source: e })?;
+        let created_at_timestamps = downcast_string_column(&record, "created_at")
+            .map_err(|e| DatabasesAPIError::List { source: e })?;
+        let updated_at_timestamps = downcast_string_column(&record, "updated_at")
+            .map_err(|e| DatabasesAPIError::List { source: e })?;
+        for i in 0..record.num_rows() {
+            items.push(Database {
+                name: database_names.value(i).to_string(),
+                volume: volume_names.value(i).to_string(),
+                created_at: created_at_timestamps.value(i).to_string(),
+                updated_at: updated_at_timestamps.value(i).to_string(),
+            });
+        }
+    }
+    Ok(Json(DatabasesResponse { items }))
 }

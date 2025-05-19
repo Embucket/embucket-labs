@@ -25,7 +25,12 @@ impl SlateDBViewConfig {
             .await
             .map_err(|e| DataFusionError::Execution(format!("failed to get volumes: {e}")))?;
         for volume in volumes {
-            builder.add_volume(&volume.ident, volume.volume.to_string());
+            builder.add_volume(
+                &volume.ident,
+                volume.volume.to_string(),
+                volume.created_at.to_string(),
+                volume.updated_at.to_string(),
+            );
         }
         Ok(())
     }
@@ -41,7 +46,12 @@ impl SlateDBViewConfig {
             .await
             .map_err(|e| DataFusionError::Execution(format!("failed to get databases: {e}")))?;
         for database in databases {
-            builder.add_database(database.ident.as_str(), &database.volume);
+            builder.add_database(
+                database.ident.as_str(),
+                &database.volume,
+                database.created_at.to_string(),
+                database.updated_at.to_string(),
+            );
         }
         Ok(())
     }

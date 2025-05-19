@@ -1,29 +1,15 @@
-use crate::default_limit;
-use chrono::NaiveDateTime;
 use core_metastore::RwObject;
 use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
 use serde::{Deserialize, Serialize};
 use std::convert::From;
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct Schema {
     pub name: String,
     pub database: String,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-}
-
-impl Schema {
-    #[must_use]
-    pub fn new(name: String, database: String) -> Self {
-        Self {
-            name,
-            database,
-            created_at: chrono::Utc::now().naive_utc(),
-            updated_at: chrono::Utc::now().naive_utc(),
-        }
-    }
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 impl From<RwObject<MetastoreSchema>> for Schema {
@@ -31,8 +17,8 @@ impl From<RwObject<MetastoreSchema>> for Schema {
         Self {
             name: rw_schema.data.ident.schema,
             database: rw_schema.data.ident.database,
-            created_at: rw_schema.created_at,
-            updated_at: rw_schema.updated_at,
+            created_at: rw_schema.created_at.to_string(),
+            updated_at: rw_schema.updated_at.to_string(),
         }
     }
 }
@@ -89,14 +75,4 @@ pub struct SchemaResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SchemasResponse {
     pub items: Vec<Schema>,
-    pub current_cursor: Option<String>,
-    pub next_cursor: String,
-}
-
-#[derive(Debug, Deserialize, ToSchema, IntoParams)]
-pub struct SchemasParameters {
-    pub cursor: Option<String>,
-    #[serde(default = "default_limit")]
-    pub limit: Option<u16>,
-    pub search: Option<String>,
 }

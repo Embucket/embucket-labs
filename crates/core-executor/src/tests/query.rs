@@ -11,7 +11,6 @@ use core_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     TableIdent as MetastoreTableIdent, Volume as MetastoreVolume,
 };
-use datafusion::arrow::compute::{SortColumn, SortOptions, take_record_batch};
 use datafusion::assert_batches_eq;
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::Statement as SQLStatement;

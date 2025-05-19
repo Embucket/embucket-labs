@@ -52,33 +52,69 @@ export function SqlEditorLeftPanelTrees() {
               }
             >
               {(schema) => (
-                <TreesTables
-                  tables={schema.tables}
-                  database={database}
-                  schema={schema}
-                  onClick={(table) =>
-                    handleTableClick({
-                      databaseName: database.name,
-                      schemaName: schema.name,
-                      tableName: table.name,
-                    })
-                  }
-                  isActive={(table) =>
-                    selectedTree?.tableName === table.name &&
-                    selectedTree.schemaName === schema.name &&
-                    selectedTree.databaseName === database.name
-                  }
-                  defaultOpen={true}
-                  renderDropdownMenu={(tree, hovered) => (
-                    <SqlEditorLeftPanelTreesTableDropdown
-                      onLoadDataClick={() => {
-                        setIsLoadDataDialogOpened(true);
-                        setSelectedTree(tree);
-                      }}
-                      hovered={hovered}
+                <>
+                  {!!schema.tables.length && (
+                    <TreesTables
+                      label="Tables"
+                      tables={schema.tables}
+                      database={database}
+                      schema={schema}
+                      onClick={(table) =>
+                        handleTableClick({
+                          databaseName: database.name,
+                          schemaName: schema.name,
+                          tableName: table.name,
+                        })
+                      }
+                      isActive={(table) =>
+                        selectedTree?.tableName === table.name &&
+                        selectedTree.schemaName === schema.name &&
+                        selectedTree.databaseName === database.name
+                      }
+                      defaultOpen={true}
+                      renderDropdownMenu={(tree, hovered) => (
+                        <SqlEditorLeftPanelTreesTableDropdown
+                          onLoadDataClick={() => {
+                            setIsLoadDataDialogOpened(true);
+                            setSelectedTree(tree);
+                          }}
+                          hovered={hovered}
+                        />
+                      )}
                     />
                   )}
-                />
+                  {/* TODO: DRY */}
+                  {!!schema.views.length && (
+                    <TreesTables
+                      label="Views"
+                      tables={schema.views}
+                      database={database}
+                      schema={schema}
+                      onClick={(table) =>
+                        handleTableClick({
+                          databaseName: database.name,
+                          schemaName: schema.name,
+                          tableName: table.name,
+                        })
+                      }
+                      isActive={(table) =>
+                        selectedTree?.tableName === table.name &&
+                        selectedTree.schemaName === schema.name &&
+                        selectedTree.databaseName === database.name
+                      }
+                      defaultOpen={true}
+                      renderDropdownMenu={(tree, hovered) => (
+                        <SqlEditorLeftPanelTreesTableDropdown
+                          onLoadDataClick={() => {
+                            setIsLoadDataDialogOpened(true);
+                            setSelectedTree(tree);
+                          }}
+                          hovered={hovered}
+                        />
+                      )}
+                    />
+                  )}
+                </>
               )}
             </TreesSchemas>
           )}

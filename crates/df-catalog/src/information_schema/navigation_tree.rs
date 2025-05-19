@@ -7,6 +7,7 @@ use datafusion::arrow::{
 };
 use datafusion::execution::TaskContext;
 use datafusion_common::DataFusionError;
+use datafusion_expr::TableType;
 use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
@@ -25,6 +26,7 @@ impl InformationSchemaNavigationTree {
             Field::new("database", DataType::Utf8, false),
             Field::new("schema", DataType::Utf8, true),
             Field::new("table", DataType::Utf8, true),
+            Field::new("table_type", DataType::Utf8, true),
         ]))
     }
     pub(crate) fn new(config: InformationSchemaConfig) -> Self {
@@ -37,6 +39,7 @@ impl InformationSchemaNavigationTree {
             databases: StringBuilder::new(),
             schemas: StringBuilder::new(),
             tables: StringBuilder::new(),
+            table_types: StringBuilder::new(),
             schema: Arc::clone(&self.schema),
         }
     }
@@ -70,6 +73,7 @@ pub struct InformationSchemaNavigationTreeBuilder {
     databases: StringBuilder,
     schemas: StringBuilder,
     tables: StringBuilder,
+    table_types: StringBuilder,
 }
 
 impl InformationSchemaNavigationTreeBuilder {
@@ -78,11 +82,18 @@ impl InformationSchemaNavigationTreeBuilder {
         database: impl AsRef<str>,
         schema: Option<String>,
         table: Option<String>,
+        table_type: Option<TableType>,
     ) {
         // Note: append_value is actually infallible.
         self.databases.append_value(database.as_ref());
         self.schemas.append_option(schema);
         self.tables.append_option(table);
+        self.table_types
+            .append_option(table_type.map(|ttype| match ttype {
+                TableType::Base => "TABLE",
+                TableType::View => "VIEW",
+                TableType::Temporary => "TEMPORARY",
+            }));
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
@@ -92,6 +103,7 @@ impl InformationSchemaNavigationTreeBuilder {
                 Arc::new(self.databases.finish()),
                 Arc::new(self.schemas.finish()),
                 Arc::new(self.tables.finish()),
+                Arc::new(self.table_types.finish()),
             ],
         )
     }

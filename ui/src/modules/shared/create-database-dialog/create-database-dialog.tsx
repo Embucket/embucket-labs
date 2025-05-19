@@ -54,12 +54,13 @@ export function CreateDatabaseDialog({ opened, onSetOpened }: CreateDatabaseDial
         </DialogHeader>
         {error && (
           <Alert variant="destructive">
-            <AlertDescription>{JSON.stringify(error.response?.data)}</AlertDescription>
+            <AlertDescription>{JSON.stringify(error.response?.data.message)}</AlertDescription>
           </Alert>
         )}
         <CreateDatabaseDialogForm
+          volumes={volumes ?? []}
           onSubmit={(formData) => {
-            mutate({ data: { name: formData.name, volume: volumes?.[0]?.name ?? '' } });
+            mutate({ data: { name: formData.name, volume: formData.volumeName } });
           }}
         />
         <DialogFooter>

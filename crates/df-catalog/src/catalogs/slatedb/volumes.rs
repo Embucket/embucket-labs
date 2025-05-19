@@ -24,6 +24,8 @@ impl VolumesView {
         let schema = Arc::new(Schema::new(vec![
             Field::new("volume_name", DataType::Utf8, false),
             Field::new("volume_type", DataType::Utf8, false),
+            Field::new("created_at", DataType::Utf8, false),
+            Field::new("updated_at", DataType::Utf8, false),
         ]));
 
         Self { schema, config }
@@ -33,6 +35,8 @@ impl VolumesView {
         VolumesViewBuilder {
             volume_names: StringBuilder::new(),
             volume_types: StringBuilder::new(),
+            created_at_timestamps: StringBuilder::new(),
+            updated_at_timestamps: StringBuilder::new(),
             schema: Arc::clone(&self.schema),
         }
     }
@@ -62,13 +66,23 @@ pub struct VolumesViewBuilder {
     schema: SchemaRef,
     volume_names: StringBuilder,
     volume_types: StringBuilder,
+    created_at_timestamps: StringBuilder,
+    updated_at_timestamps: StringBuilder,
 }
 
 impl VolumesViewBuilder {
-    pub fn add_volume(&mut self, volume_name: impl AsRef<str>, volume_type: impl AsRef<str>) {
+    pub fn add_volume(
+        &mut self,
+        volume_name: impl AsRef<str>,
+        volume_type: impl AsRef<str>,
+        created_at: impl AsRef<str>,
+        updated_at: impl AsRef<str>,
+    ) {
         // Note: append_value is actually infallible.
         self.volume_names.append_value(volume_name.as_ref());
         self.volume_types.append_value(volume_type.as_ref());
+        self.created_at_timestamps.append_value(created_at.as_ref());
+        self.updated_at_timestamps.append_value(updated_at.as_ref());
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
@@ -77,6 +91,8 @@ impl VolumesViewBuilder {
             vec![
                 Arc::new(self.volume_names.finish()),
                 Arc::new(self.volume_types.finish()),
+                Arc::new(self.created_at_timestamps.finish()),
+                Arc::new(self.updated_at_timestamps.finish()),
             ],
         )
     }

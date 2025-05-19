@@ -64,14 +64,31 @@ export function DataPageTrees() {
               onClick={handleSchemaClick}
             >
               {(schema) => (
-                <TreesTables
-                  tables={schema.tables}
-                  database={database}
-                  isActive={(table) => table.name === tableName}
-                  schema={schema}
-                  defaultOpen={true}
-                  onClick={handleTableClick}
-                />
+                <>
+                  {!!schema.tables.length && (
+                    <TreesTables
+                      label="Tables"
+                      tables={schema.tables}
+                      database={database}
+                      isActive={(table) => table.name === tableName}
+                      schema={schema}
+                      defaultOpen={true}
+                      onClick={handleTableClick}
+                    />
+                  )}
+                  {/* TODO: DRY */}
+                  {!!schema.views.length && (
+                    <TreesTables
+                      label="Views"
+                      tables={schema.views}
+                      database={database}
+                      isActive={(table) => table.name === tableName}
+                      schema={schema}
+                      defaultOpen={true}
+                      onClick={handleTableClick}
+                    />
+                  )}
+                </>
               )}
             </TreesSchemas>
           )}

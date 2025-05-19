@@ -100,11 +100,7 @@ impl TablesViewBuilder {
         self.table_names.append_value(table_name.as_ref());
         self.schema_names.append_value(schema_name.as_ref());
         self.database_names.append_value(database_name.as_ref());
-        if let Some(volume_name) = volume_name {
-            self.volume_names.append_value(volume_name.as_ref());
-        } else {
-            self.volume_names.append_null();
-        }
+        self.volume_names.append_option(volume_name);
         self.is_temporary_values.append_value(is_temporary);
         self.table_format_values.append_value(table_format.as_ref());
         self.created_at_timestamps.append_value(created_at.as_ref());

@@ -4,7 +4,6 @@ use crate::information_schema::information_schema::{
 };
 use crate::test_utils::sort_record_batch_by_sortable_columns;
 use core_metastore::SlateDBMetastore;
-use datafusion::arrow::compute::{SortColumn, SortOptions, take_record_batch};
 use datafusion::execution::SessionStateBuilder;
 use datafusion::execution::context::SessionContext;
 use datafusion::prelude::SessionConfig;

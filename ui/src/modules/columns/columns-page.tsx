@@ -5,12 +5,14 @@ import { Columns, Table } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs2';
 import { TableDataUploadDialog } from '@/modules/shared/table-data-upload-dialog/table-data-upload-dialog';
-import { useGetTableColumns } from '@/orval/tables';
+import { useGetTableColumns, useGetTablePreviewData } from '@/orval/tables';
 
 import { DataPageContent } from '../shared/data-page/data-page-content';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
+import { DataPreviewTable } from '../shared/data-preview-table/data-preview-table';
 import { ColumnsTable } from './columns-page-table';
 
 export function ColumnsPage() {
@@ -23,6 +25,9 @@ export function ColumnsPage() {
     schemaName,
     tableName,
   );
+
+  const { data: { items: previewData } = {}, isFetching: isPreviewDataFetching } =
+    useGetTablePreviewData(databaseName, schemaName, tableName);
 
   return (
     <>
@@ -42,13 +47,34 @@ export function ColumnsPage() {
               </Button>
             }
           />
-          <DataPageContent
-            isEmpty={!columns?.length}
-            Table={<ColumnsTable isLoading={isFetching} columns={columns ?? []} />}
-            emptyStateIcon={Columns}
-            emptyStateTitle="No Columns Found"
-            emptyStateDescription="No columns have been created yet. Create a column to get started."
-          />
+          <Tabs defaultValue="columns" className="size-full">
+            <TabsList className="px-4">
+              <TabsTrigger value="columns">Columns</TabsTrigger>
+              <TabsTrigger value="data-preview">Data Preview</TabsTrigger>
+            </TabsList>
+            <TabsContent value="columns" className="m-0">
+              <DataPageContent
+                hasTabs
+                isEmpty={!columns?.length}
+                Table={<ColumnsTable isLoading={isFetching} columns={columns ?? []} />}
+                emptyStateIcon={Columns}
+                emptyStateTitle="No Columns Found"
+                emptyStateDescription="No columns have been created yet. Create a column to get started."
+              />
+            </TabsContent>
+            <TabsContent value="data-preview" className="m-0">
+              <DataPageContent
+                hasTabs
+                isEmpty={!previewData?.length}
+                Table={
+                  <DataPreviewTable isLoading={isPreviewDataFetching} columns={previewData ?? []} />
+                }
+                emptyStateIcon={Columns}
+                emptyStateTitle="No Data Found"
+                emptyStateDescription="No data has been loaded for this table yet."
+              />
+            </TabsContent>
+          </Tabs>
         </ResizablePanel>
       </ResizablePanelGroup>
       {databaseName && schemaName && tableName && (

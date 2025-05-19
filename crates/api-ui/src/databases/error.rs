@@ -2,6 +2,7 @@ use crate::error::ErrorResponse;
 use crate::error::IntoStatusCode;
 use axum::Json;
 use axum::response::IntoResponse;
+use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::prelude::*;
@@ -20,7 +21,7 @@ pub enum DatabasesAPIError {
     #[snafu(display("Update database error: {source}"))]
     Update { source: MetastoreError },
     #[snafu(display("Get databases error: {source}"))]
-    List { source: MetastoreError },
+    List { source: ExecutionError },
 }
 
 // Select which status code to return.
