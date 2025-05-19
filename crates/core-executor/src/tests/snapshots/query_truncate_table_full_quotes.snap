@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"TRUNCATE TABLE 'EMBUCKET'.'PUBLIC'.'EMPLOYEE_TABLE'\""
+snapshot_kind: text
+---
+Ok(
+    [
+        "+-------+",
+        "| count |",
+        "+-------+",
+        "| 0     |",
+        "+-------+",
+    ],
+)
