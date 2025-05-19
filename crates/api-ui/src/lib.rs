@@ -1,5 +1,5 @@
 use core_executor::error::ExecutionError;
-use datafusion::arrow::array::{RecordBatch, StringArray};
+use datafusion::arrow::array::{Int64Array, RecordBatch, StringArray};
 use datafusion::common::DataFusionError;
 use serde::Deserialize;
 use std::fmt::Display;
@@ -69,6 +69,18 @@ fn downcast_string_column<'a>(
     batch
         .column_by_name(name)
         .and_then(|col| col.as_any().downcast_ref::<StringArray>())
+        .ok_or_else(|| ExecutionError::DataFusion {
+            source: DataFusionError::Internal(format!("Missing or invalid column: '{name}'")),
+        })
+}
+
+fn downcast_int64_column<'a>(
+    batch: &'a RecordBatch,
+    name: &str,
+) -> Result<&'a Int64Array, ExecutionError> {
+    batch
+        .column_by_name(name)
+        .and_then(|col| col.as_any().downcast_ref::<Int64Array>())
         .ok_or_else(|| ExecutionError::DataFusion {
             source: DataFusionError::Internal(format!("Missing or invalid column: '{name}'")),
         })
