@@ -201,6 +201,27 @@ async fn test_ui_schemas() {
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(3, schemas_response.items.len());
 
+    //Get list schemas with search
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas?search={}&orderDirection=ASC",
+            database_name.clone(),
+            "testing"
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let schemas_response: SchemasResponse = res.json().await.unwrap();
+    assert_eq!(
+        "testing1".to_string(),
+        schemas_response.items.first().unwrap().name
+    );
+
     //Get list schemas with parameters
     let res = req(
         &client,

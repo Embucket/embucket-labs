@@ -1,9 +1,8 @@
-use crate::default_limit;
 use core_metastore::RwObject;
 use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
 use serde::{Deserialize, Serialize};
 use std::convert::From;
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct Schema {
@@ -76,14 +75,4 @@ pub struct SchemaResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SchemasResponse {
     pub items: Vec<Schema>,
-}
-
-#[derive(Debug, Deserialize, ToSchema, IntoParams)]
-pub struct SchemasParameters {
-    pub offset: Option<usize>,
-    #[serde(default = "default_limit")]
-    pub limit: Option<u16>,
-    pub search: Option<String>,
-    pub order_by: Option<String>,
-    pub order_direction: Option<String>,
 }

@@ -1,8 +1,7 @@
-use crate::default_limit;
 use core_metastore::RwObject;
 use core_metastore::models::Database as MetastoreDatabase;
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 pub struct Database {
@@ -87,14 +86,4 @@ pub struct DatabaseResponse {
 #[serde(rename_all = "camelCase")]
 pub struct DatabasesResponse {
     pub items: Vec<Database>,
-}
-
-#[derive(Debug, Deserialize, ToSchema, IntoParams)]
-pub struct DatabasesParameters {
-    pub offset: Option<usize>,
-    #[serde(default = "default_limit")]
-    pub limit: Option<u16>,
-    pub search: Option<String>,
-    pub order_by: Option<String>,
-    pub order_direction: Option<String>,
 }

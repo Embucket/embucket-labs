@@ -1,11 +1,12 @@
-use crate::databases::models::DatabasesParameters;
 use crate::state::AppState;
 use crate::{
+    SearchParameters,
     databases::error::{DatabasesAPIError, DatabasesResult},
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
         DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
     },
+    downcast_string_column,
     error::ErrorResponse,
 };
 use api_sessions::DFSessionId;
@@ -17,7 +18,6 @@ use core_executor::models::QueryResultData;
 use core_executor::query::QueryContext;
 use core_metastore::Database as MetastoreDatabase;
 use core_metastore::error::MetastoreError;
-use datafusion::arrow::util::display::array_value_to_string;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -221,13 +221,13 @@ pub async fn update_database(
 #[allow(clippy::unwrap_used)]
 pub async fn list_databases(
     DFSessionId(session_id): DFSessionId,
-    Query(parameters): Query<DatabasesParameters>,
+    Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
 ) -> DatabasesResult<Json<DatabasesResponse>> {
-    let context = QueryContext::new(None, None, None);
+    let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.public.databases".to_string();
     let sql_string = parameters.search.map_or_else(|| sql_string.clone(), |search|
-        format!("{sql_string} WHERE (database_name LIKE '%{search}%' OR volume_name LIKE '%{search}%' OR created_at LIKE '%{search}%' OR updated_at LIKE '%{search}%')")
+        format!("{sql_string} WHERE (database_name ILIKE '%{search}%' OR volume_name ILIKE '%{search}%')")
     );
     let sql_string = parameters.order_by.map_or_else(
         || format!("{sql_string} ORDER BY database_name"),
@@ -252,16 +252,20 @@ pub async fn list_databases(
         .map_err(|e| DatabasesAPIError::List { source: e })?;
     let mut items = Vec::new();
     for record in records {
-        let database_names = record.column_by_name("database_name").unwrap().as_ref();
-        let volume_names = record.column_by_name("volume_name").unwrap().as_ref();
-        let created_at_timestamps = record.column_by_name("created_at").unwrap().as_ref();
-        let updated_at_timestamps = record.column_by_name("updated_at").unwrap().as_ref();
+        let database_names = downcast_string_column(&record, "database_name")
+            .map_err(|e| DatabasesAPIError::List { source: e })?;
+        let volume_names = downcast_string_column(&record, "volume_name")
+            .map_err(|e| DatabasesAPIError::List { source: e })?;
+        let created_at_timestamps = downcast_string_column(&record, "created_at")
+            .map_err(|e| DatabasesAPIError::List { source: e })?;
+        let updated_at_timestamps = downcast_string_column(&record, "updated_at")
+            .map_err(|e| DatabasesAPIError::List { source: e })?;
         for i in 0..record.num_rows() {
             items.push(Database {
-                name: array_value_to_string(database_names, i).unwrap(),
-                volume: array_value_to_string(volume_names, i).unwrap(),
-                created_at: array_value_to_string(created_at_timestamps, i).unwrap(),
-                updated_at: array_value_to_string(updated_at_timestamps, i).unwrap(),
+                name: database_names.value(i).to_string(),
+                volume: volume_names.value(i).to_string(),
+                created_at: created_at_timestamps.value(i).to_string(),
+                updated_at: updated_at_timestamps.value(i).to_string(),
             });
         }
     }

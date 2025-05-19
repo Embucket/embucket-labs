@@ -24,8 +24,8 @@ impl VolumesView {
         let schema = Arc::new(Schema::new(vec![
             Field::new("volume_name", DataType::Utf8, false),
             Field::new("volume_type", DataType::Utf8, false),
-            Field::new("created_at", DataType::Utf8, false),
-            Field::new("updated_at", DataType::Utf8, false),
+            Field::new("created_at", DataType::Utf8, true),
+            Field::new("updated_at", DataType::Utf8, true),
         ]));
 
         Self { schema, config }

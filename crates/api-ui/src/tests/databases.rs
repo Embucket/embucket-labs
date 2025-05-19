@@ -229,7 +229,7 @@ async fn test_ui_databases() {
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
     assert_eq!(http::StatusCode::OK, res.status());
 
-    //Get list schemas with parameters
+    //Get list databases with parameters
     let res = req(
         &client,
         Method::GET,
@@ -245,7 +245,7 @@ async fn test_ui_databases() {
         "test4".to_string(),
         databases_response.items.first().unwrap().name
     );
-    //Get list schemas with parameters
+    //Get list databases with parameters
     let res = req(
         &client,
         Method::GET,
@@ -280,7 +280,7 @@ async fn test_ui_databases() {
     .await;
     assert_eq!(http::StatusCode::OK, res.status());
 
-    //Get list schemas with search
+    //Get list databases with search
     let res = req(
         &client,
         Method::GET,
@@ -297,7 +297,27 @@ async fn test_ui_databases() {
         databases_response.items.first().unwrap().name
     );
 
-    //Get list schemas with search
+    //Get list databases with search
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases?search={}&orderDirection=ASC",
+            "tes"
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let databases_response: DatabasesResponse = res.json().await.unwrap();
+    assert_eq!(
+        "test".to_string(),
+        databases_response.items.first().unwrap().name
+    );
+
+    //Get list databases with search
     let res = req(
         &client,
         Method::GET,
@@ -314,7 +334,7 @@ async fn test_ui_databases() {
         databases_response.items.first().unwrap().name
     );
 
-    //Get list schemas with parameters
+    //Get list databases with parameters
     let res = req(
         &client,
         Method::GET,
@@ -331,7 +351,7 @@ async fn test_ui_databases() {
         databases_response.items.first().unwrap().name
     );
 
-    //Get list schemas with search fro another name
+    //Get list databases with search fro another name
     let res = req(
         &client,
         Method::GET,

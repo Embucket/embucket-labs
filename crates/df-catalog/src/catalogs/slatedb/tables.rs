@@ -29,8 +29,8 @@ impl TablesView {
             Field::new("volume_name", DataType::Utf8, true),
             Field::new("is_temporary", DataType::Boolean, false),
             Field::new("table_format", DataType::Utf8, false),
-            Field::new("created_at", DataType::Utf8, false),
-            Field::new("updated_at", DataType::Utf8, false),
+            Field::new("created_at", DataType::Utf8, true),
+            Field::new("updated_at", DataType::Utf8, true),
         ]));
 
         Self { schema, config }
