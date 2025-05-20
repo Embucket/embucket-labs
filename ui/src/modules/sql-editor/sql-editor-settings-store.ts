@@ -7,7 +7,15 @@ import type { SelectedTree } from '../shared/trees/trees-items';
 
 export type LeftPanelTab = 'databases' | 'worksheets';
 
+export interface SqlEditorContext {
+  databaseName: string;
+  schema: string;
+}
+
 interface SqlEditorSettingsStore {
+  selectedContext: SqlEditorContext;
+  setSelectedContext: (context: SqlEditorContext) => void;
+
   selectedLeftPanelTab: LeftPanelTab;
   setSelectedLeftPanelTab: (tab: LeftPanelTab) => void;
 
@@ -25,6 +33,10 @@ interface SqlEditorSettingsStore {
 }
 
 const initialState = {
+  selectedContext: {
+    databaseName: '',
+    schema: '',
+  },
   selectedLeftPanelTab: 'databases' as LeftPanelTab,
   selectedQueryRecords: {},
   selectedTree: undefined,
@@ -35,7 +47,9 @@ export const useSqlEditorSettingsStore = create<SqlEditorSettingsStore>()(
   persist(
     (set, get) => ({
       ...initialState,
-
+      setSelectedContext: (context: SqlEditorContext) => {
+        set({ selectedContext: context });
+      },
       addTab: (tab: Worksheet) => {
         const { tabs } = get();
         const existingTab = tabs.find((t) => t.id === tab.id);
