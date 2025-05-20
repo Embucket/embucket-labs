@@ -1,7 +1,7 @@
 use crate::aggregate::macros::make_udaf_function;
 use ahash::RandomState;
 use datafusion::arrow::array::{Array, ArrayRef, as_list_array};
-use datafusion::arrow::datatypes::{ArrowNativeType, DataType, Field};
+use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion::common::error::Result as DFResult;
 use datafusion::logical_expr::{Accumulator, Signature, Volatility};
 use datafusion_common::cast::{as_string_array, as_uint64_array};
@@ -151,7 +151,13 @@ impl Accumulator for ArrayUniqueAggAccumulator {
         Ok(())
     }
 
-    #[allow(clippy::too_many_lines, clippy::as_conversions)]
+    #[allow(
+        clippy::too_many_lines,
+        clippy::cast_precision_loss,
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )]
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
         let arr = match &self.data_type {
             None => self
@@ -205,13 +211,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                         ))
                                     })?;
                                     if vv.fract() == 0.0 {
-                                        Ok(Value::Number(Number::from(vv.to_i64().ok_or_else(
-                                            || {
-                                                DataFusionError::Execution(
-                                                    "failed to parse float".to_string(),
-                                                )
-                                            },
-                                        )?)))
+                                        Ok(Value::Number(Number::from(vv as i64)))
                                     } else {
                                         Ok(Value::Number(
                                             Number::from_f64(v.parse::<f64>().map_err(|err| {
