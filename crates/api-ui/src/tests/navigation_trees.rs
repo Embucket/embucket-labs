@@ -170,7 +170,7 @@ async fn test_ui_databases_navigation() {
     );
     // Information schema views
     assert_eq!(
-        8,
+        9,
         databases_navigation
             .items
             .first()

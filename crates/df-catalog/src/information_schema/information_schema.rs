@@ -60,6 +60,7 @@ impl InformationSchemaProvider {
                     (DF_SETTINGS, InformationSchemaDfSettings::schema()),
                     (ROUTINES, InformationSchemaRoutines::schema()),
                     (PARAMETERS, InformationSchemaParameters::schema()),
+                    (NAVIGATION_TREE, InformationSchemaNavigationTree::schema()),
                 ]
                 .into_iter()
                 .map(|(name, schema)| (name.to_string(), schema)),

@@ -7,11 +7,10 @@ snapshot_kind: text
 | database | schema             | table           | table_type |
 +----------+--------------------+-----------------+------------+
 | embucket |                    |                 |            |
-| embucket | information_schema |                 |            |
 | embucket | information_schema | columns         | VIEW       |
 | embucket | information_schema | databases       | VIEW       |
 | embucket | information_schema | df_settings     | VIEW       |
-| embucket | information_schema | navigation_tree | TABLE      |
+| embucket | information_schema | navigation_tree | VIEW       |
 | embucket | information_schema | parameters      | VIEW       |
 | embucket | information_schema | routines        | VIEW       |
 | embucket | information_schema | schemata        | VIEW       |

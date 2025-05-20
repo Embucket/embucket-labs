@@ -52,18 +52,16 @@ impl PartitionStream for InformationSchemaNavigationTree {
 
     fn execute(&self, _ctx: Arc<TaskContext>) -> SendableRecordBatchStream {
         let mut builder = self.builder();
-        let result = self
-            .config
-            .make_navigation_tree(&mut builder)
-            .and_then(|()| {
+        let config = self.config.clone();
+        Box::pin(RecordBatchStreamAdapter::new(
+            Arc::clone(&self.schema),
+            // TODO: Stream this
+            futures::stream::once(async move {
+                config.make_navigation_tree(&mut builder).await?;
                 builder
                     .finish()
                     .map_err(|e| DataFusionError::ArrowError(e, None))
-            });
-        let stream = futures::stream::iter(vec![result]);
-        Box::pin(RecordBatchStreamAdapter::new(
-            Arc::clone(&self.schema),
-            stream,
+            }),
         ))
     }
 }
