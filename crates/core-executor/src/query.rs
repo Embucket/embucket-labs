@@ -1,5 +1,5 @@
 use super::catalog::information_schema::information_schema::{
-    InformationSchemaProvider, INFORMATION_SCHEMA,
+    INFORMATION_SCHEMA, InformationSchemaProvider,
 };
 use core_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
@@ -13,21 +13,22 @@ use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
-use datafusion::logical_expr::{sqlparser::ast::Insert, LogicalPlan, TableSource};
+use datafusion::logical_expr::{LogicalPlan, TableSource, sqlparser::ast::Insert};
 use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableObject, TableWithJoins,
 };
+use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
-    plan_datafusion_err, DataFusionError, ResolvedTableReference, TableReference,
+    DataFusionError, ResolvedTableReference, TableReference, plan_datafusion_err,
 };
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
-use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::Catalog;
+use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
@@ -36,11 +37,14 @@ use object_store::aws::AmazonS3Builder;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
-use sqlparser::ast::{BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, Query as AstQuery, Select, SelectItem, ShowObjects, ShowStatementFilter, ShowStatementIn, UpdateTableFromKind, Use, Value};
-use std::collections::hash_map::Entry;
+use sqlparser::ast::{
+    BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
+    ObjectType, Query as AstQuery, Select, SelectItem, ShowObjects, ShowStatementFilter,
+    ShowStatementIn, UpdateTableFromKind, Use, Value,
+};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
-use datafusion::sql::statement::object_name_to_string;
 use url::Url;
 
 use super::catalog::{
@@ -49,11 +53,11 @@ use super::catalog::{
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu};
 use super::session::{SessionProperty, UserSession};
-use super::utils::{is_logical_plan_effectively_empty, NormalizedIdent};
+use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element};
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalogs::slatedb::schema::{
-    SlateDBViewSchemaProvider, SLATEDB_CATALOG, SLATEDB_SCHEMA,
+    SLATEDB_CATALOG, SLATEDB_SCHEMA, SlateDBViewSchemaProvider,
 };
 use tracing_attributes::instrument;
 
@@ -278,7 +282,7 @@ impl UserQuery {
                 | Statement::ShowFunctions { .. }
                 | Statement::ShowObjects { .. }
                 | Statement::ShowVariables { .. }
-                | Statement::ShowVariable { .. }=> {
+                | Statement::ShowVariable { .. } => {
                     return Box::pin(self.show_query(*s)).await;
                 }
                 Statement::Query(mut subquery) => {
@@ -1110,12 +1114,10 @@ impl UserQuery {
                 }
                 apply_show_filters(sql, &filters)
             }
-            Statement::ShowVariable { variable} => {
-                println!("SHOW VARIABLE {:?}", variable);
-                let variable = object_name_to_string(&ObjectName::from(variable.to_vec()));
+            Statement::ShowVariable { variable } => {
+                let variable = object_name_to_string(&ObjectName::from(variable));
                 format!(
                     "SELECT
-                        {} as session_id,
                         NULL as created_on,
                         NULL as updated_on,
                         name,
@@ -1124,13 +1126,13 @@ impl UserQuery {
                         description as comment
                     FROM {}.information_schema.df_settings
                     WHERE name = '{}'",
-                    self.session.ctx.session_id(), self.current_database(), variable
+                    self.current_database(),
+                    variable
                 )
             }
             Statement::ShowVariables { filter, .. } => {
                 let sql = format!(
                     "SELECT
-                        {} as session_id,
                         NULL as created_on,
                         NULL as updated_on,
                         name,
@@ -1138,11 +1140,11 @@ impl UserQuery {
                         NULL as type,
                         description as comment
                     FROM {}.information_schema.df_settings",
-                    self.session.ctx.session_id(), self.current_database()
+                    self.current_database()
                 );
                 let mut filters = vec!["name LIKE 'session_params.%'".to_string()];
                 if let Some(ShowStatementFilter::Like(pattern)) = filter {
-                    filters.push(format!("name LIKE '{}'", pattern));
+                    filters.push(format!("name LIKE '{pattern}'"));
                 }
                 apply_show_filters(sql, &filters)
             }

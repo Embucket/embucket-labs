@@ -1,7 +1,6 @@
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::Result;
 use datafusion::common::{ToDFSchema, plan_err};
-use datafusion::logical_expr::sqlparser::ast::{Ident, ObjectName};
 use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{
@@ -12,7 +11,7 @@ use datafusion::sql::sqlparser::ast::{
     ColumnDef as SQLColumnDef, ColumnOption, CreateTable as CreateTableStatement,
     DataType as SQLDataType, Statement,
 };
-use datafusion::sql::statement::{calc_inline_constraints_from_columns, object_name_to_string};
+use datafusion::sql::statement::calc_inline_constraints_from_columns;
 use datafusion_common::{DFSchema, DFSchemaRef, SchemaReference, TableReference};
 use datafusion_expr::DropCatalogSchema;
 use sqlparser::ast::ObjectType;
@@ -54,16 +53,6 @@ where
             | Statement::StartTransaction { .. }
             | Statement::Commit { .. }
             | Statement::Update { .. } => Ok(LogicalPlan::default()),
-            Statement::ShowVariable { variable } => self.show_variable_to_plan(&variable),
-            Statement::ShowObjects(show_objects) => {
-                let Some(show_in) = show_objects.show_options.show_in else {
-                    return plan_err!("Unsupported show statement: missing show_in");
-                };
-                let Some(parent_name) = show_in.parent_name else {
-                    return plan_err!("Unsupported show statement: missing parent_name");
-                };
-                self.show_objects_to_plan(&parent_name)
-            }
             Statement::Drop {
                 object_type: ObjectType::Database,
                 if_exists,
@@ -192,72 +181,6 @@ where
             }
             _ => {}
         }
-    }
-
-    fn show_objects_to_plan(&self, parent: &ObjectName) -> Result<LogicalPlan> {
-        if !self.inner.has_table("information_schema", "df_settings") {
-            return plan_err!("SHOW OBJECTS is not supported unless information_schema is enabled");
-        }
-        // Only support listing objects in schema for now
-        match parent.0.len() {
-            2 => {
-                // let (catalog, schema) = (parent.0[0].value.clone(), parent.0[1].value.clone());
-
-                // Create query to list objects in schema
-                let columns = [
-                    "table_catalog as 'database_name'",
-                    "table_schema as 'schema_name'",
-                    "table_name as 'name'",
-                    "case when table_type='BASE TABLE' then 'TABLE' else table_type end as 'kind'",
-                    "case when table_type='BASE TABLE' then 'Y' else 'N' end as 'is_iceberg'",
-                    "'N' as 'is_dynamic'",
-                    "null as 'comment'",
-                ]
-                .join(", ");
-                // TODO: views?
-                // TODO: Return programmatically constructed plan
-                let query = format!("SELECT {columns} FROM information_schema.tables");
-                self.parse_sql(query.as_str())
-            }
-            _ => plan_err!("Unsupported show objects: {:?}", parent),
-        }
-    }
-
-    fn show_variable_to_plan(&self, variable: &[Ident]) -> Result<LogicalPlan> {
-        if !self.inner.has_table("information_schema", "df_settings") {
-            return plan_err!(
-                "SHOW [VARIABLE] is not supported unless information_schema is enabled"
-            );
-        }
-
-        let variable = object_name_to_string(&ObjectName::from(variable.to_vec()));
-        // let base_query = format!("SELECT {columns} FROM information_schema.df_settings");
-        let base_query = "select schema_name as 'name' from information_schema.schemata";
-        let query = if variable == "all" {
-            // Add an ORDER BY so the output comes out in a consistent order
-            format!("{base_query} ORDER BY name")
-        } else if variable == "timezone" || variable == "time.zone" {
-            // we could introduce alias in OptionDefinition if this string matching thing grows
-            format!("{base_query} WHERE name = 'datafusion.execution.time_zone'")
-        } else {
-            // These values are what are used to make the information_schema table, so we just
-            // check here, before actually planning or executing the query, if it would produce no
-            // results, and error preemptively if it would (for a better UX)
-            let is_valid_variable = self
-                .provider
-                .options()
-                .entries()
-                .iter()
-                .any(|opt| opt.key == variable);
-
-            if is_valid_variable {
-                format!("{base_query} WHERE name = '{variable}'")
-            } else {
-                // skip where clause to return empty result
-                base_query.to_string()
-            }
-        };
-        self.parse_sql(query.as_str())
     }
 
     fn parse_sql(&self, sql: &str) -> Result<LogicalPlan> {
