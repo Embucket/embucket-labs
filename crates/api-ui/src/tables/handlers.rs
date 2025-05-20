@@ -389,7 +389,7 @@ pub async fn get_tables(
         database_name.clone()
     );
     let sql_string = parameters.search.map_or_else(|| sql_string.clone(), |search|
-        format!("{sql_string} AND (table_name ILIKE '%{search}%' OR schema_name ILIKE '%{search}%' OR database_name ILIKE '%{search}%' OR volume_name ILIKE '%{search}%' OR table_type ILIKE '%{search}%' OR table_format ILIKE '%{search}%' OR owner ILIKE '%{search}%')")
+        format!("{sql_string} AND (table_name ILIKE '%{search}%' OR volume_name ILIKE '%{search}%' OR table_type ILIKE '%{search}%' OR table_format ILIKE '%{search}%' OR owner ILIKE '%{search}%')")
     );
     let sql_string = parameters.order_by.map_or_else(
         || format!("{sql_string} ORDER BY table_name"),
