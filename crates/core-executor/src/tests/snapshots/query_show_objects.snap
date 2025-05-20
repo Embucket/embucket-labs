@@ -20,6 +20,7 @@ Ok(
         "|            | FTABLE1           | TABLE | EMBUCKET      | PUBLIC             | Y          |",
         "|            | LEASED_BICYCLES   | TABLE | EMBUCKET      | PUBLIC             | Y          |",
         "|            | MONTHLY_SALES     | TABLE | EMBUCKET      | PUBLIC             | Y          |",
+        "|            | NAVIGATION_TREE   | VIEW  | EMBUCKET      | INFORMATION_SCHEMA | N          |",
         "|            | PARAMETERS        | VIEW  | EMBUCKET      | INFORMATION_SCHEMA | N          |",
         "|            | PRODUCTS          | TABLE | EMBUCKET      | PUBLIC             | Y          |",
         "|            | QUARTERLY_SALES   | TABLE | EMBUCKET      | PUBLIC             | Y          |",
