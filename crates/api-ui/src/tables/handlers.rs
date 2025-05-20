@@ -9,7 +9,9 @@ use crate::tables::models::{
     TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
     TableUploadPayload, TableUploadResponse, TablesResponse, UploadParameters,
 };
-use crate::{SearchParameters, downcast_int64_column, downcast_string_column};
+use crate::{
+    SearchParameters, apply_other_parameters, downcast_int64_column, downcast_string_column,
+};
 use api_sessions::DFSessionId;
 use axum::extract::Query;
 use axum::{
@@ -388,25 +390,10 @@ pub async fn get_tables(
         schema_name.clone(),
         database_name.clone()
     );
-    let sql_string = parameters.search.map_or_else(|| sql_string.clone(), |search|
+    let sql_string = parameters.search.clone().map_or_else(|| sql_string.clone(), |search|
         format!("{sql_string} AND (table_name ILIKE '%{search}%' OR volume_name ILIKE '%{search}%' OR table_type ILIKE '%{search}%' OR table_format ILIKE '%{search}%' OR owner ILIKE '%{search}%')")
     );
-    let sql_string = parameters.order_by.map_or_else(
-        || format!("{sql_string} ORDER BY table_name"),
-        |order_by| format!("{sql_string} ORDER BY {order_by}"),
-    );
-    let sql_string = parameters.order_direction.map_or_else(
-        || format!("{sql_string} DESC"),
-        |order_direction| format!("{sql_string} {order_direction}"),
-    );
-    let sql_string = parameters.offset.map_or_else(
-        || sql_string.clone(),
-        |offset| format!("{sql_string} OFFSET {offset}"),
-    );
-    let sql_string = parameters.limit.map_or_else(
-        || sql_string.clone(),
-        |limit| format!("{sql_string} LIMIT {limit}"),
-    );
+    let sql_string = apply_other_parameters(&sql_string, parameters, "table_name");
     let QueryResultData { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
