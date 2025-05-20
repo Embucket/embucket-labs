@@ -234,7 +234,10 @@ impl InformationSchemaConfig {
         config_options: &ConfigOptions,
         builder: &mut InformationSchemaDfSettingsBuilder,
     ) {
+        println!("config_options {:?}", config_options);
+        println!("entries {:?}", config_options.entries());
         for entry in config_options.entries() {
+            println!("entry {:?} {:?} ", entry.key, entry.value);
             builder.add_setting(entry);
         }
     }
