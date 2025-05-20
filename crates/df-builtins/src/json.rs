@@ -6,11 +6,11 @@ use datafusion::arrow::array::{
     Array, ArrayRef, BooleanArray, NullArray, PrimitiveArray, StringArray,
 };
 use datafusion::arrow::datatypes::{
-    DataType, Date32Type, Date64Type, Decimal128Type, Decimal256Type, DurationMicrosecondType,
-    DurationMillisecondType, DurationNanosecondType, DurationSecondType, Float16Type, Float32Type,
-    Float64Type, Int8Type, Int16Type, Int32Type, Int64Type, IntervalDayTimeType,
-    IntervalMonthDayNanoType, IntervalUnit, IntervalYearMonthType, Time32MillisecondType,
-    Time32SecondType, Time64MicrosecondType, Time64NanosecondType, TimeUnit,
+    ArrowNativeType, DataType, Date32Type, Date64Type, Decimal128Type, Decimal256Type,
+    DurationMicrosecondType, DurationMillisecondType, DurationNanosecondType, DurationSecondType,
+    Float16Type, Float32Type, Float64Type, Int8Type, Int16Type, Int32Type, Int64Type,
+    IntervalDayTimeType, IntervalMonthDayNanoType, IntervalUnit, IntervalYearMonthType,
+    Time32MillisecondType, Time32SecondType, Time64MicrosecondType, Time64NanosecondType, TimeUnit,
     TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
     TimestampSecondType, UInt8Type, UInt16Type, UInt32Type, UInt64Type,
 };
@@ -90,17 +90,22 @@ pub fn encode_float16_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
         values.push(if array.is_null(i) {
             JsonValue::Null
         } else {
-            JsonValue::Number(
-                Number::from_f64(array.value(i).to_f64()).ok_or_else(|| {
+            let v = f64::from(array.value(i));
+            JsonValue::Number(if v.fract() == 0.0 {
+                Number::from(array.value(i).to_i64().ok_or_else(|| {
                     ArrowError::InvalidArgumentError("Invalid float value".into())
-                })?,
-            )
+                })?)
+            } else {
+                Number::from_f64(v)
+                    .ok_or_else(|| ArrowError::InvalidArgumentError("Invalid float value".into()))?
+            })
         });
     }
     Ok(JsonValue::Array(values))
 }
 
 /// Encodes a Float32 Arrow array into a JSON array
+#[allow(clippy::as_conversions)]
 pub fn encode_float32_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_primitive::<Float32Type>();
     let mut values = Vec::with_capacity(array.len());
@@ -109,11 +114,14 @@ pub fn encode_float32_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
         values.push(if array.is_null(i) {
             JsonValue::Null
         } else {
-            JsonValue::Number(
-                Number::from_f64(f64::from(array.value(i))).ok_or_else(|| {
+            JsonValue::Number(if array.value(i).fract() == 0.0 {
+                Number::from(array.value(i).to_i64().ok_or_else(|| {
                     ArrowError::InvalidArgumentError("Invalid float value".into())
-                })?,
-            )
+                })?)
+            } else {
+                Number::from_f64(f64::from(array.value(i)))
+                    .ok_or_else(|| ArrowError::InvalidArgumentError("Invalid float value".into()))?
+            })
         });
     }
     Ok(JsonValue::Array(values))
@@ -128,11 +136,14 @@ pub fn encode_float64_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
         values.push(if array.is_null(i) {
             JsonValue::Null
         } else {
-            JsonValue::Number(
-                Number::from_f64(array.value(i)).ok_or_else(|| {
+            JsonValue::Number(if array.value(i).fract() == 0.0 {
+                Number::from(array.value(i).to_i64().ok_or_else(|| {
                     ArrowError::InvalidArgumentError("Invalid float value".into())
-                })?,
-            )
+                })?)
+            } else {
+                Number::from_f64(array.value(i))
+                    .ok_or_else(|| ArrowError::InvalidArgumentError("Invalid float value".into()))?
+            })
         });
     }
     Ok(JsonValue::Array(values))
