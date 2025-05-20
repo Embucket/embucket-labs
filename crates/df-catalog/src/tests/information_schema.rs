@@ -104,10 +104,12 @@ test_query!(
 
 test_query!(
     information_schema_routines,
-    "SELECT routine_name FROM embucket.information_schema.routines"
+    "SELECT routine_name FROM embucket.information_schema.routines
+    GROUP BY routine_name ORDER BY routine_name"
 );
 
 test_query!(
     information_schema_parameters,
-    "SELECT specific_name FROM embucket.information_schema.parameters"
+    "SELECT specific_name FROM embucket.information_schema.parameters
+     GROUP BY specific_name ORDER BY specific_name"
 );
