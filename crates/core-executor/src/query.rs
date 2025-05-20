@@ -172,7 +172,6 @@ impl UserQuery {
     pub async fn execute(&mut self) -> ExecutionResult<Vec<RecordBatch>> {
         let statement = self.parse_query().context(super::error::DataFusionSnafu)?;
         self.query = statement.to_string();
-        println!("statement: {:?}", statement);
 
         // TODO: Code should be organized in a better way
         // 1. Single place to parse SQL strings into AST
