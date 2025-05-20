@@ -28,10 +28,7 @@ pub struct TableGenerator {
 impl Generator<Table> for TableGenerator {
     fn generate(&self, index: usize) -> Table {
         Table {
-            name: self
-                .name
-                .clone()
-                .unwrap_or_else(FakeProvider::entity_name),
+            name: self.name.clone().unwrap_or_else(FakeProvider::entity_name),
             columns: match &self.columns {
                 ColumnsTemplateType::ColumnsTemplate(column_template) => {
                     // handle WithCount template

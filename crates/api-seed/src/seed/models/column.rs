@@ -1,6 +1,6 @@
 use super::{Generator, WithCount};
 use crate::seed::fake_provider::FakeProvider;
-use rand::{rng, seq::IndexedRandom};
+use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -53,14 +53,18 @@ pub struct ColumnGenerator {
 impl Generator<Column> for ColumnGenerator {
     fn generate(&self, index: usize) -> Column {
         let mut rng = rand::rng();
-        let col_type = COLUMN_TYPES.choose(&mut rng).unwrap();
-
-        Column {
-            col_name: self
-                .col_name
-                .clone()
-                .unwrap_or_else(FakeProvider::entity_name),
-            col_type: col_type.clone(),
+        match COLUMN_TYPES.choose(&mut rng) {
+            Some(col_type) => Column {
+                col_name: self
+                    .col_name
+                    .clone()
+                    .unwrap_or_else(FakeProvider::entity_name),
+                col_type: col_type.clone(),
+            },
+            None => Column {
+                col_name: format!("dummy{index}"),
+                col_type: ColumnType::String,
+            },
         }
     }
 }

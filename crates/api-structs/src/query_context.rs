@@ -1,6 +1,8 @@
 use super::with_derives;
-#[cfg(feature = "serde")] use serde::{Deserialize, Serialize};
-#[cfg(feature = "schema")] use utoipa::ToSchema;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "schema")]
+use utoipa::ToSchema;
 
 with_derives! {
 #[derive(Default, Debug, Clone)]

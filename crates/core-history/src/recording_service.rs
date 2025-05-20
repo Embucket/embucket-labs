@@ -2,20 +2,12 @@ use crate::{ExecutionQueryRecord, QueryRecord, WorksheetsStore};
 use api_structs::result_set::ResultSet;
 use bytes::Bytes;
 use core_executor::{
-    error::ExecutionResult, models::ColumnInfo, models::QueryResultData, query::QueryContext,
+    error::ExecutionResult, models::QueryResultData, query::QueryContext,
     service::ExecutionService, session::UserSession, utils::Config,
 };
 use core_metastore::TableIdent as MetastoreTableIdent;
-use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::csv::reader::Format;
-use datafusion::arrow::json::{WriterBuilder, writer::JsonArray};
-use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use snafu::ResultExt;
-use snafu::prelude::*;
 use std::sync::Arc;
-use utoipa::ToSchema;
 
 //
 // TODO: This module is pending a rewrite

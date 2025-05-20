@@ -31,7 +31,7 @@ impl SeedDatabase {
 }
 #[async_trait::async_trait]
 pub trait SeedApi {
-    fn try_load_seed(&mut self, _seed_variant: SeedVariant) -> SeedResult<()>;
+    fn try_load_seed_template(&mut self, _seed_variant: SeedVariant) -> SeedResult<()>;
 
     async fn login(&mut self, username: &str, password: &str) -> SeedResult<()>;
     async fn seed_all(&mut self) -> SeedResult<()>;
@@ -40,7 +40,7 @@ pub trait SeedApi {
 
 #[async_trait::async_trait]
 impl SeedApi for SeedDatabase {
-    fn try_load_seed(&mut self, seed_variant: SeedVariant) -> SeedResult<()> {
+    fn try_load_seed_template(&mut self, seed_variant: SeedVariant) -> SeedResult<()> {
         let raw_seed_data = read_seed_template(seed_variant).context(LoadSeedSnafu)?;
         self.seed_data = raw_seed_data.generate();
         Ok(())

@@ -2,6 +2,8 @@ use cookie::Cookie;
 use http::{HeaderMap, HeaderValue};
 use std::collections::HashMap;
 
+#[allow(clippy::explicit_iter_loop)]
+#[must_use]
 pub fn get_set_cookie_from_response_headers(
     headers: &HeaderMap,
 ) -> HashMap<&str, (&str, &HeaderValue)> {

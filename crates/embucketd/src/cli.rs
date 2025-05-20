@@ -1,3 +1,4 @@
+use api_seed::SeedVariant;
 use clap::{Parser, ValueEnum};
 use object_store::{
     ObjectStore, Result as ObjectStoreResult, aws::AmazonS3Builder, aws::S3ConditionalPut,
@@ -6,7 +7,6 @@ use object_store::{
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
-use api_seed::SeedVariant;
 
 #[derive(Parser)]
 #[command(version, about, long_about=None)]

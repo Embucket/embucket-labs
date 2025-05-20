@@ -1,5 +1,5 @@
 #![allow(clippy::expect_used)]
-use super::error::{HttpRequestResult, HttpRequestError, InvalidHeaderValueSnafu, SerializeSnafu};
+use super::error::{HttpRequestError, HttpRequestResult, InvalidHeaderValueSnafu, SerializeSnafu};
 use super::helpers::get_set_cookie_name_value_map;
 use super::http::http_req_with_headers;
 use api_structs::auth::{AuthResponse, LoginPayload};

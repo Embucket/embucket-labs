@@ -83,7 +83,7 @@ async fn main() {
     );
     let demo_user = opts.auth_demo_user.clone().unwrap();
     let demo_pass = opts.auth_demo_password.clone().unwrap();
-    let seed_variant_ops = opts.seed_data_variant.clone();
+    let seed_variant_opt = opts.seed_data_variant;
 
     let web_config = UIWebConfig {
         host: opts.host.clone().unwrap(),
@@ -201,7 +201,7 @@ async fn main() {
     let addr = listener.local_addr().expect("Failed to get local address");
     tracing::info!("Listening on http://{}", addr);
 
-    if let Some(seed_variant) = seed_variant_ops {
+    if let Some(seed_variant) = seed_variant_opt {
         start_seed_server_task(addr, seed_variant, demo_user, demo_pass).await;
     }
 
@@ -266,24 +266,33 @@ fn load_openapi_spec() -> Option<openapi::OpenApi> {
     Some(original_spec)
 }
 
-pub async fn start_seed_server_task(addr: SocketAddr, seed_variant: api_seed::SeedVariant, demo_user: String, demo_pass: String) {
-    tokio::spawn(async move {
-        // Wait a short time to ensure server is up
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+pub async fn start_seed_server_task(
+    addr: SocketAddr,
+    seed_variant: api_seed::SeedVariant,
+    demo_user: String,
+    demo_pass: String,
+) {
+    // Wait a short time to ensure server is up
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
+    tokio::spawn(async move {
         let mut seed_db_api: Box<dyn api_seed::SeedApi + Send> =
             Box::new(api_seed::SeedDatabase::new(addr));
-        seed_db_api
-            .try_load_seed(seed_variant)
-            .expect("Failed to load seed data");
-        seed_db_api
-            .login(&demo_user, &demo_pass)
-            .await
-            .expect("Failed to start seed server");
-        seed_db_api
-            .seed_all()
-            .await
-            .expect("Failed to seed database");
+
+        if let Err(err) = seed_db_api.try_load_seed_template(seed_variant) {
+            tracing::warn!("Seed client failed to load seed template: {err}");
+            return;
+        }
+
+        if let Err(err) = seed_db_api.login(&demo_user, &demo_pass).await {
+            tracing::warn!("Seed client failed to login on server: {err}");
+            return;
+        }
+
+        if let Err(err) = seed_db_api.seed_all().await {
+            tracing::warn!("Seed client failed to seed database: {err}");
+            return;
+        }
 
         tracing::info!("Seeding finished!");
     });

@@ -15,7 +15,7 @@ pub trait GlobalFaker: Dummy<StdRng> {
     where
         Self: Sized,
     {
-        RNG.with(|rng| Self::dummy(& *rng.borrow_mut()))
+        RNG.with(|rng| Self::dummy(&*rng.borrow_mut()))
     }
 }
 

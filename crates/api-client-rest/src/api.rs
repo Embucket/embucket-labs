@@ -1,9 +1,9 @@
-use crate::requests::error::HttpRequestError;
 use crate::requests::client::{AuthenticatedClient, AuthenticatedRequests};
+use crate::requests::error::HttpRequestError;
 use api_structs::{
     auth::AuthResponse,
     databases::{Database, DatabaseCreatePayload, DatabaseCreateResponse},
-    schemas::{Schema, SchemaCreatePayload, SchemaCreateResponse},
+    schemas::{SchemaCreatePayload, SchemaCreateResponse},
     // tables::{TableUploadPayload, TableUploadResponse},
     volumes::{Volume, VolumeCreatePayload, VolumeCreateResponse},
 };
@@ -26,6 +26,7 @@ pub trait DatabaseClientApi {
 }
 
 impl DatabaseClient {
+    #[must_use]
     pub fn new(addr: SocketAddr) -> Self {
         Self {
             client: AuthenticatedClient::new(addr),
@@ -70,7 +71,10 @@ impl DatabaseClientApi for DatabaseClient {
         self.client
             .generic_request::<SchemaCreatePayload, SchemaCreateResponse>(
                 Method::POST,
-                &format!("http://{}/ui/databases/{database}/schemas", self.client.addr()),
+                &format!(
+                    "http://{}/ui/databases/{database}/schemas",
+                    self.client.addr()
+                ),
                 &SchemaCreatePayload {
                     name: schema.to_string(),
                 },

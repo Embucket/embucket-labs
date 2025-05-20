@@ -1,5 +1,5 @@
 use super::{
-    Generator, WithCount,
+    Generator,
     database::{Database, DatabasesTemplateType},
 };
 use crate::seed::fake_provider::FakeProvider;
@@ -22,12 +22,6 @@ impl Into<api_structs::volumes::Volume> for Volume {
             volume: self.volume_type,
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub enum VolumesTemplateType {
-    Volumes(Vec<Volume>),
-    VolumesTemplate(WithCount<Volume, VolumeGenerator>),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]

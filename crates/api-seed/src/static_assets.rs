@@ -14,7 +14,9 @@ pub fn read_seed_template(
         SeedVariant::Typical => {
             serde_yaml::from_str::<VolumesRoot>(TYPICAL_SEED_DATA).map_err(std::convert::Into::into)
         }
-        _ => serde_yaml::from_str::<VolumesRoot>(TYPICAL_SEED_DATA).map_err(std::convert::Into::into),
+        _ => {
+            serde_yaml::from_str::<VolumesRoot>(TYPICAL_SEED_DATA).map_err(std::convert::Into::into)
+        }
     }
 }
 

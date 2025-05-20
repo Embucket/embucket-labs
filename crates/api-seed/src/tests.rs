@@ -1,16 +1,16 @@
 use crate::seed::rng::{SEED_FOR_RANDOMIZER, init_rng};
-use crate::seed::{VolumesTemplateType, DatabasesTemplateType, SchemasTemplateType, TablesTemplateType, ColumnsTemplateType};
 use crate::seed::{
-    ColumnGenerator, DatabaseGenerator, SchemaGenerator, TableGenerator, VolumeGenerator, VolumesRoot, Volume,
+    ColumnGenerator, DatabaseGenerator, SchemaGenerator, TableGenerator, VolumeGenerator,
+    VolumesRoot,
 };
-use crate::{SeedApi, SeedDatabase, SeedVariant};
+use crate::seed::{
+    ColumnsTemplateType, DatabasesTemplateType, SchemasTemplateType, TablesTemplateType,
+};
 use crate::static_assets::read_seed_template;
+use crate::{SeedApi, SeedDatabase, SeedVariant};
 use api_structs::volumes::{FileVolume, VolumeType};
 
-use crate::seed::{
-    Column, ColumnType, Database, Schema,
-    Table, WithCount,
-};
+use crate::seed::{Column, ColumnType, Database, Schema, Table, WithCount};
 use api_ui::test_server::run_test_server_with_demo_auth;
 
 #[tokio::test]
@@ -22,14 +22,15 @@ async fn test_seed_client() {
     init_rng(SEED_FOR_RANDOMIZER);
 
     let mut seed_db = SeedDatabase::new(addr);
-    seed_db.try_load_seed(SeedVariant::Typical).unwrap();
+    seed_db
+        .try_load_seed_template(SeedVariant::Typical)
+        .expect("Failed to load seed template");
     seed_db
         .login("user1", "pass1")
         .await
         .expect("Failed to login");
     seed_db.seed_all().await.expect("Failed to seed database");
 }
-
 
 #[test]
 fn test_minimal_seed() {
@@ -41,27 +42,19 @@ fn test_minimal_seed() {
             VolumeGenerator {
                 volume_name: Some("minimal".to_string()),
                 volume_type: VolumeType::Memory,
-                databases: DatabasesTemplateType::Databases(vec![
-                    Database {
-                        database_name: "db1".to_string(),
-                        schemas: vec![
-                            Schema {
-                                schema_name: "schema1".to_string(),
-                                tables: vec![
-                                    Table {
-                                        name: "table1".to_string(),
-                                        columns: vec![
-                                            Column {
-                                                col_name: "col1".to_string(),
-                                                col_type: ColumnType::String,
-                                            },
-                                        ],
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                ]),
+                databases: DatabasesTemplateType::Databases(vec![Database {
+                    database_name: "db1".to_string(),
+                    schemas: vec![Schema {
+                        schema_name: "schema1".to_string(),
+                        tables: vec![Table {
+                            name: "table1".to_string(),
+                            columns: vec![Column {
+                                col_name: "col1".to_string(),
+                                col_type: ColumnType::String,
+                            }],
+                        }],
+                    }],
+                }]),
             },
         ],
     };
@@ -69,18 +62,18 @@ fn test_minimal_seed() {
     // Save output of ^^ this to minimal_seed.yaml when changing code ^^
 
     eprintln!(
-        "programmatically created minimal seed: \n{}",
-        serde_yaml::to_string(&seed_root).unwrap()
+        "programmatically created minimal seed template: \n{}",
+        serde_yaml::to_string(&seed_root).expect("Failed to serialize seed template")
     );
 
-    let seed_gen = read_seed_template(SeedVariant::Minimal).expect("Failed to read seed gen");
-    eprintln!("{:#?}", seed_gen);
-    assert_eq!(seed_root, seed_gen);
+    let seed_template =
+        read_seed_template(SeedVariant::Minimal).expect("Failed to read seed template");
+    assert_eq!(seed_root, seed_template);
 
-    let data = seed_gen.generate();
+    let data = seed_template.generate();
     eprintln!(
         "generated seed data: \n{}",
-        serde_yaml::to_string(&data).unwrap()
+        serde_yaml::to_string(&data).expect("Failed to serialize seed data")
     );
 }
 
@@ -164,18 +157,18 @@ fn test_typical_seed() {
     // Save output of ^^ this to typical_seed.yaml when changing code ^^
 
     eprintln!(
-        "programmatically created typical seed: \n{}",
-        serde_yaml::to_string(&seed_root).unwrap()
+        "programmatically created typical seed template: \n{}",
+        serde_yaml::to_string(&seed_root).expect("Failed to serialize seed template")
     );
 
-    let seed_gen = read_seed_template(SeedVariant::Typical).expect("Failed to read seed gen");
-    eprintln!("{:#?}", seed_gen);
-    assert_eq!(seed_root, seed_gen);
+    let seed_template =
+        read_seed_template(SeedVariant::Typical).expect("Failed to read seed template");
+    assert_eq!(seed_root, seed_template);
 
-    let data = seed_gen.generate();
+    let data = seed_template.generate();
     eprintln!(
         "generated seed data: \n{}",
-        serde_yaml::to_string(&data).unwrap()
+        serde_yaml::to_string(&data).expect("Failed to serialize seed data")
     );
 }
 

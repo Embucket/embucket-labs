@@ -6,6 +6,7 @@ use fake::{Fake, Faker, locales::EN};
 pub struct FakeProvider;
 
 impl FakeProvider {
+    #[must_use]
     pub fn person_name() -> String {
         Name(EN).fake()
     }
@@ -17,12 +18,11 @@ impl FakeProvider {
         format!("{}_{}", one.to_lowercase(), two.to_lowercase())
     }
 
-    fn _value_by_type(column_type: ColumnType) -> String {
+    fn _value_by_type(column_type: &ColumnType) -> String {
         match column_type {
-            ColumnType::String => Name(EN).fake(),
+            ColumnType::String | ColumnType::Varchar => Name(EN).fake(),
             ColumnType::Int | ColumnType::Number => format!("{}", Faker.fake::<i32>()),
             ColumnType::Real => format!("{:.2}", Faker.fake::<f32>()),
-            ColumnType::Varchar => Name(EN).fake(),
             ColumnType::Boolean => format!("{}", Faker.fake::<bool>()),
             ColumnType::Date => format!("{}", Faker.fake::<NaiveDate>()),
             _ => String::new(),

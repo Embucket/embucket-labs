@@ -605,7 +605,7 @@ macro_rules! test_query {
             async fn [< query_ $test_fn_name >]() {
                 let ctx = create_df_session().await;
 
-                let mut query = ctx.query($query, crate::query::QueryContext::default());
+                let mut query = ctx.query($query, $crate::query::QueryContext::default());
                 let res = query.execute().await;
                 let sort_all = false $(|| $sort_all)?;
 
