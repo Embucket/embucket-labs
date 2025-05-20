@@ -1,5 +1,5 @@
-use super::error::HttpRequestError;
-use super::error::*;
+#![allow(clippy::expect_used)]
+use super::error::{HttpRequestResult, HttpRequestError, InvalidHeaderValueSnafu, SerializeSnafu};
 use super::helpers::get_set_cookie_name_value_map;
 use super::http::http_req_with_headers;
 use api_structs::auth::{AuthResponse, LoginPayload};
@@ -56,13 +56,15 @@ impl AuthenticatedClient {
     }
 
     fn set_tokens_from_auth_response(&mut self, headers: &HeaderMap, auth_response: &AuthResponse) {
-        let from_set_cookies = get_set_cookie_name_value_map(&headers);
-        self.refresh_token = from_set_cookies.get("refresh_token").unwrap().clone();
-        self.access_token = auth_response.access_token.clone();
+        let from_set_cookies = get_set_cookie_name_value_map(headers);
+        if let Some(refresh_token) = from_set_cookies.get("refresh_token") {
+            self.refresh_token.clone_from(refresh_token);
+        }
+        self.access_token.clone_from(&auth_response.access_token);
     }
 
     fn set_session_id_from_response_headers(&mut self, headers: &HeaderMap) {
-        let from_set_cookies = get_set_cookie_name_value_map(&headers);
+        let from_set_cookies = get_set_cookie_name_value_map(headers);
         self.session_id = from_set_cookies.get("id").cloned();
     }
 
@@ -114,7 +116,7 @@ impl AuthenticatedClient {
         }
 
         let res = http_req_with_headers::<T>(
-            &client,
+            client,
             method,
             headers,
             url,
@@ -140,7 +142,7 @@ impl AuthenticatedRequests for AuthenticatedClient {
     }
 
     async fn login(&mut self, user: &str, password: &str) -> HttpRequestResult<AuthResponse> {
-        let AuthenticatedClient { client, addr, .. } = self;
+        let Self { client, addr, .. } = self;
 
         let login_result = http_req_with_headers::<AuthResponse>(
             client,
@@ -168,7 +170,7 @@ impl AuthenticatedRequests for AuthenticatedClient {
     }
 
     async fn refresh(&mut self) -> HttpRequestResult<AuthResponse> {
-        let AuthenticatedClient {
+        let Self {
             client,
             addr,
             refresh_token,
@@ -230,7 +232,7 @@ impl AuthenticatedRequests for AuthenticatedClient {
         T: serde::de::DeserializeOwned + Send,
     {
         match self
-            .generic_request_no_refresh(method.clone(), &url, payload)
+            .generic_request_no_refresh(method.clone(), url, payload)
             .await
         {
             Ok(t) => Ok(t),
@@ -239,7 +241,7 @@ impl AuthenticatedRequests for AuthenticatedClient {
                 ..
             }) => {
                 let _refresh_resp = self.refresh().await?;
-                self.generic_request_no_refresh(method, &url, payload).await
+                self.generic_request_no_refresh(method, url, payload).await
             }
             Err(err) => Err(err),
         }

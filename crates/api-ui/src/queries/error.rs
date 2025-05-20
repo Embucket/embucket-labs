@@ -8,8 +8,6 @@ use snafu::prelude::*;
 
 pub type QueriesResult<T> = Result<T, QueriesAPIError>;
 
-pub(crate) type QueryRecordResult<T> = Result<T, QueryError>;
-
 // Query itself can have different kinds of errors
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]

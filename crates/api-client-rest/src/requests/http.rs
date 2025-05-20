@@ -18,7 +18,7 @@ pub struct HttpErrorData {
 impl From<HttpErrorData> for HttpRequestError {
     fn from(value: HttpErrorData) -> Self {
         let HttpErrorData { error, status, .. } = value;
-        HttpRequestError::HttpRequest {
+        Self::HttpRequest {
             message: error.to_string(),
             status,
         }

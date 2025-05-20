@@ -1,6 +1,6 @@
 pub mod error;
 pub mod helpers;
 pub mod http;
-pub mod requests;
+pub mod client;
 
-pub use requests::*;
+pub use client::*;

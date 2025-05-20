@@ -165,7 +165,7 @@ pub async fn queries(
             let queries: Vec<QueryRecord> = recs
                 .clone()
                 .into_iter()
-                .map(|query_record| query_record.try_into())
+                .map(std::convert::TryInto::try_into)
                 .filter_map(Result::ok)
                 .collect();
 

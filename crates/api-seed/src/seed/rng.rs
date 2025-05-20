@@ -10,11 +10,12 @@ thread_local! {
 
 /// Faker that uses a thread-local seeded RNG
 pub trait GlobalFaker: Dummy<StdRng> {
+    #[must_use]
     fn fake_global() -> Self
     where
         Self: Sized,
     {
-        RNG.with(|rng| Self::dummy(&mut *rng.borrow_mut()))
+        RNG.with(|rng| Self::dummy(& *rng.borrow_mut()))
     }
 }
 

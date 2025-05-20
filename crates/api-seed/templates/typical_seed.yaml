@@ -17,7 +17,7 @@ volumes:
                 count: 10
                 template:
                   col_name: null
-- volume_name: null
+- volume_name: my memory volume
   volume_type: memory
   databases: !DatabasesTemplate
     count: 1
@@ -30,3 +30,7 @@ volumes:
           columns:
           - col_name: corge
             col_type: number
+- volume_name: empty file volume
+  volume_type: !file
+    path: /tmp/empty_file_volume
+  databases: !Databases []

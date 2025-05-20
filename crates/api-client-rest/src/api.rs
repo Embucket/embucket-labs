@@ -1,14 +1,13 @@
 use crate::requests::error::HttpRequestError;
-use crate::requests::requests::{AuthenticatedClient, AuthenticatedRequests};
+use crate::requests::client::{AuthenticatedClient, AuthenticatedRequests};
 use api_structs::{
     auth::AuthResponse,
     databases::{Database, DatabaseCreatePayload, DatabaseCreateResponse},
     schemas::{Schema, SchemaCreatePayload, SchemaCreateResponse},
-    tables::{TableUploadPayload, TableUploadResponse},
+    // tables::{TableUploadPayload, TableUploadResponse},
     volumes::{Volume, VolumeCreatePayload, VolumeCreateResponse},
 };
 use http::Method;
-use snafu::{ResultExt, Snafu};
 use std::net::SocketAddr;
 
 pub type ApiClientResult<T> = Result<T, HttpRequestError>;
@@ -69,8 +68,15 @@ impl DatabaseClientApi for DatabaseClient {
 
     async fn create_schema(&mut self, database: &str, schema: &str) -> ApiClientResult<()> {
         self.client
-            .query(&format!("CREATE SCHEMA {database}.{schema}"))
-            .await
+            .generic_request::<SchemaCreatePayload, SchemaCreateResponse>(
+                Method::POST,
+                &format!("http://{}/ui/databases/{database}/schemas", self.client.addr()),
+                &SchemaCreatePayload {
+                    name: schema.to_string(),
+                },
+            )
+            .await?;
+        Ok(())
     }
 
     // async fn upload_to_table(&self, database: &str, schema: &str, table: &str) -> ApiClientResult<TableUploadResponse> {

@@ -1,0 +1,12 @@
+volumes:
+- volume_name: minimal
+  volume_type: memory
+  databases: !Databases
+  - database_name: db1
+    schemas:
+    - schema_name: schema1
+      tables:
+      - name: table1
+        columns:
+        - col_name: col1
+          col_type: string

@@ -3,15 +3,16 @@ use crate::seed::fake_provider::FakeProvider;
 use rand::{rng, seq::IndexedRandom};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Column {
     pub col_name: String,
     pub col_type: ColumnType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum ColumnType {
+    String,
     Number,
     Real,
     Varchar,
@@ -24,7 +25,8 @@ pub enum ColumnType {
     Array,
 }
 
-const COLUMN_TYPES: [ColumnType; 10] = [
+const COLUMN_TYPES: [ColumnType; 11] = [
+    ColumnType::String,
     ColumnType::Number,
     ColumnType::Real,
     ColumnType::Varchar,
@@ -37,13 +39,13 @@ const COLUMN_TYPES: [ColumnType; 10] = [
     ColumnType::Array,
 ];
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ColumnsTemplateType {
     Columns(Vec<Column>),
     ColumnsTemplate(WithCount<Column, ColumnGenerator>),
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ColumnGenerator {
     pub col_name: Option<String>, // if None value will be generated
 }
@@ -57,7 +59,7 @@ impl Generator<Column> for ColumnGenerator {
             col_name: self
                 .col_name
                 .clone()
-                .unwrap_or_else(|| FakeProvider::entity_name()),
+                .unwrap_or_else(FakeProvider::entity_name),
             col_type: col_type.clone(),
         }
     }

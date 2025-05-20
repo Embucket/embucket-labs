@@ -19,6 +19,7 @@ rand = "0.9.1"
 serde_json = { workspace = true }
 chrono = { workspace = true }
 tokio = { workspace = true }
+clap = { version = "4.5.27", features = ["env", "derive"] }
 
 [dev-dependencies]
 api-ui = { path = "../api-ui" }

@@ -6,6 +6,7 @@ use object_store::{
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use api_seed::SeedVariant;
 
 #[derive(Parser)]
 #[command(version, about, long_about=None)]
@@ -163,6 +164,13 @@ pub struct CliOpts {
         help = "Password for auth demo"
     )]
     pub auth_demo_password: Option<String>,
+    #[arg(
+        long,
+        value_enum,
+        env = "SEED_DATA_VARIANT",
+        help = "Seed variant for seeding database"
+    )]
+    pub seed_data_variant: Option<SeedVariant>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

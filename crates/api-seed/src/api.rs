@@ -2,9 +2,12 @@ use snafu::ResultExt;
 use std::net::SocketAddr;
 
 use super::error::{LoadSeedSnafu, RequestSnafu, SeedResult};
-use crate::seed::{Volume, read_seed_template};
+use crate::seed::Volume;
+use crate::static_assets::read_seed_template;
 use api_client_rest::api::{DatabaseClient, DatabaseClientApi};
+use clap::ValueEnum;
 
+#[derive(Copy, Clone, ValueEnum)]
 pub enum SeedVariant {
     Minimal,
     Typical,

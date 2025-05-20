@@ -1,6 +1,5 @@
 use api_structs::column_info::ColumnInfo as ColumnInfo_;
 use datafusion::arrow::array::RecordBatch;
-use datafusion::arrow::datatypes::{DataType, Field, TimeUnit};
 
 // to keep existing imports unchanged
 pub type ColumnInfo = ColumnInfo_;
@@ -16,7 +15,7 @@ pub struct QueryResultData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datafusion::arrow::datatypes::TimeUnit;
+    use datafusion::arrow::datatypes::{DataType, Field, TimeUnit};
 
     #[tokio::test]
     #[allow(clippy::unwrap_used)]

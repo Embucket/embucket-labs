@@ -1,14 +1,15 @@
 use crate::seed::rng::{SEED_FOR_RANDOMIZER, init_rng};
+use crate::seed::{VolumesTemplateType, DatabasesTemplateType, SchemasTemplateType, TablesTemplateType, ColumnsTemplateType};
 use crate::seed::{
-    ColumnGenerator, DatabaseGenerator, SchemaGenerator, TableGenerator, VolumeGenerator,
-    VolumesRoot, read_seed_template,
+    ColumnGenerator, DatabaseGenerator, SchemaGenerator, TableGenerator, VolumeGenerator, VolumesRoot, Volume,
 };
 use crate::{SeedApi, SeedDatabase, SeedVariant};
+use crate::static_assets::read_seed_template;
 use api_structs::volumes::{FileVolume, VolumeType};
 
 use crate::seed::{
-    Column, ColumnType, ColumnsTemplateType, Database, DatabasesTemplateType, Schema,
-    SchemasTemplateType, Table, TablesTemplateType, WithCount,
+    Column, ColumnType, Database, Schema,
+    Table, WithCount,
 };
 use api_ui::test_server::run_test_server_with_demo_auth;
 
@@ -29,9 +30,64 @@ async fn test_seed_client() {
     seed_db.seed_all().await.expect("Failed to seed database");
 }
 
+
 #[test]
-fn test_super_gen() {
+fn test_minimal_seed() {
     init_rng(SEED_FOR_RANDOMIZER);
+    // Create root to serialize it to yaml and add to a template file
+    let seed_root = VolumesRoot {
+        volumes: vec![
+            // expected static data, no enums expected
+            VolumeGenerator {
+                volume_name: Some("minimal".to_string()),
+                volume_type: VolumeType::Memory,
+                databases: DatabasesTemplateType::Databases(vec![
+                    Database {
+                        database_name: "db1".to_string(),
+                        schemas: vec![
+                            Schema {
+                                schema_name: "schema1".to_string(),
+                                tables: vec![
+                                    Table {
+                                        name: "table1".to_string(),
+                                        columns: vec![
+                                            Column {
+                                                col_name: "col1".to_string(),
+                                                col_type: ColumnType::String,
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ]),
+            },
+        ],
+    };
+
+    // Save output of ^^ this to minimal_seed.yaml when changing code ^^
+
+    eprintln!(
+        "programmatically created minimal seed: \n{}",
+        serde_yaml::to_string(&seed_root).unwrap()
+    );
+
+    let seed_gen = read_seed_template(SeedVariant::Minimal).expect("Failed to read seed gen");
+    eprintln!("{:#?}", seed_gen);
+    assert_eq!(seed_root, seed_gen);
+
+    let data = seed_gen.generate();
+    eprintln!(
+        "generated seed data: \n{}",
+        serde_yaml::to_string(&data).unwrap()
+    );
+}
+
+#[test]
+fn test_typical_seed() {
+    init_rng(SEED_FOR_RANDOMIZER);
+    // Create root to serialize it to yaml and add to a template file
     let seed_root = VolumesRoot {
         volumes: vec![
             VolumeGenerator {
@@ -73,7 +129,7 @@ fn test_super_gen() {
                 )),
             },
             VolumeGenerator {
-                volume_name: None,
+                volume_name: Some("my memory volume".to_string()),
                 volume_type: VolumeType::Memory,
                 databases: DatabasesTemplateType::DatabasesTemplate(WithCount::<
                     Database,
@@ -95,13 +151,20 @@ fn test_super_gen() {
                     },
                 )),
             },
+            VolumeGenerator {
+                volume_name: Some("empty file volume".to_string()),
+                volume_type: VolumeType::File(FileVolume {
+                    path: "/tmp/empty_file_volume".to_string(),
+                }),
+                databases: DatabasesTemplateType::Databases(vec![]),
+            },
         ],
     };
 
     // Save output of ^^ this to typical_seed.yaml when changing code ^^
 
     eprintln!(
-        "programmatically created #1: \n{}",
+        "programmatically created typical seed: \n{}",
         serde_yaml::to_string(&seed_root).unwrap()
     );
 
@@ -109,7 +172,6 @@ fn test_super_gen() {
     eprintln!("{:#?}", seed_gen);
     assert_eq!(seed_root, seed_gen);
 
-    eprintln!("loaded from file: {:#?}", seed_gen);
     let data = seed_gen.generate();
     eprintln!(
         "generated seed data: \n{}",

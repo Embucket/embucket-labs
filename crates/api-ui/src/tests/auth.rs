@@ -8,7 +8,6 @@ use crate::tests::server::run_test_server_with_demo_auth;
 use api_client_rest::requests::http::{HttpErrorData, http_req_with_headers};
 use api_structs::auth::{AuthResponse, LoginPayload};
 use api_structs::query::QueryCreatePayload;
-use core_metastore::RwObject;
 use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use serde_json::json;
 use std::collections::HashMap;
@@ -18,8 +17,6 @@ use time::Duration;
 const JWT_SECRET: &str = "test";
 const DEMO_USER: &str = "demo_user";
 const DEMO_PASSWORD: &str = "demo_password";
-
-pub type RwObjectVec<T> = Vec<RwObject<T>>;
 
 #[allow(clippy::explicit_iter_loop)]
 fn get_set_cookie_from_response_headers(
