@@ -185,6 +185,7 @@ impl IntoResponse for AuthError {
                 }),
             )
                 .into_response(),
+            // statuc_code=500 if no www-authenticate
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(AuthErrorResponse {

@@ -16,7 +16,7 @@ use api_ui::test_server::run_test_server_with_demo_auth;
 #[tokio::test]
 async fn test_seed_client() {
     let addr =
-        run_test_server_with_demo_auth(String::new(), "user1".to_string(), "pass1".to_string())
+        run_test_server_with_demo_auth("secret".to_string(), "user1".to_string(), "pass1".to_string())
             .await;
 
     init_rng(SEED_FOR_RANDOMIZER);

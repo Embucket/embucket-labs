@@ -39,7 +39,7 @@ pub async fn run_test_server_with_demo_auth(
         &WebConfig {
             port: 3000,
             host: "0.0.0.0".to_string(),
-            allow_origin: None,
+            allow_origin: Some(format!("http://{addr}")),
         },
         auth_config,
     )
