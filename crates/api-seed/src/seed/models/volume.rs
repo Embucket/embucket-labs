@@ -1,7 +1,10 @@
-use serde::{Deserialize, Serialize};
-use super::{Generator, database::{Database, DatabasesTemplateType}};
+use super::{
+    Generator,
+    database::{Database, DatabasesTemplateType},
+};
 use crate::seed::fake_provider::FakeProvider;
 use api_structs::volumes::VolumeType;
+use serde::{Deserialize, Serialize};
 
 // This is different from metastore's equivalent
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,7 +23,7 @@ impl Into<api_structs::volumes::Volume> for Volume {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct VolumeGenerator {
     pub volume_name: Option<String>, // if None value will be generated
     pub volume_type: VolumeType,

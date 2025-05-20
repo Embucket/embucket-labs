@@ -1,19 +1,19 @@
-pub mod volume;
-pub mod schema;
-pub mod database;
-pub mod table;
 pub mod column;
+pub mod database;
+pub mod schema;
+pub mod table;
+pub mod volume;
 
-pub use volume::*;
-pub use schema::*;
-pub use database::*;
-pub use table::*;
 pub use column::*;
+pub use database::*;
+pub use schema::*;
+pub use table::*;
+pub use volume::*;
 
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct VolumesRoot {
     pub volumes: Vec<VolumeGenerator>,
 }
@@ -33,7 +33,7 @@ pub trait Generator<T> {
     fn generate(&self, index: usize) -> T;
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct WithCount<T, G>
 where
     G: Generator<T>,
@@ -59,8 +59,6 @@ where
     // create items for template, item index is just for reference
     pub fn vec_with_count(&self, index: usize) -> Vec<T> {
         // call generate n times
-        (0..self.count)
-            .map(|i| self.template.generate(i))
-            .collect()
+        (0..self.count).map(|i| self.template.generate(i)).collect()
     }
 }

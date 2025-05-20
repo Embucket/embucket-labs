@@ -263,18 +263,23 @@ fn load_openapi_spec() -> Option<openapi::OpenApi> {
     Some(original_spec)
 }
 
-#[allow(clippy::unwrap_used, clippy::as_conversions)]
 pub async fn start_seed_server_task(addr: SocketAddr, demo_user: String, demo_pass: String) {
     tokio::spawn(async move {
         // Wait a short time to ensure server is up
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
-        let mut seed_db_api: Box<dyn api_seed::SeedApi + Send> = Box::new(api_seed::SeedDatabase::new(addr));
-        seed_db_api.try_load_seed(api_seed::SeedVariant::Minimal)
+        let mut seed_db_api: Box<dyn api_seed::SeedApi + Send> =
+            Box::new(api_seed::SeedDatabase::new(addr));
+        seed_db_api
+            .try_load_seed(api_seed::SeedVariant::Minimal)
             .expect("Failed to load seed data");
-        seed_db_api.login(&demo_user, &demo_pass)
+        seed_db_api
+            .login(&demo_user, &demo_pass)
             .await
             .expect("Failed to start seed server");
-        seed_db_api.create_volumes().await.expect("Failed to create volumes");
+        seed_db_api
+            .seed_all()
+            .await
+            .expect("Failed to seed database");
     });
 }

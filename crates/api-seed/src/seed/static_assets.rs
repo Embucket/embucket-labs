@@ -1,19 +1,18 @@
-use super::models::{VolumesRoot, Volume, VolumeGenerator};
+use crate::SeedVariant;
 
-const SEED_DATA: &str = include_str!("../../templates/seed.yaml");
-const GEN_DATA: &str = include_str!("../../templates/gen.yaml");
-const VOLUMES_ROOT_DATA: &str = include_str!("../../templates/volumes.yaml");
+use super::models::VolumesRoot;
 
-pub fn read_seed_template() -> Result<Volume, Box<dyn std::error::Error>> {
-    serde_yaml::from_str::<Volume>(SEED_DATA).map_err(|e| e.into())
-}
+const TYPICAL_SEED_DATA: &str = include_str!("../../templates/typical_seed.yaml");
 
-pub fn read_gen_template() -> Result<VolumeGenerator, Box<dyn std::error::Error>> {
-    serde_yaml::from_str::<VolumeGenerator>(GEN_DATA).map_err(|e| e.into())
-}
-
-pub fn read_volumes_template() -> Result<VolumesRoot, Box<dyn std::error::Error>> {
-    serde_yaml::from_str::<VolumesRoot>(VOLUMES_ROOT_DATA).map_err(|e| e.into())
+pub fn read_seed_template(
+    seed_variant: SeedVariant,
+) -> Result<VolumesRoot, Box<dyn std::error::Error>> {
+    match seed_variant {
+        SeedVariant::Typical => {
+            serde_yaml::from_str::<VolumesRoot>(TYPICAL_SEED_DATA).map_err(|e| e.into())
+        }
+        _ => serde_yaml::from_str::<VolumesRoot>(TYPICAL_SEED_DATA).map_err(|e| e.into()),
+    }
 }
 
 // pub fn generate_seed() -> Result<String, Box<dyn std::error::Error>> {

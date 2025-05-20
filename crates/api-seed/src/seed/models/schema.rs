@@ -1,22 +1,25 @@
-use serde::{Deserialize, Serialize};
-use super::{Generator, WithCount, table::{Table, TablesTemplateType}};
+use super::{
+    Generator, WithCount,
+    table::{Table, TablesTemplateType},
+};
 use crate::seed::fake_provider::FakeProvider;
+use serde::{Deserialize, Serialize};
 
 ///// Schema
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Schema {
     pub schema_name: String,
     pub tables: Vec<Table>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum SchemasTemplateType {
     Schemas(Vec<Schema>),
-    SchemasTemplate(WithCount<Schema, SchemaGenerator>)
+    SchemasTemplate(WithCount<Schema, SchemaGenerator>),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct SchemaGenerator {
     pub schema_name: Option<String>, // if None value will be generated
     pub tables: TablesTemplateType,
@@ -25,7 +28,8 @@ pub struct SchemaGenerator {
 impl Generator<Schema> for SchemaGenerator {
     fn generate(&self, index: usize) -> Schema {
         Schema {
-            schema_name: self.schema_name
+            schema_name: self
+                .schema_name
                 .clone()
                 .unwrap_or_else(|| FakeProvider::entity_name()),
             tables: match &self.tables {

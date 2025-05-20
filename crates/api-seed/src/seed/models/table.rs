@@ -1,22 +1,25 @@
-use serde::{Deserialize, Serialize};
-use super::{Generator, WithCount, column::{Column, ColumnsTemplateType}};
+use super::{
+    Generator, WithCount,
+    column::{Column, ColumnsTemplateType},
+};
 use crate::seed::fake_provider::FakeProvider;
+use serde::{Deserialize, Serialize};
 
 ///// Table
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Table {
     pub name: String,
     pub columns: Vec<Column>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum TablesTemplateType {
     Tables(Vec<Table>),
-    TablesTemplate(WithCount<Table, TableGenerator>)
+    TablesTemplate(WithCount<Table, TableGenerator>),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct TableGenerator {
     pub name: Option<String>, // if None value will be generated
     pub columns: ColumnsTemplateType,
@@ -25,7 +28,8 @@ pub struct TableGenerator {
 impl Generator<Table> for TableGenerator {
     fn generate(&self, index: usize) -> Table {
         Table {
-            name: self.name
+            name: self
+                .name
                 .clone()
                 .unwrap_or_else(|| FakeProvider::entity_name()),
             columns: match &self.columns {
