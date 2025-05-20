@@ -85,3 +85,27 @@ fn downcast_int64_column<'a>(
             source: DataFusionError::Internal(format!("Missing or invalid column: '{name}'")),
         })
 }
+
+fn apply_other_parameters(
+    sql_string: &str,
+    parameters: SearchParameters,
+    order_by_default: &str,
+) -> String {
+    let sql_string = parameters.order_by.map_or_else(
+        || format!("{sql_string} ORDER BY {order_by_default}"),
+        |order_by| format!("{sql_string} ORDER BY {order_by}"),
+    );
+    let sql_string = parameters.order_direction.map_or_else(
+        || format!("{sql_string} DESC"),
+        |order_direction| format!("{sql_string} {order_direction}"),
+    );
+    let sql_string = parameters.offset.map_or_else(
+        || sql_string.clone(),
+        |offset| format!("{sql_string} OFFSET {offset}"),
+    );
+
+    parameters.limit.map_or_else(
+        || sql_string.clone(),
+        |limit| format!("{sql_string} LIMIT {limit}"),
+    )
+}
