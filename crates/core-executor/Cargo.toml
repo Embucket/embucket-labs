@@ -10,7 +10,7 @@ core-metastore = { path = "../core-metastore" }
 core-history = {  path = "../core-history" }
 df-builtins = { path = "../df-builtins" }
 df-catalog = { path = "../df-catalog" }
-
+visitors = { path = "../visitors" }
 async-trait = { workspace = true }
 aws-config = { workspace = true }
 aws-credential-types = { workspace = true }

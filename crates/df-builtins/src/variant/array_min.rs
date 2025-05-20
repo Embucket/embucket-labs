@@ -1,14 +1,14 @@
 use super::super::macros::make_udf_function;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::array::Array;
-use datafusion_common::types::{logical_binary, logical_string, NativeType};
+use datafusion::arrow::array::cast::AsArray;
+use datafusion::arrow::datatypes::DataType;
+use datafusion_common::types::{NativeType, logical_binary, logical_string};
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     Coercion, ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature,
     TypeSignatureClass, Volatility,
 };
-use serde_json::{from_slice, Value};
+use serde_json::{Value, from_slice};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -171,10 +171,10 @@ make_udf_function!(ArrayMinUDF);
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::variant::array_construct::ArrayConstructUDF;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion_expr::ScalarUDF;
-    use crate::variant::array_construct::ArrayConstructUDF;
 
     #[tokio::test]
     async fn test_array_min() -> DFResult<()> {

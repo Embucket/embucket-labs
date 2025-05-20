@@ -1,0 +1,15 @@
+[package]
+name = "visitors"
+version = "0.1.0"
+edition = "2024"
+license-file.workspace = true
+
+[dependencies]
+datafusion = { workspace = true }
+datafusion-expr = { workspace = true }
+sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "ed416548dcfe4a73a3240bbf625fb9010a4925c8", features = [
+    "visitor",
+] }
+
+[lints]
+workspace = true

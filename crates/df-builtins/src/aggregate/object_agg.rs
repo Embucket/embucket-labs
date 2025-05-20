@@ -4,18 +4,18 @@ use std::any::Any;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use datafusion::arrow::array::as_list_array;
-use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::arrow::array::StringArray;
-use datafusion::arrow::array::{new_empty_array, Array};
+use datafusion::arrow::array::as_list_array;
+use datafusion::arrow::array::{Array, new_empty_array};
 use datafusion::arrow::array::{ArrayRef, StructArray};
+use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::ScalarValue;
 
 use datafusion_common::utils::SingleRowListArrayBuilder;
-use datafusion_common::{exec_err, internal_err, DataFusionError, Result};
+use datafusion_common::{DataFusionError, Result, exec_err, internal_err};
+use datafusion_expr::Volatility;
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
 use datafusion_expr::utils::format_state_name;
-use datafusion_expr::Volatility;
 use datafusion_expr::{Accumulator, AggregateUDFImpl, Signature};
 
 #[derive(Debug, Clone)]
@@ -252,9 +252,9 @@ mod tests {
     use super::*;
     use datafusion::arrow::datatypes::{Field, Schema};
     use datafusion::physical_expr::LexOrdering;
-    use datafusion_common::{internal_err, Result};
-    use datafusion_physical_plan::expressions::Column;
+    use datafusion_common::{Result, internal_err};
     use datafusion_physical_plan::Accumulator;
+    use datafusion_physical_plan::expressions::Column;
     use serde_json::json;
     use serde_json::{Map as JsonMap, Value as JsonValue};
     use std::sync::Arc;

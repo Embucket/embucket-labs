@@ -1,12 +1,12 @@
 use super::super::macros::make_udf_function;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::array::Array;
+use datafusion::arrow::array::cast::AsArray;
+use datafusion::arrow::datatypes::DataType;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{from_str, to_string, Value};
+use serde_json::{Value, from_str, to_string};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -184,10 +184,10 @@ make_udf_function!(ArrayRemoveAtUDF);
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::variant::array_construct::ArrayConstructUDF;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion_expr::ScalarUDF;
-    use crate::variant::array_construct::ArrayConstructUDF;
 
     #[tokio::test]
     async fn test_array_remove_at() -> DFResult<()> {

@@ -69,14 +69,14 @@ pub fn visit(stmt: &mut Statement) {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::variant::array_compact::ArrayCompactUDF;
+    use crate::variant::array_construct::ArrayConstructUDF;
+    use crate::visitors::variant::variant_element;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion::sql::parser::Statement as DFStatement;
     use datafusion_common::Result as DFResult;
     use datafusion_expr::ScalarUDF;
-    use crate::variant::array_compact::ArrayCompactUDF;
-    use crate::variant::array_construct::ArrayConstructUDF;
-    use crate::visitors::variant::variant_element;
 
     #[tokio::test]
     async fn test_array_agg_rewrite() -> DFResult<()> {
@@ -85,7 +85,7 @@ mod tests {
 
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));
         ctx.register_udf(ScalarUDF::from(ArrayCompactUDF::new()));
-        
+
         // Create table and insert data
         let create_sql = "CREATE TABLE test_table (id INT, val INT)";
         let mut create_stmt = ctx.state().sql_to_statement(create_sql, "snowflake")?;

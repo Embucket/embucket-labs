@@ -1,18 +1,20 @@
 #![allow(clippy::needless_pass_by_value, clippy::unnecessary_wraps)]
 
+use base64::engine::Engine;
 use datafusion::arrow::array::AsArray;
-use datafusion::arrow::array::{Array, ArrayRef, BooleanArray, NullArray, PrimitiveArray, StringArray};
+use datafusion::arrow::array::{
+    Array, ArrayRef, BooleanArray, NullArray, PrimitiveArray, StringArray,
+};
 use datafusion::arrow::datatypes::{
     DataType, Date32Type, Date64Type, Decimal128Type, Decimal256Type, DurationMicrosecondType,
     DurationMillisecondType, DurationNanosecondType, DurationSecondType, Float16Type, Float32Type,
-    Float64Type, Int16Type, Int32Type, Int64Type, Int8Type, IntervalDayTimeType,
+    Float64Type, Int8Type, Int16Type, Int32Type, Int64Type, IntervalDayTimeType,
     IntervalMonthDayNanoType, IntervalUnit, IntervalYearMonthType, Time32MillisecondType,
     Time32SecondType, Time64MicrosecondType, Time64NanosecondType, TimeUnit,
     TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
-    TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
+    TimestampSecondType, UInt8Type, UInt16Type, UInt32Type, UInt64Type,
 };
 use datafusion::arrow::error::ArrowError;
-use base64::engine::Engine;
 use datafusion_common::ScalarValue;
 use datafusion_expr::ColumnarValue;
 use serde_json::{Map, Number, Value as JsonValue};
@@ -902,7 +904,7 @@ pub fn encode_columnar_value(value: &ColumnarValue) -> Result<JsonValue, ArrowEr
 mod tests {
     use super::*;
     use datafusion::arrow::array::*;
-    use datafusion::arrow::datatypes::{i256, Field};
+    use datafusion::arrow::datatypes::{Field, i256};
     use datafusion::arrow::datatypes::{IntervalDayTime, IntervalMonthDayNano};
 
     #[test]

@@ -8,6 +8,5 @@ pub mod planner;
 pub mod query_planner;
 pub mod rewriters;
 pub mod type_planner;
-pub mod visitors;
 
 pub use df_builtins as functions;

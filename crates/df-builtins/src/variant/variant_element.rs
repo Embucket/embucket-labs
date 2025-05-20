@@ -205,11 +205,11 @@ make_udf_function!(VariantArrayElementUDF);
 mod tests {
     use super::super::array_construct::ArrayConstructUDF;
     use super::*;
-    use crate::visitors::variant::variant_element;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion::sql::parser::Statement;
     use datafusion_expr::ScalarUDF;
+    use visitors::variant::variant_element;
     #[tokio::test]
     async fn test_array_indexing() -> DFResult<()> {
         let ctx = SessionContext::new();

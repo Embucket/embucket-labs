@@ -112,10 +112,10 @@ make_udf_function!(ArrayConstructUDF);
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::variant::array_cat::ArrayCatUDF;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion_expr::ScalarUDF;
-    use crate::variant::array_cat::ArrayCatUDF;
 
     #[tokio::test]
     async fn test_array_construct() -> DFResult<()> {

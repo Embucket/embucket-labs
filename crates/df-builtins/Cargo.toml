@@ -5,6 +5,7 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+visitors = { path = "../visitors" }
 chrono = { workspace = true }
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }

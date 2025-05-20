@@ -54,19 +54,18 @@ pub fn visit(stmt: &mut Statement) {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::variant::array_construct::ArrayConstructUDF;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion::sql::parser::Statement as DFStatement;
     use datafusion_common::Result as DFResult;
     use datafusion_expr::ScalarUDF;
-    use crate::variant::array_construct::ArrayConstructUDF;
 
     #[tokio::test]
     async fn test_array_construct_rewrite() -> DFResult<()> {
         let mut ctx = SessionContext::new();
         // Register array_construct UDF
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));
-
 
         // Test simple array construction
         let sql = "SELECT [1, 2, 3] as arr";

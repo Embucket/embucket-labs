@@ -1,12 +1,12 @@
 use super::super::macros::make_udf_function;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::array::Array;
+use datafusion::arrow::array::cast::AsArray;
+use datafusion::arrow::datatypes::DataType;
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{from_str, to_string, Value};
+use serde_json::{Value, from_str, to_string};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -134,7 +134,7 @@ impl ScalarUDFImpl for ObjectInsertUDF {
                         None => {
                             return Err(datafusion_common::error::DataFusionError::Internal(
                                 "Expected array for scalar value".to_string(),
-                            ))
+                            ));
                         }
                     }
                 } else {
@@ -146,7 +146,7 @@ impl ScalarUDFImpl for ObjectInsertUDF {
             ColumnarValue::Array(_) => {
                 return Err(datafusion_common::error::DataFusionError::Internal(
                     "Key argument must be a scalar value".to_string(),
-                ))
+                ));
             }
         };
 
@@ -162,7 +162,7 @@ impl ScalarUDFImpl for ObjectInsertUDF {
                         None => {
                             return Err(datafusion_common::error::DataFusionError::Internal(
                                 "Expected array for scalar value".to_string(),
-                            ))
+                            ));
                         }
                     }
                 } else {
@@ -174,7 +174,7 @@ impl ScalarUDFImpl for ObjectInsertUDF {
             ColumnarValue::Array(_) => {
                 return Err(datafusion_common::error::DataFusionError::Internal(
                     "Value argument must be a scalar value".to_string(),
-                ))
+                ));
             }
         };
 

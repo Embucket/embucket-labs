@@ -72,13 +72,13 @@ pub fn visit(stmt: &mut Statement) {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::variant::array_compact::ArrayCompactUDF;
+    use crate::variant::array_construct::ArrayConstructUDF;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion::sql::parser::Statement as DFStatement;
     use datafusion_common::Result as DFResult;
     use datafusion_expr::ScalarUDF;
-    use crate::variant::array_compact::ArrayCompactUDF;
-    use crate::variant::array_construct::ArrayConstructUDF;
 
     #[tokio::test]
     async fn test_array_construct_compact_rewrite() -> DFResult<()> {
