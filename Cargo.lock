@@ -234,7 +234,9 @@ version = "0.1.0"
 dependencies = [
  "api-client-rest",
  "api-structs",
+ "api-ui",
  "async-trait",
+ "chrono",
  "fake",
  "http 1.3.1",
  "rand 0.9.1",
@@ -243,6 +245,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "snafu",
+ "tokio",
 ]
 
 [[package]]
@@ -2969,6 +2972,7 @@ version = "4.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f5f203b70a419cb8880d1cfe6bebe488add0a0307d404e9f24021e5fd864b80"
 dependencies = [
+ "chrono",
  "deunicode",
  "rand 0.9.1",
 ]

@@ -1,6 +1,8 @@
-use super::error::{SeedResult, LoadSeedSnafu, RequestSnafu};
-use crate::seed::{Volume, read_super_template};
+use std::net::SocketAddr;
 use snafu::ResultExt;
+
+use super::error::{SeedResult, LoadSeedSnafu, RequestSnafu};
+use crate::seed::{Volume, read_volumes_template};
 use api_client_rest::{AuthenticatedClient, api::{DatabaseClient, DatabaseClientApi}};
 
 pub enum SeedVariant {
@@ -11,28 +13,25 @@ pub enum SeedVariant {
 }
 
 pub struct SeedDatabase {
-    seed_data: Option<Volume>,
-    client: Box<dyn DatabaseClientApi + Send>,
+    pub seed_data: Vec<Volume>,
+    pub client: Box<dyn DatabaseClientApi + Send>,
 }
 
 impl SeedDatabase {
     #[must_use]
-    pub fn new(client: DatabaseClient) -> Self {
+    pub fn new(addr: SocketAddr) -> Self {
         Self {
-            seed_data: None,
-            client: Box::new(client),
+            seed_data: vec![],
+            client: Box::new(DatabaseClient::new(addr)),
         }
-    }
-
-    pub fn try_load_seed(&mut self, _seed_variant: SeedVariant) -> SeedResult<()> {
-        let raw_seed_data = read_super_template().context(LoadSeedSnafu)?;
-        self.seed_data = Some(raw_seed_data.materialize());
-        Ok(())
     }
 }
 #[async_trait::async_trait]
 pub trait SeedApi {
-    async fn create_volumes(mut self) -> SeedResult<()>;
+    fn try_load_seed(&mut self, _seed_variant: SeedVariant) -> SeedResult<()>;
+
+    async fn login(&mut self, username: &str, password: &str) -> SeedResult<()>;
+    async fn create_volumes(&mut self) -> SeedResult<()>;
     // async fn create_databases(&self) -> SeedResult<()>;
     // async fn create_schemas(&self) -> SeedResult<()>;
     // async fn create_tables(&self) -> SeedResult<()>;
@@ -41,9 +40,20 @@ pub trait SeedApi {
 
 #[async_trait::async_trait]
 impl SeedApi for SeedDatabase {
-    async fn create_volumes(mut self) -> SeedResult<()> {
-        if let Some(seed_volume) = self.seed_data {
-            let volume: api_structs::volumes::Volume = seed_volume.into();
+    fn try_load_seed(&mut self, _seed_variant: SeedVariant) -> SeedResult<()> {
+        let raw_seed_data = read_volumes_template().context(LoadSeedSnafu)?;
+        self.seed_data = raw_seed_data.generate();
+        Ok(())
+    }
+
+    async fn login(&mut self, username: &str, password: &str) -> SeedResult<()> {
+        self.client.login(username, password).await.context(RequestSnafu)?;
+        Ok(())
+    }
+    
+    async fn create_volumes(&mut self) -> SeedResult<()> {
+        for seed_volume in &self.seed_data {
+            let volume: api_structs::volumes::Volume = seed_volume.clone().into();
             self.client
                 .create_volume(volume)
                 .await

@@ -10,9 +10,9 @@ pub mod router;
 pub mod schemas;
 pub mod state;
 pub mod tables;
+pub mod test_server; // moved from cfg(test) as oterwise can be used from another crate
 
-#[cfg(test)]
-pub mod tests;
+#[cfg(test)] mod tests;
 pub mod volumes;
 pub mod web_assets;
 pub mod worksheets;

@@ -1,0 +1,33 @@
+volumes:
+- volume_name: test
+  volume_type: memory
+  databases: !DatabasesTemplate
+    count: 2
+    template:
+      database_name: static
+      schemas: !SchemasTemplate
+        count: 3
+        template:
+          schema_name: null
+          tables: !TablesTemplate
+            count: 5
+            template:
+              name: null
+              columns: !ColumnsTemplate
+                count: 10
+                template:
+                  col_name: null
+- volume_name: null
+  volume_type: !file
+    path: /tmp/seed_test
+  databases: !DatabasesTemplate
+    count: 2
+    template:
+      database_name: null
+      schemas: !Schemas
+      - schema_name: bar
+        tables:
+        - name: quux
+          columns:
+          - col_name: corge
+            col_type: number

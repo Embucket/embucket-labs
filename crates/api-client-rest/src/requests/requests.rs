@@ -21,6 +21,8 @@ pub struct AuthenticatedClient {
 
 #[async_trait::async_trait]
 pub trait AuthenticatedRequests {
+    fn addr(&self) -> SocketAddr;
+
     /// should login before run queries
     async fn login(&mut self, user: &str, password: &str) -> HttpRequestResult<AuthResponse>;
 
@@ -133,6 +135,10 @@ impl AuthenticatedClient {
 
 #[async_trait::async_trait]
 impl AuthenticatedRequests for AuthenticatedClient {
+    fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
     async fn login(&mut self, user: &str, password: &str) -> HttpRequestResult<AuthResponse> {
         let AuthenticatedClient { client, addr, .. } = self;
 

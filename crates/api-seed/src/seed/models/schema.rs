@@ -1,26 +1,40 @@
 use serde::{Deserialize, Serialize};
-use super::{Generator, WithCount, table::{Table, TableGenerator}};
+use super::{Generator, WithCount, table::{Table, TablesTemplateType}};
 use crate::seed::fake_provider::FakeProvider;
 
 ///// Schema
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Schema {
-    name: String,
-    tables: Vec<Table>,
+    pub schema_name: String,
+    pub tables: Vec<Table>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum SchemasTemplateType {
+    Schemas(Vec<Schema>),
+    SchemasTemplate(WithCount<Schema, SchemaGenerator>)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SchemaGenerator {
-    name: Option<String>, // if None value will be generated
-    tables_gen: WithCount<Table, TableGenerator>,
+    pub schema_name: Option<String>, // if None value will be generated
+    pub tables: TablesTemplateType,
 }
 
 impl Generator<Schema> for SchemaGenerator {
-    fn generate(&self, _index: usize) -> Schema {
+    fn generate(&self, index: usize) -> Schema {
         Schema {
-            name: FakeProvider::entity_name(),
-            tables: self.tables_gen.generate(),
+            schema_name: self.schema_name
+                .clone()
+                .unwrap_or_else(|| FakeProvider::entity_name()),
+            tables: match &self.tables {
+                TablesTemplateType::TablesTemplate(table_template) => {
+                    // handle WithCount template
+                    table_template.vec_with_count(index)
+                }
+                TablesTemplateType::Tables(tables) => tables.clone(),
+            },
         }
     }
 }

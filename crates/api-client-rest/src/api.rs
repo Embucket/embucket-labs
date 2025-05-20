@@ -44,7 +44,7 @@ impl DatabaseClientApi for DatabaseClient {
         self.client
             .generic_request::<VolumeCreatePayload, VolumeCreateResponse>(
                 Method::POST,
-                "/ui/volumes",
+                &format!("http://{}/ui/volumes", self.client.addr()),
                 &VolumeCreatePayload { data: volume },
             )
             .await?;
@@ -55,7 +55,7 @@ impl DatabaseClientApi for DatabaseClient {
         self.client
             .generic_request::<DatabaseCreatePayload, DatabaseCreateResponse>(
                 Method::POST,
-                "/ui/databases",
+                &format!("http://{}/ui/databases", self.client.addr()),
                 &DatabaseCreatePayload {
                     data: Database {
                         name: database.to_string(),

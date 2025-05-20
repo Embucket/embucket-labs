@@ -34,6 +34,7 @@ use dotenv::dotenv;
 use object_store::path::Path;
 use slatedb::{Db as SlateDb, config::DbOptions};
 use std::fs;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use time::Duration;
 use tokio::signal;
@@ -80,6 +81,9 @@ async fn main() {
         opts.auth_demo_user.clone().unwrap(),
         opts.auth_demo_password.clone().unwrap(),
     );
+    let demo_user = opts.auth_demo_user.clone().unwrap();
+    let demo_pass = opts.auth_demo_password.clone().unwrap();
+
     let web_config = UIWebConfig {
         host: opts.host.clone().unwrap(),
         port: opts.port.unwrap(),
@@ -195,6 +199,9 @@ async fn main() {
         .expect("Failed to bind to address");
     let addr = listener.local_addr().expect("Failed to get local address");
     tracing::info!("Listening on http://{}", addr);
+
+    start_seed_server_task(addr, demo_user, demo_pass).await;
+
     axum::serve(listener, router)
         .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())))
         .await
@@ -254,4 +261,20 @@ fn load_openapi_spec() -> Option<openapi::OpenApi> {
     // Dropping all paths from the original spec
     original_spec.paths = openapi::Paths::new();
     Some(original_spec)
+}
+
+#[allow(clippy::unwrap_used, clippy::as_conversions)]
+pub async fn start_seed_server_task(addr: SocketAddr, demo_user: String, demo_pass: String) {
+    tokio::spawn(async move {
+        // Wait a short time to ensure server is up
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let mut seed_db_api: Box<dyn api_seed::SeedApi + Send> = Box::new(api_seed::SeedDatabase::new(addr));
+        seed_db_api.try_load_seed(api_seed::SeedVariant::Minimal)
+            .expect("Failed to load seed data");
+        seed_db_api.login(&demo_user, &demo_pass)
+            .await
+            .expect("Failed to start seed server");
+        seed_db_api.create_volumes().await.expect("Failed to create volumes");
+    });
 }

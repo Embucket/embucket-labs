@@ -1,46 +1,39 @@
 use serde::{Deserialize, Serialize};
-use super::{Generator, WithCount, schema::{Schema, SchemaGenerator}};
+use super::{WithCount, Generator, schema::{Schema, SchemasTemplateType}};
 use crate::seed::fake_provider::FakeProvider;
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum DatabaseSeedType {
-    Database(Database),
-    DatabaseGenerator(DatabaseGenerator),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DatabaseSeed {
-    #[serde(flatten)]
-    pub database: DatabaseSeedType,
-}
-
-impl DatabaseSeed {
-    pub fn materialize(self) -> Database {
-        match self.database {
-            DatabaseSeedType::DatabaseGenerator(database_generator) => database_generator.generate(0),
-            DatabaseSeedType::Database(database) => database,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+// This is different from metastore's equivalent
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Database {
-    name: String,
-    schemas: Vec<Schema>,
+    pub database_name: String,
+    pub schemas: Vec<Schema>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum DatabasesTemplateType {
+    Databases(Vec<Database>),
+    DatabasesTemplate(WithCount<Database, DatabaseGenerator>)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DatabaseGenerator {
-    name: Option<String>, // if None value will be generated
-    schemas_gen: WithCount<Schema, SchemaGenerator>,
+    pub database_name: Option<String>, // if None value will be generated
+    pub schemas: SchemasTemplateType,
 }
 
 impl Generator<Database> for DatabaseGenerator {
-    fn generate(&self, _index: usize) -> Database {
+    fn generate(&self, index: usize) -> Database {
         Database {
-            name: FakeProvider::entity_name(),
-            schemas: self.schemas_gen.generate(),
+            database_name: self.database_name
+                .clone()
+                .unwrap_or_else(|| FakeProvider::entity_name()),
+            schemas: match &self.schemas {
+                SchemasTemplateType::SchemasTemplate(schema_template) => {
+                    // handle WithCount template
+                    schema_template.vec_with_count(index)
+                }
+                SchemasTemplateType::Schemas(schemas) => schemas.clone(),
+            },
         }
     }
 }

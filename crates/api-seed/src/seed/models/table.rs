@@ -1,47 +1,42 @@
 use serde::{Deserialize, Serialize};
-use super::{Generator, WithCount};
+use super::{Generator, WithCount, column::{Column, ColumnsTemplateType}};
 use crate::seed::fake_provider::FakeProvider;
 
 ///// Table
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Table {
-    name: String,
+    pub name: String,
+    pub columns: Vec<Column>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum TablesTemplateType {
+    Tables(Vec<Table>),
+    TablesTemplate(WithCount<Table, TableGenerator>)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TableGenerator {
-    name: Option<String>, // if None value will be generated
-    columns_gen: WithCount<Column, ColumnGenerator>,
+    pub name: Option<String>, // if None value will be generated
+    pub columns: ColumnsTemplateType,
 }
 
 impl Generator<Table> for TableGenerator {
-    fn generate(&self, _index: usize) -> Table {
+    fn generate(&self, index: usize) -> Table {
         Table {
-            name: FakeProvider::entity_name(),
+            name: self.name
+                .clone()
+                .unwrap_or_else(|| FakeProvider::entity_name()),
+            columns: match &self.columns {
+                ColumnsTemplateType::ColumnsTemplate(column_template) => {
+                    // handle WithCount template
+                    column_template.vec_with_count(index)
+                }
+                ColumnsTemplateType::Columns(columns) => columns.clone(),
+            },
         }
     }
 }
 
 ///// Column
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Column {
-    name: String,
-    #[serde(rename = "type")]
-    col_type: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ColumnGenerator {
-    name: Option<String>, // if None value will be generated
-}
-
-impl Generator<Column> for ColumnGenerator {
-    fn generate(&self, _index: usize) -> Column {
-        Column {
-            name: FakeProvider::entity_name(),
-            col_type: "".to_string(),
-        }
-    }
-}
