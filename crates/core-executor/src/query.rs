@@ -6,7 +6,7 @@ use core_metastore::{
     TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
     TableIdent as MetastoreTableIdent,
 };
-use datafusion::arrow::array::{Int64Array, RecordBatch};
+use datafusion::arrow::array::{ArrayRef, Int64Array, RecordBatch, StringArray};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
@@ -27,6 +27,7 @@ use datafusion_common::{
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use df_catalog::catalogs::embucket::block_in_new_runtime;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
@@ -39,8 +40,8 @@ use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
-    ObjectType, Query as AstQuery, Select, SelectItem, ShowObjects, ShowStatementFilter,
-    ShowStatementIn, UpdateTableFromKind, Use, Value,
+    ObjectType, PivotValueSource, Query as AstQuery, Select, SelectItem, ShowObjects, ShowStatementFilter, ShowStatementIn,
+    UpdateTableFromKind, Use, Value,
 };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -286,7 +287,7 @@ impl UserQuery {
                 }
                 Statement::Query(mut subquery) => {
                     self.update_qualify_in_query(subquery.as_mut());
-                    Self::update_table_result_scan_in_query(subquery.as_mut());
+                    self.update_table_result_scan_in_query(subquery.as_mut()).await;
                     return Box::pin(self.execute_with_custom_plan(&subquery.to_string())).await;
                 }
                 Statement::Drop { .. } => {
@@ -1548,7 +1549,7 @@ impl UserQuery {
         }
     }*/
 
-    fn update_table_result_scan_in_query(query: &mut Query) {
+    async fn update_table_result_scan_in_query(&self, query: &mut Query) {
         // TODO: Add logic to get result_scan from the historical results
         if let sqlparser::ast::SetExpr::Select(select) = query.body.as_mut() {
             // Remove is_iceberg field since it is not supported by information_schema.tables
@@ -1600,9 +1601,79 @@ impl UserQuery {
                         }
                     }
                 }
+                if let TableFactor::Pivot { table, aggregate_functions, value_column, value_source, default_on_null, alias } = &mut table_with_joins.relation {
+                    match value_source {
+                        PivotValueSource::Any(order_by_expr) => {
+                            let col = value_column.iter().map(|col| col.to_string()).collect::<Vec<_>>().join(".");
+                            let query = format!("SELECT DISTINCT {} FROM {} ", col, table);
+                            let result = self.execute_with_custom_plan(&query).await;
+                            
+                            // Convert query result to List of string expressions
+                            if let Ok(batches) = result {
+                                // Create list of values from result
+                                let mut exprs = Vec::new();
+                                for batch in batches {
+                                    if batch.num_columns() > 0 {
+                                        let column = batch.column(0);
+                                        // Try to cast the column to StringArray
+                                        if let Some(string_array) = column.as_any().downcast_ref::<StringArray>() {
+                                            for row_idx in 0..batch.num_rows() {
+                                                // Get string value from the array
+                                                let str_val = string_array.value(row_idx);
+                                                // Create string expression
+                                                let expr = Expr::Value(Value::SingleQuotedString(str_val.to_string()).with_empty_span());
+                                                exprs.push(sqlparser::ast::ExprWithAlias {
+                                                    expr,
+                                                    alias: None,
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Replace Any with List
+                                *value_source = PivotValueSource::List(exprs);
+                            }
+                        }
+                        PivotValueSource::Subquery(subquery) => {
+                            let subquery_sql = subquery.to_string();
+                            let result = self.execute_with_custom_plan(&subquery_sql).await;
+                            println!("Result: {:?}", result);
+                            if let Ok(batches) = result {
+                                // Create list of values from result
+                                let mut exprs = Vec::new();
+                                for batch in batches {
+                                    if batch.num_columns() > 0 {
+                                        let column = batch.column(0);
+                                        // Try to cast the column to StringArray
+                                        if let Some(string_array) = column.as_any().downcast_ref::<StringArray>() {
+                                            for row_idx in 0..batch.num_rows() {
+                                                // Get string value from the array
+                                                let str_val = string_array.value(row_idx);
+                                                // Create string expression
+                                                let expr = Expr::Value(Value::SingleQuotedString(str_val.to_string()).with_empty_span());
+                                                exprs.push(sqlparser::ast::ExprWithAlias {
+                                                    expr,
+                                                    alias: None,
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Replace Any with List
+                                *value_source = PivotValueSource::List(exprs);
+                            }
+                        }
+                        PivotValueSource::List(_) => {
+                            // List is already handled, nothing to do
+                        }
+                    }
+                }
+            }
             }
         }
-    }
+
 
     #[allow(clippy::only_used_in_recursion)]
     fn get_expr_where_clause(&self, expr: Expr, target_alias: &str) -> Vec<String> {
@@ -2018,6 +2089,14 @@ impl UserQuery {
         }
         Ok(())
     }
+
+    /*fn update_tables_in_pivot_table_factor(&self, table: &mut TableFactor) -> ExecutionResult<()> {
+        match table {
+            TableFactor::Pivot { table, .. } => {
+                self.update_tables_in_table_factor(table)?;
+            }
+        }
+    }*/
 
     fn update_tables_in_update_table_from_kind(
         &self,
