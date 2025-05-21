@@ -64,6 +64,10 @@ export function CreateDatabaseDialog({ opened, onSetOpened }: CreateDatabaseDial
               data: {
                 name,
                 volume: volumeName,
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-expect-error
+                created_at: '',
+                updated_at: '',
               },
             });
           }}

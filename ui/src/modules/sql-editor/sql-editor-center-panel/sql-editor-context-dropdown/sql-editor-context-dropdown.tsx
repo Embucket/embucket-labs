@@ -55,14 +55,14 @@ export const SqlEditorContextDropdown = () => {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild className="h-8 w-full max-w-[200px]">
-        <SidebarMenuButton>
+      <DropdownMenuTrigger asChild className="h-8 w-fit max-w-[240px]">
+        <SidebarMenuButton className="data-[state=open]:bg-sidebar-secondary-accent">
           <p className="truncate text-sm">{`${selectedDatabase}.${selectedSchema}`}</p>
           <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
         </SidebarMenuButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="grid w-[--radix-dropdown-menu-trigger-width] min-w-[450px] grid-cols-2 gap-0"
+        className="grid w-[--radix-dropdown-menu-trigger-width] min-w-[400px] grid-cols-2 gap-0"
         side="bottom"
         align="start"
         sideOffset={4}

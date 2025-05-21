@@ -1,4 +1,5 @@
-import { Check } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { SidebarMenu, SidebarMenuButton } from '@/components/ui/sidebar';
 
 interface Option {
   value: string;
@@ -16,26 +17,21 @@ export const SqlEditorContextDropdownSchemas = ({
   schemas,
   selectedSchema,
   onSelectSchema,
-  isDisabled,
 }: SqlEditorContextDropdownSchemasProps) => {
   return (
-    <div className="flex flex-col">
-      <div className="max-h-60 overflow-y-auto p-1">
-        {isDisabled && (
-          <p className="text-muted-foreground p-2 text-sm">Select a database to see its schemas.</p>
-        )}
-        {!isDisabled &&
-          schemas.map((schema) => (
-            <button
-              key={schema.value}
-              onClick={() => onSelectSchema(schema.value)}
-              className="hover:bg-accent flex w-full items-center rounded-md px-2 py-1.5 text-sm"
-            >
-              {schema.label}
-              {selectedSchema === schema.value && <Check className="text-primary ml-auto size-4" />}
-            </button>
-          ))}
-      </div>
-    </div>
+    <ScrollArea className="max-h-60 pl-2">
+      <SidebarMenu>
+        {schemas.map((db) => (
+          <SidebarMenuButton
+            className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
+            key={db.value}
+            onClick={() => onSelectSchema(db.value)}
+            isActive={selectedSchema === db.value}
+          >
+            {db.label}
+          </SidebarMenuButton>
+        ))}
+      </SidebarMenu>
+    </ScrollArea>
   );
 };

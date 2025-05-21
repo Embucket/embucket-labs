@@ -21,6 +21,7 @@ export function SqlEditorCenterPanel() {
   const selectedQueryRecord = useSqlEditorSettingsStore((state) =>
     state.getSelectedQueryRecord(+worksheetId),
   );
+  const selectedContext = useSqlEditorSettingsStore((state) => state.selectedContext);
   const setSelectedQueryRecord = useSqlEditorSettingsStore((state) => state.setSelectedQueryRecord);
 
   const {
@@ -61,6 +62,10 @@ export function SqlEditorCenterPanel() {
       data: {
         query,
         worksheetId: +worksheetId,
+        context: {
+          databaseName: selectedContext.databaseName,
+          schema: selectedContext.schema,
+        },
       },
     });
   };
@@ -82,7 +87,7 @@ export function SqlEditorCenterPanel() {
           >
             <ScrollArea
               tableViewport
-              className="size-full [&>*>*:first-child]:h-full [&>*>*>*:first-child]:h-full"
+              className="bg-background size-full [&>*>*:first-child]:h-full [&>*>*>*:first-child]:h-full"
             >
               <SQLEditor />
               <ScrollBar orientation="horizontal" />

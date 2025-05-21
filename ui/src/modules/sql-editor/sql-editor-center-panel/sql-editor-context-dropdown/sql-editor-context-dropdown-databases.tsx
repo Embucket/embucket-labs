@@ -1,4 +1,5 @@
-import { Check } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { SidebarMenu, SidebarMenuButton } from '@/components/ui/sidebar';
 
 interface Option {
   value: string;
@@ -17,19 +18,19 @@ export const SqlEditorContextDropdownDatabases = ({
   onSelectDatabase,
 }: SqlEditorContextDropdownDatabasesProps) => {
   return (
-    <div className="flex flex-col border-r">
-      <div className="max-h-60 overflow-y-auto p-1">
+    <ScrollArea className="max-h-60 border-r pr-2">
+      <SidebarMenu>
         {databases.map((db) => (
-          <button
+          <SidebarMenuButton
+            className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
             key={db.value}
             onClick={() => onSelectDatabase(db.value)}
-            className="hover:bg-accent flex w-full items-center rounded-md px-2 py-1.5 text-sm"
+            isActive={selectedDatabase === db.value}
           >
             {db.label}
-            {selectedDatabase === db.value && <Check className="text-primary ml-auto size-4" />}
-          </button>
+          </SidebarMenuButton>
         ))}
-      </div>
-    </div>
+      </SidebarMenu>
+    </ScrollArea>
   );
 };
