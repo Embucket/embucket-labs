@@ -85,12 +85,12 @@ uuid = { version = "1.10.0", features = ["v4", "serde"] }
 validator = { version = "0.20.0", features = ["derive"] }
 
 [patch.crates-io]
-datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "9b365ace92c83842aa395f481361137ed5676267" }
-datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "9b365ace92c83842aa395f481361137ed5676267" }
-datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "9b365ace92c83842aa395f481361137ed5676267" }
-datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "9b365ace92c83842aa395f481361137ed5676267" }
-datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "9b365ace92c83842aa395f481361137ed5676267" }
-datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "9b365ace92c83842aa395f481361137ed5676267" }
+datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "2a87948f0e2b47f58d488366d139875767cb4df6" }
+datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "2a87948f0e2b47f58d488366d139875767cb4df6" }
+datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "2a87948f0e2b47f58d488366d139875767cb4df6" }
+datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "2a87948f0e2b47f58d488366d139875767cb4df6" }
+datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "2a87948f0e2b47f58d488366d139875767cb4df6" }
+datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "2a87948f0e2b47f58d488366d139875767cb4df6" }
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
