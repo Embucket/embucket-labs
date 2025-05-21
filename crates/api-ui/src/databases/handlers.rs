@@ -5,7 +5,7 @@ use crate::{
     databases::error::{DatabasesAPIError, DatabasesResult},
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
-        DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
+        DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse, TimestampedDatabase,
     },
     downcast_string_column,
     error::ErrorResponse,
@@ -38,6 +38,7 @@ use validator::Validate;
             DatabaseResponse,
             DatabasesResponse,
             Database,
+            TimestampedDatabase,
             ErrorResponse,
         )
     ),
@@ -85,7 +86,11 @@ pub async fn create_database(
         .create_database(&database.ident.clone(), database)
         .await
         .map_err(|e| DatabasesAPIError::Create { source: e })
-        .map(|o| Json(DatabaseCreateResponse { data: o.into() }))
+        .map(|o| {
+            Json(DatabaseCreateResponse {
+                data: o.data.into(),
+            })
+        })
 }
 
 #[utoipa::path(
@@ -192,7 +197,11 @@ pub async fn update_database(
         .update_database(&database_name, database)
         .await
         .map_err(|e| DatabasesAPIError::Update { source: e })
-        .map(|o| Json(DatabaseUpdateResponse { data: o.into() }))
+        .map(|o| {
+            Json(DatabaseUpdateResponse {
+                data: o.data.into(),
+            })
+        })
 }
 
 #[utoipa::path(
@@ -244,7 +253,7 @@ pub async fn list_databases(
         let updated_at_timestamps = downcast_string_column(&record, "updated_at")
             .map_err(|e| DatabasesAPIError::List { source: e })?;
         for i in 0..record.num_rows() {
-            items.push(Database {
+            items.push(TimestampedDatabase {
                 name: database_names.value(i).to_string(),
                 volume: volume_names.value(i).to_string(),
                 created_at: created_at_timestamps.value(i).to_string(),

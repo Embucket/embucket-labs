@@ -6,7 +6,7 @@ use crate::{
     schemas::error::{SchemasAPIError, SchemasResult},
     schemas::models::{
         Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaResponse, SchemaUpdatePayload,
-        SchemaUpdateResponse, SchemasResponse,
+        SchemaUpdateResponse, SchemasResponse, TimestampedSchema,
     },
 };
 use api_sessions::DFSessionId;
@@ -37,6 +37,7 @@ use utoipa::OpenApi;
             SchemaCreateResponse,
             SchemasResponse,
             Schema,
+            TimestampedSchema,
             ErrorResponse,
         )
     ),
@@ -93,7 +94,7 @@ pub async fn create_schema(
     let schema_ident = MetastoreSchemaIdent::new(database_name.clone(), payload.name.clone());
     match state.metastore.get_schema(&schema_ident).await {
         Ok(Some(rw_object)) => Ok(Json(SchemaCreateResponse {
-            data: Schema::from(rw_object),
+            data: rw_object.data.into(),
         })),
         Ok(None) => Err(SchemasAPIError::Get {
             source: MetastoreError::SchemaNotFound {
@@ -178,7 +179,7 @@ pub async fn get_schema(
     };
     match state.metastore.get_schema(&schema_ident).await {
         Ok(Some(rw_object)) => Ok(Json(SchemaResponse {
-            data: Schema::from(rw_object),
+            data: TimestampedSchema::from(rw_object),
         })),
         Ok(None) => Err(SchemasAPIError::Get {
             source: MetastoreError::SchemaNotFound {
@@ -227,7 +228,7 @@ pub async fn update_schema(
         .map_err(|e| SchemasAPIError::Update { source: e })
         .map(|rw_object| {
             Json(SchemaUpdateResponse {
-                data: Schema::from(rw_object),
+                data: rw_object.data.into(),
             })
         })
 }
@@ -286,7 +287,7 @@ pub async fn list_schemas(
         let updated_at_timestamps = downcast_string_column(&record, "updated_at")
             .map_err(|e| SchemasAPIError::List { source: e })?;
         for i in 0..record.num_rows() {
-            items.push(Schema {
+            items.push(TimestampedSchema {
                 name: schema_names.value(i).to_string(),
                 database: database_names.value(i).to_string(),
                 created_at: created_at_timestamps.value(i).to_string(),

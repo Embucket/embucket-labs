@@ -5,20 +5,35 @@ use std::convert::From;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct Schema {
+pub struct TimestampedSchema {
     pub name: String,
     pub database: String,
     pub created_at: String,
     pub updated_at: String,
 }
 
-impl From<RwObject<MetastoreSchema>> for Schema {
+impl From<RwObject<MetastoreSchema>> for TimestampedSchema {
     fn from(rw_schema: RwObject<MetastoreSchema>) -> Self {
         Self {
             name: rw_schema.data.ident.schema,
             database: rw_schema.data.ident.database,
             created_at: rw_schema.created_at.to_string(),
             updated_at: rw_schema.updated_at.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct Schema {
+    pub name: String,
+    pub database: String,
+}
+
+impl From<MetastoreSchema> for Schema {
+    fn from(rw_schema: MetastoreSchema) -> Self {
+        Self {
+            name: rw_schema.ident.schema,
+            database: rw_schema.ident.database,
         }
     }
 }
@@ -68,11 +83,11 @@ pub struct SchemaCreateResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SchemaResponse {
     #[serde(flatten)]
-    pub data: Schema,
+    pub data: TimestampedSchema,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemasResponse {
-    pub items: Vec<Schema>,
+    pub items: Vec<TimestampedSchema>,
 }

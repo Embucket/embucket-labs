@@ -4,7 +4,7 @@ use crate::{
     error::ErrorResponse,
     volumes::error::{VolumesAPIError, VolumesResult},
     volumes::models::{
-        FileVolume, S3TablesVolume, S3Volume, SimpleVolume, Volume, VolumeCreatePayload,
+        FileVolume, S3TablesVolume, S3Volume, TimestampedVolume, Volume, VolumeCreatePayload,
         VolumeCreateResponse, VolumeResponse, VolumeType, VolumeUpdatePayload,
         VolumeUpdateResponse, VolumesResponse,
     },
@@ -35,7 +35,7 @@ use validator::Validate;
             VolumeCreatePayload,
             VolumeCreateResponse,
             Volume,
-            SimpleVolume,
+            TimestampedVolume,
             VolumeType,
             S3Volume,
             S3TablesVolume,
@@ -263,7 +263,7 @@ pub async fn list_volumes(
         let updated_at_timestamps = downcast_string_column(&record, "updated_at")
             .map_err(|e| VolumesAPIError::List { source: e })?;
         for i in 0..record.num_rows() {
-            items.push(SimpleVolume {
+            items.push(TimestampedVolume {
                 name: volume_names.value(i).to_string(),
                 r#type: volume_types.value(i).to_string(),
                 created_at: created_at_timestamps.value(i).to_string(),

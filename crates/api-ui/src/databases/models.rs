@@ -7,8 +7,6 @@ use utoipa::ToSchema;
 pub struct Database {
     pub name: String,
     pub volume: String,
-    pub created_at: String,
-    pub updated_at: String,
 }
 
 impl From<MetastoreDatabase> for Database {
@@ -16,14 +14,28 @@ impl From<MetastoreDatabase> for Database {
         Self {
             name: db.ident,
             volume: db.volume,
-            //TODO: fix this, we must use a different payload or change the test suite for dbs
-            created_at: "ERROR".to_string(),
-            updated_at: "ERROR".to_string(),
         }
     }
 }
 
-impl From<RwObject<MetastoreDatabase>> for Database {
+impl From<TimestampedDatabase> for Database {
+    fn from(db: TimestampedDatabase) -> Self {
+        Self {
+            name: db.name.clone(),
+            volume: db.volume,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
+pub struct TimestampedDatabase {
+    pub name: String,
+    pub volume: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl From<RwObject<MetastoreDatabase>> for TimestampedDatabase {
     fn from(db: RwObject<MetastoreDatabase>) -> Self {
         Self {
             name: db.data.ident,
@@ -79,11 +91,11 @@ pub struct DatabaseUpdateResponse {
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseResponse {
     #[serde(flatten)]
-    pub data: Database,
+    pub data: TimestampedDatabase,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabasesResponse {
-    pub items: Vec<Database>,
+    pub items: Vec<TimestampedDatabase>,
 }

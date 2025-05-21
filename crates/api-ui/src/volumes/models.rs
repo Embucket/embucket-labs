@@ -141,19 +141,19 @@ pub struct VolumeUpdateResponse {
 #[serde(rename_all = "camelCase")]
 pub struct VolumeResponse {
     #[serde(flatten)]
-    pub data: SimpleVolume,
+    pub data: TimestampedVolume,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct SimpleVolume {
+pub struct TimestampedVolume {
     pub name: String,
     pub r#type: String,
     pub created_at: String,
     pub updated_at: String,
 }
 
-impl From<RwObject<MetastoreVolume>> for SimpleVolume {
+impl From<RwObject<MetastoreVolume>> for TimestampedVolume {
     fn from(value: RwObject<MetastoreVolume>) -> Self {
         Self {
             name: value.data.ident,
@@ -167,5 +167,5 @@ impl From<RwObject<MetastoreVolume>> for SimpleVolume {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VolumesResponse {
-    pub items: Vec<SimpleVolume>,
+    pub items: Vec<TimestampedVolume>,
 }
