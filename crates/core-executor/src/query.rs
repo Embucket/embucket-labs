@@ -40,8 +40,8 @@ use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
-    ObjectType, PivotValueSource, Select, SelectItem, ShowObjects, ShowStatementIn, ShowStatementFilter,
-    UpdateTableFromKind, Use, Value,
+    ObjectType, PivotValueSource, Select, SelectItem, ShowObjects, ShowStatementFilter,
+    ShowStatementIn, UpdateTableFromKind, Use, Value,
 };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
