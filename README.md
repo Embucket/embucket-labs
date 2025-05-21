@@ -147,6 +147,10 @@ dbt seed
 # Run dbt transformations
 dbt run -m snowplow_web
 ```
+## Current Snowflake functionality coverage
+
+<!-- TEST_RESULTS_START -->
+<!-- TEST_RESULTS_END -->
 
 ## Contributing  
 

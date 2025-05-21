@@ -7,7 +7,7 @@
 # - coverage: runs the test suite and collects coverage information
 # See check.yml for information about how the concurrency cancellation and workflow triggering works
 permissions:
-  contents: read
+  contents: write
 on:
   push:
     branches: [main]
@@ -33,6 +33,18 @@ jobs:
     runs-on:
       group: large-runners
     name: ubuntu / ${{ matrix.toolchain }}
+    env:
+      SNOWFLAKE_ACCOUNT: test
+      SNOWFLAKE_USER: test
+      SNOWFLAKE_PASSWORD: test
+      WAREHOUSE: COMPUTE_WH
+      DATABASE: embucket
+      SCHEMA: public
+      RESET_DB: false
+      EMBUCKET_ENABLED: true
+      EMBUCKET_PROTOCOL: http
+      EMBUCKET_HOST: localhost
+      EMBUCKET_PORT: 3000
     strategy:
       matrix:
         # run on stable and beta to ensure that tests won't break on the next version of the rust
@@ -56,5 +68,62 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.toolchain }}
+
       - name: cargo test
         run: cargo test --workspace --all-features --all-targets
+
+      - name: Build embucketd binary
+        run: cargo build -p embucketd
+
+      - name: Upload Embucket Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: embucket-binary
+          path: target/debug/embucketd
+
+      - name: Download Embucket Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: embucket-binary
+          path: ./embucket-bin
+
+      - name: Make Executable
+        run: |
+          chmod +x ./embucket-bin/embucketd
+
+      - name: Start Embucket Server
+        run: |
+          ./embucket-bin/embucketd &
+          echo "Starting Embucket server..."
+          sleep 10
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r test/slt_runner/requirements.txt
+
+      - name: Run SLT Tests
+        run: |
+          cd test
+          python -m slt_runner --test-dir sql > ../test_results.txt
+
+      - name: Update README with Test Results
+        run: |
+          python update_readme.py
+
+      - name: Commit and Push Changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin ${{ github.head_ref }}
+          git checkout ${{ github.head_ref }}
+          git add README.md
+          git commit -m "Update README with latest test results" || echo "No changes to commit"
+          git stash # Stash other changes to ensure a clean state
+          git pull --rebase origin ${{ github.head_ref }}
+          git stash pop # Reapply stashed changes after rebase
+          git push origin HEAD:${{ github.head_ref }}
