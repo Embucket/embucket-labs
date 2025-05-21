@@ -179,7 +179,7 @@ pub async fn get_schema(
     };
     match state.metastore.get_schema(&schema_ident).await {
         Ok(Some(rw_object)) => Ok(Json(SchemaResponse {
-            data: TimestampedSchema::from(rw_object),
+            data: rw_object.into(),
         })),
         Ok(None) => Err(SchemasAPIError::Get {
             source: MetastoreError::SchemaNotFound {
