@@ -6,7 +6,7 @@ use core_metastore::{
     TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
     TableIdent as MetastoreTableIdent,
 };
-use datafusion::arrow::array::{ArrayRef, Int64Array, RecordBatch, StringArray};
+use datafusion::arrow::array::{Int64Array, RecordBatch, StringArray};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
@@ -15,6 +15,7 @@ use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
 use datafusion::logical_expr::{LogicalPlan, TableSource, sqlparser::ast::Insert};
 use datafusion::prelude::CsvReadOptions;
+use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
@@ -27,7 +28,6 @@ use datafusion_common::{
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
-use df_catalog::catalogs::embucket::block_in_new_runtime;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
@@ -1629,6 +1629,35 @@ impl UserQuery {
                                     ..
                                 } = &mut table_with_joins.relation
                                 {
+                                    // Helper function to convert batches to expressions
+                                    let batches_to_exprs = |batches: Vec<RecordBatch>| -> Vec<sqlparser::ast::ExprWithAlias> {
+                                        let mut exprs = Vec::new();
+                                        for batch in batches {
+                                            if batch.num_columns() > 0 {
+                                                let column = batch.column(0);
+                                                for row_idx in 0..batch.num_rows() {
+                                                    if !column.is_null(row_idx) {
+                                                        if let Ok(scalar_value) = ScalarValue::try_from_array(column, row_idx) {
+                                                            let expr = if batch.schema().fields()[0].data_type().is_numeric()  {
+                                                                Expr::Value(Value::Number(scalar_value.to_string(), false).with_empty_span())
+
+                                                            } else {
+                                                                Expr::Value(Value::SingleQuotedString(scalar_value.to_string()).with_empty_span())
+                                                            };
+
+
+                                                            exprs.push(sqlparser::ast::ExprWithAlias {
+                                                                expr,
+                                                                alias: None,
+                                                            });
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        exprs
+                                    };
+
                                     match value_source {
                                         PivotValueSource::Any(order_by_expr) => {
                                             let col = value_column
@@ -1639,7 +1668,6 @@ impl UserQuery {
                                             let mut query =
                                                 format!("SELECT DISTINCT {} FROM {} ", col, table);
 
-                                            // Add ORDER BY clause
                                             if !order_by_expr.is_empty() {
                                                 let order_by_clause = order_by_expr
                                                     .iter()
@@ -1670,73 +1698,18 @@ impl UserQuery {
                                                 ));
                                             }
 
-                                            let result =
-                                                this.execute_with_custom_plan(&query).await;
-
+                                            let result = this.execute_with_custom_plan(&query).await;
                                             if let Ok(batches) = result {
-                                                let mut exprs = Vec::new();
-                                                for batch in batches {
-                                                    if batch.num_columns() > 0 {
-                                                        let column = batch.column(0);
-                                                        if let Some(string_array) = column
-                                                            .as_any()
-                                                            .downcast_ref::<StringArray>(
-                                                        ) {
-                                                            for row_idx in 0..batch.num_rows() {
-                                                                let str_val =
-                                                                    string_array.value(row_idx);
-                                                                let expr = Expr::Value(
-                                                                    Value::SingleQuotedString(
-                                                                        str_val.to_string(),
-                                                                    )
-                                                                    .with_empty_span(),
-                                                                );
-                                                                exprs.push(
-                                                                    sqlparser::ast::ExprWithAlias {
-                                                                        expr,
-                                                                        alias: None,
-                                                                    },
-                                                                );
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                                *value_source = PivotValueSource::List(exprs);
+                                                *value_source = PivotValueSource::List(batches_to_exprs(batches));
                                             }
                                         }
                                         PivotValueSource::Subquery(subquery) => {
                                             let subquery_sql = subquery.to_string();
-                                            let result =
-                                                this.execute_with_custom_plan(&subquery_sql).await;
+
+                                            let result = this.execute_with_custom_plan(&subquery_sql).await;
+
                                             if let Ok(batches) = result {
-                                                let mut exprs = Vec::new();
-                                                for batch in batches {
-                                                    if batch.num_columns() > 0 {
-                                                        let column = batch.column(0);
-                                                        if let Some(string_array) = column
-                                                            .as_any()
-                                                            .downcast_ref::<StringArray>(
-                                                        ) {
-                                                            for row_idx in 0..batch.num_rows() {
-                                                                let str_val =
-                                                                    string_array.value(row_idx);
-                                                                let expr = Expr::Value(
-                                                                    Value::SingleQuotedString(
-                                                                        str_val.to_string(),
-                                                                    )
-                                                                    .with_empty_span(),
-                                                                );
-                                                                exprs.push(
-                                                                    sqlparser::ast::ExprWithAlias {
-                                                                        expr,
-                                                                        alias: None,
-                                                                    },
-                                                                );
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                                *value_source = PivotValueSource::List(exprs);
+                                                *value_source = PivotValueSource::List(batches_to_exprs(batches));
                                             }
                                         }
                                         PivotValueSource::List(_) => {
@@ -1746,8 +1719,9 @@ impl UserQuery {
                                 }
                             }
                         }
+
                         sqlparser::ast::SetExpr::Query(inner_query) => {
-                            this.update_subquery_to_list_pivot(inner_query).await;
+                                this.update_subquery_to_list_pivot(inner_query).await;
                         }
                         sqlparser::ast::SetExpr::SetOperation { left, right, .. } => {
                             process_set_expr(this, left).await;

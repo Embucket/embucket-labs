@@ -16,7 +16,6 @@ use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::Statement as SQLStatement;
 use datafusion::sql::sqlparser::ast::visit_expressions;
 use datafusion::sql::sqlparser::ast::{Expr, ObjectName, ObjectNamePart};
-use df_catalog::test_utils::sort_record_batch_by_sortable_columns;
 use sqlparser::ast::{
     Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
 };
@@ -617,7 +616,7 @@ macro_rules! test_query {
         paste::paste! {
             #[tokio::test]
             async fn [< query_ $test_fn_name >]() {
-                let ctx = create_df_session().await;
+                let ctx = crate::tests::query::create_df_session().await;
 
                 // Execute all pre-queries (if provided) to set up the session context
                 $(
@@ -639,13 +638,14 @@ macro_rules! test_query {
                     prepend_module_to_snapshot => false
                 }, {
                     let df = match res {
-                        Ok(mut record_batches) => {
+                        Ok(record_batches) => {
+                            let mut batches = record_batches;
                             if sort_all {
-                                for batch in &mut record_batches {
-                                    *batch = sort_record_batch_by_sortable_columns(batch);
+                                for batch in &mut batches {
+                                    *batch = df_catalog::test_utils::sort_record_batch_by_sortable_columns(batch);
                                 }
                             }
-                            Ok(datafusion::arrow::util::pretty::pretty_format_batches(&record_batches).unwrap().to_string())
+                            Ok(datafusion::arrow::util::pretty::pretty_format_batches(&batches).unwrap().to_string())
                         },
                         Err(e) => Err(format!("Error: {e}"))
                     };
