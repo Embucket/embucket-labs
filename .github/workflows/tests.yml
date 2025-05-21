@@ -33,18 +33,6 @@ jobs:
     runs-on:
       group: large-runners
     name: ubuntu / ${{ matrix.toolchain }}
-    env:
-      SNOWFLAKE_ACCOUNT: test
-      SNOWFLAKE_USER: test
-      SNOWFLAKE_PASSWORD: test
-      WAREHOUSE: COMPUTE_WH
-      DATABASE: embucket
-      SCHEMA: public
-      RESET_DB: false
-      EMBUCKET_ENABLED: true
-      EMBUCKET_PROTOCOL: http
-      EMBUCKET_HOST: localhost
-      EMBUCKET_PORT: 3000
     strategy:
       matrix:
         # run on stable and beta to ensure that tests won't break on the next version of the rust
@@ -71,6 +59,28 @@ jobs:
 
 #      - name: cargo test
 #        run: cargo test --workspace --all-features --all-targets
+
+  slt-tests:
+    needs: required
+    runs-on:
+      group: large-runners
+    name: SQL Language Tests
+    env:
+      SNOWFLAKE_ACCOUNT: test
+      SNOWFLAKE_USER: test
+      SNOWFLAKE_PASSWORD: test
+      WAREHOUSE: COMPUTE_WH
+      DATABASE: embucket
+      SCHEMA: public
+      RESET_DB: false
+      EMBUCKET_ENABLED: true
+      EMBUCKET_PROTOCOL: http
+      EMBUCKET_HOST: localhost
+      EMBUCKET_PORT: 3000
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Build embucketd binary
         run: cargo build -p embucketd
@@ -109,7 +119,7 @@ jobs:
       - name: Run SLT Tests
         run: |
           cd test
-          python -m slt_runner --test-dir sql/sql-reference-commands/Query_syntax | tee ../test_results.txt
+          python -m slt_runner --test-dir sql/sql-reference-commands/Query_syntax
 
       - name: Update README with Test Results
         run: |
