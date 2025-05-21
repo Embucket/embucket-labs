@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Volume {
     pub volume_name: String,
+    #[serde(flatten)]
     pub volume_type: VolumeType,
     pub databases: Vec<Database>,
 }
@@ -27,6 +28,7 @@ impl Into<api_structs::volumes::Volume> for Volume {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VolumeGenerator {
     pub volume_name: Option<String>, // if None value will be generated
+    #[serde(flatten)]
     pub volume_type: VolumeType,
     pub databases: DatabasesTemplateType,
 }

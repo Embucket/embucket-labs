@@ -1,6 +1,6 @@
 volumes:
 - volume_name: minimal
-  volume_type: memory
+  type: memory
   databases: !Databases
   - database_name: db1
     schemas:

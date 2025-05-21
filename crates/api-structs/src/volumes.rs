@@ -43,6 +43,7 @@ with_derives! {
 
 with_derives! {
     #[derive(Debug, Clone)]
+    #[cfg_attr(feature = "serde", serde(tag = "type"))]
     pub enum VolumeType {
         S3(S3Volume),
         S3Tables(S3TablesVolume),
