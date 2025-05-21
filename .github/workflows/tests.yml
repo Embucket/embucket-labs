@@ -89,7 +89,7 @@ jobs:
         run: |
           cargo run &
           echo "Starting Embucket server..."
-          sleep 10
+          sleep 20
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -103,8 +103,7 @@ jobs:
       - name: Run SLT Tests
         working-directory: ./test
         run: |
-          ls -la
-          python -u -m slt_runner --test-dir sql/sql-reference-commands/Query_syntax
+          python -u -m slt_runner --test-dir sql/sql-reference-commands/Query_operators
 
       - name: Update README with Test Results
         run: |
