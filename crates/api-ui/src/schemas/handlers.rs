@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::{OrderDirection, apply_other_parameters};
+use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters, downcast_string_column,
     error::ErrorResponse,
@@ -269,10 +269,7 @@ pub async fn list_schemas(
         "SELECT * FROM slatedb.public.schemas WHERE database_name = '{}'",
         database_name.clone()
     );
-    let sql_string = parameters.search.clone().map_or_else(|| sql_string.clone(), |search|
-        format!("{sql_string} AND (schema_name ILIKE '%{search}%' OR database_name ILIKE '%{search}%')")
-    );
-    let sql_string = apply_other_parameters(&sql_string, parameters, "schema_name");
+    let sql_string = apply_parameters(&sql_string, parameters, &["schema_name", "database_name"]);
     let QueryResultData { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)

@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::{
-    OrderDirection, SearchParameters, apply_other_parameters, downcast_string_column,
+    OrderDirection, SearchParameters, apply_parameters, downcast_string_column,
     error::ErrorResponse,
     volumes::error::{VolumesAPIError, VolumesResult},
     volumes::models::{
@@ -246,10 +246,7 @@ pub async fn list_volumes(
 ) -> VolumesResult<Json<VolumesResponse>> {
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.public.volumes".to_string();
-    let sql_string = parameters.search.clone().map_or_else(|| sql_string.clone(), |search|
-        format!("{sql_string} WHERE (volume_name ILIKE '%{search}%' OR volume_type ILIKE '%{search}%')")
-    );
-    let sql_string = apply_other_parameters(&sql_string, parameters, "volume_name");
+    let sql_string = apply_parameters(&sql_string, parameters, &["volume_name", "volume_type"]);
     let QueryResultData { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)

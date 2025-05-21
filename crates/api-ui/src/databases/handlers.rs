@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::{OrderDirection, apply_other_parameters};
+use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters,
     databases::error::{DatabasesAPIError, DatabasesResult},
@@ -227,10 +227,7 @@ pub async fn list_databases(
 ) -> DatabasesResult<Json<DatabasesResponse>> {
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.public.databases".to_string();
-    let sql_string = parameters.search.clone().map_or_else(|| sql_string.clone(), |search|
-        format!("{sql_string} WHERE (database_name ILIKE '%{search}%' OR volume_name ILIKE '%{search}%')")
-    );
-    let sql_string = apply_other_parameters(&sql_string, parameters, "database_name");
+    let sql_string = apply_parameters(&sql_string, parameters, &["database_name", "volume_name"]);
     let QueryResultData { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
