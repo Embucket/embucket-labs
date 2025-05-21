@@ -6,20 +6,20 @@ use core_metastore::{
     TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
     TableIdent as MetastoreTableIdent,
 };
-use datafusion::arrow::array::{Int64Array, RecordBatch, StringArray};
+use datafusion::arrow::array::{Int64Array, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
-use datafusion::logical_expr::{LogicalPlan, TableSource, sqlparser::ast::Insert};
+use datafusion::logical_expr::{LogicalPlan, TableSource};
 use datafusion::prelude::CsvReadOptions;
 use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
-    TableFactor, TableObject, TableWithJoins,
+    TableFactor, TableWithJoins,
 };
 use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
@@ -40,8 +40,8 @@ use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
-    ObjectType, PivotValueSource, Query as AstQuery, Select, SelectItem, ShowObjects, ShowStatementFilter,
-    ShowStatementIn, UpdateTableFromKind, Use, Value, ValueWithSpan,
+    ObjectType, PivotValueSource, Select, SelectItem, ShowObjects, ShowStatementIn, ShowStatementFilter,
+    UpdateTableFromKind, Use, Value,
 };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -1630,26 +1630,46 @@ impl UserQuery {
                                 } = &mut table_with_joins.relation
                                 {
                                     // Helper function to convert batches to expressions
-                                    let batches_to_exprs = |batches: Vec<RecordBatch>| -> Vec<sqlparser::ast::ExprWithAlias> {
+                                    let batches_to_exprs = |batches: Vec<RecordBatch>| -> Vec<
+                                        sqlparser::ast::ExprWithAlias,
+                                    > {
                                         let mut exprs = Vec::new();
                                         for batch in batches {
                                             if batch.num_columns() > 0 {
                                                 let column = batch.column(0);
                                                 for row_idx in 0..batch.num_rows() {
                                                     if !column.is_null(row_idx) {
-                                                        if let Ok(scalar_value) = ScalarValue::try_from_array(column, row_idx) {
-                                                            let expr = if batch.schema().fields()[0].data_type().is_numeric()  {
-                                                                Expr::Value(Value::Number(scalar_value.to_string(), false).with_empty_span())
-
+                                                        if let Ok(scalar_value) =
+                                                            ScalarValue::try_from_array(
+                                                                column, row_idx,
+                                                            )
+                                                        {
+                                                            let expr = if batch.schema().fields()[0]
+                                                                .data_type()
+                                                                .is_numeric()
+                                                            {
+                                                                Expr::Value(
+                                                                    Value::Number(
+                                                                        scalar_value.to_string(),
+                                                                        false,
+                                                                    )
+                                                                    .with_empty_span(),
+                                                                )
                                                             } else {
-                                                                Expr::Value(Value::SingleQuotedString(scalar_value.to_string()).with_empty_span())
+                                                                Expr::Value(
+                                                                    Value::SingleQuotedString(
+                                                                        scalar_value.to_string(),
+                                                                    )
+                                                                    .with_empty_span(),
+                                                                )
                                                             };
 
-
-                                                            exprs.push(sqlparser::ast::ExprWithAlias {
-                                                                expr,
-                                                                alias: None,
-                                                            });
+                                                            exprs.push(
+                                                                sqlparser::ast::ExprWithAlias {
+                                                                    expr,
+                                                                    alias: None,
+                                                                },
+                                                            );
                                                         }
                                                     }
                                                 }
@@ -1666,7 +1686,7 @@ impl UserQuery {
                                                 .collect::<Vec<_>>()
                                                 .join(".");
                                             let mut query =
-                                                format!("SELECT DISTINCT {} FROM {} ", col, table);
+                                                format!("SELECT DISTINCT {col} FROM {table} ");
 
                                             if !order_by_expr.is_empty() {
                                                 let order_by_clause = order_by_expr
@@ -1698,18 +1718,24 @@ impl UserQuery {
                                                 ));
                                             }
 
-                                            let result = this.execute_with_custom_plan(&query).await;
+                                            let result =
+                                                this.execute_with_custom_plan(&query).await;
                                             if let Ok(batches) = result {
-                                                *value_source = PivotValueSource::List(batches_to_exprs(batches));
+                                                *value_source = PivotValueSource::List(
+                                                    batches_to_exprs(batches),
+                                                );
                                             }
                                         }
                                         PivotValueSource::Subquery(subquery) => {
                                             let subquery_sql = subquery.to_string();
 
-                                            let result = this.execute_with_custom_plan(&subquery_sql).await;
+                                            let result =
+                                                this.execute_with_custom_plan(&subquery_sql).await;
 
                                             if let Ok(batches) = result {
-                                                *value_source = PivotValueSource::List(batches_to_exprs(batches));
+                                                *value_source = PivotValueSource::List(
+                                                    batches_to_exprs(batches),
+                                                );
                                             }
                                         }
                                         PivotValueSource::List(_) => {
@@ -1721,7 +1747,7 @@ impl UserQuery {
                         }
 
                         sqlparser::ast::SetExpr::Query(inner_query) => {
-                                this.update_subquery_to_list_pivot(inner_query).await;
+                            this.update_subquery_to_list_pivot(inner_query).await;
                         }
                         sqlparser::ast::SetExpr::SetOperation { left, right, .. } => {
                             process_set_expr(this, left).await;
@@ -1811,169 +1837,6 @@ impl UserQuery {
                 _ => references.first().cloned(),
             },
             _ => references.first().cloned(),
-        }
-    }
-
-    // TODO: Modify this function to modify the statement in-place to
-    // avoid extra allocations
-    #[allow(clippy::too_many_lines)]
-    pub fn update_statement_references(
-        &self,
-        statement: DFStatement,
-    ) -> ExecutionResult<DFStatement> {
-        match statement.clone() {
-            DFStatement::CreateExternalTable(create_external) => {
-                let table_name = self.resolve_table_object_name(create_external.name.0)?;
-                let modified_statement = CreateExternalTable {
-                    name: ObjectName::from(table_name.0),
-                    ..create_external
-                };
-                Ok(DFStatement::CreateExternalTable(modified_statement))
-            }
-            DFStatement::Statement(s) => match *s {
-                Statement::AlterTable {
-                    name,
-                    if_exists,
-                    only,
-                    operations,
-                    location,
-                    on_cluster,
-                } => {
-                    let name = self.resolve_table_object_name(name.0)?;
-                    let modified_statement = Statement::AlterTable {
-                        name: ObjectName::from(name.0),
-                        if_exists,
-                        only,
-                        operations,
-                        location,
-                        on_cluster,
-                    };
-                    Ok(DFStatement::Statement(Box::new(modified_statement)))
-                }
-                Statement::Insert(insert_statement) => {
-                    // Extract ObjectName from TableObject
-                    let obj_name = match &insert_statement.table {
-                        TableObject::TableName(obj_name) => obj_name.clone(),
-                        TableObject::TableFunction(_) => {
-                            return Err(ExecutionError::DataFusion {
-                                source: DataFusionError::NotImplemented(
-                                    "Table functions are not supported in INSERT statements"
-                                        .to_string(),
-                                ),
-                            });
-                        }
-                    };
-
-                    let table_name = self.resolve_table_object_name(obj_name.0)?;
-
-                    let source = insert_statement.source.map(|mut query| {
-                        self.update_tables_in_query(query.as_mut())
-                            .map(|()| Some(Box::new(AstQuery { ..*query })))
-                    });
-
-                    let source = if let Some(source) = source {
-                        source?
-                    } else {
-                        None
-                    };
-
-                    let modified_statement = Insert {
-                        table: TableObject::TableName(ObjectName::from(table_name.0)),
-                        source,
-                        ..insert_statement
-                    };
-                    Ok(DFStatement::Statement(Box::new(Statement::Insert(
-                        modified_statement,
-                    ))))
-                }
-                Statement::Drop {
-                    object_type,
-                    if_exists,
-                    mut names,
-                    cascade,
-                    restrict,
-                    purge,
-                    temporary,
-                } => {
-                    for name in &mut names {
-                        match object_type {
-                            ObjectType::Schema => {
-                                // TODO: Check if this works the same way as the table case
-                                let schema_name =
-                                    self.resolve_schema_object_name(name.0.clone())?;
-                                *name = ObjectName(
-                                    schema_name
-                                        .0
-                                        .iter()
-                                        .map(|i| ObjectNamePart::Identifier(i.clone()))
-                                        .collect(),
-                                );
-                            }
-                            ObjectType::Table => {
-                                *name = ObjectName::from(
-                                    self.resolve_table_object_name(name.0.clone())?.0,
-                                );
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    let modified_statement = Statement::Drop {
-                        object_type,
-                        if_exists,
-                        names,
-                        cascade,
-                        restrict,
-                        purge,
-                        temporary,
-                    };
-                    Ok(DFStatement::Statement(Box::new(modified_statement)))
-                }
-                Statement::Query(mut query) => {
-                    self.update_tables_in_query(query.as_mut())?;
-                    // self.update_tables_in_query(&mut query)?;
-                    Ok(DFStatement::Statement(Box::new(Statement::Query(query))))
-                }
-                Statement::CreateTable(mut create_table_statement) => {
-                    // Remove all unsupported iceberg params (we already take them into account)
-                    create_table_statement.iceberg = false;
-                    create_table_statement.base_location = None;
-                    create_table_statement.external_volume = None;
-                    create_table_statement.catalog = None;
-                    create_table_statement.catalog_sync = None;
-                    create_table_statement.storage_serialization_policy = None;
-                    if let Some(ref mut query) = create_table_statement.query {
-                        self.update_tables_in_query(query)?;
-                    }
-                    Ok(DFStatement::Statement(Box::new(Statement::CreateTable(
-                        create_table_statement,
-                    ))))
-                }
-                Statement::Update {
-                    mut table,
-                    assignments,
-                    mut from,
-                    selection,
-                    returning,
-                    or,
-                } => {
-                    self.update_tables_in_table_with_joins(&mut table)?;
-                    if let Some(from) = from.as_mut() {
-                        self.update_tables_in_update_table_from_kind(from)?;
-                    }
-                    let modified_statement = Statement::Update {
-                        table,
-                        assignments,
-                        from,
-                        selection,
-                        returning,
-                        or,
-                    };
-                    Ok(DFStatement::Statement(Box::new(modified_statement)))
-                }
-                _ => Ok(statement),
-            },
-            _ => Ok(statement),
         }
     }
 
@@ -2156,14 +2019,6 @@ impl UserQuery {
         }
         Ok(())
     }
-
-    /*fn update_tables_in_pivot_table_factor(&self, table: &mut TableFactor) -> ExecutionResult<()> {
-        match table {
-            TableFactor::Pivot { table, .. } => {
-                self.update_tables_in_table_factor(table)?;
-            }
-        }
-    }*/
 
     fn update_tables_in_update_table_from_kind(
         &self,
