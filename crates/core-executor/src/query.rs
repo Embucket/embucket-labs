@@ -288,7 +288,7 @@ impl UserQuery {
                 Statement::Query(mut subquery) => {
                     self.update_qualify_in_query(subquery.as_mut());
                     Self::update_table_result_scan_in_query(subquery.as_mut());
-                    self.update_subquery_to_list_pivot(subquery.as_mut()).await;
+                    self.traverse_and_update_query(subquery.as_mut()).await;
                     return Box::pin(self.execute_with_custom_plan(&subquery.to_string())).await;
                 }
                 Statement::Drop { .. } => {
@@ -1606,10 +1606,99 @@ impl UserQuery {
         }
     }
 
+    fn convert_batches_to_exprs(batches: Vec<RecordBatch>) -> Vec<sqlparser::ast::ExprWithAlias> {
+        let mut exprs = Vec::new();
+        for batch in batches {
+            if batch.num_columns() > 0 {
+                let column = batch.column(0);
+                for row_idx in 0..batch.num_rows() {
+                    if !column.is_null(row_idx) {
+                        if let Ok(scalar_value) = ScalarValue::try_from_array(column, row_idx) {
+                            let expr = if batch.schema().fields()[0].data_type().is_numeric() {
+                                Expr::Value(
+                                    Value::Number(scalar_value.to_string(), false)
+                                        .with_empty_span(),
+                                )
+                            } else {
+                                Expr::Value(
+                                    Value::SingleQuotedString(scalar_value.to_string())
+                                        .with_empty_span(),
+                                )
+                            };
+
+                            exprs.push(sqlparser::ast::ExprWithAlias { expr, alias: None });
+                        }
+                    }
+                }
+            }
+        }
+        exprs
+    }
+
     // This function is used to update the table references in the query
     // It executes the subquery and convert the result to a list of string expressions
     // It then replaces the pivot value source with the list of string expressions
-    fn update_subquery_to_list_pivot<'a>(
+    async fn replace_pivot_subquery_with_list(
+        &self,
+        table: &Box<TableFactor>,
+        value_column: &mut Vec<Ident>,
+        value_source: &mut PivotValueSource,
+    ) {
+        match value_source {
+            PivotValueSource::Any(order_by_expr) => {
+                let col = value_column
+                    .iter()
+                    .map(|col| col.to_string())
+                    .collect::<Vec<_>>()
+                    .join(".");
+                let mut query = format!("SELECT DISTINCT {col} FROM {table} ");
+
+                if !order_by_expr.is_empty() {
+                    let order_by_clause = order_by_expr
+                        .iter()
+                        .map(|expr| {
+                            let direction = match expr.options.asc {
+                                Some(true) => " ASC",
+                                Some(false) => " DESC",
+                                None => "",
+                            };
+
+                            let nulls = match expr.options.nulls_first {
+                                Some(true) => " NULLS FIRST",
+                                Some(false) => " NULLS LAST",
+                                None => "",
+                            };
+
+                            format!("{}{}{}", expr.expr, direction, nulls)
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    query.push_str(&format!("ORDER BY {}", order_by_clause));
+                }
+
+                let result = self.execute_with_custom_plan(&query).await;
+                if let Ok(batches) = result {
+                    *value_source = PivotValueSource::List(Self::convert_batches_to_exprs(batches));
+                }
+            }
+            PivotValueSource::Subquery(subquery) => {
+                let subquery_sql = subquery.to_string();
+
+                let result = self.execute_with_custom_plan(&subquery_sql).await;
+
+                if let Ok(batches) = result {
+                    *value_source = PivotValueSource::List(Self::convert_batches_to_exprs(batches));
+                }
+            }
+            PivotValueSource::List(_) => {
+                // Do nothing
+            }
+        }
+    }
+
+    /// This method traverses query including set expressions and updates it when needed.
+    fn traverse_and_update_query<'a>(
         &'a self,
         query: &'a mut Query,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>> {
@@ -1629,125 +1718,18 @@ impl UserQuery {
                                     ..
                                 } = &mut table_with_joins.relation
                                 {
-                                    // Helper function to convert batches to expressions
-                                    let batches_to_exprs = |batches: Vec<RecordBatch>| -> Vec<
-                                        sqlparser::ast::ExprWithAlias,
-                                    > {
-                                        let mut exprs = Vec::new();
-                                        for batch in batches {
-                                            if batch.num_columns() > 0 {
-                                                let column = batch.column(0);
-                                                for row_idx in 0..batch.num_rows() {
-                                                    if !column.is_null(row_idx) {
-                                                        if let Ok(scalar_value) =
-                                                            ScalarValue::try_from_array(
-                                                                column, row_idx,
-                                                            )
-                                                        {
-                                                            let expr = if batch.schema().fields()[0]
-                                                                .data_type()
-                                                                .is_numeric()
-                                                            {
-                                                                Expr::Value(
-                                                                    Value::Number(
-                                                                        scalar_value.to_string(),
-                                                                        false,
-                                                                    )
-                                                                    .with_empty_span(),
-                                                                )
-                                                            } else {
-                                                                Expr::Value(
-                                                                    Value::SingleQuotedString(
-                                                                        scalar_value.to_string(),
-                                                                    )
-                                                                    .with_empty_span(),
-                                                                )
-                                                            };
-
-                                                            exprs.push(
-                                                                sqlparser::ast::ExprWithAlias {
-                                                                    expr,
-                                                                    alias: None,
-                                                                },
-                                                            );
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        exprs
-                                    };
-
-                                    match value_source {
-                                        PivotValueSource::Any(order_by_expr) => {
-                                            let col = value_column
-                                                .iter()
-                                                .map(|col| col.to_string())
-                                                .collect::<Vec<_>>()
-                                                .join(".");
-                                            let mut query =
-                                                format!("SELECT DISTINCT {col} FROM {table} ");
-
-                                            if !order_by_expr.is_empty() {
-                                                let order_by_clause = order_by_expr
-                                                    .iter()
-                                                    .map(|expr| {
-                                                        let direction = match expr.options.asc {
-                                                            Some(true) => " ASC",
-                                                            Some(false) => " DESC",
-                                                            None => "",
-                                                        };
-
-                                                        let nulls = match expr.options.nulls_first {
-                                                            Some(true) => " NULLS FIRST",
-                                                            Some(false) => " NULLS LAST",
-                                                            None => "",
-                                                        };
-
-                                                        format!(
-                                                            "{}{}{}",
-                                                            expr.expr, direction, nulls
-                                                        )
-                                                    })
-                                                    .collect::<Vec<_>>()
-                                                    .join(", ");
-
-                                                query.push_str(&format!(
-                                                    "ORDER BY {}",
-                                                    order_by_clause
-                                                ));
-                                            }
-
-                                            let result =
-                                                this.execute_with_custom_plan(&query).await;
-                                            if let Ok(batches) = result {
-                                                *value_source = PivotValueSource::List(
-                                                    batches_to_exprs(batches),
-                                                );
-                                            }
-                                        }
-                                        PivotValueSource::Subquery(subquery) => {
-                                            let subquery_sql = subquery.to_string();
-
-                                            let result =
-                                                this.execute_with_custom_plan(&subquery_sql).await;
-
-                                            if let Ok(batches) = result {
-                                                *value_source = PivotValueSource::List(
-                                                    batches_to_exprs(batches),
-                                                );
-                                            }
-                                        }
-                                        PivotValueSource::List(_) => {
-                                            // Do nothing
-                                        }
-                                    }
+                                    this.replace_pivot_subquery_with_list(
+                                        table,
+                                        value_column,
+                                        value_source,
+                                    )
+                                    .await;
                                 }
                             }
                         }
 
                         sqlparser::ast::SetExpr::Query(inner_query) => {
-                            this.update_subquery_to_list_pivot(inner_query).await;
+                            this.traverse_and_update_query(inner_query).await;
                         }
                         sqlparser::ast::SetExpr::SetOperation { left, right, .. } => {
                             process_set_expr(this, left).await;
@@ -1762,7 +1744,7 @@ impl UserQuery {
 
             if let Some(with) = &mut query.with {
                 for cte in &mut with.cte_tables {
-                    self.update_subquery_to_list_pivot(&mut cte.query).await;
+                    self.traverse_and_update_query(&mut cte.query).await;
                 }
             }
         })
