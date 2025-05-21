@@ -20,6 +20,7 @@ use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableObject, TableWithJoins,
 };
+use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
     DataFusionError, ResolvedTableReference, TableReference, plan_datafusion_err,
 };
@@ -38,8 +39,8 @@ use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
-    ObjectType, Query as AstQuery, Select, SelectItem, ShowObjects, ShowStatementIn,
-    UpdateTableFromKind, Use, Value,
+    ObjectType, Query as AstQuery, Select, SelectItem, ShowObjects, ShowStatementFilter,
+    ShowStatementIn, UpdateTableFromKind, Use, Value,
 };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -51,7 +52,7 @@ use super::catalog::{
 };
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu};
-use super::session::UserSession;
+use super::session::{SessionProperty, UserSession};
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element};
 use df_catalog::catalog::CachingCatalog;
@@ -187,7 +188,7 @@ impl UserQuery {
                     let params = session_params
                         .options
                         .into_iter()
-                        .map(|v| (v.option_name, v.value))
+                        .map(|v| (v.option_name.clone(), SessionProperty::from_key_value(&v)))
                         .collect();
 
                     self.session.set_session_variable(set, params)?;
@@ -211,26 +212,26 @@ impl UserQuery {
                             ),
                         });
                     }
-                    let params = HashMap::from([(variable.to_string(), value)]);
+                    let params =
+                        HashMap::from([(variable.to_string(), SessionProperty::from_str(value))]);
                     self.session.set_session_variable(true, params)?;
                     return status_response();
                 }
                 Statement::SetVariable {
                     variables, value, ..
                 } => {
-                    let keys = variables.iter().map(ToString::to_string);
-                    let values: ExecutionResult<Vec<_>> = value
+                    let keys: Vec<String> = variables.iter().map(ToString::to_string).collect();
+                    let values: Vec<SessionProperty> = value
                         .iter()
                         .map(|v| match v {
-                            Expr::Identifier(_) | Expr::Value(_) => Ok(v.to_string()),
+                            Expr::Value(v) => Ok(SessionProperty::from_value(v.value.clone())),
                             _ => Err(ExecutionError::DataFusion {
                                 source: DataFusionError::NotImplemented(
                                     "Only primitive statements are supported".to_string(),
                                 ),
                             }),
                         })
-                        .collect();
-                    let values = values?;
+                        .collect::<Result<_, _>>()?;
                     let params = keys.into_iter().zip(values.into_iter()).collect();
                     self.session.set_session_variable(true, params)?;
                     return status_response();
@@ -269,7 +270,6 @@ impl UserQuery {
                 | Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
                 | Statement::Insert { .. }
-                | Statement::ShowVariable { .. }
                 | Statement::Update { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&self.query)).await;
                 }
@@ -279,7 +279,9 @@ impl UserQuery {
                 | Statement::ShowColumns { .. }
                 | Statement::ShowViews { .. }
                 | Statement::ShowFunctions { .. }
-                | Statement::ShowObjects { .. } => {
+                | Statement::ShowObjects { .. }
+                | Statement::ShowVariables { .. }
+                | Statement::ShowVariable { .. } => {
                     return Box::pin(self.show_query(*s)).await;
                 }
                 Statement::Query(mut subquery) => {
@@ -1060,10 +1062,10 @@ impl UserQuery {
                 let sql = format!(
                     "SELECT
                         NULL as created_on,
-                        table_name as name,
+                        upper(table_name) as name,
                         table_type as kind,
-                        table_catalog as database_name,
-                        table_schema as schema_name,
+                        upper(table_catalog) as database_name,
+                        upper(table_schema) as schema_name,
                         CASE WHEN table_type='TABLE' then 'Y' else 'N' end as is_iceberg
                     FROM {catalog}.information_schema.tables"
                 );
@@ -1108,6 +1110,40 @@ impl UserQuery {
                 }
                 if show_options.show_in.is_some() {
                     filters.push(format!("table_name = '{}'", reference.table()));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowVariable { variable } => {
+                let variable = object_name_to_string(&ObjectName::from(variable));
+                format!(
+                    "SELECT
+                        NULL as created_on,
+                        NULL as updated_on,
+                        name,
+                        value,
+                        NULL as type,
+                        description as comment
+                    FROM {}.information_schema.df_settings
+                    WHERE name = '{}'",
+                    self.current_database(),
+                    variable
+                )
+            }
+            Statement::ShowVariables { filter, .. } => {
+                let sql = format!(
+                    "SELECT
+                        NULL as created_on,
+                        NULL as updated_on,
+                        name,
+                        value,
+                        NULL as type,
+                        description as comment
+                    FROM {}.information_schema.df_settings",
+                    self.current_database()
+                );
+                let mut filters = vec!["name LIKE 'session_params.%'".to_string()];
+                if let Some(ShowStatementFilter::Like(pattern)) = filter {
+                    filters.push(format!("name LIKE '{pattern}'"));
                 }
                 apply_show_filters(sql, &filters)
             }

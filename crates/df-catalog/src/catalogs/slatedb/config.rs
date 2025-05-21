@@ -86,13 +86,38 @@ impl SlateDBViewConfig {
             .await
             .map_err(|e| DataFusionError::Execution(format!("failed to get tables: {e}")))?;
         for table in tables {
+            let mut total_bytes = 0;
+            let mut total_rows = 0;
+            if let Ok(Some(latest_snapshot)) = table.metadata.current_snapshot(None) {
+                total_bytes = latest_snapshot
+                    .summary()
+                    .other
+                    .get("total-files-size")
+                    .and_then(|value| value.parse::<i64>().ok())
+                    .unwrap_or(0);
+                total_rows = latest_snapshot
+                    .summary()
+                    .other
+                    .get("total-records")
+                    .and_then(|value| value.parse::<i64>().ok())
+                    .unwrap_or(0);
+            }
             builder.add_tables(
                 &table.ident.table,
                 &table.ident.schema,
                 &table.ident.database,
                 table.volume_ident.clone(),
-                table.is_temporary,
+                //TODO: Owner
+                None::<String>,
+                //TODO: can we add views? If so we need to use TableType enum
+                if table.is_temporary {
+                    "TEMPORARY".to_string()
+                } else {
+                    "TABLE".to_string()
+                },
                 table.format.to_string(),
+                total_bytes,
+                total_rows,
                 table.created_at.to_string(),
                 table.updated_at.to_string(),
             );

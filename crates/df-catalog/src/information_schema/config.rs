@@ -71,7 +71,7 @@ impl InformationSchemaConfig {
         Ok(())
     }
 
-    pub(crate) fn make_navigation_tree(
+    pub(crate) async fn make_navigation_tree(
         &self,
         builder: &mut InformationSchemaNavigationTreeBuilder,
     ) -> datafusion_common::Result<(), DataFusionError> {
@@ -83,16 +83,22 @@ impl InformationSchemaConfig {
             })?;
             builder.add_navigation_tree(&catalog_name, None, None, None);
 
-            for schema_name in catalog.schema_names() {
+            for schema_name in catalog
+                .schema_names()
+                .into_iter()
+                .filter(|s| s != INFORMATION_SCHEMA)
+            {
                 builder.add_navigation_tree(&catalog_name, Some(schema_name.clone()), None, None);
-
-                if let Some(schema) = catalog.schema(&schema_name) {
-                    for table_name in schema.table_names() {
+                let Some(schema) = catalog.schema(&schema_name) else {
+                    continue;
+                };
+                for table_name in schema.table_names() {
+                    if let Some(table) = schema.table(&table_name).await? {
                         builder.add_navigation_tree(
                             &catalog_name,
                             Some(schema_name.clone()),
                             Some(table_name),
-                            Some(TableType::Base),
+                            Some(table.table_type()),
                         );
                     }
                 }

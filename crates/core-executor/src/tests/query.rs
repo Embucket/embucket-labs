@@ -1,6 +1,6 @@
 use crate::models::QueryResultData;
 use crate::query::{QueryContext, UserQuery};
-use crate::session::UserSession;
+use crate::session::{SessionProperty, UserSession};
 
 use crate::error::{ExecutionError, ExecutionResult};
 use crate::service::{CoreExecutionService, ExecutionService};
@@ -232,9 +232,12 @@ async fn test_context_name_injection() {
     session
         .set_session_variable(
             true,
-            vec![("catalog".to_string(), "db3".to_string())]
-                .into_iter()
-                .collect(),
+            vec![(
+                "catalog".to_string(),
+                SessionProperty::from_str("db3".to_string()),
+            )]
+            .into_iter()
+            .collect(),
         )
         .expect("Failed to set session variable");
     let query3 = session.query("SELECT * from table3", QueryContext::default());
@@ -261,8 +264,14 @@ async fn test_context_name_injection() {
         .set_session_variable(
             true,
             vec![
-                ("catalog".to_string(), "db4".to_string()),
-                ("schema".to_string(), "sch4".to_string()),
+                (
+                    "catalog".to_string(),
+                    SessionProperty::from_str("db4".to_string()),
+                ),
+                (
+                    "schema".to_string(),
+                    SessionProperty::from_str("sch4".to_string()),
+                ),
             ]
             .into_iter()
             .collect(),
@@ -599,11 +608,26 @@ pub async fn create_df_session() -> Arc<UserSession> {
 
 #[macro_export]
 macro_rules! test_query {
-    ($test_fn_name:ident, $query:expr $(, sort_all = $sort_all:expr)? ) => {
+    (
+        $test_fn_name:ident,
+        $query:expr
+        $(, pre_queries = [$($pre_queries:expr),* $(,)?])?
+        $(, sort_all = $sort_all:expr)?
+    ) => {
         paste::paste! {
             #[tokio::test]
             async fn [< query_ $test_fn_name >]() {
                 let ctx = create_df_session().await;
+
+                // Execute all pre-queries (if provided) to set up the session context
+                $(
+                    $(
+                        {
+                            let mut q = ctx.query($pre_queries, crate::query::QueryContext::default());
+                            q.execute().await.unwrap();
+                        }
+                    )*
+                )?
 
                 let mut query = ctx.query($query, crate::query::QueryContext::default());
                 let res = query.execute().await;
@@ -761,5 +785,13 @@ test_query!(
 test_query!(
     show_objects_in_schema_and_prefix,
     "SHOW OBJECTS IN public STARTS WITH 'dep'",
+    sort_all = true
+);
+
+// SHOW VARIABLES
+test_query!(
+    show_variables_multiple,
+    "SHOW VARIABLES",
+    pre_queries = ["SET v1 = 'test'", "SET v2 = 1", "SET v3 = true"],
     sort_all = true
 );

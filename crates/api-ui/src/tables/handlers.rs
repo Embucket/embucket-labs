@@ -7,8 +7,9 @@ use crate::tables::error::{
 use crate::tables::models::{
     Table, TableColumn, TableColumnsResponse, TablePreviewDataColumn, TablePreviewDataParameters,
     TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
-    TableUploadPayload, TableUploadResponse, TablesParameters, TablesResponse, UploadParameters,
+    TableUploadPayload, TableUploadResponse, TablesResponse, UploadParameters,
 };
+use crate::{SearchParameters, downcast_int64_column, downcast_string_column};
 use api_sessions::DFSessionId;
 use axum::extract::Query;
 use axum::{
@@ -16,9 +17,8 @@ use axum::{
     extract::{Multipart, Path, State},
 };
 use core_executor::{models::QueryResultData, query::QueryContext};
+use core_metastore::TableIdent as MetastoreTableIdent;
 use core_metastore::error::MetastoreError;
-use core_metastore::{SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent};
-use core_utils::scan_iterator::ScanIterator;
 use datafusion::arrow::csv::reader::Format;
 use datafusion::arrow::util::display::array_value_to_string;
 use snafu::ResultExt;
@@ -48,7 +48,6 @@ use utoipa::OpenApi;
             TableUploadPayload,
             TableUploadResponse,
             TablesResponse,
-            TablesParameters,
             ErrorResponse,
         )
     ),
@@ -378,62 +377,80 @@ pub async fn upload_file(
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
 pub async fn get_tables(
-    Query(parameters): Query<TablesParameters>,
+    DFSessionId(session_id): DFSessionId,
+    Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> TablesResult<Json<TablesResponse>> {
-    let ident = MetastoreSchemaIdent::new(database_name, schema_name);
-    state
-        .metastore
-        .iter_tables(&ident)
-        .cursor(parameters.cursor.clone())
-        .limit(parameters.limit)
-        .token(parameters.search)
-        .collect()
+    let context = QueryContext::new(Some(database_name.clone()), None, None);
+    let sql_string = format!(
+        "SELECT * FROM slatedb.public.tables WHERE schema_name = '{}' AND database_name = '{}'",
+        schema_name.clone(),
+        database_name.clone()
+    );
+    let sql_string = parameters.search.map_or_else(|| sql_string.clone(), |search|
+        format!("{sql_string} AND (table_name ILIKE '%{search}%' OR volume_name ILIKE '%{search}%' OR table_type ILIKE '%{search}%' OR table_format ILIKE '%{search}%' OR owner ILIKE '%{search}%')")
+    );
+    let sql_string = parameters.order_by.map_or_else(
+        || format!("{sql_string} ORDER BY table_name"),
+        |order_by| format!("{sql_string} ORDER BY {order_by}"),
+    );
+    let sql_string = parameters.order_direction.map_or_else(
+        || format!("{sql_string} DESC"),
+        |order_direction| format!("{sql_string} {order_direction}"),
+    );
+    let sql_string = parameters.offset.map_or_else(
+        || sql_string.clone(),
+        |offset| format!("{sql_string} OFFSET {offset}"),
+    );
+    let sql_string = parameters.limit.map_or_else(
+        || sql_string.clone(),
+        |limit| format!("{sql_string} LIMIT {limit}"),
+    );
+    let QueryResultData { records, .. } = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| TablesAPIError::GetMetastore {
-            source: MetastoreError::UtilSlateDB { source: e },
-        })
-        .map(|rw_tables| {
-            let next_cursor = rw_tables
-                .iter()
-                .last()
-                .map_or(String::new(), |rw_table| rw_table.ident.table.clone());
-
-            let items = rw_tables
-                .into_iter()
-                .map(|rw_table| {
-                    let mut total_bytes = 0;
-                    let mut total_rows = 0;
-                    if let Ok(Some(latest_snapshot)) = rw_table.metadata.current_snapshot(None) {
-                        total_bytes = latest_snapshot
-                            .summary()
-                            .other
-                            .get("total-files-size")
-                            .and_then(|value| value.parse::<i64>().ok())
-                            .unwrap_or(0);
-                        total_rows = latest_snapshot
-                            .summary()
-                            .other
-                            .get("total-records")
-                            .and_then(|value| value.parse::<i64>().ok())
-                            .unwrap_or(0);
-                    }
-                    Table {
-                        name: rw_table.ident.table.clone(),
-                        r#type: "TABLE".to_string(),
-                        owner: String::new(),
-                        total_rows,
-                        total_bytes,
-                        created_at: rw_table.created_at,
-                        updated_at: rw_table.updated_at,
-                    }
-                })
-                .collect();
-            Ok(Json(TablesResponse {
-                items,
-                current_cursor: parameters.cursor,
-                next_cursor,
-            }))
-        })?
+        .map_err(|e| TablesAPIError::Execution { source: e })?;
+    let mut items = Vec::new();
+    for record in records {
+        let table_names = downcast_string_column(&record, "table_name")
+            .map_err(|e| TablesAPIError::Execution { source: e })?;
+        let schema_names = downcast_string_column(&record, "schema_name")
+            .map_err(|e| TablesAPIError::Execution { source: e })?;
+        let database_names = downcast_string_column(&record, "database_name")
+            .map_err(|e| TablesAPIError::Execution { source: e })?;
+        let volume_names = downcast_string_column(&record, "volume_name")
+            .map_err(|e| TablesAPIError::Execution { source: e })?;
+        let owners = downcast_string_column(&record, "owner")
+            .map_err(|e| TablesAPIError::Execution { source: e })?;
+        let table_types = downcast_string_column(&record, "table_type")
+            .map_err(|e| TablesAPIError::Execution { source: e })?;
+        let table_format_values = downcast_string_column(&record, "table_format")
+            .map_err(|e| TablesAPIError::Execution { source: e })?;
+        let total_bytes_values = downcast_int64_column(&record, "total_bytes")
+            .map_err(|e| TablesAPIError::Execution { source: e })?;
+        let total_rows_values = downcast_int64_column(&record, "total_rows")
+            .map_err(|e| TablesAPIError::Execution { source: e })?;
+        let created_at_timestamps = downcast_string_column(&record, "created_at")
+            .map_err(|e| TablesAPIError::Execution { source: e })?;
+        let updated_at_timestamps = downcast_string_column(&record, "updated_at")
+            .map_err(|e| TablesAPIError::Execution { source: e })?;
+        for i in 0..record.num_rows() {
+            items.push(Table {
+                name: table_names.value(i).to_string(),
+                schema_name: schema_names.value(i).to_string(),
+                database_name: database_names.value(i).to_string(),
+                volume_name: volume_names.value(i).to_string(),
+                owner: owners.value(i).to_string(),
+                table_format: table_format_values.value(i).to_string(),
+                r#type: table_types.value(i).to_string(),
+                total_bytes: total_bytes_values.value(i),
+                total_rows: total_rows_values.value(i),
+                created_at: created_at_timestamps.value(i).to_string(),
+                updated_at: updated_at_timestamps.value(i).to_string(),
+            });
+        }
+    }
+    Ok(Json(TablesResponse { items }))
 }

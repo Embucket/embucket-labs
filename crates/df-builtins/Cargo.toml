@@ -15,6 +15,10 @@ datafusion-physical-plan = { workspace = true }
 paste = "1"
 serde = { workspace = true }
 serde_json = { workspace = true }
+ahash = { version = "0.8", default-features = false, features = [
+    "runtime-rng",
+] }
+base64 = "0.22.1"
 
 [dev-dependencies]
 tokio = { workspace = true }

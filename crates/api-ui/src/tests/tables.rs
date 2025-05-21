@@ -350,15 +350,14 @@ async fn test_ui_tables() {
     assert_eq!(http::StatusCode::OK, res.status());
     let tables: TablesResponse = res.json().await.unwrap();
     assert_eq!(2, tables.items.len());
-    assert_eq!("tested1".to_string(), tables.items.first().unwrap().name);
-    let cursor = tables.next_cursor;
+    assert_eq!("tested4".to_string(), tables.items.first().unwrap().name);
 
     //GET LIST Tables with cursor
     let res = req(
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas/{}/tables?cursor={cursor}",
+            "http://{addr}/ui/databases/{}/schemas/{}/tables?offset=2",
             database_name.clone(),
             schema_name.clone()
         ),
@@ -369,7 +368,7 @@ async fn test_ui_tables() {
     assert_eq!(http::StatusCode::OK, res.status());
     let tables: TablesResponse = res.json().await.unwrap();
     assert_eq!(2, tables.items.len());
-    assert_eq!("tested3".to_string(), tables.items.first().unwrap().name);
+    assert_eq!("tested2".to_string(), tables.items.first().unwrap().name);
 
     //Create a table with another name
     let query_payload = QueryCreatePayload {
@@ -411,7 +410,26 @@ async fn test_ui_tables() {
             "http://{addr}/ui/databases/{}/schemas/{}/tables?search={}",
             database_name.clone(),
             schema_name.clone(),
-            "tes"
+            "tested"
+        ),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let tables: TablesResponse = res.json().await.unwrap();
+    assert_eq!(4, tables.items.len());
+    assert_eq!("tested4".to_string(), tables.items.first().unwrap().name);
+
+    //GET LIST Tables with search
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas/{}/tables?search={}&orderDirection=ASC",
+            database_name.clone(),
+            schema_name.clone(),
+            "tested"
         ),
         String::new(),
     )
@@ -430,7 +448,7 @@ async fn test_ui_tables() {
             "http://{addr}/ui/databases/{}/schemas/{}/tables?search={}&limit=2",
             database_name.clone(),
             schema_name.clone(),
-            "tes"
+            "tested"
         ),
         String::new(),
     )
@@ -439,18 +457,17 @@ async fn test_ui_tables() {
     assert_eq!(http::StatusCode::OK, res.status());
     let tables: TablesResponse = res.json().await.unwrap();
     assert_eq!(2, tables.items.len());
-    assert_eq!("tested1".to_string(), tables.items.first().unwrap().name);
-    let cursor = tables.next_cursor;
+    assert_eq!("tested4".to_string(), tables.items.first().unwrap().name);
 
     //GET LIST Tables with cursor
     let res = req(
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas/{}/tables?search={}&cursor={cursor}",
+            "http://{addr}/ui/databases/{}/schemas/{}/tables?search={}&offset=2",
             database_name.clone(),
             schema_name.clone(),
-            "tes"
+            "tested"
         ),
         String::new(),
     )
@@ -459,7 +476,7 @@ async fn test_ui_tables() {
     assert_eq!(http::StatusCode::OK, res.status());
     let tables: TablesResponse = res.json().await.unwrap();
     assert_eq!(2, tables.items.len());
-    assert_eq!("tested3".to_string(), tables.items.first().unwrap().name);
+    assert_eq!("tested2".to_string(), tables.items.first().unwrap().name);
 
     //GET LIST Tables with search for the other table
     let res = req(

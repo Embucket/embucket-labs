@@ -139,24 +139,19 @@ impl Into<Format> for UploadParameters {
 #[serde(rename_all = "camelCase")]
 pub struct TablesResponse {
     pub items: Vec<Table>,
-    pub current_cursor: Option<String>,
-    pub next_cursor: String,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Table {
     pub name: String,
-    pub r#type: String,
+    pub schema_name: String,
+    pub database_name: String,
+    pub volume_name: String,
     pub owner: String,
+    pub table_format: String,
+    pub r#type: String,
     pub total_rows: i64,
     pub total_bytes: i64,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-}
-#[derive(Debug, Deserialize, ToSchema, IntoParams)]
-pub struct TablesParameters {
-    pub cursor: Option<String>,
-    #[serde(default = "default_limit")]
-    pub limit: Option<u16>,
-    pub search: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }

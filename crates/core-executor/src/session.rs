@@ -8,9 +8,13 @@ use super::error::{
 };
 use super::query::{QueryContext, UserQuery};
 use crate::datafusion::analyzer::IcebergTypesAnalyzer;
+// TODO: We need to fix this after geodatafusion is updated to datafusion 47
+//use geodatafusion::udf::native::register_native as register_geo_native;
+use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
+use chrono::{DateTime, Utc};
 use core_metastore::error::MetastoreError;
 use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
 use core_utils::scan_iterator::ScanIterator;
@@ -26,12 +30,11 @@ use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCat
 use datafusion_iceberg::planner::IcebergQueryPlanner;
 use df_builtins::register_udafs;
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
-// TODO: We need to fix this after geodatafusion is updated to datafusion 47
-//use geodatafusion::udf::native::register_native as register_geo_native;
-use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
 use snafu::ResultExt;
+use sqlparser::ast::Value;
+use sqlparser::ast::helpers::key_value_options::{KeyValueOption, KeyValueOptionType};
 use std::any::Any;
 use std::collections::HashMap;
 use std::env;
@@ -167,7 +170,7 @@ impl UserSession {
     pub fn set_session_variable(
         &self,
         set: bool,
-        params: HashMap<String, String>,
+        params: HashMap<String, SessionProperty>,
     ) -> ExecutionResult<()> {
         let state = self.ctx.state_ref();
         let mut write = state.write();
@@ -193,7 +196,7 @@ impl UserSession {
         let state = self.ctx.state();
         let config = state.config().options().extensions.get::<SessionParams>();
         if let Some(cfg) = config {
-            return cfg.properties.get(variable).cloned();
+            return cfg.properties.get(variable).map(|v| v.value.clone());
         }
         None
     }
@@ -201,11 +204,67 @@ impl UserSession {
 
 #[derive(Default, Debug, Clone)]
 pub struct SessionParams {
-    pub properties: HashMap<String, String>,
+    pub properties: HashMap<String, SessionProperty>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct SessionProperty {
+    pub session_id: Option<String>,
+    pub created_on: DateTime<Utc>,
+    pub updated_on: DateTime<Utc>,
+    pub value: String,
+    pub property_type: String,
+    pub comment: Option<String>,
+}
+
+impl SessionProperty {
+    pub fn from_key_value(option: &KeyValueOption) -> Self {
+        let now = Utc::now();
+        Self {
+            session_id: None,
+            created_on: now,
+            updated_on: now,
+            value: option.value.clone(),
+            property_type: match option.option_type {
+                KeyValueOptionType::STRING | KeyValueOptionType::ENUM => "text".to_string(),
+                KeyValueOptionType::BOOLEAN => "boolean".to_string(),
+                KeyValueOptionType::NUMBER => "fixed".to_string(),
+            },
+            comment: None,
+        }
+    }
+
+    pub fn from_value(option: Value) -> Self {
+        let now = Utc::now();
+        Self {
+            session_id: None,
+            created_on: now,
+            updated_on: now,
+            value: option.to_string(),
+            property_type: match option {
+                Value::Number(_, _) => "fixed".to_string(),
+                Value::Boolean(_) => "boolean".to_string(),
+                _ => "text".to_string(),
+            },
+            comment: None,
+        }
+    }
+
+    pub fn from_str(value: String) -> Self {
+        let now = Utc::now();
+        Self {
+            session_id: None,
+            created_on: now,
+            updated_on: now,
+            value,
+            property_type: "text".to_string(),
+            comment: None,
+        }
+    }
 }
 
 impl SessionParams {
-    pub fn set_properties(&mut self, properties: HashMap<String, String>) -> DFResult<()> {
+    pub fn set_properties(&mut self, properties: HashMap<String, SessionProperty>) -> DFResult<()> {
         for (key, value) in properties {
             self.properties
                 .insert(format!("session_params.{key}"), value);
@@ -213,7 +272,10 @@ impl SessionParams {
         Ok(())
     }
 
-    pub fn remove_properties(&mut self, properties: HashMap<String, String>) -> DFResult<()> {
+    pub fn remove_properties(
+        &mut self,
+        properties: HashMap<String, SessionProperty>,
+    ) -> DFResult<()> {
         for (key, ..) in properties {
             self.properties.remove(&key);
         }
@@ -237,7 +299,8 @@ impl ExtensionOptions for SessionParams {
     }
 
     fn set(&mut self, key: &str, value: &str) -> DFResult<()> {
-        self.properties.insert(key.to_owned(), value.to_owned());
+        self.properties
+            .insert(key.to_owned(), SessionProperty::from_str(value.to_owned()));
         Ok(())
     }
 
@@ -246,8 +309,8 @@ impl ExtensionOptions for SessionParams {
             .iter()
             .map(|(k, v)| ConfigEntry {
                 key: k.into(),
-                value: Some(v.into()),
-                description: "",
+                value: Some(v.value.clone()),
+                description: "session variable",
             })
             .collect()
     }
