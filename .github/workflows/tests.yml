@@ -83,27 +83,11 @@ jobs:
           submodules: true
 
       - name: Build embucketd binary
-        run: cargo build -p embucketd
-
-      - name: Upload Embucket Binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: embucket-binary
-          path: target/debug/embucketd
-
-      - name: Download Embucket Binary
-        uses: actions/download-artifact@v4
-        with:
-          name: embucket-binary
-          path: ./embucket-bin
-
-      - name: Make Executable
-        run: |
-          chmod +x ./embucket-bin/embucketd
+        run: cargo build
 
       - name: Start Embucket Server
         run: |
-          ./embucket-bin/embucketd &
+          cargo run &
           echo "Starting Embucket server..."
           sleep 10
 
@@ -119,7 +103,8 @@ jobs:
       - name: Run SLT Tests
         working-directory: ./test
         run: |
-          python -m slt_runner --test-dir sql/sql-reference-commands/Query_syntax
+          ls -la
+          python -u -m slt_runner --test-dir sql/sql-reference-commands/Query_syntax
 
       - name: Update README with Test Results
         run: |
