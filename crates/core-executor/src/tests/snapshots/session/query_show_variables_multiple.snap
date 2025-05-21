@@ -1,0 +1,17 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SHOW VARIABLES\""
+info: "Setup queries: SET v1 = 'test'; SET v2 = 1; SET v3 = true"
+snapshot_kind: text
+---
+Ok(
+    [
+        "+------------+------------+-------------------+-------+------+------------------+",
+        "| created_on | updated_on | name              | value | type | comment          |",
+        "+------------+------------+-------------------+-------+------+------------------+",
+        "|            |            | session_params.v1 | test  |      | session variable |",
+        "|            |            | session_params.v2 | 1     |      | session variable |",
+        "|            |            | session_params.v3 | true  |      | session variable |",
+        "+------------+------------+-------------------+-------+------+------------------+",
+    ],
+)

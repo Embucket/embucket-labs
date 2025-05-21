@@ -174,17 +174,31 @@ impl UserSession {
     ) -> ExecutionResult<()> {
         let state = self.ctx.state_ref();
         let mut write = state.write();
-        let config = write
-            .config_mut()
-            .options_mut()
-            .extensions
-            .get_mut::<SessionParams>();
+
+        let mut datafusion_params = Vec::new();
+        let mut session_params = HashMap::new();
+
+        for (key, prop) in params {
+            if key.to_lowercase().starts_with("datafusion.") {
+                datafusion_params.push((key, prop.value));
+            } else {
+                session_params.insert(key, prop);
+            }
+        }
+        let options = write.config_mut().options_mut();
+        for (key, value) in datafusion_params {
+            options
+                .set(&key, &value)
+                .context(ex_error::DataFusionSnafu)?;
+        }
+
+        let config = options.extensions.get_mut::<SessionParams>();
         if let Some(cfg) = config {
             if set {
-                cfg.set_properties(params)
+                cfg.set_properties(session_params)
                     .context(ex_error::DataFusionSnafu)?;
             } else {
-                cfg.remove_properties(params)
+                cfg.remove_properties(session_params)
                     .context(ex_error::DataFusionSnafu)?;
             }
         }
@@ -240,7 +254,10 @@ impl SessionProperty {
             session_id: None,
             created_on: now,
             updated_on: now,
-            value: option.to_string(),
+            value: match option {
+                Value::Number(_, _) | Value::Boolean(_) => option.to_string(),
+                _ => option.clone().into_string().unwrap_or_default(),
+            },
             property_type: match option {
                 Value::Number(_, _) => "fixed".to_string(),
                 Value::Boolean(_) => "boolean".to_string(),
@@ -266,8 +283,7 @@ impl SessionProperty {
 impl SessionParams {
     pub fn set_properties(&mut self, properties: HashMap<String, SessionProperty>) -> DFResult<()> {
         for (key, value) in properties {
-            self.properties
-                .insert(format!("session_params.{key}"), value);
+            self.properties.insert(key, value);
         }
         Ok(())
     }
@@ -307,9 +323,9 @@ impl ExtensionOptions for SessionParams {
     fn entries(&self) -> Vec<ConfigEntry> {
         self.properties
             .iter()
-            .map(|(k, v)| ConfigEntry {
-                key: k.into(),
-                value: Some(v.value.clone()),
+            .map(|(key, prop)| ConfigEntry {
+                key: format!("session_params.{key}"),
+                value: Some(prop.value.clone()),
                 description: "session variable",
             })
             .collect()

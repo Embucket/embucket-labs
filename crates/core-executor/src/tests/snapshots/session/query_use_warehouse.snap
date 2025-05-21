@@ -1,0 +1,15 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SHOW VARIABLES\""
+info: "PreQueries: USE WAREHOUSE test_warehouse"
+snapshot_kind: text
+---
+Ok(
+    [
+        "+------------+------------+--------------------------+----------------+------+------------------+",
+        "| created_on | updated_on | name                     | value          | type | comment          |",
+        "+------------+------------+--------------------------+----------------+------+------------------+",
+        "|            |            | session_params.warehouse | test_warehouse |      | session variable |",
+        "+------------+------------+--------------------------+----------------+------+------------------+",
+    ],
+)

@@ -1,0 +1,11 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SHOW PARAMETERS\""
+snapshot_kind: text
+---
+Ok(
+    [
+        "++",
+        "++",
+    ],
+)

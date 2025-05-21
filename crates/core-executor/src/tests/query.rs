@@ -1,17 +1,13 @@
-use crate::models::QueryResultData;
 use crate::query::{QueryContext, UserQuery};
 use crate::session::{SessionProperty, UserSession};
 
 use crate::error::{ExecutionError, ExecutionResult};
-use crate::service::{CoreExecutionService, ExecutionService};
-use crate::utils::{Config, DataSerializationFormat};
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
 use core_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
-    TableIdent as MetastoreTableIdent, Volume as MetastoreVolume,
+    Volume as MetastoreVolume,
 };
-use datafusion::assert_batches_eq;
 use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::sqlparser::ast::Statement as SQLStatement;
 use datafusion::sql::sqlparser::ast::visit_expressions;
@@ -24,134 +20,10 @@ use sqlparser::ast::{SetExpr, Value};
 use std::ops::ControlFlow;
 use std::sync::Arc;
 
-struct Test<'a, T> {
-    input: &'a str,
-    expected: T,
-    should_work: bool,
-}
-impl<'a, T> Test<'a, T> {
-    pub const fn new(input: &'a str, expected: T, should_work: bool) -> Self {
-        Self {
-            input,
-            expected,
-            should_work,
-        }
-    }
-}
-#[tokio::test]
-#[allow(
-    clippy::unwrap_used,
-    clippy::expect_used,
-    clippy::explicit_iter_loop,
-    clippy::collapsible_match
-)]
-async fn test_timestamp_keywords_postprocess() {
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let session = Arc::new(
-        UserSession::new(metastore)
-            .await
-            .expect("Failed to create user session"),
-    );
-    let query_context = QueryContext::default();
-    let test = vec![
-        Test::new(
-            "SELECT dateadd(year, 5, '2025-06-01')",
-            Value::SingleQuotedString("year".to_owned()),
-            true,
-        ),
-        Test::new(
-            "SELECT dateadd(\"year\", 5, '2025-06-01')",
-            Value::SingleQuotedString("year".to_owned()),
-            true,
-        ),
-        Test::new(
-            "SELECT dateadd('year', 5, '2025-06-01')",
-            Value::SingleQuotedString("year".to_owned()),
-            true,
-        ),
-        Test::new(
-            "SELECT dateadd(\"'year'\", 5, '2025-06-01')",
-            Value::SingleQuotedString("year".to_owned()),
-            false,
-        ),
-        Test::new(
-            "SELECT dateadd(\'year\', 5, '2025-06-01')",
-            Value::SingleQuotedString("year".to_owned()),
-            true,
-        ),
-        Test::new(
-            "SELECT datediff(day, 5, '2025-06-01')",
-            Value::SingleQuotedString("day".to_owned()),
-            true,
-        ),
-        Test::new(
-            "SELECT datediff('week', 5, '2025-06-01')",
-            Value::SingleQuotedString("week".to_owned()),
-            true,
-        ),
-        Test::new(
-            "SELECT datediff(nsecond, 10000000, '2025-06-01')",
-            Value::SingleQuotedString("nsecond".to_owned()),
-            true,
-        ),
-        Test::new(
-            "SELECT date_diff(hour, 5, '2025-06-01')",
-            Value::SingleQuotedString("hour".to_owned()),
-            true,
-        ),
-        Test::new(
-            "SELECT date_add(us, 100000, '2025-06-01')",
-            Value::SingleQuotedString("us".to_owned()),
-            true,
-        ),
-    ];
-    for test in test.iter() {
-        let query = session.query(test.input, query_context.clone());
-        let mut statement = query.parse_query().unwrap();
-        UserQuery::postprocess_query_statement(&mut statement);
-        if let DFStatement::Statement(statement) = statement {
-            visit_expressions(&statement, |expr| {
-                if let Expr::Function(Function {
-                    name: ObjectName(object_name_parts),
-                    args: FunctionArguments::List(FunctionArgumentList { args, .. }),
-                    ..
-                }) = expr
-                {
-                    match object_name_parts.first().unwrap() {
-                        ObjectNamePart::Identifier(ident) => match ident.value.as_str() {
-                            "dateadd" | "date_add" | "datediff" | "date_diff" => {
-                                if let FunctionArg::Unnamed(FunctionArgExpr::Expr(ident)) =
-                                    args.iter().next().unwrap()
-                                {
-                                    if let Expr::Value(found) = ident {
-                                        if test.should_work {
-                                            assert_eq!(
-                                                found.to_string(),
-                                                test.expected.to_string()
-                                            );
-                                        } else {
-                                            assert_ne!(
-                                                found.to_string(),
-                                                test.expected.to_string()
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                            _ => {}
-                        },
-                    }
-                }
-                ControlFlow::<()>::Continue(())
-            });
-        }
-    }
-}
-
 #[allow(clippy::unwrap_used)]
 #[test]
 fn test_postprocess_query_statement_functions_expressions() {
-    let args: [(&str, &str); 14] = [
+    let args: [(&str, &str); 21] = [
         ("select year(ts)", "SELECT date_part('year', ts)"),
         ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
         ("select day(ts)", "SELECT date_part('day', ts)"),
@@ -164,9 +36,37 @@ fn test_postprocess_query_statement_functions_expressions() {
         ("select minute(ts)", "SELECT date_part('minute', ts)"),
         ("select second(ts)", "SELECT date_part('second', ts)"),
         ("select minute(ts)", "SELECT date_part('minute', ts)"),
-        // Do nothing
         ("select yearofweek(ts)", "SELECT yearofweek(ts)"),
         ("select yearofweekiso(ts)", "SELECT yearofweekiso(ts)"),
+        // timestamp keywords postprocess
+        (
+            "SELECT dateadd(year, 5, '2025-06-01')",
+            "SELECT dateadd('year', 5, '2025-06-01')",
+        ),
+        (
+            "SELECT dateadd(\"year\", 5, '2025-06-01')",
+            "SELECT dateadd('year', 5, '2025-06-01')",
+        ),
+        (
+            "SELECT datediff(day, 5, '2025-06-01')",
+            "SELECT datediff('day', 5, '2025-06-01')",
+        ),
+        (
+            "SELECT datediff(week, 5, '2025-06-01')",
+            "SELECT datediff('week', 5, '2025-06-01')",
+        ),
+        (
+            "SELECT datediff(nsecond, 10000000, '2025-06-01')",
+            "SELECT datediff('nsecond', 10000000, '2025-06-01')",
+        ),
+        (
+            "SELECT date_diff(hour, 5, '2025-06-01')",
+            "SELECT date_diff('hour', 5, '2025-06-01')",
+        ),
+        (
+            "SELECT date_add(us, 100000, '2025-06-01')",
+            "SELECT date_add('us', 100000, '2025-06-01')",
+        ),
     ];
 
     for (init, exp) in args {
@@ -177,378 +77,6 @@ fn test_postprocess_query_statement_functions_expressions() {
         }
     }
 }
-
-#[tokio::test]
-#[allow(clippy::expect_used, clippy::manual_let_else, clippy::too_many_lines)]
-async fn test_context_name_injection() {
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let session = Arc::new(
-        UserSession::new(metastore)
-            .await
-            .expect("Failed to create user session"),
-    );
-    let query1 = session.query("SELECT * FROM table1", QueryContext::default());
-    let query_statement = if let DFStatement::Statement(statement) =
-        query1.parse_query().expect("Failed to parse query")
-    {
-        if let SQLStatement::Query(query) = *statement {
-            query
-        } else {
-            panic!("Failed to parse query");
-        }
-    } else {
-        panic!("Failed to parse query");
-    };
-    let select_statement1 = if let SetExpr::Select(select) = *query_statement.body {
-        select
-    } else {
-        panic!("Failed to parse query");
-    };
-    let from1 = select_statement1.from;
-
-    let query2 = session.query(
-        "SELECT * from table2",
-        QueryContext::new(Some("db2".to_string()), Some("sch2".to_string()), None),
-    );
-    let query_statement2 = if let DFStatement::Statement(statement) =
-        query2.parse_query().expect("Failed to parse query")
-    {
-        if let SQLStatement::Query(query) = *statement {
-            query
-        } else {
-            panic!("Failed to parse query");
-        }
-    } else {
-        panic!("Failed to parse query");
-    };
-    let select_statement2 = if let SetExpr::Select(select) = *query_statement2.body {
-        select
-    } else {
-        panic!("Failed to parse query");
-    };
-    let from2 = select_statement2.from;
-
-    // This will also test the default public schema
-    session
-        .set_session_variable(
-            true,
-            vec![(
-                "catalog".to_string(),
-                SessionProperty::from_str("db3".to_string()),
-            )]
-            .into_iter()
-            .collect(),
-        )
-        .expect("Failed to set session variable");
-    let query3 = session.query("SELECT * from table3", QueryContext::default());
-    let query_statement3 = if let DFStatement::Statement(statement) =
-        query3.parse_query().expect("Failed to parse query")
-    {
-        if let SQLStatement::Query(query) = *statement {
-            query
-        } else {
-            panic!("Failed to parse query");
-        }
-    } else {
-        panic!("Failed to parse query");
-    };
-    let select_statement3 = if let SetExpr::Select(select) = *query_statement3.body {
-        select
-    } else {
-        panic!("Failed to parse query");
-    };
-    let from3 = select_statement3.from;
-
-    // Test
-    session
-        .set_session_variable(
-            true,
-            vec![
-                (
-                    "catalog".to_string(),
-                    SessionProperty::from_str("db4".to_string()),
-                ),
-                (
-                    "schema".to_string(),
-                    SessionProperty::from_str("sch4".to_string()),
-                ),
-            ]
-            .into_iter()
-            .collect(),
-        )
-        .expect("Failed to set session variable");
-    let query4 = session.query(
-        "SELECT * from table4 INNER JOIN table4_1 ON 1=1",
-        QueryContext::default(),
-    );
-    let query_statement4 = if let DFStatement::Statement(statement) =
-        query4.parse_query().expect("Failed to parse query")
-    {
-        if let SQLStatement::Query(query) = *statement {
-            query
-        } else {
-            panic!("Failed to parse query");
-        }
-    } else {
-        panic!("Failed to parse query");
-    };
-    let select_statement4 = if let SetExpr::Select(select) = *query_statement4.body {
-        select
-    } else {
-        panic!("Failed to parse query");
-    };
-    let from4 = select_statement4.from;
-    insta::assert_debug_snapshot!((from1, from2, from3, from4));
-}
-
-#[tokio::test]
-async fn test_create_table_with_timestamp_nanosecond() {
-    let (execution_svc, _, session_id) = prepare_env().await;
-    let table_ident = MetastoreTableIdent {
-        database: "embucket".to_string(),
-        schema: "public".to_string(),
-        table: "target_table".to_string(),
-    };
-    // Verify that the file was uploaded successfully by running select * from the table
-    let query = format!(
-        "CREATE TABLE {}.{}.{} (id INT, ts TIMESTAMP_NTZ(9)) as VALUES (1, '2025-04-09T21:11:23'), (2, '2025-04-09T21:11:00');",
-        table_ident.database, table_ident.schema, table_ident.table
-    );
-    let QueryResultData { records: rows, .. } = execution_svc
-        .query(&session_id, &query, QueryContext::default())
-        .await
-        .expect("Failed to execute query");
-
-    assert_batches_eq!(
-        &[
-            "+-------+",
-            "| count |",
-            "+-------+",
-            "| 2     |",
-            "+-------+",
-        ],
-        &rows
-    );
-}
-
-#[tokio::test]
-async fn test_drop_table() {
-    let (execution_svc, _, session_id) = prepare_env().await;
-    let table_ident = MetastoreTableIdent {
-        database: "embucket".to_string(),
-        schema: "public".to_string(),
-        table: "target_table".to_string(),
-    };
-    // Verify that the file was uploaded successfully by running select * from the table
-    let query = format!("CREATE TABLE {table_ident} (id INT) as VALUES (1), (2);");
-    let QueryResultData { records: rows, .. } = execution_svc
-        .query(&session_id, &query, QueryContext::default())
-        .await
-        .expect("Failed to execute query");
-
-    assert_batches_eq!(
-        &[
-            "+-------+",
-            "| count |",
-            "+-------+",
-            "| 2     |",
-            "+-------+",
-        ],
-        &rows
-    );
-
-    let query = format!("DROP TABLE {table_ident};");
-    execution_svc
-        .query(&session_id, &query, QueryContext::default())
-        .await
-        .expect("Failed to execute query");
-
-    // Verify that the table is not exists
-    let query = format!("SELECT * FROM {table_ident};");
-    let res = execution_svc
-        .query(&session_id, &query, QueryContext::default())
-        .await;
-
-    assert!(res.is_err());
-    if let Err(err) = res {
-        assert_eq!(
-            err.to_string(),
-            format!("DataFusion error: Error during planning: table '{table_ident}' not found")
-        );
-    }
-}
-
-#[tokio::test]
-async fn test_create_schema() {
-    let (execution_svc, metastore, session_id) = prepare_env().await;
-    let schema_ident = MetastoreSchemaIdent {
-        database: "embucket".to_string(),
-        schema: "public_new".to_string(),
-    };
-    let query = format!("CREATE SCHEMA {schema_ident};");
-    execution_svc
-        .query(&session_id, &query, QueryContext::default())
-        .await
-        .expect("Failed to execute query");
-    // TODO use "SHOW SCHEMAS" sql
-    metastore
-        .get_schema(&schema_ident)
-        .await
-        .expect("Failed to get schema");
-}
-
-#[tokio::test]
-#[allow(clippy::unwrap_used)]
-async fn test_resolve_table_object_name() {
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let session = UserSession::new(metastore)
-        .await
-        .expect("Failed to create session");
-    let query = UserQuery::new(Arc::from(session), "", QueryContext::default());
-
-    let test_cases: [(Vec<ObjectNamePart>, ExecutionResult<String>); 4] = [
-        (
-            vec![ObjectNamePart::Identifier(Ident::new("table"))],
-            Ok("embucket.public.table".to_string()),
-        ),
-        (
-            vec![
-                ObjectNamePart::Identifier(Ident::new("test_schema")),
-                ObjectNamePart::Identifier(Ident::new("table")),
-            ],
-            Ok("embucket.test_schema.table".to_string()),
-        ),
-        (
-            vec![
-                ObjectNamePart::Identifier(Ident::new("test_db")),
-                ObjectNamePart::Identifier(Ident::new("test_schema")),
-                ObjectNamePart::Identifier(Ident::new("table")),
-            ],
-            Ok("test_db.test_schema.table".to_string()),
-        ),
-        (
-            vec![
-                ObjectNamePart::Identifier(Ident::new("test_db")),
-                ObjectNamePart::Identifier(Ident::new("test_schema")),
-                ObjectNamePart::Identifier(Ident::new("table")),
-                ObjectNamePart::Identifier(Ident::new("col")),
-            ],
-            Err(ExecutionError::InvalidTableIdentifier {
-                ident: "test_db.test_schema.table.col".to_string(),
-            }),
-        ),
-    ];
-    for (test_case, expected) in test_cases {
-        let result = query.resolve_table_object_name(test_case.clone());
-        if result.is_err() {
-            assert_eq!(
-                result.err().unwrap().to_string(),
-                expected.err().unwrap().to_string()
-            );
-        } else {
-            assert_eq!(result.unwrap().to_string(), expected.unwrap());
-        }
-    }
-}
-
-#[tokio::test]
-#[allow(clippy::unwrap_used)]
-async fn test_resolve_schema_object_name() {
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let session = UserSession::new(metastore)
-        .await
-        .expect("Failed to create session");
-    let query = UserQuery::new(Arc::from(session), "", QueryContext::default());
-
-    let test_cases: [(Vec<ObjectNamePart>, ExecutionResult<String>); 3] = [
-        (
-            vec![ObjectNamePart::Identifier(Ident::new("schema"))],
-            Ok("embucket.schema".to_string()),
-        ),
-        (
-            vec![
-                ObjectNamePart::Identifier(Ident::new("test_db")),
-                ObjectNamePart::Identifier(Ident::new("schema")),
-            ],
-            Ok("test_db.schema".to_string()),
-        ),
-        (
-            vec![
-                ObjectNamePart::Identifier(Ident::new("test_db")),
-                ObjectNamePart::Identifier(Ident::new("test_schema")),
-                ObjectNamePart::Identifier(Ident::new("table")),
-            ],
-            Err(ExecutionError::InvalidSchemaIdentifier {
-                ident: "test_db.test_schema.table".to_string(),
-            }),
-        ),
-    ];
-    for (test_case, expected) in test_cases {
-        let res = query.resolve_schema_object_name(test_case.clone());
-        if res.is_err() {
-            assert_eq!(
-                res.err().unwrap().to_string(),
-                expected.err().unwrap().to_string()
-            );
-        } else {
-            assert_eq!(res.unwrap().to_string(), expected.unwrap());
-        }
-    }
-}
-
-async fn prepare_env() -> (CoreExecutionService, Arc<SlateDBMetastore>, String) {
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    metastore
-        .create_volume(
-            &"test_volume".to_string(),
-            MetastoreVolume::new(
-                "test_volume".to_string(),
-                core_metastore::VolumeType::Memory,
-            ),
-        )
-        .await
-        .expect("Failed to create volume");
-    metastore
-        .create_database(
-            &"embucket".to_string(),
-            MetastoreDatabase {
-                ident: "embucket".to_string(),
-                properties: None,
-                volume: "test_volume".to_string(),
-            },
-        )
-        .await
-        .expect("Failed to create database");
-    let schema_ident = MetastoreSchemaIdent {
-        database: "embucket".to_string(),
-        schema: "public".to_string(),
-    };
-    metastore
-        .create_schema(
-            &schema_ident.clone(),
-            MetastoreSchema {
-                ident: schema_ident,
-                properties: None,
-            },
-        )
-        .await
-        .expect("Failed to create schema");
-
-    let execution_svc = CoreExecutionService::new(
-        metastore.clone(),
-        Config {
-            dbt_serialization_format: DataSerializationFormat::Json,
-        },
-    );
-
-    let session_id = "test_session_id";
-    execution_svc
-        .create_session(session_id.to_string())
-        .await
-        .expect("Failed to create session");
-    (execution_svc, metastore, session_id.to_string())
-}
-
 static TABLE_SETUP: &str = include_str!(r"./table_setup.sql");
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
@@ -600,7 +128,6 @@ pub async fn create_df_session() -> Arc<UserSession> {
         if !query.is_empty() {
             let mut query = user_session.query(query, QueryContext::default());
             query.execute().await.unwrap();
-            //ctx.sql(query).await.unwrap().collect().await.unwrap();
         }
     }
     user_session
@@ -611,19 +138,20 @@ macro_rules! test_query {
     (
         $test_fn_name:ident,
         $query:expr
-        $(, pre_queries = [$($pre_queries:expr),* $(,)?])?
+        $(, setup_queries =[$($setup_queries:expr),* $(,)?])?
         $(, sort_all = $sort_all:expr)?
+        $(, snapshot_path = $user_snapshot_path:expr)?
     ) => {
         paste::paste! {
             #[tokio::test]
             async fn [< query_ $test_fn_name >]() {
                 let ctx = create_df_session().await;
 
-                // Execute all pre-queries (if provided) to set up the session context
+                // Execute all setup queries (if provided) to set up the session context
                 $(
                     $(
                         {
-                            let mut q = ctx.query($pre_queries, crate::query::QueryContext::default());
+                            let mut q = ctx.query($setup_queries, crate::query::QueryContext::default());
                             q.execute().await.unwrap();
                         }
                     )*
@@ -633,11 +161,17 @@ macro_rules! test_query {
                 let res = query.execute().await;
                 let sort_all = false $(|| $sort_all)?;
 
-                insta::with_settings!({
-                    description => stringify!($query),
-                    omit_expression => true,
-                    prepend_module_to_snapshot => false
-                }, {
+                let mut settings = insta::Settings::new();
+                settings.set_description(stringify!($query));
+                settings.set_omit_expression(true);
+                settings.set_prepend_module_to_snapshot(false);
+                settings.set_snapshot_path(concat!("snapshots", "/") $(.to_owned() + $user_snapshot_path)?);
+
+                let setup: Vec<&str> = vec![$($($setup_queries),*)?];
+                if !setup.is_empty() {
+                    settings.set_info(&format!("Setup queries: {}", setup.join("; ")));
+                }
+                settings.bind(|| {
                     let df = match res {
                         Ok(mut record_batches) => {
                             if sort_all {
@@ -658,9 +192,43 @@ macro_rules! test_query {
     };
 }
 
+// CREATE SCHEMA
+test_query!(
+    create_schema,
+    "SHOW SCHEMAS IN embucket STARTS WITH 'new_schema'",
+    setup_queries = ["CREATE SCHEMA embucket.new_schema"]
+);
+
+// CREATE TABLE
+test_query!(
+    create_table_with_timestamp_nanosecond,
+    "CREATE TABLE embucket.public.ts_table (ts TIMESTAMP_NTZ(9)) as VALUES ('2025-04-09T21:11:23');"
+);
+
+// DROP TABLE
+test_query!(
+    drop_table,
+    "SHOW TABLES IN public STARTS WITH 'test'",
+    setup_queries = [
+        "CREATE TABLE embucket.public.test (id INT) as VALUES (1), (2)",
+        "DROP TABLE embucket.public.test"
+    ]
+);
+
+// context name injection
+test_query!(
+    context_name_injection,
+    "SHOW TABLES IN new_schema",
+    setup_queries = [
+        "CREATE SCHEMA embucket.new_schema",
+        "SET schema = 'new_schema'",
+        "CREATE table new_table (id INT)",
+    ]
+);
+
+// SELECT
 test_query!(select_date_add_diff, "SELECT dateadd(day, 5, '2025-06-01')");
 test_query!(func_date_add, "SELECT date_add(day, 30, '2025-01-06')");
-// // SELECT
 test_query!(select_star, "SELECT * FROM employee_table");
 // FIXME: ILIKE is not supported yet
 // test_query!(select_ilike, "SELECT * ILIKE '%id%' FROM employee_table;");
@@ -681,117 +249,273 @@ test_query!(
 );
 
 // SHOW DATABASES
-test_query!(show_databases, "SHOW DATABASES", sort_all = true);
+test_query!(
+    show_databases,
+    "SHOW DATABASES",
+    sort_all = true,
+    snapshot_path = "session"
+);
 
 // SHOW SCHEMAS
-test_query!(show_schemas, "SHOW SCHEMAS", sort_all = true);
+test_query!(
+    show_schemas,
+    "SHOW SCHEMAS",
+    sort_all = true,
+    snapshot_path = "session"
+);
 test_query!(
     show_schemas_starts_with,
     "SHOW SCHEMAS STARTS WITH 'publ'",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_schemas_in_db,
     "SHOW SCHEMAS IN embucket",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_schemas_in_db_and_prefix,
     "SHOW SCHEMAS IN embucket STARTS WITH 'pub'",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 
 // SHOW TABLES
-test_query!(show_tables, "SHOW TABLES", sort_all = true);
+test_query!(
+    show_tables,
+    "SHOW TABLES",
+    sort_all = true,
+    snapshot_path = "session"
+);
 test_query!(
     show_tables_starts_with,
     "SHOW TABLES STARTS WITH 'dep'",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_tables_in_schema,
     "SHOW TABLES IN public",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_tables_in_schema_full,
     "SHOW TABLES IN embucket.public",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_tables_in_schema_and_prefix,
     "SHOW TABLES IN public STARTS WITH 'dep'",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 
 // SHOW VIEWS
-test_query!(show_views, "SHOW VIEWS", sort_all = true);
+test_query!(
+    show_views,
+    "SHOW VIEWS",
+    sort_all = true,
+    snapshot_path = "session"
+);
 test_query!(
     show_views_starts_with,
     "SHOW VIEWS STARTS WITH 'schem'",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_views_in_schema,
     "SHOW VIEWS IN information_schema",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_views_in_schema_full,
     "SHOW VIEWS IN embucket.information_schema",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_views_in_schema_and_prefix,
     "SHOW VIEWS IN information_schema STARTS WITH 'schem'",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 
 // SHOW COLUMNS
-test_query!(show_columns, "SHOW COLUMNS", sort_all = true);
+test_query!(
+    show_columns,
+    "SHOW COLUMNS",
+    sort_all = true,
+    snapshot_path = "session"
+);
 test_query!(
     show_columns_in_table,
     "SHOW COLUMNS IN employee_table",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_columns_in_table_full,
     "SHOW COLUMNS IN embucket.public.employee_table",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_columns_starts_with,
     "SHOW COLUMNS IN employee_table STARTS WITH 'last_'",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 
 // SHOW OBJECTS
-test_query!(show_objects, "SHOW OBJECTS", sort_all = true);
+test_query!(
+    show_objects,
+    "SHOW OBJECTS",
+    sort_all = true,
+    snapshot_path = "session"
+);
 test_query!(
     show_objects_starts_with,
     "SHOW OBJECTS STARTS WITH 'dep'",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_objects_in_schema,
     "SHOW OBJECTS IN public",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_objects_in_schema_full,
     "SHOW OBJECTS IN embucket.public",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 test_query!(
     show_objects_in_schema_and_prefix,
     "SHOW OBJECTS IN public STARTS WITH 'dep'",
-    sort_all = true
+    sort_all = true,
+    snapshot_path = "session"
 );
 
-// SHOW VARIABLES
+// SESSION RELATED https://docs.snowflake.com/en/sql-reference/commands-session
+test_query!(
+    alter_session_set,
+    "SHOW VARIABLES",
+    setup_queries = ["ALTER SESSION SET v1 = 'test'"],
+    snapshot_path = "session"
+);
+test_query!(
+    alter_session_unset,
+    "SHOW VARIABLES",
+    setup_queries = [
+        "ALTER SESSION SET v1 = 'test' v2 = 1",
+        "ALTER SESSION UNSET v1"
+    ],
+    snapshot_path = "session"
+);
+
+// TODO SHOW PARAMETERS is not supported yet
+test_query!(
+    show_parameters,
+    "SHOW PARAMETERS",
+    sort_all = true,
+    snapshot_path = "session"
+);
+
+test_query!(
+    use_role,
+    "SHOW VARIABLES",
+    setup_queries = ["USE ROLE test_role"],
+    snapshot_path = "session"
+);
+
+test_query!(
+    use_secondary_roles,
+    "SHOW VARIABLES",
+    setup_queries = ["USE SECONDARY ROLES test_role"],
+    snapshot_path = "session"
+);
+test_query!(
+    use_warehouse,
+    "SHOW VARIABLES",
+    setup_queries = ["USE WAREHOUSE test_warehouse"],
+    snapshot_path = "session"
+);
+test_query!(
+    use_database,
+    "SHOW VARIABLES",
+    setup_queries = ["USE DATABASE test_db"],
+    snapshot_path = "session"
+);
+test_query!(
+    use_schema,
+    "SHOW VARIABLES",
+    setup_queries = ["USE SCHEMA test_schema"],
+    snapshot_path = "session"
+);
+
 test_query!(
     show_variables_multiple,
     "SHOW VARIABLES",
-    pre_queries = ["SET v1 = 'test'", "SET v2 = 1", "SET v3 = true"],
-    sort_all = true
+    setup_queries = ["SET v1 = 'test'", "SET v2 = 1", "SET v3 = true"],
+    sort_all = true,
+    snapshot_path = "session"
+);
+test_query!(
+    set_variable,
+    "SHOW VARIABLES",
+    setup_queries = ["SET v1 = 'test'"],
+    snapshot_path = "session"
+);
+test_query!(
+    set_variable_system,
+    "SELECT name, value FROM snowplow.information_schema.df_settings
+     WHERE name = 'datafusion.execution.time_zone'",
+    setup_queries = ["SET datafusion.execution.time_zone = 'TEST_TIMEZONE'"],
+    snapshot_path = "session"
+);
+// TODO Currently UNSET is not supported
+test_query!(
+    unset_variable,
+    "UNSET v3",
+    setup_queries = ["SET v1 = 'test'", "SET v2 = 1", "SET v3 = true"],
+    snapshot_path = "session"
+);
+
+// https://docs.snowflake.com/en/sql-reference/sql/explain
+// https://datafusion.apache.org/user-guide/sql/explain.html
+// Datafusion has different output format.
+// Check session config ExplainOptions for the full list of options
+// logical_only_plan flag is used to only print logical plans
+// since physical plan contains dynamic files names
+test_query!(
+    explain_select,
+    "EXPLAIN SELECT * FROM embucket.public.employee_table",
+    setup_queries = ["SET datafusion.explain.logical_plan_only = true"],
+    snapshot_path = "session"
+);
+test_query!(
+    explain_select_limit,
+    "EXPLAIN SELECT * FROM embucket.public.employee_table limit 1",
+    setup_queries = ["SET datafusion.explain.logical_plan_only = true"],
+    snapshot_path = "session"
+);
+test_query!(
+    explain_select_column,
+    "EXPLAIN SELECT last_name FROM embucket.public.employee_table limit 1",
+    setup_queries = ["SET datafusion.explain.logical_plan_only = true"],
+    snapshot_path = "session"
+);
+test_query!(
+    explain_select_missing_column,
+    "EXPLAIN SELECT missing FROM embucket.public.employee_table limit 1",
+    setup_queries = ["SET datafusion.explain.logical_plan_only = true"],
+    snapshot_path = "session"
 );

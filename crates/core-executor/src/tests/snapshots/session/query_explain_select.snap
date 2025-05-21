@@ -1,0 +1,15 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"EXPLAIN SELECT * FROM embucket.public.employee_table\""
+info: "Setup queries: SET datafusion.explain.logical_plan_only = true"
+snapshot_kind: text
+---
+Ok(
+    [
+        "+--------------+----------------------------------------------------------------------------------------------------------+",
+        "| plan_type    | plan                                                                                                     |",
+        "+--------------+----------------------------------------------------------------------------------------------------------+",
+        "| logical_plan | TableScan: embucket.public.employee_table projection=[employee_id, last_name, first_name, department_id] |",
+        "+--------------+----------------------------------------------------------------------------------------------------------+",
+    ],
+)
