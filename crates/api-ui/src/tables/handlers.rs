@@ -5,9 +5,9 @@ use crate::tables::error::{
     TablesAPIError, TablesResult,
 };
 use crate::tables::models::{
-    Table, TableColumn, TableColumnsResponse, TablePreviewDataColumn, TablePreviewDataParameters,
+    TableColumn, TableColumnsResponse, TablePreviewDataColumn, TablePreviewDataParameters,
     TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
-    TableUploadPayload, TableUploadResponse, TablesResponse, UploadParameters,
+    TableUploadPayload, TableUploadResponse, TablesResponse, TimestampedTable, UploadParameters,
 };
 use crate::{SearchParameters, apply_parameters, downcast_int64_column, downcast_string_column};
 use api_sessions::DFSessionId;
@@ -429,7 +429,7 @@ pub async fn get_tables(
         let updated_at_timestamps = downcast_string_column(&record, "updated_at")
             .map_err(|e| TablesAPIError::Execution { source: e })?;
         for i in 0..record.num_rows() {
-            items.push(Table {
+            items.push(TimestampedTable {
                 name: table_names.value(i).to_string(),
                 schema_name: schema_names.value(i).to_string(),
                 database_name: database_names.value(i).to_string(),
