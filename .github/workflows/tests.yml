@@ -118,8 +118,7 @@ jobs:
 
       - name: Run SLT Tests
         run: |
-          cd test
-          python -m slt_runner --test-dir sql/sql-reference-commands/Query_syntax
+          python -m slt_runner --test-dir test/sql/sql-reference-commands/Query_syntax
 
       - name: Update README with Test Results
         run: |
