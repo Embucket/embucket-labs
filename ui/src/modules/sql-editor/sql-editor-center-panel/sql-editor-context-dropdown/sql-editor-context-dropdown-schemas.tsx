@@ -1,6 +1,7 @@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SidebarMenu, SidebarMenuButton } from '@/components/ui/sidebar';
 
+// TODO: DRY
 interface Option {
   value: string;
   label: string;

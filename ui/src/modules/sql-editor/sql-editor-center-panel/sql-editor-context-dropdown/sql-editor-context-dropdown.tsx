@@ -27,7 +27,8 @@ export const SqlEditorContextDropdown = () => {
     () =>
       isLoadingNavigationTrees
         ? { databasesOptions: [], schemasOptions: [], tablesOptions: [] }
-        : transformNavigationTreesToSelectOptions(
+        : // TODO: Tmp solution
+          transformNavigationTreesToSelectOptions(
             navigationTrees ?? [],
             selectedDatabase,
             selectedSchema,
