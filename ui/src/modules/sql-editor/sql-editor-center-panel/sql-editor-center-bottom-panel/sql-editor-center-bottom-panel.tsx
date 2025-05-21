@@ -61,7 +61,8 @@ export function SqlEditorCenterBottomPanel({
               </Button>
             </div>
           </div>
-          <TabsContent value="results" className="m-0 size-full">
+          {/* TODO: Hardcode */}
+          <TabsContent value="results" className="m-0 h-[calc(100%-100px)]">
             <ScrollArea tableViewport className="size-full">
               <SqlEditorCenterBottomPanelQueryResultTable
                 columns={columns}
