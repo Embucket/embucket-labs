@@ -117,8 +117,9 @@ jobs:
           pip install -r test/slt_runner/requirements.txt
 
       - name: Run SLT Tests
+        working-directory: ./test
         run: |
-          python -m slt_runner --test-dir test/sql/sql-reference-commands/Query_syntax
+          python -m slt_runner --test-dir sql/sql-reference-commands/Query_syntax
 
       - name: Update README with Test Results
         run: |
