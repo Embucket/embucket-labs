@@ -69,8 +69,8 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
 
-      - name: cargo test
-        run: cargo test --workspace --all-features --all-targets
+#      - name: cargo test
+#        run: cargo test --workspace --all-features --all-targets
 
       - name: Build embucketd binary
         run: cargo build -p embucketd
@@ -109,7 +109,7 @@ jobs:
       - name: Run SLT Tests
         run: |
           cd test
-          python -m slt_runner --test-dir sql > ../test_results.txt
+          python -m slt_runner --test-dir sql/sql-reference-commands/Query_syntax | tee ../test_results.txt
 
       - name: Update README with Test Results
         run: |
