@@ -1,4 +1,3 @@
-use crate::information_schema::information_schema::INFORMATION_SCHEMA;
 use crate::schema::CachingSchema;
 use dashmap::DashMap;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};

@@ -244,7 +244,6 @@ impl ExecutionService for CoreExecutionService {
         Ok(rows_loaded)
     }
 
-    #[must_use]
     fn config(&self) -> &Config {
         &self.config
     }

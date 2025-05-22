@@ -1,22 +1,19 @@
 use crate::query::{QueryContext, UserQuery};
-use crate::session::{SessionProperty, UserSession};
+use crate::session::UserSession;
 
-use crate::error::{ExecutionError, ExecutionResult};
+use crate::error::ExecutionResult;
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
 use core_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     Volume as MetastoreVolume,
 };
-use datafusion::sql::parser::{DFParser, Statement as DFStatement};
-use datafusion::sql::sqlparser::ast::Statement as SQLStatement;
-use datafusion::sql::sqlparser::ast::visit_expressions;
-use datafusion::sql::sqlparser::ast::{Expr, ObjectName, ObjectNamePart};
+use datafusion::sql::parser::DFParser;
+use datafusion::sql::sqlparser::ast::{ObjectName, ObjectNamePart};
+use sqlparser::ast::Value;
 use sqlparser::ast::{
-    Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
+    FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
 };
-use sqlparser::ast::{SetExpr, Value};
-use std::ops::ControlFlow;
 use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]

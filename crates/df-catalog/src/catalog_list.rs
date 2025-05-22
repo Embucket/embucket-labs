@@ -3,9 +3,6 @@ use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::CachingCatalog;
 use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
 use crate::error::{DataFusionSnafu, Error, MetastoreSnafu, Result, S3TablesSnafu};
-use crate::information_schema::information_schema::{
-    INFORMATION_SCHEMA, InformationSchemaProvider,
-};
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
@@ -55,26 +52,12 @@ impl EmbucketCatalogList {
     /// This method performs the following steps:
     /// 1. Retrieves internal catalogs from the metastore (typically representing Iceberg-backed databases).
     /// 2. Retrieves external catalogs (e.g., `S3Tables`) from volume definitions in the metastore.
-    /// 3. For each discovered catalog:
-    ///     - Registers an `INFORMATION_SCHEMA` schema backed by a dynamically constructed
-    ///       `InformationSchemaProvider`. This provider uses the current catalog list (`self`)
-    ///       as a `CatalogProviderList`, enabling metadata queries like `SHOW TABLES`.
-    ///     - Inserts the catalog into the local catalog registry (`self.catalogs`).
-    ///
-    /// The `INFORMATION_SCHEMA` is essential for supporting metadata discovery commands
-    /// such as `SHOW TABLES`, `SHOW SCHEMAS`, etc., within each catalog context.
-    ///
-    /// # Safety
-    ///
-    /// This method uses an explicit `Arc<dyn CatalogProviderList>` coercion from `Arc<Self>`.
-    /// This is safe because `EmbucketCatalogList` implements the `CatalogProviderList` trait.
     ///
     /// # Errors
     ///
     /// This method can fail in the following cases:
     /// - Failure to access or query the metastore (e.g., database listing or volume parsing).
     /// - Errors initializing internal or external catalogs (e.g., Iceberg metadata failures).
-    /// - Errors creating or registering `INFORMATION_SCHEMA` with `DataFusion`'s catalog system.
     #[allow(clippy::as_conversions)]
     pub async fn register_catalogs(self: &Arc<Self>) -> Result<()> {
         let mut all_catalogs = Vec::new();
