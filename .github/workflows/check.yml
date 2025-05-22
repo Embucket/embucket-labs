@@ -72,6 +72,7 @@ jobs:
           reporter: 'github-pr-check'
           github_token: ${{ secrets.GITHUB_TOKEN }}
           clippy_flags: --workspace
+          fail-on-error: true
           reviewdog_flags: "-fail-level=error"
       - name: cargo clippy (tests)
         uses: giraffate/clippy-action@v1
@@ -79,6 +80,7 @@ jobs:
           reporter: 'github-pr-check'
           github_token: ${{ secrets.GITHUB_TOKEN }}
           clippy_flags: --workspace --tests
+          fail-on-error: true
           reviewdog_flags: "-fail-level=error"
   # semver:
   #   runs-on: ubuntu-latest
