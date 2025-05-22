@@ -94,7 +94,7 @@ pub async fn create_schema(
     let schema_ident = MetastoreSchemaIdent::new(database_name.clone(), payload.name.clone());
     match state.metastore.get_schema(&schema_ident).await {
         Ok(Some(rw_object)) => Ok(Json(SchemaCreateResponse {
-            data: rw_object.data.into(),
+            data: rw_object.into(),
         })),
         Ok(None) => Err(SchemasAPIError::Get {
             source: MetastoreError::SchemaNotFound {
@@ -228,7 +228,7 @@ pub async fn update_schema(
         .map_err(|e| SchemasAPIError::Update { source: e })
         .map(|rw_object| {
             Json(SchemaUpdateResponse {
-                data: rw_object.data.into(),
+                data: rw_object.into(),
             })
         })
 }

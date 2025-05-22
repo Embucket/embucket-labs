@@ -77,14 +77,14 @@ pub struct DatabaseUpdatePayload {
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseCreateResponse {
     #[serde(flatten)]
-    pub data: Database,
+    pub data: TimestampedDatabase,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseUpdateResponse {
     #[serde(flatten)]
-    pub data: Database,
+    pub data: TimestampedDatabase,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

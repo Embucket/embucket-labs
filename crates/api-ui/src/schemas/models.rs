@@ -69,14 +69,14 @@ pub struct SchemaUpdatePayload {
 #[serde(rename_all = "camelCase")]
 pub struct SchemaUpdateResponse {
     #[serde(flatten)]
-    pub data: Schema,
+    pub data: TimestampedSchema,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaCreateResponse {
     #[serde(flatten)]
-    pub data: Schema,
+    pub data: TimestampedSchema,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]

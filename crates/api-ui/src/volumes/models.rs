@@ -127,14 +127,14 @@ pub struct VolumeUpdatePayload {
 #[serde(rename_all = "camelCase")]
 pub struct VolumeCreateResponse {
     #[serde(flatten)]
-    pub data: Volume,
+    pub data: TimestampedVolume,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VolumeUpdateResponse {
     #[serde(flatten)]
-    pub data: Volume,
+    pub data: TimestampedVolume,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

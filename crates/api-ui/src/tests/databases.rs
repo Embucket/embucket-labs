@@ -68,7 +68,7 @@ async fn test_ui_databases_metastore_update_bug() {
         addr,
         Op::Update,
         Some(&Entity::Database(DatabaseCreatePayload {
-            data: created_database.data.clone(),
+            data: created_database.data.clone().into(),
         })),
         &Entity::Database(new_database.clone()),
     )
@@ -87,7 +87,7 @@ async fn test_ui_databases_metastore_update_bug() {
         Op::Get,
         None,
         &Entity::Database(DatabaseCreatePayload {
-            data: created_database.data.clone(),
+            data: created_database.data.into(),
         }),
     )
     .await;
@@ -105,7 +105,7 @@ async fn test_ui_databases_metastore_update_bug() {
         Op::Get,
         None,
         &Entity::Database(DatabaseCreatePayload {
-            data: renamed_database.data,
+            data: renamed_database.data.into(),
         }),
     )
     .await;
@@ -215,7 +215,7 @@ async fn test_ui_databases() {
         addr,
         Op::Delete,
         Some(&Entity::Database(DatabaseCreatePayload {
-            data: created_database.data,
+            data: created_database.data.into(),
         })),
         &stub,
     )

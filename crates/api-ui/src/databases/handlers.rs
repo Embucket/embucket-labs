@@ -86,11 +86,7 @@ pub async fn create_database(
         .create_database(&database.ident.clone(), database)
         .await
         .map_err(|e| DatabasesAPIError::Create { source: e })
-        .map(|o| {
-            Json(DatabaseCreateResponse {
-                data: o.data.into(),
-            })
-        })
+        .map(|o| Json(DatabaseCreateResponse { data: o.into() }))
 }
 
 #[utoipa::path(
@@ -197,11 +193,7 @@ pub async fn update_database(
         .update_database(&database_name, database)
         .await
         .map_err(|e| DatabasesAPIError::Update { source: e })
-        .map(|o| {
-            Json(DatabaseUpdateResponse {
-                data: o.data.into(),
-            })
-        })
+        .map(|o| Json(DatabaseUpdateResponse { data: o.into() }))
 }
 
 #[utoipa::path(

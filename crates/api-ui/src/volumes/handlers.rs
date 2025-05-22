@@ -94,11 +94,7 @@ pub async fn create_volume(
         .create_volume(&embucket_volume.ident.clone(), embucket_volume)
         .await
         .map_err(|e| VolumesAPIError::Create { source: e })
-        .map(|o| {
-            Json(VolumeCreateResponse {
-                data: o.data.into(),
-            })
-        })
+        .map(|o| Json(VolumeCreateResponse { data: o.into() }))
 }
 
 #[utoipa::path(
@@ -208,11 +204,7 @@ pub async fn update_volume(
         .update_volume(&volume_name, volume)
         .await
         .map_err(|e| VolumesAPIError::Update { source: e })
-        .map(|o| {
-            Json(VolumeUpdateResponse {
-                data: o.data.into(),
-            })
-        })
+        .map(|o| Json(VolumeUpdateResponse { data: o.into() }))
 }
 
 #[utoipa::path(
