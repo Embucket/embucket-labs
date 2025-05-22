@@ -65,7 +65,7 @@ export function CreateDatabaseDialog({ opened, onSetOpened }: CreateDatabaseDial
                 name,
                 volume,
                 created_at: '',
-                updated_at: ''
+                updated_at: '',
               },
             });
           }}

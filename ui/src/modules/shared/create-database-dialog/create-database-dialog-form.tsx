@@ -22,7 +22,7 @@ import type { Volume } from '@/orval/models';
 
 const schema = z.object({
   name: z.string(),
-  volumeName: z.string().min(1, 'Volume is required'),
+  volume: z.string().min(1, 'Volume is required'),
 });
 
 interface CreateDatabaseDialogForm {
@@ -35,7 +35,7 @@ export const CreateDatabaseDialogForm = ({ onSubmit, volumes }: CreateDatabaseDi
     resolver: zodResolver(schema),
     defaultValues: {
       name: '',
-      volumeName: '',
+      volume: '',
     },
   });
 
@@ -61,7 +61,7 @@ export const CreateDatabaseDialogForm = ({ onSubmit, volumes }: CreateDatabaseDi
         />
         <FormField
           control={form.control}
-          name="volumeName"
+          name="volume"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Volume</FormLabel>
