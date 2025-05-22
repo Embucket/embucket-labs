@@ -106,6 +106,7 @@ jobs:
           python -u -m slt_runner --test-dir sql/sql-reference-commands/Query_operators
 
       - name: Update README with Test Results
+        working-directory: ./test
         run: |
           python update_readme.py
 
