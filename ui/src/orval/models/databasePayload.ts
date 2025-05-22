@@ -6,9 +6,7 @@
  * OpenAPI spec version: 1.0.2
  */
 
-export interface SimpleVolume {
-  createdAt: string;
+export interface DatabasePayload {
   name: string;
-  type: string;
-  updatedAt: string;
+  volume: string;
 }

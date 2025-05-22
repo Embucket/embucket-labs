@@ -5,6 +5,6 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
-import type { SimpleVolume } from './simpleVolume';
+import type { Volume } from './volume';
 
-export type VolumeResponse = SimpleVolume;
+export type VolumeResponse = Volume;

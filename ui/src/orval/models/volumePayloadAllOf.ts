@@ -6,6 +6,6 @@
  * OpenAPI spec version: 1.0.2
  */
 
-export type VolumeAllOf = {
+export type VolumePayloadAllOf = {
   name: string;
 };
