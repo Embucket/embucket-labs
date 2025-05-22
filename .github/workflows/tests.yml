@@ -95,7 +95,7 @@ jobs:
     name: SQL Logic Tests - ${{ matrix.test-dir }}
     strategy:
       matrix:
-        fail-fast: false
+#        fail-fast: false
         test-dir:
           - 'sql/sql-reference-commands'
           - 'sql/sql-reference-functions'
