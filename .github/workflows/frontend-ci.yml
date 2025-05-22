@@ -158,6 +158,10 @@ jobs:
       - name: Run build
         working-directory: ./ui
         run: pnpm build
+
+      - name: Create dist.tar
+        working-directory: ./ui
+        run: tar -cvf dist.tar dist/
       
       - name: Commit and Push dist.tar
         if: github.event_name == 'pull_request'
