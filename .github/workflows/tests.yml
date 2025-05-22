@@ -1,11 +1,4 @@
-# This is the main CI workflow that runs the test suite on all pushes to main and all pull requests.
-# It runs the following jobs:
-# - required: runs the test suite on ubuntu with stable and beta rust toolchains
-# - minimal: runs the test suite with the minimal versions of the dependencies that satisfy the
-#   requirements of this crate, and its dependencies
-# - os-check: runs the test suite on mac and windows
-# - coverage: runs the test suite and collects coverage information
-# See check.yml for information about how the concurrency cancellation and workflow triggering works
+name: test
 permissions:
   contents: write
 on:
@@ -27,21 +20,16 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
-name: test
 jobs:
-  required:
+  build:
     runs-on:
       group: large-runners
-    name: ubuntu / ${{ matrix.toolchain }}
-    strategy:
-      matrix:
-        # run on stable and beta to ensure that tests won't break on the next version of the rust
-        # toolchain
-        toolchain: [stable]
+    name: Build Binary
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      
       - name: Cache
         uses: actions/cache@v4
         with:
@@ -52,19 +40,64 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-      - name: Install ${{ matrix.toolchain }}
+      
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: stable
+      
+      - name: Build embucketd binary
+        run: cargo build
+      
+      # Upload the binary as an artifact
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: embucketd-binary
+          path: target/debug/embucketd
+          retention-days: 1
 
-      - name: cargo test
+  unit-tests:
+    needs: build
+    runs-on:
+      group: large-runners
+    name: Unit Tests
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      
+      - name: Run unit tests
         run: cargo test --workspace --all-features --all-targets
 
   sql-logic-tests:
-    needs: required
+    needs: build
     runs-on:
       group: large-runners
-    name: SQL Logic Tests
+    name: SQL Logic Tests - ${{ matrix.test-dir }}
+    strategy:
+      matrix:
+        test-dir:
+          - 'sql/sql-reference-commands'
+          - 'sql/sql-reference-functions'
+        # Allow all test dirs to run even if one fails
+        fail-fast: false
     env:
       SNOWFLAKE_ACCOUNT: test
       SNOWFLAKE_USER: test
@@ -82,12 +115,20 @@ jobs:
         with:
           submodules: true
 
-      - name: Build embucketd binary
-        run: cargo build
+      # Download the prebuilt binary
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: embucketd-binary
+          path: target/debug/
+
+      # Make the binary executable
+      - name: Make binary executable
+        run: chmod +x target/debug/embucketd
 
       - name: Start Embucket Server
         run: |
-          cargo run &
+          target/debug/embucketd &
           echo "Starting Embucket server..."
           sleep 20
 
@@ -103,13 +144,71 @@ jobs:
       - name: Run SQL Logic Tests
         working-directory: ./test
         run: |
-          python -u -m slt_runner --test-dir sql
+          python -u -m slt_runner --test-dir ${{ matrix.test-dir }}
 
+      - name: Generate Test Results
+        working-directory: ./test
+        run: |
+          mkdir -p test-results
+          python -c "
+          import json
+          import os
+          
+          # Path to save the partial results
+          results_file = 'test-results/${{ matrix.test-dir }}'.replace('/', '_') + '.json'
+          
+          # Create a dict with test results
+          results = {
+            'test_dir': '${{ matrix.test-dir }}',
+            'status': os.environ.get('TEST_STATUS', 'completed')
+          }
+          
+          # Write results to file
+          with open(results_file, 'w') as f:
+              json.dump(results, f)
+          "
+
+      # Upload partial test results as artifact
+      - name: Upload partial test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.test-dir }}
+          path: test/test-results/
+          retention-days: 1
+
+  update-readme:
+    needs: sql-logic-tests
+    if: always() # Run even if some tests fail
+    runs-on:
+      group: large-runners
+    name: Update README with Test Results
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      # Download all test results
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: test-results/
+          merge-multiple: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r test/slt_runner/requirements.txt
+      
       - name: Update README with Test Results
         working-directory: ./test
         run: |
           python update_readme.py
-
+      
       - name: Commit and Push Changes
         run: |
           git config user.name "github-actions[bot]"
