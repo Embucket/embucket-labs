@@ -638,13 +638,14 @@ macro_rules! test_query {
                     prepend_module_to_snapshot => false
                 }, {
                     let df = match res {
-                        Ok(mut record_batches) => {
+                        Ok(record_batches) => {
+                            let mut batches = record_batches;
                             if sort_all {
-                                for batch in &mut record_batches {
+                                for batch in &mut batches {
                                     *batch = df_catalog::test_utils::sort_record_batch_by_sortable_columns(batch);
                                 }
                             }
-                            Ok(datafusion::arrow::util::pretty::pretty_format_batches(&record_batches).unwrap().to_string())
+                            Ok(datafusion::arrow::util::pretty::pretty_format_batches(&batches).unwrap().to_string())
                         },
                         Err(e) => Err(format!("Error: {e}"))
                     };
