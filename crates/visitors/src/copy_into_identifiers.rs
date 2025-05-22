@@ -1,6 +1,6 @@
 use datafusion_expr::sqlparser::ast::VisitMut;
-use datafusion_expr::sqlparser::ast::{Statement, VisitorMut};
 use datafusion_expr::sqlparser::ast::{ObjectName, ObjectNamePart};
+use datafusion_expr::sqlparser::ast::{Statement, VisitorMut};
 use std::ops::ControlFlow;
 
 /// Visitor that processes `COPY INTO` statements in Snowflake SQL AST.

@@ -127,7 +127,7 @@ impl ScalarUDFImpl for Insert {
                 let insert_strs = as_string_array(&insert_arr)?;
 
                 let mut res = StringBuilder::new();
-                
+
                 let zipped = super::macros::izip!(
                     base_strs.iter(),
                     pos_i64s.iter(),

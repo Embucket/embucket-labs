@@ -25,6 +25,7 @@ mod boolxor;
 mod equal_null;
 mod get_path;
 mod iff;
+mod insert;
 mod is_array;
 mod is_object;
 mod json;
@@ -42,7 +43,6 @@ mod timestamp_from_parts;
 mod to_boolean;
 mod to_time;
 pub mod variant;
-mod insert;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
@@ -121,7 +121,7 @@ mod macros {
             }
         };
     }
-    
+
     macro_rules! make_udf_function {
     ($udf_type:ty) => {
         paste::paste! {

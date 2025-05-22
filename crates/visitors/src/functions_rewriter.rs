@@ -1,9 +1,9 @@
+use datafusion_expr::sqlparser::ast::Value::SingleQuotedString;
 use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{
     Expr, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident, ObjectName,
     Statement, VisitorMut,
 };
-use datafusion_expr::sqlparser::ast::Value::SingleQuotedString;
 
 #[derive(Debug, Default)]
 pub struct FunctionsRewriter {}
