@@ -1,4 +1,5 @@
 use super::super::macros::make_udf_function;
+use crate::json;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::datatypes::DataType;
@@ -45,7 +46,7 @@ impl ArrayInsertUDF {
             ))
         })?;
 
-        let scalar_value = super::json::encode_scalar(element)?;
+        let scalar_value = json::encode_scalar(element)?;
 
         // Ensure the first argument is an array
         if let Value::Array(ref mut array) = array_value {

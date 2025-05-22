@@ -9,7 +9,7 @@ use datafusion_expr::{
 use serde_json::{Value, from_slice, to_string};
 use std::sync::Arc;
 
-use super::json::encode_scalar;
+use crate::json::encode_scalar;
 
 #[derive(Debug, Clone)]
 pub struct ArrayPrependUDF {

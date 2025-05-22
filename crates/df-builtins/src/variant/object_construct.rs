@@ -1,11 +1,14 @@
 use super::super::macros::make_udf_function;
+use crate::json;
+use datafusion::arrow::array::as_boolean_array;
 use datafusion::arrow::{array::AsArray, datatypes::DataType};
+use datafusion_common::cast::{as_float64_array, as_int64_array};
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::Value;
-use std::collections::HashMap;
+use serde_json::{Number, Value};
+use indexmap::IndexMap;
 
 #[derive(Debug, Clone)]
 pub struct ObjectConstructUDF {
@@ -22,7 +25,7 @@ impl ObjectConstructUDF {
                     TypeSignature::VariadicAny,
                     TypeSignature::Nullary,
                 ]),
-                volatility: Volatility::Immutable,
+                volatility: Volatility::Volatile,
             },
             aliases: vec!["make_object".to_string()],
         }
@@ -74,7 +77,7 @@ impl ScalarUDFImpl for ObjectConstructUDF {
             ));
         }
 
-        let mut object = HashMap::new();
+        let mut object = IndexMap::new();
 
         for chunk in args.chunks(2) {
             let key_array = chunk[0].clone().into_array(number_rows)?;
@@ -105,7 +108,28 @@ impl ScalarUDFImpl for ObjectConstructUDF {
                         Value::String(istr.to_string())
                     }
                 } else {
-                    super::json::encode_array(value_array.clone())?
+                    match value_array.data_type() {
+                        DataType::Int64 => {
+                            Value::Number(Number::from(as_int64_array(&value_array)?.value(i)))
+                        }
+                        DataType::Float64 => Value::Number(
+                            Number::from_f64(as_float64_array(&value_array)?.value(i)).ok_or_else(
+                                || {
+                                    datafusion_common::error::DataFusionError::Execution(
+                                        "object_construct value must be a number".to_string(),
+                                    )
+                                },
+                            )?,
+                        ),
+                        DataType::Boolean => Value::Bool(as_boolean_array(&value_array).value(i)),
+                        DataType::Null => continue,
+                        _ => {
+                            return Err(datafusion_common::error::DataFusionError::Execution(
+                                "object_construct value must be a string, number, or boolean"
+                                    .to_string(),
+                            ));
+                        }
+                    }
                 };
 
                 object.insert(key, value);
@@ -177,6 +201,7 @@ mod tests {
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion_expr::ScalarUDF;
+    use crate::variant::array_construct::ArrayConstructUDF;
 
     #[tokio::test]
     async fn test_object_construct() -> DFResult<()> {
@@ -185,17 +210,17 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ObjectConstructUDF::new()));
 
         // Test basic object construction
-        let sql = "SELECT object_construct('a', 1, 'b', 'hello', 'c', 2.5) as obj1";
+        let sql = "SELECT object_construct('a', 1, 'b', 'hello', 'c', 2.5, 'd', null) as obj1";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
             [
-                "+------------------------+",
-                "| obj1                   |",
-                "+------------------------+",
-                "| {\"a\":1,\"b\":\"hello\",\"c\":2.5} |",
-                "+------------------------+",
-            ],
+    "+-----------------------------+",
+    "| obj1                        |",
+    "+-----------------------------+",
+    "| {\"a\":1,\"b\":\"hello\",\"c\":2.5} |",
+    "+-----------------------------+",
+],
             &result
         );
 
@@ -213,13 +238,13 @@ mod tests {
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
-            [
-                "+-------------------+",
-                "| obj3              |",
-                "+-------------------+",
-                "| {\"a\":1,\"b\":null,\"c\":3} |",
-                "+-------------------+",
-            ],
+[
+    "+---------------+",
+    "| obj3          |",
+    "+---------------+",
+    "| {\"a\":1,\"c\":3} |",
+    "+---------------+",
+],
             &result
         );
 
@@ -231,19 +256,20 @@ mod tests {
         let mut ctx = SessionContext::new();
 
         ctx.register_udf(ScalarUDF::from(ObjectConstructUDF::new()));
+        ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));
 
         // Test nested object construction
         let sql = "SELECT object_construct('a', object_construct('x', 1, 'y', 2), 'b', array_construct(1, 2, 3)) as obj1";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
-            [
-                "+--------------------------------+",
-                "| obj1                            |",
-                "+--------------------------------+",
-                "| {\"a\":{\"x\":1,\"y\":2},\"b\":[1,2,3]} |",
-                "+--------------------------------+",
-            ],
+[
+    "+---------------------------------+",
+    "| obj1                            |",
+    "+---------------------------------+",
+    "| {\"a\":{\"x\":1,\"y\":2},\"b\":[1,2,3]} |",
+    "+---------------------------------+",
+],
             &result
         );
 

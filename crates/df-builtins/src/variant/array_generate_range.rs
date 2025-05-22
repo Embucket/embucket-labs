@@ -19,7 +19,7 @@ impl ArrayGenerateRangeUDF {
             signature: Signature {
                 type_signature: TypeSignature::OneOf(vec![
                     TypeSignature::Exact(vec![DataType::Int64, DataType::Int64]),
-                    TypeSignature::Exact(vec![DataType::Int64, DataType::Int64, DataType::UInt64]),
+                    TypeSignature::Exact(vec![DataType::Int64, DataType::Int64, DataType::Int64]),
                 ]),
                 volatility: Volatility::Immutable,
             },
@@ -122,7 +122,7 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
                 continue;
             } else {
                 step.as_any()
-                    .downcast_ref::<datafusion::arrow::array::UInt64Array>()
+                    .downcast_ref::<datafusion::arrow::array::Int64Array>()
                     .ok_or(datafusion_common::error::DataFusionError::Internal(
                         "Expected step argument to be an Int64Array".to_string(),
                     ))?

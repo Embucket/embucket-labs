@@ -23,12 +23,12 @@ pub mod array_to_string;
 pub mod arrays_overlap;
 pub mod arrays_to_object;
 pub mod arrays_zip;
-pub mod json;
 pub mod object_construct;
 pub mod object_delete;
 pub mod object_insert;
 pub mod object_pick;
 pub mod variant_element;
+pub mod visitors;
 
 use datafusion::common::Result;
 use datafusion_expr::ScalarUDF;
@@ -65,6 +65,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         object_insert::get_udf(),
         object_pick::get_udf(),
         object_construct::get_udf(),
+        array_flatten::get_udf(),
+        array_to_string::get_udf(),
     ];
 
     for func in functions {

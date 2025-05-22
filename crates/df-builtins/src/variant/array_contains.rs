@@ -1,5 +1,5 @@
 use super::super::macros::make_udf_function;
-use super::json::{encode_array, encode_scalar};
+use crate::json::{encode_array, encode_scalar};
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::datatypes::DataType;
 use datafusion_common::{Result as DFResult, ScalarValue};

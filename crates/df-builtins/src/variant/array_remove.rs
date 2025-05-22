@@ -1,4 +1,5 @@
 use super::super::macros::make_udf_function;
+use crate::json;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::datatypes::DataType;
@@ -102,7 +103,7 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
                 let element_json = if element_value.is_null() {
                     None
                 } else {
-                    let element_json = super::json::encode_array(element_value.to_array_of_size(1)?)?;
+                    let element_json = json::encode_array(element_value.to_array_of_size(1)?)?;
                     if let Value::Array(array) = element_json {
                         match array.first() {
                             Some(value) => Some(value.clone()),
@@ -149,7 +150,7 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
                 let element_json = if element_value.is_null() {
                     None
                 } else {
-                    let element_json = super::json::encode_array(element_value.to_array_of_size(1)?)?;
+                    let element_json = json::encode_array(element_value.to_array_of_size(1)?)?;
                     if let Value::Array(array) = element_json {
                         match array.first() {
                             Some(value) => Some(value.clone()),

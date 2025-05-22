@@ -1,4 +1,5 @@
 use super::super::macros::make_udf_function;
+use crate::json;
 use datafusion::arrow::{array::AsArray, datatypes::DataType};
 use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
@@ -82,7 +83,7 @@ impl ScalarUDFImpl for ArrayConstructUDF {
                         }
                     }
                 } else {
-                    let object = super::json::encode_array(arg_array.clone())?;
+                    let object = json::encode_array(arg_array.clone())?;
                     results.push(object);
                 }
             }

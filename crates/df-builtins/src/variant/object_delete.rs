@@ -1,4 +1,5 @@
 use super::super::macros::make_udf_function;
+use crate::json;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::datatypes::DataType;
@@ -88,7 +89,7 @@ impl ScalarUDFImpl for ObjectDeleteUDF {
                     if value.is_null() {
                         Ok(Value::Null)
                     } else {
-                        let key_json = super::json::encode_array(value.to_array_of_size(1)?)?;
+                        let key_json = json::encode_array(value.to_array_of_size(1)?)?;
                         if let Value::Array(array) = key_json {
                             match array.first() {
                                 Some(value) => Ok(value.clone()),

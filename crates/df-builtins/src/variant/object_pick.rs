@@ -161,6 +161,7 @@ mod tests {
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion_expr::ScalarUDF;
+    use crate::variant::array_construct::ArrayConstructUDF;
 
     #[tokio::test]
     async fn test_object_pick() -> DFResult<()> {
@@ -168,7 +169,8 @@ mod tests {
 
         // Register UDF
         ctx.register_udf(ScalarUDF::from(ObjectPickUDF::new()));
-
+        ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));
+        
         // Test picking specific keys
         let sql = "SELECT object_pick('{\"a\": 1, \"b\": 2, \"c\": 3}', 'a', 'b') as picked";
         let result = ctx.sql(sql).await?.collect().await?;
