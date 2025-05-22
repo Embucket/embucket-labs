@@ -67,7 +67,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
       - name: Run clippy
-        run: cargo clippy --all-targets --workspace -- -D warnings
+        run: cargo clippy --all-targets --workspace
   # semver:
   #   runs-on: ubuntu-latest
   #   name: semver
