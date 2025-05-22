@@ -19,8 +19,10 @@ import type {
   NavigationTreeTable,
 } from '@/orval/models';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
+import { useGetVolumes } from '@/orval/volumes';
 
 import { CreateDatabaseDialog } from '../create-database-dialog/create-database-dialog';
+import { CreateVolumeDialog } from '../create-volume-dialog/create-volume-dialog';
 import { TreeCollapsibleItem } from './trees-collapsible-item';
 import { TreesToolbar } from './trees-toolbar';
 
@@ -147,10 +149,32 @@ export function TreesDatabases({
   open,
   children,
 }: TreesDatabasesProps) {
-  const [opened, setOpened] = useState(false);
+  const { data: { items: volumes } = {}, isFetching: isFetchingVolumes } = useGetVolumes();
 
-  if (isFetchingDatabases) {
+  const [createVolumeDialogOpened, setCreateVolumeDialogOpened] = useState(false);
+  const [createDatabaseDialogOpened, setCreateDatabaseDialogOpened] = useState(false);
+
+  if (isFetchingDatabases || isFetchingVolumes) {
     return null;
+  }
+
+  if (!volumes?.length) {
+    return (
+      <>
+        <EmptyContainer
+          className="absolute text-center text-wrap"
+          Icon={Database}
+          title="No Volumes Available"
+          description="Create a volume to proceed with the database creation."
+          onCtaClick={() => setCreateVolumeDialogOpened(true)}
+          ctaText="Create volume"
+        />
+        <CreateVolumeDialog
+          opened={createVolumeDialogOpened}
+          onSetOpened={setCreateVolumeDialogOpened}
+        />
+      </>
+    );
   }
 
   if (!databases?.length) {
@@ -160,11 +184,14 @@ export function TreesDatabases({
           className="absolute text-center text-wrap"
           Icon={Database}
           title="No Databases Available"
-          description="Create a database to start organizing your data."
-          onCtaClick={() => setOpened(true)}
+          description="Create a database to get started."
+          onCtaClick={() => setCreateDatabaseDialogOpened(true)}
           ctaText="Create database"
         />
-        <CreateDatabaseDialog opened={opened} onSetOpened={setOpened} />
+        <CreateDatabaseDialog
+          opened={createDatabaseDialogOpened}
+          onSetOpened={setCreateDatabaseDialogOpened}
+        />
       </>
     );
   }

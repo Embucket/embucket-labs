@@ -12,7 +12,7 @@ import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { SqlEditorResizableHandle, SqlEditorResizablePanel } from '../sql-editor-resizable';
 import type { LeftPanelTab } from '../sql-editor-settings-store';
 import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
-import { useSqlEditorTabsSync } from '../use-sql-editor-tabs-sync';
+import { useSyncSqlEditorTabs } from '../use-sync-sql-editor-tabs';
 import { SqlEditorLeftBottomPanel } from './sql-editor-left-panel-table-columns/sql-editor-left-bottom-panel';
 import { SqlEditorLeftPanelTrees } from './sql-editor-left-panel-trees/sql-editor-left-panel-trees';
 import { SqlEditorLeftPanelWorksheetsToolbar } from './sql-editor-left-panel-worksheets-toolbar';
@@ -33,7 +33,7 @@ export const SqlEditorLeftPanel = () => {
 
   const { leftBottomRef, setLeftBottomPanelExpanded } = useSqlEditorPanelsState();
 
-  useSqlEditorTabsSync();
+  useSyncSqlEditorTabs();
 
   return (
     <>

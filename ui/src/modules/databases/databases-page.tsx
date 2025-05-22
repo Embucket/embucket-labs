@@ -5,6 +5,7 @@ import { Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useGetDatabases } from '@/orval/databases';
+import { useGetVolumes } from '@/orval/volumes';
 
 import { CreateDatabaseDialog } from '../shared/create-database-dialog/create-database-dialog';
 import { DataPageContent } from '../shared/data-page/data-page-content';
@@ -14,7 +15,8 @@ import { DatabasesTable } from './databases-page-table';
 
 export function DatabasesPage() {
   const [opened, setOpened] = useState(false);
-  const { data: { items: databases } = {}, isFetching } = useGetDatabases();
+  const { data: { items: databases } = {}, isFetching: isFetchingDatabases } = useGetDatabases();
+  const { data: { items: volumes } = {}, isFetching: isFetchingVolumes } = useGetVolumes();
 
   return (
     <>
@@ -29,14 +31,17 @@ export function DatabasesPage() {
             Icon={Database}
             secondaryText={`${databases?.length} databases found`}
             Action={
-              <Button disabled={isFetching} onClick={() => setOpened(true)}>
+              <Button
+                disabled={isFetchingDatabases || isFetchingVolumes || !volumes?.length}
+                onClick={() => setOpened(true)}
+              >
                 Add Database
               </Button>
             }
           />
           <DataPageContent
             isEmpty={!databases?.length}
-            Table={<DatabasesTable isLoading={isFetching} databases={databases ?? []} />}
+            Table={<DatabasesTable isLoading={isFetchingDatabases} databases={databases ?? []} />}
             emptyStateIcon={Database}
             emptyStateTitle="No Databases Found"
             emptyStateDescription="No databases have been created yet. Create a database to get started."
