@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 
+// TODO: Dry
 interface SelectOption {
   value: string;
   label: string;
@@ -26,18 +27,10 @@ export const useSyncSqlEditorContext = ({
       return;
     }
 
-    // Validate or set database
+    // Both databases and schemas are available - validate or set defaults
     const validDatabase =
       databasesOptions.find((opt) => opt.value === selectedDatabase)?.value ??
       databasesOptions[0].value;
-
-    // No schemas available for the selected database - clear schema
-    if (schemasOptions.length === 0) {
-      setSelectedContext({ databaseName: validDatabase, schema: '' });
-      return;
-    }
-
-    // Validate or set schema
     const validSchema =
       schemasOptions.find((opt) => opt.value === selectedSchema)?.value ?? schemasOptions[0].value;
 
