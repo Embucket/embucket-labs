@@ -55,6 +55,11 @@ It is built on top of several open source projects:
 Embucket has deep integration with AWS S3 table buckets and relies on them for proper table maintenance.
 
 <!-- SLT_COVERAGE_START -->
+## SQL Logic Test Coverage Visualization
+
+![Test Statistics Visualization](test/assets/test_coverage_visualization.png)
+
+*This visualization is automatically updated by CI/CD when tests are run.*
 <!-- SLT_COVERAGE_END -->
 
 ### Install Embucket  

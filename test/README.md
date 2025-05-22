@@ -2,6 +2,11 @@
 <!-- SLT_BADGE_END -->
 
 <!-- SLT_COVERAGE_START -->
+## SQL Logic Test Coverage Visualization
+
+![Test Statistics Visualization](assets/test_coverage_visualization.png)
+
+*This visualization is automatically updated by CI/CD when tests are run.*
 <!-- SLT_COVERAGE_END -->
 
 # SQL Logic Tests
