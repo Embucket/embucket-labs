@@ -1,4 +1,6 @@
-# Bronze Bucket coverage
+<!-- SLT_BADGE_START -->
+<!-- SLT_BADGE_END -->
+
 <!-- SLT_COVERAGE_START -->
 <!-- SLT_COVERAGE_END -->
 

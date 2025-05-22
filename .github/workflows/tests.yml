@@ -64,7 +64,7 @@ jobs:
     needs: required
     runs-on:
       group: large-runners
-    name: SQL Language Tests
+    name: SQL Logic Tests
     env:
       SNOWFLAKE_ACCOUNT: test
       SNOWFLAKE_USER: test
@@ -100,7 +100,7 @@ jobs:
         run: |
           pip install -r test/slt_runner/requirements.txt
 
-      - name: Run SLT Tests
+      - name: Run SQL Logic Tests
         working-directory: ./test
         run: |
           python -u -m slt_runner --test-dir sql/sql-reference-commands/Query_operators

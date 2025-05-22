@@ -1,6 +1,9 @@
 # Embucket: Snowflake compatible lakehouse platform  
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+<!-- SLT_BADGE_START -->
+<!-- SLT_BADGE_END -->
+
 
 Embucket is an Apache‑2.0‑licensed, Snowflake‑compatible lakehouse platform built for radical simplicity and full openness. It delivers:  
 - A **Snowflake‑style** REST API and SQL dialect  
@@ -51,10 +54,8 @@ It is built on top of several open source projects:
 
 Embucket has deep integration with AWS S3 table buckets and relies on them for proper table maintenance.
 
-## Bronze Bucket coverage
 <!-- SLT_COVERAGE_START -->
 <!-- SLT_COVERAGE_END -->
-
 
 ### Install Embucket  
 
@@ -150,10 +151,6 @@ dbt seed
 # Run dbt transformations
 dbt run -m snowplow_web
 ```
-## Current Snowflake functionality coverage
-
-<!-- TEST_RESULTS_START -->
-<!-- TEST_RESULTS_END -->
 
 ## Contributing  
 
