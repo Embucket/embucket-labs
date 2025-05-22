@@ -164,7 +164,7 @@ jobs:
         run: tar -cvf dist.tar dist/
       
       - name: Commit and Push dist.tar
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
           git config --global user.name 'github-actions[bot]'
@@ -178,7 +178,7 @@ jobs:
               echo "Committing ui/dist.tar..."
               git commit -m "ci: Add/Update build artifacts (dist.tar) [skip ci]"
               git push
-              echo "ui/dist.tar pushed to ${{ github.head_ref }}"
+              echo "ui/dist.tar pushed to main"
             fi
           else
             echo "Error: ui/dist.tar not found after build."
