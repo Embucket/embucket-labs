@@ -41,13 +41,13 @@ pub enum VolumeType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
-pub struct Volume {
+pub struct VolumePayload {
     pub name: String,
     #[serde(flatten)]
     pub volume: VolumeType,
 }
 
-impl From<MetastoreVolume> for Volume {
+impl From<MetastoreVolume> for VolumePayload {
     fn from(volume: MetastoreVolume) -> Self {
         Self {
             name: volume.ident,
@@ -77,7 +77,7 @@ impl From<MetastoreVolume> for Volume {
 
 // TODO: Remove it when found why it can't locate .into() if only From trait implemeted
 #[allow(clippy::from_over_into)]
-impl Into<MetastoreVolume> for Volume {
+impl Into<MetastoreVolume> for VolumePayload {
     fn into(self) -> MetastoreVolume {
         MetastoreVolume {
             ident: self.name,
@@ -113,14 +113,14 @@ impl Into<MetastoreVolume> for Volume {
 #[serde(rename_all = "camelCase")]
 pub struct VolumeCreatePayload {
     #[serde(flatten)]
-    pub data: Volume,
+    pub data: VolumePayload,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VolumeUpdatePayload {
     #[serde(flatten)]
-    pub data: Volume,
+    pub data: VolumePayload,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -141,19 +141,19 @@ pub struct VolumeUpdateResponse {
 #[serde(rename_all = "camelCase")]
 pub struct VolumeResponse {
     #[serde(flatten)]
-    pub data: SimpleVolume,
+    pub data: Volume,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct SimpleVolume {
+pub struct Volume {
     pub name: String,
     pub r#type: String,
     pub created_at: String,
     pub updated_at: String,
 }
 
-impl From<RwObject<MetastoreVolume>> for SimpleVolume {
+impl From<RwObject<MetastoreVolume>> for Volume {
     fn from(value: RwObject<MetastoreVolume>) -> Self {
         Self {
             name: value.data.ident,
@@ -167,5 +167,5 @@ impl From<RwObject<MetastoreVolume>> for SimpleVolume {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VolumesResponse {
-    pub items: Vec<SimpleVolume>,
+    pub items: Vec<Volume>,
 }

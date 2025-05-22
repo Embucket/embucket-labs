@@ -23,9 +23,24 @@ impl From<RwObject<MetastoreSchema>> for Schema {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct SchemaPayload {
+    pub name: String,
+    pub database: String,
+}
+
+impl From<MetastoreSchema> for SchemaPayload {
+    fn from(rw_schema: MetastoreSchema) -> Self {
+        Self {
+            name: rw_schema.ident.schema,
+            database: rw_schema.ident.database,
+        }
+    }
+}
+
 // TODO: Remove it when found why it can't locate .into() if only From trait implemeted
 #[allow(clippy::from_over_into)]
-impl Into<MetastoreSchema> for Schema {
+impl Into<MetastoreSchema> for SchemaPayload {
     fn into(self) -> MetastoreSchema {
         MetastoreSchema {
             ident: MetastoreSchemaIdent {
@@ -47,7 +62,7 @@ pub struct SchemaCreatePayload {
 #[serde(rename_all = "camelCase")]
 pub struct SchemaUpdatePayload {
     #[serde(flatten)]
-    pub data: Schema,
+    pub data: SchemaPayload,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]

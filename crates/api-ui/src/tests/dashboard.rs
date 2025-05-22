@@ -7,10 +7,10 @@ use crate::schemas::models::SchemaCreatePayload;
 use crate::tests::common::req;
 use crate::tests::common::{Entity, Op, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
+use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumePayload};
 use crate::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
+use core_metastore::VolumeType as MetastoreVolumeType;
 use core_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
-use core_metastore::{RwObject, VolumeType as MetastoreVolumeType};
 use http::Method;
 use serde_json::json;
 
@@ -35,7 +35,7 @@ async fn test_ui_dashboard() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(MetastoreVolume {
+            data: VolumePayload::from(MetastoreVolume {
                 ident: String::new(),
                 volume: MetastoreVolumeType::Memory,
             }),
@@ -46,35 +46,35 @@ async fn test_ui_dashboard() {
 
     // Create database, Ok
     let expected1 = DatabaseCreatePayload {
-        data: RwObject::new(MetastoreDatabase {
+        data: MetastoreDatabase {
             ident: "test1".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
-        })
+        }
         .into(),
     };
     let expected2 = DatabaseCreatePayload {
-        data: RwObject::new(MetastoreDatabase {
+        data: MetastoreDatabase {
             ident: "test2".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
-        })
+        }
         .into(),
     };
     let expected3 = DatabaseCreatePayload {
-        data: RwObject::new(MetastoreDatabase {
+        data: MetastoreDatabase {
             ident: "test3".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
-        })
+        }
         .into(),
     };
     let expected4 = DatabaseCreatePayload {
-        data: RwObject::new(MetastoreDatabase {
+        data: MetastoreDatabase {
             ident: "test4".to_string(),
             properties: None,
             volume: volume.data.name.clone(),
-        })
+        }
         .into(),
     };
     //4 DBs

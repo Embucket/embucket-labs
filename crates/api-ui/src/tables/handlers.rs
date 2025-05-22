@@ -9,7 +9,10 @@ use crate::tables::models::{
     TablePreviewDataResponse, TablePreviewDataRow, TableStatistics, TableStatisticsResponse,
     TableUploadPayload, TableUploadResponse, TablesResponse, UploadParameters,
 };
-use crate::{SearchParameters, apply_parameters, downcast_int64_column, downcast_string_column};
+use crate::{
+    OrderDirection, SearchParameters, apply_parameters, downcast_int64_column,
+    downcast_string_column,
+};
 use api_sessions::DFSessionId;
 use axum::extract::Query;
 use axum::{
@@ -49,6 +52,8 @@ use utoipa::OpenApi;
             TableUploadResponse,
             TablesResponse,
             ErrorResponse,
+            OrderDirection,
+            Table,
         )
     ),
     tags(
@@ -356,9 +361,11 @@ pub async fn upload_file(
     params(
         ("databaseName" = String, description = "Database Name"),
         ("schemaName" = String, description = "Schema Name"),
-        ("cursor" = Option<String>, Query, description = "Tables cursor"),
+        ("offset" = Option<usize>, Query, description = "Tables offset"),
         ("limit" = Option<usize>, Query, description = "Tables limit"),
-        ("search" = Option<String>, Query, description = "Tables search (start with)"),
+        ("search" = Option<String>, Query, description = "Tables search"),
+        ("order_by" = Option<String>, Query, description = "Order by: table_name (default), schema_name, database_name, volume_name, table_type, table_format, owner, created_at, updated_at"),
+        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     operation_id = "getTables",
     tags = ["tables"],

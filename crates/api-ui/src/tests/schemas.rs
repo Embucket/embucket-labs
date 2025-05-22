@@ -1,10 +1,10 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::databases::models::{Database, DatabaseCreatePayload};
+use crate::databases::models::{DatabaseCreatePayload, DatabasePayload};
 use crate::schemas::models::{SchemaCreatePayload, SchemasResponse};
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
+use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumePayload};
 use core_metastore::{
     Database as MetastoreDatabase, Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
 };
@@ -23,7 +23,7 @@ async fn test_ui_schemas() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(MetastoreVolume {
+            data: VolumePayload::from(MetastoreVolume {
                 ident: String::new(),
                 volume: MetastoreVolumeType::Memory,
             }),
@@ -44,7 +44,7 @@ async fn test_ui_schemas() {
         Op::Create,
         None,
         &Entity::Database(DatabaseCreatePayload {
-            data: Database::from(expected1.clone()),
+            data: DatabasePayload::from(expected1.clone()),
         }),
     )
     .await;
