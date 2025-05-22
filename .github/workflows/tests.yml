@@ -10,6 +10,7 @@ on:
       - Cargo.toml
       - Cargo.lock
       - Dockerfile
+      - .github/workflows/**
   pull_request:
     paths:
       - crates/**
@@ -17,6 +18,7 @@ on:
       - Cargo.toml
       - Cargo.lock
       - Dockerfile
+      - .github/workflows/**
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -153,16 +155,16 @@ jobs:
           python -c "
           import json
           import os
-          
+
           # Path to save the partial results
           results_file = 'test-results/${{ matrix.test-dir }}'.replace('/', '_') + '.json'
-          
+
           # Create a dict with test results
           results = {
             'test_dir': '${{ matrix.test-dir }}',
             'status': os.environ.get('TEST_STATUS', 'completed')
           }
-          
+
           # Write results to file
           with open(results_file, 'w') as f:
               json.dump(results, f)
