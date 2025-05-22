@@ -133,24 +133,18 @@ def generate_visualization(stats_file='test_statistics.csv', output_dir='assets'
         return None, 0
 
 
-def update_readme_with_badge(readme_file, badge_path, relative_badge_path, coverage_percentage):
+def update_readme_with_badge(readme_file, coverage_percentage):
     """
     Update a README.md file to include the coverage badge between
     specific comment markers: <!-- SLT_BADGE_START --> and <!-- SLT_BADGE_END -->
 
     Args:
         readme_file (str): Path to the README.md file
-        badge_path (str): Absolute path to the badge image
-        relative_badge_path (str): Path to the badge image relative to the README file location
         coverage_percentage (float): The coverage percentage value
 
     Returns:
         bool: True if successful, False otherwise
     """
-    if not badge_path or not os.path.exists(badge_path):
-        print(f"Error: Badge image not found at {badge_path}")
-        return False
-
     try:
         # Check if README file exists
         if not os.path.exists(readme_file):
@@ -171,10 +165,27 @@ def update_readme_with_badge(readme_file, badge_path, relative_badge_path, cover
             print("Please add these markers to indicate where the badge should be inserted.")
             return False
 
+        # Bronze color shades from darker (low coverage) to brighter (high coverage)
+        # These are different shades of bronze from darker to lighter
+        if coverage_percentage >= 80:
+            bronze_color = "D4AF37"  # Bright bronze/gold
+        elif coverage_percentage >= 60:
+            bronze_color = "CD7F32"  # Standard bronze
+        elif coverage_percentage >= 40:
+            bronze_color = "B87333"  # Medium bronze
+        elif coverage_percentage >= 20:
+            bronze_color = "A45A2A"  # Dark bronze
+        else:
+            bronze_color = "8B4513"  # Very dark bronze/brown
+
+        # Create Shields.io URL
+        # Using the 'for-the-badge' style and our bronze shade
+        shields_url = f"https://img.shields.io/badge/SLT_Coverage-{coverage_percentage:.1f}%25-{bronze_color}?style=for-the-badge&logo=database&logoColor=white"
+
         # Define the badge content to insert between markers
         badge_content = (
             f"{start_marker}\n"
-            f"![SLT Coverage: {coverage_percentage:.1f}%]({relative_badge_path})\n"
+            f"[![SLT Coverage: {coverage_percentage:.1f}%]({shields_url})](test/README.md)\n"
             f"{end_marker}"
         )
 
@@ -186,13 +197,12 @@ def update_readme_with_badge(readme_file, badge_path, relative_badge_path, cover
         with open(readme_file, 'w') as file:
             file.write(updated_content)
 
-        print(f"Successfully updated {readme_file} with coverage badge between markers")
+        print(f"Successfully updated {readme_file} with bronze-shaded coverage badge")
         return True
 
     except Exception as e:
         print(f"Error updating README badge in {readme_file}: {str(e)}")
         return False
-
 
 def update_readme_with_visualization(readme_file, image_path, relative_image_path=None):
     """
@@ -289,17 +299,9 @@ def main():
     if not image_path:
         sys.exit(1)
 
-    # Generate the badge with the coverage percentage
-    badge_path = generate_badge(coverage_percentage, output_dir)
-    if not badge_path:
-        sys.exit(1)
-
     # Define relative paths for the images from each README
     root_relative_image_path = os.path.relpath(image_path, project_root)
     test_relative_image_path = os.path.relpath(image_path, test_dir)
-
-    root_relative_badge_path = os.path.relpath(badge_path, project_root)
-    test_relative_badge_path = os.path.relpath(badge_path, test_dir)
 
     # Update the root README
     if os.path.exists(root_readme):
@@ -310,9 +312,8 @@ def main():
         else:
             print(f"Failed to update root README visualization at {root_readme}")
 
-        # Update badge
-        root_badge_success = update_readme_with_badge(root_readme, badge_path, root_relative_badge_path,
-                                                      coverage_percentage)
+        # Update badge using Shields.io
+        root_badge_success = update_readme_with_badge(root_readme, coverage_percentage)
         if root_badge_success:
             print(f"Updated root README badge at {root_readme}")
         else:
@@ -329,9 +330,8 @@ def main():
         else:
             print(f"Failed to update test README visualization at {test_readme}")
 
-        # Update badge
-        test_badge_success = update_readme_with_badge(test_readme, badge_path, test_relative_badge_path,
-                                                      coverage_percentage)
+        # Update badge using Shields.io
+        test_badge_success = update_readme_with_badge(test_readme, coverage_percentage)
         if test_badge_success:
             print(f"Updated test README badge at {test_readme}")
         else:
