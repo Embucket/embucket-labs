@@ -1,0 +1,12 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SHOW TABLES IN public STARTS WITH 'test'\""
+info: "PreQueries: CREATE TABLE embucket.public.test (id INT) as VALUES (1), (2); DROP TABLE embucket.public.test"
+snapshot_kind: text
+---
+Ok(
+    [
+        "++",
+        "++",
+    ],
+)

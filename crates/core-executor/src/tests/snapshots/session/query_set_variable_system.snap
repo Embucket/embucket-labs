@@ -1,0 +1,15 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SELECT name, value FROM snowplow.information_schema.df_settings\n     WHERE name = 'datafusion.execution.time_zone'\""
+info: "Setup queries: SET datafusion.execution.time_zone = 'TEST_TIMEZONE'"
+snapshot_kind: text
+---
+Ok(
+    [
+        "+--------------------------------+---------------+",
+        "| name                           | value         |",
+        "+--------------------------------+---------------+",
+        "| datafusion.execution.time_zone | TEST_TIMEZONE |",
+        "+--------------------------------+---------------+",
+    ],
+)

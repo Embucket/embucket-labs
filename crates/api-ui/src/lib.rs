@@ -85,3 +85,54 @@ fn downcast_int64_column<'a>(
             source: DataFusionError::Internal(format!("Missing or invalid column: '{name}'")),
         })
 }
+
+fn apply_parameters(
+    sql_string: &str,
+    parameters: SearchParameters,
+    search_columns: &[&str],
+) -> String {
+    let sql_string = parameters.search.map_or_else(
+        || sql_string.to_string(),
+        |search| {
+            let separator = format!(" ILIKE '%{search}%' OR ");
+            let sql_string = sql_string.find("WHERE").map_or_else(
+                || {
+                    //if there is no WHERE clause
+                    let sql_string =
+                        format!("{sql_string} WHERE ({}", search_columns.join(&separator));
+                    sql_string
+                },
+                |_| {
+                    //if there is a WHERE clause
+                    let sql_string =
+                        format!("{sql_string} AND ({}", search_columns.join(&separator));
+                    sql_string
+                },
+            );
+            format!("{sql_string} ILIKE '%{search}%')")
+        },
+    );
+    //Default order by is the first search column or created at
+    let sql_string = parameters.order_by.map_or_else(
+        || {
+            format!(
+                "{sql_string} ORDER BY {}",
+                search_columns.first().unwrap_or(&"created_at")
+            )
+        },
+        |order_by| format!("{sql_string} ORDER BY {order_by}"),
+    );
+    let sql_string = parameters.order_direction.map_or_else(
+        || format!("{sql_string} DESC"),
+        |order_direction| format!("{sql_string} {order_direction}"),
+    );
+    let sql_string = parameters.offset.map_or_else(
+        || sql_string.clone(),
+        |offset| format!("{sql_string} OFFSET {offset}"),
+    );
+
+    parameters.limit.map_or_else(
+        || sql_string.clone(),
+        |limit| format!("{sql_string} LIMIT {limit}"),
+    )
+}

@@ -1,11 +1,10 @@
-use crate::default_limit;
-use core_metastore::S3TablesVolume as MetastoreS3TablesVolume;
 use core_metastore::models::{
     AwsCredentials, FileVolume as MetastoreFileVolume, S3Volume as MetastoreS3Volume,
     Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
 };
+use core_metastore::{RwObject, S3TablesVolume as MetastoreS3TablesVolume};
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 pub struct S3Volume {
@@ -142,21 +141,31 @@ pub struct VolumeUpdateResponse {
 #[serde(rename_all = "camelCase")]
 pub struct VolumeResponse {
     #[serde(flatten)]
-    pub data: Volume,
+    pub data: SimpleVolume,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SimpleVolume {
+    pub name: String,
+    pub r#type: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl From<RwObject<MetastoreVolume>> for SimpleVolume {
+    fn from(value: RwObject<MetastoreVolume>) -> Self {
+        Self {
+            name: value.data.ident,
+            r#type: value.data.volume.to_string(),
+            created_at: value.created_at.to_string(),
+            updated_at: value.updated_at.to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VolumesResponse {
-    pub items: Vec<Volume>,
-    pub current_cursor: Option<String>,
-    pub next_cursor: String,
-}
-
-#[derive(Debug, Deserialize, ToSchema, IntoParams)]
-pub struct VolumesParameters {
-    pub cursor: Option<String>,
-    #[serde(default = "default_limit")]
-    pub limit: Option<u16>,
-    pub search: Option<String>,
+    pub items: Vec<SimpleVolume>,
 }

@@ -59,8 +59,17 @@ export function CreateDatabaseDialog({ opened, onSetOpened }: CreateDatabaseDial
         )}
         <CreateDatabaseDialogForm
           volumes={volumes ?? []}
-          onSubmit={(formData) => {
-            mutate({ data: { name: formData.name, volume: formData.volumeName } });
+          onSubmit={({ name, volumeName }) => {
+            mutate({
+              data: {
+                name,
+                volume: volumeName,
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-expect-error
+                created_at: '',
+                updated_at: '',
+              },
+            });
           }}
         />
         <DialogFooter>

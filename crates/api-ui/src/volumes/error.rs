@@ -2,9 +2,11 @@ use crate::error::ErrorResponse;
 use crate::error::IntoStatusCode;
 use axum::Json;
 use axum::response::IntoResponse;
+use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::prelude::*;
+
 pub type VolumesResult<T> = Result<T, VolumesAPIError>;
 
 #[derive(Debug, Snafu)]
@@ -19,7 +21,7 @@ pub enum VolumesAPIError {
     #[snafu(display("Update volume error: {source}"))]
     Update { source: MetastoreError },
     #[snafu(display("Get volume error: {source}"))]
-    List { source: MetastoreError },
+    List { source: ExecutionError },
 }
 
 // Select which status code to return.

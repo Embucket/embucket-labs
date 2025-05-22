@@ -1,5 +1,7 @@
 import { useParams } from '@tanstack/react-router';
+import { ExternalLink } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
@@ -42,9 +44,16 @@ export const SqlEditorRightPanelQuery = ({ query }: SqlEditorRightPanelQueriesPr
           </SidebarMenuButton>
         </SidebarMenuItem>
       </HoverCardTrigger>
-      <HoverCardContent className="flex size-full max-h-[200px] max-w-[400px] flex-1 flex-col p-1">
+      <HoverCardContent className="flex size-full max-h-[220px] max-w-[400px] min-w-[240px] flex-1 flex-col p-1">
         <div className="rounded bg-[#1F1F1F]">
-          <div className="flex items-center justify-end p-2 pb-0">
+          <div className="mb-1 flex items-center justify-between p-2 pb-0">
+            <Button
+              variant="outline"
+              className="hover:bg-sidebar-secondary-accent! h-7! justify-start bg-transparent! px-2!"
+            >
+              <ExternalLink />
+              <span className="text-sm font-light">Open query details</span>
+            </Button>
             <SqlEditorRightPanelQueryCopyButton query={query} />
           </div>
           {/* TODO: Hardcode */}

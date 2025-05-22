@@ -20,6 +20,7 @@ use datafusion_expr::registry::FunctionRegistry;
 use std::sync::Arc;
 
 pub mod any_value;
+pub mod array_union_agg;
 pub mod array_unique_agg;
 pub mod booland_agg;
 pub mod boolor_agg;
@@ -34,6 +35,7 @@ pub fn register_udafs(registry: &mut dyn FunctionRegistry) -> datafusion_common:
         boolxor_agg::get_udaf(),
         percentile_cont::get_udaf(),
         array_unique_agg::get_udaf(),
+        array_union_agg::get_udaf(),
     ];
 
     for func in aggregate_functions {

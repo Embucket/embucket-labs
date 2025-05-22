@@ -1,20 +1,23 @@
 use crate::state::AppState;
-use crate::volumes::models::VolumesParameters;
 use crate::{
+    OrderDirection, SearchParameters, apply_parameters, downcast_string_column,
     error::ErrorResponse,
     volumes::error::{VolumesAPIError, VolumesResult},
     volumes::models::{
-        FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
-        VolumeResponse, VolumeType, VolumeUpdatePayload, VolumeUpdateResponse, VolumesResponse,
+        FileVolume, S3TablesVolume, S3Volume, SimpleVolume, Volume, VolumeCreatePayload,
+        VolumeCreateResponse, VolumeResponse, VolumeType, VolumeUpdatePayload,
+        VolumeUpdateResponse, VolumesResponse,
     },
 };
+use api_sessions::DFSessionId;
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use core_executor::models::QueryResultData;
+use core_executor::query::QueryContext;
 use core_metastore::error::MetastoreError;
 use core_metastore::models::{AwsAccessKeyCredentials, AwsCredentials, Volume as MetastoreVolume};
-use core_utils::scan_iterator::ScanIterator;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -32,6 +35,7 @@ use validator::Validate;
             VolumeCreatePayload,
             VolumeCreateResponse,
             Volume,
+            SimpleVolume,
             VolumeType,
             S3Volume,
             S3TablesVolume,
@@ -124,7 +128,7 @@ pub async fn get_volume(
 ) -> VolumesResult<Json<VolumeResponse>> {
     match state.metastore.get_volume(&volume_name).await {
         Ok(Some(volume)) => Ok(Json(VolumeResponse {
-            data: volume.data.into(),
+            data: volume.into(),
         })),
         Ok(None) => Err(VolumesAPIError::Get {
             source: MetastoreError::VolumeNotFound {
@@ -215,9 +219,11 @@ pub async fn update_volume(
     get,
     operation_id = "getVolumes",
     params(
-        ("cursor" = Option<String>, Query, description = "Volumes cursor"),
+        ("offset" = Option<usize>, Query, description = "Volumes offset"),
         ("limit" = Option<usize>, Query, description = "Volumes limit"),
-        ("search" = Option<String>, Query, description = "Volumes search (start with)"),
+        ("search" = Option<String>, Query, description = "Volumes search"),
+        ("order_by" = Option<String>, Query, description = "Order by: volume_name (default), volume_type, created_at, updated_at"),
+        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     tags = ["volumes"],
     path = "/ui/volumes",
@@ -234,29 +240,36 @@ pub async fn update_volume(
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_volumes(
-    Query(parameters): Query<VolumesParameters>,
+    DFSessionId(session_id): DFSessionId,
+    Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
 ) -> VolumesResult<Json<VolumesResponse>> {
-    state
-        .metastore
-        .iter_volumes()
-        .cursor(parameters.cursor.clone())
-        .limit(parameters.limit)
-        .token(parameters.search)
-        .collect()
+    let context = QueryContext::default();
+    let sql_string = "SELECT * FROM slatedb.public.volumes".to_string();
+    let sql_string = apply_parameters(&sql_string, parameters, &["volume_name", "volume_type"]);
+    let QueryResultData { records, .. } = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| VolumesAPIError::List {
-            source: MetastoreError::UtilSlateDB { source: e },
-        })
-        .map(|o| {
-            let next_cursor = o
-                .iter()
-                .last()
-                .map_or(String::new(), |rw_object| rw_object.ident.clone());
-            Json(VolumesResponse {
-                items: o.into_iter().map(|x| x.data.into()).collect(),
-                current_cursor: parameters.cursor,
-                next_cursor,
-            })
-        })
+        .map_err(|e| VolumesAPIError::List { source: e })?;
+    let mut items = Vec::new();
+    for record in records {
+        let volume_names = downcast_string_column(&record, "volume_name")
+            .map_err(|e| VolumesAPIError::List { source: e })?;
+        let volume_types = downcast_string_column(&record, "volume_type")
+            .map_err(|e| VolumesAPIError::List { source: e })?;
+        let created_at_timestamps = downcast_string_column(&record, "created_at")
+            .map_err(|e| VolumesAPIError::List { source: e })?;
+        let updated_at_timestamps = downcast_string_column(&record, "updated_at")
+            .map_err(|e| VolumesAPIError::List { source: e })?;
+        for i in 0..record.num_rows() {
+            items.push(SimpleVolume {
+                name: volume_names.value(i).to_string(),
+                r#type: volume_types.value(i).to_string(),
+                created_at: created_at_timestamps.value(i).to_string(),
+                updated_at: updated_at_timestamps.value(i).to_string(),
+            });
+        }
+    }
+    Ok(Json(VolumesResponse { items }))
 }

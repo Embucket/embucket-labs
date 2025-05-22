@@ -2,7 +2,6 @@ use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::Result;
 use datafusion::common::{ToDFSchema, plan_err};
 use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
-use datafusion::sql::parser::{DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{
     ContextProvider, IdentNormalizer, ParserOptions, PlannerContext, SqlToRel,
     object_name_to_table_reference,
@@ -22,7 +21,6 @@ where
     S: ContextProvider,
 {
     inner: SqlToRel<'a, S>, // The wrapped type
-    provider: &'a S,
     options: ParserOptions,
     ident_normalizer: IdentNormalizer,
 }
@@ -37,7 +35,6 @@ where
 
         Self {
             inner: SqlToRel::new(provider),
-            provider,
             options,
             ident_normalizer: IdentNormalizer::new(ident_normalize),
         }
@@ -181,19 +178,5 @@ where
             }
             _ => {}
         }
-    }
-
-    fn parse_sql(&self, sql: &str) -> Result<LogicalPlan> {
-        let mut statements = DFParser::parse_sql(sql)?;
-        statements.pop_front().map_or_else(
-            || plan_err!("Failed to parse SQL statement"),
-            |statement| {
-                if let DFStatement::Statement(s) = statement {
-                    self.sql_statement_to_plan(*s)
-                } else {
-                    plan_err!("Failed to parse SQL statement")
-                }
-            },
-        )
     }
 }
