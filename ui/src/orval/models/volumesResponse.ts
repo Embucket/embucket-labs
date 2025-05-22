@@ -5,11 +5,8 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
-import type { Volume } from './volume';
-import type { VolumesResponseCurrentCursor } from './volumesResponseCurrentCursor';
+import type { SimpleVolume } from './simpleVolume';
 
 export interface VolumesResponse {
-  currentCursor?: VolumesResponseCurrentCursor;
-  items: Volume[];
-  nextCursor: string;
+  items: SimpleVolume[];
 }

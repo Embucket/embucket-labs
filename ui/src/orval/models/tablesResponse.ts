@@ -6,10 +6,7 @@
  * OpenAPI spec version: 1.0.2
  */
 import type { Table } from './table';
-import type { TablesResponseCurrentCursor } from './tablesResponseCurrentCursor';
 
 export interface TablesResponse {
-  currentCursor?: TablesResponseCurrentCursor;
   items: Table[];
-  nextCursor: string;
 }

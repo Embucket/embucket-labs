@@ -18,12 +18,12 @@ export const useSyncSqlEditorContext = ({
   schemasOptions,
 }: UseSyncSqlEditorContextProps) => {
   const { selectedContext, setSelectedContext } = useSqlEditorSettingsStore();
-  const { databaseName: selectedDatabase, schema: selectedSchema } = selectedContext;
+  const { database: selectedDatabase, schema: selectedSchema } = selectedContext;
 
   useEffect(() => {
     // No databases / schemas available - clear selection
     if (!databasesOptions.length || !schemasOptions.length) {
-      setSelectedContext({ databaseName: '', schema: '' });
+      setSelectedContext({ database: '', schema: '' });
       return;
     }
 
@@ -34,6 +34,6 @@ export const useSyncSqlEditorContext = ({
     const validSchema =
       schemasOptions.find((opt) => opt.value === selectedSchema)?.value ?? schemasOptions[0].value;
 
-    setSelectedContext({ databaseName: validDatabase, schema: validSchema });
+    setSelectedContext({ database: validDatabase, schema: validSchema });
   }, [selectedDatabase, selectedSchema, setSelectedContext, databasesOptions, schemasOptions]);
 };

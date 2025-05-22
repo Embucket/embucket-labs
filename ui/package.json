@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && tar -cvf dist.tar dist",
     "codegen": "orval --config ./orval.config.ts",
     "dev": "vite",
     "format": "prettier --write .",

@@ -21,7 +21,7 @@ export const SqlEditorContextDropdown = () => {
     useGetNavigationTrees();
 
   const { selectedContext, setSelectedContext } = useSqlEditorSettingsStore();
-  const selectedDatabase = selectedContext.databaseName;
+  const selectedDatabase = selectedContext.database;
   const selectedSchema = selectedContext.schema;
 
   const { databasesOptions, schemasOptions } = useMemo(
@@ -42,12 +42,12 @@ export const SqlEditorContextDropdown = () => {
     schemasOptions,
   });
 
-  const handleSelectDatabase = (databaseName: string) => {
-    setSelectedContext({ databaseName, schema: schemasOptions[0].value });
+  const handleSelectDatabase = (database: string) => {
+    setSelectedContext({ database, schema: schemasOptions[0].value });
   };
 
   const handleSelectSchema = (schema: string) => {
-    setSelectedContext({ databaseName: selectedDatabase, schema });
+    setSelectedContext({ database: selectedDatabase, schema });
   };
 
   return (

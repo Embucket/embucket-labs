@@ -5,18 +5,27 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
+import type { OrderDirection } from './orderDirection';
 
 export type GetDatabasesParams = {
   /**
-   * Databases cursor
+   * Databases offset
    */
-  cursor?: string;
+  offset?: number;
   /**
    * Databases limit
    */
   limit?: number;
   /**
-   * Databases search (start with)
+   * Databases search
    */
   search?: string;
+  /**
+   * Order by: database_name (default), volume_name, created_at, updated_at
+   */
+  order_by?: string;
+  /**
+   * Order direction: ASC, DESC (default)
+   */
+  order_direction?: OrderDirection;
 };

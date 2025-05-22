@@ -6,4 +6,9 @@
  * OpenAPI spec version: 1.0.2
  */
 
-export type VolumesResponseCurrentCursor = string | null;
+export interface SimpleVolume {
+  createdAt: string;
+  name: string;
+  type: string;
+  updatedAt: string;
+}

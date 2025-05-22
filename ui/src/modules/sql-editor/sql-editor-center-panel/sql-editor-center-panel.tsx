@@ -63,7 +63,7 @@ export function SqlEditorCenterPanel() {
         query,
         worksheetId: +worksheetId,
         context: {
-          databaseName: selectedContext.databaseName,
+          database: selectedContext.database,
           schema: selectedContext.schema,
         },
       },
