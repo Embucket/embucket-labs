@@ -95,11 +95,10 @@ jobs:
     name: SQL Logic Tests - ${{ matrix.test-dir }}
     strategy:
       matrix:
+        fail-fast: false
         test-dir:
           - 'sql/sql-reference-commands'
           - 'sql/sql-reference-functions'
-        # Allow all test dirs to run even if one fails
-        fail-fast: false
     env:
       SNOWFLAKE_ACCOUNT: test
       SNOWFLAKE_USER: test
