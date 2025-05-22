@@ -168,7 +168,7 @@ where
 pub enum SessionError {
     #[snafu(display("Session load error: {msg}"))]
     SessionLoad { msg: String },
-    #[snafu(display("Unable to persist session"))]
+    #[snafu(display("Unable to persist session {source:?}"))]
     SessionPersist {
         source: tower_sessions::session::Error,
     },

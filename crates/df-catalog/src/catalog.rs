@@ -1,3 +1,4 @@
+use crate::information_schema::information_schema::INFORMATION_SCHEMA;
 use crate::schema::CachingSchema;
 use dashmap::DashMap;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
@@ -9,6 +10,29 @@ pub struct CachingCatalog {
     pub schemas_cache: DashMap<String, Arc<CachingSchema>>,
     pub should_refresh: bool,
     pub name: String,
+    pub enable_information_schema: bool,
+}
+
+impl CachingCatalog {
+    pub fn new(catalog: Arc<dyn CatalogProvider>, name: String) -> Self {
+        Self {
+            catalog,
+            schemas_cache: DashMap::new(),
+            should_refresh: true,
+            enable_information_schema: true,
+            name,
+        }
+    }
+    #[must_use]
+    pub const fn with_refresh(mut self, refresh: bool) -> Self {
+        self.should_refresh = refresh;
+        self
+    }
+    #[must_use]
+    pub const fn with_information_schema(mut self, enable_information_schema: bool) -> Self {
+        self.should_refresh = enable_information_schema;
+        self
+    }
 }
 
 #[allow(clippy::missing_fields_in_debug)]
@@ -86,6 +110,12 @@ impl CatalogProvider for CachingCatalog {
         });
         self.schemas_cache
             .insert(name.to_string(), Arc::clone(&caching_schema));
+
+        // INFORMATION_SCHEMA is a special schema containing only views,
+        // so we do not register it with the internal catalog provider.
+        if name == INFORMATION_SCHEMA {
+            return Ok(None);
+        }
         self.catalog.register_schema(name, schema)
     }
 

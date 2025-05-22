@@ -13,6 +13,18 @@ pub struct EmbucketCatalog {
 }
 
 impl EmbucketCatalog {
+    pub fn new(
+        database: String,
+        metastore: Arc<dyn Metastore>,
+        iceberg_catalog: Arc<dyn IcebergCatalog>,
+    ) -> Self {
+        Self {
+            database,
+            metastore,
+            iceberg_catalog,
+        }
+    }
+
     #[must_use]
     pub fn catalog(&self) -> Arc<dyn IcebergCatalog> {
         self.iceberg_catalog.clone()
