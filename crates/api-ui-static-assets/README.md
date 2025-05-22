@@ -1,6 +1,8 @@
 # api-ui-static-assets
 
-Bundles and provides access to static web assets (CSS, JavaScript, images) for the Embucket UI. These assets are embedded into the application at compile time.
+This crate assumes that the file `ui/dist.tar` already exists in the project's root directory.
+
+It provides static assets packaged as a JavaScript bundle, including CSS, JavaScript, and images for the Embucket UI. These assets are embedded into the application at compile time.
 
 ## Purpose
 
