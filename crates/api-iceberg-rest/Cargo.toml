@@ -7,6 +7,7 @@ license-file.workspace = true
 [dependencies]
 core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }
+embucket-errors = { path = "../../embucket-errors" } # Added embucket-errors
 
 axum = { workspace = true }
 http = { workspace = true }
@@ -19,6 +20,11 @@ serde_json = { workspace = true }
 snafu = { workspace = true }
 tracing = { workspace = true }
 validator = { workspace = true }
+
+[dev-dependencies]
+mockall = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] } # Ensure tokio test features are enabled
+hyper = { workspace = true, features = ["full"] } # For making HTTP requests in tests
 
 
 [lints]

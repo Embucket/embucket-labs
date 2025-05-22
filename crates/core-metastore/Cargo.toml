@@ -13,6 +13,7 @@ futures = { workspace = true }
 iceberg-rust = { workspace = true }
 iceberg-rust-spec = { workspace = true }
 core-utils = { path = "../core-utils" }
+embucket-errors = { path = "../../embucket-errors" } # Added embucket-errors
 object_store = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

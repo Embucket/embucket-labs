@@ -14,6 +14,8 @@ api-sessions = { path = "../api-sessions" }
 api-snowflake-rest = { path = "../api-snowflake-rest" }
 api-iceberg-rest = { path = "../api-iceberg-rest" }
 api-internal-rest = { path = "../api-internal-rest" }
+embucket-errors = { path = "../../embucket-errors" } # Added embucket-errors
+snafu = { workspace = true } # Ensure snafu is available
 
 axum = { workspace = true }
 clap = { version = "4.5.27", features = ["env", "derive"] }

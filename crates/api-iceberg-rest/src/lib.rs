@@ -3,3 +3,6 @@ pub mod handlers;
 pub mod router;
 pub mod schemas;
 pub mod state;
+
+#[cfg(test)]
+mod tests;
