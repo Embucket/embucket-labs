@@ -116,7 +116,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin ${{ github.head_ref }}
           git checkout ${{ github.head_ref }}
-          git add README.md test/README.md assets/
+          git add README.md test/README.md test/assets/
           git commit -m "Update README with latest test results" || echo "No changes to commit"
           git stash # Stash other changes to ensure a clean state
           git pull --rebase origin ${{ github.head_ref }}
