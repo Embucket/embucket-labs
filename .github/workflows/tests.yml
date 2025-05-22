@@ -26,12 +26,12 @@ jobs:
   build:
     runs-on:
       group: large-runners
-    name: Build Binary
+    name: Build Binary and Tests
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      
+
       - name: Cache
         uses: actions/cache@v4
         with:
@@ -42,21 +42,22 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      
-      - name: Build embucketd binary
-        run: cargo build
-      
-      # Upload the binary as an artifact
-      - name: Upload binary
+
+      # Build everything in one go (including tests)
+      - name: Build binary and compile tests
+        run: cargo test --workspace --all-features --all-targets --no-run
+
+      # Upload the entire target directory as an artifact
+      - name: Upload target directory
         uses: actions/upload-artifact@v4
         with:
-          name: embucketd-binary
-          path: target/debug/embucketd
+          name: target-directory
+          path: target/
           retention-days: 1
 
   unit-tests:
@@ -68,36 +69,28 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-      
-      - name: Run unit tests
-        run: cargo test --workspace --all-features --all-targets
 
-  sql-logic-tests:
+      # Download the target directory with compiled tests
+      - name: Download target directory
+        uses: actions/download-artifact@v4
+        with:
+          name: target-directory
+          path: target/
+
+      # Make the test binaries executable
+      - name: Make test binaries executable
+        run: |
+          find target/debug -type f -executable -name "*" -exec chmod +x {} \;
+
+      # Run the already compiled tests
+      - name: Run unit tests
+        run: cargo test --workspace --all-features --all-targets --no-build
+
+  sql-logic-tests-and-update-readme:
     needs: build
     runs-on:
       group: large-runners
-    name: SQL Logic Tests - ${{ matrix.test-dir }}
-    strategy:
-      matrix:
-        test-dir:
-          - 'sql/sql-reference-commands'
-          - 'sql/sql-reference-functions'
+    name: SQL Logic Tests and Update README
     env:
       SNOWFLAKE_ACCOUNT: test
       SNOWFLAKE_USER: test
@@ -115,12 +108,12 @@ jobs:
         with:
           submodules: true
 
-      # Download the prebuilt binary
-      - name: Download binary
+      # Download the target directory instead of just the binary
+      - name: Download target directory
         uses: actions/download-artifact@v4
         with:
-          name: embucketd-binary
-          path: target/debug/
+          name: target-directory
+          path: target/
 
       # Make the binary executable
       - name: Make binary executable
@@ -141,10 +134,16 @@ jobs:
         run: |
           pip install -r test/slt_runner/requirements.txt
 
-      - name: Run SQL Logic Tests
+      # Run SQL Logic Tests for all test directories sequentially
+      - name: Run SQL Logic Tests - Commands
         working-directory: ./test
         run: |
-          python -u -m slt_runner --test-dir ${{ matrix.test-dir }}
+          python -u -m slt_runner --test-dir sql/sql-reference-commands
+
+      - name: Run SQL Logic Tests - Functions
+        working-directory: ./test
+        run: |
+          python -u -m slt_runner --test-dir sql/sql-reference-functions
 
       - name: Generate Test Results
         working-directory: ./test
@@ -154,81 +153,49 @@ jobs:
           import json
           import os
 
-          # Path to save the partial results
-          results_file = 'test-results/${{ matrix.test-dir }}'.replace('/', '_') + '.json'
-
-          # Create a dict with test results
-          results = {
-            'test_dir': '${{ matrix.test-dir }}',
-            'status': os.environ.get('TEST_STATUS', 'completed')
+          # Create results for commands
+          commands_file = 'test-results/sql_sql-reference-commands.json'
+          commands_results = {
+            'test_dir': 'sql/sql-reference-commands',
+            'status': 'success'
           }
-
-          # Write results to file
-          with open(results_file, 'w') as f:
-              json.dump(results, f)
+          with open(commands_file, 'w') as f:
+            json.dump(commands_results, f)
+            
+          # Create results for functions
+          functions_file = 'test-results/sql_sql-reference-functions.json'
+          functions_results = {
+            'test_dir': 'sql/sql-reference-functions',
+            'status': 'success'
+          }
+          with open(functions_file, 'w') as f:
+            json.dump(functions_results, f)
           "
-
-      # Upload partial test results as artifact
-      - name: Upload partial test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ matrix.test-dir }}
-          path: test/test-results/
-          retention-days: 1
-
-  update-readme:
-    needs: sql-logic-tests
-    if: always() # Run even if some tests fail
-    runs-on:
-      group: large-runners
-    name: Update README with Test Results
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      # Download all test results
-      - name: Download all test results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: test-results-*
-          path: test-results/
-          merge-multiple: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Install Dependencies
-        run: |
-          pip install -r test/slt_runner/requirements.txt
-      
       - name: Update README with Test Results
         working-directory: ./test
         run: |
           python update_readme.py
-      
-      - name: Commit and Push Changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin ${{ github.head_ref }}
-          git checkout ${{ github.head_ref }}
-          
-          # Add the changed files
-          git add README.md test/README.md test/assets/
-          
-          # Check if there are changes to commit
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            # Commit the changes
-            git commit -m "Update README with latest test results"
-          
-            # Pull any remote changes
-            git pull --rebase origin ${{ github.head_ref }}
-          
-            # Push the changes
-            git push origin HEAD:${{ github.head_ref }}
-          fi
+
+          - name: Commit and Push Changes
+            run: |
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git fetch origin ${{ github.head_ref }}
+              git checkout ${{ github.head_ref }}
+              
+              # Add the changed files
+              git add README.md test/README.md test/assets/
+              
+              # Check if there are changes to commit
+              if git diff --staged --quiet; then
+                echo "No changes to commit"
+              else
+                # Commit the changes
+                git commit -m "Update README with latest test results"
+              
+                # Pull any remote changes
+                git pull --rebase origin ${{ github.head_ref }}
+              
+                # Push the changes
+                git push origin HEAD:${{ github.head_ref }}
+              fi
