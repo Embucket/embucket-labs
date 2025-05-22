@@ -103,7 +103,7 @@ jobs:
       - name: Run SQL Logic Tests
         working-directory: ./test
         run: |
-          python -u -m slt_runner --test-dir sql/sql-reference-commands/Query_operators
+          python -u -m slt_runner --test-dir sql
 
       - name: Update README with Test Results
         working-directory: ./test
