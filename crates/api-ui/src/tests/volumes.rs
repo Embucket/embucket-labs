@@ -2,7 +2,9 @@
 
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse, VolumesResponse};
+use crate::volumes::models::{
+    VolumeCreatePayload, VolumeCreateResponse, VolumePayload, VolumesResponse,
+};
 use core_metastore::Volume as MetastoreVolume;
 use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume as MetastoreFileVolume,
@@ -19,7 +21,7 @@ async fn test_ui_volumes() {
 
     // memory volume with empty ident create Ok
     let expected = VolumeCreatePayload {
-        data: Volume::from(MetastoreVolume {
+        data: VolumePayload::from(MetastoreVolume {
             ident: "embucket1".to_string(),
             volume: MetastoreVolumeType::Memory,
         }),
@@ -39,7 +41,7 @@ async fn test_ui_volumes() {
     assert_eq!(expected.data.name, created.data.name);
 
     let expected = VolumeCreatePayload {
-        data: Volume::from(MetastoreVolume {
+        data: VolumePayload::from(MetastoreVolume {
             ident: "embucket2".to_string(),
             volume: MetastoreVolumeType::File(MetastoreFileVolume {
                 path: "/tmp/data".to_string(),
@@ -52,7 +54,7 @@ async fn test_ui_volumes() {
 
     // memory volume with empty ident create Ok
     let expected = VolumeCreatePayload {
-        data: Volume::from(MetastoreVolume {
+        data: VolumePayload::from(MetastoreVolume {
             ident: "embucket3".to_string(),
             volume: MetastoreVolumeType::S3(MetastoreS3Volume {
                 region: Some("us-west-1".to_string()),
@@ -126,7 +128,7 @@ async fn test_ui_volumes() {
 
     //Create a volume with diffrent name
     let expected = VolumeCreatePayload {
-        data: Volume::from(MetastoreVolume {
+        data: VolumePayload::from(MetastoreVolume {
             ident: "icebucket1".to_string(),
             volume: MetastoreVolumeType::Memory,
         }),

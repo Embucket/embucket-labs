@@ -6,7 +6,7 @@ use crate::databases::models::{
 use crate::error::ErrorResponse;
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
+use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumePayload};
 use core_metastore::VolumeType as MetastoreVolumeType;
 use core_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
 use http::Method;
@@ -25,7 +25,7 @@ async fn test_ui_databases_metastore_update_bug() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(MetastoreVolume {
+            data: VolumePayload::from(MetastoreVolume {
                 ident: String::from("t"),
                 volume: MetastoreVolumeType::Memory,
             }),
@@ -129,7 +129,7 @@ async fn test_ui_databases() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(MetastoreVolume {
+            data: VolumePayload::from(MetastoreVolume {
                 ident: String::new(),
                 volume: MetastoreVolumeType::Memory,
             }),

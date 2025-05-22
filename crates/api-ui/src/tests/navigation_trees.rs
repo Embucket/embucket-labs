@@ -7,7 +7,7 @@ use crate::schemas::models::SchemaCreatePayload;
 use crate::tests::common::req;
 use crate::tests::common::{Entity, Op, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
+use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumePayload};
 use crate::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use core_metastore::VolumeType as MetastoreVolumeType;
 use core_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
@@ -32,7 +32,7 @@ async fn test_ui_databases_navigation() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(MetastoreVolume {
+            data: VolumePayload::from(MetastoreVolume {
                 ident: String::new(),
                 volume: MetastoreVolumeType::Memory,
             }),

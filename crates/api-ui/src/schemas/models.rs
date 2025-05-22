@@ -5,14 +5,14 @@ use std::convert::From;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct TimestampedSchema {
+pub struct Schema {
     pub name: String,
     pub database: String,
     pub created_at: String,
     pub updated_at: String,
 }
 
-impl From<RwObject<MetastoreSchema>> for TimestampedSchema {
+impl From<RwObject<MetastoreSchema>> for Schema {
     fn from(rw_schema: RwObject<MetastoreSchema>) -> Self {
         Self {
             name: rw_schema.data.ident.schema,
@@ -24,12 +24,12 @@ impl From<RwObject<MetastoreSchema>> for TimestampedSchema {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct Schema {
+pub struct SchemaPayload {
     pub name: String,
     pub database: String,
 }
 
-impl From<MetastoreSchema> for Schema {
+impl From<MetastoreSchema> for SchemaPayload {
     fn from(rw_schema: MetastoreSchema) -> Self {
         Self {
             name: rw_schema.ident.schema,
@@ -40,7 +40,7 @@ impl From<MetastoreSchema> for Schema {
 
 // TODO: Remove it when found why it can't locate .into() if only From trait implemeted
 #[allow(clippy::from_over_into)]
-impl Into<MetastoreSchema> for Schema {
+impl Into<MetastoreSchema> for SchemaPayload {
     fn into(self) -> MetastoreSchema {
         MetastoreSchema {
             ident: MetastoreSchemaIdent {
@@ -62,32 +62,32 @@ pub struct SchemaCreatePayload {
 #[serde(rename_all = "camelCase")]
 pub struct SchemaUpdatePayload {
     #[serde(flatten)]
-    pub data: Schema,
+    pub data: SchemaPayload,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaUpdateResponse {
     #[serde(flatten)]
-    pub data: TimestampedSchema,
+    pub data: Schema,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaCreateResponse {
     #[serde(flatten)]
-    pub data: TimestampedSchema,
+    pub data: Schema,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaResponse {
     #[serde(flatten)]
-    pub data: TimestampedSchema,
+    pub data: Schema,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemasResponse {
-    pub items: Vec<TimestampedSchema>,
+    pub items: Vec<Schema>,
 }

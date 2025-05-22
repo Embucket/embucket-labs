@@ -4,9 +4,9 @@ use crate::{
     error::ErrorResponse,
     volumes::error::{VolumesAPIError, VolumesResult},
     volumes::models::{
-        FileVolume, S3TablesVolume, S3Volume, TimestampedVolume, Volume, VolumeCreatePayload,
-        VolumeCreateResponse, VolumeResponse, VolumeType, VolumeUpdatePayload,
-        VolumeUpdateResponse, VolumesResponse,
+        FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
+        VolumePayload, VolumeResponse, VolumeType, VolumeUpdatePayload, VolumeUpdateResponse,
+        VolumesResponse,
     },
 };
 use api_sessions::DFSessionId;
@@ -34,8 +34,8 @@ use validator::Validate;
         schemas(
             VolumeCreatePayload,
             VolumeCreateResponse,
+            VolumePayload,
             Volume,
-            TimestampedVolume,
             VolumeType,
             S3Volume,
             S3TablesVolume,
@@ -45,6 +45,7 @@ use validator::Validate;
             VolumeResponse,
             VolumesResponse,
             ErrorResponse,
+            OrderDirection,
         )
     ),
     tags(
@@ -255,7 +256,7 @@ pub async fn list_volumes(
         let updated_at_timestamps = downcast_string_column(&record, "updated_at")
             .map_err(|e| VolumesAPIError::List { source: e })?;
         for i in 0..record.num_rows() {
-            items.push(TimestampedVolume {
+            items.push(Volume {
                 name: volume_names.value(i).to_string(),
                 r#type: volume_types.value(i).to_string(),
                 created_at: created_at_timestamps.value(i).to_string(),

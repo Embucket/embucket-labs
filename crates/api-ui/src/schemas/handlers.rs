@@ -5,8 +5,8 @@ use crate::{
     error::ErrorResponse,
     schemas::error::{SchemasAPIError, SchemasResult},
     schemas::models::{
-        Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaResponse, SchemaUpdatePayload,
-        SchemaUpdateResponse, SchemasResponse, TimestampedSchema,
+        Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaPayload, SchemaResponse,
+        SchemaUpdatePayload, SchemaUpdateResponse, SchemasResponse,
     },
 };
 use api_sessions::DFSessionId;
@@ -36,9 +36,10 @@ use utoipa::OpenApi;
             SchemaCreatePayload,
             SchemaCreateResponse,
             SchemasResponse,
+            SchemaPayload,
             Schema,
-            TimestampedSchema,
             ErrorResponse,
+            OrderDirection,
         )
     ),
     tags(
@@ -287,7 +288,7 @@ pub async fn list_schemas(
         let updated_at_timestamps = downcast_string_column(&record, "updated_at")
             .map_err(|e| SchemasAPIError::List { source: e })?;
         for i in 0..record.num_rows() {
-            items.push(TimestampedSchema {
+            items.push(Schema {
                 name: schema_names.value(i).to_string(),
                 database: database_names.value(i).to_string(),
                 created_at: created_at_timestamps.value(i).to_string(),

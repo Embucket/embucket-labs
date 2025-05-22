@@ -4,8 +4,8 @@ use crate::{
     SearchParameters,
     databases::error::{DatabasesAPIError, DatabasesResult},
     databases::models::{
-        Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
-        DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse, TimestampedDatabase,
+        Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabasePayload, DatabaseResponse,
+        DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
     },
     downcast_string_column,
     error::ErrorResponse,
@@ -37,9 +37,10 @@ use validator::Validate;
             DatabaseCreateResponse,
             DatabaseResponse,
             DatabasesResponse,
+            DatabasePayload,
             Database,
-            TimestampedDatabase,
             ErrorResponse,
+            OrderDirection,
         )
     ),
     tags(
@@ -245,7 +246,7 @@ pub async fn list_databases(
         let updated_at_timestamps = downcast_string_column(&record, "updated_at")
             .map_err(|e| DatabasesAPIError::List { source: e })?;
         for i in 0..record.num_rows() {
-            items.push(TimestampedDatabase {
+            items.push(Database {
                 name: database_names.value(i).to_string(),
                 volume: volume_names.value(i).to_string(),
                 created_at: created_at_timestamps.value(i).to_string(),

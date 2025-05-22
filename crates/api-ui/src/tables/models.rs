@@ -138,11 +138,11 @@ impl Into<Format> for UploadParameters {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TablesResponse {
-    pub items: Vec<TimestampedTable>,
+    pub items: Vec<Table>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct TimestampedTable {
+pub struct Table {
     pub name: String,
     pub schema_name: String,
     pub database_name: String,
