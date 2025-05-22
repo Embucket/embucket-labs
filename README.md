@@ -53,6 +53,11 @@ Embucket has deep integration with AWS S3 table buckets and relies on them for p
 
 ## Bronze Bucket coverage
 <!-- SLT_COVERAGE_START -->
+## SQL Logic Test Coverage Visualization
+
+![Test Statistics Visualization](test/assets/test_coverage_visualization.png)
+
+*This visualization is automatically updated by CI/CD when tests are run.*
 <!-- SLT_COVERAGE_END -->
 
 
