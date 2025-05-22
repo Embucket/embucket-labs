@@ -55,7 +55,7 @@ jobs:
   sql-logic-tests-and-update-readme:
     runs-on:
       group: large-runners
-    name: SQL Logic Tests and Update README
+    name: SQL Logic Tests
     env:
       SNOWFLAKE_ACCOUNT: test
       SNOWFLAKE_USER: test
@@ -108,55 +108,36 @@ jobs:
         run: |
           pip install -r test/slt_runner/requirements.txt
 
-      # Run SQL Logic Tests for all test directories sequentially
-      - name: Run SQL Logic Tests - Commands
+      - name: Run SQL Logic Tests
         working-directory: ./test
         run: |
-          python -u -m slt_runner --test-dir sql/sql-reference-commands
+          python -u -m slt_runner --test-dir sql
 
-      - name: Run SQL Logic Tests - Functions
+      - name: Update README with Test Results
         working-directory: ./test
         run: |
-          python -u -m slt_runner --test-dir sql/sql-reference-functions
+          python update_readme.py
 
-      - name: Generate Test Results
-        working-directory: ./test
+      - name: Commit and Push Changes
         run: |
-          mkdir -p test-results
-          python -c "
-          import json
-          import os
-
-          # Create results for commands
-          commands_file = 'test-results/sql_sql-reference-commands.json'
-          commands_results = {
-            'test_dir': 'sql/sql-reference-commands',
-            'status': 'success'
-          }
-          with open(commands_file, 'w') as f:
-            json.dump(commands_results, f)
-            
-          # Create results for functions
-          functions_file = 'test-results/sql_sql-reference-functions.json'
-          functions_results = {
-            'test_dir': 'sql/sql-reference-functions',
-            'status': 'success'
-          }
-          with open(functions_file, 'w') as f:
-            json.dump(functions_results, f)
-          "
-
-      # Update README step (only run on push to main branch)
-      - name: Update README
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          # Add your README update logic here
-          echo "Updating README..."
-
-      # Commit changes to README if needed
-      - name: Commit README changes
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: "Update README with latest test results"
-          file_pattern: README.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin ${{ github.head_ref }}
+          git checkout ${{ github.head_ref }}
+          
+          # Add the changed files
+          git add README.md test/README.md test/assets/
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            # Commit the changes
+            git commit -m "Update README with latest test results"
+          
+            # Pull any remote changes
+            git pull --rebase origin ${{ github.head_ref }}
+          
+            # Push the changes
+            git push origin HEAD:${{ github.head_ref }}
+          fi
