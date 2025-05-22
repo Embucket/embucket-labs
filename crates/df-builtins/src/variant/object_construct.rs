@@ -7,8 +7,8 @@ use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use serde_json::{Number, Value};
 use indexmap::IndexMap;
+use serde_json::{Number, Value};
 
 #[derive(Debug, Clone)]
 pub struct ObjectConstructUDF {
@@ -198,10 +198,10 @@ make_udf_function!(ObjectConstructUDF);
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::variant::array_construct::ArrayConstructUDF;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion_expr::ScalarUDF;
-    use crate::variant::array_construct::ArrayConstructUDF;
 
     #[tokio::test]
     async fn test_object_construct() -> DFResult<()> {
@@ -215,12 +215,12 @@ mod tests {
 
         assert_batches_eq!(
             [
-    "+-----------------------------+",
-    "| obj1                        |",
-    "+-----------------------------+",
-    "| {\"a\":1,\"b\":\"hello\",\"c\":2.5} |",
-    "+-----------------------------+",
-],
+                "+-----------------------------+",
+                "| obj1                        |",
+                "+-----------------------------+",
+                "| {\"a\":1,\"b\":\"hello\",\"c\":2.5} |",
+                "+-----------------------------+",
+            ],
             &result
         );
 
@@ -238,13 +238,13 @@ mod tests {
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
-[
-    "+---------------+",
-    "| obj3          |",
-    "+---------------+",
-    "| {\"a\":1,\"c\":3} |",
-    "+---------------+",
-],
+            [
+                "+---------------+",
+                "| obj3          |",
+                "+---------------+",
+                "| {\"a\":1,\"c\":3} |",
+                "+---------------+",
+            ],
             &result
         );
 
@@ -263,13 +263,13 @@ mod tests {
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
-[
-    "+---------------------------------+",
-    "| obj1                            |",
-    "+---------------------------------+",
-    "| {\"a\":{\"x\":1,\"y\":2},\"b\":[1,2,3]} |",
-    "+---------------------------------+",
-],
+            [
+                "+---------------------------------+",
+                "| obj1                            |",
+                "+---------------------------------+",
+                "| {\"a\":{\"x\":1,\"y\":2},\"b\":[1,2,3]} |",
+                "+---------------------------------+",
+            ],
             &result
         );
 

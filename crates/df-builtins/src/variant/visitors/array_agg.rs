@@ -71,13 +71,13 @@ mod tests {
     use super::*;
     use crate::variant::array_compact::ArrayCompactUDF;
     use crate::variant::array_construct::ArrayConstructUDF;
+    use crate::variant::variant_element::VariantArrayElementUDF;
     use crate::variant::visitors::variant_element;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion::sql::parser::Statement as DFStatement;
     use datafusion_common::Result as DFResult;
     use datafusion_expr::ScalarUDF;
-    use crate::variant::variant_element::VariantArrayElementUDF;
 
     #[tokio::test]
     async fn test_array_agg_rewrite() -> DFResult<()> {
