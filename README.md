@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 <!-- SLT_BADGE_START -->
-![SLT Coverage: 48.6%](test/assets/slt_coverage_badge.png)
+[![SLT Coverage: 45.7%](https://img.shields.io/badge/SLT_Coverage-45.7%25-B87333?style=for-the-badge&logo=database&logoColor=white)](test/README.md)
 <!-- SLT_BADGE_END -->
 
 
