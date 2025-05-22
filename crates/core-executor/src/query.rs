@@ -41,7 +41,7 @@ use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
     ObjectType, PivotValueSource, Select, SelectItem, ShowObjects, ShowStatementFilter,
-    ShowStatementIn, UpdateTableFromKind, Use, Value,
+    ShowStatementIn, Use, Value,
 };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -1907,101 +1907,6 @@ impl UserQuery {
             }
             _ => (ObjectName(vec![]), String::new()),
         }
-    }
-
-    fn update_tables_in_query(&self, query: &mut Query) -> ExecutionResult<()> {
-        if let Some(with) = query.with.as_mut() {
-            for cte in &mut with.cte_tables {
-                self.update_tables_in_query(&mut cte.query)?;
-            }
-        }
-
-        match query.body.as_mut() {
-            sqlparser::ast::SetExpr::Select(select) => {
-                for table_with_joins in &mut select.from {
-                    self.update_tables_in_table_with_joins(table_with_joins)?;
-                }
-
-                if let Some(expr) = &mut select.selection {
-                    self.update_tables_in_expr(expr)?;
-                }
-            }
-            sqlparser::ast::SetExpr::Query(q) => {
-                self.update_tables_in_query(q)?;
-            }
-            _ => {}
-        }
-
-        Ok(())
-    }
-
-    fn update_tables_in_expr(&self, expr: &mut Expr) -> ExecutionResult<()> {
-        match expr {
-            Expr::BinaryOp { left, right, .. } => {
-                self.update_tables_in_expr(left)?;
-                self.update_tables_in_expr(right)?;
-            }
-            Expr::Subquery(q) => {
-                self.update_tables_in_query(q)?;
-            }
-            Expr::Exists { subquery, .. } => {
-                self.update_tables_in_query(subquery)?;
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    fn update_tables_in_table_with_joins(
-        &self,
-        table_with_joins: &mut TableWithJoins,
-    ) -> ExecutionResult<()> {
-        self.update_tables_in_table_factor(&mut table_with_joins.relation)?;
-
-        for join in &mut table_with_joins.joins {
-            self.update_tables_in_table_factor(&mut join.relation)?;
-        }
-
-        Ok(())
-    }
-
-    fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor) -> ExecutionResult<()> {
-        match table_factor {
-            TableFactor::Table { name, .. } => {
-                let compressed_name = self.resolve_table_object_name(name.clone().0)?;
-                *name = ObjectName(
-                    compressed_name
-                        .0
-                        .iter()
-                        .map(|i| ObjectNamePart::Identifier(i.clone()))
-                        .collect(),
-                );
-            }
-            TableFactor::Derived { subquery, .. } => {
-                self.update_tables_in_query(subquery)?;
-            }
-            TableFactor::NestedJoin {
-                table_with_joins, ..
-            } => {
-                self.update_tables_in_table_with_joins(table_with_joins)?;
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    fn update_tables_in_update_table_from_kind(
-        &self,
-        from_kind: &mut UpdateTableFromKind,
-    ) -> ExecutionResult<()> {
-        match from_kind {
-            UpdateTableFromKind::BeforeSet(tables) | UpdateTableFromKind::AfterSet(tables) => {
-                for table_with_joins in tables {
-                    self.update_tables_in_table_with_joins(table_with_joins)?;
-                }
-            }
-        }
-        Ok(())
     }
 }
 
