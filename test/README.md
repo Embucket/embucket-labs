@@ -1,3 +1,7 @@
+# Bronze Bucket coverage
+<!-- SLT_COVERAGE_START -->
+<!-- SLT_COVERAGE_END -->
+
 # SQL Logic Tests
 We have a set of `.slt` files that represent our SQL Logic Tests. You can run them against Snowflake or Embucket.
 

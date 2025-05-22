@@ -51,6 +51,9 @@ It is built on top of several open source projects:
 
 Embucket has deep integration with AWS S3 table buckets and relies on them for proper table maintenance.
 
+## Bronze Bucket coverage
+<!-- SLT_COVERAGE_START -->
+<!-- SLT_COVERAGE_END -->
 
 
 ### Install Embucket  

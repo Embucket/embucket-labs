@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script to update the README.md file with test statistics visualization.
-This script is intended to be run as part of CI/CD after tests have generated statistics.
+Script to update README.md files with test statistics visualization.
+This script updates both the main README in the project root and the README in the test folder.
 """
 
 import os
@@ -65,77 +65,126 @@ def generate_visualization(stats_file='test_statistics.csv', output_dir='assets'
         return None
 
 
-def update_readme_with_visualization(readme_file='README.md', image_path=None):
+def update_readme_with_visualization(readme_file, image_path, relative_image_path=None):
     """
-    Update the README.md file to include the visualization image.
+    Update a README.md file to include the visualization image between
+    specific comment markers: <!-- SLT_COVERAGE_START --> and <!-- SLT_COVERAGE_END -->
 
     Args:
         readme_file (str): Path to the README.md file
-        image_path (str): Path to the visualization image
+        image_path (str): Absolute path to the visualization image
+        relative_image_path (str, optional): Path to the image relative to the README file location
+                                            If None, uses image_path
 
     Returns:
         bool: True if successful, False otherwise
     """
     if not image_path or not os.path.exists(image_path):
-        print("Error: Visualization image not found")
+        print(f"Error: Visualization image not found at {image_path}")
         return False
 
+    # If relative path not provided, use the image_path
+    if relative_image_path is None:
+        relative_image_path = image_path
+
     try:
+        # Check if README file exists
+        if not os.path.exists(readme_file):
+            print(f"Error: README file not found at {readme_file}")
+            return False
+
         # Read the current README content
         with open(readme_file, 'r') as file:
             content = file.read()
 
-        # Define the visualization section header
-        viz_section_header = "## Test Statistics Visualization"
+        # Define the markers
+        start_marker = "<!-- SLT_COVERAGE_START -->"
+        end_marker = "<!-- SLT_COVERAGE_END -->"
 
-        # Define the new visualization section content
-        relative_image_path = image_path  # Adjust path to be relative to README location
-        viz_section_content = (
-            f"{viz_section_header}\n\n"
-            f"Below is the current test coverage and success rate visualization:\n\n"
+        # Check if both markers exist in the README
+        if start_marker not in content or end_marker not in content:
+            print(f"Warning: Could not find both markers in {readme_file}.")
+            print("Please add these markers to indicate where the visualization should be inserted.")
+            return False
+
+        # Define the visualization content to insert between markers
+        viz_content = (
+            f"{start_marker}\n"
+            f"## SQL Logic Test Coverage Visualization\n\n"
             f"![Test Statistics Visualization]({relative_image_path})\n\n"
-            f"*This visualization is automatically updated by CI/CD when tests are run.*\n\n"
+            f"*This visualization is automatically updated by CI/CD when tests are run.*\n"
+            f"{end_marker}"
         )
 
-        # Check if the visualization section already exists
-        if viz_section_header in content:
-            # Replace the existing section using regex
-            pattern = f"{viz_section_header}.*?(?=\n##|$)"
-            updated_content = re.sub(pattern, viz_section_content, content, flags=re.DOTALL)
-        else:
-            # Append the visualization section at the end
-            updated_content = content + "\n" + viz_section_content
+        # Replace the content between markers
+        pattern = f"{re.escape(start_marker)}.*?{re.escape(end_marker)}"
+        updated_content = re.sub(pattern, viz_content, content, flags=re.DOTALL)
 
         # Write the updated content back to the README
         with open(readme_file, 'w') as file:
             file.write(updated_content)
 
-        print(f"Successfully updated {readme_file} with visualization")
+        print(f"Successfully updated {readme_file} with visualization between markers")
         return True
 
     except Exception as e:
-        print(f"Error updating README: {str(e)}")
+        print(f"Error updating README {readme_file}: {str(e)}")
         return False
 
 
 def main():
-    """Main function to generate visualization and update README."""
-    # Default paths
-    stats_file = 'test_statistics.csv'
-    readme_file = 'README.md'
-    output_dir = 'assets'
+    """Main function to generate visualization and update both README files."""
+    # Get the current working directory
+    current_dir = os.getcwd()
+
+    # Define paths
+    stats_file = os.path.join(current_dir, 'test_statistics.csv')
+    output_dir = os.path.join(current_dir, 'assets')
+
+    # Determine project root (assuming we're either in the project root or the test directory)
+    if os.path.basename(current_dir) == 'test':
+        # We're in the test directory
+        project_root = os.path.dirname(current_dir)
+        test_dir = current_dir
+    else:
+        # We're in the project root
+        project_root = current_dir
+        test_dir = os.path.join(project_root, 'test')
+
+    # Define README paths
+    root_readme = os.path.join(project_root, 'README.md')
+    test_readme = os.path.join(test_dir, 'README.md')
 
     # Generate the visualization
     image_path = generate_visualization(stats_file, output_dir)
     if not image_path:
         sys.exit(1)
 
-    # Update the README with the visualization
-    success = update_readme_with_visualization(readme_file, image_path)
-    if not success:
-        sys.exit(1)
+    # Define relative paths for the image from each README
+    root_relative_path = os.path.relpath(image_path, project_root)
+    test_relative_path = os.path.relpath(image_path, test_dir)
 
-    print("README successfully updated with test statistics visualization")
+    # Update the root README
+    if os.path.exists(root_readme):
+        root_success = update_readme_with_visualization(root_readme, image_path, root_relative_path)
+        if root_success:
+            print(f"Updated root README at {root_readme}")
+        else:
+            print(f"Failed to update root README at {root_readme}")
+    else:
+        print(f"Root README not found at {root_readme}")
+
+    # Update the test README
+    if os.path.exists(test_readme):
+        test_success = update_readme_with_visualization(test_readme, image_path, test_relative_path)
+        if test_success:
+            print(f"Updated test README at {test_readme}")
+        else:
+            print(f"Failed to update test README at {test_readme}")
+    else:
+        print(f"Test README not found at {test_readme}")
+
+    print("README update process completed")
 
 
 if __name__ == "__main__":
