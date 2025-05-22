@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 <!-- SLT_BADGE_START -->
-[![SLT Coverage: 45.7%](https://img.shields.io/badge/SLT_Coverage-45.7%25-B87333?style=for-the-badge&logo=database&logoColor=white)](test/README.md)
+[![SLT Coverage: 25.7%](https://img.shields.io/badge/SLT_Coverage-25.7%25-A45A2A?style=for-the-badge&logo=database&logoColor=white)](test/README.md)
 <!-- SLT_BADGE_END -->
 
 
@@ -56,7 +56,7 @@ It is built on top of several open source projects:
 Embucket has deep integration with AWS S3 table buckets and relies on them for proper table maintenance.
 
 <!-- SLT_COVERAGE_START -->
-## Bronze Bucket coverage
+##SLT coverage
 
 ![Test Statistics Visualization](test/assets/test_coverage_visualization.png)
 
