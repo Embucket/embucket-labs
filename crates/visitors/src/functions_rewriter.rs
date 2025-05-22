@@ -3,7 +3,7 @@ use datafusion_expr::sqlparser::ast::{
     Expr, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident, ObjectName,
     Statement, VisitorMut,
 };
-use sqlparser::ast::Value::SingleQuotedString;
+use datafusion_expr::sqlparser::ast::Value::SingleQuotedString;
 
 #[derive(Debug, Default)]
 pub struct FunctionsRewriter {}

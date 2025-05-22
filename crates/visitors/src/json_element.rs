@@ -3,7 +3,7 @@ use datafusion_expr::sqlparser::ast::{
     Expr as ASTExpr, Function, FunctionArg, FunctionArgExpr, FunctionArgumentList,
     FunctionArguments, Ident, ObjectName, Statement, Value as ASTValue, VisitorMut,
 };
-use sqlparser::ast::JsonPathElem;
+use datafusion_expr::sqlparser::ast::JsonPathElem;
 use std::ops::ControlFlow;
 
 #[derive(Debug, Default)]

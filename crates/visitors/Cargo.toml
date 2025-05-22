@@ -8,9 +8,6 @@ license-file.workspace = true
 datafusion = { workspace = true }
 datafusion-expr = { workspace = true }
 datafusion-common = { workspace = true }
-sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "ed416548dcfe4a73a3240bbf625fb9010a4925c8", features = [
-    "visitor",
-] }
 tokio = { workspace = true }
 
 [lints]
