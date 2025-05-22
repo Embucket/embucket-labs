@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 <!-- SLT_BADGE_START -->
+![SLT Coverage: 48.6%](test/assets/slt_coverage_badge.png)
 <!-- SLT_BADGE_END -->
 
 
@@ -55,7 +56,7 @@ It is built on top of several open source projects:
 Embucket has deep integration with AWS S3 table buckets and relies on them for proper table maintenance.
 
 <!-- SLT_COVERAGE_START -->
-## SQL Logic Test Coverage Visualization
+## Bronze Bucket coverage
 
 ![Test Statistics Visualization](test/assets/test_coverage_visualization.png)
 

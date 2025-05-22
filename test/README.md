@@ -1,8 +1,9 @@
 <!-- SLT_BADGE_START -->
+![SLT Coverage: 48.6%](assets/slt_coverage_badge.png)
 <!-- SLT_BADGE_END -->
 
 <!-- SLT_COVERAGE_START -->
-## SQL Logic Test Coverage Visualization
+## Bronze Bucket coverage
 
 ![Test Statistics Visualization](assets/test_coverage_visualization.png)
 
