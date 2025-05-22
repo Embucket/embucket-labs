@@ -23,10 +23,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 jobs:
-  build:
+  unit-tests:
     runs-on:
       group: large-runners
-    name: Build Binary and Tests
+    name: Unit Tests
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,46 +48,11 @@ jobs:
         with:
           toolchain: stable
 
-      # Build everything in one go (including tests)
-      - name: Build binary and compile tests
-        run: cargo test --workspace --all-features --all-targets --no-run
-
-      # Upload the entire target directory as an artifact
-      - name: Upload target directory
-        uses: actions/upload-artifact@v4
-        with:
-          name: target-directory
-          path: target/
-          retention-days: 1
-
-  unit-tests:
-    needs: build
-    runs-on:
-      group: large-runners
-    name: Unit Tests
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      # Download the target directory with compiled tests
-      - name: Download target directory
-        uses: actions/download-artifact@v4
-        with:
-          name: target-directory
-          path: target/
-
-      # Make the test binaries executable
-      - name: Make test binaries executable
-        run: |
-          find target/debug -type f -executable -name "*" -exec chmod +x {} \;
-
-      # Run the already compiled tests
+      # Build and run tests directly
       - name: Run unit tests
-        run: cargo test --workspace --all-features --all-targets --no-build
+        run: cargo test --workspace --all-features --all-targets
 
   sql-logic-tests-and-update-readme:
-    needs: build
     runs-on:
       group: large-runners
     name: SQL Logic Tests and Update README
@@ -108,16 +73,25 @@ jobs:
         with:
           submodules: true
 
-      # Download the target directory instead of just the binary
-      - name: Download target directory
-        uses: actions/download-artifact@v4
+      - name: Cache
+        uses: actions/cache@v4
         with:
-          name: target-directory
-          path: target/
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
-      # Make the binary executable
-      - name: Make binary executable
-        run: chmod +x target/debug/embucketd
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      # Build only the embucketd binary
+      - name: Build embucketd
+        run: cargo build --bin embucketd
 
       - name: Start Embucket Server
         run: |
@@ -171,31 +145,18 @@ jobs:
           with open(functions_file, 'w') as f:
             json.dump(functions_results, f)
           "
-      - name: Update README with Test Results
-        working-directory: ./test
-        run: |
-          python update_readme.py
 
-          - name: Commit and Push Changes
-            run: |
-              git config user.name "github-actions[bot]"
-              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-              git fetch origin ${{ github.head_ref }}
-              git checkout ${{ github.head_ref }}
-              
-              # Add the changed files
-              git add README.md test/README.md test/assets/
-              
-              # Check if there are changes to commit
-              if git diff --staged --quiet; then
-                echo "No changes to commit"
-              else
-                # Commit the changes
-                git commit -m "Update README with latest test results"
-              
-                # Pull any remote changes
-                git pull --rebase origin ${{ github.head_ref }}
-              
-                # Push the changes
-                git push origin HEAD:${{ github.head_ref }}
-              fi
+      # Update README step (only run on push to main branch)
+      - name: Update README
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Add your README update logic here
+          echo "Updating README..."
+
+      # Commit changes to README if needed
+      - name: Commit README changes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Update README with latest test results"
+          file_pattern: README.md
