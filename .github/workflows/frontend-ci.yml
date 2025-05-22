@@ -49,7 +49,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - <<: *common-setup
+      *common-setup
       - name: Run ESLint
         working-directory: ./ui
         run: pnpm lint
@@ -58,7 +58,7 @@ jobs:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
-      - <<: *common-setup
+      *common-setup
       - name: Run TypeScript type checking
         working-directory: ./ui
         run: pnpm typecheck
@@ -67,7 +67,7 @@ jobs:
     name: Format Check
     runs-on: ubuntu-latest
     steps:
-      - <<: *common-setup
+      *common-setup
       - name: Check formatting
         working-directory: ./ui
         run: pnpm prettier --check .
@@ -75,8 +75,9 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    needs: [lint, typecheck, format]
     steps:
-      - <<: *common-setup
+      *common-setup
       - name: Run build
         working-directory: ./ui
         run: pnpm build
@@ -102,3 +103,4 @@ jobs:
             echo "Error: ui/dist.tar not found after build."
             exit 1
           fi
+          
