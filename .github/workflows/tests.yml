@@ -57,10 +57,10 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
 
-#      - name: cargo test
-#        run: cargo test --workspace --all-features --all-targets
+      - name: cargo test
+        run: cargo test --workspace --all-features --all-targets
 
-  slt-tests:
+  sql-logic-tests:
     needs: required
     runs-on:
       group: large-runners
