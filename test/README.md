@@ -3,7 +3,7 @@
 <!-- SLT_BADGE_END -->
 
 <!-- SLT_COVERAGE_START -->
-##SLT coverage
+## SLT coverage
 
 ![Test Statistics Visualization](assets/test_coverage_visualization.png)
 

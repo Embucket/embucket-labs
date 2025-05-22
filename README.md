@@ -56,7 +56,7 @@ It is built on top of several open source projects:
 Embucket has deep integration with AWS S3 table buckets and relies on them for proper table maintenance.
 
 <!-- SLT_COVERAGE_START -->
-##SLT coverage
+## SLT coverage
 
 ![Test Statistics Visualization](test/assets/test_coverage_visualization.png)
 
