@@ -116,9 +116,20 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin ${{ github.head_ref }}
           git checkout ${{ github.head_ref }}
+          
+          # Add the changed files
           git add README.md test/README.md test/assets/
-          git commit -m "Update README with latest test results" || echo "No changes to commit"
-          git stash # Stash other changes to ensure a clean state
-          git pull --rebase origin ${{ github.head_ref }}
-          git stash pop # Reapply stashed changes after rebase
-          git push origin HEAD:${{ github.head_ref }}
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            # Commit the changes
+            git commit -m "Update README with latest test results"
+          
+            # Pull any remote changes
+            git pull --rebase origin ${{ github.head_ref }}
+          
+            # Push the changes
+            git push origin HEAD:${{ github.head_ref }}
+          fi
