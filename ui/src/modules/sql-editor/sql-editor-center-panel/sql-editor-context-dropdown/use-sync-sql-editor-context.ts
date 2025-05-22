@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 
-// TODO: Dry
+// TODO: DRY
 interface SelectOption {
   value: string;
   label: string;
