@@ -63,7 +63,7 @@ impl VisitorMut for VariantElementVisitor {
 }
 
 pub fn visit(stmt: &mut Statement) {
-    stmt.visit(&mut VariantElementVisitor::new());
+    let _ = stmt.visit(&mut VariantElementVisitor::new());
 }
 
 // For unit tests see udfs/variant_element.rs

@@ -113,14 +113,13 @@ make_udf_function!(ArrayConstructUDF);
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::variant::array_cat::ArrayCatUDF;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion_expr::ScalarUDF;
 
     #[tokio::test]
     async fn test_array_construct() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));
 
@@ -183,7 +182,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_array_construct_nested() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));
 

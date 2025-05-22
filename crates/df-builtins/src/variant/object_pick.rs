@@ -165,7 +165,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_object_pick() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         // Register UDF
         ctx.register_udf(ScalarUDF::from(ObjectPickUDF::new()));

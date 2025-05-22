@@ -65,7 +65,7 @@ impl VisitorMut for ArrayConstructCompactRewriter {
 }
 
 pub fn visit(stmt: &mut Statement) {
-    stmt.visit(&mut ArrayConstructCompactRewriter {});
+    let _ = stmt.visit(&mut ArrayConstructCompactRewriter {});
 }
 
 #[cfg(test)]
@@ -82,7 +82,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_array_construct_compact_rewrite() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
         // Register array_construct and array_compact UDFs
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));
         ctx.register_udf(ScalarUDF::from(ArrayCompactUDF::new()));

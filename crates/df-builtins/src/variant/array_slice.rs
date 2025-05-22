@@ -204,7 +204,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_array_slice() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         // Register both UDFs
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));

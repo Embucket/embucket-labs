@@ -56,6 +56,7 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
         Ok(DataType::Utf8)
     }
 
+    #[allow(clippy::cast_sign_loss)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs {
             args, number_rows, ..
@@ -156,7 +157,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_array_generate_range() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         ctx.register_udf(ScalarUDF::from(ArrayGenerateRangeUDF::new()));
 

@@ -30,7 +30,7 @@ impl ArraysOverlapUDF {
         if let (Value::Array(arr1), Value::Array(arr2)) = (array1, array2) {
             // Convert arrays to HashSet for efficient comparison
             let set1: std::collections::HashSet<String> =
-                arr1.iter().map(|v| v.to_string()).collect();
+                arr1.iter().map(ToString::to_string).collect();
 
             // Check if any element from arr2 exists in set1
             for val in arr2 {
@@ -170,7 +170,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_arrays_overlap() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         // Register both UDFs
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));

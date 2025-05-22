@@ -36,7 +36,7 @@ impl VisitorMut for ArrayObjectToBinaryVisitor {
 }
 
 pub fn visit(stmt: &mut Statement) {
-    stmt.visit(&mut ArrayObjectToBinaryVisitor::new());
+    let _ = stmt.visit(&mut ArrayObjectToBinaryVisitor::new());
 }
 
 #[cfg(test)]

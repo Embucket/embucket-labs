@@ -47,7 +47,7 @@ impl VisitorMut for ArrayConstructVisitor {
 }
 
 pub fn visit(stmt: &mut Statement) {
-    stmt.visit(&mut ArrayConstructVisitor::new());
+    let _ = stmt.visit(&mut ArrayConstructVisitor::new());
 }
 
 #[cfg(test)]
@@ -63,7 +63,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_array_construct_rewrite() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
         // Register array_construct UDF
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));
 

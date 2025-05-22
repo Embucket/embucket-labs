@@ -188,7 +188,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_arrays_to_object() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         // Register UDFs
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));

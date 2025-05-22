@@ -325,7 +325,7 @@ mod tests {
     ) -> Result<Box<dyn Accumulator>> {
         let intermediate_state = acc2.state().and_then(|e| {
             e.iter()
-                .map(|v| v.to_array())
+                .map(ScalarValue::to_array)
                 .collect::<Result<Vec<ArrayRef>>>()
         })?;
         acc1.merge_batch(&intermediate_state)?;
@@ -366,7 +366,7 @@ mod tests {
         let intermediate = acc2
             .state()?
             .iter()
-            .map(|sv| sv.to_array())
+            .map(ScalarValue::to_array)
             .collect::<Result<Vec<_>>>()?;
         let err = acc1.merge_batch(&intermediate).unwrap_err();
         let msg = format!("{err}");

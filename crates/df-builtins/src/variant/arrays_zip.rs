@@ -27,7 +27,7 @@ impl ArraysZipUDF {
 
     fn zip_arrays(arrays: Vec<Value>) -> DFResult<Option<String>> {
         // If any array is null, return null
-        if arrays.iter().any(|arr| arr.is_null()) {
+        if arrays.iter().any(Value::is_null) {
             return Ok(None);
         }
 
@@ -43,7 +43,7 @@ impl ArraysZipUDF {
             .collect::<DFResult<_>>()?;
 
         // Find the maximum length among all arrays
-        let max_len = arrays.iter().map(|arr| arr.len()).max().unwrap_or(0);
+        let max_len = arrays.iter().map(Vec::len).max().unwrap_or(0);
 
         // Create the zipped array
         let mut result = Vec::with_capacity(max_len);
@@ -190,7 +190,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_arrays_zip() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         // Register UDFs
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));

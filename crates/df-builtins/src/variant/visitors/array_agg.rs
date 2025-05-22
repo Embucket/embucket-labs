@@ -62,14 +62,13 @@ impl VisitorMut for VariantArrayAggRewriter {
 }
 
 pub fn visit(stmt: &mut Statement) {
-    stmt.visit(&mut VariantArrayAggRewriter {});
+    let _ = stmt.visit(&mut VariantArrayAggRewriter {});
 }
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::variant::array_compact::ArrayCompactUDF;
     use crate::variant::array_construct::ArrayConstructUDF;
     use crate::variant::variant_element::VariantArrayElementUDF;
     use crate::variant::visitors::variant_element;
@@ -81,7 +80,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_array_agg_rewrite() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
         // Register array_construct UDF
 
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));

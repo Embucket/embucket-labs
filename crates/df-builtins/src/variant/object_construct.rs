@@ -1,5 +1,4 @@
 use super::super::macros::make_udf_function;
-use crate::json;
 use datafusion::arrow::array::as_boolean_array;
 use datafusion::arrow::{array::AsArray, datatypes::DataType};
 use datafusion_common::cast::{as_float64_array, as_int64_array};
@@ -205,7 +204,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_object_construct() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         ctx.register_udf(ScalarUDF::from(ObjectConstructUDF::new()));
 
@@ -253,7 +252,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_object_construct_nested() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         ctx.register_udf(ScalarUDF::from(ObjectConstructUDF::new()));
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));

@@ -166,7 +166,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_object_delete() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         // Register UDF
         ctx.register_udf(ScalarUDF::from(ObjectDeleteUDF::new()));

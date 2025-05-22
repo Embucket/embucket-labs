@@ -37,7 +37,7 @@ impl ArrayContainsUDF {
             if let Value::Array(array) = array_value {
                 // If search value is null, check if array contains null
                 if search_value.is_null() {
-                    if array.iter().any(|v| v.is_null()) {
+                    if array.iter().any(Value::is_null) {
                         return Ok(Some(true));
                     }
                     return Ok(None);
@@ -147,7 +147,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_array_contains() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         // Register both UDFs
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));
@@ -218,7 +218,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_array_contains_with_table() -> DFResult<()> {
-        let mut ctx = SessionContext::new();
+        let ctx = SessionContext::new();
 
         // Register both UDFs
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));
