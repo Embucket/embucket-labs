@@ -249,7 +249,7 @@ def update_readme_with_visualization(readme_file, image_path, relative_image_pat
         # Define the visualization content to insert between markers
         viz_content = (
             f"{start_marker}\n"
-            f"## Bronze Bucket coverage\n\n"
+            f"##SLT coverage\n\n"
             f"![Test Statistics Visualization]({relative_image_path})\n\n"
             f"*This visualization is automatically updated by CI/CD when tests are run.*\n"
             f"{end_marker}"
