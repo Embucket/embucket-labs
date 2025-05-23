@@ -18,6 +18,7 @@ use std::io::Read;
 pub const WEB_ASSETS_MOUNT_PATH: &str = "/";
 
 fn get_file_from_tar(file_name: &str) -> Result<Vec<u8>> {
+    let file_name = "dist/".to_owned() + file_name;
     let cursor = Cursor::new(WEB_ASSETS_TARBALL);
 
     let mut archive = tar::Archive::new(cursor);
