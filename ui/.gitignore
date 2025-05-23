@@ -19,7 +19,7 @@ coverage
 out/
 build
 dist
-# dist
+dist
 
 # Debug
 npm-debug.log*

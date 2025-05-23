@@ -35,6 +35,7 @@ export const SqlEditorRightPanelQuery = ({ query }: SqlEditorRightPanelQueriesPr
             <SqlEditorRightPanelQueryItem
               status={query.status}
               query={query.query}
+              error={query.error}
               time={new Date(query.startTime).toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit',

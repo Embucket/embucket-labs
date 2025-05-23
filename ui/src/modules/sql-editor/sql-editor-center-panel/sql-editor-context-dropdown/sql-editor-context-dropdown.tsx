@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { ChevronsUpDown } from 'lucide-react';
 
@@ -17,6 +17,8 @@ import { SqlEditorContextDropdownSchemas } from './sql-editor-context-dropdown-s
 import { useSyncSqlEditorContext } from './use-sync-sql-editor-context';
 
 export const SqlEditorContextDropdown = () => {
+  const [open, setOpen] = useState(false);
+
   const { data: { items: navigationTrees } = {}, isLoading: isLoadingNavigationTrees } =
     useGetNavigationTrees();
 
@@ -48,10 +50,11 @@ export const SqlEditorContextDropdown = () => {
 
   const handleSelectSchema = (schema: string) => {
     setSelectedContext({ database: selectedDatabase, schema });
+    setOpen(false);
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild className="h-8 w-fit max-w-[240px]">
         {selectedDatabase && selectedSchema && (
           <SidebarMenuButton
