@@ -13,7 +13,7 @@ use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
 use core_executor::utils::convert_record_batches;
-use core_executor::{models::QueryResult, query::QueryContext, utils::DataSerializationFormat};
+use core_executor::{query::QueryContext, utils::DataSerializationFormat};
 use datafusion::arrow::ipc::MetadataVersion;
 use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
 use datafusion::arrow::json::WriterBuilder;
