@@ -3,6 +3,7 @@ use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::CachingCatalog;
 use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
 use crate::error::{DataFusionSnafu, Error, MetastoreSnafu, Result, S3TablesSnafu};
+use crate::information_schema::information_schema::InformationSchemaProvider;
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};

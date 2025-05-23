@@ -1,3 +1,4 @@
+use crate::information_schema::information_schema::INFORMATION_SCHEMA;
 use crate::schema::CachingSchema;
 use dashmap::DashMap;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
@@ -109,6 +110,12 @@ impl CatalogProvider for CachingCatalog {
         });
         self.schemas_cache
             .insert(name.to_string(), Arc::clone(&caching_schema));
+
+        // INFORMATION_SCHEMA is a special schema containing only views,
+        // so we do not register it with the internal catalog provider.
+        if name == INFORMATION_SCHEMA {
+            return Ok(None);
+        }
         self.catalog.register_schema(name, schema)
     }
 
