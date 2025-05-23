@@ -1,5 +1,4 @@
-import React from 'react';
-
+import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ interface SqlEditorRightPanelQueriesProps {
 }
 
 export const SqlEditorRightPanelQueryCopyButton = ({ query }: SqlEditorRightPanelQueriesProps) => {
-  const [hasCopied, setHasCopied] = React.useState(false);
+  const [hasCopied, setHasCopied] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(query.query).then(() => {
