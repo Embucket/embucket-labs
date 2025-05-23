@@ -151,7 +151,7 @@ pub async fn get_table_statistics(
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-// #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
 pub async fn get_table_columns(
     DFSessionId(session_id): DFSessionId,

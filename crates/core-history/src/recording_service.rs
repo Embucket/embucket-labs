@@ -154,11 +154,11 @@ impl ResultSet {
         let mut writer = write_builder.build::<_, JsonArray>(buf);
 
         // Add columns dbt metadata to each field
-        // TODO: RecordBatch conversion should happen somewhere outside ExecutionService
-        // Perhaps this can be moved closer to Snowflake API layer
-        // serialize records to str
+        // Since we have to store already converted data to history
+        // TODO Perhaps this can be moved closer to Snowflake API layer
         let records = convert_record_batches(query_result.clone(), data_format)
             .map_err(|e| ResultSetError::Execution { source: e })?;
+        // serialize records to str
         let records: Vec<&RecordBatch> = records.iter().collect();
         writer
             .write_batches(&records)
