@@ -443,6 +443,128 @@ class SQLLogicPythonRunner:
     def __init__(self, default_test_directory : Optional[str] = None):
         self.default_test_directory = default_test_directory
 
+    def run_file(self, config, file_path, test_directory, benchmark_mode, run_mode):
+        """Execute tests for a single file"""
+        print(f"Starting file: {file_path}")
+
+        executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
+
+        results = []
+        execution_times = []
+        total = 0
+        successful = 0
+        failed = 0
+        error_details = defaultdict(list)
+
+        # Process the test file
+        sql_parser = SQLLogicParser(None)
+        try:
+            test = sql_parser.parse(file_path)
+            # Execute test and collect results
+            result = executor.execute_test(test)
+
+            # Calculate statistics
+            queries_for_coverage = [q for q in result.queries if not q.exclude_from_coverage]
+            file_total = len(queries_for_coverage)
+            file_successful = sum(1 for q in queries_for_coverage if q.success)
+            file_failed = file_total - file_successful
+
+            # Update counters
+            total += file_total
+            successful += file_successful
+            failed += file_failed
+            execution_times += [q.execution_time_s for q in queries_for_coverage]
+
+            page_name = extract_file_name(file_path)
+            results.append({
+                "category": os.path.dirname(file_path).split('/')[-1],
+                "page_name": page_name,
+                "total_tests": file_total,
+                "successful_tests": file_successful,
+                "failed_tests": file_failed,
+                "success_percentage": (file_successful / file_total * 100) if file_total > 0 else 0
+            })
+
+            # Collect errors
+            for query in result.queries:
+                if not query.success and query.error_message:
+                    error_details[os.path.dirname(file_path).split('/')[-1]].append(f"{page_name}: {query.query}\n{query.error_message}\n")
+
+        except Exception as e:
+            print(f"Error processing {file_path}: {e}")
+            error_details[os.path.dirname(file_path).split('/')[-1]].append(f"{file_path}: {str(e)}")
+
+        executor.cleanup()
+
+        return {
+            "category": os.path.dirname(file_path).split('/')[-1],
+            "results": results,
+            "execution_times": execution_times,
+            "total": total,
+            "successful": successful,
+            "failed": failed,
+            "error_details": error_details
+        }
+
+    def run_files_parallel(self, config, file_paths, test_directory, benchmark_mode, run_mode, start_time, max_workers=None):
+        """Execute test files in parallel"""
+        import concurrent.futures
+        executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
+        executor.setup()
+        print(f"\n=== Running {len(file_paths)} files in parallel with {max_workers} workers ===")
+
+        # Execute files in parallel
+        all_results = []
+        all_execution_times = []
+        total_tests = 0
+        total_successful = 0
+        total_failed = 0
+        all_error_details = defaultdict(list)
+
+        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+            future_to_file = {
+                executor.submit(self.run_file, config, file_path, test_directory, benchmark_mode, run_mode): file_path
+                for file_path in file_paths
+            }
+
+            for future in concurrent.futures.as_completed(future_to_file):
+                result = future.result()
+                all_results.extend(result["results"])
+                all_execution_times.extend(result["execution_times"])
+                total_tests += result["total"]
+                total_successful += result["successful"]
+                total_failed += result["failed"]
+
+                # Collect errors
+                for cat, errors in result["error_details"].items():
+                    all_error_details[cat].extend(errors)
+
+        # Display and save results
+        display_page_results(all_results, total_tests, total_successful, total_failed)
+        display_category_results(all_results)
+
+        # Save results to CSV
+        csv_file_name = f"{run_mode}_test_statistics.csv" if benchmark_mode else "test_statistics.csv"
+        with open(csv_file_name, "w", newline="") as csvfile:
+            writer = csv.DictWriter(csvfile,
+                                    fieldnames=["page_name", "category", "total_tests", "successful_tests",
+                                                "failed_tests", "success_percentage"])
+            writer.writeheader()
+            writer.writerows(all_results)
+
+        # Write error log
+        error_log_file = f"{run_mode}_errors.log" if benchmark_mode else "errors.log"
+
+        with open(error_log_file, "w") as error_file:
+            for category, errors in all_error_details.items():
+                if errors:
+                    for error in errors:
+                        error_file.write(f"{error}\n")
+
+        # Log execution time
+        total_time = time.time() - start_time
+        print(f"\nTotal execution time: {total_time:.2f} seconds")
+
     def run(self):
         start_time = time.time()
 
@@ -455,26 +577,26 @@ class SQLLogicPythonRunner:
         arg_parser.add_argument('--test-dir', type=str, help='Path to the test directory holding the test files')
         arg_parser.add_argument('--benchmark', action='store_true',
                                 help='Run in benchmark mode (compare hot/cold performance)')
-        arg_parser.add_argument('--parallel-categories', action='store_true',
-                                help='Run test categories in parallel')
-        arg_parser.add_argument('--parallel-workers', type=int, default=None,
+        arg_parser.add_argument('--parallel', action='store_true',
+                                help='Run files in parallel')
+        arg_parser.add_argument('--workers', type=int, default=None,
                                 help=f'Number of parallel workers (default: {cpu_count}, system CPU count)')
 
         args = arg_parser.parse_args()
 
-        if args.parallel_categories:
-            if args.parallel_workers is None:
-                args.parallel_workers = cpu_count
-                print(f"Using default worker count: {args.parallel_workers} (system CPU count)")
+        if args.parallel:
+            if args.workers is None:
+                args.workers = cpu_count
+                print(f"Using default worker count: {args.workers} (system CPU count)")
 
-            if args.parallel_workers <= 0:
-                print(f"Invalid worker count ({args.parallel_workers}). Using CPU count ({cpu_count}) instead.")
-                args.parallel_workers = cpu_count
+            if args.workers <= 0:
+                print(f"Invalid worker count ({args.workers}). Using CPU count ({cpu_count}) instead.")
+                args.workers = cpu_count
 
-            elif args.parallel_workers > cpu_count:
+            elif args.workers > cpu_count:
                 print(
-                    f"Specified worker count ({args.parallel_workers}) exceeds CPU count ({cpu_count}). Using CPU count instead.")
-                args.parallel_workers = cpu_count
+                    f"Specified worker count ({args.workers}) exceeds CPU count ({cpu_count}). Using CPU count instead.")
+                args.workers = cpu_count
 
         # Load configuration from env file
         config = load_config_from_env()
@@ -509,22 +631,6 @@ class SQLLogicPythonRunner:
             # use set as '**' with recursive true can return duplicate paths
             file_paths = list(set(os.path.relpath(path) for path in file_paths))
 
-            # Group files by category if parallel-categories is enabled
-            if args.parallel_categories:
-                category_files = defaultdict(list)
-                for file_path in file_paths:
-                    # Extract category from path
-                    category = os.path.dirname(file_path).split('/')[-1]
-                    category_files[category].append(file_path)
-
-                print(
-                    f"Tests directory: {test_directory}, Categories: {len(category_files)}, Total files: {len(file_paths)}")
-
-                # Run categories in parallel
-                self.run_categories_parallel(config, category_files, test_directory, benchmark_mode,
-                                             'hot', start_time, args.parallel_workers)  # Use hot mode by default
-                return
-
         print(f"Tests directory: {test_directory} Test files: {len(file_paths)}")
 
         total_tests = len(file_paths)
@@ -539,281 +645,7 @@ class SQLLogicPythonRunner:
             # Just run in standard mode (no benchmarking)
             default_run_mode = 'hot'  # Default to hot mode for regular runs
             print(f"\n=== Running SLT ===")
-            self.run_tests(config, file_paths, test_directory, benchmark_mode, default_run_mode, start_time)
-
-    def run_category(self, config, category, files, test_directory, benchmark_mode, run_mode):
-        """Execute tests for a single category"""
-        print(f"Starting category: {category} with {len(files)} tests")
-        category_start = time.time()
-
-        # Create a new executor for this category
-        executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
-        executor.setup()
-
-        results = []
-        execution_times = []
-        total = 0
-        successful = 0
-        failed = 0
-        error_details = defaultdict(list)
-
-        # Process each test file in the category
-        sql_parser = SQLLogicParser(None)
-        for file_path in files:
-            try:
-                test = sql_parser.parse(file_path)
-                # Execute test and collect results
-                result = executor.execute_test(test)
-
-                # Calculate statistics
-                queries_for_coverage = [q for q in result.queries if not q.exclude_from_coverage]
-                file_total = len(queries_for_coverage)
-                file_successful = sum(1 for q in queries_for_coverage if q.success)
-                file_failed = file_total - file_successful
-
-                # Update counters
-                total += file_total
-                successful += file_successful
-                failed += file_failed
-                execution_times += [q.execution_time_s for q in queries_for_coverage]
-
-                page_name = extract_file_name(file_path)
-                results.append({
-                    "category": category,
-                    "page_name": page_name,
-                    "total_tests": file_total,
-                    "successful_tests": file_successful,
-                    "failed_tests": file_failed,
-                    "success_percentage": (file_successful / file_total * 100) if file_total > 0 else 0
-                })
-
-                # Collect errors
-                for query in result.queries:
-                    if not query.success and query.error_message:
-                        error_details[category].append(f"{page_name}: {query.query}\n{query.error_message}\n")
-
-            except Exception as e:
-                print(f"Error processing {file_path}: {e}")
-                error_details[category].append(f"{file_path}: {str(e)}")
-
-        executor.cleanup()
-
-        return {
-            "category": category,
-            "results": results,
-            "execution_times": execution_times,
-            "total": total,
-            "successful": successful,
-            "failed": failed,
-            "error_details": error_details
-        }
-
-    def run_categories_parallel(self, config, category_files, test_directory, benchmark_mode, run_mode, start_time,
-                                max_workers=None):
-        """Execute test categories in parallel"""
-        import concurrent.futures
-
-        print(f"\n=== Running {len(category_files)} categories in parallel with {max_workers} workers ===")
-
-        # Execute categories in parallel
-        all_results = []
-        all_execution_times = []
-        total_tests = 0
-        total_successful = 0
-        total_failed = 0
-        all_error_details = defaultdict(list)
-
-        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-            # Rest of method remains the same
-            future_to_category = {
-                executor.submit(self.run_category, config, category, files, test_directory, benchmark_mode,
-                                run_mode): category
-                for category, files in category_files.items()
-            }
-
-            for future in concurrent.futures.as_completed(future_to_category):
-                result = future.result()
-                all_results.extend(result["results"])
-                all_execution_times.extend(result["execution_times"])
-                total_tests += result["total"]
-                total_successful += result["successful"]
-                total_failed += result["failed"]
-
-                # Collect errors
-                for cat, errors in result["error_details"].items():
-                    all_error_details[cat].extend(errors)
-
-
-        # Display and save results
-        display_page_results(all_results, total_tests, total_successful, total_failed)
-        display_category_results(all_results)
-
-        # Save results to CSV
-        csv_file_name = f"{run_mode}_test_statistics.csv" if benchmark_mode else "test_statistics.csv"
-        with open(csv_file_name, "w", newline="") as csvfile:
-            writer = csv.DictWriter(csvfile,
-                                    fieldnames=["page_name", "category", "total_tests", "successful_tests",
-                                                "failed_tests", "success_percentage"])
-            writer.writeheader()
-            writer.writerows(all_results)
-
-        # Write error log
-        error_log_file = f"{run_mode}_errors.log" if benchmark_mode else "errors.log"
-
-        with open(error_log_file, "w") as error_file:
-            for category, errors in all_error_details.items():
-                if errors:
-                    for error in errors:
-                        error_file.write(f"{error}\n")
-
-        # Log execution time
-        total_time = time.time() - start_time
-        print(f"\nTotal execution time: {total_time:.2f} seconds")
-
-    def run_tests(self, config, file_paths, test_directory, benchmark_mode, run_mode, start_time):
-        """Execute tests with the specified run mode"""
-
-        executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
-        executor.setup()
-
-        # Error collection
-        if benchmark_mode:
-            error_log_file = f"{run_mode}_errors.log"  # File to save error logs
-        else:
-            error_log_file = "errors.log"
-        error_details = defaultdict(list)  # Dictionary to hold errors grouped by category
-
-        sql_parser = SQLLogicParser(None)
-        all_results = []  # To collect statistics for all files
-        execution_times_s = []  # Execution times in seconds for all queries in the order they were executed
-        total_tests = 0  # Total number of tests across all files
-        total_successful = 0  # Total number of successful tests across all files
-        total_failed = 0  # Total number of failed tests across all files
-
-        for i, file_path in enumerate(file_paths):
-            if file_path in executor.SKIPPED_TESTS:
-                continue
-
-            print(f'[{i + 1}/{len(file_paths)}] {file_path}')
-            try:
-                test = sql_parser.parse(file_path)
-            except SQLParserException as e:
-                raise e
-                executor.skip_log.append(str(e.message))
-                continue
-
-            skipped_statements_count = 0
-            for st in test.statements:
-                decorators = st.decorators
-                if decorators:
-                    if isinstance(decorators[0], SkipIf):
-                        skip_decorator = decorators[0]
-                        if skip_decorator.token.parameters[0] == 'always':
-                            skipped_statements_count += 1
-
-            if skipped_statements_count == len(test.statements):
-                # Collect statistics for the file
-                file_total_tests = skipped_statements_count
-                file_successful_tests = 0
-                file_failed_tests = 0
-                file_success_percentage = 0
-            else:
-                # This is necessary to clean up databases/connections
-                # So previously created databases are not still cached in the instance_cache
-                gc.collect()
-                result = executor.execute_test(test)
-                queries_for_coverage = [q for q in result.queries if not q.exclude_from_coverage]
-                # Collect statistics for the file
-                file_total_tests = len(queries_for_coverage)  # Total tests in file
-                execution_times_s += [query.execution_time_s for query in queries_for_coverage]
-                file_successful_tests = sum(1 for query in queries_for_coverage if query.success)  # Successful tests
-                file_failed_tests = file_total_tests - file_successful_tests  # Failed tests
-                file_ran_tests = file_successful_tests + file_failed_tests
-                file_success_percentage = (file_successful_tests / file_ran_tests) * 100 if file_ran_tests > 0 else 0
-
-            # Update cumulative totals
-            total_tests += file_total_tests
-            total_successful += file_successful_tests
-            total_failed += file_failed_tests
-
-            page_name = extract_file_name(file_path)
-            category = file_path.split('/')[-2]
-
-            # Record the results for this file
-            all_results.append({
-                "category": category,
-                "page_name": page_name,
-                "total_tests": file_total_tests,
-                "successful_tests": file_successful_tests,
-                "failed_tests": file_failed_tests,
-                "success_percentage": round(file_success_percentage, 2)
-            })
-
-            if skipped_statements_count != len(test.statements):
-                for query in queries_for_coverage:
-                    if not query.success:  # Process failed tests
-                        error_message = query.error_message if hasattr(query, "error_message") else "Unknown Error"
-                        error_details[page_name].append({
-                            "error_message": error_message
-                        })
-
-        # Sort results by category
-        sorted_results = sorted(all_results, key=lambda x: x["category"])
-
-        display_page_results(sorted_results, total_tests, total_successful, total_failed)
-        display_category_results(sorted_results)
-
-        # Write results to CSV file
-        csv_file_name = f"{run_mode}_test_statistics.csv" if benchmark_mode else "test_statistics.csv"
-        with open(csv_file_name, "w", newline="") as csvfile:
-            writer = csv.DictWriter(csvfile,
-                                    fieldnames=["page_name", "category", "total_tests", "successful_tests",
-                                                "failed_tests",
-                                                "success_percentage"])
-            writer.writeheader()  # CSV header
-            writer.writerows(all_results)  # Write each file's result
-
-        if benchmark_mode:
-            print(f"\nStatistics for {run_mode} mode tests have been saved to {csv_file_name}.")
-        else:
-            print(f"\nStatistics SLT have been saved to {csv_file_name}.")
-
-        # Write error log to a file grouped by categories
-        with open(error_log_file, "w") as error_file:
-            for page_name, errors in error_details.items():
-                error_file.write(f"Page name: {page_name}\n\n\n")
-                for error in errors:
-                    error_file.write(f"{error['error_message']}\n")
-
-        # Calculate and display total execution time for benchmark mode
-        if benchmark_mode:
-            total_time = time.time() - start_time
-            print(f"\nTotal execution time for {run_mode} run: {total_time:.2f} seconds")
-
-            # Save timing information to CSV
-            with open(f"{run_mode}_run_timing.csv", "w", newline="") as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["Run Mode", "Total Time (s)"])
-                writer.writerow([run_mode, total_time])
-
-            # Save per-query execution times to a separate CSV
-            with open(f"{run_mode}_execution_times.csv", "w", newline="") as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["#", "time(s)"])
-                for i, time_s in enumerate(execution_times_s):
-                    writer.writerow([i + 1, time_s])
-
-        executor.cleanup()  # Clean up connection pool
-
-        # Analyze performance for this run
-        if benchmark_mode and not os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
-            performance_stats = executor.analyze_query_performance(run_mode)
-            if performance_stats:
-                print(f"\n{run_mode.capitalize()} Run Query Performance:")
-                print(f"Total queries analyzed: {performance_stats['count']}")
-                print(f"Average compilation time: {performance_stats['avg_compilation_ms']:.2f} ms")
-                print(f"Average execution time: {performance_stats['avg_execution_ms']:.2f} ms")
-                print(f"Average total time: {performance_stats['avg_total_ms']:.2f} ms")
+            self.run_files_parallel(config, file_paths, test_directory, benchmark_mode, default_run_mode, start_time, args.workers)
 
     def compare_benchmark_results(self):
         """Compare benchmark results between hot and cold runs"""

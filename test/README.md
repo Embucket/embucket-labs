@@ -15,13 +15,13 @@ pip install -r slt_runner/requirements.txt
 python -m slt_runner --test-file sql/sql-reference-commands/Query_syntax/select.slt
 ```
 5. Parallel SLTs Execution
-- Run each test category in a separate process:
+- Run each test file in a separate process:
    ```
-   python -m slt_runner --test-dir sql --parallel-categories
+   python -m slt_runner --test-dir sql --parallel
    ```
 - Specify the number of parallel workers (defaults to number of CPUs):
    ```
-  python -m slt_runner --test-dir sql --parallel-categories --parallel-workers 4
+  python -m slt_runner --test-dir sql --parallel --workers 4
    ```
 You will see the `errors.log` and `test_statistics.csv` files generated. They contain errors and coverage statistics.
 You can also visualize statistics using the `slt_runner/visualise_statistics.py` script.
