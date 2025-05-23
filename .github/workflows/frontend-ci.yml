@@ -171,7 +171,7 @@ jobs:
 
       - name: Create dist.tar
         working-directory: ./ui
-        run: tar -C dist -cvf dist.tar .
+        run: tar -cvf dist.tar dist/
       
       - name: Commit and Push dist.tar
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
