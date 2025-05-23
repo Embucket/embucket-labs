@@ -10,3 +10,4 @@
 - [ ] Cleanup shadcn components (Remove unused code / variants / props)
 - [ ] Remove isMobile hook and related packages
 - [ ] Mutate vs MutateAsync
+- [ ] isLoading vs isPending
