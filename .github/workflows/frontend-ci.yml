@@ -186,7 +186,7 @@ jobs:
               echo "No changes to ui/dist.tar to commit."
             else
               echo "Committing ui/dist.tar..."
-              git commit -m "ci: Add/Update build artifacts (dist.tar) [skip ci]"
+              git commit -m "CI: Generate build artifacts (dist.tar) [skip ci]"
               git push
               echo "ui/dist.tar pushed to main"
             fi
