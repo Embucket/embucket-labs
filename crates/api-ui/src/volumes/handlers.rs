@@ -14,7 +14,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use core_executor::models::QueryResultData;
+use core_executor::models::QueryResult;
 use core_executor::query::QueryContext;
 use core_metastore::error::MetastoreError;
 use core_metastore::models::{AwsAccessKeyCredentials, AwsCredentials, Volume as MetastoreVolume};
@@ -240,7 +240,7 @@ pub async fn list_volumes(
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.public.volumes".to_string();
     let sql_string = apply_parameters(&sql_string, parameters, &["volume_name", "volume_type"]);
-    let QueryResultData { records, .. } = state
+    let QueryResult { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await

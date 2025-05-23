@@ -168,7 +168,7 @@ macro_rules! test_query {
                     settings.set_info(&format!("Setup queries: {}", setup.join("; ")));
                 }
                 settings.bind(|| {
-                    let df = match res {
+                    let df = match res.records {
                         Ok(record_batches) => {
                             let mut batches = record_batches;
                             if sort_all {

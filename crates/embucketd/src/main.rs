@@ -7,6 +7,7 @@ use api_internal_rest::router::create_router as create_internal_router;
 use api_internal_rest::state::State as InternalAppState;
 use api_sessions::{RequestSessionMemory, RequestSessionStore};
 use api_snowflake_rest::router::create_router as create_snowflake_router;
+use api_snowflake_rest::schemas::Config;
 use api_snowflake_rest::state::AppState as SnowflakeAppState;
 use api_ui::auth::layer::require_auth;
 use api_ui::auth::router::create_router as create_ui_auth_router;
@@ -25,7 +26,6 @@ use axum::{
 };
 use clap::Parser;
 use core_executor::service::CoreExecutionService;
-use core_executor::utils::Config as ExecutionConfig;
 use core_history::RecordingExecutionService;
 use core_history::SlateDBWorksheetsStore;
 use core_metastore::SlateDBMetastore;
@@ -73,8 +73,7 @@ async fn main() {
         .data_format
         .clone()
         .unwrap_or_else(|| "json".to_string());
-    let execution_cfg =
-        ExecutionConfig::new(&data_format).expect("Failed to create execution config");
+    let snowflake_rest_cfg = Config::new(&data_format).expect("Failed to create snowflake config");
     let mut auth_config = UIAuthConfig::new(opts.jwt_secret());
     auth_config.with_demo_credentials(
         opts.auth_demo_user.clone().unwrap(),
@@ -109,10 +108,11 @@ async fn main() {
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history_store = Arc::new(SlateDBWorksheetsStore::new(db.clone()));
 
-    let execution_svc = Arc::new(CoreExecutionService::new(metastore.clone(), execution_cfg));
+    let execution_svc = Arc::new(CoreExecutionService::new(metastore.clone()));
     let execution_svc = Arc::new(RecordingExecutionService::new(
         execution_svc,
         history_store.clone(),
+        snowflake_rest_cfg.dbt_serialization_format,
     ));
 
     let session_memory = RequestSessionMemory::default();
@@ -143,8 +143,10 @@ async fn main() {
         require_auth,
     ));
     let ui_auth_router = create_ui_auth_router().with_state(ui_state.clone());
-    let snowflake_router =
-        create_snowflake_router().with_state(SnowflakeAppState { execution_svc });
+    let snowflake_router = create_snowflake_router().with_state(SnowflakeAppState {
+        execution_svc,
+        config: snowflake_rest_cfg,
+    });
     let iceberg_router = create_iceberg_router().with_state(IcebergAppState {
         metastore,
         config: Arc::new(iceberg_config),

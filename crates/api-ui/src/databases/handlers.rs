@@ -15,7 +15,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use core_executor::models::QueryResultData;
+use core_executor::models::QueryResult;
 use core_executor::query::QueryContext;
 use core_metastore::Database as MetastoreDatabase;
 use core_metastore::error::MetastoreError;
@@ -230,7 +230,7 @@ pub async fn list_databases(
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.public.databases".to_string();
     let sql_string = apply_parameters(&sql_string, parameters, &["database_name", "volume_name"]);
-    let QueryResultData { records, .. } = state
+    let QueryResult { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await

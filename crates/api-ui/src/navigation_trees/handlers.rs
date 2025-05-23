@@ -9,7 +9,7 @@ use crate::state::AppState;
 use api_sessions::DFSessionId;
 use axum::extract::Query;
 use axum::{Json, extract::State};
-use core_executor::{models::QueryResultData, query::QueryContext};
+use core_executor::{models::QueryResult, query::QueryContext};
 use std::collections::BTreeMap;
 use utoipa::OpenApi;
 
@@ -58,7 +58,7 @@ pub async fn get_navigation_trees(
     Query(params): Query<NavigationTreesParameters>,
     State(state): State<AppState>,
 ) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
-    let QueryResultData {
+    let QueryResult {
         records: tree_batches,
         ..
     } = state

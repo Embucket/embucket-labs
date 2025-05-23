@@ -12,18 +12,12 @@ use datafusion_common::TableReference;
 use snafu::ResultExt;
 
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
-use super::{
-    models::ColumnInfo,
-    models::QueryResultData,
-    query::QueryContext,
-    session::UserSession,
-    utils::{Config, convert_record_batches},
-};
-use crate::utils::DataSerializationFormat;
+use super::{models::QueryResult, query::QueryContext, session::UserSession};
 use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableIdent};
 use core_utils::Db;
 use tokio::sync::RwLock;
 use uuid::Uuid;
+
 #[async_trait::async_trait]
 pub trait ExecutionService: Send + Sync {
     async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>>;
@@ -33,7 +27,7 @@ pub trait ExecutionService: Send + Sync {
         session_id: &str,
         query: &str,
         query_context: QueryContext,
-    ) -> ExecutionResult<QueryResultData>;
+    ) -> ExecutionResult<QueryResult>;
     async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -42,22 +36,18 @@ pub trait ExecutionService: Send + Sync {
         file_name: &str,
         format: Format,
     ) -> ExecutionResult<usize>;
-    //Can't be const in trait
-    fn config(&self) -> &Config;
 }
 
 pub struct CoreExecutionService {
     metastore: Arc<dyn Metastore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<UserSession>>>>,
-    config: Config,
 }
 
 impl CoreExecutionService {
-    pub fn new(metastore: Arc<dyn Metastore>, config: Config) -> Self {
+    pub fn new(metastore: Arc<dyn Metastore>) -> Self {
         Self {
             metastore,
             df_sessions: Arc::new(RwLock::new(HashMap::new())),
-            config,
         }
     }
 }
@@ -97,7 +87,7 @@ impl ExecutionService for CoreExecutionService {
         session_id: &str,
         query: &str,
         query_context: QueryContext,
-    ) -> ExecutionResult<QueryResultData> {
+    ) -> ExecutionResult<QueryResult> {
         let sessions = self.df_sessions.read().await;
         let user_session =
             sessions
@@ -107,35 +97,7 @@ impl ExecutionService for CoreExecutionService {
                 })?;
 
         let mut query_obj = user_session.query(query, query_context);
-
-        let records: Vec<RecordBatch> = query_obj.execute().await?;
-
-        let data_format = self.config().dbt_serialization_format;
-        // Add columns dbt metadata to each field
-        // TODO: RecordBatch conversion should happen somewhere outside ExecutionService
-        // Perhaps this can be moved closer to Snowflake API layer
-        let (records, columns) = convert_record_batches(records, data_format)
-            .context(ex_error::DataFusionQuerySnafu { query })?;
-
-        // TODO: Perhaps it's better to return a schema as a result of `execute` method
-        let columns_info = if columns.is_empty() {
-            query_obj
-                .get_custom_logical_plan(&query_obj.query)
-                .await?
-                .schema()
-                .fields()
-                .iter()
-                .map(|field| ColumnInfo::from_field(field))
-                .collect::<Vec<_>>()
-        } else {
-            columns
-        };
-
-        Ok(QueryResultData {
-            records,
-            columns_info,
-            query_id: i64::default(), // default value for query_id is meaningless,
-        })
+        query_obj.execute().await
     }
 
     #[tracing::instrument(level = "debug", skip(self, data))]
@@ -243,21 +205,11 @@ impl ExecutionService for CoreExecutionService {
 
         Ok(rows_loaded)
     }
-
-    fn config(&self) -> &Config {
-        &self.config
-    }
 }
 
 //Test environment
 pub async fn make_text_execution_svc() -> Arc<CoreExecutionService> {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db));
-
-    Arc::new(CoreExecutionService::new(
-        metastore,
-        Config {
-            dbt_serialization_format: DataSerializationFormat::Json,
-        },
-    ))
+    Arc::new(CoreExecutionService::new(metastore))
 }

@@ -1,14 +1,38 @@
 use datafusion::arrow::array::RecordBatch;
-use datafusion::arrow::datatypes::{DataType, Field, TimeUnit};
+use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, TimeUnit};
+use datafusion_common::arrow::datatypes::Schema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 
-#[derive(Debug)]
-pub struct QueryResultData {
+#[derive(Debug, Clone, PartialEq)]
+pub struct QueryResult {
     pub records: Vec<RecordBatch>,
-    pub columns_info: Vec<ColumnInfo>,
-    // query_id is QueryRecordId, but we won't add dependency on history crate here
+    /// The schema associated with the result.
+    /// This is required to construct a valid response even when `records` are empty
+    pub schema: Arc<ArrowSchema>,
     pub query_id: i64,
+}
+
+impl QueryResult {
+    #[must_use]
+    pub fn new(records: Vec<RecordBatch>, schema: Arc<ArrowSchema>) -> Self {
+        Self {
+            records,
+            schema,
+            query_id: Default::default(),
+        }
+    }
+    #[must_use]
+    pub const fn with_query_id(mut self, new_id: i64) -> Self {
+        self.query_id = new_id;
+        self
+    }
+
+    #[must_use]
+    pub fn column_info(&self) -> Vec<ColumnInfo> {
+        ColumnInfo::from_batch(self.schema.clone())
+    }
 }
 
 // TODO: We should not have serde dependency here
@@ -46,13 +70,9 @@ impl ColumnInfo {
     }
 
     #[must_use]
-    pub fn from_batch(records: &[RecordBatch]) -> Vec<Self> {
+    pub fn from_batch(schema: Arc<Schema>) -> Vec<Self> {
         let mut column_infos = Vec::new();
-
-        if records.is_empty() {
-            return column_infos;
-        }
-        for field in records[0].schema().fields() {
+        for field in schema.fields() {
             column_infos.push(Self::from_field(field));
         }
         column_infos

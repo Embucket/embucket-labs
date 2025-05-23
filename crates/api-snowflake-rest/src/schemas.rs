@@ -1,5 +1,6 @@
 use super::error::{self as dbt_error, DbtResult};
 use core_executor::models::ColumnInfo as ColumnInfoModel;
+use core_executor::utils::DataSerializationFormat;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
@@ -146,5 +147,18 @@ impl From<ColumnInfoModel> for ColumnInfo {
             precision: column_info.precision,
             collation: column_info.collation,
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct Config {
+    pub dbt_serialization_format: DataSerializationFormat,
+}
+
+impl Config {
+    pub fn new(data_format: &str) -> Result<Self, strum::ParseError> {
+        Ok(Self {
+            dbt_serialization_format: DataSerializationFormat::try_from(data_format)?,
+        })
     }
 }
