@@ -145,7 +145,7 @@ impl ScalarUDFImpl for Insert {
                     match inserted_string {
                         Ok(v) => res.append_value(v),
                         Err(e) => return Err(e),
-                    };
+                    }
                 }
                 Arc::new(res.finish())
             }
@@ -174,7 +174,7 @@ impl ScalarUDFImpl for Insert {
                     match inserted_binary {
                         Ok(v) => res.append_value(v),
                         Err(e) => return Err(e),
-                    };
+                    }
                 }
 
                 Arc::new(res.finish())
