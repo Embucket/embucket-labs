@@ -2,11 +2,32 @@ use axum::{Json, response::IntoResponse};
 use core_metastore::error::MetastoreError;
 use http;
 use serde::{Deserialize, Serialize};
-use snafu::prelude::*;
+use std::fmt;
 
-#[derive(Snafu, Debug)]
+#[derive(Debug)]
 pub struct MetastoreAPIError(pub MetastoreError);
 pub type MetastoreAPIResult<T> = Result<T, MetastoreAPIError>;
+
+// Implement Display for MetastoreAPIError
+impl fmt::Display for MetastoreAPIError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+// Add From implementation for MetastoreError
+impl From<MetastoreError> for MetastoreAPIError {
+    fn from(error: MetastoreError) -> Self {
+        Self(error)
+    }
+}
+
+// Add From implementation for Box<MetastoreError>
+impl From<Box<MetastoreError>> for MetastoreAPIError {
+    fn from(error: Box<MetastoreError>) -> Self {
+        Self(*error)
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {

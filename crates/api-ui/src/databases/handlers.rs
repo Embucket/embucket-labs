@@ -86,7 +86,7 @@ pub async fn create_database(
         .metastore
         .create_database(&database.ident.clone(), database)
         .await
-        .map_err(|e| DatabasesAPIError::Create { source: e })
+        .map_err(DatabasesAPIError::from)
         .map(|o| Json(DatabaseCreateResponse { data: o.into() }))
 }
 
@@ -116,12 +116,10 @@ pub async fn get_database(
 ) -> DatabasesResult<Json<DatabaseResponse>> {
     match state.metastore.get_database(&database_name).await {
         Ok(Some(db)) => Ok(Json(DatabaseResponse { data: db.into() })),
-        Ok(None) => Err(DatabasesAPIError::Get {
-            source: MetastoreError::DatabaseNotFound {
-                db: database_name.clone(),
-            },
-        }),
-        Err(e) => Err(DatabasesAPIError::Get { source: e }),
+        Ok(None) => Err(DatabasesAPIError::from(Box::new(MetastoreError::DatabaseNotFound {
+            db: database_name.clone(),
+        }))),
+        Err(e) => Err(DatabasesAPIError::from(e)),
     }
 }
 
@@ -154,7 +152,7 @@ pub async fn delete_database(
         .metastore
         .delete_database(&database_name, query.cascade.unwrap_or_default())
         .await
-        .map_err(|e| DatabasesAPIError::Delete { source: e })
+        .map_err(DatabasesAPIError::from)
 }
 
 #[utoipa::path(
@@ -193,7 +191,7 @@ pub async fn update_database(
         .metastore
         .update_database(&database_name, database)
         .await
-        .map_err(|e| DatabasesAPIError::Update { source: e })
+        .map_err(DatabasesAPIError::from)
         .map(|o| Json(DatabaseUpdateResponse { data: o.into() }))
 }
 

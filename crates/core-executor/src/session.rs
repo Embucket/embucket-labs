@@ -112,7 +112,7 @@ impl UserSession {
             .collect()
             .await
             .map_err(|e| ExecutionError::Metastore {
-                source: MetastoreError::UtilSlateDB { source: e },
+                source: Box::new(MetastoreError::UtilSlateDB { source: e }),
             })?
             .into_iter()
             .filter_map(|volume| {

@@ -24,6 +24,18 @@ pub enum DatabasesAPIError {
     List { source: ExecutionError },
 }
 
+// Add conversion from Box<MetastoreError> to DatabasesAPIError
+impl From<Box<MetastoreError>> for DatabasesAPIError {
+    fn from(boxed_error: Box<MetastoreError>) -> Self {
+        let error = *boxed_error;
+        match error {
+            err @ MetastoreError::DatabaseAlreadyExists { .. } => Self::Create { source: err },
+            err @ MetastoreError::DatabaseNotFound { .. } => Self::Get { source: err },
+            err => Self::Create { source: err },
+        }
+    }
+}
+
 // Select which status code to return.
 impl IntoStatusCode for DatabasesAPIError {
     fn status_code(&self) -> StatusCode {

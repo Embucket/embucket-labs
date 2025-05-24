@@ -85,13 +85,18 @@ impl EmbucketCatalogList {
             .map(|db| {
                 let iceberg_catalog =
                     EmbucketIcebergCatalog::new(self.metastore.clone(), db.ident.clone())
-                        .context(MetastoreSnafu)?;
-                let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog::new(
-                    db.ident.clone(),
-                    self.metastore.clone(),
-                    Arc::new(iceberg_catalog),
-                ));
-                Ok(CachingCatalog::new(catalog, db.ident.clone()))
+                        ..context(MetastoreSnafu)?;
+                let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog {
+                    database: db.ident.clone(),
+                    metastore: self.metastore.clone(),
+                    iceberg_catalog: Arc::new(iceberg_catalog),
+                });
+                Ok(CachingCatalog {
+                    catalog,
+                    schemas_cache: DashMap::default(),
+                    should_refresh: true,
+                    name: db.ident.clone(),
+                })
             })
             .collect()
     }
@@ -143,7 +148,7 @@ impl EmbucketCatalogList {
                 volume.arn.as_str(),
                 ObjectStoreBuilder::S3(volume.s3_builder()),
             )
-            .context(S3TablesSnafu)?;
+            .map_err(|e| Error::S3Tables { source: Box::new(e) })?;
 
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await

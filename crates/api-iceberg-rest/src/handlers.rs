@@ -48,7 +48,7 @@ pub async fn get_namespace(
         .metastore
         .get_schema(&schema_ident)
         .await
-        .map_err(|e: MetastoreError| IcebergAPIError::from(e))?
+        .map_err(IcebergAPIError::from)?
         .ok_or_else(|| {
             IcebergAPIError::from(MetastoreError::SchemaNotFound {
                 db: database_name.clone(),
@@ -82,7 +82,7 @@ pub async fn list_namespaces(
         .iter_schemas(&database_name)
         .collect()
         .await
-        .map_err(|e| IcebergAPIError(MetastoreError::UtilSlateDB { source: e }))?;
+        .map_err(|e| IcebergAPIError(Box::new(MetastoreError::UtilSlateDB { source: e })))?;
     Ok(Json(from_schemas_list(schemas)))
 }
 
@@ -170,7 +170,7 @@ pub async fn get_table(
         .metastore
         .get_table(&table_ident)
         .await
-        .map_err(|e: MetastoreError| IcebergAPIError::from(e))?
+        .map_err(IcebergAPIError::from)?
         .ok_or_else(|| {
             IcebergAPIError::from(MetastoreError::TableNotFound {
                 db: database_name.clone(),
@@ -206,7 +206,7 @@ pub async fn list_tables(
         .iter_tables(&schema_ident)
         .collect()
         .await
-        .map_err(|e| IcebergAPIError(MetastoreError::UtilSlateDB { source: e }))?;
+        .map_err(|e| IcebergAPIError(Box::new(MetastoreError::UtilSlateDB { source: e })))?;
     Ok(Json(from_tables_list(tables)))
 }
 

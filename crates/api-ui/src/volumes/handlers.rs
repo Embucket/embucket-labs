@@ -94,7 +94,7 @@ pub async fn create_volume(
         .metastore
         .create_volume(&embucket_volume.ident.clone(), embucket_volume)
         .await
-        .map_err(|e| VolumesAPIError::Create { source: e })
+        .map_err(VolumesAPIError::from)
         .map(|o| Json(VolumeCreateResponse { data: o.into() }))
 }
 
@@ -127,12 +127,10 @@ pub async fn get_volume(
         Ok(Some(volume)) => Ok(Json(VolumeResponse {
             data: volume.into(),
         })),
-        Ok(None) => Err(VolumesAPIError::Get {
-            source: MetastoreError::VolumeNotFound {
-                volume: volume_name.clone(),
-            },
-        }),
-        Err(e) => Err(VolumesAPIError::Get { source: e }),
+        Ok(None) => Err(VolumesAPIError::from(Box::new(MetastoreError::VolumeNotFound {
+            volume: volume_name.clone(),
+        }))),
+        Err(e) => Err(VolumesAPIError::from(e)),
     }
 }
 
@@ -166,7 +164,7 @@ pub async fn delete_volume(
         .metastore
         .delete_volume(&volume_name, query.cascade.unwrap_or_default())
         .await
-        .map_err(|e| VolumesAPIError::Delete { source: e })
+        .map_err(VolumesAPIError::from)
 }
 
 #[utoipa::path(
@@ -197,14 +195,15 @@ pub async fn update_volume(
     Json(volume): Json<VolumeUpdatePayload>,
 ) -> VolumesResult<Json<VolumeUpdateResponse>> {
     let volume: MetastoreVolume = volume.data.into();
-    volume.validate().map_err(|e| VolumesAPIError::Update {
-        source: MetastoreError::Validation { source: e },
-    })?;
+    volume.validate()
+        .map_err(|e| VolumesAPIError::Update {
+            source: MetastoreError::Validation { source: e },
+        })?;
     state
         .metastore
         .update_volume(&volume_name, volume)
         .await
-        .map_err(|e| VolumesAPIError::Update { source: e })
+        .map_err(VolumesAPIError::from)
         .map(|o| Json(VolumeUpdateResponse { data: o.into() }))
 }
 

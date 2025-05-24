@@ -126,7 +126,7 @@ pub async fn get_table_statistics(
                 db: table_name,
             },
         }),
-        Err(e) => Err(TablesAPIError::GetMetastore { source: e }),
+        Err(e) => Err(TablesAPIError::from(e)),
     }
 }
 #[utoipa::path(

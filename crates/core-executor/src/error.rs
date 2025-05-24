@@ -52,7 +52,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Metastore error: {source}"))]
     Metastore {
-        source: core_metastore::error::MetastoreError,
+        source: Box<core_metastore::error::MetastoreError>,
     },
 
     #[snafu(display("Database {db} not found"))]

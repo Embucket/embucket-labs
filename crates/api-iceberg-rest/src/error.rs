@@ -2,11 +2,32 @@ use axum::{Json, response::IntoResponse};
 use core_metastore::error::MetastoreError;
 use http;
 use serde::{Deserialize, Serialize};
-use snafu::prelude::*;
+use std::fmt;
 
-#[derive(Snafu, Debug)]
-pub struct IcebergAPIError(pub MetastoreError);
+#[derive(Debug)]
+pub struct IcebergAPIError(pub Box<MetastoreError>);
 pub type IcebergAPIResult<T> = Result<T, IcebergAPIError>;
+
+// Implement Display for IcebergAPIError
+impl fmt::Display for IcebergAPIError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+// Add From implementation for Box<MetastoreError>
+impl From<Box<MetastoreError>> for IcebergAPIError {
+    fn from(error: Box<MetastoreError>) -> Self {
+        Self(error)
+    }
+}
+
+// Add From implementation for MetastoreError
+impl From<MetastoreError> for IcebergAPIError {
+    fn from(error: MetastoreError) -> Self {
+        Self(Box::new(error))
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
@@ -17,7 +38,7 @@ pub struct ErrorResponse {
 impl IntoResponse for IcebergAPIError {
     fn into_response(self) -> axum::response::Response {
         let message = (self.0.to_string(),);
-        let code = match self.0 {
+        let code = match *self.0 {
             MetastoreError::TableDataExists { .. }
             | MetastoreError::ObjectAlreadyExists { .. }
             | MetastoreError::VolumeAlreadyExists { .. }
