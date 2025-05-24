@@ -29,9 +29,8 @@ impl From<Box<MetastoreError>> for VolumesAPIError {
     fn from(boxed_error: Box<MetastoreError>) -> Self {
         let error = *boxed_error;
         match error {
-            err @ MetastoreError::VolumeAlreadyExists { .. } => Self::Create { source: err },
             err @ MetastoreError::VolumeNotFound { .. } => Self::Get { source: err },
-            err => Self::Create { source: err },
+            err @ MetastoreError::VolumeAlreadyExists { .. } | err => Self::Create { source: err },
         }
     }
 }

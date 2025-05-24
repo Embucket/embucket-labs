@@ -60,5 +60,5 @@ impl VisitorMut for FunctionsRewriter {
 }
 
 pub fn visit(stmt: &mut Statement) {
-    stmt.visit(&mut FunctionsRewriter {});
+    let _ = stmt.visit(&mut FunctionsRewriter {});
 }

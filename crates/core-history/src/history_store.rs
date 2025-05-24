@@ -286,7 +286,7 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
                         }
                     }
                     _ => break,
-                };
+                }
             }
             Ok(items)
         } else {

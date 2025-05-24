@@ -29,9 +29,8 @@ impl From<Box<MetastoreError>> for DatabasesAPIError {
     fn from(boxed_error: Box<MetastoreError>) -> Self {
         let error = *boxed_error;
         match error {
-            err @ MetastoreError::DatabaseAlreadyExists { .. } => Self::Create { source: err },
             err @ MetastoreError::DatabaseNotFound { .. } => Self::Get { source: err },
-            err => Self::Create { source: err },
+            err @ MetastoreError::DatabaseAlreadyExists { .. } | err => Self::Create { source: err },
         }
     }
 }

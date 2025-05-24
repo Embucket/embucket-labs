@@ -47,6 +47,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use url::Url;
+use std::fmt::Write;
 
 use super::catalog::{
     catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
@@ -219,7 +220,6 @@ impl UserQuery {
                 Statement::SetVariable {
                     variables, value, ..
                 } => {
-                    let keys: Vec<String> = variables.iter().map(ToString::to_string).collect();
                     let values: Vec<SessionProperty> = value
                         .iter()
                         .map(|v| match v {
@@ -231,7 +231,7 @@ impl UserQuery {
                             }),
                         })
                         .collect::<Result<_, _>>()?;
-                    let params = keys.into_iter().zip(values.into_iter()).collect();
+                    let params = variables.iter().map(ToString::to_string).zip(values.into_iter()).collect();
                     self.session.set_session_variable(true, params)?;
                     return status_response();
                 }
@@ -1347,6 +1347,7 @@ impl UserQuery {
         }
     }
 
+
     #[allow(clippy::unwrap_used)]
     async fn table_references_for_statement(
         &self,
@@ -1401,140 +1402,6 @@ impl UserQuery {
                 plan_datafusion_err!("failed to resolve schema: {}", resolved_ref.schema)
             })
     }
-
-    // TODO: We need to recursively fix any missing table references with the default
-    // database and schema from the session
-    /*fn update_statement_table_references(
-        &self,
-        mut statement: DFStatement,
-    ) -> ExecutionResult<DFStatement> {
-        match statement {
-            DFStatement::Statement(ref mut s) => match **s {
-                Statement::Analyze { ref mut table_name, .. } => {
-                    *table_name = self.resolve_table_ident(table_name.0.clone())?.into();
-                },
-                Statement::Truncate { ref mut table_names, .. } => {
-                    for table_name in table_names {
-                        table_name.name = self.resolve_table_ident(table_name.name.clone().0)?.into();
-                    }
-                },
-                Statement::Msck { ref mut table_name, ..} => {
-                    *table_name = self.resolve_table_ident(table_name.0.clone())?.into();
-                },
-                Statement::Query(query) => todo!(),
-                Statement::Insert(insert) => todo!(),
-                Statement::Install { extension_name } => todo!(),
-                Statement::Load { extension_name } => todo!(),
-                Statement::Directory { overwrite, local, path, file_format, source } => todo!(),
-                Statement::Call(function) => todo!(),
-                Statement::Copy { source, to, target, options, legacy_options, values } => todo!(),
-                Statement::CopyIntoSnowflake { into, from_stage, from_stage_alias, stage_params, from_transformations, files, pattern, file_format, copy_options, validation_mode } => todo!(),
-                Statement::Close { cursor } => todo!(),
-                Statement::Update { table, assignments, from, selection, returning, or } => todo!(),
-                Statement::Delete(delete) => todo!(),
-                Statement::CreateView { or_replace, materialized, name, columns, query, options, cluster_by, comment, with_no_schema_binding, if_not_exists, temporary, to } => todo!(),
-                Statement::CreateTable(create_table) => todo!(),
-                Statement::CreateVirtualTable { name, if_not_exists, module_name, module_args } => todo!(),
-                Statement::CreateIndex(create_index) => todo!(),
-                Statement::CreateRole { names, if_not_exists, login, inherit, bypassrls, password, superuser, create_db, create_role, replication, connection_limit, valid_until, in_role, in_group, role, user, admin, authorization_owner } => todo!(),
-                Statement::CreateSecret { or_replace, temporary, if_not_exists, name, storage_specifier, secret_type, options } => todo!(),
-                Statement::CreatePolicy { name, table_name, policy_type, command, to, using, with_check } => todo!(),
-                Statement::AlterTable { name, if_exists, only, operations, location, on_cluster } => todo!(),
-                Statement::AlterIndex { name, operation } => todo!(),
-                Statement::AlterView { name, columns, query, with_options } => todo!(),
-                Statement::AlterRole { name, operation } => todo!(),
-                Statement::AlterPolicy { name, table_name, operation } => todo!(),
-                Statement::AlterSession { set, session_params } => todo!(),
-                Statement::AttachDatabase { schema_name, database_file_name, database } => todo!(),
-                Statement::AttachDuckDBDatabase { if_not_exists, database, database_path, database_alias, attach_options } => todo!(),
-                Statement::DetachDuckDBDatabase { if_exists, database, database_alias } => todo!(),
-                Statement::Drop { object_type, if_exists, names, cascade, restrict, purge, temporary } => todo!(),
-                Statement::DropFunction { if_exists, func_desc, option } => todo!(),
-                Statement::DropProcedure { if_exists, proc_desc, option } => todo!(),
-                Statement::DropSecret { if_exists, temporary, name, storage_specifier } => todo!(),
-                Statement::DropPolicy { if_exists, name, table_name, option } => todo!(),
-                Statement::Declare { stmts } => todo!(),
-                Statement::CreateExtension { name, if_not_exists, cascade, schema, version } => todo!(),
-                Statement::Fetch { name, direction, into } => todo!(),
-                Statement::Flush { object_type, location, channel, read_lock, export, tables } => todo!(),
-                Statement::Discard { object_type } => todo!(),
-                Statement::SetRole { context_modifier, role_name } => todo!(),
-                Statement::SetVariable { local, hivevar, variables, value } => todo!(),
-                Statement::SetTimeZone { local, value } => todo!(),
-                Statement::SetNames { charset_name, collation_name } => todo!(),
-                Statement::SetNamesDefault {  } => todo!(),
-                Statement::ShowFunctions { filter } => todo!(),
-                Statement::ShowVariable { variable } => todo!(),
-                Statement::ShowStatus { filter, global, session } => todo!(),
-                Statement::ShowVariables { filter, global, session } => todo!(),
-                Statement::ShowCreate { obj_type, obj_name } => todo!(),
-                Statement::ShowColumns { extended, full, show_options } => todo!(),
-                Statement::ShowDatabases { terse, history, show_options } => todo!(),
-                Statement::ShowSchemas { terse, history, show_options } => todo!(),
-                Statement::ShowObjects { terse, show_options } => todo!(),
-                Statement::ShowTables { terse, history, extended, full, external, show_options } => todo!(),
-                Statement::ShowViews { terse, materialized, show_options } => todo!(),
-                Statement::ShowCollation { filter } => todo!(),
-                Statement::Use(_) => todo!(),
-                Statement::StartTransaction { modes, begin, transaction, modifier } => todo!(),
-                Statement::SetTransaction { modes, snapshot, session } => todo!(),
-                Statement::Comment { object_type, object_name, comment, if_exists } => todo!(),
-                Statement::Commit { chain } => todo!(),
-                Statement::Rollback { chain, savepoint } => todo!(),
-                Statement::CreateSchema { schema_name, if_not_exists } => todo!(),
-                Statement::CreateDatabase { db_name, if_not_exists, location, managed_location } => todo!(),
-                Statement::CreateFunction(create_function) => todo!(),
-                Statement::CreateTrigger { or_replace, is_constraint, name, period, events, table_name, referenced_table_name, referencing, trigger_object, include_each, condition, exec_body, characteristics } => todo!(),
-                Statement::DropTrigger { if_exists, trigger_name, table_name, option } => todo!(),
-                Statement::CreateProcedure { or_alter, name, params, body } => todo!(),
-                Statement::CreateMacro { or_replace, temporary, name, args, definition } => todo!(),
-                Statement::CreateStage { or_replace, temporary, if_not_exists, name, stage_params, directory_table_params, file_format, copy_options, comment } => todo!(),
-                Statement::Assert { condition, message } => todo!(),
-                Statement::Grant { privileges, objects, grantees, with_grant_option, granted_by } => todo!(),
-                Statement::Revoke { privileges, objects, grantees, granted_by, cascade } => todo!(),
-                Statement::Deallocate { name, prepare } => todo!(),
-                Statement::Execute { name, parameters, has_parentheses, using } => todo!(),
-                Statement::Prepare { name, data_types, statement } => todo!(),
-                Statement::Kill { modifier, id } => todo!(),
-                Statement::ExplainTable { describe_alias, hive_format, has_table_keyword, table_name } => todo!(),
-                Statement::Explain { describe_alias, analyze, verbose, query_plan, statement, format, options } => todo!(),
-                Statement::Savepoint { name } => todo!(),
-                Statement::ReleaseSavepoint { name } => todo!(),
-                Statement::Merge { into, table, source, on, clauses } => todo!(),
-                Statement::Cache { table_flag, table_name, has_as, options, query } => todo!(),
-                Statement::UNCache { table_name, if_exists } => todo!(),
-                Statement::CreateSequence { temporary, if_not_exists, name, data_type, sequence_options, owned_by } => todo!(),
-                Statement::CreateType { name, representation } => todo!(),
-                Statement::Pragma { name, value, is_eq } => todo!(),
-                Statement::LockTables { tables } => todo!(),
-                Statement::UnlockTables => todo!(),
-                Statement::Unload { query, to, with } => todo!(),
-                Statement::OptimizeTable { name, on_cluster, partition, include_final, deduplicate } => todo!(),
-                Statement::LISTEN { channel } => todo!(),
-                Statement::UNLISTEN { channel } => todo!(),
-                Statement::NOTIFY { channel, payload } => todo!(),
-                Statement::LoadData { local, inpath, overwrite, table_name, partitioned, table_format } => todo!(),
-            },
-            DFStatement::CreateExternalTable(create_external_table) => todo!(),
-            DFStatement::CopyTo(copy_to_statement) => todo!(),
-            DFStatement::Explain(explain_statement) => todo!(),
-        };
-        Ok(statement)
-    }
-
-    fn update_set_expr_table_references(&self, set_expr: &mut SetExpr) {
-        match set_expr {
-            SetExpr::Select(select) => {
-                for table_with_joins in &mut select.from {
-                    self.update_table_with_joins(table_with_joins);
-                }
-            }
-            SetExpr::Query(query) => {
-                self.update_query_table_references(query);
-            }
-
-        }
-    }*/
 
     fn update_table_result_scan_in_query(query: &mut Query) {
         // TODO: Add logic to get result_scan from the historical results
@@ -1660,7 +1527,7 @@ impl UserQuery {
                         .collect::<Vec<_>>()
                         .join(", ");
 
-                    query.push_str(&format!("ORDER BY {order_by_clause}"));
+                        let _ = write!(query, "ORDER BY {order_by_clause}");
                 }
 
                 let result = self.execute_with_custom_plan(&query).await;
