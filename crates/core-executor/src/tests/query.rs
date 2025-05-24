@@ -8,12 +8,6 @@ use core_metastore::{
     Volume as MetastoreVolume,
 };
 use datafusion::sql::parser::DFParser;
-use datafusion::sql::sqlparser::ast::{ObjectName, ObjectNamePart};
-use sqlparser::ast::Value;
-use sqlparser::ast::{
-    FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
-};
-use datafusion::sql::parser::DFParser;
 use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]

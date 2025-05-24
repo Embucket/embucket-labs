@@ -2,7 +2,7 @@ use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::CachingCatalog;
 use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
-use crate::error::{DataFusionSnafu, Error, MetastoreSnafu, Result, S3TablesSnafu};
+use crate::error::{DataFusionSnafu, Error, MetastoreSnafu, Result};
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
@@ -85,18 +85,13 @@ impl EmbucketCatalogList {
             .map(|db| {
                 let iceberg_catalog =
                     EmbucketIcebergCatalog::new(self.metastore.clone(), db.ident.clone())
-                        ..context(MetastoreSnafu)?;
-                let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog {
-                    database: db.ident.clone(),
-                    metastore: self.metastore.clone(),
-                    iceberg_catalog: Arc::new(iceberg_catalog),
-                });
-                Ok(CachingCatalog {
-                    catalog,
-                    schemas_cache: DashMap::default(),
-                    should_refresh: true,
-                    name: db.ident.clone(),
-                })
+                        .context(MetastoreSnafu)?;
+                let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog::new(
+                    db.ident.clone(),
+                    self.metastore.clone(),
+                    Arc::new(iceberg_catalog),
+                ));
+                Ok(CachingCatalog::new(catalog, db.ident.clone()))
             })
             .collect()
     }
