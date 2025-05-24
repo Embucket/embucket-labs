@@ -318,8 +318,10 @@ impl ExtensionOptions for SessionParams {
     }
 
     fn set(&mut self, key: &str, value: &str) -> DFResult<()> {
-        self.properties
-            .insert(key.to_owned(), SessionProperty::from_string_value(value.to_owned()));
+        self.properties.insert(
+            key.to_owned(),
+            SessionProperty::from_string_value(value.to_owned()),
+        );
         Ok(())
     }
 

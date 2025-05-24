@@ -30,7 +30,9 @@ impl From<Box<MetastoreError>> for DatabasesAPIError {
         let error = *boxed_error;
         match error {
             err @ MetastoreError::DatabaseNotFound { .. } => Self::Get { source: err },
-            err @ MetastoreError::DatabaseAlreadyExists { .. } | err => Self::Create { source: err },
+            err @ MetastoreError::DatabaseAlreadyExists { .. } | err => {
+                Self::Create { source: err }
+            }
         }
     }
 }

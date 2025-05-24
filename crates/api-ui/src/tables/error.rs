@@ -32,7 +32,9 @@ pub enum TableError {
 // Add conversion from Box<MetastoreError> to TableError
 impl From<Box<MetastoreError>> for TableError {
     fn from(boxed_error: Box<MetastoreError>) -> Self {
-        Self::Metastore { source: *boxed_error }
+        Self::Metastore {
+            source: *boxed_error,
+        }
     }
 }
 
@@ -50,7 +52,9 @@ pub enum TablesAPIError {
 // Add conversion from Box<MetastoreError> to TablesAPIError
 impl From<Box<MetastoreError>> for TablesAPIError {
     fn from(boxed_error: Box<MetastoreError>) -> Self {
-        Self::GetMetastore { source: *boxed_error }
+        Self::GetMetastore {
+            source: *boxed_error,
+        }
     }
 }
 

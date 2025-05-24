@@ -148,7 +148,9 @@ impl EmbucketCatalogList {
                 volume.arn.as_str(),
                 ObjectStoreBuilder::S3(volume.s3_builder()),
             )
-            .map_err(|e| Error::S3Tables { source: Box::new(e) })?;
+            .map_err(|e| Error::S3Tables {
+                source: Box::new(e),
+            })?;
 
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await

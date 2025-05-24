@@ -116,9 +116,11 @@ pub async fn get_database(
 ) -> DatabasesResult<Json<DatabaseResponse>> {
     match state.metastore.get_database(&database_name).await {
         Ok(Some(db)) => Ok(Json(DatabaseResponse { data: db.into() })),
-        Ok(None) => Err(DatabasesAPIError::from(Box::new(MetastoreError::DatabaseNotFound {
-            db: database_name.clone(),
-        }))),
+        Ok(None) => Err(DatabasesAPIError::from(Box::new(
+            MetastoreError::DatabaseNotFound {
+                db: database_name.clone(),
+            },
+        ))),
         Err(e) => Err(DatabasesAPIError::from(e)),
     }
 }

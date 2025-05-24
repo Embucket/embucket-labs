@@ -55,9 +55,7 @@ impl IntoStatusCode for SchemasAPIError {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Delete { source } => match &source {
-                ExecutionError::Metastore {
-                    source
-                } => match &**source {
+                ExecutionError::Metastore { source } => match &**source {
                     MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 },

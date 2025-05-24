@@ -42,7 +42,7 @@ impl IntoResponse for IcebergAPIError {
         let metastore_error = match self {
             Self::Metastore { source } => source,
         };
-        
+
         let message = metastore_error.to_string();
         let code = match *metastore_error {
             MetastoreError::TableDataExists { .. }

@@ -87,15 +87,15 @@ pub enum ExecutionError {
     CatalogNotFound { catalog: String },
 
     #[snafu(display("S3Tables error: {source}"))]
-    S3Tables { 
+    S3Tables {
         #[snafu(source(from(S3tablesError, Box::new)))]
-        source: Box<S3tablesError> 
+        source: Box<S3tablesError>,
     },
 
     #[snafu(display("Iceberg error: {source}"))]
-    Iceberg { 
+    Iceberg {
         #[snafu(source(from(IcebergError, Box::new)))]
-        source: Box<IcebergError> 
+        source: Box<IcebergError>,
     },
 
     #[snafu(display("URL Parsing error: {source}"))]

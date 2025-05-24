@@ -45,9 +45,9 @@ use sqlparser::ast::{
 };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::fmt::Write;
 use std::sync::Arc;
 use url::Url;
-use std::fmt::Write;
 
 use super::catalog::{
     catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
@@ -212,8 +212,10 @@ impl UserQuery {
                             ),
                         });
                     }
-                    let params =
-                        HashMap::from([(variable.to_string(), SessionProperty::from_string_value(value))]);
+                    let params = HashMap::from([(
+                        variable.to_string(),
+                        SessionProperty::from_string_value(value),
+                    )]);
                     self.session.set_session_variable(true, params)?;
                     return status_response();
                 }
@@ -231,7 +233,11 @@ impl UserQuery {
                             }),
                         })
                         .collect::<Result<_, _>>()?;
-                    let params = variables.iter().map(ToString::to_string).zip(values.into_iter()).collect();
+                    let params = variables
+                        .iter()
+                        .map(ToString::to_string)
+                        .zip(values.into_iter())
+                        .collect();
                     self.session.set_session_variable(true, params)?;
                     return status_response();
                 }
@@ -1347,7 +1353,6 @@ impl UserQuery {
         }
     }
 
-
     #[allow(clippy::unwrap_used)]
     async fn table_references_for_statement(
         &self,
@@ -1527,7 +1532,7 @@ impl UserQuery {
                         .collect::<Vec<_>>()
                         .join(", ");
 
-                        let _ = write!(query, "ORDER BY {order_by_clause}");
+                    let _ = write!(query, "ORDER BY {order_by_clause}");
                 }
 
                 let result = self.execute_with_custom_plan(&query).await;

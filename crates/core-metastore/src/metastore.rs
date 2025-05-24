@@ -1,8 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
+#[allow(clippy::wildcard_imports)]
+use crate::models::*;
 use crate::{
     error::{self as metastore_error, MetastoreError, MetastoreResult},
     models::{
+        RwObject,
         database::{Database, DatabaseIdent},
         schema::{Schema, SchemaIdent},
         table::{Table, TableCreateRequest, TableIdent, TableRequirementExt, TableUpdate},
@@ -191,10 +194,12 @@ impl SlateDBMetastore {
                 .map_err(Box::new)?;
             Ok(rwobject)
         } else {
-            Err(Box::new(metastore_error::MetastoreError::ObjectAlreadyExists {
-                type_name: object_type.to_string(),
-                name: key.to_string(),
-            }))
+            Err(Box::new(
+                metastore_error::MetastoreError::ObjectAlreadyExists {
+                    type_name: object_type.to_string(),
+                    name: key.to_string(),
+                },
+            ))
         }
     }
 
@@ -425,9 +430,11 @@ impl Metastore for SlateDBMetastore {
             self.create_object(&key, MetastoreObjectType::Schema, schema)
                 .await
         } else {
-            Err(Box::new(metastore_error::MetastoreError::DatabaseNotFound {
-                db: ident.database.clone(),
-            }))
+            Err(Box::new(
+                metastore_error::MetastoreError::DatabaseNotFound {
+                    db: ident.database.clone(),
+                },
+            ))
         }
     }
 
@@ -788,11 +795,13 @@ impl Metastore for SlateDBMetastore {
             ));
         }
 
-        return Err(Box::new(metastore_error::MetastoreError::TableObjectStoreNotFound {
-            table: ident.table.clone(),
-            schema: ident.schema.clone(),
-            db: ident.database.clone(),
-        }));
+        return Err(Box::new(
+            metastore_error::MetastoreError::TableObjectStoreNotFound {
+                table: ident.table.clone(),
+                schema: ident.schema.clone(),
+                db: ident.database.clone(),
+            },
+        ));
     }
 
     async fn volume_for_table(

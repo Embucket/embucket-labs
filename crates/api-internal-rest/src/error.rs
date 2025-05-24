@@ -42,7 +42,7 @@ impl IntoResponse for MetastoreAPIError {
         let metastore_error = match self {
             Self::Metastore { source } => source,
         };
-        
+
         let message = metastore_error.to_string();
         let code = match *metastore_error {
             MetastoreError::TableDataExists { .. }
