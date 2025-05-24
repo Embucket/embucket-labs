@@ -1626,15 +1626,15 @@ impl UserQuery {
     // It then replaces the pivot value source with the list of string expressions
     async fn replace_pivot_subquery_with_list(
         &self,
-        table: &Box<TableFactor>,
-        value_column: &mut Vec<Ident>,
+        table: &TableFactor,
+        value_column: &[Ident],
         value_source: &mut PivotValueSource,
     ) {
         match value_source {
             PivotValueSource::Any(order_by_expr) => {
                 let col = value_column
                     .iter()
-                    .map(|col| col.to_string())
+                    .map(std::string::ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(".");
                 let mut query = format!("SELECT DISTINCT {col} FROM {table} ");
@@ -1660,7 +1660,7 @@ impl UserQuery {
                         .collect::<Vec<_>>()
                         .join(", ");
 
-                    query.push_str(&format!("ORDER BY {}", order_by_clause));
+                    query.push_str(&format!("ORDER BY {order_by_clause}"));
                 }
 
                 let result = self.execute_with_custom_plan(&query).await;

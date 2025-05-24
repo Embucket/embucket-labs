@@ -2,30 +2,32 @@ use axum::{Json, response::IntoResponse};
 use core_metastore::error::MetastoreError;
 use http;
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use snafu::prelude::*;
 
-#[derive(Debug)]
-pub struct MetastoreAPIError(pub MetastoreError);
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub))]
+pub enum MetastoreAPIError {
+    #[snafu(display("Metastore error: {source}"))]
+    Metastore {
+        #[snafu(source(from(MetastoreError, Box::new)))]
+        source: Box<MetastoreError>,
+    },
+}
+
 pub type MetastoreAPIResult<T> = Result<T, MetastoreAPIError>;
 
-// Implement Display for MetastoreAPIError
-impl fmt::Display for MetastoreAPIError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-// Add From implementation for MetastoreError
+// Add From implementations for backward compatibility
 impl From<MetastoreError> for MetastoreAPIError {
     fn from(error: MetastoreError) -> Self {
-        Self(error)
+        Self::Metastore {
+            source: Box::new(error),
+        }
     }
 }
 
-// Add From implementation for Box<MetastoreError>
 impl From<Box<MetastoreError>> for MetastoreAPIError {
     fn from(error: Box<MetastoreError>) -> Self {
-        Self(*error)
+        Self::Metastore { source: error }
     }
 }
 
@@ -37,8 +39,12 @@ pub struct ErrorResponse {
 
 impl IntoResponse for MetastoreAPIError {
     fn into_response(self) -> axum::response::Response {
-        let message = (self.0.to_string(),);
-        let code = match self.0 {
+        let metastore_error = match self {
+            Self::Metastore { source } => source,
+        };
+        
+        let message = metastore_error.to_string();
+        let code = match *metastore_error {
             MetastoreError::TableDataExists { .. }
             | MetastoreError::ObjectAlreadyExists { .. }
             | MetastoreError::VolumeAlreadyExists { .. }
@@ -71,7 +77,7 @@ impl IntoResponse for MetastoreAPIError {
         };
 
         let error = ErrorResponse {
-            message: message.0,
+            message,
             status_code: code.as_u16(),
         };
         (code, Json(error)).into_response()

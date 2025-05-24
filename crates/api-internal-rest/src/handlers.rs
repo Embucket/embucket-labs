@@ -32,7 +32,7 @@ pub async fn list_volumes(
         .iter_volumes()
         .collect()
         .await
-        .map_err(|e| MetastoreAPIError(MetastoreError::UtilSlateDB { source: e }))?
+        .map_err(|e| MetastoreAPIError::from(MetastoreError::UtilSlateDB { source: e }))?
         .iter()
         .map(|v| hide_sensitive(v.clone()))
         .collect();
@@ -122,7 +122,7 @@ pub async fn list_databases(
         .iter_databases()
         .collect()
         .await
-        .map_err(|e| MetastoreAPIError(MetastoreError::UtilSlateDB { source: e }))
+        .map_err(|e| MetastoreAPIError::from(MetastoreError::UtilSlateDB { source: e }))
         .map(Json)
 }
 

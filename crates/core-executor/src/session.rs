@@ -269,6 +269,7 @@ impl SessionProperty {
         }
     }
 
+    #[must_use]
     pub fn from_string_value(value: String) -> Self {
         let now = Utc::now();
         Self {
