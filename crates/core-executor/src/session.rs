@@ -232,6 +232,7 @@ pub struct SessionProperty {
 }
 
 impl SessionProperty {
+    #[must_use]
     pub fn from_key_value(option: &KeyValueOption) -> Self {
         let now = Utc::now();
         Self {
@@ -248,7 +249,8 @@ impl SessionProperty {
         }
     }
 
-    pub fn from_value(option: Value) -> Self {
+    #[must_use]
+    pub fn from_value(option: &Value) -> Self {
         let now = Utc::now();
         Self {
             session_id: None,
@@ -267,7 +269,7 @@ impl SessionProperty {
         }
     }
 
-    pub fn from_str(value: String) -> Self {
+    pub fn from_string_value(value: String) -> Self {
         let now = Utc::now();
         Self {
             session_id: None,
@@ -316,7 +318,7 @@ impl ExtensionOptions for SessionParams {
 
     fn set(&mut self, key: &str, value: &str) -> DFResult<()> {
         self.properties
-            .insert(key.to_owned(), SessionProperty::from_str(value.to_owned()));
+            .insert(key.to_owned(), SessionProperty::from_string_value(value.to_owned()));
         Ok(())
     }
 

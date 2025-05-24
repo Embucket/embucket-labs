@@ -212,7 +212,7 @@ impl UserQuery {
                         });
                     }
                     let params =
-                        HashMap::from([(variable.to_string(), SessionProperty::from_str(value))]);
+                        HashMap::from([(variable.to_string(), SessionProperty::from_string_value(value))]);
                     self.session.set_session_variable(true, params)?;
                     return status_response();
                 }
@@ -223,7 +223,7 @@ impl UserQuery {
                     let values: Vec<SessionProperty> = value
                         .iter()
                         .map(|v| match v {
-                            Expr::Value(v) => Ok(SessionProperty::from_value(v.value.clone())),
+                            Expr::Value(v) => Ok(SessionProperty::from_value(&v.value)),
                             _ => Err(ExecutionError::DataFusion {
                                 source: DataFusionError::NotImplemented(
                                     "Only primitive statements are supported".to_string(),
