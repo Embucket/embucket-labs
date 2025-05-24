@@ -24,7 +24,6 @@ pub enum DatabasesAPIError {
     List { source: ExecutionError },
 }
 
-// Add conversion from Box<MetastoreError> to DatabasesAPIError
 impl From<Box<MetastoreError>> for DatabasesAPIError {
     fn from(boxed_error: Box<MetastoreError>) -> Self {
         let error = *boxed_error;

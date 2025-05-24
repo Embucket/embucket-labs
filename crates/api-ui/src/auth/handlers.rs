@@ -286,6 +286,7 @@ pub async fn logout(
 
         let _ = get_claims_validate_jwt_token(refresh_token, &audience, jwt_secret)
             .context(BadRefreshTokenSnafu)?;
+        // logout doesn't return unauthorized
     }
 
     // unset refresh_token, access_token cookies

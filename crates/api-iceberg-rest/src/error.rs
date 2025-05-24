@@ -16,7 +16,6 @@ pub enum IcebergAPIError {
 
 pub type IcebergAPIResult<T> = Result<T, IcebergAPIError>;
 
-// Add From implementations for backward compatibility
 impl From<MetastoreError> for IcebergAPIError {
     fn from(error: MetastoreError) -> Self {
         Self::Metastore {
