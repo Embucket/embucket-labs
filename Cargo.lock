@@ -286,9 +286,6 @@ dependencies = [
 [[package]]
 name = "api-ui-static-assets"
 version = "0.1.0"
-dependencies = [
- "tar",
-]
 
 [[package]]
 name = "arbitrary"

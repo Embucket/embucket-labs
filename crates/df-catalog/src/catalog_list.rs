@@ -1,6 +1,7 @@
 use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::CachingCatalog;
+use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
 use crate::error::{DataFusionSnafu, Error, MetastoreSnafu, Result, S3TablesSnafu};
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
@@ -48,28 +49,26 @@ impl EmbucketCatalogList {
 
     /// Discovers and registers all available catalogs into the catalog registry.
     ///
-    /// This method retrieves internal catalogs from the metastore as well as external
-    /// catalogs configured by the metastore volumes. Both sets of catalogs
-    /// are collected and inserted into the local `catalogs` registry, making them
-    /// available for use by the query engine.
+    /// This method performs the following steps:
+    /// 1. Retrieves internal catalogs from the metastore (typically representing Iceberg-backed databases).
+    /// 2. Retrieves external catalogs (e.g., `S3Tables`) from volume definitions in the metastore.
     ///
-    /// Internal catalogs are typically backed by a database and support Iceberg tables.
-    /// S3 tables catalogs are derived from metastore volume definitions of type `S3Tables`,
-    /// and provide access to tables stored in S3-compatible object storage.
     /// # Errors
     ///
-    /// This method can return errors related to:
-    /// - Metastore access (e.g., during database or volume listing)
-    /// - Iceberg or S3 catalog initialization
-    /// - `DataFusion` catalog wrapping or setup failures
-    pub async fn register_catalogs(&self) -> Result<()> {
+    /// This method can fail in the following cases:
+    /// - Failure to access or query the metastore (e.g., database listing or volume parsing).
+    /// - Errors initializing internal or external catalogs (e.g., Iceberg metadata failures).
+    #[allow(clippy::as_conversions)]
+    pub async fn register_catalogs(self: &Arc<Self>) -> Result<()> {
+        let mut all_catalogs = Vec::new();
         // Internal catalogs
-        let mut catalogs = self.internal_catalogs().await?;
+        all_catalogs.extend(self.internal_catalogs().await?);
+        // Add the SlateDB catalog to support querying against internal tables via SQL
+        all_catalogs.push(self.slatedb_catalog());
+        // Load external catalogs defined via metastore volumes (e.g., S3 tables)
+        all_catalogs.extend(self.external_catalogs().await?);
 
-        // S3 tables catalogs
-        catalogs.extend(self.external_catalogs().await?);
-
-        for catalog in catalogs {
+        for catalog in all_catalogs {
             self.catalogs
                 .insert(catalog.name.clone(), Arc::new(catalog));
         }
@@ -87,19 +86,21 @@ impl EmbucketCatalogList {
                 let iceberg_catalog =
                     EmbucketIcebergCatalog::new(self.metastore.clone(), db.ident.clone())
                         .context(MetastoreSnafu)?;
-                let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog {
-                    database: db.ident.clone(),
-                    metastore: self.metastore.clone(),
-                    iceberg_catalog: Arc::new(iceberg_catalog),
-                });
-                Ok(CachingCatalog {
-                    catalog,
-                    schemas_cache: DashMap::default(),
-                    should_refresh: true,
-                    name: db.ident.clone(),
-                })
+                let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog::new(
+                    db.ident.clone(),
+                    self.metastore.clone(),
+                    Arc::new(iceberg_catalog),
+                ));
+                Ok(CachingCatalog::new(catalog, db.ident.clone()))
             })
             .collect()
+    }
+
+    #[must_use]
+    pub fn slatedb_catalog(&self) -> CachingCatalog {
+        let catalog: Arc<dyn CatalogProvider> =
+            Arc::new(SlateDBCatalog::new(self.metastore.clone()));
+        CachingCatalog::new(catalog, SLATEDB_CATALOG.to_string())
     }
 
     pub async fn external_catalogs(&self) -> Result<Vec<CachingCatalog>> {
@@ -147,12 +148,9 @@ impl EmbucketCatalogList {
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await
                 .context(DataFusionSnafu)?;
-            catalogs.push(CachingCatalog {
-                catalog: Arc::new(catalog),
-                schemas_cache: DashMap::new(),
-                should_refresh: false,
-                name: volume.name,
-            });
+            catalogs.push(
+                CachingCatalog::new(Arc::new(catalog), volume.name.clone()).with_refresh(false),
+            );
         }
         Ok(catalogs)
     }
@@ -288,12 +286,7 @@ impl CatalogProviderList for EmbucketCatalogList {
         name: String,
         catalog: Arc<dyn CatalogProvider>,
     ) -> Option<Arc<dyn CatalogProvider>> {
-        let catalog = CachingCatalog {
-            catalog,
-            schemas_cache: DashMap::default(),
-            should_refresh: false,
-            name,
-        };
+        let catalog = CachingCatalog::new(catalog, name).with_refresh(false);
         self.catalogs
             .insert(catalog.name.clone(), Arc::new(catalog))
             .map(|arc| {

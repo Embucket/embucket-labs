@@ -1,3 +1,4 @@
+import { Info } from 'lucide-react';
 import type { ToasterProps } from 'sonner';
 import { Toaster as Sonner } from 'sonner';
 
@@ -10,13 +11,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps['theme']}
       className="toaster group"
-      style={
-        {
-          '--normal-bg': 'var(--popover)',
-          '--normal-text': 'var(--popover-foreground)',
-          '--normal-border': 'var(--border)',
-        } as React.CSSProperties
-      }
+      icons={{
+        error: <Info className="size-5" />,
+      }}
+      toastOptions={{
+        classNames: {
+          error: 'text-destructive!',
+        },
+      }}
       {...props}
     />
   );

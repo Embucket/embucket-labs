@@ -5,9 +5,9 @@ import { Box } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useGetVolumes } from '@/orval/volumes';
 
+import { CreateVolumeDialog } from '../shared/create-volume-dialog/create-volume-dialog';
 import { DataPageContent } from '../shared/data-page/data-page-content';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
-import { CreateVolumeDialog } from './create-volume-dialog/create-volume-dialog';
 import { VolumesTable } from './volumes-page-table';
 
 // TODO: Not a data page

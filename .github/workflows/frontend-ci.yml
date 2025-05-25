@@ -10,31 +10,36 @@ on:
     paths:
       - "ui/**"
 
+# Cancel in-progress runs for the same branch/PR to save resources
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+# Permissions needed for pushing dist.tar artifacts
+permissions:
+  contents: write  # Required for pushing build artifacts
+  pull-requests: read  # Required for PR context
+
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
         with:
-          version: "10.10.0"
+          version: "10.11.0"
           run_install: false
-
       - name: Get pnpm store directory
         id: pnpm-cache
         shell: bash
         run: |
           echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
       - name: Setup pnpm cache
         uses: actions/cache@v4
         with:
@@ -42,11 +47,9 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/ui/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
-
       - name: Install dependencies
         working-directory: ./ui
         run: pnpm install
-
       - name: Run ESLint
         working-directory: ./ui
         run: pnpm lint
@@ -54,27 +57,22 @@ jobs:
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
         with:
-          version: "10.10.0"
+          version: "10.11.0"
           run_install: false
-
       - name: Get pnpm store directory
         id: pnpm-cache
         shell: bash
         run: |
           echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
       - name: Setup pnpm cache
         uses: actions/cache@v4
         with:
@@ -82,11 +80,9 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/ui/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
-
       - name: Install dependencies
         working-directory: ./ui
         run: pnpm install
-
       - name: Run TypeScript type checking
         working-directory: ./ui
         run: pnpm typecheck
@@ -94,27 +90,22 @@ jobs:
   format:
     name: Format Check
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
         with:
-          version: "10.10.0"
+          version: "10.11.0"
           run_install: false
-
       - name: Get pnpm store directory
         id: pnpm-cache
         shell: bash
         run: |
           echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
       - name: Setup pnpm cache
         uses: actions/cache@v4
         with:
@@ -122,11 +113,85 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/ui/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
-
       - name: Install dependencies
         working-directory: ./ui
         run: pnpm install
-
       - name: Check formatting
         working-directory: ./ui
         run: pnpm prettier --check .
+
+  build:
+    name: Build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, format]
+    env:
+      # For production, it's better to use GitHub secrets instead:
+      # VITE_API_URL: ${{ secrets.VITE_API_URL }}
+      VITE_API_URL: "http://localhost:3000"
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout repository using App Token
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10.11.0"
+          run_install: false
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/ui/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        working-directory: ./ui
+        run: pnpm install
+      - name: Run build
+        working-directory: ./ui
+        run: pnpm build
+
+      - name: Create dist.tar
+        working-directory: ./ui
+        run: tar -cvf dist.tar dist/
+      
+      - name: Commit and Push dist.tar
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "1310417+github-actions[bot]@users.noreply.github.com"
+          
+          if [ -f ui/dist.tar ]; then
+            git add ui/dist.tar
+            if git diff --staged --quiet; then
+              echo "No changes to ui/dist.tar to commit."
+            else
+              echo "Committing ui/dist.tar..."
+              git commit -m "CI: Generate build artifacts (dist.tar) [skip ci]"
+              git push
+              echo "ui/dist.tar pushed to main"
+            fi
+          else
+            echo "Error: ui/dist.tar not found after build."
+            exit 1
+          fi
+          

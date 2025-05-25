@@ -8,7 +8,7 @@ import type { SelectedTree } from '../shared/trees/trees-items';
 export type LeftPanelTab = 'databases' | 'worksheets';
 
 export interface SqlEditorContext {
-  databaseName: string;
+  database: string;
   schema: string;
 }
 
@@ -34,7 +34,7 @@ interface SqlEditorSettingsStore {
 
 const initialState = {
   selectedContext: {
-    databaseName: '',
+    database: '',
     schema: '',
   },
   selectedLeftPanelTab: 'databases' as LeftPanelTab,

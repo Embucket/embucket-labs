@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { ChevronsUpDown } from 'lucide-react';
 
@@ -14,13 +14,16 @@ import { useGetNavigationTrees } from '@/orval/navigation-trees';
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 import { SqlEditorContextDropdownDatabases } from './sql-editor-context-dropdown-databases';
 import { SqlEditorContextDropdownSchemas } from './sql-editor-context-dropdown-schemas';
+import { useSyncSqlEditorContext } from './use-sync-sql-editor-context';
 
 export const SqlEditorContextDropdown = () => {
+  const [open, setOpen] = useState(false);
+
   const { data: { items: navigationTrees } = {}, isLoading: isLoadingNavigationTrees } =
     useGetNavigationTrees();
 
   const { selectedContext, setSelectedContext } = useSqlEditorSettingsStore();
-  const selectedDatabase = selectedContext.databaseName;
+  const selectedDatabase = selectedContext.database;
   const selectedSchema = selectedContext.schema;
 
   const { databasesOptions, schemasOptions } = useMemo(
@@ -36,31 +39,32 @@ export const SqlEditorContextDropdown = () => {
     [navigationTrees, isLoadingNavigationTrees, selectedDatabase, selectedSchema],
   );
 
-  const handleSelectDatabase = (databaseName: string) => {
-    setSelectedContext({ databaseName, schema: schemasOptions[0].value });
+  useSyncSqlEditorContext({
+    databasesOptions,
+    schemasOptions,
+  });
+
+  const handleSelectDatabase = (database: string) => {
+    setSelectedContext({ database, schema: schemasOptions[0].value });
   };
 
   const handleSelectSchema = (schema: string) => {
-    setSelectedContext({ databaseName: selectedDatabase, schema });
+    setSelectedContext({ database: selectedDatabase, schema });
+    setOpen(false);
   };
 
-  // If no database or schema is selected, set the first database and schema
-  useEffect(() => {
-    if (databasesOptions.length && schemasOptions.length && !selectedDatabase && !selectedSchema) {
-      setSelectedContext({
-        databaseName: databasesOptions[0].value,
-        schema: schemasOptions[0].value,
-      });
-    }
-  }, [selectedDatabase, selectedSchema, setSelectedContext, databasesOptions, schemasOptions]);
-
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild className="h-8 w-fit max-w-[240px]">
-        <SidebarMenuButton className="data-[state=open]:bg-sidebar-secondary-accent">
-          <p className="truncate text-sm">{`${selectedDatabase}.${selectedSchema}`}</p>
-          <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
-        </SidebarMenuButton>
+        {selectedDatabase && selectedSchema && (
+          <SidebarMenuButton
+            disabled={!selectedDatabase}
+            className="data-[state=open]:bg-sidebar-secondary-accent min-w-[100px]"
+          >
+            <p className="truncate text-sm">{`${selectedDatabase}.${selectedSchema}`}</p>
+            <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
+          </SidebarMenuButton>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent
         className="grid w-[--radix-dropdown-menu-trigger-width] min-w-[400px] grid-cols-2 gap-0"

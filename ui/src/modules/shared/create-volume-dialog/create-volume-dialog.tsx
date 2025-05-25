@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
-import type { Volume } from '@/orval/models';
+import type { VolumeCreatePayload } from '@/orval/models';
 import { getGetVolumesQueryKey, useCreateVolume } from '@/orval/volumes';
 
 import { CreateVolumeDialogForm } from './create-volume-dialog-form';
@@ -53,7 +53,7 @@ export function CreateVolumeDialog({ opened, onSetOpened }: CreateVolumeDialogPr
         )}
         <CreateVolumeDialogForm
           onSubmit={(formData) => {
-            mutate({ data: formData as Volume });
+            mutate({ data: formData as VolumeCreatePayload });
           }}
         />
         <DialogFooter>

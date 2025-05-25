@@ -1,10 +1,12 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::databases::models::{DatabaseCreatePayload, DatabaseResponse, DatabasesResponse};
+use crate::databases::models::{
+    DatabaseCreatePayload, DatabaseCreateResponse, DatabaseUpdateResponse, DatabasesResponse,
+};
 use crate::error::ErrorResponse;
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
+use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumePayload};
 use core_metastore::VolumeType as MetastoreVolumeType;
 use core_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
 use http::Method;
@@ -23,7 +25,7 @@ async fn test_ui_databases_metastore_update_bug() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(MetastoreVolume {
+            data: VolumePayload::from(MetastoreVolume {
                 ident: String::from("t"),
                 volume: MetastoreVolumeType::Memory,
             }),
@@ -47,7 +49,7 @@ async fn test_ui_databases_metastore_update_bug() {
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;
     assert_eq!(http::StatusCode::OK, res.status());
     let created_database = res
-        .json::<DatabaseResponse>()
+        .json::<DatabaseCreateResponse>()
         .await
         .expect("Failed to create database");
     assert_eq!(expected.data.name, created_database.data.name);
@@ -66,14 +68,14 @@ async fn test_ui_databases_metastore_update_bug() {
         addr,
         Op::Update,
         Some(&Entity::Database(DatabaseCreatePayload {
-            data: created_database.data.clone(),
+            data: created_database.data.clone().into(),
         })),
         &Entity::Database(new_database.clone()),
     )
     .await;
     assert_eq!(http::StatusCode::OK, res.status());
     let renamed_database = res
-        .json::<DatabaseResponse>()
+        .json::<DatabaseUpdateResponse>()
         .await
         .expect("Failed to update database");
     assert_eq!(new_database.data.name, renamed_database.data.name); // server confirmed it's renamed
@@ -85,7 +87,7 @@ async fn test_ui_databases_metastore_update_bug() {
         Op::Get,
         None,
         &Entity::Database(DatabaseCreatePayload {
-            data: created_database.data.clone(),
+            data: created_database.data.into(),
         }),
     )
     .await;
@@ -103,7 +105,7 @@ async fn test_ui_databases_metastore_update_bug() {
         Op::Get,
         None,
         &Entity::Database(DatabaseCreatePayload {
-            data: renamed_database.data.clone(),
+            data: renamed_database.data.into(),
         }),
     )
     .await;
@@ -127,7 +129,7 @@ async fn test_ui_databases() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(MetastoreVolume {
+            data: VolumePayload::from(MetastoreVolume {
                 ident: String::new(),
                 volume: MetastoreVolumeType::Memory,
             }),
@@ -169,7 +171,7 @@ async fn test_ui_databases() {
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
     assert_eq!(http::StatusCode::OK, res.status());
-    let created_database = res.json::<DatabaseResponse>().await.unwrap();
+    let created_database = res.json::<DatabaseCreateResponse>().await.unwrap();
     assert_eq!(expected1.data.name, created_database.data.name);
     assert_eq!(expected1.data.volume, created_database.data.volume);
 
@@ -213,7 +215,7 @@ async fn test_ui_databases() {
         addr,
         Op::Delete,
         Some(&Entity::Database(DatabaseCreatePayload {
-            data: created_database.data.clone(),
+            data: created_database.data.into(),
         })),
         &stub,
     )

@@ -1,3 +1,4 @@
+use super::catalog::SLATEDB_CATALOG;
 use crate::catalogs::slatedb::config::SlateDBViewConfig;
 use crate::catalogs::slatedb::databases::DatabasesView;
 use crate::catalogs::slatedb::schemas::SchemasView;
@@ -12,8 +13,6 @@ use datafusion_physical_plan::streaming::PartitionStream;
 use std::any::Any;
 use std::sync::Arc;
 
-pub const SLATEDB_SCHEMA: &str = "public";
-pub const SLATEDB_CATALOG: &str = "slatedb";
 pub const DATABASES: &str = "databases";
 pub const VOLUMES: &str = "volumes";
 pub const SCHEMAS: &str = "schemas";

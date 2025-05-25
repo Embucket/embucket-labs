@@ -6,10 +6,7 @@
  * OpenAPI spec version: 1.0.2
  */
 import type { Database } from './database';
-import type { DatabasesResponseCurrentCursor } from './databasesResponseCurrentCursor';
 
 export interface DatabasesResponse {
-  currentCursor?: DatabasesResponseCurrentCursor;
   items: Database[];
-  nextCursor: string;
 }

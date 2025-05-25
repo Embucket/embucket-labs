@@ -4,7 +4,7 @@ use crate::{
     SearchParameters,
     databases::error::{DatabasesAPIError, DatabasesResult},
     databases::models::{
-        Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
+        Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabasePayload, DatabaseResponse,
         DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
     },
     downcast_string_column,
@@ -37,8 +37,10 @@ use validator::Validate;
             DatabaseCreateResponse,
             DatabaseResponse,
             DatabasesResponse,
+            DatabasePayload,
             Database,
             ErrorResponse,
+            OrderDirection,
         )
     ),
     tags(

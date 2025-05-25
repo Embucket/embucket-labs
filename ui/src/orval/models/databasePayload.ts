@@ -6,4 +6,7 @@
  * OpenAPI spec version: 1.0.2
  */
 
-export type VolumesResponseCurrentCursor = string | null;
+export interface DatabasePayload {
+  name: string;
+  volume: string;
+}

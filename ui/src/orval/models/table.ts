@@ -8,10 +8,14 @@
 
 export interface Table {
   createdAt: string;
+  databaseName: string;
   name: string;
   owner: string;
+  schemaName: string;
+  tableFormat: string;
   totalBytes: number;
   totalRows: number;
   type: string;
   updatedAt: string;
+  volumeName: string;
 }

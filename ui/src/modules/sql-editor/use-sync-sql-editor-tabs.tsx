@@ -5,7 +5,7 @@ import { useNavigate, useParams } from '@tanstack/react-router';
 import { useSqlEditorSettingsStore } from '@/modules/sql-editor/sql-editor-settings-store';
 import { useGetWorksheets } from '@/orval/worksheets';
 
-export const useSqlEditorTabsSync = () => {
+export const useSyncSqlEditorTabs = () => {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
 
   const { data: { items: worksheets } = {}, isFetching: isFetchingWorksheets } = useGetWorksheets();

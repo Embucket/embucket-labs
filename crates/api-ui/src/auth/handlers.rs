@@ -175,6 +175,7 @@ pub struct ApiDoc;
 )]
 #[tracing::instrument(level = Level::ERROR, skip_all, err)]
 pub async fn login(
+    //TODO: add DFSessionId (to start the session on login)
     State(state): State<AppState>,
     Json(LoginPayload { username, password }): Json<LoginPayload>,
 ) -> AuthResult<impl IntoResponse> {

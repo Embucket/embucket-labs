@@ -9,6 +9,29 @@ pub struct CachingCatalog {
     pub schemas_cache: DashMap<String, Arc<CachingSchema>>,
     pub should_refresh: bool,
     pub name: String,
+    pub enable_information_schema: bool,
+}
+
+impl CachingCatalog {
+    pub fn new(catalog: Arc<dyn CatalogProvider>, name: String) -> Self {
+        Self {
+            catalog,
+            schemas_cache: DashMap::new(),
+            should_refresh: true,
+            enable_information_schema: true,
+            name,
+        }
+    }
+    #[must_use]
+    pub const fn with_refresh(mut self, refresh: bool) -> Self {
+        self.should_refresh = refresh;
+        self
+    }
+    #[must_use]
+    pub const fn with_information_schema(mut self, enable_information_schema: bool) -> Self {
+        self.should_refresh = enable_information_schema;
+        self
+    }
 }
 
 #[allow(clippy::missing_fields_in_debug)]

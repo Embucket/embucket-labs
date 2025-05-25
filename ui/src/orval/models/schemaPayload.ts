@@ -6,7 +6,7 @@
  * OpenAPI spec version: 1.0.2
  */
 
-/**
- * @minimum 0
- */
-export type TablesParametersLimit = number | null;
+export interface SchemaPayload {
+  database: string;
+  name: string;
+}

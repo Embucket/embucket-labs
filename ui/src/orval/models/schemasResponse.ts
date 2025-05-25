@@ -6,10 +6,7 @@
  * OpenAPI spec version: 1.0.2
  */
 import type { Schema } from './schema';
-import type { SchemasResponseCurrentCursor } from './schemasResponseCurrentCursor';
 
 export interface SchemasResponse {
-  currentCursor?: SchemasResponseCurrentCursor;
   items: Schema[];
-  nextCursor: string;
 }

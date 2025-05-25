@@ -7,7 +7,7 @@ use crate::schemas::models::SchemaCreatePayload;
 use crate::tests::common::req;
 use crate::tests::common::{Entity, Op, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
+use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumePayload};
 use crate::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
 use core_metastore::VolumeType as MetastoreVolumeType;
 use core_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
@@ -25,14 +25,14 @@ async fn test_ui_databases_navigation() {
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
-    assert_eq!(0, databases_navigation.items.len());
+    assert_eq!(1, databases_navigation.items.len());
 
     let res = ui_test_op(
         addr,
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(MetastoreVolume {
+            data: VolumePayload::from(MetastoreVolume {
                 ident: String::new(),
                 volume: MetastoreVolumeType::Memory,
             }),
@@ -85,7 +85,7 @@ async fn test_ui_databases_navigation() {
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
-    assert_eq!(4, databases_navigation.items.len());
+    assert_eq!(5, databases_navigation.items.len());
 
     let schema_name = "testing1".to_string();
     let payload = SchemaCreatePayload {
@@ -111,8 +111,8 @@ async fn test_ui_databases_navigation() {
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
-    assert_eq!(4, databases_navigation.items.len());
-    assert_eq!(2, databases_navigation.items.first().unwrap().schemas.len());
+    assert_eq!(5, databases_navigation.items.len());
+    assert_eq!(2, databases_navigation.items[1].schemas.len());
     assert_eq!(1, databases_navigation.items.last().unwrap().schemas.len());
 
     let res = req(
@@ -158,10 +158,7 @@ async fn test_ui_databases_navigation() {
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
     assert_eq!(
         1,
-        databases_navigation
-            .items
-            .first()
-            .unwrap()
+        databases_navigation.items[1]
             .schemas
             .last()
             .unwrap()
@@ -171,10 +168,7 @@ async fn test_ui_databases_navigation() {
     // Information schema views
     assert_eq!(
         9,
-        databases_navigation
-            .items
-            .first()
-            .unwrap()
+        databases_navigation.items[1]
             .schemas
             .first()
             .unwrap()
@@ -193,7 +187,7 @@ async fn test_ui_databases_navigation() {
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_navigation.items.len());
-    assert_eq!("test1", databases_navigation.items.first().unwrap().name);
+    assert_eq!("test1", databases_navigation.items[1].name);
     let res = req(
         &client,
         Method::GET,
@@ -204,6 +198,6 @@ async fn test_ui_databases_navigation() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_navigation: NavigationTreesResponse = res.json().await.unwrap();
-    assert_eq!(2, databases_navigation.items.len());
-    assert_eq!("test3", databases_navigation.items.first().unwrap().name);
+    assert_eq!(3, databases_navigation.items.len());
+    assert_eq!("test3", databases_navigation.items[1].name);
 }

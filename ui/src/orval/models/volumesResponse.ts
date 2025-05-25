@@ -6,10 +6,7 @@
  * OpenAPI spec version: 1.0.2
  */
 import type { Volume } from './volume';
-import type { VolumesResponseCurrentCursor } from './volumesResponseCurrentCursor';
 
 export interface VolumesResponse {
-  currentCursor?: VolumesResponseCurrentCursor;
   items: Volume[];
-  nextCursor: string;
 }

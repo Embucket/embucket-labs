@@ -6,4 +6,6 @@
  * OpenAPI spec version: 1.0.2
  */
 
-export type SchemasResponseCurrentCursor = string | null;
+export type VolumePayloadAllOf = {
+  name: string;
+};

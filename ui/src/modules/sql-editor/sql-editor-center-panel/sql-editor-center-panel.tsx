@@ -1,6 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import { EditorCacheProvider } from '@tidbcloud/tisqleditor-react';
+import { AxiosError } from 'axios';
+import { toast } from 'sonner';
 
 import { ResizablePanelGroup } from '@/components/ui/resizable';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -54,6 +56,13 @@ export function SqlEditorCenterPanel() {
           setSelectedQueryRecord(+worksheetId, newQueryRecord);
         }
       },
+      onError: (error) => {
+        if (error instanceof AxiosError) {
+          toast.error(error.message, {
+            description: error.response?.data.message,
+          });
+        }
+      },
     },
   });
 
@@ -63,7 +72,7 @@ export function SqlEditorCenterPanel() {
         query,
         worksheetId: +worksheetId,
         context: {
-          databaseName: selectedContext.databaseName,
+          database: selectedContext.database,
           schema: selectedContext.schema,
         },
       },

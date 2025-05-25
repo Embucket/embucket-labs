@@ -5,18 +5,27 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
+import type { OrderDirection } from './orderDirection';
 
 export type GetSchemasParams = {
   /**
-   * Schemas cursor
+   * Schemas offset
    */
-  cursor?: string;
+  offset?: number;
   /**
    * Schemas limit
    */
   limit?: number;
   /**
-   * Schemas search (start with)
+   * Schemas search
    */
   search?: string;
+  /**
+   * Order by: schema_name (default), database_name, created_at, updated_at
+   */
+  order_by?: string;
+  /**
+   * Order direction: ASC, DESC (default)
+   */
+  order_direction?: OrderDirection;
 };

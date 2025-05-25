@@ -5,7 +5,10 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
-import type { VolumeAllOf } from './volumeAllOf';
-import type { VolumeType } from './volumeType';
 
-export type Volume = VolumeType & VolumeAllOf;
+export interface Volume {
+  createdAt: string;
+  name: string;
+  type: string;
+  updatedAt: string;
+}
