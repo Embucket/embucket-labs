@@ -1,5 +1,5 @@
 <!-- SLT_BADGE_START -->
-[![SLT Coverage: 25.7%](https://img.shields.io/badge/SLT_Coverage-25.7%25-A45A2A?style=for-the-badge&logo=database&logoColor=white)](test/README.md)
+[![SLT Coverage: 25.9%](https://img.shields.io/badge/SLT_Coverage-25.9%25-A45A2A?style=for-the-badge&logo=database&logoColor=white)](test/README.md)
 <!-- SLT_BADGE_END -->
 
 <!-- SLT_COVERAGE_START -->
