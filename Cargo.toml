@@ -2,6 +2,7 @@
 default-members = ["crates/embucketd"]
 members = [
   "crates/embucketd",
+  "crates/embucket-seed",
   "crates/api-iceberg-rest",
   "crates/api-internal-rest",
   "crates/api-snowflake-rest",

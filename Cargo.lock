@@ -2699,6 +2699,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "deunicode"
+version = "1.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abd57806937c9cc163efc8ea3910e00a62e2aeb0b8119f1793a978088f8f6b04"
+
+[[package]]
 name = "df-builtins"
 version = "0.1.0"
 dependencies = [
@@ -2824,6 +2830,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
+name = "embucket-seed"
+version = "0.1.0"
+dependencies = [
+ "api-ui",
+ "async-trait",
+ "chrono",
+ "clap",
+ "cookie",
+ "core-metastore",
+ "fake",
+ "http 1.3.1",
+ "rand 0.9.1",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "snafu",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "embucketd"
 version = "0.1.0"
 dependencies = [
@@ -2922,6 +2952,17 @@ dependencies = [
  "log",
  "once_cell",
  "rand 0.8.5",
+]
+
+[[package]]
+name = "fake"
+version = "4.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f5f203b70a419cb8880d1cfe6bebe488add0a0307d404e9f24021e5fd864b80"
+dependencies = [
+ "chrono",
+ "deunicode",
+ "rand 0.9.1",
 ]
 
 [[package]]
