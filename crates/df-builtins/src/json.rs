@@ -1,5 +1,6 @@
 #![allow(clippy::needless_pass_by_value, clippy::unnecessary_wraps)]
 
+use crate::json::PathToken::{Index, Key};
 use base64::engine::Engine;
 use datafusion::arrow::array::AsArray;
 use datafusion::arrow::array::{
@@ -17,7 +18,7 @@ use datafusion::arrow::datatypes::{
 use datafusion::arrow::error::ArrowError;
 use datafusion_common::ScalarValue;
 use datafusion_expr::ColumnarValue;
-use serde_json::{Map, Number, Value as JsonValue};
+use serde_json::{Map, Number, Value as JsonValue, Value};
 use std::sync::Arc;
 
 /// Encodes a Boolean Arrow array into a JSON array
@@ -908,6 +909,91 @@ pub fn encode_columnar_value(value: &ColumnarValue) -> Result<JsonValue, ArrowEr
         ColumnarValue::Array(array) => encode_array(array.clone()),
         ColumnarValue::Scalar(scalar) => encode_scalar(scalar),
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum PathToken {
+    Key(String),
+    Index(usize),
+}
+
+pub fn get_json_value<'a>(value: &'a Value, tokens: &[PathToken]) -> Option<&'a Value> {
+    let mut current = value;
+
+    for token in tokens {
+        match token {
+            PathToken::Key(k) => {
+                current = current.get(k)?;
+            }
+            PathToken::Index(i) => {
+                current = current.get(i)?;
+            }
+        }
+    }
+
+    Some(current)
+}
+
+#[allow(clippy::while_let_on_iterator)]
+pub fn tokenize_path(path: &str) -> Option<Vec<PathToken>> {
+    let mut tokens = Vec::new();
+    let mut chars = path.chars().peekable();
+
+    while let Some(&ch) = chars.peek() {
+        match ch {
+            '.' | ':' => {
+                chars.next();
+            }
+
+            '"' => {
+                chars.next();
+                let mut key = String::new();
+                while let Some(&c) = chars.peek() {
+                    if c == '"' {
+                        chars.next();
+                        break;
+                    }
+                    key.push(c);
+                    chars.next();
+                }
+                tokens.push(Key(key));
+            }
+
+            '[' => {
+                chars.next(); // '['
+                let mut num = String::new();
+                while let Some(&c) = chars.peek() {
+                    if c == ']' {
+                        chars.next(); // ']'
+                        break;
+                    }
+                    num.push(c);
+                    chars.next();
+                }
+                if let Ok(index) = num.parse::<usize>() {
+                    tokens.push(Index(index));
+                } else {
+                    return None;
+                }
+            }
+
+            _ => {
+                let mut key = String::new();
+                while let Some(&c) = chars.peek() {
+                    if c == '.' || c == ':' || c == '[' {
+                        break;
+                    }
+                    key.push(c);
+                    chars.next();
+                }
+                if !key.is_empty() {
+                    tokens.push(Key(key));
+                }
+            }
+        }
+    }
+
+    Some(tokens)
 }
 
 #[cfg(test)]
