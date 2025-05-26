@@ -111,16 +111,18 @@ impl Accumulator for BoolAndAggAccumulator {
             return Ok(());
         }
 
+        if matches!(self.state, Some(false)) {
+            return Ok(());
+        }
+
         let mut non_null = false;
-        for state in states {
-            let v = ScalarValue::try_from_array(state, 0)?;
-            if !v.is_null() {
-                non_null = true;
-            }
-            if matches!(v, ScalarValue::Boolean(Some(false))) {
-                self.state = Some(false);
-                return Ok(());
-            }
+        let v = ScalarValue::try_from_array(&states[0], 0)?;
+        if !v.is_null() {
+            non_null = true;
+        }
+        if matches!(v, ScalarValue::Boolean(Some(false))) {
+            self.state = Some(false);
+            return Ok(());
         }
 
         if non_null {
@@ -145,45 +147,34 @@ mod tests {
     #[tokio::test]
     async fn test_merge() -> DFResult<()> {
         let mut acc = BoolAndAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![Some(true)])),
-            Arc::new(BooleanArray::from(vec![Some(true)])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(true)]))])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(true)]))])?;
         assert_eq!(acc.state, Some(true));
 
         let mut acc = BoolAndAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![Some(true)])),
-            Arc::new(BooleanArray::from(vec![Some(false)])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(true)]))])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(false)]))])?;
         assert_eq!(acc.state, Some(false));
 
         let mut acc = BoolAndAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![Some(false)])),
-            Arc::new(BooleanArray::from(vec![Some(false)])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(false)]))])?;
+        assert_eq!(acc.state, Some(false));
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(false)]))])?;
         assert_eq!(acc.state, Some(false));
 
         let mut acc = BoolAndAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![Some(true)])),
-            Arc::new(BooleanArray::from(vec![None])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(true)]))])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![None]))])?;
         assert_eq!(acc.state, Some(true));
 
         let mut acc = BoolAndAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![Some(false)])),
-            Arc::new(BooleanArray::from(vec![None])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(false)]))])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![None]))])?;
         assert_eq!(acc.state, Some(false));
 
         let mut acc = BoolAndAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![None])),
-            Arc::new(BooleanArray::from(vec![None])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![None]))])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![None]))])?;
         assert_eq!(acc.state, None);
 
         Ok(())
@@ -191,7 +182,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_sql() -> DFResult<()> {
-        let config = SessionConfig::new();
+        let config = SessionConfig::new()
+            .with_batch_size(2)
+            .with_coalesce_batches(false)
+            .with_enforce_batch_size_in_joins(false);
         let ctx = SessionContext::new_with_config(config);
         ctx.register_udaf(AggregateUDF::from(BoolAndAggUDAF::new()));
         ctx.sql(
