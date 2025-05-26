@@ -1,0 +1,42 @@
+[package]
+name = "core-traits"
+version = "0.1.0"
+edition = "2021"
+license-file = { workspace = true } # Assuming it will use workspace license
+
+[dependencies]
+# For ExecutionService, QueryResultData, ColumnInfo, ExecutionError (from executor.rs)
+async-trait = { workspace = true }
+bytes = { workspace = true }
+datafusion = { workspace = true } # For arrow, csv, datatypes
+datafusion-common = { workspace = true } # For DataFusionError
+iceberg-rust = { workspace = true } # For IcebergError in ExecutionError and Metastore
+iceberg-s3tables-catalog = { workspace = true } # For S3tablesError in ExecutionError
+object-store = { workspace = true } # For ObjectStoreError in ExecutionError, and Metastore trait/models
+url = { workspace = true } # For UrlParseError in ExecutionError and MetastoreError
+# uuid is not directly used by core-executor moved types, but by metastore.
+
+# For Metastore trait, models, MetastoreError (from metastore.rs)
+chrono = { workspace = true, features = ["serde"] } # Required by RwObject, entities in history
+core-utils = { path = "../core-utils" } # For VecScanIterator, core_utils::Error, IterableEntity
+# dashmap was for SlateDBMetastore impl, not for traits/models themselves.
+# futures was for SlateDBMetastore impl.
+iceberg-rust-spec = { workspace = true } # For TableMetadata, PartitionSpec etc.
+serde = { workspace = true }
+serde_json = { workspace = true }
+slatedb = { workspace = true } # For SlateDBError in MetastoreError & WorksheetsStoreError
+snafu = { workspace = true } # For ExecutionError, MetastoreError, WorksheetsStoreError
+strum = { workspace = true, features = ["derive"] } # For EnumString, Display on TableFormat, CloudProvider
+utoipa = { workspace = true, features = ["chrono", "uuid"] } # For ToSchema derives
+validator = { workspace = true, features = ["derive"] } # For Validate derives
+uuid = { workspace = true } # For TableMetadataBuilder in Metastore (indirectly) and UTOIPA feature
+
+# For WorksheetsStore trait, entities, WorksheetsStoreError (from history.rs)
+# async-trait, bytes, chrono, core-utils, serde, serde_json, slatedb, snafu already listed.
+
+[dev-dependencies]
+tokio = { workspace = true } # For tests in executor.rs (ColumnInfo tests)
+mockall = { workspace = true } # For ExecutionQueryRecord automock in history.rs
+
+[lints]
+workspace = true

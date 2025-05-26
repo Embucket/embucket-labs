@@ -5,6 +5,8 @@ edition = "2021"
 license-file = { workspace = true }
 
 [dependencies]
+core-traits = { path = "../core-traits" }
+# core-utils is already present and still needed.
 async-trait = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }

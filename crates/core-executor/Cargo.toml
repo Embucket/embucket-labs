@@ -5,10 +5,11 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+core-traits = { path = "../core-traits" }
 core-utils = { path = "../core-utils" }
-core-metastore = { path = "../core-metastore" }
+core-metastore = { path = "../core-metastore" } # Still needed for Metastore trait usage in CoreExecutionService
 df-builtins = { path = "../df-builtins" }
-df-catalog = { path = "../df-catalog" }
+df-catalog = { path = "../df-catalog" } # Still needed for CatalogProvider usage
 
 async-trait = { workspace = true }
 aws-config = { workspace = true }

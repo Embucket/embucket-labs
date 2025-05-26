@@ -12,6 +12,7 @@ members = [
   "crates/core-executor",
   "crates/core-history",
   "crates/core-metastore",
+  "crates/core-traits", # Added core-traits
   "crates/core-utils",
   "crates/api-sessions",
 ]

@@ -5,9 +5,10 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+core-traits = { path = "../core-traits" }
 core-utils = { path = "../core-utils" }
-core-executor = { path = "../core-executor" }
-core-metastore = { path = "../core-metastore" }
+core-executor = { path = "../core-executor" } # Still needed for RecordingExecutionService
+core-metastore = { path = "../core-metastore" } # Potentially needed for interactions
 
 bytes = { workspace = true }
 datafusion = { workspace = true }
