@@ -1,7 +1,8 @@
-use datafusion::arrow::array::as_string_array;
+use datafusion::arrow::array::{StringBuilder, as_string_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
+use datafusion_common::{DataFusionError, ScalarValue, exec_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 
 #[derive(Debug)]
@@ -43,8 +44,30 @@ impl ScalarUDFImpl for GetPathFunc {
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
 
-        match (&args[0],&args[0]) {
-            
+        match (&args[0], &args[0]) {
+            (ColumnarValue::Array(arr), ColumnarValue::Scalar(ScalarValue::Utf8(Some(path)))) => {
+                let input = as_string_array(arr);
+                let mut res = StringBuilder::new();
+                for v in input {
+                    if let Some(v) = v {
+                        match serde_json::from_str::<serde_json::Value>(v) {
+                            Ok(json_value) => {
+                                let value = jsonpath_lib::select(&json_value, path)
+                                    .map_err(|e| exec_err!("can't parse jsonpath: {}", e))?;
+                                let value = json_value.pointer(path);
+                                if let Some(value) = value {
+                                    res.append_value(value.to_string());
+                                } else {
+                                    res.append_null();
+                                }
+                            }
+                            Err(_) => res.append_null(),
+                        }
+                    } else {
+                        res.append_null();
+                    }
+                }
+            }
         }
         let input = match args[0].clone() {
             ColumnarValue::Array(arr) => arr,
