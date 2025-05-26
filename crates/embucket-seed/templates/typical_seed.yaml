@@ -12,7 +12,7 @@ volumes:
           tables: !TablesTemplate
             count: 5
             template:
-              name: null
+              table_name: null
               columns: !ColumnsTemplate
                 count: 5
                 template:
@@ -30,7 +30,7 @@ volumes:
           tables: !TablesTemplate
             count: 5
             template:
-              name: null
+              table_name: null
               columns: !ColumnsTemplate
                 count: 5
                 template:

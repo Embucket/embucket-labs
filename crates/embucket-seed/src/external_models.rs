@@ -1,3 +1,5 @@
+// Compatibility layer
+
 #[cfg(test)]
 pub type FileVolume = api_ui::volumes::models::FileVolume;
 pub type VolumePayload = api_ui::volumes::models::VolumePayload;
