@@ -99,6 +99,8 @@ impl ScalarUDFImpl for ObjectKeysFunc {
     }
 }
 
+super::macros::make_udf_function!(ObjectKeysFunc);
+
 #[cfg(test)]
 mod tests {
     use super::*;
