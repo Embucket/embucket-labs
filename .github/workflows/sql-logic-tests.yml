@@ -2,9 +2,29 @@ name: SQL Logic Tests
 
 on:
   push:
-    branches: [ test-main ]  # Changed from main to test-main
+    branches: [test-main]
+    paths:
+      - crates/**
+      - bin/**
+      - Cargo.toml
+      - Cargo.lock
+      - Dockerfile
+      - .github/workflows/**
+      - test/**
   pull_request:
-    branches: [ test-main ]  # Changed from main to test-main
+    branches: [test-main]
+    paths:
+      - crates/**
+      - bin/**
+      - Cargo.toml
+      - Cargo.lock
+      - Dockerfile
+      - .github/workflows/**
+      - test/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   sql-logic-tests:
@@ -72,7 +92,7 @@ jobs:
 
       # Only generate and update assets on push to test-main
       - name: Generate Test Assets
-        if: github.event_name == 'push' && github.ref == 'refs/heads/test-main'  # Changed from main to test-main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/test-main'
         working-directory: ./test
         run: |
           mkdir -p test-assets
@@ -84,7 +104,7 @@ jobs:
 
       # Only push assets on push to test-main
       - name: Push Assets to Branch
-        if: github.event_name == 'push' && github.ref == 'refs/heads/test-main'  # Changed from main to test-main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/test-main'
         run: |
           # Setup git
           git config --global user.name "github-actions[bot]"
