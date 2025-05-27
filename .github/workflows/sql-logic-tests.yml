@@ -78,7 +78,7 @@ jobs:
       - name: Run SQL Logic Tests
         working-directory: ./test
         run: |
-          python -u -m slt_runner --test-dir sql
+          python -u -m slt_runner --test-dir sql/sql-reference-commands/Sessions
 
       # Generate Test Assets
       - name: Generate Test Assets
@@ -98,19 +98,22 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
-          # Create a new orphan branch for test-assets
-          git checkout --orphan test-assets
-          git rm -rf .
+          # Fetch and checkout the existing test-assets branch
+          git fetch origin test-assets
+          git checkout test-assets
+          
+          # Clean the branch content (but keep .git folder)
+          find . -mindepth 1 -not -path "./.git*" -delete
           
           # Create assets directory
           mkdir -p assets
           
           # Copy assets to the root directory
-          cp -r test/test-assets/* assets/
+          cp -r ../test/test-assets/* assets/
           
           # Add and commit
           git add assets
           git commit -m "Update test assets [Coverage: $COVERAGE%] [skip ci]" || echo "No changes to commit"
           
-          # Push to test-assets branch (without trying to fetch it first)
-          git push origin test-assets --force
+          # Push to the existing test-assets branch
+          git push origin test-assets

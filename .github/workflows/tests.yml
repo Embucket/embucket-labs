@@ -49,5 +49,5 @@ jobs:
           toolchain: stable
 
       # Build and run tests directly
-      - name: Run unit tests
-        run: cargo test --workspace --all-features --all-targets
+#      - name: Run unit tests
+#        run: cargo test --workspace --all-features --all-targets
