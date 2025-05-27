@@ -156,6 +156,18 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
     """Use OpenAI to select relevant SLT files based on code changes"""
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+    # Extract meaningful paths from SLT file paths
+    # This will convert paths like "test/sql/function/aggregate/test.slt" to "function/aggregate/test.slt"
+    meaningful_paths = {}
+    for slt_path in all_slts.keys():
+        if "/sql/" in slt_path:
+            # Extract the part after /sql/
+            path_after_sql = slt_path.split("/sql/", 1)[1]
+            meaningful_paths[slt_path] = path_after_sql
+        else:
+            # If no /sql/ in the path, just use the filename
+            meaningful_paths[slt_path] = os.path.basename(slt_path)
+
     # Prepare message for OpenAI
     prompt = f"""
     I have made code changes to the following files in a Pull Request:
@@ -165,15 +177,19 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
     ```
 
     I need to select the most relevant SQL Logic Test (SLT) files to run based on these changes.
-    Here are all the available SLT files:
+    Here are all the available SLT files, with paths indicating their functionality:
 
     ```
-    {json.dumps({k: v[:1000] + ("..." if len(v) > 1000 else "") for k, v in all_slts.items()}, indent=2)}
+    {json.dumps(meaningful_paths, indent=2)}
     ```
+
+    The paths after the /sql/ directory indicate what functionality the test is for. For example:
+    - "function/aggregate/test.slt" tests SQL aggregate functions
+    - "type/numeric/test.slt" tests numeric type functionality
 
     Please select the SLT files that are most likely to test the functionality affected by my code changes.
-    Return ONLY a JSON array with the filenames, no explanations or other text. For example:
-    ["test/sql/file1.slt", "test/sql/file2.slt"]
+    Return ONLY a JSON array with the full file paths, no explanations or other text. For example:
+    ["test/sql/function/aggregate/test.slt", "test/sql/type/numeric/test.slt"]
     """
 
     print(prompt)
