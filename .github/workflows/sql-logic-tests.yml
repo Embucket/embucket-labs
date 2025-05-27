@@ -11,16 +11,6 @@ on:
       - Dockerfile
       - .github/workflows/**
       - test/**
-  pull_request:
-    branches: [test-main]
-    paths:
-      - crates/**
-      - bin/**
-      - Cargo.toml
-      - Cargo.lock
-      - Dockerfile
-      - .github/workflows/**
-      - test/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -90,9 +80,8 @@ jobs:
         run: |
           python -u -m slt_runner --test-dir sql
 
-      # Only generate and update assets on push to test-main
+      # Generate Test Assets
       - name: Generate Test Assets
-        if: github.event_name == 'push' && github.ref == 'refs/heads/test-main'
         working-directory: ./test
         run: |
           mkdir -p test-assets
@@ -102,9 +91,8 @@ jobs:
           COVERAGE=$(grep -o '[0-9.]\+%' test-assets/badge.txt | tr -d '%')
           echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
 
-      # Only push assets on push to test-main
+      # Push Assets to Branch
       - name: Push Assets to Branch
-        if: github.event_name == 'push' && github.ref == 'refs/heads/test-main'
         run: |
           # Setup git
           git config --global user.name "github-actions[bot]"
