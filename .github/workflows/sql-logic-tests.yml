@@ -5,7 +5,7 @@ permissions:
 
 on:
   push:
-    branches: [test-main]
+    branches: [main]
     paths:
       - crates/**
       - bin/**
