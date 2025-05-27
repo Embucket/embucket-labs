@@ -133,28 +133,49 @@ def run_slt_files(slt_files, runner_module=None, output_dir="./artifacts"):
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
 
-    # Create a test list file for the runner
-    test_list_path = os.path.join(output_dir, "targeted_tests.txt")
-    with open(test_list_path, 'w') as f:
+    # Save the list of files to run as a text file in the output directory
+    test_file_list = os.path.join(output_dir, "test_file_list.txt")
+    with open(test_file_list, 'w') as f:
         for slt_file in slt_files:
             f.write(f"{slt_file}\n")
 
-    # Run the SLT runner with the selected tests
+    # Create a custom test directory that only contains symlinks to the target files
+    test_dir = os.path.join(output_dir, "targeted_tests")
+    os.makedirs(test_dir, exist_ok=True)
+
+    # Clear the directory first (in case it already exists)
+    for file in os.listdir(test_dir):
+        file_path = os.path.join(test_dir, file)
+        if os.path.isfile(file_path) or os.path.islink(file_path):
+            os.unlink(file_path)
+
+    # Create a temporary directory structure with the selected SLTs
+    for slt_file in slt_files:
+        # Extract the basename
+        basename = os.path.basename(slt_file)
+        # Create a symlink to the original file
+        target_path = os.path.join(test_dir, basename)
+        # Create a symlink
+        os.symlink(os.path.abspath(slt_file), target_path)
+
     print(f"Running {len(slt_files)} SLT files...")
 
     # Create a SQLLogicPythonRunner instance
     runner = runner_module.SQLLogicPythonRunner()
 
-    # Run the tests
-    runner.run(
-        test_list=test_list_path,
-        skip_log=False,
-        benchmark_mode=False,
-        run_mode="snowflake",
-        include_files=None,
-        exclude_files=None,
-        output_dir=output_dir
-    )
+    # Override sys.argv to use the test directory option
+    original_argv = sys.argv
+    sys.argv = [
+        "python_runner.py",
+        "--test-dir", test_dir,
+    ]
+
+    try:
+        # Run the tests
+        runner.run()
+    finally:
+        # Restore original argv
+        sys.argv = original_argv
 
     # The runner will save results to a CSV file named 'slt_results.csv' in the output directory
     results_csv = os.path.join(output_dir, "slt_results.csv")
