@@ -94,6 +94,10 @@ jobs:
       # Push Assets to Branch
       - name: Push Assets to Branch
         run: |
+          # Copy test assets to a temporary location before switching branches
+          mkdir -p /tmp/embucket-assets
+          cp -r test/test-assets/* /tmp/embucket-assets/
+          
           # Setup git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -108,8 +112,8 @@ jobs:
           # Create assets directory
           mkdir -p assets
           
-          # Copy assets to the root directory
-          cp -r ../test/test-assets/* assets/
+          # Copy assets from the temporary location
+          cp -r /tmp/embucket-assets/* assets/
           
           # Add and commit
           git add assets
