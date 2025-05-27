@@ -62,30 +62,25 @@ impl ScalarUDFImpl for GetPathFunc {
         let input = as_string_array(&arr);
         let mut res = StringBuilder::new();
         for v in input {
-            if let Some(v) = v {
-                match serde_json::from_str::<Value>(v) {
-                    Ok(json_value) => {
-                        match json::tokenize_path(&path)
-                            .and_then(|v| json::get_json_value(&json_value, &v))
-                        {
-                            None => {
-                                res.append_null();
-                            }
-                            Some(v) => {
-                                res.append_value(serde_json::to_string_pretty(&v).map_err(
-                                    |e| {
-                                        DataFusionError::Internal(format!(
-                                            "Failed to serialize JSON value: {e}"
-                                        ))
-                                    },
-                                )?);
-                            }
-                        }
-                    }
-                    Err(_) => res.append_null(),
-                }
-            } else {
+            let Some(v) = v else {
                 res.append_null();
+                continue;
+            };
+
+            match serde_json::from_str::<Value>(v) {
+                Ok(json_value) => {
+                    let Some(value) = json::tokenize_path(&path)
+                        .and_then(|v| json::get_json_value(&json_value, &v))
+                    else {
+                        res.append_null();
+                        continue;
+                    };
+
+                    res.append_value(serde_json::to_string_pretty(&value).map_err(|e| {
+                        DataFusionError::Internal(format!("Failed to serialize JSON value: {e}"))
+                    })?);
+                }
+                Err(_) => res.append_null(),
             }
         }
         let res = res.finish();
