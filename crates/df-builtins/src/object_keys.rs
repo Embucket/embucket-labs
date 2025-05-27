@@ -8,6 +8,13 @@ use serde_json::Value;
 use std::any::Any;
 use std::sync::Arc;
 
+// function object_keys
+// Returns an array containing the list of keys in the top-most level of the input object.
+// Syntax: OBJECT_KEYS(<object>)
+// Arguments
+// - <object>
+// The input must be a JSON object.
+// Returns an ARRAY containing the keys.
 #[derive(Debug)]
 pub struct ObjectKeysFunc {
     signature: Signature,
