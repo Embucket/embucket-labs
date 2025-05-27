@@ -66,18 +66,8 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
-      - name: cargo clippy
-        uses: giraffate/clippy-action@v1
-        with:
-          reporter: 'github-pr-check'
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          clippy_flags: --workspace
-      - name: cargo clippy (tests)
-        uses: giraffate/clippy-action@v1
-        with:
-          reporter: 'github-pr-check'
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          clippy_flags: --workspace --tests
+      - name: Run clippy
+        run: cargo clippy --all-targets --workspace
   # semver:
   #   runs-on: ubuntu-latest
   #   name: semver

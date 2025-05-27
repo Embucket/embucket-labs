@@ -556,10 +556,10 @@ mod test {
                 ];
                 if let Some(nano) = n {
                     fn_args.push(columnar_value_fn(is_scalar, *nano));
-                };
+                }
                 if let Some(t) = tz {
                     fn_args.push(columnar_value_fn(is_scalar, t.to_string()));
-                };
+                }
                 let result = TimestampFromPartsFunc::new()
                     .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
                         args: fn_args,

@@ -81,7 +81,6 @@ impl ExecutionQueryRecord for QueryRecord {
         self.id
     }
 
-    #[must_use]
     fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
         let start_time = Utc::now();
         Self {

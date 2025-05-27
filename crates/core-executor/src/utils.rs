@@ -655,7 +655,7 @@ mod tests {
                 _ => {
                     panic!("Bad DataType: {}", field.data_type());
                 }
-            };
+            }
         }
         fields_tested
     }

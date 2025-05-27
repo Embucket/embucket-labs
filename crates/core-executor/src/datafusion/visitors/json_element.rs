@@ -59,7 +59,7 @@ fn convert_json_access(expr: ASTExpr) -> ASTExpr {
 }
 
 pub fn visit(stmt: &mut Statement) {
-    stmt.visit(&mut JsonVisitor {});
+    let _ = stmt.visit(&mut JsonVisitor {});
 }
 
 #[cfg(test)]

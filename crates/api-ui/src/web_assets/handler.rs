@@ -55,9 +55,7 @@ fn get_file_from_tar(file_name: &str) -> Result<Vec<u8>> {
 
     Err(HandlerError(
         StatusCode::NOT_FOUND,
-        ArchiveError::NotFound {
-            path: file_name.to_string(),
-        },
+        ArchiveError::NotFound { path: file_name },
     ))
 }
 

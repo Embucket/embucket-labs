@@ -122,7 +122,6 @@ impl Accumulator for BoolOrAggAccumulator {
             non_null = true;
         }
         if matches!(v, ScalarValue::Boolean(Some(true))) {
-            println!("!");
             self.state = Some(true);
             return Ok(());
         }

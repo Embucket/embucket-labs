@@ -1,5 +1,5 @@
 use super::columns::InformationSchemaColumnsBuilder;
-use super::df_settings::InformationSchemaDfSettingsBuilder;
+use super::df_settings::{ConfigVisitor, InformationSchemaDfSettingsBuilder};
 use super::information_schema::INFORMATION_SCHEMA;
 use super::parameters::{
     InformationSchemaParametersBuilder, get_udaf_args_and_return_types,
@@ -11,6 +11,7 @@ use super::tables::InformationSchemaTablesBuilder;
 use super::views::InformationSchemaViewBuilder;
 use crate::information_schema::databases::InformationSchemaDatabasesBuilder;
 use crate::information_schema::navigation_tree::InformationSchemaNavigationTreeBuilder;
+use crate::information_schema::session_params::SessionParams;
 use dashmap::DashMap;
 use datafusion::arrow::datatypes::Schema;
 use datafusion::catalog::CatalogProviderList;
@@ -234,8 +235,32 @@ impl InformationSchemaConfig {
         config_options: &ConfigOptions,
         builder: &mut InformationSchemaDfSettingsBuilder,
     ) {
-        for entry in config_options.entries() {
-            builder.add_setting(entry);
+        let standard = ConfigVisitor::standard_entries(config_options);
+        for entry in standard {
+            builder.add_setting(
+                entry.key,
+                entry.value.unwrap_or_default(),
+                "text",
+                entry.description,
+                None,
+                None,
+                None,
+            );
+        }
+
+        let config = config_options.extensions.get::<SessionParams>();
+        if let Some(cfg) = config {
+            for (key, prop) in &cfg.properties {
+                builder.add_setting(
+                    key,
+                    prop.value.clone(),
+                    prop.property_type.clone(),
+                    prop.comment.clone().unwrap_or_default(),
+                    Some(prop.created_on.to_string()),
+                    Some(prop.updated_on.to_string()),
+                    prop.session_id.clone(),
+                );
+            }
         }
     }
 

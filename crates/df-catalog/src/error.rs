@@ -8,7 +8,7 @@ use snafu::prelude::*;
 #[snafu(visibility(pub(crate)))]
 pub enum Error {
     #[snafu(display("Metastore error: {source}"))]
-    Metastore { source: MetastoreError },
+    Metastore { source: Box<MetastoreError> },
 
     #[snafu(display("Core error: {source}"))]
     Core { source: CoreError },
@@ -17,7 +17,7 @@ pub enum Error {
     DataFusion { source: DataFusionError },
 
     #[snafu(display("S3Tables error: {source}"))]
-    S3Tables { source: S3TablesError },
+    S3Tables { source: Box<S3TablesError> },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

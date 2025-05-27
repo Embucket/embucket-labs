@@ -2725,6 +2725,7 @@ dependencies = [
  "aws-config",
  "aws-credential-types",
  "bytes",
+ "chrono",
  "core-metastore",
  "core-utils",
  "dashmap",

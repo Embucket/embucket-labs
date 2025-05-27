@@ -6,6 +6,7 @@ from collections import defaultdict
 from typing import Any, Generator, Optional, Dict
 import gc
 import csv
+import multiprocessing
 
 import requests
 from dotenv import load_dotenv
@@ -442,15 +443,279 @@ class SQLLogicPythonRunner:
     def __init__(self, default_test_directory : Optional[str] = None):
         self.default_test_directory = default_test_directory
 
+    def run_file(self, config, file_path, test_directory, benchmark_mode, run_mode):
+        """Execute tests for a single file using a pre-created worker schema"""
+        print(f"Processing file: {file_path}")
+
+        executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
+
+        # Create a connection to execute schema setup queries if using Embucket
+        if 'embucket' in config or os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
+            try:
+                con = connect(
+                    user=config['user'],
+                    password=config['password'],
+                    account=config['account'],
+                    warehouse=config['warehouse'],
+                    database=config['database']
+                )
+
+                # Enable schema caching - this prevents schema from being dropped between statements
+                with con.cursor() as cursor:
+                    cursor.execute(f"USE SCHEMA {config['schema']}")
+                    # Any other specific Embucket setup commands can go here
+                con.close()
+            except Exception as e:
+                logger.error(f"Error setting up Embucket connection for {file_path}: {e}")
+
+        results = []
+        execution_times = []
+        total = 0
+        successful = 0
+        failed = 0
+        error_details = defaultdict(list)
+
+        # Process the test file
+        sql_parser = SQLLogicParser(None)
+        try:
+            test = sql_parser.parse(file_path)
+            # Execute test and collect results
+            result = executor.execute_test(test)
+
+            # Calculate statistics
+            queries_for_coverage = [q for q in result.queries if not q.exclude_from_coverage]
+            file_total = len(queries_for_coverage)
+            file_successful = sum(1 for q in queries_for_coverage if q.success)
+            file_failed = file_total - file_successful
+
+            # Update counters
+            total += file_total
+            successful += file_successful
+            failed += file_failed
+            execution_times += [q.execution_time_s for q in queries_for_coverage]
+
+            page_name = extract_file_name(file_path)
+            results.append({
+                "category": os.path.dirname(file_path).split('/')[-1],
+                "page_name": page_name,
+                "total_tests": file_total,
+                "successful_tests": file_successful,
+                "failed_tests": file_failed,
+                "success_percentage": (file_successful / file_total * 100) if file_total > 0 else 0
+            })
+
+            # Collect errors
+            for query in result.queries:
+                if not query.success and query.error_message:
+                    error_details[os.path.dirname(file_path).split('/')[-1]].append(
+                        f"{page_name}: {query.query}\n{query.error_message}\n")
+
+        except Exception as e:
+            print(f"Error processing {file_path}: {e}")
+            error_details[os.path.dirname(file_path).split('/')[-1]].append(f"{file_path}: {str(e)}")
+
+        executor.cleanup()
+
+        return {
+            "category": os.path.dirname(file_path).split('/')[-1],
+            "results": results,
+            "execution_times": execution_times,
+            "total": total,
+            "successful": successful,
+            "failed": failed,
+            "error_details": error_details
+        }
+
+    def run_files_parallel(self, config, file_paths, test_directory, benchmark_mode, run_mode, start_time,
+                           max_workers=None):
+        """Execute test files in parallel with pre-created worker schemas"""
+        import concurrent.futures
+        print(f"\n=== Running {len(file_paths)} files in parallel with {max_workers} workers ===")
+
+        # Create worker schemas before starting tests
+        worker_schemas = []
+        try:
+            # Connect to the database
+            con = connect(
+                user=config['user'],
+                password=config['password'],
+                account=config['account'],
+                warehouse=config['warehouse'],
+                database=config['database']
+            )
+
+            executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
+            executor.setup()
+
+            # Create schemas for each worker
+            with con.cursor() as cursor:
+                for worker_id in range(1, max_workers + 1):
+                    worker_schema = f"{config['schema']}_{worker_id}"
+                    worker_schemas.append(worker_schema)
+                    try:
+                        # Create a unique schema for this worker
+                        cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {worker_schema}")
+                        logger.info(f"Created worker schema: {worker_schema}")
+                    except Exception as e:
+                        logger.error(f"Error creating worker schema {worker_schema}: {e}")
+            con.close()
+        except Exception as e:
+            logger.error(f"Error connecting to database to create schemas: {e}")
+            # Fall back to original schema if schema creation fails
+            worker_schemas = [config['schema']] * max_workers
+
+        # Execute files in parallel
+        all_results = []
+        all_execution_times = []
+        total_tests = 0
+        total_successful = 0
+        total_failed = 0
+        all_error_details = defaultdict(list)
+
+        # Create worker-specific configs
+        worker_configs = []
+        for schema in worker_schemas:
+            worker_config = config.copy()
+            worker_config['schema'] = schema
+            worker_configs.append(worker_config)
+
+        # Create a pool of workers with assigned configs
+        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+            # Distribute files among workers
+            future_to_file = {}
+            for i, file_path in enumerate(file_paths):
+                worker_index = i % len(worker_configs)
+                future_to_file[executor.submit(
+                    self.run_file,
+                    worker_configs[worker_index],
+                    file_path,
+                    test_directory,
+                    benchmark_mode,
+                    run_mode
+                )] = file_path
+
+            for future in concurrent.futures.as_completed(future_to_file):
+                result = future.result()
+                all_results.extend(result["results"])
+                all_execution_times.extend(result["execution_times"])
+                total_tests += result["total"]
+                total_successful += result["successful"]
+                total_failed += result["failed"]
+
+                # Collect errors
+                for cat, errors in result["error_details"].items():
+                    all_error_details[cat].extend(errors)
+
+        # Clean up worker schemas after all tests are done
+        try:
+            con = connect(
+                user=config['user'],
+                password=config['password'],
+                account=config['account'],
+                warehouse=config['warehouse'],
+                database=config['database']
+            )
+            with con.cursor() as cursor:
+                for schema in worker_schemas:
+                    if schema == config['schema']:  # Skip dropping the default schema
+                        continue
+
+                    # First check if the TEST_USER exists
+                    cursor.execute("SHOW USERS LIKE 'TEST_USER'")
+                    user_exists = cursor.fetchone() is not None
+
+                    if user_exists:
+                        # Check for any policies set on TEST_USER
+                        try:
+                            cursor.execute(f"""
+                                SELECT policy_name, policy_schema
+                                FROM TABLE(
+                                    INFORMATION_SCHEMA.POLICY_REFERENCES(
+                                        REF_ENTITY_NAME => 'test_user',
+                                        REF_ENTITY_DOMAIN => 'USER'
+                                    )
+                                )
+                            """)
+                            policies = cursor.fetchall()
+
+                            # Unset each policy before dropping the schema
+                            for policy in policies:
+                                try:
+                                    cursor.execute(
+                                        f"ALTER USER TEST_USER UNSET AUTHENTICATION POLICY")
+                                except Exception as policy_error:
+                                    logger.error(
+                                        f"Error unsetting policy: {policy_error}")
+                        except Exception as ref_error:
+                            logger.error(f"Error checking policy references: {ref_error}")
+
+                    # Now drop the schema
+                    cursor.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
+                    logger.info(f"Cleaned up worker schema {schema}")
+            con.close()
+        except Exception as e:
+            logger.error(f"Error cleaning up worker schemas: {e}")
+
+        # Display and save results
+        display_page_results(all_results, total_tests, total_successful, total_failed)
+        display_category_results(all_results)
+
+        # Save results to CSV
+        csv_file_name = f"{run_mode}_test_statistics.csv" if benchmark_mode else "test_statistics.csv"
+        with open(csv_file_name, "w", newline="") as csvfile:
+            writer = csv.DictWriter(csvfile,
+                                    fieldnames=["page_name", "category", "total_tests", "successful_tests",
+                                                "failed_tests", "success_percentage"])
+            writer.writeheader()
+            writer.writerows(all_results)
+
+        # Write error log
+        error_log_file = f"{run_mode}_errors.log" if benchmark_mode else "errors.log"
+        with open(error_log_file, "w") as error_file:
+            for category, errors in all_error_details.items():
+                if errors:
+                    for error in errors:
+                        error_file.write(f"{error}\n")
+
+        # Log execution time
+        total_time = time.time() - start_time
+        print(f"\nTotal execution time: {total_time:.2f} seconds")
+
     def run(self):
         start_time = time.time()
 
+        # Get system CPU count for intelligent defaults
+        cpu_count = multiprocessing.cpu_count()
+
+        # Use a parser that tracks which arguments were explicitly provided
         arg_parser = argparse.ArgumentParser(description='Execute SQL logic tests.')
         arg_parser.add_argument('--test-file', type=str, help='Path to the test file')
         arg_parser.add_argument('--test-dir', type=str, help='Path to the test directory holding the test files')
         arg_parser.add_argument('--benchmark', action='store_true',
                                 help='Run in benchmark mode (compare hot/cold performance)')
+        arg_parser.add_argument('--parallel', action='store_true',
+                                help='Run files in parallel')
+        arg_parser.add_argument('--workers', type=int, default=None,
+                                help=f'Number of parallel workers (default: {cpu_count}, system CPU count)')
+
         args = arg_parser.parse_args()
+
+        workers = 1  # Default to 1 worker if not parallel
+        if args.parallel:
+            if args.workers is None:
+                workers = cpu_count
+                print(f"Using default worker count: {workers} (system CPU count)")
+            else:
+                workers = args.workers
+                if workers <= 0:
+                    print(f"Invalid worker count ({workers}). Using CPU count ({cpu_count}) instead.")
+                    workers = cpu_count
+                elif workers > cpu_count:
+                    print(
+                        f"Specified worker count ({workers}) exceeds CPU count ({cpu_count}). Using CPU count instead.")
+                    workers = cpu_count
+        else:
+            print("Running in non-parallel mode with 1 worker.")
 
         # Load configuration from env file
         config = load_config_from_env()
@@ -470,7 +735,6 @@ class SQLLogicPythonRunner:
         # test_directory can be used for getting file_paths, or
         # if file_paths already provided, for some future purposes
         test_directory = None
-        print(args.test_file)
         if args.test_file:
             file_paths = [args.test_file]
             test_directory = directory_path_from_filename(args.test_file)
@@ -486,7 +750,7 @@ class SQLLogicPythonRunner:
             # use set as '**' with recursive true can return duplicate paths
             file_paths = list(set(os.path.relpath(path) for path in file_paths))
 
-        print(f"tests directory: {test_directory} Test files: ", len(file_paths))
+        print(f"Tests directory: {test_directory} Test files: {len(file_paths)}")
 
         total_tests = len(file_paths)
         if total_tests == 0:
@@ -495,168 +759,13 @@ class SQLLogicPythonRunner:
 
         # If benchmark mode is enabled, run both hot and cold tests
         if benchmark_mode:
-            # Run hot tests
-            hot_start_time = time.time()
-            print("\n=== Running HOT benchmark tests ===")
-            self.run_tests(config, args, file_paths, test_directory, benchmark_mode, 'hot', hot_start_time)
-
-            # Then cold tests first
-            cold_start_time = time.time()
-            print("\n=== Running COLD benchmark tests ===")
-            self.run_tests(config, args, file_paths, test_directory, benchmark_mode, 'cold', cold_start_time)
-
-            # Compare the results
             self.compare_benchmark_results()
         else:
             # Just run in standard mode (no benchmarking)
-            default_run_mode = 'hot'  # Default to cold mode for regular runs
+            default_run_mode = 'hot'  # Default to hot mode for regular runs
             print(f"\n=== Running SLT ===")
-            self.run_tests(config, file_paths, test_directory, benchmark_mode, default_run_mode, start_time)
-
-    def run_tests(self, config, file_paths, test_directory, benchmark_mode, run_mode, start_time):
-        """Execute tests with the specified run mode"""
-
-        executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
-        executor.setup()
-
-        # Error collection
-        if benchmark_mode:
-            error_log_file = f"{run_mode}_errors.log"  # File to save error logs
-        else:
-            error_log_file = "errors.log"
-        error_details = defaultdict(list)  # Dictionary to hold errors grouped by category
-
-        sql_parser = SQLLogicParser(None)
-        all_results = []  # To collect statistics for all files
-        execution_times_s = []  # Execution times in seconds for all queries in the order they were executed
-        total_tests = 0  # Total number of tests across all files
-        total_successful = 0  # Total number of successful tests across all files
-        total_failed = 0  # Total number of failed tests across all files
-
-        for i, file_path in enumerate(file_paths):
-            if file_path in executor.SKIPPED_TESTS:
-                continue
-
-            print(f'[{i + 1}/{len(file_paths)}] {file_path}')
-            try:
-                test = sql_parser.parse(file_path)
-            except SQLParserException as e:
-                raise e
-                executor.skip_log.append(str(e.message))
-                continue
-
-            skipped_statements_count = 0
-            for st in test.statements:
-                decorators = st.decorators
-                if decorators:
-                    if isinstance(decorators[0], SkipIf):
-                        skip_decorator = decorators[0]
-                        if skip_decorator.token.parameters[0] == 'always':
-                            skipped_statements_count += 1
-
-            if skipped_statements_count == len(test.statements):
-                # Collect statistics for the file
-                file_total_tests = skipped_statements_count
-                file_successful_tests = 0
-                file_failed_tests = 0
-                file_success_percentage = 0
-            else:
-                # This is necessary to clean up databases/connections
-                # So previously created databases are not still cached in the instance_cache
-                gc.collect()
-                result = executor.execute_test(test)
-                queries_for_coverage = [q for q in result.queries if not q.exclude_from_coverage]
-                # Collect statistics for the file
-                file_total_tests = len(queries_for_coverage)  # Total tests in file
-                execution_times_s += [query.execution_time_s for query in queries_for_coverage]
-                file_successful_tests = sum(1 for query in queries_for_coverage if query.success)  # Successful tests
-                file_failed_tests = file_total_tests - file_successful_tests  # Failed tests
-                file_ran_tests = file_successful_tests + file_failed_tests
-                file_success_percentage = (file_successful_tests / file_ran_tests) * 100 if file_ran_tests > 0 else 0
-
-            # Update cumulative totals
-            total_tests += file_total_tests
-            total_successful += file_successful_tests
-            total_failed += file_failed_tests
-
-            page_name = extract_file_name(file_path)
-            category = file_path.split('/')[-2]
-
-            # Record the results for this file
-            all_results.append({
-                "category": category,
-                "page_name": page_name,
-                "total_tests": file_total_tests,
-                "successful_tests": file_successful_tests,
-                "failed_tests": file_failed_tests,
-                "success_percentage": round(file_success_percentage, 2)
-            })
-
-            if skipped_statements_count != len(test.statements):
-                for query in queries_for_coverage:
-                    if not query.success:  # Process failed tests
-                        error_message = query.error_message if hasattr(query, "error_message") else "Unknown Error"
-                        error_details[page_name].append({
-                            "error_message": error_message
-                        })
-
-        # Sort results by category
-        sorted_results = sorted(all_results, key=lambda x: x["category"])
-
-        display_page_results(sorted_results, total_tests, total_successful, total_failed)
-        display_category_results(sorted_results)
-
-        # Write results to CSV file
-        csv_file_name = f"{run_mode}_test_statistics.csv" if benchmark_mode else "test_statistics.csv"
-        with open(csv_file_name, "w", newline="") as csvfile:
-            writer = csv.DictWriter(csvfile,
-                                    fieldnames=["page_name", "category", "total_tests", "successful_tests",
-                                                "failed_tests",
-                                                "success_percentage"])
-            writer.writeheader()  # CSV header
-            writer.writerows(all_results)  # Write each file's result
-
-        if benchmark_mode:
-            print(f"\nStatistics for {run_mode} mode tests have been saved to {csv_file_name}.")
-        else:
-            print(f"\nStatistics SLT have been saved to {csv_file_name}.")
-
-        # Write error log to a file grouped by categories
-        with open(error_log_file, "w") as error_file:
-            for page_name, errors in error_details.items():
-                error_file.write(f"Page name: {page_name}\n\n\n")
-                for error in errors:
-                    error_file.write(f"{error['error_message']}\n")
-
-        # Calculate and display total execution time for benchmark mode
-        if benchmark_mode:
-            total_time = time.time() - start_time
-            print(f"\nTotal execution time for {run_mode} run: {total_time:.2f} seconds")
-
-            # Save timing information to CSV
-            with open(f"{run_mode}_run_timing.csv", "w", newline="") as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["Run Mode", "Total Time (s)"])
-                writer.writerow([run_mode, total_time])
-
-            # Save per-query execution times to a separate CSV
-            with open(f"{run_mode}_execution_times.csv", "w", newline="") as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["#", "time(s)"])
-                for i, time_s in enumerate(execution_times_s):
-                    writer.writerow([i + 1, time_s])
-
-        executor.cleanup()  # Clean up connection pool
-
-        # Analyze performance for this run
-        if benchmark_mode and not os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
-            performance_stats = executor.analyze_query_performance(run_mode)
-            if performance_stats:
-                print(f"\n{run_mode.capitalize()} Run Query Performance:")
-                print(f"Total queries analyzed: {performance_stats['count']}")
-                print(f"Average compilation time: {performance_stats['avg_compilation_ms']:.2f} ms")
-                print(f"Average execution time: {performance_stats['avg_execution_ms']:.2f} ms")
-                print(f"Average total time: {performance_stats['avg_total_ms']:.2f} ms")
+            self.run_files_parallel(config, file_paths, test_directory, benchmark_mode, default_run_mode, start_time,
+                                    workers)
 
     def compare_benchmark_results(self):
         """Compare benchmark results between hot and cold runs"""

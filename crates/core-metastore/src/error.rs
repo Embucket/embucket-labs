@@ -105,7 +105,7 @@ pub enum MetastoreError {
     UrlParse { source: url::ParseError },
 }
 
-pub type MetastoreResult<T> = std::result::Result<T, MetastoreError>;
+pub type MetastoreResult<T> = std::result::Result<T, Box<MetastoreError>>;
 
 impl From<validator::ValidationErrors> for MetastoreError {
     fn from(source: validator::ValidationErrors) -> Self {

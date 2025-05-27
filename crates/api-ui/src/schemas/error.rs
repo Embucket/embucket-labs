@@ -24,12 +24,23 @@ pub enum SchemasAPIError {
     List { source: ExecutionError },
 }
 
+// Add conversion from Box<MetastoreError> to SchemasAPIError
+impl From<Box<MetastoreError>> for SchemasAPIError {
+    fn from(boxed_error: Box<MetastoreError>) -> Self {
+        let error = *boxed_error;
+        match error {
+            err @ MetastoreError::SchemaNotFound { .. } => Self::Get { source: err },
+            err => Self::Update { source: err },
+        }
+    }
+}
+
 // Select which status code to return.
 impl IntoStatusCode for SchemasAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Create { source } => match &source {
-                ExecutionError::Metastore { source } => match source {
+                ExecutionError::Metastore { source } => match &**source {
                     MetastoreError::SchemaAlreadyExists { .. }
                     | MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
                     MetastoreError::DatabaseNotFound { .. } | MetastoreError::Validation { .. } => {
@@ -44,9 +55,10 @@ impl IntoStatusCode for SchemasAPIError {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Delete { source } => match &source {
-                ExecutionError::Metastore {
-                    source: MetastoreError::SchemaNotFound { .. },
-                } => StatusCode::NOT_FOUND,
+                ExecutionError::Metastore { source } => match &**source {
+                    MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
+                    _ => StatusCode::INTERNAL_SERVER_ERROR,
+                },
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Update { source } => match &source {

@@ -201,76 +201,76 @@ impl TableRequirementExt {
         match self.inner() {
             TableRequirement::AssertCreate => {
                 if exists {
-                    return Err(MetastoreError::TableDataExists {
+                    return Err(Box::new(MetastoreError::TableDataExists {
                         location: metadata.location.to_string(),
-                    });
+                    }));
                 }
             }
             TableRequirement::AssertTableUuid { uuid } => {
                 if &metadata.table_uuid != uuid {
-                    return Err(MetastoreError::TableRequirementFailed {
+                    return Err(Box::new(MetastoreError::TableRequirementFailed {
                         message: "Table uuid does not match".to_string(),
-                    });
+                    }));
                 }
             }
             TableRequirement::AssertCurrentSchemaId { current_schema_id } => {
                 if metadata.current_schema_id != *current_schema_id {
-                    return Err(MetastoreError::TableRequirementFailed {
+                    return Err(Box::new(MetastoreError::TableRequirementFailed {
                         message: "Table current schema id does not match".to_string(),
-                    });
+                    }));
                 }
             }
             TableRequirement::AssertDefaultSortOrderId {
                 default_sort_order_id,
             } => {
                 if metadata.default_sort_order_id != *default_sort_order_id {
-                    return Err(MetastoreError::TableRequirementFailed {
+                    return Err(Box::new(MetastoreError::TableRequirementFailed {
                         message: "Table default sort order id does not match".to_string(),
-                    });
+                    }));
                 }
             }
             TableRequirement::AssertRefSnapshotId { r#ref, snapshot_id } => {
                 if let Some(snapshot_id) = snapshot_id {
                     let snapshot_ref = metadata.refs.get(r#ref).ok_or_else(|| {
-                        MetastoreError::TableRequirementFailed {
+                        Box::new(MetastoreError::TableRequirementFailed {
                             message: "Table ref not found".to_string(),
-                        }
+                        })
                     })?;
                     if snapshot_ref.snapshot_id != *snapshot_id {
-                        return Err(MetastoreError::TableRequirementFailed {
+                        return Err(Box::new(MetastoreError::TableRequirementFailed {
                             message: "Table ref snapshot id does not match".to_string(),
-                        });
+                        }));
                     }
                 } else if metadata.refs.contains_key(r#ref) {
-                    return Err(MetastoreError::TableRequirementFailed {
+                    return Err(Box::new(MetastoreError::TableRequirementFailed {
                         message: "Table ref already exists".to_string(),
-                    });
+                    }));
                 }
             }
             TableRequirement::AssertDefaultSpecId { default_spec_id } => {
                 // ToDo: Harmonize the types of default_spec_id
                 if metadata.default_spec_id != *default_spec_id {
-                    return Err(MetastoreError::TableRequirementFailed {
+                    return Err(Box::new(MetastoreError::TableRequirementFailed {
                         message: "Table default spec id does not match".to_string(),
-                    });
+                    }));
                 }
             }
             TableRequirement::AssertLastAssignedPartitionId {
                 last_assigned_partition_id,
             } => {
                 if metadata.last_partition_id != *last_assigned_partition_id {
-                    return Err(MetastoreError::TableRequirementFailed {
+                    return Err(Box::new(MetastoreError::TableRequirementFailed {
                         message: "Table last assigned partition id does not match".to_string(),
-                    });
+                    }));
                 }
             }
             TableRequirement::AssertLastAssignedFieldId {
                 last_assigned_field_id,
             } => {
                 if &metadata.last_column_id != last_assigned_field_id {
-                    return Err(MetastoreError::TableRequirementFailed {
+                    return Err(Box::new(MetastoreError::TableRequirementFailed {
                         message: "Table last assigned field id does not match".to_string(),
-                    });
+                    }));
                 }
             }
         }

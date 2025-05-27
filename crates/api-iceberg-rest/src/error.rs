@@ -4,9 +4,31 @@ use http;
 use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
 
-#[derive(Snafu, Debug)]
-pub struct IcebergAPIError(pub MetastoreError);
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub))]
+pub enum IcebergAPIError {
+    #[snafu(display("Metastore error: {source}"))]
+    Metastore {
+        #[snafu(source(from(MetastoreError, Box::new)))]
+        source: Box<MetastoreError>,
+    },
+}
+
 pub type IcebergAPIResult<T> = Result<T, IcebergAPIError>;
+
+impl From<MetastoreError> for IcebergAPIError {
+    fn from(error: MetastoreError) -> Self {
+        Self::Metastore {
+            source: Box::new(error),
+        }
+    }
+}
+
+impl From<Box<MetastoreError>> for IcebergAPIError {
+    fn from(error: Box<MetastoreError>) -> Self {
+        Self::Metastore { source: error }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
@@ -16,8 +38,12 @@ pub struct ErrorResponse {
 
 impl IntoResponse for IcebergAPIError {
     fn into_response(self) -> axum::response::Response {
-        let message = (self.0.to_string(),);
-        let code = match self.0 {
+        let metastore_error = match self {
+            Self::Metastore { source } => source,
+        };
+
+        let message = metastore_error.to_string();
+        let code = match *metastore_error {
             MetastoreError::TableDataExists { .. }
             | MetastoreError::ObjectAlreadyExists { .. }
             | MetastoreError::VolumeAlreadyExists { .. }
@@ -50,7 +76,7 @@ impl IntoResponse for IcebergAPIError {
         };
 
         let error = ErrorResponse {
-            message: message.0,
+            message,
             status_code: code.as_u16(),
         };
         (code, Json(error)).into_response()

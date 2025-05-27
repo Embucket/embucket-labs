@@ -24,6 +24,17 @@ pub enum VolumesAPIError {
     List { source: ExecutionError },
 }
 
+// Add conversion from Box<MetastoreError> to VolumesAPIError
+impl From<Box<MetastoreError>> for VolumesAPIError {
+    fn from(boxed_error: Box<MetastoreError>) -> Self {
+        let error = *boxed_error;
+        match error {
+            err @ MetastoreError::VolumeNotFound { .. } => Self::Get { source: err },
+            err @ MetastoreError::VolumeAlreadyExists { .. } | err => Self::Create { source: err },
+        }
+    }
+}
+
 // Select which status code to return.
 impl IntoStatusCode for VolumesAPIError {
     fn status_code(&self) -> StatusCode {

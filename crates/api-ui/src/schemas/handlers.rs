@@ -103,7 +103,7 @@ pub async fn create_schema(
                 schema: payload.name.clone(),
             },
         }),
-        Err(e) => Err(SchemasAPIError::Get { source: e }),
+        Err(e) => Err(SchemasAPIError::from(e)),
     }
 }
 
@@ -188,7 +188,7 @@ pub async fn get_schema(
                 schema: schema_name.clone(),
             },
         }),
-        Err(e) => Err(SchemasAPIError::Get { source: e }),
+        Err(e) => Err(SchemasAPIError::from(e)),
     }
 }
 
@@ -226,7 +226,7 @@ pub async fn update_schema(
         .metastore
         .update_schema(&schema_ident, schema.data.into())
         .await
-        .map_err(|e| SchemasAPIError::Update { source: e })
+        .map_err(SchemasAPIError::from)
         .map(|rw_object| {
             Json(SchemaUpdateResponse {
                 data: rw_object.into(),

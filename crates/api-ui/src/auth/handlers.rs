@@ -34,15 +34,11 @@ pub fn cookies_from_header(headers: &HeaderMap) -> HashMap<&str, &str> {
     let cookies = headers.get_all(http::header::COOKIE);
 
     for value in cookies.iter() {
-        match value.to_str() {
-            Ok(cookie_str) => {
-                // parse separate cookes
-                for cookie in cookie_str.split(';') {
-                    let parts: Vec<&str> = cookie.trim().split('=').collect();
-                    cookies_map.insert(parts[0], parts[1]);
-                }
+        if let Ok(cookie_str) = value.to_str() {
+            for cookie in cookie_str.split(';') {
+                let parts: Vec<&str> = cookie.trim().split('=').collect();
+                cookies_map.insert(parts[0], parts[1]);
             }
-            _ => (), // ignore error in cookie header
         }
     }
     cookies_map
@@ -285,15 +281,12 @@ pub async fn logout(
 
     let cookies_map = cookies_from_header(&headers);
 
-    match cookies_map.get("refresh_token") {
-        Some(refresh_token) => {
-            let audience = state.config.host.clone();
+    if let Some(refresh_token) = cookies_map.get("refresh_token") {
+        let audience = state.config.host.clone();
 
-            let _ = get_claims_validate_jwt_token(refresh_token, &audience, jwt_secret)
-                .context(BadRefreshTokenSnafu)?;
-        }
-        // logout doesn't return unuathorized
-        None => (),
+        let _ = get_claims_validate_jwt_token(refresh_token, &audience, jwt_secret)
+            .context(BadRefreshTokenSnafu)?;
+        // logout doesn't return unauthorized
     }
 
     // unset refresh_token, access_token cookies

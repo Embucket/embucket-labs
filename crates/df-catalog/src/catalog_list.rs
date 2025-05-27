@@ -2,7 +2,7 @@ use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::CachingCatalog;
 use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
-use crate::error::{DataFusionSnafu, Error, MetastoreSnafu, Result, S3TablesSnafu};
+use crate::error::{DataFusionSnafu, Error, MetastoreSnafu, Result};
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
@@ -143,7 +143,9 @@ impl EmbucketCatalogList {
                 volume.arn.as_str(),
                 ObjectStoreBuilder::S3(volume.s3_builder()),
             )
-            .context(S3TablesSnafu)?;
+            .map_err(|e| Error::S3Tables {
+                source: Box::new(e),
+            })?;
 
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await

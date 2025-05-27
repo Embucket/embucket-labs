@@ -32,7 +32,7 @@ pub async fn list_volumes(
         .iter_volumes()
         .collect()
         .await
-        .map_err(|e| MetastoreAPIError(MetastoreError::UtilSlateDB { source: e }))?
+        .map_err(|e| MetastoreAPIError::from(MetastoreError::UtilSlateDB { source: e }))?
         .iter()
         .map(|v| hide_sensitive(v.clone()))
         .collect();
@@ -50,7 +50,7 @@ pub async fn get_volume(
             volume: volume_name.clone(),
         }
         .into()),
-        Err(e) => Err(e.into()),
+        Err(e) => Err(MetastoreAPIError::from(e)),
     }
 }
 
@@ -66,7 +66,7 @@ pub async fn create_volume(
         .metastore
         .create_volume(&volume.ident.clone(), volume)
         .await
-        .map_err(MetastoreAPIError)
+        .map_err(|e: Box<MetastoreError>| MetastoreAPIError::from(e))
         .map(|v| Json(hide_sensitive(v)))
 }
 
@@ -83,7 +83,7 @@ pub async fn update_volume(
         .metastore
         .update_volume(&volume_name, volume)
         .await
-        .map_err(MetastoreAPIError)
+        .map_err(|e: Box<MetastoreError>| MetastoreAPIError::from(e))
         .map(|v| Json(hide_sensitive(v)))
 }
 
@@ -97,7 +97,7 @@ pub async fn delete_volume(
         .metastore
         .delete_volume(&volume_name, query.cascade.unwrap_or_default())
         .await
-        .map_err(MetastoreAPIError)
+        .map_err(|e: Box<MetastoreError>| MetastoreAPIError::from(e))
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -122,7 +122,7 @@ pub async fn list_databases(
         .iter_databases()
         .collect()
         .await
-        .map_err(|e| MetastoreAPIError(MetastoreError::UtilSlateDB { source: e }))
+        .map_err(|e| MetastoreAPIError::from(MetastoreError::UtilSlateDB { source: e }))
         .map(Json)
 }
 
@@ -137,7 +137,7 @@ pub async fn get_database(
             db: database_name.clone(),
         }
         .into()),
-        Err(e) => Err(e.into()),
+        Err(e) => Err(MetastoreAPIError::from(e)),
     }
 }
 
@@ -153,6 +153,6 @@ pub async fn create_database(
         .metastore
         .create_database(&database.ident.clone(), database)
         .await
-        .map_err(MetastoreAPIError)
+        .map_err(|e: Box<MetastoreError>| MetastoreAPIError::from(e))
         .map(Json)
 }

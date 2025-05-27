@@ -5,3 +5,4 @@ WEB_ASSETS_TARBALL_PATH = { value = "ui/dist.tar", relative = true }
 [alias]
 dev = "run -- --backend=memory --cors-allow-origin=http://127.0.0.1:8080 --cors-enabled=true"
 auth_demo = "run -- --jwt-secret=test --backend=memory --cors-allow-origin=http://127.0.0.1:8080 --cors-enabled=true"
+lint = "clippy --all-targets --workspace"
