@@ -1,14 +1,8 @@
-<!-- SLT_BADGE_START -->
-[![SLT Coverage: 25.9%](https://img.shields.io/badge/SLT_Coverage-25.9%25-A45A2A?style=for-the-badge&logo=database&logoColor=white)](test/README.md)
-<!-- SLT_BADGE_END -->
+[![SQL Logic Test Coverage](https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/test-assets/assets/badge.svg)](test/README.md)
 
-<!-- SLT_COVERAGE_START -->
 ## SLT coverage
-
-![Test Statistics Visualization](assets/test_coverage_visualization.png)
-
+![Test Coverage Visualization](https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/test-assets/assets/test_coverage_visualization.png)
 *This visualization is automatically updated by CI/CD when tests are run.*
-<!-- SLT_COVERAGE_END -->
 
 # SQL Logic Tests
 We have a set of `.slt` files that represent our SQL Logic Tests. You can run them against Snowflake or Embucket.

@@ -1,10 +1,7 @@
 # Embucket: Snowflake compatible lakehouse platform  
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-<!-- SLT_BADGE_START -->
-[![SLT Coverage: 25.9%](https://img.shields.io/badge/SLT_Coverage-25.9%25-A45A2A?style=for-the-badge&logo=database&logoColor=white)](test/README.md)
-<!-- SLT_BADGE_END -->
-
+[![SQL Logic Test Coverage](https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/test-assets/assets/badge.svg)](test/README.md)
 
 Embucket is an Apache‑2.0‑licensed, Snowflake‑compatible lakehouse platform built for radical simplicity and full openness. It delivers:  
 - A **Snowflake‑style** REST API and SQL dialect  
@@ -55,13 +52,9 @@ It is built on top of several open source projects:
 
 Embucket has deep integration with AWS S3 table buckets and relies on them for proper table maintenance.
 
-<!-- SLT_COVERAGE_START -->
 ## SLT coverage
-
-![Test Statistics Visualization](test/assets/test_coverage_visualization.png)
-
+![Test Coverage Visualization](https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/test-assets/assets/test_coverage_visualization.png)
 *This visualization is automatically updated by CI/CD when tests are run.*
-<!-- SLT_COVERAGE_END -->
 
 ### Install Embucket  
 
