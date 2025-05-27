@@ -12,6 +12,8 @@ on:
       - Cargo.toml
       - Cargo.lock
       - Dockerfile
+      - .github/workflows/**
+      - test/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
