@@ -130,6 +130,7 @@ macro_rules! test_query {
         $query:expr
         $(, setup_queries =[$($setup_queries:expr),* $(,)?])?
         $(, sort_all = $sort_all:expr)?
+        $(, exclude_columns = [$($excluded:expr),* $(,)?])?
         $(, snapshot_path = $user_snapshot_path:expr)?
     ) => {
         paste::paste! {
@@ -150,7 +151,9 @@ macro_rules! test_query {
                 let mut query = ctx.query($query, $crate::query::QueryContext::default());
                 let res = query.execute().await;
                 let sort_all = false $(|| $sort_all)?;
-
+                let excluded_columns: std::collections::HashSet<&str> = std::collections::HashSet::from([
+                    $($($excluded),*)?
+                ]);
                 let mut settings = insta::Settings::new();
                 settings.set_description(stringify!($query));
                 settings.set_omit_expression(true);
@@ -165,6 +168,10 @@ macro_rules! test_query {
                     let df = match res {
                         Ok(record_batches) => {
                             let mut batches: Vec<datafusion::arrow::array::RecordBatch> = record_batches.records;
+                            if !excluded_columns.is_empty() {
+                                batches = df_catalog::test_utils::remove_columns_from_batches(batches, &excluded_columns);
+                            }
+
                             if sort_all {
                                 for batch in &mut batches {
                                     *batch = df_catalog::test_utils::sort_record_batch_by_sortable_columns(batch);
@@ -409,6 +416,7 @@ test_query!(
     alter_session_set,
     "SHOW VARIABLES",
     setup_queries = ["ALTER SESSION SET v1 = 'test'"],
+    exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );
 test_query!(
@@ -418,6 +426,7 @@ test_query!(
         "ALTER SESSION SET v1 = 'test' v2 = 1",
         "ALTER SESSION UNSET v1"
     ],
+    exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );
 
@@ -433,6 +442,7 @@ test_query!(
     use_role,
     "SHOW VARIABLES",
     setup_queries = ["USE ROLE test_role"],
+    exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );
 
@@ -440,24 +450,28 @@ test_query!(
     use_secondary_roles,
     "SHOW VARIABLES",
     setup_queries = ["USE SECONDARY ROLES test_role"],
+    exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );
 test_query!(
     use_warehouse,
     "SHOW VARIABLES",
     setup_queries = ["USE WAREHOUSE test_warehouse"],
+    exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );
 test_query!(
     use_database,
     "SHOW VARIABLES",
     setup_queries = ["USE DATABASE test_db"],
+    exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );
 test_query!(
     use_schema,
     "SHOW VARIABLES",
     setup_queries = ["USE SCHEMA test_schema"],
+    exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );
 
@@ -466,12 +480,14 @@ test_query!(
     "SHOW VARIABLES",
     setup_queries = ["SET v1 = 'test'", "SET v2 = 1", "SET v3 = true"],
     sort_all = true,
+    exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );
 test_query!(
     set_variable,
     "SHOW VARIABLES",
     setup_queries = ["SET v1 = 'test'"],
+    exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );
 test_query!(

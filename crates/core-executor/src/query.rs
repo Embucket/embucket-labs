@@ -54,11 +54,12 @@ use super::catalog::{
 };
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu};
-use super::session::{SessionProperty, UserSession};
+use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element};
 use crate::models::QueryResult;
 use df_catalog::catalog::CachingCatalog;
+use df_catalog::information_schema::session_params::SessionProperty;
 use tracing_attributes::instrument;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -188,7 +189,12 @@ impl UserQuery {
                     let params = session_params
                         .options
                         .into_iter()
-                        .map(|v| (v.option_name.clone(), SessionProperty::from_key_value(&v)))
+                        .map(|v| {
+                            (
+                                v.option_name.clone(),
+                                SessionProperty::from_key_value(&v, self.session.ctx.session_id()),
+                            )
+                        })
                         .collect();
 
                     self.session.set_session_variable(set, params)?;
@@ -214,7 +220,7 @@ impl UserQuery {
                     }
                     let params = HashMap::from([(
                         variable.to_string(),
-                        SessionProperty::from_string_value(value),
+                        SessionProperty::from_str_value(value, Some(self.session.ctx.session_id())),
                     )]);
                     self.session.set_session_variable(true, params)?;
                     return status_response();
@@ -225,7 +231,10 @@ impl UserQuery {
                     let values: Vec<SessionProperty> = value
                         .iter()
                         .map(|v| match v {
-                            Expr::Value(v) => Ok(SessionProperty::from_value(&v.value)),
+                            Expr::Value(v) => Ok(SessionProperty::from_value(
+                                &v.value,
+                                self.session.ctx.session_id(),
+                            )),
                             _ => Err(ExecutionError::DataFusion {
                                 source: DataFusionError::NotImplemented(
                                     "Only primitive statements are supported".to_string(),
@@ -1131,16 +1140,17 @@ impl UserQuery {
             Statement::ShowVariables { filter, .. } => {
                 let sql = format!(
                     "SELECT
-                        NULL as created_on,
-                        NULL as updated_on,
-                        name,
+                        session_id,
+                        name AS name,
                         value,
-                        NULL as type,
-                        description as comment
+                        type,
+                        description as comment,
+                        created_on,
+                        updated_on,
                     FROM {}.information_schema.df_settings",
                     self.current_database()
                 );
-                let mut filters = vec!["name LIKE 'session_params.%'".to_string()];
+                let mut filters = vec!["session_id is NOT NULL".to_string()];
                 if let Some(ShowStatementFilter::Like(pattern)) = filter {
                     filters.push(format!("name LIKE '{pattern}'"));
                 }
