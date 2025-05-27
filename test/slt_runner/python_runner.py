@@ -729,6 +729,28 @@ class SQLLogicPythonRunner:
             print("Please set EMBUCKET_ENABLED=false in .env file when using benchmark mode")
             return
 
+        # Early check for Embucket connectivity if enabled
+        if os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
+            try:
+                # Verify Embucket server is available
+                catalog_url = f"{config['protocol']}://{config['host']}:{config['port']}"
+                headers = {'Content-Type': 'application/json'}
+
+                try:
+                    response = requests.get(catalog_url, headers=headers, timeout=5)
+                    if response.status_code != 200:
+                        print(f"ERROR: Embucket server returned status {response.status_code}")
+                        print("Please ensure Embucket server is running correctly")
+                        return
+                except (requests.exceptions.RequestException, requests.exceptions.Timeout) as e:
+                    print(f"ERROR: Could not connect to Embucket server: {e}")
+                    print("Please ensure Embucket server is running and accessible")
+                    return
+
+            except Exception as e:
+                print(f"ERROR: Embucket configuration error: {e}")
+                return
+
         # Process test files
         file_paths = None
 
