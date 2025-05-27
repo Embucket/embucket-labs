@@ -90,6 +90,8 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
     ["test/sql/file1.slt", "test/sql/file2.slt"]
     """
 
+    print(prompt)
+
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
@@ -99,6 +101,8 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
 
     # Extract JSON from response
     response_text = response.choices[0].message.content.strip()
+
+    print(response_text)
 
     # Try to extract JSON array if it's not already a valid JSON
     if not response_text.startswith('['):
