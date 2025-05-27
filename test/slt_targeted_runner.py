@@ -11,19 +11,22 @@ from openai import OpenAI
 
 def import_slt_runner():
     """
-    Import the SLT runner module from the test directory
+    Import the SLT runner module from the slt_runner directory
     This is needed because the module is not installed in the Python path
     """
     # Get the absolute path to the test directory
     test_dir = os.path.abspath(os.path.dirname(__file__))
 
-    # Add the test directory to the Python path
-    sys.path.insert(0, test_dir)
+    # Add the slt_runner directory to the Python path
+    slt_runner_dir = os.path.join(test_dir, "slt_runner")
+    sys.path.insert(0, slt_runner_dir)
 
     # Import the SLT runner module
     from python_runner import SQLLogicPythonRunner
 
     return sys.modules['python_runner']
+
+
 
 
 def get_changed_files(base_branch="main"):
