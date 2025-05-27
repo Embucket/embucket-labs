@@ -31,107 +31,66 @@ def import_slt_runner():
 
 def get_changed_files(base_branch="main"):
     """
-    Get the list of files changed in the current branch compared to base_branch
+    Get the list of files changed in the current PR using git merge-base
     Optimized for GitHub Actions environment
     """
     try:
-        # First, try to get the list of files changed in the PR using GitHub-specific environment
-        if os.environ.get('GITHUB_BASE_REF') and os.environ.get('GITHUB_HEAD_REF'):
+        # Get the base and head refs from GitHub Actions environment
+        if os.environ.get('GITHUB_BASE_REF'):
             base_ref = os.environ.get('GITHUB_BASE_REF')
-            head_ref = os.environ.get('GITHUB_HEAD_REF')
-            print(f"GitHub Actions environment detected. Comparing {base_ref}...{head_ref}")
-            try:
-                # Make sure both refs are available
-                subprocess.run(["git", "fetch", "origin", base_ref, head_ref], check=True, capture_output=True)
-                # Use the full refs to avoid local branch issues
-                cmd = ["git", "diff", "--name-only", f"origin/{base_ref}", f"origin/{head_ref}"]
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                changed_files = [f for f in result.stdout.strip().split("\n") if f]
+            print(f"GitHub Actions environment detected. Using base ref: {base_ref}")
 
-                if changed_files:
-                    file_contents = {}
-                    for file in changed_files:
-                        try:
-                            with open(file, 'r') as f:
-                                file_contents[file] = f.read()
-                        except Exception as e:
-                            print(f"Failed to read file {file}: {e}")
-                            file_contents[file] = f"Failed to read file: {e}"
-                    return file_contents
-            except Exception as e:
-                print(f"GitHub-specific approach failed: {e}")
+            # Make sure the base ref is available
+            subprocess.run(["git", "fetch", "origin", base_ref], check=True, capture_output=True)
 
-        # If we're not in GitHub or the GitHub-specific approach failed, try the normal git approach
-        print(f"Trying standard git diff with base branch: {base_branch}")
+            # Find the merge-base (common ancestor) between the base branch and the current HEAD
+            merge_base_cmd = ["git", "merge-base", f"origin/{base_ref}", "HEAD"]
+            merge_base = subprocess.run(merge_base_cmd, capture_output=True, text=True, check=True).stdout.strip()
+            print(f"Found merge-base: {merge_base}")
 
-        # Make sure the base branch is available
-        try:
-            subprocess.run(["git", "fetch", "origin", base_branch], check=True, capture_output=True)
-        except Exception as e:
-            print(f"Failed to fetch {base_branch}: {e}")
-
-        # Try different git diff approaches
-        diff_approaches = [
-            ["git", "diff", "--name-only", f"origin/{base_branch}...HEAD"],
-            ["git", "diff", "--name-only", f"origin/{base_branch}", "HEAD"],
-            ["git", "diff", "--name-only", base_branch, "HEAD"],
-            ["git", "diff", "--name-only", "HEAD^", "HEAD"]  # Last commit only, fallback
-        ]
-
-        for cmd in diff_approaches:
-            try:
-                print(f"Trying: {' '.join(cmd)}")
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                changed_files = [f for f in result.stdout.strip().split("\n") if f]
-
-                if changed_files:
-                    print(f"Found {len(changed_files)} changed files")
-                    file_contents = {}
-                    for file in changed_files:
-                        try:
-                            with open(file, 'r') as f:
-                                file_contents[file] = f.read()
-                        except Exception as e:
-                            print(f"Failed to read file {file}: {e}")
-                            file_contents[file] = f"Failed to read file: {e}"
-                    return file_contents
-            except Exception as e:
-                print(f"Approach failed: {e}")
-
-        # If all specific approaches failed, just get the list of all files that were modified in any way
-        print("All git diff approaches failed, falling back to listing all tracked files")
-        try:
-            cmd = ["git", "ls-files"]
+            # Get changes between the merge-base and HEAD
+            cmd = ["git", "diff", "--name-only", merge_base, "HEAD"]
+            print(f"Running: {' '.join(cmd)}")
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            all_files = [f for f in result.stdout.strip().split("\n") if f]
+            changed_files = [f for f in result.stdout.strip().split("\n") if f]
 
-            # Filter to only include files that match typical patterns we care about
-            relevant_patterns = [
-                r"\.py$", r"\.rs$", r"\.sql$", r"\.slt$",
-                r"\.yml$", r"\.yaml$", r"\.toml$", r"\.json$"
-            ]
-            relevant_files = []
-            for file in all_files:
-                if any(re.search(pattern, file) for pattern in relevant_patterns):
-                    relevant_files.append(file)
-
-            print(f"Found {len(relevant_files)} relevant files out of {len(all_files)} total files")
-
+            print(f"Found {len(changed_files)} changed files")
             file_contents = {}
-            for file in relevant_files[:50]:  # Limit to 50 files to avoid overloading
+            for file in changed_files:
                 try:
-                    with open(file, 'r') as f:
-                        file_contents[file] = f.read()
+                    if os.path.exists(file):
+                        with open(file, 'r') as f:
+                            file_contents[file] = f.read()
+                    else:
+                        print(f"File {file} doesn't exist (might have been deleted)")
+                        file_contents[file] = "File no longer exists"
                 except Exception as e:
                     print(f"Failed to read file {file}: {e}")
-
+                    file_contents[file] = f"Failed to read file: {e}"
             return file_contents
-        except Exception as e:
-            print(f"Final fallback approach failed: {e}")
-            return {}
+        else:
+            # Fallback to using the provided base_branch if not in GitHub Actions
+            print(f"Not in GitHub Actions environment, using base branch: {base_branch}")
+            subprocess.run(["git", "fetch", "origin", base_branch], check=True, capture_output=True)
+            cmd = ["git", "diff", "--name-only", f"origin/{base_branch}", "HEAD"]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            changed_files = [f for f in result.stdout.strip().split("\n") if f]
 
+            file_contents = {}
+            for file in changed_files:
+                try:
+                    if os.path.exists(file):
+                        with open(file, 'r') as f:
+                            file_contents[file] = f.read()
+                    else:
+                        print(f"File {file} doesn't exist (might have been deleted)")
+                        file_contents[file] = "File no longer exists"
+                except Exception as e:
+                    print(f"Failed to read file {file}: {e}")
+                    file_contents[file] = f"Failed to read file: {e}"
+            return file_contents
     except Exception as e:
-        print(f"Failed to get changed files: {e}")
+        print(f"Error in get_changed_files: {e}")
         return {}
 
 
