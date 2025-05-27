@@ -543,7 +543,7 @@ test_query!(
 
 // Session context with alias
 test_query!(
-    current_session_context_with_alieas,
+    current_session_context_with_aliases,
     "SELECT CURRENT_WAREHOUSE() as wh, CURRENT_DATABASE() as db, CURRENT_SCHEMA() as sch",
     snapshot_path = "session"
 );
