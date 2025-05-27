@@ -98,24 +98,19 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
-          # Create and checkout the test-assets branch
-          git fetch origin test-assets || true
-          if git rev-parse --verify origin/test-assets >/dev/null 2>&1; then
-            git checkout -b test-assets origin/test-assets
-          else
-            git checkout --orphan test-assets
-            git rm -rf .
-          fi
+          # Create a new orphan branch for test-assets
+          git checkout --orphan test-assets
+          git rm -rf .
           
           # Create assets directory
           mkdir -p assets
           
           # Copy assets to the root directory
-          cp -r ../test/test-assets/* assets/
+          cp -r test/test-assets/* assets/
           
           # Add and commit
           git add assets
           git commit -m "Update test assets [Coverage: $COVERAGE%] [skip ci]" || echo "No changes to commit"
           
-          # Force push to test-assets branch
+          # Push to test-assets branch (without trying to fetch it first)
           git push origin test-assets --force
