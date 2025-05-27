@@ -61,8 +61,7 @@ impl ExecutionService for RecordingExecutionService {
         let query_res = self.execution.query(session_id, query, query_context).await;
         match query_res {
             Ok(ref res) => {
-                let result_set =
-                    ResultSet::query_result_to_result_set(res.clone(), self.data_format.clone());
+                let result_set = ResultSet::query_result_to_result_set(res, self.data_format);
                 match result_set {
                     Ok(result_set) => {
                         let encoded_res = serde_json::to_string(&result_set);
@@ -93,7 +92,7 @@ impl ExecutionService for RecordingExecutionService {
             // do not raise error, just log ?
             tracing::error!("{err}");
         }
-        query_res.map(|mut q| q.with_query_id(query_record.id))
+        query_res.map(|q| q.with_query_id(query_record.id))
     }
 
     async fn upload_data_to_table(
@@ -146,7 +145,7 @@ pub enum ResultSetError {
 
 impl ResultSet {
     pub fn query_result_to_result_set(
-        query_result: QueryResult,
+        query_result: &QueryResult,
         data_format: DataSerializationFormat,
     ) -> Result<Self, ResultSetError> {
         let buf = Vec::new();

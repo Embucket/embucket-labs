@@ -31,7 +31,7 @@ impl QueryResult {
 
     #[must_use]
     pub fn column_info(&self) -> Vec<ColumnInfo> {
-        ColumnInfo::from_batch(self.schema.clone())
+        ColumnInfo::from_batch(&self.schema)
     }
 }
 
@@ -70,7 +70,7 @@ impl ColumnInfo {
     }
 
     #[must_use]
-    pub fn from_batch(schema: Arc<Schema>) -> Vec<Self> {
+    pub fn from_batch(schema: &Arc<Schema>) -> Vec<Self> {
         let mut column_infos = Vec::new();
         for field in schema.fields() {
             column_infos.push(Self::from_field(field));

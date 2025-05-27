@@ -10,11 +10,8 @@ use crate::{
         schema::{Schema, SchemaIdent},
         table::{Table, TableCreateRequest, TableIdent, TableRequirementExt, TableUpdate},
         volumes::{Volume, VolumeIdent},
-        RwObject,
     },
 };
-#[allow(clippy::wildcard_imports)]
-use crate::models::*;
 use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::Utc;
