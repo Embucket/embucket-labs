@@ -35,7 +35,7 @@ impl From<HttpErrorData> for HttpRequestError {
             ..
         } = value;
         Self::HttpRequest {
-            message: format!("{error:?}, body: {:#?}", body),
+            message: format!("{error:?}, body: {body:#?}"),
             status,
         }
     }

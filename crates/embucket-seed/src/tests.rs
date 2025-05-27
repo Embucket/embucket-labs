@@ -9,7 +9,7 @@ use crate::seed_models::{
 };
 use crate::static_seed_assets::SeedVariant;
 
-use crate::seed_client::seed_client::seed_database;
+use crate::seed_client::seed_database;
 use crate::seed_models::{Column, ColumnType, Database, Schema, Table};
 use api_ui::test_server::run_test_server_with_demo_auth;
 
@@ -53,21 +53,21 @@ fn test_seed_roundtrip() {
                     Database,
                     DatabaseGenerator,
                 >::new(
-                    10,
+                    2,
                     DatabaseGenerator {
                         database_name: None,
                         schemas: SchemasTemplateType::SchemasTemplate(WithCount::<
                             Schema,
                             SchemaGenerator,
                         >::new(
-                            3,
+                            2,
                             SchemaGenerator {
                                 schema_name: None,
                                 tables: TablesTemplateType::TablesTemplate(WithCount::<
                                     Table,
                                     TableGenerator,
                                 >::new(
-                                    5,
+                                    2,
                                     TableGenerator {
                                         table_name: None,
                                         columns: ColumnsTemplateType::ColumnsTemplate(WithCount::<
@@ -122,20 +122,13 @@ fn test_seed_roundtrip() {
     let yaml_serialized =
         serde_yaml::to_string(&seed_root).expect("Failed to serialize seed template");
 
-    eprintln!(
-        "programmatically created typical seed template: \n{}",
-        yaml_serialized
-    );
+    eprintln!("programmatically created typical seed template: \n{yaml_serialized}");
 
     let seed_template =
         parse_seed_template(&yaml_serialized).expect("Failed to read seed template");
     assert_eq!(seed_root, seed_template);
 
-    // Do not generate data here as it increases test time
-
-    // let data = seed_template.generate();
-    // eprintln!(
-    //     "generated seed data: \n{}",
-    //     serde_yaml::to_string(&data).expect("Failed to serialize seed data")
-    // );
+    // just check it is not failing
+    let res = seed_template.generate();
+    assert_ne!(res.len(), 0);
 }

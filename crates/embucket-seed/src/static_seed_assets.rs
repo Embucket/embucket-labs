@@ -35,11 +35,11 @@ impl SeedVariant {
     /// # Returns
     /// A string slice containing the YAML template content.
     #[must_use]
-    pub fn seed_data(&self) -> &'static str {
+    pub const fn seed_data(&self) -> &'static str {
         match self {
-            SeedVariant::Minimal => include_str!("../templates/minimal_seed.yaml"),
-            SeedVariant::Typical => include_str!("../templates/typical_seed.yaml"),
-            SeedVariant::Extreme => include_str!("../templates/extreme_seed.yaml"),
+            Self::Minimal => include_str!("../templates/minimal_seed.yaml"),
+            Self::Typical => include_str!("../templates/typical_seed.yaml"),
+            Self::Extreme => include_str!("../templates/extreme_seed.yaml"),
         }
     }
 }

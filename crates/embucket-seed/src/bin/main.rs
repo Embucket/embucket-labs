@@ -1,17 +1,17 @@
 use clap::Parser;
 use std::{net::SocketAddr, str::FromStr};
-use tracing_subscriber;
 
-use embucket_seed::seed_client::seed_client::seed_database;
+use embucket_seed::seed_client::seed_database;
 use embucket_seed::static_seed_assets::SeedVariant;
 
 #[tokio::main]
+#[allow(clippy::expect_used)]
 async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "info".into())
-                .add_directive("hyper=off".parse().unwrap()),
+                .add_directive("hyper=off".parse().expect("Invalid directive")),
         )
         .init();
 
@@ -56,18 +56,23 @@ pub struct CliOpts {
 }
 
 impl CliOpts {
-    pub fn seed_variant(&self) -> SeedVariant {
+    #[must_use]
+    pub const fn seed_variant(&self) -> SeedVariant {
         self.seed_variant
     }
 
+    #[must_use]
+    #[allow(clippy::expect_used)]
     pub fn server_address(&self) -> SocketAddr {
         SocketAddr::from_str(&self.server_address).expect("Invalid address")
     }
 
+    #[must_use]
     pub fn auth_user(&self) -> String {
         self.auth_user.clone()
     }
 
+    #[must_use]
     pub fn auth_password(&self) -> String {
         self.auth_password.clone()
     }

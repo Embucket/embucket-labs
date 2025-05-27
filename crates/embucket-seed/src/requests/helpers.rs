@@ -9,14 +9,14 @@ use std::collections::HashMap;
 
 /// Extracts all Set-Cookie headers from an HTTP response and returns them as a map.
 ///
-/// The returned map uses cookie names as keys and tuples of (cookie_value, original_header_value)
+/// The returned map uses cookie names as keys and tuples of (`cookie_value`, `original_header_value`)
 /// as values.
 ///
 /// # Arguments
 /// * `headers` - The HTTP headers from the response
 ///
 /// # Returns
-/// A map where keys are cookie names and values are tuples of (cookie_value, header_value)
+/// A map where keys are cookie names and values are tuples of (`cookie_value`, `header_value`)
 #[allow(clippy::explicit_iter_loop)]
 #[must_use]
 pub fn get_set_cookie_from_response_headers(

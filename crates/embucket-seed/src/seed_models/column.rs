@@ -29,19 +29,19 @@ pub enum ColumnType {
 impl fmt::Display for ColumnType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let column_type: &str = match *self {
-            ColumnType::String => "string",
-            ColumnType::Number => "number",
-            ColumnType::Real => "real",
-            ColumnType::Varchar => "varchar",
-            ColumnType::Boolean => "boolean",
-            ColumnType::Int => "int",
-            ColumnType::Date => "date",
-            ColumnType::Timestamp => "timestamp",
-            ColumnType::Variant => "variant",
-            ColumnType::Object => "object",
-            ColumnType::Array => "array",
+            Self::String => "string",
+            Self::Number => "number",
+            Self::Real => "real",
+            Self::Varchar => "varchar",
+            Self::Boolean => "boolean",
+            Self::Int => "int",
+            Self::Date => "date",
+            Self::Timestamp => "timestamp",
+            Self::Variant => "variant",
+            Self::Object => "object",
+            Self::Array => "array",
         };
-        write!(f, "{}", column_type)
+        write!(f, "{column_type}")
     }
 }
 
