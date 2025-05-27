@@ -17,10 +17,12 @@ from pathlib import Path
 import importlib.util
 
 
-# Import the SLT runner module dynamically
 def import_slt_runner(runner_path="test/slt_runner/python_runner.py"):
+    """
+    Import the SLT runner module dynamically
+    """
     spec = importlib.util.spec_from_file_location("python_runner", runner_path)
-    module = importlib.util.spec_from_module_spec(spec)
+    module = importlib.util.module_from_spec(spec)  # This was the line with the error
     spec.loader.exec_module(module)
     return module
 
