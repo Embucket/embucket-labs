@@ -85,9 +85,10 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
     {json.dumps({k: v[:1000] + ("..." if len(v) > 1000 else "") for k, v in all_slts.items()}, indent=2)}
     ```
 
-    Please select the SLT files that are most likely to test the functionality affected by my code changes.
-    Return ONLY a JSON array with the filenames, no explanations or other text. For example:
+    Please select the SLT files that are definitely needed to test the functionality affected by my code changes.
+    Return a JSON array with the filenames. For example:
     ["test/sql/file1.slt", "test/sql/file2.slt"]
+    Also return a text, explaining why you picked these files.
     """
 
     print(prompt)
