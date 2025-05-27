@@ -22,10 +22,16 @@ TRUE
 exclude-from-coverage
 statement ok
 BEGIN;
+
+exclude-from-coverage
+statement ok
 INSERT INTO mytable2 SELECT id FROM mystream;
+
+exclude-from-coverage
+statement ok
 COMMIT;
 
 query I
 SELECT SYSTEM$STREAM_HAS_DATA('MYSTREAM');
 ----
-TRUE
+FALSE

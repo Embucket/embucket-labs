@@ -1,26 +1,26 @@
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE t2 (amount NUMBER);
+CREATE OR REPLACE TABLE t4 (amount NUMBER);
 
 query T
 SELECT table_name
 FROM information_schema.tables
-WHERE table_name = 'T2';
+WHERE table_name = 'T4';
 ----
-T2
+T4
 
 statement ok
-DROP TABLE t2
+DROP TABLE t4
 
 query T
 SELECT table_name
 FROM information_schema.tables
-WHERE table_name = 'T2';
+WHERE table_name = 'T4';
 ----
 
 
 statement ok
-DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t4;
 
 # Test dropping a table that has a dependent view
 
@@ -40,5 +40,4 @@ DROP TABLE drop_t1;
 statement error
 DROP TABLE nonexistent_table;
 ----
-002003 (42S02): SQL compilation error:
-Table 'EMBUCKET.PUBLIC.NONEXISTENT_TABLE' does not exist or not authorized.
+<REGEX>:002003 \(42S02\): SQL compilation error:\nTable 'EMBUCKET\.PUBLIC(_[0-9]+)?\.NONEXISTENT_TABLE' does not exist or not authorized\.

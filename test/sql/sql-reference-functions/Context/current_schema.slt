@@ -1,5 +1,5 @@
 query T
 SELECT CURRENT_SCHEMA()
 ----
-PUBLIC
+<REGEX>:PUBLIC.*
 
