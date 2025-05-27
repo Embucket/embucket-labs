@@ -24,23 +24,29 @@ def generate_badge(coverage_pct, output_dir='assets'):
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, 'badge.svg')
 
-    # Determine color based on coverage percentage
-    if coverage_pct >= 90:
-        color = "#4c1"  # green
-    elif coverage_pct >= 80:
-        color = "#97CA00"  # yellowgreen
-    elif coverage_pct >= 70:
-        color = "#dfb317"  # yellow
-    elif coverage_pct >= 60:
-        color = "#fe7d37"  # orange
-    else:
-        color = "#e05d44"  # red
+    # Base bronze color
+    bronze_base = "#CD7F32"
+
+    # Determine opacity based on coverage percentage
+    # Higher coverage = more solid (higher opacity)
+    opacity = min(1.0, max(0.2, coverage_pct / 100))
+
+    # Convert hex to RGB for the bronze color
+    r = int(bronze_base[1:3], 16)
+    g = int(bronze_base[3:5], 16)
+    b = int(bronze_base[5:7], 16)
+
+    # Create color with opacity
+    color = f"rgba({r}, {g}, {b}, {opacity:.2f})"
 
     # Format percentage to one decimal place
     pct_text = f"{coverage_pct:.1f}%"
 
-    # Calculate widths
-    label_width = 90  # Width of "coverage" text
+    # The label text is now "SLT coverage"
+    label_text = "SLT coverage"
+
+    # Calculate widths - adjust for the new label length
+    label_width = len(label_text) * 7 + 10  # Width based on text length plus padding
     pct_width = max(len(pct_text) * 8, 40)  # Width based on percentage text length
     total_width = label_width + pct_width
 
@@ -55,12 +61,12 @@ def generate_badge(coverage_pct, output_dir='assets'):
   </mask>
   <g mask="url(#a)">
     <path fill="#555" d="M0 0h{label_width}v20H0z"/>
-    <path fill="{color}" d="M{label_width} 0h{pct_width}v20H{label_width}z"/>
+    <path fill="{bronze_base}" fill-opacity="{opacity:.2f}" d="M{label_width} 0h{pct_width}v20H{label_width}z"/>
     <path fill="url(#b)" d="M0 0h{total_width}v20H0z"/>
   </g>
   <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
-    <text x="{label_width / 2}" y="15" fill="#010101" fill-opacity=".3">coverage</text>
-    <text x="{label_width / 2}" y="14">coverage</text>
+    <text x="{label_width / 2}" y="15" fill="#010101" fill-opacity=".3">{label_text}</text>
+    <text x="{label_width / 2}" y="14">{label_text}</text>
     <text x="{label_width + pct_width / 2}" y="15" fill="#010101" fill-opacity=".3">{pct_text}</text>
     <text x="{label_width + pct_width / 2}" y="14">{pct_text}</text>
   </g>
