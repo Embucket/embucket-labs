@@ -1,7 +1,7 @@
-[![SQL Logic Test Coverage](https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/test-assets/assets/badge.svg)](test/README.md)
+[![SQL Logic Test Coverage](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/badge.svg)](test/README.md)
 
 ## SLT coverage
-![Test Coverage Visualization](https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/test-assets/assets/test_coverage_visualization.png)
+![Test Coverage Visualization](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/test_coverage_visualization.png)
 *This visualization is automatically updated by CI/CD when tests are run.*
 
 # SQL Logic Tests
