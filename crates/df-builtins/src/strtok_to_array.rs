@@ -104,7 +104,7 @@ impl ScalarUDFImpl for StrtokToArrayFunc {
 
             let delimiter_set: HashSet<char> = delimiter.chars().collect();
             let mut last_split_index: usize = 0;
-            for (i, ch) in string.char_indices() {
+            for (i, ch) in string.chars().enumerate() {
                 if delimiter_set.contains(&ch) {
                     let value = &string[last_split_index..i].to_string();
                     if !value.is_empty() {
