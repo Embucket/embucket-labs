@@ -1,6 +1,6 @@
-name: test
+# This is the main CI workflow that runs the test suite on all pushes to main and all pull requests.
 permissions:
-  contents: write
+  contents: read
 on:
   push:
     branches: [main]
@@ -10,7 +10,6 @@ on:
       - Cargo.toml
       - Cargo.lock
       - Dockerfile
-      - .github/workflows/**
   pull_request:
     paths:
       - crates/**
@@ -18,20 +17,24 @@ on:
       - Cargo.toml
       - Cargo.lock
       - Dockerfile
-      - .github/workflows/**
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+name: unit-tests
 jobs:
-  unit-tests:
+  required:
     runs-on:
       group: large-runners
-    name: Unit Tests
+    name: ubuntu / ${{ matrix.toolchain }}
+    strategy:
+      matrix:
+        # run on stable and beta to ensure that tests won't break on the next version of the rust
+        # toolchain
+        toolchain: [stable]
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
-
       - name: Cache
         uses: actions/cache@v4
         with:
@@ -42,12 +45,9 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-
-      - name: Install Rust
+      - name: Install ${{ matrix.toolchain }}
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-
-      # Build and run tests directly
-      - name: Run unit tests
+          toolchain: ${{ matrix.toolchain }}
+      - name: cargo test
         run: cargo test --workspace --all-features --all-targets
