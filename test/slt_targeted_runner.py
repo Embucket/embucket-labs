@@ -158,15 +158,20 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
 
     # Extract meaningful paths from SLT file paths
     # This will convert paths like "test/sql/function/aggregate/test.slt" to "function/aggregate/test.slt"
-    meaningful_paths = {}
+    meaningful_paths = []
+    slt_path_mapping = {}  # Keep a mapping to convert back to full paths
+
     for slt_path in all_slts.keys():
         if "/sql/" in slt_path:
             # Extract the part after /sql/
             path_after_sql = slt_path.split("/sql/", 1)[1]
-            meaningful_paths[slt_path] = path_after_sql
+            meaningful_paths.append(path_after_sql)
+            slt_path_mapping[path_after_sql] = slt_path
         else:
             # If no /sql/ in the path, just use the filename
-            meaningful_paths[slt_path] = os.path.basename(slt_path)
+            filename = os.path.basename(slt_path)
+            meaningful_paths.append(filename)
+            slt_path_mapping[filename] = slt_path
 
     # Prepare message for OpenAI
     prompt = f"""
@@ -183,13 +188,13 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
     {json.dumps(meaningful_paths, indent=2)}
     ```
 
-    The paths after the /sql/ directory indicate what functionality the test is for. For example:
+    The paths shown are relative to the /sql/ directory and indicate what functionality the test is for. For example:
     - "function/aggregate/test.slt" tests SQL aggregate functions
     - "type/numeric/test.slt" tests numeric type functionality
 
     Please select the SLT files that are most likely to test the functionality affected by my code changes.
-    Return ONLY a JSON array with the full file paths, no explanations or other text. For example:
-    ["test/sql/function/aggregate/test.slt", "test/sql/type/numeric/test.slt"]
+    Return ONLY a JSON array with these relative paths, no explanations or other text. For example:
+    ["function/aggregate/test.slt", "type/numeric/test.slt"]
     """
 
     print(prompt)
@@ -214,7 +219,19 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
             response_text = json_match.group(0)
 
     try:
-        selected_slts = json.loads(response_text)
+        selected_relative_paths = json.loads(response_text)
+
+        # Convert the relative paths back to full paths
+        selected_slts = []
+        for rel_path in selected_relative_paths:
+            if rel_path in slt_path_mapping:
+                selected_slts.append(slt_path_mapping[rel_path])
+            else:
+                # Try to find a matching path
+                for path_key in slt_path_mapping:
+                    if path_key.endswith(rel_path):
+                        selected_slts.append(slt_path_mapping[path_key])
+                        break
 
         # Validate that all selected files exist
         valid_slts = [slt for slt in selected_slts if slt in all_slts]
