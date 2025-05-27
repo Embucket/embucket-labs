@@ -541,6 +541,13 @@ test_query!(
     snapshot_path = "session"
 );
 
+// Session context with alias
+test_query!(
+    current_session_context_with_alieas,
+    "SELECT CURRENT_WAREHOUSE() as wh, CURRENT_DATABASE() as db, CURRENT_SCHEMA() as sch",
+    snapshot_path = "session"
+);
+
 // TRUNCATE TABLE
 test_query!(truncate_table, "TRUNCATE TABLE employee_table");
 test_query!(

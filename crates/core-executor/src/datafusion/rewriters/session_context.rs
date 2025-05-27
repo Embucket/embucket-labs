@@ -1,5 +1,6 @@
 use datafusion::logical_expr::{Expr, LogicalPlan};
 use datafusion_common::Result;
+use datafusion_expr::expr::Alias;
 
 pub struct SessionContextExprRewriter {
     pub database: String,
@@ -10,6 +11,15 @@ pub struct SessionContextExprRewriter {
 impl SessionContextExprRewriter {
     fn rewrite_expr(&self, expr: Expr) -> Expr {
         match expr {
+            Expr::Alias(alias) => {
+                let rewritten_inner = self.rewrite_expr(*alias.expr);
+                Expr::Alias(Alias {
+                    expr: Box::new(rewritten_inner),
+                    relation: alias.relation,
+                    name: alias.name,
+                    metadata: alias.metadata,
+                })
+            }
             Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_database" => {
                 Expr::Literal(self.database.clone().into()).alias(fun.name())
             }
