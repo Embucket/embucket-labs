@@ -444,10 +444,29 @@ class SQLLogicPythonRunner:
         self.default_test_directory = default_test_directory
 
     def run_file(self, config, file_path, test_directory, benchmark_mode, run_mode):
-        """Execute tests for a single file"""
-        print(f"Starting file: {file_path}")
+        """Execute tests for a single file using a pre-created worker schema"""
+        print(f"Processing file: {file_path}")
 
         executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
+
+        # Create a connection to execute schema setup queries if using Embucket
+        if 'embucket' in config or os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
+            try:
+                con = connect(
+                    user=config['user'],
+                    password=config['password'],
+                    account=config['account'],
+                    warehouse=config['warehouse'],
+                    database=config['database']
+                )
+
+                # Enable schema caching - this prevents schema from being dropped between statements
+                with con.cursor() as cursor:
+                    cursor.execute(f"USE SCHEMA {config['schema']}")
+                    # Any other specific Embucket setup commands can go here
+                con.close()
+            except Exception as e:
+                logger.error(f"Error setting up Embucket connection for {file_path}: {e}")
 
         results = []
         execution_times = []
@@ -488,7 +507,8 @@ class SQLLogicPythonRunner:
             # Collect errors
             for query in result.queries:
                 if not query.success and query.error_message:
-                    error_details[os.path.dirname(file_path).split('/')[-1]].append(f"{page_name}: {query.query}\n{query.error_message}\n")
+                    error_details[os.path.dirname(file_path).split('/')[-1]].append(
+                        f"{page_name}: {query.query}\n{query.error_message}\n")
 
         except Exception as e:
             print(f"Error processing {file_path}: {e}")
@@ -506,12 +526,43 @@ class SQLLogicPythonRunner:
             "error_details": error_details
         }
 
-    def run_files_parallel(self, config, file_paths, test_directory, benchmark_mode, run_mode, start_time, max_workers=None):
-        """Execute test files in parallel"""
+    def run_files_parallel(self, config, file_paths, test_directory, benchmark_mode, run_mode, start_time,
+                           max_workers=None):
+        """Execute test files in parallel with pre-created worker schemas"""
         import concurrent.futures
-        executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
-        executor.setup()
         print(f"\n=== Running {len(file_paths)} files in parallel with {max_workers} workers ===")
+
+        # Create worker schemas before starting tests
+        worker_schemas = []
+        try:
+            # Connect to the database
+            con = connect(
+                user=config['user'],
+                password=config['password'],
+                account=config['account'],
+                warehouse=config['warehouse'],
+                database=config['database']
+            )
+
+            executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
+            executor.setup()
+
+            # Create schemas for each worker
+            with con.cursor() as cursor:
+                for worker_id in range(1, max_workers + 1):
+                    worker_schema = f"{config['schema']}_{worker_id}"
+                    worker_schemas.append(worker_schema)
+                    try:
+                        # Create a unique schema for this worker
+                        cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {worker_schema}")
+                        logger.info(f"Created worker schema: {worker_schema}")
+                    except Exception as e:
+                        logger.error(f"Error creating worker schema {worker_schema}: {e}")
+            con.close()
+        except Exception as e:
+            logger.error(f"Error connecting to database to create schemas: {e}")
+            # Fall back to original schema if schema creation fails
+            worker_schemas = [config['schema']] * max_workers
 
         # Execute files in parallel
         all_results = []
@@ -521,11 +572,27 @@ class SQLLogicPythonRunner:
         total_failed = 0
         all_error_details = defaultdict(list)
 
+        # Create worker-specific configs
+        worker_configs = []
+        for schema in worker_schemas:
+            worker_config = config.copy()
+            worker_config['schema'] = schema
+            worker_configs.append(worker_config)
+
+        # Create a pool of workers with assigned configs
         with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-            future_to_file = {
-                executor.submit(self.run_file, config, file_path, test_directory, benchmark_mode, run_mode): file_path
-                for file_path in file_paths
-            }
+            # Distribute files among workers
+            future_to_file = {}
+            for i, file_path in enumerate(file_paths):
+                worker_index = i % len(worker_configs)
+                future_to_file[executor.submit(
+                    self.run_file,
+                    worker_configs[worker_index],
+                    file_path,
+                    test_directory,
+                    benchmark_mode,
+                    run_mode
+                )] = file_path
 
             for future in concurrent.futures.as_completed(future_to_file):
                 result = future.result()
@@ -538,6 +605,56 @@ class SQLLogicPythonRunner:
                 # Collect errors
                 for cat, errors in result["error_details"].items():
                     all_error_details[cat].extend(errors)
+
+        # Clean up worker schemas after all tests are done
+        try:
+            con = connect(
+                user=config['user'],
+                password=config['password'],
+                account=config['account'],
+                warehouse=config['warehouse'],
+                database=config['database']
+            )
+            with con.cursor() as cursor:
+                for schema in worker_schemas:
+                    if schema == config['schema']:  # Skip dropping the default schema
+                        continue
+
+                    # First check if the TEST_USER exists
+                    cursor.execute("SHOW USERS LIKE 'TEST_USER'")
+                    user_exists = cursor.fetchone() is not None
+
+                    if user_exists:
+                        # Check for any policies set on TEST_USER
+                        try:
+                            cursor.execute(f"""
+                                SELECT policy_name, policy_schema
+                                FROM TABLE(
+                                    INFORMATION_SCHEMA.POLICY_REFERENCES(
+                                        REF_ENTITY_NAME => 'test_user',
+                                        REF_ENTITY_DOMAIN => 'USER'
+                                    )
+                                )
+                            """)
+                            policies = cursor.fetchall()
+
+                            # Unset each policy before dropping the schema
+                            for policy in policies:
+                                try:
+                                    cursor.execute(
+                                        f"ALTER USER TEST_USER UNSET AUTHENTICATION POLICY")
+                                except Exception as policy_error:
+                                    logger.error(
+                                        f"Error unsetting policy: {policy_error}")
+                        except Exception as ref_error:
+                            logger.error(f"Error checking policy references: {ref_error}")
+
+                    # Now drop the schema
+                    cursor.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
+                    logger.info(f"Cleaned up worker schema {schema}")
+            con.close()
+        except Exception as e:
+            logger.error(f"Error cleaning up worker schemas: {e}")
 
         # Display and save results
         display_page_results(all_results, total_tests, total_successful, total_failed)
@@ -554,7 +671,6 @@ class SQLLogicPythonRunner:
 
         # Write error log
         error_log_file = f"{run_mode}_errors.log" if benchmark_mode else "errors.log"
-
         with open(error_log_file, "w") as error_file:
             for category, errors in all_error_details.items():
                 if errors:
@@ -584,19 +700,22 @@ class SQLLogicPythonRunner:
 
         args = arg_parser.parse_args()
 
+        workers = 1  # Default to 1 worker if not parallel
         if args.parallel:
             if args.workers is None:
-                args.workers = cpu_count
-                print(f"Using default worker count: {args.workers} (system CPU count)")
-
-            if args.workers <= 0:
-                print(f"Invalid worker count ({args.workers}). Using CPU count ({cpu_count}) instead.")
-                args.workers = cpu_count
-
-            elif args.workers > cpu_count:
-                print(
-                    f"Specified worker count ({args.workers}) exceeds CPU count ({cpu_count}). Using CPU count instead.")
-                args.workers = cpu_count
+                workers = cpu_count
+                print(f"Using default worker count: {workers} (system CPU count)")
+            else:
+                workers = args.workers
+                if workers <= 0:
+                    print(f"Invalid worker count ({workers}). Using CPU count ({cpu_count}) instead.")
+                    workers = cpu_count
+                elif workers > cpu_count:
+                    print(
+                        f"Specified worker count ({workers}) exceeds CPU count ({cpu_count}). Using CPU count instead.")
+                    workers = cpu_count
+        else:
+            print("Running in non-parallel mode with 1 worker.")
 
         # Load configuration from env file
         config = load_config_from_env()
@@ -645,7 +764,8 @@ class SQLLogicPythonRunner:
             # Just run in standard mode (no benchmarking)
             default_run_mode = 'hot'  # Default to hot mode for regular runs
             print(f"\n=== Running SLT ===")
-            self.run_files_parallel(config, file_paths, test_directory, benchmark_mode, default_run_mode, start_time, args.workers)
+            self.run_files_parallel(config, file_paths, test_directory, benchmark_mode, default_run_mode, start_time,
+                                    workers)
 
     def compare_benchmark_results(self):
         """Compare benchmark results between hot and cold runs"""
