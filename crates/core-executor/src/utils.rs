@@ -1,4 +1,5 @@
-use super::models::ColumnInfo;
+use super::models::QueryResult;
+use crate::error::{ArrowSnafu, ExecutionResult};
 use chrono::DateTime;
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
@@ -12,27 +13,14 @@ use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::{Field, Schema, TimeUnit};
 use datafusion::arrow::record_batch::RecordBatch;
-use datafusion::common::Result as DataFusionResult;
 use datafusion::common::ScalarValue;
 use datafusion_expr::{Expr, LogicalPlan};
+use snafu::ResultExt;
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
 use std::sync::Arc;
 use strum::{Display, EnumString};
 
-// This isn't the best way to do this, but it'll do for now
-// TODO: Should be moved to api-snowflake-rest
-pub struct Config {
-    pub dbt_serialization_format: DataSerializationFormat,
-}
-
-impl Config {
-    pub fn new(data_format: &str) -> Result<Self, strum::ParseError> {
-        Ok(Self {
-            dbt_serialization_format: DataSerializationFormat::try_from(data_format)?,
-        })
-    }
-}
 #[derive(Copy, Clone, PartialEq, Eq, EnumString, Display)]
 #[strum(ascii_case_insensitive)]
 pub enum DataSerializationFormat {
@@ -128,13 +116,13 @@ pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, Array
 }
 
 pub fn convert_record_batches(
-    records: Vec<RecordBatch>,
+    query_result: QueryResult,
     data_format: DataSerializationFormat,
-) -> DataFusionResult<(Vec<RecordBatch>, Vec<ColumnInfo>)> {
+) -> ExecutionResult<Vec<RecordBatch>> {
     let mut converted_batches = Vec::new();
-    let column_infos = ColumnInfo::from_batch(&records);
+    let column_infos = query_result.column_info();
 
-    for batch in records {
+    for batch in query_result.records {
         let mut columns = Vec::new();
         let mut fields = Vec::new();
         for (i, column) in batch.columns().iter().enumerate() {
@@ -185,7 +173,8 @@ pub fn convert_record_batches(
                     )
                 }
                 DataType::BinaryView => {
-                    let converted_column = cast(&column, &DataType::Utf8View)?;
+                    let converted_column =
+                        cast(&column, &DataType::Utf8View).context(ArrowSnafu)?;
                     fields.push(
                         Field::new(
                             field.name(),
@@ -204,11 +193,10 @@ pub fn convert_record_batches(
             columns.push(converted_column);
         }
         let new_schema = Arc::new(Schema::new(fields));
-        let converted_batch = RecordBatch::try_new(new_schema, columns)?;
+        let converted_batch = RecordBatch::try_new(new_schema, columns).context(ArrowSnafu)?;
         converted_batches.push(converted_batch);
     }
-
-    Ok((converted_batches.clone(), column_infos))
+    Ok(converted_batches)
 }
 
 macro_rules! downcast_and_iter {
@@ -422,6 +410,7 @@ impl std::fmt::Display for NormalizedIdent {
 #[allow(clippy::unwrap_used, clippy::as_conversions, clippy::expect_used)]
 mod tests {
     use super::*;
+    use crate::models::ColumnInfo;
     use datafusion::arrow::array::{
         ArrayRef, Float64Array, Int32Array, TimestampSecondArray, UInt64Array, UnionArray,
     };
@@ -520,12 +509,15 @@ mod tests {
             b"world",
             b"lulu",
         ]));
-        let batch =
-            RecordBatch::try_new(schema, vec![int_array, timestamp_array, binary_view_array])
-                .unwrap();
-        let records = vec![batch];
-        let (converted_batches, column_infos) =
-            convert_record_batches(records.clone(), DataSerializationFormat::Json).unwrap();
+        let batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![int_array, timestamp_array, binary_view_array],
+        )
+        .unwrap();
+        let result = QueryResult::new(vec![batch], schema);
+        let column_infos = result.column_info();
+        let converted_batches =
+            convert_record_batches(result.clone(), DataSerializationFormat::Json).unwrap();
 
         let converted_batch = &converted_batches[0];
         assert_eq!(converted_batches.len(), 1);
@@ -557,8 +549,8 @@ mod tests {
         assert_eq!(column_infos[2].name, "binary_view");
         assert_eq!(column_infos[2].r#type, "binary");
 
-        let (converted_batches, _) =
-            convert_record_batches(records, DataSerializationFormat::Arrow).unwrap();
+        let converted_batches =
+            convert_record_batches(result, DataSerializationFormat::Arrow).unwrap();
         let converted_batch = &converted_batches[0];
         let converted_timestamp_array = converted_batch
             .column(1)
@@ -670,14 +662,15 @@ mod tests {
 
     #[test]
     fn test_convert_record_batches_uint() {
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("row_num_uint64", DataType::UInt64, false),
+            Field::new("row_num_uint32", DataType::UInt32, false),
+            Field::new("row_num_uint16", DataType::UInt16, false),
+            Field::new("row_num_uint8", DataType::UInt8, false),
+        ]));
         let record_batches = vec![
             RecordBatch::try_new(
-                Arc::new(Schema::new(vec![
-                    Field::new("row_num_uint64", DataType::UInt64, false),
-                    Field::new("row_num_uint32", DataType::UInt32, false),
-                    Field::new("row_num_uint16", DataType::UInt16, false),
-                    Field::new("row_num_uint8", DataType::UInt8, false),
-                ])),
+                schema.clone(),
                 vec![
                     Arc::new(UInt64Array::from(vec![0, 1, u64::MAX])),
                     Arc::new(UInt32Array::from(vec![0, 1, u32::MAX])),
@@ -687,9 +680,10 @@ mod tests {
             )
             .unwrap(),
         ];
-
-        let (converted_batches, column_infos) =
-            convert_record_batches(record_batches.clone(), DataSerializationFormat::Arrow).unwrap();
+        let query_result = QueryResult::new(record_batches.clone(), schema);
+        let column_infos = query_result.column_info();
+        let converted_batches =
+            convert_record_batches(query_result, DataSerializationFormat::Arrow).unwrap();
 
         let fields_tested =
             check_record_batches_uint_to_int(record_batches, converted_batches, column_infos);

@@ -1,8 +1,9 @@
 use crate::{ExecutionQueryRecord, QueryRecord, WorksheetsStore};
 use bytes::Bytes;
+use core_executor::utils::{DataSerializationFormat, convert_record_batches};
 use core_executor::{
-    error::ExecutionResult, models::ColumnInfo, models::QueryResultData, query::QueryContext,
-    service::ExecutionService, session::UserSession, utils::Config,
+    error::ExecutionResult, models::QueryResult, query::QueryContext, service::ExecutionService,
+    session::UserSession,
 };
 use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::RecordBatch;
@@ -15,7 +16,6 @@ use snafu::ResultExt;
 use snafu::prelude::*;
 use std::sync::Arc;
 use utoipa::ToSchema;
-
 //
 // TODO: This module is pending a rewrite
 // TODO: simplify query function
@@ -23,12 +23,21 @@ use utoipa::ToSchema;
 pub struct RecordingExecutionService {
     pub execution: Arc<dyn ExecutionService>,
     pub store: Arc<dyn WorksheetsStore>,
+    pub data_format: DataSerializationFormat,
 }
 
 //TODO: add tests
 impl RecordingExecutionService {
-    pub fn new(execution: Arc<dyn ExecutionService>, store: Arc<dyn WorksheetsStore>) -> Self {
-        Self { execution, store }
+    pub fn new(
+        execution: Arc<dyn ExecutionService>,
+        store: Arc<dyn WorksheetsStore>,
+        data_format: DataSerializationFormat,
+    ) -> Self {
+        Self {
+            execution,
+            store,
+            data_format,
+        }
     }
 }
 
@@ -47,22 +56,19 @@ impl ExecutionService for RecordingExecutionService {
         session_id: &str,
         query: &str,
         query_context: QueryContext,
-    ) -> ExecutionResult<QueryResultData> {
+    ) -> ExecutionResult<QueryResult> {
         let mut query_record = QueryRecord::query_start(query, query_context.worksheet_id);
         let query_res = self.execution.query(session_id, query, query_context).await;
         match query_res {
-            Ok(QueryResultData {
-                ref records,
-                ref columns_info,
-                ..
-            }) => {
-                let result_set = ResultSet::query_result_to_result_set(records, columns_info);
+            Ok(ref res) => {
+                let result_set =
+                    ResultSet::query_result_to_result_set(res.clone(), self.data_format.clone());
                 match result_set {
                     Ok(result_set) => {
                         let encoded_res = serde_json::to_string(&result_set);
 
                         if let Ok(encoded_res) = encoded_res {
-                            let result_count = i64::try_from(records.len()).unwrap_or(0);
+                            let result_count = i64::try_from(res.records.len()).unwrap_or(0);
                             query_record.query_finished(result_count, Some(encoded_res));
                         }
                         // failed to wrap query results
@@ -87,18 +93,9 @@ impl ExecutionService for RecordingExecutionService {
             // do not raise error, just log ?
             tracing::error!("{err}");
         }
-        query_res.map(
-            |QueryResultData {
-                 records,
-                 columns_info,
-                 ..
-             }: QueryResultData| QueryResultData {
-                records,
-                columns_info,
-                query_id: query_record.id,
-            },
-        )
+        query_res.map(|mut q| q.with_query_id(query_record.id))
     }
+
     async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -110,10 +107,6 @@ impl ExecutionService for RecordingExecutionService {
         self.execution
             .upload_data_to_table(session_id, table_ident, data, file_name, format)
             .await
-    }
-
-    fn config(&self) -> &Config {
-        self.execution.config()
     }
 }
 
@@ -141,6 +134,10 @@ pub enum ResultSetError {
     CreateResultSet {
         source: datafusion::arrow::error::ArrowError,
     },
+    #[snafu(transparent)]
+    Execution {
+        source: core_executor::error::ExecutionError,
+    },
     #[snafu(display("Failed to convert to utf8: {source}"))]
     Utf8 { source: std::string::FromUtf8Error },
     #[snafu(display("Failed to parse result: {source}"))]
@@ -149,13 +146,18 @@ pub enum ResultSetError {
 
 impl ResultSet {
     pub fn query_result_to_result_set(
-        records: &[RecordBatch],
-        columns: &[ColumnInfo],
-    ) -> std::result::Result<Self, ResultSetError> {
+        query_result: QueryResult,
+        data_format: DataSerializationFormat,
+    ) -> Result<Self, ResultSetError> {
         let buf = Vec::new();
         let write_builder = WriterBuilder::new().with_explicit_nulls(true);
         let mut writer = write_builder.build::<_, JsonArray>(buf);
 
+        // Add columns dbt metadata to each field
+        // Since we have to store already converted data to history
+        // TODO Perhaps this can be moved closer to Snowflake API layer
+        let records = convert_record_batches(query_result.clone(), data_format)
+            .map_err(|e| ResultSetError::Execution { source: e })?;
         // serialize records to str
         let records: Vec<&RecordBatch> = records.iter().collect();
         writer
@@ -175,7 +177,8 @@ impl ResultSet {
             .map(|obj| Row(obj.values().cloned().collect()))
             .collect();
 
-        let columns = columns
+        let columns = query_result
+            .column_info()
             .iter()
             .map(|ci| Column {
                 name: ci.name.clone(),
@@ -206,14 +209,12 @@ mod tests {
         let db = Db::memory().await;
         let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
         let history_store = Arc::new(SlateDBWorksheetsStore::new(db));
-        let execution_svc = Arc::new(CoreExecutionService::new(
-            metastore.clone(),
-            Config {
-                dbt_serialization_format: DataSerializationFormat::Json,
-            },
-        ));
-        let execution_svc =
-            RecordingExecutionService::new(execution_svc.clone(), history_store.clone());
+        let execution_svc = Arc::new(CoreExecutionService::new(metastore.clone()));
+        let execution_svc = RecordingExecutionService::new(
+            execution_svc.clone(),
+            history_store.clone(),
+            DataSerializationFormat::Json,
+        );
 
         metastore
             .create_volume(

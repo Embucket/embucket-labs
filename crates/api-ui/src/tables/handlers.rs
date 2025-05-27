@@ -19,7 +19,7 @@ use axum::{
     Json,
     extract::{Multipart, Path, State},
 };
-use core_executor::{models::QueryResultData, query::QueryContext};
+use core_executor::{models::QueryResult, query::QueryContext};
 use core_metastore::TableIdent as MetastoreTableIdent;
 use core_metastore::error::MetastoreError;
 use datafusion::arrow::csv::reader::Format;
@@ -160,11 +160,12 @@ pub async fn get_table_columns(
 ) -> TablesResult<Json<TableColumnsResponse>> {
     let context = QueryContext::new(Some(database.clone()), Some(schema.clone()), None);
     let sql_string = format!("SELECT * FROM {database}.{schema}.{table} LIMIT 0");
-    let QueryResultData { columns_info, .. } = state
+    let columns_info = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| TablesAPIError::Execution { source: e })?;
+        .map_err(|e| TablesAPIError::Execution { source: e })?
+        .column_info();
     let items: Vec<TableColumn> = columns_info
         .iter()
         .map(|column_info| TableColumn {
@@ -225,7 +226,7 @@ pub async fn get_table_preview_data(
     let sql_string = parameters.limit.map_or(sql_string.clone(), |limit| {
         format!("{sql_string} LIMIT {limit}")
     });
-    let QueryResultData {
+    let QueryResult {
         records: batches, ..
     } = state
         .execution_svc
@@ -406,7 +407,7 @@ pub async fn get_tables(
             "owner",
         ],
     );
-    let QueryResultData { records, .. } = state
+    let QueryResult { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await

@@ -1,7 +1,6 @@
-use crate::models::QueryResultData;
+use crate::models::QueryResult;
 use crate::query::QueryContext;
 use crate::service::{CoreExecutionService, ExecutionService};
-use crate::utils::{Config, DataSerializationFormat};
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
 use core_metastore::models::table::TableIdent as MetastoreTableIdent;
@@ -15,29 +14,22 @@ use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
 #[allow(clippy::expect_used)]
 async fn test_execute_always_returns_schema() {
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let execution_svc = CoreExecutionService::new(
-        metastore.clone(),
-        Config {
-            dbt_serialization_format: DataSerializationFormat::Json,
-        },
-    );
+    let execution_svc = CoreExecutionService::new(metastore.clone());
 
     execution_svc
         .create_session("test_session_id".to_string())
         .await
         .expect("Failed to create session");
 
-    let QueryResultData {
-        columns_info: columns,
-        ..
-    } = execution_svc
+    let columns = execution_svc
         .query(
             "test_session_id",
             "SELECT 1 AS a, 2.0 AS b, '3' AS c WHERE False",
             QueryContext::default(),
         )
         .await
-        .expect("Failed to execute query");
+        .expect("Failed to execute query")
+        .column_info();
     assert_eq!(columns.len(), 3);
     assert_eq!(columns[0].r#type, "fixed");
     assert_eq!(columns[1].r#type, "real");
@@ -48,7 +40,6 @@ async fn test_execute_always_returns_schema() {
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_service_upload_file() {
     let metastore = SlateDBMetastore::new_in_memory().await;
-
     metastore
         .create_volume(
             &"test_volume".to_string(),
@@ -96,12 +87,7 @@ async fn test_service_upload_file() {
     let csv_content = "id,name,value\n1,test1,100\n2,test2,200\n3,test3,300";
     let data = csv_content.as_bytes().to_vec();
 
-    let execution_svc = CoreExecutionService::new(
-        metastore.clone(),
-        Config {
-            dbt_serialization_format: DataSerializationFormat::Json,
-        },
-    );
+    let execution_svc = CoreExecutionService::new(metastore.clone());
 
     let session_id = "test_session_id";
     execution_svc
@@ -124,7 +110,7 @@ async fn test_service_upload_file() {
 
     // Verify that the file was uploaded successfully by running select * from the table
     let query = format!("SELECT * FROM {}", table_ident.table);
-    let QueryResultData { records, .. } = execution_svc
+    let QueryResult { records, .. } = execution_svc
         .query(session_id, &query, QueryContext::default())
         .await
         .expect("Failed to execute query");
@@ -150,7 +136,7 @@ async fn test_service_upload_file() {
 
     // Verify that the file was uploaded successfully by running select * from the table
     let query = format!("SELECT * FROM {}", table_ident.table);
-    let QueryResultData { records, .. } = execution_svc
+    let QueryResult { records, .. } = execution_svc
         .query(session_id, &query, QueryContext::default())
         .await
         .expect("Failed to execute query");
@@ -223,12 +209,7 @@ async fn test_service_create_table_file_volume() {
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };
-    let execution_svc = CoreExecutionService::new(
-        metastore.clone(),
-        Config {
-            dbt_serialization_format: DataSerializationFormat::Json,
-        },
-    );
+    let execution_svc = CoreExecutionService::new(metastore.clone());
     let session_id = "test_session_id";
     execution_svc
         .create_session(session_id.to_string())
@@ -238,7 +219,7 @@ async fn test_service_create_table_file_volume() {
     let create_table_sql = format!(
         "CREATE TABLE {table_ident} (id INT, name STRING, value FLOAT) as VALUES (1, 'test1', 100.0), (2, 'test2', 200.0), (3, 'test3', 300.0)"
     );
-    let QueryResultData { records, .. } = execution_svc
+    let QueryResult { records, .. } = execution_svc
         .query(session_id, &create_table_sql, QueryContext::default())
         .await
         .expect("Failed to create table");
@@ -257,7 +238,7 @@ async fn test_service_create_table_file_volume() {
     let insert_sql = format!(
         "INSERT INTO {table_ident} (id, name, value) VALUES (4, 'test4', 400.0), (5, 'test5', 500.0)"
     );
-    let QueryResultData { records, .. } = execution_svc
+    let QueryResult { records, .. } = execution_svc
         .query(session_id, &insert_sql, QueryContext::default())
         .await
         .expect("Failed to insert data");

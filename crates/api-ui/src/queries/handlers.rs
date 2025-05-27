@@ -11,7 +11,7 @@ use axum::{
     Json,
     extract::{Query, State},
 };
-use core_executor::models::QueryResultData;
+use core_executor::models::QueryResult;
 use core_executor::query::QueryContext;
 use core_history::{QueryRecordId, WorksheetId};
 use core_utils::iterable::IterableEntity;
@@ -100,17 +100,15 @@ pub async fn query(
         .await;
 
     match query_res {
-        Ok(QueryResultData { query_id, .. }) => {
-            match state.history_store.get_query(query_id).await {
-                Err(err) => Err(QueriesAPIError::Query {
-                    source: QueryError::Store { source: err },
-                }),
-                Ok(query_record) => Ok(Json(QueryCreateResponse {
-                    data: QueryRecord::try_from(query_record)
-                        .map_err(|e| QueriesAPIError::Query { source: e })?,
-                })),
-            }
-        }
+        Ok(QueryResult { query_id, .. }) => match state.history_store.get_query(query_id).await {
+            Err(err) => Err(QueriesAPIError::Query {
+                source: QueryError::Store { source: err },
+            }),
+            Ok(query_record) => Ok(Json(QueryCreateResponse {
+                data: QueryRecord::try_from(query_record)
+                    .map_err(|e| QueriesAPIError::Query { source: e })?,
+            })),
+        },
         Err(err) => Err(QueriesAPIError::Query {
             source: QueryError::Execution { source: err },
         }),

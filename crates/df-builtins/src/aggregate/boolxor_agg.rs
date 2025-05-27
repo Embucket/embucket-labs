@@ -115,6 +115,10 @@ impl Accumulator for BoolXorAggAccumulator {
             return Ok(());
         }
 
+        if matches!(self.state, Some(false)) {
+            return Ok(());
+        }
+
         let mut is_null = true;
         for state in states {
             let v = ScalarValue::try_from_array(state, 0)?;
@@ -153,45 +157,33 @@ mod tests {
     #[tokio::test]
     async fn test_merge() -> DFResult<()> {
         let mut acc = BoolXorAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![Some(true)])),
-            Arc::new(BooleanArray::from(vec![Some(true)])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(true)]))])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(true)]))])?;
         assert_eq!(acc.state, Some(false));
 
         let mut acc = BoolXorAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![Some(true)])),
-            Arc::new(BooleanArray::from(vec![Some(false)])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(true)]))])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(false)]))])?;
         assert_eq!(acc.state, Some(true));
 
         let mut acc = BoolXorAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![Some(false)])),
-            Arc::new(BooleanArray::from(vec![Some(false)])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(false)]))])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(false)]))])?;
         assert_eq!(acc.state, Some(false));
 
         let mut acc = BoolXorAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![Some(true)])),
-            Arc::new(BooleanArray::from(vec![None])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(true)]))])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![None]))])?;
         assert_eq!(acc.state, Some(true));
 
         let mut acc = BoolXorAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![Some(false)])),
-            Arc::new(BooleanArray::from(vec![None])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![Some(false)]))])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![None]))])?;
         assert_eq!(acc.state, Some(false));
 
         let mut acc = BoolXorAggAccumulator::new();
-        acc.merge_batch(&[
-            Arc::new(BooleanArray::from(vec![None])),
-            Arc::new(BooleanArray::from(vec![None])),
-        ])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![None]))])?;
+        acc.merge_batch(&[Arc::new(BooleanArray::from(vec![None]))])?;
         assert_eq!(acc.state, None);
 
         Ok(())

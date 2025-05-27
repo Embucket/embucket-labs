@@ -15,7 +15,17 @@ use iceberg_rust_spec::table_metadata::{FormatVersion, TableMetadataBuilder};
 use object_store::{ObjectStore, PutPayload, path::Path};
 use serde::de::DeserializeOwned;
 use snafu::ResultExt;
+use strum::Display;
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[strum(serialize_all = "lowercase")]
+pub enum MetastoreObjectType {
+    Volume,
+    Database,
+    Schema,
+    Table,
+}
 
 #[async_trait]
 pub trait Metastore: std::fmt::Debug + Send + Sync {
@@ -150,7 +160,7 @@ impl SlateDBMetastore {
     async fn create_object<T>(
         &self,
         key: &str,
-        object_type: &str,
+        object_type: MetastoreObjectType,
         object: T,
     ) -> MetastoreResult<RwObject<T>>
     where
@@ -171,7 +181,7 @@ impl SlateDBMetastore {
             Ok(rwobject)
         } else {
             Err(metastore_error::MetastoreError::ObjectAlreadyExists {
-                type_name: object_type.to_owned(),
+                type_name: object_type.to_string(),
                 name: key.to_string(),
             })
         }
@@ -237,7 +247,7 @@ impl Metastore for SlateDBMetastore {
         let key = format!("{KEY_VOLUME}/{name}");
         let object_store = volume.get_object_store()?;
         let rwobject = self
-            .create_object(&key, "volume", volume)
+            .create_object(&key, MetastoreObjectType::Volume, volume)
             .await
             .map_err(|e| {
                 if matches!(
@@ -339,7 +349,8 @@ impl Metastore for SlateDBMetastore {
             },
         )?;
         let key = format!("{KEY_DATABASE}/{name}");
-        self.create_object(&key, "database", database).await
+        self.create_object(&key, MetastoreObjectType::Database, database)
+            .await
     }
 
     async fn get_database(
@@ -396,7 +407,8 @@ impl Metastore for SlateDBMetastore {
     ) -> MetastoreResult<RwObject<Schema>> {
         let key = format!("{KEY_SCHEMA}/{}/{}", ident.database, ident.schema);
         if self.get_database(&ident.database).await?.is_some() {
-            self.create_object(&key, "schema", schema).await
+            self.create_object(&key, MetastoreObjectType::Schema, schema)
+                .await
         } else {
             Err(metastore_error::MetastoreError::DatabaseNotFound {
                 db: ident.database.clone(),
@@ -545,7 +557,9 @@ impl Metastore for SlateDBMetastore {
                 is_temporary: table.is_temporary.unwrap_or_default(),
                 format: table_format,
             };
-            let rwo_table = self.create_object(&key, "table", table.clone()).await?;
+            let rwo_table = self
+                .create_object(&key, MetastoreObjectType::Table, table.clone())
+                .await?;
 
             let object_store = self.table_object_store(ident).await?.ok_or(
                 metastore_error::MetastoreError::TableObjectStoreNotFound {

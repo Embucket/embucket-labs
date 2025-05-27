@@ -1,7 +1,6 @@
 use crate::query::{QueryContext, UserQuery};
 use crate::session::UserSession;
 
-use crate::error::ExecutionResult;
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
 use core_metastore::{
@@ -9,11 +8,6 @@ use core_metastore::{
     Volume as MetastoreVolume,
 };
 use datafusion::sql::parser::DFParser;
-use datafusion::sql::sqlparser::ast::{ObjectName, ObjectNamePart};
-use sqlparser::ast::Value;
-use sqlparser::ast::{
-    FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
-};
 use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]
@@ -170,7 +164,7 @@ macro_rules! test_query {
                 settings.bind(|| {
                     let df = match res {
                         Ok(record_batches) => {
-                            let mut batches = record_batches;
+                            let mut batches: Vec<datafusion::arrow::array::RecordBatch> = record_batches.records;
                             if sort_all {
                                 for batch in &mut batches {
                                     *batch = df_catalog::test_utils::sort_record_batch_by_sortable_columns(batch);
@@ -200,6 +194,15 @@ test_query!(
 test_query!(
     create_table_with_timestamp_nanosecond,
     "CREATE TABLE embucket.public.ts_table (ts TIMESTAMP_NTZ(9)) as VALUES ('2025-04-09T21:11:23');"
+);
+
+test_query!(
+    create_table_and_insert,
+    "SELECT * FROM embucket.public.test",
+    setup_queries = [
+        "CREATE TABLE embucket.public.test (id INT)",
+        "INSERT INTO embucket.public.test VALUES (1), (2)",
+    ]
 );
 
 // DROP TABLE

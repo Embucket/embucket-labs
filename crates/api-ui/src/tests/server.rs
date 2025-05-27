@@ -8,7 +8,7 @@ use api_sessions::{RequestSessionMemory, RequestSessionStore};
 use axum::Router;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
-use core_executor::utils::Config;
+use core_executor::utils::DataSerializationFormat;
 use core_history::RecordingExecutionService;
 use core_history::store::SlateDBWorksheetsStore;
 use core_metastore::SlateDBMetastore;
@@ -64,11 +64,11 @@ pub fn make_app(
     config: &WebConfig,
     auth_config: AuthConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
-    let execution_cfg = Config::new("json")?;
-    let execution_svc = Arc::new(CoreExecutionService::new(metastore.clone(), execution_cfg));
+    let execution_svc = Arc::new(CoreExecutionService::new(metastore.clone()));
     let execution_svc = Arc::new(RecordingExecutionService::new(
         execution_svc,
         history_store.clone(),
+        DataSerializationFormat::Json,
     ));
     let session_memory = RequestSessionMemory::default();
     let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
