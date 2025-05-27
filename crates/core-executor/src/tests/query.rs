@@ -474,7 +474,6 @@ test_query!(
     exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );
-
 test_query!(
     show_variables_multiple,
     "SHOW VARIABLES",
@@ -533,6 +532,12 @@ test_query!(
     explain_select_missing_column,
     "EXPLAIN SELECT missing FROM embucket.public.employee_table limit 1",
     setup_queries = ["SET datafusion.explain.logical_plan_only = true"],
+    snapshot_path = "session"
+);
+// Session context
+test_query!(
+    current_session_context,
+    "SELECT CURRENT_WAREHOUSE(), CURRENT_DATABASE(), CURRENT_SCHEMA()",
     snapshot_path = "session"
 );
 

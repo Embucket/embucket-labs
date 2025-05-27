@@ -40,6 +40,8 @@ mod timestamp_from_parts;
 mod to_boolean;
 mod to_time;
 
+pub mod session_context;
+
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
         convert_timezone::get_udf(),
@@ -71,7 +73,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     for func in functions {
         registry.register_udf(func)?;
     }
-
+    session_context::register_session_context_udfs(registry)?;
     Ok(())
 }
 
