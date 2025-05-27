@@ -62,7 +62,11 @@ impl UserSession {
                     // Cannot create catalog (database) automatic since it requires default volume
                     .with_create_default_catalog_and_schema(false)
                     .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect)
-                    .set_str("datafusion.catalog.default_catalog", DEFAULT_CATALOG),
+                    .set_str("datafusion.catalog.default_catalog", DEFAULT_CATALOG)
+                    .set_bool(
+                        "datafusion.execution.skip_physical_aggregate_schema_check",
+                        true,
+                    ),
             )
             .with_default_features()
             .with_runtime_env(Arc::new(runtime_config))
