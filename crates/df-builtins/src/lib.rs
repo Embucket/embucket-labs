@@ -34,14 +34,15 @@ mod json;
 mod nullifzero;
 mod parse_json;
 mod rtrimmed_length;
+pub mod session;
 mod strtok_to_array;
 pub mod table;
+#[cfg(test)]
+pub mod tests;
 mod time_from_parts;
 mod timestamp_from_parts;
 mod to_boolean;
 mod to_time;
-
-pub mod session_context;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
@@ -75,7 +76,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     for func in functions {
         registry.register_udf(func)?;
     }
-    session_context::register_session_context_udfs(registry)?;
+    session::register_session_context_udfs(registry)?;
     Ok(())
 }
 

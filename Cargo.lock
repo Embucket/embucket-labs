@@ -2710,6 +2710,7 @@ version = "0.1.0"
 dependencies = [
  "ahash 0.8.12",
  "base64 0.22.1",
+ "bytes",
  "chrono",
  "datafusion",
  "datafusion-common",
@@ -2717,6 +2718,7 @@ dependencies = [
  "datafusion-expr",
  "datafusion-macros",
  "datafusion-physical-plan",
+ "insta",
  "jsonpath_lib",
  "paste",
  "serde",

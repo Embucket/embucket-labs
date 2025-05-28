@@ -536,15 +536,23 @@ test_query!(
 );
 // Session context
 test_query!(
-    current_session_context,
+    session_objects,
     "SELECT CURRENT_WAREHOUSE(), CURRENT_DATABASE(), CURRENT_SCHEMA()",
     snapshot_path = "session"
 );
-
-// Session context with alias
 test_query!(
     current_session_context_with_aliases,
     "SELECT CURRENT_WAREHOUSE() as wh, CURRENT_DATABASE() as db, CURRENT_SCHEMA() as sch",
+    snapshot_path = "session"
+);
+test_query!(
+    session_general,
+    "SELECT CURRENT_VERSION(), CURRENT_CLIENT()",
+    snapshot_path = "session"
+);
+test_query!(
+    session,
+    "SELECT CURRENT_ROLE_TYPE(), CURRENT_ROLE()",
     snapshot_path = "session"
 );
 

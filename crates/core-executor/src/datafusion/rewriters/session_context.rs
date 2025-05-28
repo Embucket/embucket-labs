@@ -29,6 +29,20 @@ impl SessionContextExprRewriter {
             Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_warehouse" => {
                 Expr::Literal(self.warehouse.clone().into()).alias(fun.name())
             }
+            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_role_type" => {
+                Expr::Literal("ROLE".into()).alias(fun.name())
+            }
+            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_role" => {
+                Expr::Literal("default".into()).alias(fun.name())
+            }
+            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_version" => {
+                let version = env!("CARGO_PKG_VERSION");
+                Expr::Literal(version.into()).alias(fun.name())
+            }
+            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_client" => {
+                let version = format!("Embucket {}", env!("CARGO_PKG_VERSION"));
+                Expr::Literal(version.into()).alias(fun.name())
+            }
             _ => expr,
         }
     }
