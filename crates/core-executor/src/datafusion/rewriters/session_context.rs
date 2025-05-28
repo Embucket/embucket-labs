@@ -1,7 +1,7 @@
 use datafusion::arrow::array::{ListArray, ListBuilder, StringBuilder};
 use datafusion::logical_expr::{Expr, LogicalPlan};
+use datafusion_common::tree_node::{Transformed, TreeNode, TreeNodeRewriter};
 use datafusion_common::{Result, ScalarValue};
-use datafusion_expr::expr::Alias;
 use std::sync::Arc;
 
 pub struct SessionContextExprRewriter {
@@ -9,56 +9,16 @@ pub struct SessionContextExprRewriter {
     pub schema: String,
     pub schemas: Vec<String>,
     pub warehouse: String,
+    pub session_id: String,
 }
 
 impl SessionContextExprRewriter {
     fn rewrite_expr(&self, expr: Expr) -> Expr {
-        match expr {
-            Expr::Alias(alias) => {
-                let rewritten_inner = self.rewrite_expr(*alias.expr);
-                Expr::Alias(Alias {
-                    expr: Box::new(rewritten_inner),
-                    relation: alias.relation,
-                    name: alias.name,
-                    metadata: alias.metadata,
-                })
-            }
-            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_database" => {
-                Expr::Literal(self.database.clone().into()).alias(fun.name())
-            }
-            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_schema" => {
-                Expr::Literal(self.schema.clone().into()).alias(fun.name())
-            }
-            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_schemas" => {
-                let mut builder = ListBuilder::new(StringBuilder::new());
-                let values_builder = builder.values();
-
-                for schema in &self.schemas {
-                    values_builder.append_value(schema);
-                }
-                builder.append(true);
-                let list_scalar = ScalarValue::List(Arc::new(ListArray::from(builder.finish())));
-                Expr::Literal(list_scalar).alias(fun.name())
-            }
-            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_warehouse" => {
-                Expr::Literal(self.warehouse.clone().into()).alias(fun.name())
-            }
-            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_role_type" => {
-                Expr::Literal("ROLE".into()).alias(fun.name())
-            }
-            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_role" => {
-                Expr::Literal("default".into()).alias(fun.name())
-            }
-            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_version" => {
-                let version = env!("CARGO_PKG_VERSION");
-                Expr::Literal(version.into()).alias(fun.name())
-            }
-            Expr::ScalarFunction(fun) if fun.name().to_lowercase() == "current_client" => {
-                let version = format!("Embucket {}", env!("CARGO_PKG_VERSION"));
-                Expr::Literal(version.into()).alias(fun.name())
-            }
-            _ => expr,
-        }
+        let mut rewriter = ExprRewriter { ctx: self };
+        expr.clone()
+            .rewrite(&mut rewriter)
+            .map(|t| t.data)
+            .unwrap_or(expr)
     }
 
     pub fn rewrite_plan(&self, plan: &LogicalPlan) -> Result<LogicalPlan> {
@@ -73,5 +33,59 @@ impl SessionContextExprRewriter {
             .map(|p| (*p).clone())
             .collect::<Vec<_>>();
         plan.with_new_exprs(new_exprs, inputs)
+    }
+}
+struct ExprRewriter<'a> {
+    ctx: &'a SessionContextExprRewriter,
+}
+
+impl TreeNodeRewriter for ExprRewriter<'_> {
+    type Node = Expr;
+
+    fn f_up(&mut self, expr: Expr) -> Result<Transformed<Expr>> {
+        let replacement = match &expr {
+            Expr::ScalarFunction(fun) => {
+                let name = fun.name().to_lowercase();
+                let value = match name.as_str() {
+                    "current_database" => Some(ScalarValue::Utf8(Some(self.ctx.database.clone()))),
+                    "current_schema" => Some(ScalarValue::Utf8(Some(self.ctx.schema.clone()))),
+                    "current_warehouse" => {
+                        Some(ScalarValue::Utf8(Some(self.ctx.warehouse.clone())))
+                    }
+                    "current_role_type" => Some(ScalarValue::Utf8(Some("ROLE".to_string()))),
+                    "current_role" => Some(ScalarValue::Utf8(Some("default".to_string()))),
+                    "current_version" => Some(ScalarValue::Utf8(Some(
+                        env!("CARGO_PKG_VERSION").to_string(),
+                    ))),
+                    "current_client" => Some(ScalarValue::Utf8(Some(format!(
+                        "Embucket {}",
+                        env!("CARGO_PKG_VERSION")
+                    )))),
+                    "current_session" => {
+                        Some(ScalarValue::Utf8(Some(self.ctx.session_id.to_string())))
+                    }
+                    "current_schemas" => {
+                        let mut builder = ListBuilder::new(StringBuilder::new());
+                        let values_builder = builder.values();
+                        for schema in &self.ctx.schemas {
+                            values_builder.append_value(schema);
+                        }
+                        builder.append(true);
+                        let array = builder.finish();
+                        Some(ScalarValue::List(Arc::new(ListArray::from(array))))
+                    }
+                    _ => None,
+                };
+
+                if let Some(val) = value {
+                    Ok(Transformed::yes(Expr::Literal(val).alias(fun.name())))
+                } else {
+                    Ok(Transformed::no(expr))
+                }
+            }
+            _ => Ok(Transformed::no(expr)),
+        };
+
+        replacement
     }
 }

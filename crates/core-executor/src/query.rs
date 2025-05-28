@@ -177,6 +177,7 @@ impl UserQuery {
             schema: self.current_schema(),
             schemas,
             warehouse: "default".to_string(),
+            session_id: self.session.ctx.session_id(),
         }
     }
 

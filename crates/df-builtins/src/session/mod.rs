@@ -74,6 +74,11 @@ fn current_role_udf() -> ScalarUDF {
     create_session_context_udf!("current_role", "default")
 }
 
+/// Returns a unique system identifier for the Embucket session corresponding to the present connection.
+fn current_session_udf() -> ScalarUDF {
+    create_session_context_udf!("current_session", "default")
+}
+
 pub fn register_session_context_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     registry.register_udf(current_database_udf().into())?;
     registry.register_udf(current_schema_udf().into())?;
@@ -83,5 +88,6 @@ pub fn register_session_context_udfs(registry: &mut dyn FunctionRegistry) -> Res
     registry.register_udf(current_client_udf().into())?;
     registry.register_udf(current_role_type_udf().into())?;
     registry.register_udf(current_role_udf().into())?;
+    registry.register_udf(current_session_udf().into())?;
     Ok(())
 }

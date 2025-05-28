@@ -21,3 +21,8 @@ test_query!(
     "SELECT CURRENT_ROLE_TYPE(), CURRENT_ROLE()",
     snapshot_path = "session"
 );
+test_query!(
+    session_current_session,
+    "SELECT CURRENT_SESSION()",
+    snapshot_path = "session"
+);

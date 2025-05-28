@@ -565,6 +565,12 @@ test_query!(
     "SELECT CURRENT_ROLE_TYPE(), CURRENT_ROLE()",
     snapshot_path = "session"
 );
+test_query!(
+    session_current_session,
+    // Check only length of session id since it is dynamic uuid
+    "SELECT length(CURRENT_SESSION())",
+    snapshot_path = "session"
+);
 
 // TRUNCATE TABLE
 test_query!(truncate_table, "TRUNCATE TABLE employee_table");
