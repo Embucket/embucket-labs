@@ -5,6 +5,7 @@ use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signatur
 use std::any::Any;
 use std::sync::Arc;
 
+// rtrimmed_length SQL function
 // Returns the length of its argument, minus trailing whitespace, but including leading whitespace.
 // Syntax: RTRIMMED_LENGTH( <string_expr> )
 #[derive(Debug)]
@@ -56,11 +57,7 @@ impl ScalarUDFImpl for RTrimmedLengthFunc {
 
         let new_array = strs
             .iter()
-            .map(|array_elem| {
-                array_elem.map(|value| {
-                    value.trim_end_matches(' ').len() as u64
-                })
-            })
+            .map(|array_elem| array_elem.map(|value| value.trim_end_matches(' ').len() as u64))
             .collect::<UInt64Array>();
 
         Ok(ColumnarValue::Array(Arc::new(new_array)))
