@@ -414,8 +414,9 @@ def directory_path_from_filename(path):
 import argparse
 
 
-def load_config_from_env(is_embucket):
+def load_config_from_env():
     """Load configuration from environment file."""
+    load_dotenv()
 
     # Extract Snowflake configuration from environment variables
     config = {
@@ -429,11 +430,12 @@ def load_config_from_env(is_embucket):
     }
 
     # Add embucket configuration if enabled via env
-    if is_embucket:
+    if os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
         config.update({
+            'embucket': True,
             'protocol': os.getenv('EMBUCKET_PROTOCOL', 'http'),
             'host': os.getenv('EMBUCKET_HOST'),
-            'port': os.getenv('EMBUCKET_PORT')
+            'port': os.getenv('EMBUCKET_PORT'),
         })
 
     return config
@@ -768,11 +770,10 @@ class SQLLogicPythonRunner:
         else:
             print("Running in non-parallel mode with 1 worker.")
 
-        load_dotenv()
-        # Check if running in Embucket mode
-        is_embucket = os.getenv('EMBUCKET_ENABLED', '').lower() == 'true'
         # Load configuration from env file
-        config = load_config_from_env(is_embucket)
+        config = load_config_from_env()
+        # Check if Embucket is enabled
+        is_embucket = config.get('embucket')
 
         # check if Embucket is running:
         if is_embucket:
