@@ -9,11 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs2'
 import { TableDataUploadDialog } from '@/modules/shared/table-data-upload-dialog/table-data-upload-dialog';
 import { useGetTableColumns, useGetTablePreviewData } from '@/orval/tables';
 
-import { DataPageEmptyContainer } from '../shared/data-page/data-page-empty-container';
-import { DataPageHeader } from '../shared/data-page/data-page-header';
-import { DataPageScrollArea } from '../shared/data-page/data-page-scroll-area';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { DataPreviewTable } from '../shared/data-preview-table/data-preview-table';
+import { PageEmptyContainer } from '../shared/page/page-empty-container';
+import { PageHeader } from '../shared/page/page-header';
+import { PageScrollArea } from '../shared/page/page-scroll-area';
 import { ColumnsPagePreviewDataToolbar } from './columns-page-preview-data-tooblar';
 import { ColumnsTable } from './columns-page-table';
 import { ColumnsPageToolbar } from './columns-page-tooblar';
@@ -40,7 +40,7 @@ export function ColumnsPage() {
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel collapsible defaultSize={20} order={1}>
-          <DataPageHeader
+          <PageHeader
             title={tableName}
             Icon={Table}
             Action={
@@ -60,7 +60,7 @@ export function ColumnsPage() {
             </TabsList>
             <TabsContent value="columns" className="m-0">
               {!columns?.length ? (
-                <DataPageEmptyContainer
+                <PageEmptyContainer
                   tabs
                   Icon={Columns}
                   title="No Columns Found"
@@ -69,15 +69,15 @@ export function ColumnsPage() {
               ) : (
                 <>
                   <ColumnsPageToolbar columns={columns} isFetchingColumns={isFetching} />
-                  <DataPageScrollArea tabs>
+                  <PageScrollArea tabs>
                     <ColumnsTable isLoading={isFetching} columns={columns} />
-                  </DataPageScrollArea>
+                  </PageScrollArea>
                 </>
               )}
             </TabsContent>
             <TabsContent value="data-preview" className="m-0">
               {!previewData?.length ? (
-                <DataPageEmptyContainer
+                <PageEmptyContainer
                   tabs
                   Icon={Columns}
                   title="No Data Found"
@@ -89,9 +89,9 @@ export function ColumnsPage() {
                     previewData={previewData}
                     isFetchingPreviewData={isPreviewDataFetching}
                   />
-                  <DataPageScrollArea tabs>
+                  <PageScrollArea tabs>
                     <DataPreviewTable columns={previewData} isLoading={isPreviewDataFetching} />
-                  </DataPageScrollArea>
+                  </PageScrollArea>
                 </>
               )}
             </TabsContent>

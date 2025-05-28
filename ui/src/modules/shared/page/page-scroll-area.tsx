@@ -1,12 +1,12 @@
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
-interface DataPageScrollAreaProps {
+interface PageScrollAreaProps {
   tabs?: boolean;
   children: React.ReactNode;
 }
 
-export function DataPageScrollArea({ children, tabs }: DataPageScrollAreaProps) {
+export function PageScrollArea({ children, tabs }: PageScrollAreaProps) {
   return (
     <ScrollArea
       className={cn(

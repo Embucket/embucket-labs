@@ -2,9 +2,9 @@ import { DatabaseZap } from 'lucide-react';
 
 import { useGetQueries } from '@/orval/queries';
 
-import { DataPageEmptyContainer } from '../shared/data-page/data-page-empty-container';
-import { DataPageHeader } from '../shared/data-page/data-page-header';
-import { DataPageScrollArea } from '../shared/data-page/data-page-scroll-area';
+import { PageEmptyContainer } from '../shared/page/page-empty-container';
+import { PageHeader } from '../shared/page/page-header';
+import { PageScrollArea } from '../shared/page/page-scroll-area';
 import { QueriesHistoryPageToolbar } from './queries-history-page-tooblar';
 import { QueriesHistoryTable } from './queries-history-table';
 
@@ -13,9 +13,9 @@ export function QueriesHistoryPage() {
 
   return (
     <>
-      <DataPageHeader title="Queries History" />
+      <PageHeader title="Queries History" />
       {!queries?.length ? (
-        <DataPageEmptyContainer
+        <PageEmptyContainer
           Icon={DatabaseZap}
           title="No Queries Found"
           description="No queries have been executed yet. Start querying data to see your history here."
@@ -23,31 +23,11 @@ export function QueriesHistoryPage() {
       ) : (
         <>
           <QueriesHistoryPageToolbar queries={queries} isFetchingQueries={isFetching} />
-          <DataPageScrollArea>
+          <PageScrollArea>
             <QueriesHistoryTable isLoading={isFetching} queries={queries} />
-          </DataPageScrollArea>
+          </PageScrollArea>
         </>
       )}
-      {/* <PageHeader title="Queries History" />
-      <ScrollArea className="h-[calc(100vh-65px-32px)] p-4">
-        <div className="flex size-full flex-col">
-          {queries?.length ? (
-            <ScrollArea tableViewport>
-              <QueriesHistoryTable queries={queries} isLoading={isFetching} />
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
-          ) : (
-            <EmptyContainer
-              // TODO: Hardcode
-              className="min-h-[calc(100vh-32px-65px-32px)]"
-              Icon={DatabaseZap}
-              title="No Queries Found"
-              description="No queries have been executed yet. Start querying data to see your history here."
-            />
-          )}
-        </div>
-        <ScrollBar orientation="vertical" />
-      </ScrollArea> */}
     </>
   );
 }

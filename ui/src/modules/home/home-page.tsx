@@ -1,6 +1,7 @@
-import { FileText } from 'lucide-react';
+import { FileText, Search } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
+import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useGetDashboard } from '@/orval/dashboard';
 import { useGetWorksheets } from '@/orval/worksheets';
@@ -20,7 +21,17 @@ export function HomePage() {
 
   return (
     <>
-      <PageHeader title="Home" />
+      <PageHeader
+        title="Home"
+        Action={
+          <InputRoot className="min-w-[300px]">
+            <InputIcon>
+              <Search />
+            </InputIcon>
+            <Input disabled placeholder="Search" />
+          </InputRoot>
+        }
+      />
 
       <ScrollArea className="h-[calc(100vh-65px-32px-2px)]">
         <div className="p-4">

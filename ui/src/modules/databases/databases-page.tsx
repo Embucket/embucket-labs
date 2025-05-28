@@ -8,10 +8,10 @@ import { useGetDatabases } from '@/orval/databases';
 import { useGetVolumes } from '@/orval/volumes';
 
 import { CreateDatabaseDialog } from '../shared/create-database-dialog/create-database-dialog';
-import { DataPageEmptyContainer } from '../shared/data-page/data-page-empty-container';
-import { DataPageHeader } from '../shared/data-page/data-page-header';
-import { DataPageScrollArea } from '../shared/data-page/data-page-scroll-area';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
+import { PageEmptyContainer } from '../shared/page/page-empty-container';
+import { PageHeader } from '../shared/page/page-header';
+import { PageScrollArea } from '../shared/page/page-scroll-area';
 import { DatabasesTable } from './databases-page-table';
 import { DatabasesPageToolbar } from './databases-page-toolbar';
 
@@ -28,7 +28,7 @@ export function DatabasesPage() {
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel collapsible defaultSize={20} order={1}>
-          <DataPageHeader
+          <PageHeader
             title="Databases"
             Action={
               <Button
@@ -41,7 +41,7 @@ export function DatabasesPage() {
             }
           />
           {!databases?.length ? (
-            <DataPageEmptyContainer
+            <PageEmptyContainer
               Icon={Database}
               title="No Databases Found"
               description="No databases have been created yet. Create a database to get started."
@@ -52,9 +52,9 @@ export function DatabasesPage() {
                 databases={databases}
                 isFetchingDatabases={isFetchingDatabases}
               />
-              <DataPageScrollArea>
+              <PageScrollArea>
                 <DatabasesTable isLoading={isFetchingDatabases} databases={databases} />
-              </DataPageScrollArea>
+              </PageScrollArea>
             </>
           )}
         </ResizablePanel>
