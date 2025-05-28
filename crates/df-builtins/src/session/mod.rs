@@ -1,4 +1,5 @@
-use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::array::ListArray;
+use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion_common::{Result, ScalarValue};
 use datafusion_expr::registry::FunctionRegistry;
 use datafusion_expr::{
@@ -26,6 +27,23 @@ fn current_database_udf() -> ScalarUDF {
 /// Returns the name of the current schema, which varies depending on where you call the function
 fn current_schema_udf() -> ScalarUDF {
     create_session_context_udf!("current_schema", "default")
+}
+
+/// Returns active search path schemas.
+fn current_schemas_udf() -> ScalarUDF {
+    let fun: ScalarFunctionImplementation = Arc::new(move |_args| {
+        let list_array = ListArray::new_null(Arc::new(Field::new("item", DataType::Utf8, true)), 1);
+        Ok(ColumnarValue::Scalar(ScalarValue::List(Arc::new(
+            list_array,
+        ))))
+    });
+    create_udf(
+        "current_schemas",
+        vec![],
+        DataType::List(Arc::new(Field::new("item", DataType::Utf8, true))),
+        Volatility::Immutable,
+        fun,
+    )
 }
 
 /// Returns the name of the warehouse in use for the current session.
@@ -59,6 +77,7 @@ fn current_role_udf() -> ScalarUDF {
 pub fn register_session_context_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     registry.register_udf(current_database_udf().into())?;
     registry.register_udf(current_schema_udf().into())?;
+    registry.register_udf(current_schemas_udf().into())?;
     registry.register_udf(current_warehouse_udf().into())?;
     registry.register_udf(current_version_udf().into())?;
     registry.register_udf(current_client_udf().into())?;

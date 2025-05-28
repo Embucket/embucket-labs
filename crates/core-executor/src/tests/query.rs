@@ -541,8 +541,18 @@ test_query!(
     snapshot_path = "session"
 );
 test_query!(
-    current_session_context_with_aliases,
+    session_objects_with_aliases,
     "SELECT CURRENT_WAREHOUSE() as wh, CURRENT_DATABASE() as db, CURRENT_SCHEMA() as sch",
+    snapshot_path = "session"
+);
+test_query!(
+    session_current_schemas,
+    "SELECT CURRENT_SCHEMAS()",
+    snapshot_path = "session"
+);
+test_query!(
+    session_current_schemas_with_aliases,
+    "SELECT CURRENT_SCHEMAS() as sc",
     snapshot_path = "session"
 );
 test_query!(

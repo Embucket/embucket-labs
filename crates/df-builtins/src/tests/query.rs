@@ -7,6 +7,11 @@ test_query!(
     snapshot_path = "session"
 );
 test_query!(
+    session_current_schemas,
+    "SELECT CURRENT_SCHEMAS()",
+    snapshot_path = "session"
+);
+test_query!(
     session_general,
     "SELECT CURRENT_VERSION(), CURRENT_CLIENT()",
     snapshot_path = "session"
