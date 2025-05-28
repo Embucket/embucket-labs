@@ -9,6 +9,7 @@ import { CreateVolumeDialog } from '../shared/create-volume-dialog/create-volume
 import { DataPageContent } from '../shared/data-page/data-page-content';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
 import { VolumesTable } from './volumes-page-table';
+import { VolumesPageToolbar } from './volumes-page-toolbar';
 
 // TODO: Not a data page
 export function VolumesPage() {
@@ -20,7 +21,6 @@ export function VolumesPage() {
     <>
       <DataPageHeader
         title="Volumes"
-        secondaryText={`${volumes?.length} volumes found`}
         Action={
           <Button disabled={isFetching} onClick={() => setOpened(true)}>
             Add Volume
@@ -29,11 +29,13 @@ export function VolumesPage() {
       />
       <DataPageContent
         isEmpty={!volumes?.length}
-        Table={<VolumesTable volumes={volumes ?? []} isLoading={isFetching} />}
         emptyStateIcon={Box}
         emptyStateTitle="No Volumes Found"
         emptyStateDescription="No volumes have been created yet. Create a volume to get started."
-      />
+      >
+        <VolumesPageToolbar volumes={volumes ?? []} isFetchingVolumes={isFetching} />
+        <VolumesTable volumes={volumes ?? []} isLoading={isFetching} />
+      </DataPageContent>
       <CreateVolumeDialog opened={opened} onSetOpened={setOpened} />
     </>
   );

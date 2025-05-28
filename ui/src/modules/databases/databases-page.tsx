@@ -12,6 +12,7 @@ import { DataPageContent } from '../shared/data-page/data-page-content';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { DatabasesTable } from './databases-page-table';
+import { DatabasesPageToolbar } from './databases-page-toolbar';
 
 export function DatabasesPage() {
   const [opened, setOpened] = useState(false);
@@ -28,7 +29,6 @@ export function DatabasesPage() {
         <ResizablePanel collapsible defaultSize={20} order={1}>
           <DataPageHeader
             title="Databases"
-            secondaryText={`${databases?.length} databases found`}
             Action={
               <Button
                 disabled={isFetchingDatabases || isFetchingVolumes || !volumes?.length}
@@ -40,11 +40,16 @@ export function DatabasesPage() {
           />
           <DataPageContent
             isEmpty={!databases?.length}
-            Table={<DatabasesTable isLoading={isFetchingDatabases} databases={databases ?? []} />}
             emptyStateIcon={Database}
             emptyStateTitle="No Databases Found"
             emptyStateDescription="No databases have been created yet. Create a database to get started."
-          />
+          >
+            <DatabasesPageToolbar
+              databases={databases ?? []}
+              isFetchingDatabases={isFetchingDatabases}
+            />
+            <DatabasesTable isLoading={isFetchingDatabases} databases={databases ?? []} />
+          </DataPageContent>
         </ResizablePanel>
       </ResizablePanelGroup>
       <CreateDatabaseDialog opened={opened} onSetOpened={setOpened} />

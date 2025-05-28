@@ -11,7 +11,7 @@ export const PageHeader = ({ title, children }: PageHeaderProps) => {
   return (
     <div className="flex items-center justify-between border-b p-4">
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold">{title}</h1>
+        <h1 className="text-lg">{title}</h1>
         {children}
       </div>
       <InputRoot>

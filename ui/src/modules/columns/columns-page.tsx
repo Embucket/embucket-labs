@@ -14,6 +14,7 @@ import { DataPageHeader } from '../shared/data-page/data-page-header';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { DataPreviewTable } from '../shared/data-preview-table/data-preview-table';
 import { ColumnsTable } from './columns-page-table';
+import { ColumnsPageToolbar } from './columns-page-tooblar';
 
 export function ColumnsPage() {
   const [isLoadDataDialogOpened, setIsLoadDataDialogOpened] = useState(false);
@@ -40,7 +41,6 @@ export function ColumnsPage() {
           <DataPageHeader
             title={tableName}
             Icon={Table}
-            secondaryText={`${columns?.length} columns found`}
             Action={
               <Button onClick={() => setIsLoadDataDialogOpened(true)} disabled={isFetching}>
                 Load Data
@@ -56,23 +56,24 @@ export function ColumnsPage() {
               <DataPageContent
                 hasTabs
                 isEmpty={!columns?.length}
-                Table={<ColumnsTable isLoading={isFetching} columns={columns ?? []} />}
                 emptyStateIcon={Columns}
                 emptyStateTitle="No Columns Found"
-                emptyStateDescription="No columns have been created yet. Create a column to get started."
-              />
+                emptyStateDescription="No columns have been found for this table."
+              >
+                <ColumnsPageToolbar columns={columns ?? []} isFetchingColumns={isFetching} />
+                <ColumnsTable isLoading={isFetching} columns={columns ?? []} />
+              </DataPageContent>
             </TabsContent>
             <TabsContent value="data-preview" className="m-0">
               <DataPageContent
                 hasTabs
                 isEmpty={!previewData?.length}
-                Table={
-                  <DataPreviewTable isLoading={isPreviewDataFetching} columns={previewData ?? []} />
-                }
                 emptyStateIcon={Columns}
                 emptyStateTitle="No Data Found"
                 emptyStateDescription="No data has been loaded for this table yet."
-              />
+              >
+                <DataPreviewTable columns={previewData ?? []} isLoading={isPreviewDataFetching} />
+              </DataPageContent>
             </TabsContent>
           </Tabs>
         </ResizablePanel>

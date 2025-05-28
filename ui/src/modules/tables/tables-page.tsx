@@ -12,6 +12,7 @@ import { DataPageHeader } from '../shared/data-page/data-page-header';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
 import { TablesTable } from './tables-page-table';
+import { TablesPageToolbar } from './tables-page-toolbar';
 
 const CREATE_TABLE_QUERY = `-- Replace <table_name> with the desired one (e.g., 's'), and specify appropriate column names and data types.
 -- Example: CREATE TABLE mydb1.myschema1.s (id INT, name VARCHAR(100));
@@ -72,7 +73,6 @@ export function TablesPage() {
           <DataPageHeader
             title={schemaName}
             Icon={FolderTree}
-            secondaryText={`${tables?.length} tables found`}
             Action={
               <Button disabled={isPending} onClick={handleCreateTable}>
                 Add Table
@@ -81,18 +81,18 @@ export function TablesPage() {
           />
           <DataPageContent
             isEmpty={!tables?.length}
-            Table={
-              <TablesTable
-                isLoading={isFetching}
-                tables={tables ?? []}
-                databaseName={databaseName}
-                schemaName={schemaName}
-              />
-            }
             emptyStateIcon={Table}
             emptyStateTitle="No Tables Found"
             emptyStateDescription="No tables have been created yet. Create a table to get started."
-          />
+          >
+            <TablesPageToolbar tables={tables ?? []} isFetchingTables={isFetching} />
+            <TablesTable
+              isLoading={isFetching}
+              tables={tables ?? []}
+              databaseName={databaseName}
+              schemaName={schemaName}
+            />
+          </DataPageContent>
         </ResizablePanel>
       </ResizablePanelGroup>
     </>

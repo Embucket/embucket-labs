@@ -12,6 +12,7 @@ import { DataPageContent } from '../shared/data-page/data-page-content';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { SchemasTable } from './schemas-page-table';
+import { SchemasPageToolbar } from './schemas-page-toolbar';
 
 export function SchemasPage() {
   const [opened, setOpened] = useState(false);
@@ -29,7 +30,6 @@ export function SchemasPage() {
           <DataPageHeader
             title={databaseName}
             Icon={Database}
-            secondaryText={`${schemas?.length} schemas found`}
             Action={
               <Button disabled={isFetching} onClick={() => setOpened(true)}>
                 Add Schema
@@ -38,11 +38,13 @@ export function SchemasPage() {
           />
           <DataPageContent
             isEmpty={!schemas?.length}
-            Table={<SchemasTable isLoading={isFetching} schemas={schemas ?? []} />}
             emptyStateIcon={FolderTree}
             emptyStateTitle="No Schemas Found"
-            emptyStateDescription="No schemas have been created yet. Create a schema to get started."
-          />
+            emptyStateDescription="No schemas have been found for this database."
+          >
+            <SchemasPageToolbar schemas={schemas ?? []} isFetchingSchemas={isFetching} />
+            <SchemasTable isLoading={isFetching} schemas={schemas ?? []} />
+          </DataPageContent>
         </ResizablePanel>
       </ResizablePanelGroup>
       <CreateSchemaDialog opened={opened} onSetOpened={setOpened} databaseName={databaseName} />

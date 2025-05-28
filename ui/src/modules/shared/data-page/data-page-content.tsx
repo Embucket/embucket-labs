@@ -9,15 +9,15 @@ import { cn } from '@/lib/utils';
 interface DataPageContentProps {
   isEmpty: boolean;
   hasTabs?: boolean;
-  Table: ReactNode;
   emptyStateIcon: LucideIcon;
+  children: ReactNode;
   emptyStateTitle: string;
   emptyStateDescription: string;
 }
 
 export function DataPageContent({
+  children,
   isEmpty,
-  Table,
   hasTabs,
   emptyStateIcon: Icon,
   emptyStateTitle,
@@ -25,14 +25,11 @@ export function DataPageContent({
 }: DataPageContentProps) {
   return !isEmpty ? (
     <ScrollArea
-      className={cn(
-        'h-[calc(100vh-117px-32px-2px)]',
-        hasTabs && 'h-[calc(100vh-117px-32px-2px-53px)]',
-      )}
+      className={cn('h-[calc(100vh-72px-31px)]', hasTabs && 'h-[calc(100vh-72px-31px-53px)]')}
     >
       <div className="flex size-full flex-col p-4">
         <ScrollArea tableViewport>
-          {Table}
+          {children}
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </div>
@@ -40,7 +37,7 @@ export function DataPageContent({
     </ScrollArea>
   ) : (
     <EmptyContainer
-      className="h-[calc(100vh-117px-32px-2px)]"
+      className="h-[calc(100vh-72px-31px)]"
       Icon={Icon}
       title={emptyStateTitle}
       description={emptyStateDescription}
