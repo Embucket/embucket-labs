@@ -1,6 +1,16 @@
 use super::catalog::information_schema::information_schema::{
     INFORMATION_SCHEMA, InformationSchemaProvider,
 };
+use super::catalog::{
+    catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
+};
+use super::datafusion::planner::ExtendedSqlToRel;
+use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu};
+use super::session::UserSession;
+use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
+use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
+use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element};
+use crate::models::QueryResult;
 use core_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
     TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
@@ -28,6 +38,8 @@ use datafusion_common::{
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use df_catalog::catalog::CachingCatalog;
+use df_catalog::information_schema::session_params::SessionProperty;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
@@ -41,26 +53,14 @@ use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
     ObjectType, PivotValueSource, Select, SelectItem, ShowObjects, ShowStatementFilter,
-    ShowStatementIn, Use, Value,
+    ShowStatementIn, TruncateTableTarget, Use, Value,
 };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt::Write;
 use std::sync::Arc;
-use url::Url;
-
-use super::catalog::{
-    catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
-};
-use super::datafusion::planner::ExtendedSqlToRel;
-use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu};
-use super::session::UserSession;
-use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
-use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element};
-use crate::models::QueryResult;
-use df_catalog::catalog::CachingCatalog;
-use df_catalog::information_schema::session_params::SessionProperty;
 use tracing_attributes::instrument;
+use url::Url;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct QueryContext {
@@ -157,6 +157,28 @@ impl UserQuery {
                 .context(RefreshCatalogListSnafu)?;
         }
         Ok(())
+    }
+
+    fn session_context_expr_rewriter(&self) -> SessionContextExprRewriter {
+        let current_database = self.current_database();
+        let schemas: Vec<String> = self
+            .session
+            .ctx
+            .catalog(&current_database)
+            .map(|c| {
+                c.schema_names()
+                    .iter()
+                    .map(|schema| format!("{current_database}.{schema}"))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        SessionContextExprRewriter {
+            database: current_database,
+            schema: self.current_schema(),
+            schemas,
+            warehouse: "default".to_string(),
+            session_id: self.session.ctx.session_id(),
+        }
     }
 
     #[allow(clippy::unwrap_used)]
@@ -296,6 +318,11 @@ impl UserQuery {
                 | Statement::ShowVariables { .. }
                 | Statement::ShowVariable { .. } => {
                     return Box::pin(self.show_query(*s)).await;
+                }
+                Statement::Truncate { table_names, .. } => {
+                    let result = Box::pin(self.truncate_table(table_names)).await;
+                    self.refresh_catalog().await?;
+                    return result;
                 }
                 Statement::Query(mut subquery) => {
                     self.update_qualify_in_query(subquery.as_mut());
@@ -1167,6 +1194,28 @@ impl UserQuery {
         Box::pin(self.execute_with_custom_plan(&query)).await
     }
 
+    pub async fn truncate_table(
+        &self,
+        table_names: Vec<TruncateTableTarget>,
+    ) -> ExecutionResult<QueryResult> {
+        let Some(first_table) = table_names.into_iter().next() else {
+            return Err(ExecutionError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "No table names provided for TRUNCATE TABLE".to_string(),
+                ),
+            });
+        };
+
+        let object_name = self.resolve_table_object_name(first_table.name.0)?;
+        let mut query = self.session.query(
+            format!(
+                "CREATE OR REPLACE TABLE {object_name} as (SELECT * FROM {object_name} WHERE FALSE)",
+            ),
+            QueryContext::default(),
+        );
+        query.execute().await
+    }
+
     #[must_use]
     pub fn resolve_show_in_name(
         &self,
@@ -1277,7 +1326,11 @@ impl UserQuery {
 
     #[instrument(level = "trace", skip(self), err, ret)]
     pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<QueryResult> {
-        let plan = self.get_custom_logical_plan(query).await?;
+        let mut plan = self.get_custom_logical_plan(query).await?;
+        plan = self
+            .session_context_expr_rewriter()
+            .rewrite_plan(&plan)
+            .context(super::error::DataFusionSnafu)?;
         self.execute_logical_plan(plan).await
     }
 

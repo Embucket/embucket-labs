@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"TRUNCATE TABLE employee_table\""
+snapshot_kind: text
+---
+Ok(
+    [
+        "+-------+",
+        "| count |",
+        "+-------+",
+        "| 0     |",
+        "+-------+",
+    ],
+)

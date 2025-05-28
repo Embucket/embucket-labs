@@ -1,3 +1,5 @@
+use crate::json;
+use crate::json::{PathToken, get_json_value, tokenize_path};
 use datafusion::arrow::array::builder::{StringBuilder, UInt64Builder};
 use datafusion::arrow::array::{ArrayRef, RecordBatch, StringArray, UInt64Array};
 use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef};
@@ -29,12 +31,6 @@ impl Mode {
     const fn is_array(&self) -> bool {
         matches!(self, Self::Array | Self::Both)
     }
-}
-
-#[derive(Debug, Clone)]
-enum PathToken {
-    Key(String),
-    Index(usize),
 }
 
 struct Out {
@@ -338,81 +334,6 @@ fn path_to_string(path: &[PathToken]) -> String {
     out
 }
 
-fn get_json_value<'a>(value: &'a Value, tokens: &[PathToken]) -> Option<&'a Value> {
-    let mut current = value;
-
-    for token in tokens {
-        match token {
-            PathToken::Key(k) => {
-                current = current.get(k)?;
-            }
-            PathToken::Index(i) => {
-                current = current.get(i)?;
-            }
-        }
-    }
-
-    Some(current)
-}
-
-#[allow(clippy::while_let_on_iterator)]
-fn tokenize_path(path: &str) -> Option<Vec<PathToken>> {
-    let mut tokens = Vec::new();
-    let mut chars = path.chars().peekable();
-
-    while let Some(&ch) = chars.peek() {
-        match ch {
-            '.' => {
-                chars.next(); // skip dot
-            }
-            '[' => {
-                chars.next(); // skip [
-                if let Some(&quote) = chars.peek() {
-                    if quote == '"' || quote == '\'' {
-                        chars.next(); // skip quote
-                        let mut key = String::new();
-                        while let Some(c) = chars.next() {
-                            if c == quote {
-                                break;
-                            }
-                            key.push(c);
-                        }
-                        tokens.push(PathToken::Key(key));
-                    } else {
-                        // parse index
-                        let mut num = String::new();
-                        while let Some(&c) = chars.peek() {
-                            if c == ']' {
-                                break;
-                            }
-                            num.push(c);
-                            chars.next();
-                        }
-                        chars.next(); // skip ]
-                        let index = num.parse::<usize>().ok()?;
-                        tokens.push(PathToken::Index(index));
-                    }
-                }
-                chars.next(); // skip ]
-            }
-            _ => {
-                // parse unquoted key until '.' or '['
-                let mut key = String::new();
-                while let Some(&c) = chars.peek() {
-                    if c == '.' || c == '[' {
-                        break;
-                    }
-                    key.push(c);
-                    chars.next();
-                }
-                tokens.push(PathToken::Key(key));
-            }
-        }
-    }
-
-    Some(tokens)
-}
-
 fn eval_expr(expr: &Expr) -> DFResult<ScalarValue> {
     let exec_props = ExecutionProps::new();
     let phys_expr = create_physical_expr(expr, &DFSchema::empty(), &exec_props)?;
@@ -499,7 +420,7 @@ fn get_args(args: &[&Expr]) -> DFResult<Args> {
 
     // path
     let path = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[1] {
-        if let Some(p) = tokenize_path(v) {
+        if let Some(p) = json::tokenize_path(v) {
             p
         } else {
             return exec_err!("Invalid JSON path");

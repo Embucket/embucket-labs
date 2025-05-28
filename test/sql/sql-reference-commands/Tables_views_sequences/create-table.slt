@@ -1,55 +1,55 @@
 statement ok
-CREATE OR REPLACE TABLE mytable (amount NUMBER);
+CREATE OR REPLACE TABLE mytable_1 (amount NUMBER);
 
 exclude-from-coverage
 statement ok
-INSERT INTO mytable VALUES(1);
+INSERT INTO mytable_1 VALUES(1);
 
 query T
 SELECT table_name
 FROM information_schema.tables
-WHERE table_name = 'MYTABLE';
+WHERE table_name = 'MYTABLE_1';
 ----
-MYTABLE
+MYTABLE_1
 
 query TTTTTTTTTTTT
-DESC TABLE mytable;
+DESC TABLE MYTABLE_1;
 ----
 AMOUNT	NUMBER(38,0)	COLUMN	Y	NULL	N	N	NULL	NULL	NULL	NULL	NULL
 
 statement ok
-CREATE OR REPLACE TABLE example (col1 NUMBER COMMENT 'a column comment') COMMENT='a table comment';
+CREATE OR REPLACE TABLE example_2 (col1 NUMBER COMMENT 'a column comment') COMMENT='a table comment';
 
 query T
 SELECT comment
 FROM information_schema.tables
-WHERE table_name = 'EXAMPLE';
+WHERE table_name = 'EXAMPLE_2';
 ----
 a table comment
 
 query TTTTTTTTTTTT
-DESC TABLE example;
+DESC TABLE example_2;
 ----
 COL1	NUMBER(38,0)	COLUMN	Y	NULL	N	N	NULL	NULL	a column comment	NULL	NULL
 
 statement ok
-CREATE OR REPLACE TABLE mytable_copy (b) AS SELECT * FROM mytable;
+CREATE OR REPLACE TABLE MYTABLE_1_copy (b) AS SELECT * FROM MYTABLE_1;
 
 query TTTTTTTTTTTT
-DESC TABLE mytable_copy;
+DESC TABLE MYTABLE_1_copy;
 ----
 B	NUMBER(38,0)	COLUMN	Y	NULL	N	N	NULL	NULL	NULL	NULL	NULL
 
 statement ok
-CREATE OR REPLACE TABLE mytable_copy2 AS SELECT b+1 AS c FROM mytable_copy;
+CREATE OR REPLACE TABLE MYTABLE_1_copy2 AS SELECT b+1 AS c FROM MYTABLE_1_copy;
 
 query TTTTTTTTTTTT
-DESC TABLE mytable_copy2;
+DESC TABLE MYTABLE_1_copy2;
 ----
 C	NUMBER(38,0)	COLUMN	Y	NULL	N	N	NULL	NULL	NULL	NULL	NULL
 
 query T
-SELECT * FROM mytable_copy2;
+SELECT * FROM MYTABLE_1_copy2;
 ----
 2
 
@@ -60,13 +60,13 @@ statement ok
 CREATE OR REPLACE TABLE testtable_summary (name, summary_amount) AS SELECT name, amount1 + amount2 FROM testtable;
 
 statement ok
-CREATE OR REPLACE TABLE mytable (amount NUMBER);
+CREATE OR REPLACE TABLE MYTABLE_1 (amount NUMBER);
 
 statement ok
-INSERT INTO mytable VALUES(1);
+INSERT INTO MYTABLE_1 VALUES(1);
 
 query T
-SELECT * FROM mytable;
+SELECT * FROM MYTABLE_1;
 ----
 1
 

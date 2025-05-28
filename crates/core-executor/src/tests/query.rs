@@ -474,7 +474,6 @@ test_query!(
     exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );
-
 test_query!(
     show_variables_multiple,
     "SHOW VARIABLES",
@@ -535,3 +534,52 @@ test_query!(
     setup_queries = ["SET datafusion.explain.logical_plan_only = true"],
     snapshot_path = "session"
 );
+// Session context
+test_query!(
+    session_objects,
+    "SELECT CURRENT_WAREHOUSE(), CURRENT_DATABASE(), CURRENT_SCHEMA()",
+    snapshot_path = "session"
+);
+test_query!(
+    session_objects_with_aliases,
+    "SELECT CURRENT_WAREHOUSE() as wh, CURRENT_DATABASE() as db, CURRENT_SCHEMA() as sch",
+    snapshot_path = "session"
+);
+test_query!(
+    session_current_schemas,
+    "SELECT CURRENT_SCHEMAS()",
+    snapshot_path = "session"
+);
+test_query!(
+    session_current_schemas_with_aliases,
+    "SELECT CURRENT_SCHEMAS() as sc",
+    snapshot_path = "session"
+);
+test_query!(
+    session_general,
+    "SELECT CURRENT_VERSION(), CURRENT_CLIENT()",
+    snapshot_path = "session"
+);
+test_query!(
+    session,
+    "SELECT CURRENT_ROLE_TYPE(), CURRENT_ROLE()",
+    snapshot_path = "session"
+);
+test_query!(
+    session_current_session,
+    // Check only length of session id since it is dynamic uuid
+    "SELECT length(CURRENT_SESSION())",
+    snapshot_path = "session"
+);
+
+// TRUNCATE TABLE
+test_query!(truncate_table, "TRUNCATE TABLE employee_table");
+test_query!(
+    truncate_table_full,
+    "TRUNCATE TABLE embucket.public.employee_table"
+);
+test_query!(
+    truncate_table_full_quotes,
+    "TRUNCATE TABLE 'EMBUCKET'.'PUBLIC'.'EMPLOYEE_TABLE'"
+);
+test_query!(truncate_missing, "TRUNCATE TABLE missing_table");

@@ -1,5 +1,9 @@
 exclude-from-coverage
 statement ok
+CREATE OR REPLACE STAGE pipe_test_stage;
+
+exclude-from-coverage
+statement ok
 CREATE OR REPLACE TABLE pipe_test_table (
   id INT,
   data STRING

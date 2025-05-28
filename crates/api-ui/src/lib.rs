@@ -17,6 +17,8 @@ pub mod router;
 pub mod schemas;
 pub mod state;
 pub mod tables;
+pub mod test_server;
+
 #[cfg(test)]
 pub mod tests;
 pub mod volumes;

@@ -25,6 +25,7 @@ mod booland;
 mod boolor;
 mod boolxor;
 mod equal_null;
+mod get_path;
 mod iff;
 mod insert;
 mod is_array;
@@ -33,8 +34,11 @@ mod json;
 mod nullifzero;
 mod parse_json;
 mod rtrimmed_length;
+pub mod session;
 mod strtok_to_array;
 pub mod table;
+#[cfg(test)]
+pub mod tests;
 mod time_from_parts;
 mod timestamp_from_parts;
 mod to_boolean;
@@ -60,6 +64,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         array_flatten::get_udf(),
         array_to_string::get_udf(),
         rtrimmed_length::get_udf(),
+        get_path::get_udf(),
         insert::get_udf(),
         strtok_to_array::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
@@ -71,7 +76,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     for func in functions {
         registry.register_udf(func)?;
     }
-
+    session::register_session_context_udfs(registry)?;
     Ok(())
 }
 

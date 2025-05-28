@@ -2,7 +2,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { createColumnHelper } from '@tanstack/react-table';
 
 import { DataTable } from '@/components/data-table/data-table';
-import dayjs from '@/lib/dayjs';
+import { formatTime } from '@/lib/formatTime';
 import type { Schema } from '@/orval/models';
 
 interface SchemasTableProps {
@@ -19,13 +19,9 @@ export function SchemasTable({ isLoading, schemas }: SchemasTableProps) {
       header: 'Name',
     }),
     columnHelper.accessor('created_at', {
-      header: 'Start Time',
+      header: 'Created',
       cell: (info) => {
-        const startTime = dayjs(info.getValue());
-        const diff = dayjs().diff(startTime, 'minute');
-        const date =
-          diff < 24 ? dayjs(startTime).fromNow() : dayjs(startTime).format('DD/MM/YYYY HH:mm');
-        return <span>{date}</span>;
+        return <span>{formatTime(info.getValue())}</span>;
       },
     }),
   ];

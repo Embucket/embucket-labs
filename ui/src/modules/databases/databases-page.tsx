@@ -28,7 +28,6 @@ export function DatabasesPage() {
         <ResizablePanel collapsible defaultSize={20} order={1}>
           <DataPageHeader
             title="Databases"
-            Icon={Database}
             secondaryText={`${databases?.length} databases found`}
             Action={
               <Button

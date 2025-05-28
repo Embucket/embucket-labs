@@ -28,7 +28,7 @@ pub struct S3TablesVolume {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 pub struct FileVolume {
-    path: String,
+    pub path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]

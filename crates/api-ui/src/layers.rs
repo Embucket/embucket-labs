@@ -38,6 +38,7 @@ pub async fn add_request_metadata(
         request_id,
         auth_details: AuthDetails::Unauthenticated,
     });
+    tracing::debug!("Request headers: {:#?}", request.headers());
     let mut response = next.run(request).await;
     response
         .headers_mut()
