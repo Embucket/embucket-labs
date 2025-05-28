@@ -81,7 +81,7 @@ jobs:
       - name: Run SQL Logic Tests
         working-directory: ./test
         run: |
-          python -u -m slt_runner --test-dir sql
+          python -u -m slt_runner --test-dir sql --parallel
 
       # Generate Test Assets
       - name: Generate Test Assets
