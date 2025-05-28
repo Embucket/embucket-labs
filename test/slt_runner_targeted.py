@@ -128,7 +128,7 @@ def run_slt_files(slt_files, runner_module=None, output_dir="./artifacts"):
 
 def analyze_test_results(results_csv):
     """
-    Analyze the test results and return a summary
+    Analyze the test results and return a summary with per-file breakdown
     """
     try:
         # Load the test results
@@ -142,6 +142,20 @@ def analyze_test_results(results_csv):
             failed_tests = df['failed_tests'].sum() if 'failed_tests' in df.columns else 0
             skipped_tests = 0  # Not tracked in this format
 
+            # Create per-file breakdown
+            file_results = []
+            for _, row in df.iterrows():
+                file_total = row.get('total_tests', 0)
+                file_passed = row.get('successful_tests', 0)
+                file_percentage = (file_passed / file_total * 100) if file_total > 0 else 100.0
+
+                file_results.append({
+                    'filename': row.get('page_name', 'Unknown'),
+                    'passed': int(file_passed),
+                    'total': int(file_total),
+                    'percentage': file_percentage
+                })
+
             # Create a summary
             summary = {
                 'total_tests': int(total_tests),
@@ -149,6 +163,7 @@ def analyze_test_results(results_csv):
                 'failed_tests': int(failed_tests),
                 'skipped_tests': int(skipped_tests),
                 'pass_rate': passed_tests / total_tests if total_tests > 0 else 1.0,
+                'file_results': file_results
             }
 
             # No detailed failure information available in this format
@@ -168,6 +183,31 @@ def analyze_test_results(results_csv):
             # Count skipped tests
             skipped_tests = len(df[df['status'] == 'skip']) if 'status' in df.columns else 0
 
+            # Create per-file breakdown (group by filename if available)
+            file_results = []
+            if 'filename' in df.columns:
+                for filename in df['filename'].unique():
+                    file_df = df[df['filename'] == filename]
+                    file_total = len(file_df)
+                    file_passed = len(file_df[file_df['status'] == 'ok']) if 'status' in df.columns else file_total
+                    file_percentage = (file_passed / file_total * 100) if file_total > 0 else 100.0
+
+                    file_results.append({
+                        'filename': filename,
+                        'passed': file_passed,
+                        'total': file_total,
+                        'percentage': file_percentage
+                    })
+            else:
+                # No filename info, create a single entry
+                file_percentage = (passed_tests / total_tests * 100) if total_tests > 0 else 100.0
+                file_results.append({
+                    'filename': 'All tests',
+                    'passed': passed_tests,
+                    'total': total_tests,
+                    'percentage': file_percentage
+                })
+
             # Create a summary
             summary = {
                 'total_tests': total_tests,
@@ -175,6 +215,7 @@ def analyze_test_results(results_csv):
                 'failed_tests': failed_tests,
                 'skipped_tests': skipped_tests,
                 'pass_rate': passed_tests / total_tests if total_tests > 0 else 1.0,
+                'file_results': file_results
             }
 
             # Create a list of failed tests
@@ -202,18 +243,15 @@ def analyze_test_results(results_csv):
             'failed_tests': 0,
             'skipped_tests': 0,
             'pass_rate': 1.0,
+            'file_results': [{'filename': 'Unknown', 'passed': 1, 'total': 1, 'percentage': 100.0}],
             'failed_test_details': []
         }
 
 
 def generate_pr_comment(summary, test_file_list):
     """
-    Generate a comment for the PR with the test results
+    Generate a comment for the PR with the test results showing coverage by SLT file
     """
-    # Read the list of test files
-    with open(test_file_list, 'r') as f:
-        files = f.read().strip().split('\n')
-
     # Calculate pass rate percentage
     pass_rate_pct = summary['pass_rate'] * 100
 
@@ -223,49 +261,25 @@ def generate_pr_comment(summary, test_file_list):
     else:
         status = "❌"
 
-    # Create the comment
-    comment = f"""
-## SLT Test Results {status}
+    # Create the comment with per-file coverage
+    comment = f"""## SQL Logic Tests Results {status}
 
-### Summary
-- **Total Tests:** {summary['total_tests']}
-- **Passed:** {summary['passed_tests']}
-- **Failed:** {summary['failed_tests']}
-- **Skipped:** {summary['skipped_tests']}
-- **Pass Rate:** {pass_rate_pct:.2f}%
-
-### Test Files
-The following {len(files)} test files were executed:
-{os.linesep.join(files)}
-
+### Coverage by SLT File
 """
 
-    # Add failed test details if there are any
-    if summary['failed_tests'] > 0:
-        comment += """
-### Failed Tests
-<details>
-<summary>Click to expand failed test details</summary>
+    # Add per-file results with just the numbers
+    for file_result in summary['file_results']:
+        filename = file_result['filename']
+        passed = file_result['passed']
+        total = file_result['total']
+        percentage = file_result['percentage']
 
+        comment += f"- **{filename}**: {passed}/{total} ({percentage:.1f}%)\n"
+
+    # Add overall summary
+    comment += f"""
+### Overall: {summary['passed_tests']}/{summary['total_tests']} ({pass_rate_pct:.1f}%)
 """
-
-        for i, test in enumerate(summary['failed_test_details']):
-            comment += f"""
-#### Failed Test {i + 1}
-- **File:** {test['filename']}
-- **Line:** {test['line']}
-- **Statement:**
-```sql
-{test['statement']}
-```
-- **Expected:**
-{test['expected']}
-- **Actual:**
-{test['actual']}
-
-"""
-
-        comment += "</details>"
 
     return comment
 
