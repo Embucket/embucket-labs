@@ -20,10 +20,62 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  slt-targeted-tests:
+  select-slts:
+    runs-on: ubuntu-latest
+    name: Select SLT Tests
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    outputs:
+      has-tests: ${{ steps.selection.outputs.has-tests }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Fetch PR base
+        run: |
+          git fetch origin ${{ github.base_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          pip install openai
+
+      - name: Select SLT Tests
+        id: selection
+        working-directory: ./
+        run: |
+          python test/slt_selector.py --base-branch ${{ github.base_ref }} --output-dir ./artifacts
+          if [ -f ./artifacts/selected_slts.json ]; then
+            SELECTED_COUNT=$(python -c "import json; print(len(json.load(open('./artifacts/selected_slts.json'))))")
+            echo "Selected $SELECTED_COUNT SLT files"
+            if [ "$SELECTED_COUNT" -gt 0 ]; then
+              echo "has-tests=true" >> $GITHUB_OUTPUT
+            else
+              echo "has-tests=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "has-tests=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload SLT Selection
+        if: steps.selection.outputs.has-tests == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: slt-selection
+          path: ./artifacts/selected_slts.json
+
+  run-slt-tests:
+    needs: select-slts
+    if: needs.select-slts.outputs.has-tests == 'true'
     runs-on:
       group: large-runners
-    name: SQL Logic Targeted Tests
+    name: Run Selected SLT Tests
     env:
       SNOWFLAKE_ACCOUNT: test
       SNOWFLAKE_USER: test
@@ -36,16 +88,17 @@ jobs:
       EMBUCKET_PROTOCOL: http
       EMBUCKET_HOST: localhost
       EMBUCKET_PORT: 3000
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
           fetch-depth: 0
 
-      - name: Fetch PR base
-        run: |
-          git fetch origin ${{ github.base_ref }}
+      - name: Download SLT Selection
+        uses: actions/download-artifact@v4
+        with:
+          name: slt-selection
+          path: ./artifacts
 
       - name: Cache
         uses: actions/cache@v4
@@ -81,11 +134,11 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install -r test/slt_runner/requirements.txt
-          pip install openai matplotlib numpy pandas plotly kaleido
+          pip install pandas plotly kaleido
 
-      - name: Run SLT Selector
+      - name: Run Selected SLT Tests
         working-directory: ./
-        run: python test/slt_targeted_runner.py --base-branch ${{ github.base_ref }} --output-dir ./artifacts
+        run: python test/slt_runner_targeted.py --selection-file ./artifacts/selected_slts.json --output-dir ./artifacts
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -102,7 +155,7 @@ jobs:
           script: |
             const fs = require('fs');
             const commentPath = './artifacts/pr_comment.md';
-            
+
             if (fs.existsSync(commentPath)) {
               const comment = fs.readFileSync(commentPath, 'utf8');
               await github.rest.issues.createComment({
@@ -117,6 +170,23 @@ jobs:
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: '⚠️ The SLT selection process failed. Please check the workflow logs for details.'
+                body: '⚠️ The SLT test execution failed. Please check the workflow logs for details.'
               });
             }
+
+  comment-no-tests:
+    needs: select-slts
+    if: needs.select-slts.outputs.has-tests == 'false'
+    runs-on: ubuntu-latest
+    name: Comment No Tests Selected
+    steps:
+      - name: Comment on PR - No Tests
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **SLT Targeted Testing**: No relevant SLT tests found for the changes in this PR. No testing required.'
+            });
