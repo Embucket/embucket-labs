@@ -3,57 +3,44 @@
   "info": {
     "title": "UI Router API",
     "description": "Defines the specification for the UI Catalog API",
-    "contact": {
-      "name": "Embucket, Inc.",
-      "url": "https://embucket.com"
-    },
-    "license": {
-      "name": "Apache 2.0",
-      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
-    },
+    "contact": { "name": "Embucket, Inc.", "url": "https://embucket.com" },
+    "license": { "name": "Apache 2.0", "url": "https://www.apache.org/licenses/LICENSE-2.0.html" },
     "version": "1.0.2"
   },
   "paths": {
-    "/account": {
+    "/ui/auth/account": {
       "get": {
         "tags": ["account"],
-        "operationId": "account",
+        "operationId": "getAccount",
         "responses": {
           "200": {
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AccountResponse" } }
+            }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthErrorResponse" } }
             }
           }
         }
       }
     },
-    "/auth/login": {
+    "/ui/auth/login": {
       "post": {
         "tags": ["auth"],
         "operationId": "login",
         "requestBody": {
           "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginPayload"
-              }
-            }
+            "application/json": { "schema": { "$ref": "#/components/schemas/LoginPayload" } }
           },
           "required": true
         },
@@ -61,124 +48,84 @@
           "200": {
             "description": "Successful Response",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthErrorResponse" } }
             }
           }
         }
       }
     },
-    "/auth/logout": {
+    "/ui/auth/logout": {
       "post": {
         "tags": ["auth"],
         "operationId": "logout",
         "responses": {
-          "200": {
-            "description": "Successful Response"
-          },
+          "200": { "description": "Successful Response" },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthErrorResponse" } }
             }
           }
         }
       }
     },
-    "/auth/refresh": {
+    "/ui/auth/refresh": {
       "post": {
         "tags": ["auth"],
-        "operationId": "refresh",
+        "operationId": "refreshAuthToken",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthErrorResponse" } }
             }
           }
         }
@@ -192,39 +139,25 @@
           "200": {
             "description": "Successful Response",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DashboardResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/DashboardResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -236,71 +169,64 @@
         "operationId": "getDatabases",
         "parameters": [
           {
-            "name": "cursor",
+            "name": "offset",
             "in": "query",
-            "description": "Databases cursor",
+            "description": "Databases offset",
             "required": false,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "integer", "minimum": 0 }
           },
           {
             "name": "limit",
             "in": "query",
             "description": "Databases limit",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "minimum": 0 }
           },
           {
             "name": "search",
             "in": "query",
-            "description": "Databases search (start with)",
+            "description": "Databases search",
             "required": false,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Order by: database_name (default), volume_name, created_at, updated_at",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Order direction: ASC, DESC (default)",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/OrderDirection" }
           }
         ],
         "responses": {
           "200": {
             "description": "",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatabasesResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/DatabasesResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -311,9 +237,7 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DatabaseCreatePayload"
-              }
+              "schema": { "$ref": "#/components/schemas/DatabaseCreatePayload" }
             }
           },
           "required": true
@@ -323,48 +247,32 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatabaseCreateResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/DatabaseCreateResponse" }
               }
             }
           },
           "400": {
             "description": "Bad request",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "409": {
             "description": "Already Exists",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -380,48 +288,32 @@
             "in": "path",
             "description": "Database name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           }
         ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatabaseResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/DatabaseResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
             "description": "Not found",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -435,41 +327,27 @@
             "in": "path",
             "description": "Database name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           }
         ],
         "responses": {
-          "200": {
-            "description": "Successful Response"
-          },
+          "200": { "description": "Successful Response" },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
             "description": "Not found",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -485,76 +363,67 @@
             "in": "path",
             "description": "Database Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
-            "name": "cursor",
+            "name": "offset",
             "in": "query",
-            "description": "Schemas cursor",
+            "description": "Schemas offset",
             "required": false,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "integer", "minimum": 0 }
           },
           {
             "name": "limit",
             "in": "query",
             "description": "Schemas limit",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           },
           {
             "name": "search",
             "in": "query",
-            "description": "Schemas search (start with)",
+            "description": "Schemas search",
             "required": false,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Order by: schema_name (default), database_name, created_at, updated_at",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Order direction: ASC, DESC (default)",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/OrderDirection" }
           }
         ],
         "responses": {
           "200": {
             "description": "",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SchemasResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/SchemasResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -568,18 +437,12 @@
             "in": "path",
             "description": "Database Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SchemaCreatePayload"
-              }
-            }
+            "application/json": { "schema": { "$ref": "#/components/schemas/SchemaCreatePayload" } }
           },
           "required": true
         },
@@ -588,58 +451,38 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SchemaCreateResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/SchemaCreateResponse" }
               }
             }
           },
           "400": {
             "description": "Bad request",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "422": {
             "description": "Unprocessable entity",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -655,60 +498,40 @@
             "in": "path",
             "description": "Database Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "schemaName",
             "in": "path",
             "description": "Schema Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
+          "204": { "description": "Successful Response" },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
             "description": "Schema not found",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "422": {
             "description": "Unprocessable entity",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -724,95 +547,80 @@
             "in": "path",
             "description": "Database Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "schemaName",
             "in": "path",
             "description": "Schema Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
-            "name": "cursor",
+            "name": "offset",
             "in": "query",
-            "description": "Tables cursor",
+            "description": "Tables offset",
             "required": false,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "integer", "minimum": 0 }
           },
           {
             "name": "limit",
             "in": "query",
             "description": "Tables limit",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "minimum": 0 }
           },
           {
             "name": "search",
             "in": "query",
-            "description": "Tables search (start with)",
+            "description": "Tables search",
             "required": false,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Order by: table_name (default), schema_name, database_name, volume_name, table_type, table_format, owner, created_at, updated_at",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Order direction: ASC, DESC (default)",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/OrderDirection" }
           }
         ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TablesResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/TablesResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
             "description": "Table not found",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "422": {
             "description": "Unprocessable entity",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -828,27 +636,21 @@
             "in": "path",
             "description": "Database Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "schemaName",
             "in": "path",
             "description": "Schema Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "tableName",
             "in": "path",
             "description": "Table Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           }
         ],
         "responses": {
@@ -856,9 +658,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TableColumnsResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/TableColumnsResponse" }
               }
             }
           },
@@ -866,38 +666,24 @@
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
             "description": "Table not found",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "422": {
             "description": "Unprocessable entity",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -913,49 +699,35 @@
             "in": "path",
             "description": "Database Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "schemaName",
             "in": "path",
             "description": "Schema Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "tableName",
             "in": "path",
             "description": "Table Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "offset",
             "in": "query",
             "description": "Table preview offset",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           },
           {
             "name": "limit",
             "in": "query",
             "description": "Table preview limit",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           }
         ],
         "responses": {
@@ -963,9 +735,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TablePreviewDataResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/TablePreviewDataResponse" }
               }
             }
           },
@@ -973,38 +743,24 @@
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
             "description": "Table not found",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "422": {
             "description": "Unprocessable entity",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1018,36 +774,28 @@
             "in": "path",
             "description": "Database Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "schemaName",
             "in": "path",
             "description": "Schema Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "tableName",
             "in": "path",
             "description": "Table Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "header",
             "in": "query",
             "description": "Has header",
             "required": false,
-            "schema": {
-              "type": "boolean"
-            },
+            "schema": { "type": "boolean" },
             "example": true
           },
           {
@@ -1055,64 +803,42 @@
             "in": "query",
             "description": "an optional column delimiter, defaults to comma `','`",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           },
           {
             "name": "escape",
             "in": "query",
             "description": "an escape character",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           },
           {
             "name": "quote",
             "in": "query",
             "description": "a custom quote character, defaults to double quote `'\"'`",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           },
           {
             "name": "terminator",
             "in": "query",
             "description": "a custom terminator character, defaults to CRLF",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           },
           {
             "name": "comment",
             "in": "query",
             "description": "a comment character",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           }
         ],
         "requestBody": {
           "description": "Upload data to the table in multipart/form-data format",
           "content": {
             "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/TableUploadPayload"
-              }
+              "schema": { "$ref": "#/components/schemas/TableUploadPayload" }
             }
           },
           "required": true
@@ -1122,68 +848,44 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TableUploadResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/TableUploadResponse" }
               }
             }
           },
           "400": {
             "description": "Bad request",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "409": {
             "description": "Already exists",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "422": {
             "description": "Unprocessable content",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1199,27 +901,21 @@
             "in": "path",
             "description": "Database Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "schemaName",
             "in": "path",
             "description": "Schema Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "tableName",
             "in": "path",
             "description": "Table Name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           }
         ],
         "responses": {
@@ -1227,9 +923,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TableStatisticsResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/TableStatisticsResponse" }
               }
             }
           },
@@ -1237,38 +931,24 @@
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
             "description": "Table not found",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "422": {
             "description": "Unprocessable entity",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1284,21 +964,14 @@
             "in": "query",
             "description": "Navigation trees offset",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "minimum": 0 }
           },
           {
             "name": "limit",
             "in": "query",
             "description": "Navigation trees limit",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           }
         ],
         "responses": {
@@ -1306,9 +979,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NavigationTreesResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/NavigationTreesResponse" }
               }
             }
           },
@@ -1316,28 +987,18 @@
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1353,87 +1014,59 @@
             "in": "query",
             "description": "Worksheet id",
             "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/i64"
-            }
+            "schema": { "$ref": "#/components/schemas/i64" }
           },
           {
             "name": "sqlText",
             "in": "query",
             "description": "Sql text filter",
             "required": false,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           },
           {
             "name": "cursor",
             "in": "query",
             "description": "Cursor",
             "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/i64"
-            }
+            "schema": { "$ref": "#/components/schemas/i64" }
           },
           {
             "name": "limit",
             "in": "query",
             "description": "Queries limit",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           }
         ],
         "responses": {
           "200": {
             "description": "Returns queries history",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QueriesResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/QueriesResponse" } }
             }
           },
           "400": {
             "description": "Bad worksheet key",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1444,25 +1077,20 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/QueryCreatePayload"
-              },
+              "schema": { "$ref": "#/components/schemas/QueryCreatePayload" },
               "examples": {
                 "with context": {
                   "value": {
-                    "context": {
-                      "database": "my_database",
-                      "schema": "public"
-                    },
+                    "worksheetId": null,
                     "query": "CREATE TABLE test(a INT);",
-                    "worksheetId": null
+                    "context": { "schema": "public", "database": "my_database" }
                   }
                 },
                 "with fully qualified name": {
                   "value": {
-                    "context": null,
+                    "worksheetId": null,
                     "query": "CREATE TABLE my_database.public.test(a INT);",
-                    "worksheetId": null
+                    "context": null
                   }
                 }
               }
@@ -1475,9 +1103,7 @@
             "description": "Returns result of the query",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QueryCreateResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/QueryCreateResponse" }
               }
             }
           },
@@ -1485,48 +1111,30 @@
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "409": {
             "description": "Bad request",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "422": {
             "description": "Unprocessable entity",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1538,71 +1146,114 @@
         "operationId": "getVolumes",
         "parameters": [
           {
-            "name": "cursor",
+            "name": "offset",
             "in": "query",
-            "description": "Volumes cursor",
+            "description": "Volumes offset",
             "required": false,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "integer", "minimum": 0 }
           },
           {
             "name": "limit",
             "in": "query",
             "description": "Volumes limit",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0
-            }
+            "schema": { "type": "integer", "minimum": 0 }
           },
           {
             "name": "search",
             "in": "query",
-            "description": "Volumes search (start with)",
+            "description": "Volumes search",
             "required": false,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Order by: volume_name (default), volume_type, created_at, updated_at",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Order direction: ASC, DESC (default)",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/OrderDirection" }
           }
         ],
         "responses": {
           "200": {
             "description": "",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VolumesResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/VolumesResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["volumes"],
+        "operationId": "createVolume",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/VolumeCreatePayload" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/VolumeCreateResponse" }
               }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": { "type": "string" },
+                "description": "Bearer authentication scheme with error details"
+              }
+            },
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1618,58 +1269,78 @@
             "in": "path",
             "description": "Volume name",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
           }
         ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VolumeResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/VolumeResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
             "description": "Not found",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "422": {
             "description": "Unprocessable entity",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["volumes"],
+        "operationId": "deleteVolume",
+        "parameters": [
+          {
+            "name": "volumeName",
+            "in": "path",
+            "description": "Volume name",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response" },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": { "type": "string" },
+                "description": "Bearer authentication scheme with error details"
               }
+            },
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1685,20 +1356,14 @@
             "in": "query",
             "description": "Sort order",
             "required": false,
-            "schema": {
-              "type": "string",
-              "enum": ["ascending", "descending"]
-            }
+            "schema": { "type": "string", "enum": ["ascending", "descending"] }
           },
           {
             "name": "sortBy",
             "in": "query",
             "description": "Sort by",
             "required": false,
-            "schema": {
-              "type": "string",
-              "enum": ["name", "createdAt", "updatedAt"]
-            }
+            "schema": { "type": "string", "enum": ["name", "createdAt", "updatedAt"] }
           }
         ],
         "responses": {
@@ -1706,48 +1371,32 @@
             "description": "Get list of worksheets",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WorksheetsResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/WorksheetsResponse" }
               }
             }
           },
           "400": {
             "description": "Unknown",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1758,22 +1407,10 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WorksheetCreatePayload"
-              },
+              "schema": { "$ref": "#/components/schemas/WorksheetCreatePayload" },
               "examples": {
-                "empty name": {
-                  "value": {
-                    "content": "select 1",
-                    "name": ""
-                  }
-                },
-                "with name": {
-                  "value": {
-                    "content": "select 1",
-                    "name": "worksheet1"
-                  }
-                }
+                "empty name": { "value": { "name": "", "content": "select 1" } },
+                "with name": { "value": { "name": "worksheet1", "content": "select 1" } }
               }
             }
           },
@@ -1784,9 +1421,7 @@
             "description": "Created worksheet",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WorksheetCreateResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/WorksheetCreateResponse" }
               }
             }
           },
@@ -1794,41 +1429,25 @@
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "409": {
             "description": "Already Exists",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
-          "422": {
-            "description": "Unprocessable Entity"
-          },
+          "422": { "description": "Unprocessable Entity" },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1844,68 +1463,44 @@
             "in": "path",
             "description": "Worksheet id",
             "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/i64"
-            }
+            "schema": { "$ref": "#/components/schemas/i64" }
           }
         ],
         "responses": {
           "200": {
             "description": "Returns worksheet",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WorksheetResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/WorksheetResponse" } }
             }
           },
           "400": {
             "description": "Bad request",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
             "description": "Worksheet not found",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1919,51 +1514,33 @@
             "in": "path",
             "description": "Worksheet id",
             "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/i64"
-            }
+            "schema": { "$ref": "#/components/schemas/i64" }
           }
         ],
         "responses": {
-          "200": {
-            "description": "Worksheet deleted"
-          },
+          "200": { "description": "Worksheet deleted" },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
             "description": "Worksheet not found",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -1977,83 +1554,51 @@
             "in": "path",
             "description": "Worksheet id",
             "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/i64"
-            }
+            "schema": { "$ref": "#/components/schemas/i64" }
           }
         ],
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WorksheetUpdatePayload"
-              },
+              "schema": { "$ref": "#/components/schemas/WorksheetUpdatePayload" },
               "examples": {
-                "rename": {
-                  "value": {
-                    "name": "new-worksheet"
-                  }
-                },
-                "update content": {
-                  "value": {
-                    "content": "SELECT * from test;"
-                  }
-                }
+                "rename": { "value": { "name": "new-worksheet" } },
+                "update content": { "value": { "content": "SELECT * from test;" } }
               }
             }
           },
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "Worksheet updated"
-          },
+          "200": { "description": "Worksheet updated" },
           "400": {
             "description": "Bad request",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "401": {
             "description": "Unauthorized",
             "headers": {
               "WWW-Authenticate": {
-                "schema": {
-                  "type": "string"
-                },
+                "schema": { "type": "string" },
                 "description": "Bearer authentication scheme with error details"
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
             "description": "Worksheet not found",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "500": {
             "description": "Internal server error",
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -2062,248 +1607,147 @@
   },
   "components": {
     "schemas": {
+      "AccountResponse": {
+        "type": "object",
+        "required": ["username"],
+        "properties": { "username": { "type": "string" } }
+      },
       "AuthErrorResponse": {
         "type": "object",
-        "required": ["message", "status_code"],
+        "required": ["message", "statusCode"],
         "properties": {
-          "error_kind": {
-            "type": ["string", "null"]
+          "errorKind": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/TokenErrorKind" }]
           },
-          "message": {
-            "type": "string"
-          },
-          "status_code": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          }
+          "message": { "type": "string" },
+          "statusCode": { "type": "integer", "format": "int32", "minimum": 0 }
         }
       },
       "AuthResponse": {
         "type": "object",
         "required": ["accessToken", "tokenType", "expiresIn"],
         "properties": {
-          "accessToken": {
-            "type": "string"
-          },
-          "expiresIn": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          },
-          "tokenType": {
-            "type": "string"
-          }
+          "accessToken": { "type": "string" },
+          "expiresIn": { "type": "integer", "format": "int32", "minimum": 0 },
+          "tokenType": { "type": "string" }
         }
       },
       "AwsAccessKeyCredentials": {
         "type": "object",
         "required": ["aws-access-key-id", "aws-secret-access-key"],
         "properties": {
-          "aws-access-key-id": {
-            "type": "string"
-          },
-          "aws-secret-access-key": {
-            "type": "string"
-          }
+          "aws-access-key-id": { "type": "string" },
+          "aws-secret-access-key": { "type": "string" }
         }
       },
       "AwsCredentials": {
         "oneOf": [
           {
             "allOf": [
-              {
-                "$ref": "#/components/schemas/AwsAccessKeyCredentials"
-              },
+              { "$ref": "#/components/schemas/AwsAccessKeyCredentials" },
               {
                 "type": "object",
                 "required": ["credential_type"],
-                "properties": {
-                  "credential_type": {
-                    "type": "string",
-                    "enum": ["access_key"]
-                  }
-                }
+                "properties": { "credential_type": { "type": "string", "enum": ["access_key"] } }
               }
             ]
           },
           {
             "type": "object",
             "required": ["credential_type"],
-            "properties": {
-              "credential_type": {
-                "type": "string",
-                "enum": ["token"]
-              }
-            }
+            "properties": { "credential_type": { "type": "string", "enum": ["token"] } }
           }
         ]
       },
       "Column": {
         "type": "object",
         "required": ["name", "type"],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          }
-        }
+        "properties": { "name": { "type": "string" }, "type": { "type": "string" } }
       },
       "Dashboard": {
         "type": "object",
         "required": ["totalDatabases", "totalSchemas", "totalTables", "totalQueries"],
         "properties": {
-          "totalDatabases": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "totalQueries": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "totalSchemas": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "totalTables": {
-            "type": "integer",
-            "minimum": 0
-          }
+          "totalDatabases": { "type": "integer", "minimum": 0 },
+          "totalQueries": { "type": "integer", "minimum": 0 },
+          "totalSchemas": { "type": "integer", "minimum": 0 },
+          "totalTables": { "type": "integer", "minimum": 0 }
         }
       },
-      "DashboardResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Dashboard"
-          }
-        ]
-      },
+      "DashboardResponse": { "allOf": [{ "$ref": "#/components/schemas/Dashboard" }] },
       "Database": {
         "type": "object",
-        "required": ["name", "volume"],
+        "required": ["name", "volume", "created_at", "updated_at"],
         "properties": {
-          "name": {
-            "type": "string"
-          },
-          "volume": {
-            "type": "string"
-          }
+          "created_at": { "type": "string" },
+          "name": { "type": "string" },
+          "updated_at": { "type": "string" },
+          "volume": { "type": "string" }
         }
       },
-      "DatabaseCreatePayload": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Database"
-          }
-        ]
+      "DatabaseCreatePayload": { "allOf": [{ "$ref": "#/components/schemas/DatabasePayload" }] },
+      "DatabaseCreateResponse": { "allOf": [{ "$ref": "#/components/schemas/Database" }] },
+      "DatabasePayload": {
+        "type": "object",
+        "required": ["name", "volume"],
+        "properties": { "name": { "type": "string" }, "volume": { "type": "string" } }
       },
-      "DatabaseCreateResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Database"
-          }
-        ]
-      },
-      "DatabaseResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Database"
-          }
-        ]
-      },
+      "DatabaseResponse": { "allOf": [{ "$ref": "#/components/schemas/Database" }] },
       "DatabasesResponse": {
         "type": "object",
-        "required": ["items", "nextCursor"],
+        "required": ["items"],
         "properties": {
-          "currentCursor": {
-            "type": ["string", "null"]
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Database"
-            }
-          },
-          "nextCursor": {
-            "type": "string"
-          }
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Database" } }
         }
       },
       "ErrorResponse": {
         "type": "object",
         "required": ["message", "status_code"],
         "properties": {
-          "message": {
-            "type": "string"
-          },
-          "status_code": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          }
+          "message": { "type": "string" },
+          "status_code": { "type": "integer", "format": "int32", "minimum": 0 }
         }
       },
       "FileVolume": {
         "type": "object",
         "required": ["path"],
-        "properties": {
-          "path": {
-            "type": "string"
-          }
-        }
+        "properties": { "path": { "type": "string" } }
       },
       "LoginPayload": {
         "type": "object",
         "required": ["username", "password"],
-        "properties": {
-          "password": {
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          }
-        }
+        "properties": { "password": { "type": "string" }, "username": { "type": "string" } }
       },
       "NavigationTreeDatabase": {
         "type": "object",
         "required": ["name", "schemas"],
         "properties": {
-          "name": {
-            "type": "string"
-          },
+          "name": { "type": "string" },
           "schemas": {
             "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NavigationTreeSchema"
-            }
+            "items": { "$ref": "#/components/schemas/NavigationTreeSchema" }
           }
         }
       },
       "NavigationTreeSchema": {
         "type": "object",
-        "required": ["name", "tables"],
+        "required": ["name", "tables", "views"],
         "properties": {
-          "name": {
-            "type": "string"
-          },
+          "name": { "type": "string" },
           "tables": {
             "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NavigationTreeTable"
-            }
+            "items": { "$ref": "#/components/schemas/NavigationTreeTable" }
+          },
+          "views": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/NavigationTreeTable" }
           }
         }
       },
       "NavigationTreeTable": {
         "type": "object",
         "required": ["name"],
-        "properties": {
-          "name": {
-            "type": "string"
-          }
-        }
+        "properties": { "name": { "type": "string" } }
       },
       "NavigationTreesResponse": {
         "type": "object",
@@ -2311,35 +1755,20 @@
         "properties": {
           "items": {
             "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NavigationTreeDatabase"
-            }
+            "items": { "$ref": "#/components/schemas/NavigationTreeDatabase" }
           }
         }
       },
+      "OrderDirection": { "type": "string", "enum": ["ASC", "DESC"] },
       "QueriesResponse": {
         "type": "object",
         "required": ["items", "nextCursor"],
         "properties": {
           "currentCursor": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/i64"
-              }
-            ]
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/i64" }]
           },
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QueryRecord"
-            }
-          },
-          "nextCursor": {
-            "$ref": "#/components/schemas/i64"
-          }
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/QueryRecord" } },
+          "nextCursor": { "$ref": "#/components/schemas/i64" }
         }
       },
       "QueryCreatePayload": {
@@ -2348,35 +1777,14 @@
         "properties": {
           "context": {
             "type": ["object", "null"],
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
+            "additionalProperties": { "type": "string" },
+            "propertyNames": { "type": "string" }
           },
-          "query": {
-            "type": "string"
-          },
-          "worksheetId": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/i64"
-              }
-            ]
-          }
+          "query": { "type": "string" },
+          "worksheetId": { "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/i64" }] }
         }
       },
-      "QueryCreateResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/QueryRecord"
-          }
-        ]
-      },
+      "QueryCreateResponse": { "allOf": [{ "$ref": "#/components/schemas/QueryRecord" }] },
       "QueryRecord": {
         "type": "object",
         "required": [
@@ -2391,284 +1799,149 @@
           "error"
         ],
         "properties": {
-          "durationMs": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "endTime": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "error": {
-            "type": "string"
-          },
-          "id": {
-            "$ref": "#/components/schemas/i64"
-          },
-          "query": {
-            "type": "string"
-          },
-          "result": {
-            "$ref": "#/components/schemas/ResultSet"
-          },
-          "resultCount": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "startTime": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "status": {
-            "$ref": "#/components/schemas/QueryStatus"
-          },
-          "worksheetId": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/i64"
-              }
-            ]
-          }
+          "durationMs": { "type": "integer", "format": "int64" },
+          "endTime": { "type": "string", "format": "date-time" },
+          "error": { "type": "string" },
+          "id": { "$ref": "#/components/schemas/i64" },
+          "query": { "type": "string" },
+          "result": { "$ref": "#/components/schemas/ResultSet" },
+          "resultCount": { "type": "integer", "format": "int64" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "status": { "$ref": "#/components/schemas/QueryStatus" },
+          "worksheetId": { "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/i64" }] }
         }
       },
-      "QueryStatus": {
-        "type": "string",
-        "enum": ["running", "successful", "failed"]
-      },
+      "QueryStatus": { "type": "string", "enum": ["running", "successful", "failed"] },
       "RefreshTokenResponse": {
         "type": "object",
         "required": ["accessToken"],
-        "properties": {
-          "accessToken": {
-            "type": "string"
-          }
-        }
+        "properties": { "accessToken": { "type": "string" } }
       },
       "ResultSet": {
         "type": "object",
         "required": ["columns", "rows"],
         "properties": {
-          "columns": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Column"
-            }
-          },
-          "rows": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Row"
-            }
-          }
+          "columns": { "type": "array", "items": { "$ref": "#/components/schemas/Column" } },
+          "rows": { "type": "array", "items": { "$ref": "#/components/schemas/Row" } }
         }
       },
-      "Row": {
-        "type": "array",
-        "items": {}
-      },
+      "Row": { "type": "array", "items": {} },
       "S3TablesVolume": {
         "type": "object",
         "required": ["region", "endpoint", "credentials", "name", "arn"],
         "properties": {
-          "arn": {
-            "type": "string"
-          },
-          "bucket": {
-            "type": ["string", "null"]
-          },
-          "credentials": {
-            "$ref": "#/components/schemas/AwsCredentials"
-          },
-          "endpoint": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "region": {
-            "type": "string"
-          }
+          "arn": { "type": "string" },
+          "bucket": { "type": ["string", "null"] },
+          "credentials": { "$ref": "#/components/schemas/AwsCredentials" },
+          "endpoint": { "type": "string" },
+          "name": { "type": "string" },
+          "region": { "type": "string" }
         }
       },
       "S3Volume": {
         "type": "object",
         "properties": {
-          "bucket": {
-            "type": ["string", "null"]
-          },
+          "bucket": { "type": ["string", "null"] },
           "credentials": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/AwsCredentials"
-              }
-            ]
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/AwsCredentials" }]
           },
-          "endpoint": {
-            "type": ["string", "null"]
-          },
-          "metadata_endpoint": {
-            "type": ["string", "null"]
-          },
-          "region": {
-            "type": ["string", "null"]
-          },
-          "skip_signature": {
-            "type": ["boolean", "null"]
-          }
+          "endpoint": { "type": ["string", "null"] },
+          "metadata_endpoint": { "type": ["string", "null"] },
+          "region": { "type": ["string", "null"] },
+          "skip_signature": { "type": ["boolean", "null"] }
         }
       },
       "Schema": {
         "type": "object",
         "required": ["name", "database", "created_at", "updated_at"],
         "properties": {
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "database": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "created_at": { "type": "string" },
+          "database": { "type": "string" },
+          "name": { "type": "string" },
+          "updated_at": { "type": "string" }
         }
       },
       "SchemaCreatePayload": {
         "type": "object",
         "required": ["name"],
-        "properties": {
-          "name": {
-            "type": "string"
-          }
-        }
+        "properties": { "name": { "type": "string" } }
       },
-      "SchemaCreateResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Schema"
-          }
-        ]
+      "SchemaCreateResponse": { "allOf": [{ "$ref": "#/components/schemas/Schema" }] },
+      "SchemaPayload": {
+        "type": "object",
+        "required": ["name", "database"],
+        "properties": { "database": { "type": "string" }, "name": { "type": "string" } }
       },
       "SchemasResponse": {
         "type": "object",
-        "required": ["items", "nextCursor"],
+        "required": ["items"],
         "properties": {
-          "currentCursor": {
-            "type": ["string", "null"]
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Schema"
-            }
-          },
-          "nextCursor": {
-            "type": "string"
-          }
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Schema" } }
         }
       },
       "Table": {
         "type": "object",
-        "required": ["name", "type", "owner", "totalRows", "totalBytes", "createdAt", "updatedAt"],
+        "required": [
+          "name",
+          "schemaName",
+          "databaseName",
+          "volumeName",
+          "owner",
+          "tableFormat",
+          "type",
+          "totalRows",
+          "totalBytes",
+          "createdAt",
+          "updatedAt"
+        ],
         "properties": {
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "name": {
-            "type": "string"
-          },
-          "owner": {
-            "type": "string"
-          },
-          "totalBytes": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "totalRows": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "type": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "createdAt": { "type": "string" },
+          "databaseName": { "type": "string" },
+          "name": { "type": "string" },
+          "owner": { "type": "string" },
+          "schemaName": { "type": "string" },
+          "tableFormat": { "type": "string" },
+          "totalBytes": { "type": "integer", "format": "int64" },
+          "totalRows": { "type": "integer", "format": "int64" },
+          "type": { "type": "string" },
+          "updatedAt": { "type": "string" },
+          "volumeName": { "type": "string" }
         }
       },
       "TableColumn": {
         "type": "object",
         "required": ["name", "type", "description", "nullable", "default"],
         "properties": {
-          "default": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "nullable": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          }
+          "default": { "type": "string" },
+          "description": { "type": "string" },
+          "name": { "type": "string" },
+          "nullable": { "type": "string" },
+          "type": { "type": "string" }
         }
       },
       "TableColumnsResponse": {
         "type": "object",
         "required": ["items"],
         "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TableColumn"
-            }
-          }
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/TableColumn" } }
         }
       },
       "TablePreviewDataColumn": {
         "type": "object",
         "required": ["name", "rows"],
         "properties": {
-          "name": {
-            "type": "string"
-          },
+          "name": { "type": "string" },
           "rows": {
             "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TablePreviewDataRow"
-            }
+            "items": { "$ref": "#/components/schemas/TablePreviewDataRow" }
           }
         }
       },
       "TablePreviewDataParameters": {
         "type": "object",
         "properties": {
-          "limit": {
-            "type": ["integer", "null"],
-            "format": "int32",
-            "minimum": 0
-          },
-          "offset": {
-            "type": ["integer", "null"],
-            "format": "int32",
-            "minimum": 0
-          }
+          "limit": { "type": ["integer", "null"], "format": "int32", "minimum": 0 },
+          "offset": { "type": ["integer", "null"], "format": "int32", "minimum": 0 }
         }
       },
       "TablePreviewDataResponse": {
@@ -2677,364 +1950,188 @@
         "properties": {
           "items": {
             "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TablePreviewDataColumn"
-            }
+            "items": { "$ref": "#/components/schemas/TablePreviewDataColumn" }
           }
         }
       },
       "TablePreviewDataRow": {
         "type": "object",
         "required": ["data"],
-        "properties": {
-          "data": {
-            "type": "string"
-          }
-        }
+        "properties": { "data": { "type": "string" } }
       },
       "TableStatistics": {
         "type": "object",
         "required": ["name", "totalRows", "totalBytes", "createdAt", "updatedAt"],
         "properties": {
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "name": {
-            "type": "string"
-          },
-          "totalBytes": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "totalRows": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "createdAt": { "type": "string", "format": "date-time" },
+          "name": { "type": "string" },
+          "totalBytes": { "type": "integer", "format": "int64" },
+          "totalRows": { "type": "integer", "format": "int64" },
+          "updatedAt": { "type": "string", "format": "date-time" }
         }
       },
-      "TableStatisticsResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/TableStatistics"
-          }
-        ]
-      },
+      "TableStatisticsResponse": { "allOf": [{ "$ref": "#/components/schemas/TableStatistics" }] },
       "TableUploadPayload": {
         "type": "object",
         "required": ["uploadFile"],
-        "properties": {
-          "uploadFile": {
-            "type": "string",
-            "format": "binary"
-          }
-        }
+        "properties": { "uploadFile": { "type": "string", "format": "binary" } }
       },
       "TableUploadResponse": {
         "type": "object",
         "required": ["count", "durationMs"],
         "properties": {
-          "count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "durationMs": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      },
-      "TablesParameters": {
-        "type": "object",
-        "properties": {
-          "cursor": {
-            "type": ["string", "null"]
-          },
-          "limit": {
-            "type": ["integer", "null"],
-            "format": "int32",
-            "minimum": 0
-          },
-          "search": {
-            "type": ["string", "null"]
-          }
+          "count": { "type": "integer", "minimum": 0 },
+          "durationMs": { "type": "integer", "minimum": 0 }
         }
       },
       "TablesResponse": {
         "type": "object",
-        "required": ["items", "nextCursor"],
+        "required": ["items"],
         "properties": {
-          "currentCursor": {
-            "type": ["string", "null"]
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Table"
-            }
-          },
-          "nextCursor": {
-            "type": "string"
-          }
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Table" } }
         }
+      },
+      "TokenErrorKind": {
+        "type": "string",
+        "enum": [
+          "invalidToken",
+          "invalidSignature",
+          "invalidEcdsaKey",
+          "invalidRsaKey",
+          "rsaFailedSigning",
+          "invalidAlgorithmName",
+          "invalidKeyFormat",
+          "missingRequiredClaim",
+          "expiredSignature",
+          "invalidIssuer",
+          "invalidAudience",
+          "invalidSubject",
+          "immatureSignature",
+          "invalidAlgorithm",
+          "missingAlgorithm",
+          "other"
+        ]
       },
       "UploadParameters": {
         "type": "object",
         "properties": {
-          "comment": {
-            "type": ["integer", "null"],
-            "format": "int32",
-            "minimum": 0
-          },
-          "delimiter": {
-            "type": ["integer", "null"],
-            "format": "int32",
-            "minimum": 0
-          },
-          "escape": {
-            "type": ["integer", "null"],
-            "format": "int32",
-            "minimum": 0
-          },
-          "header": {
-            "type": ["boolean", "null"]
-          },
-          "quote": {
-            "type": ["integer", "null"],
-            "format": "int32",
-            "minimum": 0
-          },
-          "terminator": {
-            "type": ["integer", "null"],
-            "format": "int32",
-            "minimum": 0
-          }
+          "comment": { "type": ["integer", "null"], "format": "int32", "minimum": 0 },
+          "delimiter": { "type": ["integer", "null"], "format": "int32", "minimum": 0 },
+          "escape": { "type": ["integer", "null"], "format": "int32", "minimum": 0 },
+          "header": { "type": ["boolean", "null"] },
+          "quote": { "type": ["integer", "null"], "format": "int32", "minimum": 0 },
+          "terminator": { "type": ["integer", "null"], "format": "int32", "minimum": 0 }
         }
       },
       "Volume": {
+        "type": "object",
+        "required": ["name", "type", "createdAt", "updatedAt"],
+        "properties": {
+          "createdAt": { "type": "string" },
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        }
+      },
+      "VolumeCreatePayload": { "allOf": [{ "$ref": "#/components/schemas/VolumePayload" }] },
+      "VolumeCreateResponse": { "allOf": [{ "$ref": "#/components/schemas/Volume" }] },
+      "VolumePayload": {
         "allOf": [
-          {
-            "$ref": "#/components/schemas/VolumeType"
-          },
-          {
-            "type": "object",
-            "required": ["name"],
-            "properties": {
-              "name": {
-                "type": "string"
-              }
-            }
-          }
+          { "$ref": "#/components/schemas/VolumeType" },
+          { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" } } }
         ]
       },
-      "VolumeResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Volume"
-          }
-        ]
-      },
+      "VolumeResponse": { "allOf": [{ "$ref": "#/components/schemas/Volume" }] },
       "VolumeType": {
         "oneOf": [
           {
             "allOf": [
-              {
-                "$ref": "#/components/schemas/S3Volume"
-              },
+              { "$ref": "#/components/schemas/S3Volume" },
               {
                 "type": "object",
                 "required": ["type"],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": ["s3"]
-                  }
-                }
+                "properties": { "type": { "type": "string", "enum": ["s3"] } }
               }
             ]
           },
           {
             "allOf": [
-              {
-                "$ref": "#/components/schemas/S3TablesVolume"
-              },
+              { "$ref": "#/components/schemas/S3TablesVolume" },
               {
                 "type": "object",
                 "required": ["type"],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": ["s3Tables"]
-                  }
-                }
+                "properties": { "type": { "type": "string", "enum": ["s3Tables"] } }
               }
             ]
           },
           {
             "allOf": [
-              {
-                "$ref": "#/components/schemas/FileVolume"
-              },
+              { "$ref": "#/components/schemas/FileVolume" },
               {
                 "type": "object",
                 "required": ["type"],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": ["file"]
-                  }
-                }
+                "properties": { "type": { "type": "string", "enum": ["file"] } }
               }
             ]
           },
           {
             "type": "object",
             "required": ["type"],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": ["memory"]
-              }
-            }
+            "properties": { "type": { "type": "string", "enum": ["memory"] } }
           }
         ]
       },
       "VolumesResponse": {
         "type": "object",
-        "required": ["items", "nextCursor"],
+        "required": ["items"],
         "properties": {
-          "currentCursor": {
-            "type": ["string", "null"]
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Volume"
-            }
-          },
-          "nextCursor": {
-            "type": "string"
-          }
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Volume" } }
         }
       },
       "Worksheet": {
         "type": "object",
         "required": ["id", "name", "content", "createdAt", "updatedAt"],
         "properties": {
-          "content": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "id": {
-            "$ref": "#/components/schemas/i64"
-          },
-          "name": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "content": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "id": { "$ref": "#/components/schemas/i64" },
+          "name": { "type": "string" },
+          "updatedAt": { "type": "string", "format": "date-time" }
         }
       },
       "WorksheetCreatePayload": {
         "type": "object",
         "required": ["name", "content"],
-        "properties": {
-          "content": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
-        }
+        "properties": { "content": { "type": "string" }, "name": { "type": "string" } }
       },
-      "WorksheetCreateResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Worksheet"
-          }
-        ]
-      },
-      "WorksheetResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Worksheet"
-          }
-        ]
-      },
+      "WorksheetCreateResponse": { "allOf": [{ "$ref": "#/components/schemas/Worksheet" }] },
+      "WorksheetResponse": { "allOf": [{ "$ref": "#/components/schemas/Worksheet" }] },
       "WorksheetUpdatePayload": {
         "type": "object",
         "properties": {
-          "content": {
-            "type": ["string", "null"]
-          },
-          "name": {
-            "type": ["string", "null"]
-          }
+          "content": { "type": ["string", "null"] },
+          "name": { "type": ["string", "null"] }
         }
       },
       "WorksheetsResponse": {
         "type": "object",
         "required": ["items"],
         "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Worksheet"
-            }
-          }
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Worksheet" } }
         }
       },
-      "i64": {
-        "type": "integer",
-        "format": "int64"
-      }
+      "i64": { "type": "integer", "format": "int64" }
     }
   },
   "tags": [
-    {
-      "name": "volumes",
-      "description": "Volumes endpoints"
-    },
-    {
-      "name": "databases",
-      "description": "Databases endpoints"
-    },
-    {
-      "name": "schemas",
-      "description": "Schemas endpoints"
-    },
-    {
-      "name": "tables",
-      "description": "Tables endpoints."
-    },
-    {
-      "name": "worksheets",
-      "description": "Worksheets endpoints"
-    },
-    {
-      "name": "queries",
-      "description": "Queries endpoints"
-    },
-    {
-      "name": "navigation-trees",
-      "description": "Navigation trees endpoints."
-    },
-    {
-      "name": "dashboard",
-      "description": "Dashboard endpoints."
-    },
-    {
-      "name": "auth",
-      "description": "Authentication endpoints"
-    }
+    { "name": "volumes", "description": "Volumes endpoints" },
+    { "name": "databases", "description": "Databases endpoints" },
+    { "name": "schemas", "description": "Schemas endpoints" },
+    { "name": "tables", "description": "Tables endpoints." },
+    { "name": "worksheets", "description": "Worksheets endpoints" },
+    { "name": "queries", "description": "Queries endpoints" },
+    { "name": "navigation-trees", "description": "Navigation trees endpoints." },
+    { "name": "dashboard", "description": "Dashboard endpoints." },
+    { "name": "auth", "description": "Authentication endpoints" }
   ]
 }
