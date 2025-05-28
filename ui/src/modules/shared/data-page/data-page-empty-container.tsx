@@ -7,21 +7,18 @@ interface DataPageEmptyContainerProps {
   Icon: LucideIcon;
   title: string;
   description: string;
-  hasTabs?: boolean;
+  tabs?: boolean;
 }
 
 export function DataPageEmptyContainer({
   Icon,
   title,
   description,
-  hasTabs,
+  tabs,
 }: DataPageEmptyContainerProps) {
   return (
     <EmptyContainer
-      className={cn(
-        'h-[calc(100vh-72px-28px-3px)]',
-        hasTabs && 'h-[calc(100vh-72px-28px-3px-52px-1px)]',
-      )}
+      className={cn('h-[calc(100vh-65px-32px-2px)]', tabs && 'h-[calc(100vh-65px-32px-2px-53px)]')}
       Icon={Icon}
       title={title}
       description={description}

@@ -23,7 +23,7 @@ export function VolumesPage() {
       <DataPageHeader
         title="Volumes"
         Action={
-          <Button disabled={isFetching} onClick={() => setOpened(true)}>
+          <Button size="sm" disabled={isFetching} onClick={() => setOpened(true)}>
             Add Volume
           </Button>
         }

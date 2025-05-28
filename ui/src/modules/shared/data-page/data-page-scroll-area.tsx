@@ -2,16 +2,16 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 interface DataPageScrollAreaProps {
-  hasTabs?: boolean;
+  tabs?: boolean;
   children: React.ReactNode;
 }
 
-export function DataPageScrollArea({ children, hasTabs }: DataPageScrollAreaProps) {
+export function DataPageScrollArea({ children, tabs }: DataPageScrollAreaProps) {
   return (
     <ScrollArea
       className={cn(
-        'h-[calc(100vh-72px-64px-31px)]',
-        hasTabs && 'h-[calc(100vh-72px-64px-31px-53px)]',
+        'h-[calc(100vh-65px-64px-32px-2px)]',
+        tabs && 'h-[calc(100vh-65px-64px-32px-2px-53px)]',
       )}
     >
       <div className="flex size-full flex-col p-4 pt-0">

@@ -32,6 +32,7 @@ export function DatabasesPage() {
             title="Databases"
             Action={
               <Button
+                size="sm"
                 disabled={isFetchingDatabases || isFetchingVolumes || !volumes?.length}
                 onClick={() => setOpened(true)}
               >

@@ -44,7 +44,11 @@ export function ColumnsPage() {
             title={tableName}
             Icon={Table}
             Action={
-              <Button onClick={() => setIsLoadDataDialogOpened(true)} disabled={isFetching}>
+              <Button
+                size="sm"
+                onClick={() => setIsLoadDataDialogOpened(true)}
+                disabled={isFetching}
+              >
                 Load Data
               </Button>
             }
@@ -57,7 +61,7 @@ export function ColumnsPage() {
             <TabsContent value="columns" className="m-0">
               {!columns?.length ? (
                 <DataPageEmptyContainer
-                  hasTabs
+                  tabs
                   Icon={Columns}
                   title="No Columns Found"
                   description="No columns have been found for this table."
@@ -65,16 +69,16 @@ export function ColumnsPage() {
               ) : (
                 <>
                   <ColumnsPageToolbar columns={columns} isFetchingColumns={isFetching} />
-                  <DataPageScrollArea hasTabs>
+                  <DataPageScrollArea tabs>
                     <ColumnsTable isLoading={isFetching} columns={columns} />
                   </DataPageScrollArea>
                 </>
               )}
             </TabsContent>
             <TabsContent value="data-preview" className="m-0">
-              {!previewData?.length ? (
+              {![]?.length ? (
                 <DataPageEmptyContainer
-                  hasTabs
+                  tabs
                   Icon={Columns}
                   title="No Data Found"
                   description="No data has been loaded for this table yet."
@@ -85,7 +89,7 @@ export function ColumnsPage() {
                     previewData={previewData}
                     isFetchingPreviewData={isPreviewDataFetching}
                   />
-                  <DataPageScrollArea hasTabs>
+                  <DataPageScrollArea tabs>
                     <DataPreviewTable columns={previewData} isLoading={isPreviewDataFetching} />
                   </DataPageScrollArea>
                 </>

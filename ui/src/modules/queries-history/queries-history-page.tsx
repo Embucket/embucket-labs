@@ -1,10 +1,11 @@
 import { DatabaseZap } from 'lucide-react';
 
-import { EmptyContainer } from '@/components/empty-container';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useGetQueries } from '@/orval/queries';
 
-import { PageHeader } from '../shared/page/page-header';
+import { DataPageEmptyContainer } from '../shared/data-page/data-page-empty-container';
+import { DataPageHeader } from '../shared/data-page/data-page-header';
+import { DataPageScrollArea } from '../shared/data-page/data-page-scroll-area';
+import { QueriesHistoryPageToolbar } from './queries-history-page-tooblar';
 import { QueriesHistoryTable } from './queries-history-table';
 
 export function QueriesHistoryPage() {
@@ -12,7 +13,22 @@ export function QueriesHistoryPage() {
 
   return (
     <>
-      <PageHeader title="Queries History" />
+      <DataPageHeader title="Queries History" />
+      {!queries?.length ? (
+        <DataPageEmptyContainer
+          Icon={DatabaseZap}
+          title="No Queries Found"
+          description="No queries have been executed yet. Start querying data to see your history here."
+        />
+      ) : (
+        <>
+          <QueriesHistoryPageToolbar queries={queries} isFetchingQueries={isFetching} />
+          <DataPageScrollArea>
+            <QueriesHistoryTable isLoading={isFetching} queries={queries} />
+          </DataPageScrollArea>
+        </>
+      )}
+      {/* <PageHeader title="Queries History" />
       <ScrollArea className="h-[calc(100vh-65px-32px)] p-4">
         <div className="flex size-full flex-col">
           {queries?.length ? (
@@ -31,7 +47,7 @@ export function QueriesHistoryPage() {
           )}
         </div>
         <ScrollBar orientation="vertical" />
-      </ScrollArea>
+      </ScrollArea> */}
     </>
   );
 }

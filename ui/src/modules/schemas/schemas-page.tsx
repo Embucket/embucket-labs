@@ -32,7 +32,7 @@ export function SchemasPage() {
             title={databaseName}
             Icon={Database}
             Action={
-              <Button disabled={isFetching} onClick={() => setOpened(true)}>
+              <Button size="sm" disabled={isFetching} onClick={() => setOpened(true)}>
                 Add Schema
               </Button>
             }

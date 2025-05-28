@@ -75,7 +75,7 @@ export function TablesPage() {
             title={schemaName}
             Icon={FolderTree}
             Action={
-              <Button disabled={isPending} onClick={handleCreateTable}>
+              <Button size="sm" disabled={isPending} onClick={handleCreateTable}>
                 Add Table
               </Button>
             }
