@@ -2,9 +2,7 @@ import os
 import sys
 import json
 import argparse
-import re
 import pandas as pd
-import numpy as np
 import subprocess
 from openai import OpenAI
 
@@ -397,10 +395,6 @@ def parse_args():
                         help='Output directory for test results')
     parser.add_argument('--slt-dir', type=str, default='test/sql',
                         help='Directory containing SLT files')
-    parser.add_argument('--model', type=str, default='gpt-4-turbo',
-                        help='OpenAI model to use for selecting tests')
-    parser.add_argument('--run-all', action='store_true',
-                        help='Run all SLT files instead of selecting relevant ones')
 
     return parser.parse_args()
 
@@ -428,11 +422,7 @@ def main():
         return 0
 
     # Select relevant SLTs
-    if args.run_all:
-        print("Running all SLT files")
-        selected_slts = list(all_slts.keys())
-    else:
-        selected_slts = select_relevant_slts(changed_files, all_slts, args.model)
+    selected_slts = select_relevant_slts(changed_files, all_slts, args.model)
 
     # Run the selected SLTs
     runner_module = import_slt_runner()

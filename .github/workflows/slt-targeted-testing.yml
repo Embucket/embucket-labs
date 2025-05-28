@@ -58,20 +58,20 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
-#      - name: Install Rust
-#        uses: dtolnay/rust-toolchain@stable
-#        with:
-#          toolchain: stable
-#
-#      # Build only the embucketd binary
-#      - name: Build embucketd
-#        run: cargo build --bin embucketd
-#
-#      - name: Start Embucket Server
-#        run: |
-#          target/debug/embucketd &
-#          echo "Starting Embucket server..."
-#          sleep 20
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      # Build only the embucketd binary
+      - name: Build embucketd
+        run: cargo build --bin embucketd
+
+      - name: Start Embucket Server
+        run: |
+          target/debug/embucketd &
+          echo "Starting Embucket server..."
+          sleep 20
 
       - name: Set up Python
         uses: actions/setup-python@v4
