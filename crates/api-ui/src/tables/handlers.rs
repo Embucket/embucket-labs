@@ -109,15 +109,13 @@ pub async fn get_table_statistics(
                     .and_then(|value| value.parse::<i64>().ok())
                     .unwrap_or(0);
             }
-            Ok(Json(TableStatisticsResponse {
-                data: TableStatistics {
-                    name: rw_object.ident.table.clone(),
-                    total_rows,
-                    total_bytes,
-                    created_at: rw_object.created_at,
-                    updated_at: rw_object.updated_at,
-                },
-            }))
+            Ok(Json(TableStatisticsResponse(TableStatistics {
+                name: rw_object.ident.table.clone(),
+                total_rows,
+                total_bytes,
+                created_at: rw_object.created_at,
+                updated_at: rw_object.updated_at,
+            })))
         }
         Ok(None) => Err(TablesAPIError::GetMetastore {
             source: MetastoreError::TableNotFound {

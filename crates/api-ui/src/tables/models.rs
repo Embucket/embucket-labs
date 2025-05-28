@@ -6,10 +6,7 @@ use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct TableStatisticsResponse {
-    #[serde(flatten)]
-    pub data: TableStatistics,
-}
+pub struct TableStatisticsResponse(pub TableStatistics);
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TableStatistics {

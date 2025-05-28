@@ -92,10 +92,7 @@ pub struct QueryCreatePayload {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct QueryCreateResponse {
-    #[serde(flatten)]
-    pub data: QueryRecord,
-}
+pub struct QueryCreateResponse(pub QueryRecord);
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "camelCase")]

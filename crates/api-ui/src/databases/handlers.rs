@@ -6,7 +6,7 @@ use crate::{
         CreateSnafu, DatabasesAPIError, DatabasesResult, DeleteSnafu, GetSnafu, UpdateSnafu,
     },
     databases::models::{
-        Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabasePayload, DatabaseResponse,
+        Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
         DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
     },
     downcast_string_column,
@@ -39,7 +39,7 @@ use validator::Validate;
             DatabaseCreateResponse,
             DatabaseResponse,
             DatabasesResponse,
-            DatabasePayload,
+            //DatabasePayload,
             Database,
             ErrorResponse,
             OrderDirection,
@@ -80,16 +80,22 @@ pub async fn create_database(
     State(state): State<AppState>,
     Json(database): Json<DatabaseCreatePayload>,
 ) -> DatabasesResult<Json<DatabaseCreateResponse>> {
-    let database: MetastoreDatabase = database.data.into();
-    database.validate().map_err(|e| DatabasesAPIError::Create {
-        source: MetastoreError::Validation { source: e },
-    })?;
-    state
-        .metastore
-        .create_database(&database.ident.clone(), database)
-        .await
-        .context(CreateSnafu)
-        .map(|o| Json(DatabaseCreateResponse { data: o.into() }))
+    Ok(Json(DatabaseCreateResponse(Database {
+        name: database.name,
+        volume: database.volume,
+        created_at: "".to_string(),
+        updated_at: "".to_string(),
+    })))
+    // let database: MetastoreDatabase = database.data.into();
+    // database.validate().map_err(|e| DatabasesAPIError::Create {
+    //     source: MetastoreError::Validation { source: e },
+    // })?;
+    // state
+    //     .metastore
+    //     .create_database(&database.ident.clone(), database)
+    //     .await
+    //     .context(CreateSnafu)
+    //     .map(|o| Json(DatabaseCreateResponse { data: o.into() }))
 }
 
 #[utoipa::path(
@@ -116,15 +122,21 @@ pub async fn get_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
 ) -> DatabasesResult<Json<DatabaseResponse>> {
-    match state.metastore.get_database(&database_name).await {
-        Ok(Some(db)) => Ok(Json(DatabaseResponse { data: db.into() })),
-        Ok(None) => Err(
-            GetSnafu.into_error(Box::new(MetastoreError::DatabaseNotFound {
-                db: database_name.clone(),
-            })),
-        ),
-        Err(e) => Err(e).context(GetSnafu),
-    }
+    Ok(Json(DatabaseResponse(Database {
+        name: database_name,
+        volume: "".to_string(),
+        created_at: "".to_string(),
+        updated_at: "".to_string(),
+    })))
+    // match state.metastore.get_database(&database_name).await {
+    //     Ok(Some(db)) => Ok(Json(DatabaseResponse { data: db.into() })),
+    //     Ok(None) => Err(
+    //         GetSnafu.into_error(Box::new(MetastoreError::DatabaseNotFound {
+    //             db: database_name.clone(),
+    //         })),
+    //     ),
+    //     Err(e) => Err(e).context(GetSnafu),
+    // }
 }
 
 #[utoipa::path(
@@ -186,17 +198,23 @@ pub async fn update_database(
     Path(database_name): Path<String>,
     Json(database): Json<DatabaseUpdatePayload>,
 ) -> DatabasesResult<Json<DatabaseUpdateResponse>> {
-    let database: MetastoreDatabase = database.data.into();
-    database.validate().map_err(|e| DatabasesAPIError::Update {
-        source: MetastoreError::Validation { source: e },
-    })?;
-    //TODO: Implement database renames
-    state
-        .metastore
-        .update_database(&database_name, database)
-        .await
-        .context(UpdateSnafu)
-        .map(|o| Json(DatabaseUpdateResponse { data: o.into() }))
+    Ok(Json(DatabaseUpdateResponse(Database {
+        name: database.name,
+        volume: database.volume,
+        created_at: "".to_string(),
+        updated_at: "".to_string(),
+    })))
+    // let database: MetastoreDatabase = database.data.into();
+    // database.validate().map_err(|e| DatabasesAPIError::Update {
+    //     source: MetastoreError::Validation { source: e },
+    // })?;
+    // //TODO: Implement database renames
+    // state
+    //     .metastore
+    //     .update_database(&database_name, database)
+    //     .await
+    //     .context(UpdateSnafu)
+    //     .map(|o| Json(DatabaseUpdateResponse { data: o.into() }))
 }
 
 #[utoipa::path(

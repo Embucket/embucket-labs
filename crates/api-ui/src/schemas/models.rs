@@ -23,34 +23,34 @@ impl From<RwObject<MetastoreSchema>> for Schema {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct SchemaPayload {
-    pub name: String,
-    pub database: String,
-}
+// #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+// pub struct SchemaPayload {
+//     pub name: String,
+//     pub database: String,
+// }
 
-impl From<MetastoreSchema> for SchemaPayload {
-    fn from(rw_schema: MetastoreSchema) -> Self {
-        Self {
-            name: rw_schema.ident.schema,
-            database: rw_schema.ident.database,
-        }
-    }
-}
+// impl From<MetastoreSchema> for SchemaPayload {
+//     fn from(rw_schema: MetastoreSchema) -> Self {
+//         Self {
+//             name: rw_schema.ident.schema,
+//             database: rw_schema.ident.database,
+//         }
+//     }
+// }
 
-// TODO: Remove it when found why it can't locate .into() if only From trait implemeted
-#[allow(clippy::from_over_into)]
-impl Into<MetastoreSchema> for SchemaPayload {
-    fn into(self) -> MetastoreSchema {
-        MetastoreSchema {
-            ident: MetastoreSchemaIdent {
-                schema: self.name,
-                database: self.database,
-            },
-            properties: None,
-        }
-    }
-}
+// // TODO: Remove it when found why it can't locate .into() if only From trait implemeted
+// #[allow(clippy::from_over_into)]
+// impl Into<MetastoreSchema> for SchemaPayload {
+//     fn into(self) -> MetastoreSchema {
+//         MetastoreSchema {
+//             ident: MetastoreSchemaIdent {
+//                 schema: self.name,
+//                 database: self.database,
+//             },
+//             properties: None,
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -61,30 +61,21 @@ pub struct SchemaCreatePayload {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaUpdatePayload {
-    #[serde(flatten)]
-    pub data: SchemaPayload,
+    pub name: String,
+    pub database: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct SchemaUpdateResponse {
-    #[serde(flatten)]
-    pub data: Schema,
-}
+pub struct SchemaUpdateResponse(pub Schema);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct SchemaCreateResponse {
-    #[serde(flatten)]
-    pub data: Schema,
-}
+pub struct SchemaCreateResponse(pub Schema);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct SchemaResponse {
-    #[serde(flatten)]
-    pub data: Schema,
-}
+pub struct SchemaResponse(pub Schema);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

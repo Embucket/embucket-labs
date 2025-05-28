@@ -103,10 +103,10 @@ pub async fn query(
             Err(err) => Err(QueriesAPIError::Query {
                 source: QueryError::Store { source: err },
             }),
-            Ok(query_record) => Ok(Json(QueryCreateResponse {
-                data: QueryRecord::try_from(query_record)
+            Ok(query_record) => Ok(Json(QueryCreateResponse(
+                QueryRecord::try_from(query_record)
                     .map_err(|e| QueriesAPIError::Query { source: e })?,
-            })),
+            ))),
         },
         Err(err) => Err(QueriesAPIError::Query {
             source: QueryError::Execution { source: err },

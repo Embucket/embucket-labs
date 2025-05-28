@@ -5,7 +5,7 @@ use crate::{
     volumes::error::{VolumesAPIError, VolumesResult},
     volumes::models::{
         FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
-        VolumePayload, VolumeResponse, VolumeType, VolumeUpdatePayload, VolumeUpdateResponse,
+        VolumeResponse, VolumeType, VolumeUpdatePayload, VolumeUpdateResponse,
         VolumesResponse,
     },
 };
@@ -33,7 +33,7 @@ use validator::Validate;
         schemas(
             VolumeCreatePayload,
             VolumeCreateResponse,
-            VolumePayload,
+            // VolumePayload,
             Volume,
             VolumeType,
             S3Volume,
@@ -83,18 +83,24 @@ pub async fn create_volume(
     State(state): State<AppState>,
     Json(volume): Json<VolumeCreatePayload>,
 ) -> VolumesResult<Json<VolumeCreateResponse>> {
-    let embucket_volume: MetastoreVolume = volume.data.into();
-    embucket_volume
-        .validate()
-        .map_err(|e| VolumesAPIError::Create {
-            source: MetastoreError::Validation { source: e },
-        })?;
-    state
-        .metastore
-        .create_volume(&embucket_volume.ident.clone(), embucket_volume)
-        .await
-        .map_err(VolumesAPIError::from)
-        .map(|o| Json(VolumeCreateResponse { data: o.into() }))
+    Ok(Json(VolumeCreateResponse(Volume {
+        name: volume.name,
+        r#type: "".to_string(),
+        created_at: "".to_string(),
+        updated_at: "".to_string(),
+    })))
+    // let embucket_volume: MetastoreVolume = volume.data.into();
+    // embucket_volume
+    //     .validate()
+    //     .map_err(|e| VolumesAPIError::Create {
+    //         source: MetastoreError::Validation { source: e },
+    //     })?;
+    // state
+    //     .metastore
+    //     .create_volume(&embucket_volume.ident.clone(), embucket_volume)
+    //     .await
+    //     .map_err(VolumesAPIError::from)
+    //     .map(|o| Json(VolumeCreateResponse { data: o.into() }))
 }
 
 #[utoipa::path(
@@ -122,17 +128,23 @@ pub async fn get_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
 ) -> VolumesResult<Json<VolumeResponse>> {
-    match state.metastore.get_volume(&volume_name).await {
-        Ok(Some(volume)) => Ok(Json(VolumeResponse {
-            data: volume.into(),
-        })),
-        Ok(None) => Err(VolumesAPIError::from(Box::new(
-            MetastoreError::VolumeNotFound {
-                volume: volume_name.clone(),
-            },
-        ))),
-        Err(e) => Err(VolumesAPIError::from(e)),
-    }
+    Ok(Json(VolumeResponse(Volume {
+        name: volume_name,
+        r#type: "".to_string(),
+        created_at: "".to_string(),
+        updated_at: "".to_string(),
+    })))
+    // match state.metastore.get_volume(&volume_name).await {
+    //     Ok(Some(volume)) => Ok(Json(VolumeResponse {
+    //         data: volume.into(),
+    //     })),
+    //     Ok(None) => Err(VolumesAPIError::from(Box::new(
+    //         MetastoreError::VolumeNotFound {
+    //             volume: volume_name.clone(),
+    //         },
+    //     ))),
+    //     Err(e) => Err(VolumesAPIError::from(e)),
+    // }
 }
 
 #[utoipa::path(
@@ -195,16 +207,22 @@ pub async fn update_volume(
     Path(volume_name): Path<String>,
     Json(volume): Json<VolumeUpdatePayload>,
 ) -> VolumesResult<Json<VolumeUpdateResponse>> {
-    let volume: MetastoreVolume = volume.data.into();
-    volume.validate().map_err(|e| VolumesAPIError::Update {
-        source: MetastoreError::Validation { source: e },
-    })?;
-    state
-        .metastore
-        .update_volume(&volume_name, volume)
-        .await
-        .map_err(VolumesAPIError::from)
-        .map(|o| Json(VolumeUpdateResponse { data: o.into() }))
+    Ok(Json(VolumeUpdateResponse(Volume {
+        name: volume_name,
+        r#type: "".to_string(),
+        created_at: "".to_string(),
+        updated_at: "".to_string(),
+    })))
+    // let volume: MetastoreVolume = volume.data.into();
+    // volume.validate().map_err(|e| VolumesAPIError::Update {
+    //     source: MetastoreError::Validation { source: e },
+    // })?;
+    // state
+    //     .metastore
+    //     .update_volume(&volume_name, volume)
+    //     .await
+    //     .map_err(VolumesAPIError::from)
+    //     .map(|o| Json(VolumeUpdateResponse { data: o.into() }))
 }
 
 #[utoipa::path(

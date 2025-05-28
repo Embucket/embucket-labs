@@ -89,12 +89,12 @@ pub async fn get_dashboard(
         })?
         .len();
 
-    Ok(Json(DashboardResponse {
-        data: Dashboard {
+    Ok(Json(DashboardResponse(
+        Dashboard {
             total_databases,
             total_schemas,
             total_tables,
             total_queries,
         },
-    }))
+    )))
 }

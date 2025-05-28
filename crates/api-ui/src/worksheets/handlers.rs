@@ -158,7 +158,7 @@ pub async fn create_worksheet(
         .map_err(|e| WorksheetsAPIError::Create { source: e })?
         .into();
 
-    Ok(Json(WorksheetCreateResponse { data: worksheet }))
+    Ok(Json(WorksheetCreateResponse(worksheet)))
 }
 
 #[utoipa::path(
@@ -193,9 +193,7 @@ pub async fn worksheet(
         .await
         .map_err(|e| WorksheetsAPIError::Get { source: e })?;
 
-    Ok(Json(WorksheetResponse {
-        data: Worksheet::from(history_worksheet),
-    }))
+    Ok(Json(WorksheetResponse(Worksheet::from(history_worksheet))))
 }
 
 #[utoipa::path(

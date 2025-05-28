@@ -5,7 +5,7 @@ use crate::{
     error::ErrorResponse,
     schemas::error::{SchemasAPIError, SchemasResult},
     schemas::models::{
-        Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaPayload, SchemaResponse,
+        Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaResponse,
         SchemaUpdatePayload, SchemaUpdateResponse, SchemasResponse,
     },
 };
@@ -35,7 +35,7 @@ use utoipa::OpenApi;
             SchemaCreatePayload,
             SchemaCreateResponse,
             SchemasResponse,
-            SchemaPayload,
+            // SchemaPayload,
             Schema,
             ErrorResponse,
             OrderDirection,
@@ -81,29 +81,37 @@ pub async fn create_schema(
         Some(payload.name.clone()),
         None,
     );
-    let sql_string = format!(
-        "CREATE SCHEMA {}.{}",
-        database_name.clone(),
-        payload.name.clone()
-    );
-    let _ = state
-        .execution_svc
-        .query(&session_id, sql_string.as_str(), context)
-        .await
-        .map_err(|e| SchemasAPIError::Create { source: e })?;
-    let schema_ident = MetastoreSchemaIdent::new(database_name.clone(), payload.name.clone());
-    match state.metastore.get_schema(&schema_ident).await {
-        Ok(Some(rw_object)) => Ok(Json(SchemaCreateResponse {
-            data: rw_object.into(),
-        })),
-        Ok(None) => Err(SchemasAPIError::Get {
-            source: MetastoreError::SchemaNotFound {
-                db: database_name.clone(),
-                schema: payload.name.clone(),
-            },
-        }),
-        Err(e) => Err(SchemasAPIError::from(e)),
-    }
+    Ok(Json(SchemaCreateResponse (
+        Schema {
+            name: payload.name.clone(),
+            database: database_name.clone(),
+            created_at: "".to_string(),
+            updated_at: "".to_string(),
+        }
+    )))
+    // let sql_string = format!(
+    //     "CREATE SCHEMA {}.{}",
+    //     database_name.clone(),
+    //     payload.name.clone()
+    // );
+    // let _ = state
+    //     .execution_svc
+    //     .query(&session_id, sql_string.as_str(), context)
+    //     .await
+    //     .map_err(|e| SchemasAPIError::Create { source: e })?;
+    // let schema_ident = MetastoreSchemaIdent::new(database_name.clone(), payload.name.clone());
+    // match state.metastore.get_schema(&schema_ident).await {
+    //     Ok(Some(rw_object)) => Ok(Json(SchemaCreateResponse {
+    //         data: rw_object.into(),
+    //     })),
+    //     Ok(None) => Err(SchemasAPIError::Get {
+    //         source: MetastoreError::SchemaNotFound {
+    //             db: database_name.clone(),
+    //             schema: payload.name.clone(),
+    //         },
+    //     }),
+    //     Err(e) => Err(SchemasAPIError::from(e)),
+    // }
 }
 
 #[utoipa::path(
@@ -173,22 +181,28 @@ pub async fn get_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> SchemasResult<Json<SchemaResponse>> {
-    let schema_ident = MetastoreSchemaIdent {
+    Ok(Json(SchemaResponse(Schema {
+        name: schema_name.clone(),
         database: database_name.clone(),
-        schema: schema_name.clone(),
-    };
-    match state.metastore.get_schema(&schema_ident).await {
-        Ok(Some(rw_object)) => Ok(Json(SchemaResponse {
-            data: rw_object.into(),
-        })),
-        Ok(None) => Err(SchemasAPIError::Get {
-            source: MetastoreError::SchemaNotFound {
-                db: database_name.clone(),
-                schema: schema_name.clone(),
-            },
-        }),
-        Err(e) => Err(SchemasAPIError::from(e)),
-    }
+        created_at: "".to_string(),
+        updated_at: "".to_string(),
+    })))
+    // let schema_ident = MetastoreSchemaIdent {
+    //     database: database_name.clone(),
+    //     schema: schema_name.clone(),
+    // };
+    // match state.metastore.get_schema(&schema_ident).await {
+    //     Ok(Some(rw_object)) => Ok(Json(SchemaResponse {
+    //         data: rw_object.into(),
+    //     })),
+    //     Ok(None) => Err(SchemasAPIError::Get {
+    //         source: MetastoreError::SchemaNotFound {
+    //             db: database_name.clone(),
+    //             schema: schema_name.clone(),
+    //         },
+    //     }),
+    //     Err(e) => Err(SchemasAPIError::from(e)),
+    // }
 }
 
 #[utoipa::path(
@@ -219,18 +233,24 @@ pub async fn update_schema(
     Path((database_name, schema_name)): Path<(String, String)>,
     Json(schema): Json<SchemaUpdatePayload>,
 ) -> SchemasResult<Json<SchemaUpdateResponse>> {
-    let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
-    // TODO: Implement schema renames
-    state
-        .metastore
-        .update_schema(&schema_ident, schema.data.into())
-        .await
-        .map_err(SchemasAPIError::from)
-        .map(|rw_object| {
-            Json(SchemaUpdateResponse {
-                data: rw_object.into(),
-            })
-        })
+    Ok(Json(SchemaUpdateResponse(Schema {
+        name: schema.name.clone(),
+        database: schema.database.clone(),
+        created_at: "".to_string(),
+        updated_at: "".to_string(),
+    })))
+    // let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
+    // // TODO: Implement schema renames
+    // state
+    //     .metastore
+    //     .update_schema(&schema_ident, schema.data.into())
+    //     .await
+    //     .map_err(SchemasAPIError::from)
+    //     .map(|rw_object| {
+    //         Json(SchemaUpdateResponse {
+    //             data: rw_object.into(),
+    //         })
+    //     })
 }
 
 #[utoipa::path(

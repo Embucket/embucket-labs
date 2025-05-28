@@ -111,17 +111,11 @@ pub struct GetWorksheetsParams {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct WorksheetCreateResponse {
-    #[serde(flatten)]
-    pub data: Worksheet,
-}
+pub struct WorksheetCreateResponse(pub Worksheet);
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct WorksheetResponse {
-    #[serde(flatten)]
-    pub data: Worksheet,
-}
+pub struct WorksheetResponse(pub Worksheet);
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
