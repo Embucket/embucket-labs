@@ -2,6 +2,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { createColumnHelper } from '@tanstack/react-table';
 
 import { DataTable } from '@/components/data-table/data-table';
+import { formatTime } from '@/lib/formatTime';
 import type { Worksheet } from '@/orval/models';
 
 import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
@@ -31,23 +32,13 @@ export function HomeWorksheetsTable({ isLoading, worksheets }: HomeWorksheetsTab
     columnHelper.accessor('updatedAt', {
       header: 'Updated At',
       cell: (info) => {
-        const date = new Date(info.getValue()).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        });
-        return <span>{date}</span>;
+        return <span>{formatTime(info.getValue())}</span>;
       },
     }),
     columnHelper.accessor('createdAt', {
       header: 'Created At',
       cell: (info) => {
-        const date = new Date(info.getValue()).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        });
-        return <span>{date}</span>;
+        return <span>{formatTime(info.getValue())}</span>;
       },
     }),
   ];

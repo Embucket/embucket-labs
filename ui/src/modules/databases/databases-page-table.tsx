@@ -2,6 +2,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { createColumnHelper } from '@tanstack/react-table';
 
 import { DataTable } from '@/components/data-table/data-table';
+import { formatTime } from '@/lib/formatTime';
 import type { Database } from '@/orval/models';
 
 interface DatabasesTableProps {
@@ -19,6 +20,12 @@ export function DatabasesTable({ isLoading, databases }: DatabasesTableProps) {
     }),
     columnHelper.accessor('volume', {
       header: 'Volume',
+    }),
+    columnHelper.accessor('created_at', {
+      header: 'Created',
+      cell: (info) => {
+        return <span>{formatTime(info.getValue())}</span>;
+      },
     }),
   ];
 
