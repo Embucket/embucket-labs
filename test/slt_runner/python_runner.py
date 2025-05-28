@@ -260,8 +260,8 @@ class SQLLogicTestExecutor(SQLLogicRunner):
         """Return the test directory path."""
         return self.default_test_dir
 
-    def setup(self):
-        if os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
+    def setup(self, is_embucket):
+        if is_embucket:
             self.embucket = EmbucketHelper(self.config)
             # Call setup_database_environment with connection settings
             catalog_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
@@ -414,9 +414,8 @@ def directory_path_from_filename(path):
 import argparse
 
 
-def load_config_from_env():
+def load_config_from_env(is_embucket):
     """Load configuration from environment file."""
-    load_dotenv()
 
     # Extract Snowflake configuration from environment variables
     config = {
@@ -430,7 +429,7 @@ def load_config_from_env():
     }
 
     # Add embucket configuration if enabled via env
-    if os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
+    if is_embucket:
         config.update({
             'protocol': os.getenv('EMBUCKET_PROTOCOL', 'http'),
             'host': os.getenv('EMBUCKET_HOST'),
@@ -448,25 +447,6 @@ class SQLLogicPythonRunner:
         print(f"Processing file: {file_path}")
 
         executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
-
-        # Create a connection to execute schema setup queries if using Embucket
-        if 'embucket' in config or os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
-            try:
-                con = connect(
-                    user=config['user'],
-                    password=config['password'],
-                    account=config['account'],
-                    warehouse=config['warehouse'],
-                    database=config['database']
-                )
-
-                # Enable schema caching - this prevents schema from being dropped between statements
-                with con.cursor() as cursor:
-                    cursor.execute(f"USE SCHEMA {config['schema']}")
-                    # Any other specific Embucket setup commands can go here
-                con.close()
-            except Exception as e:
-                logger.error(f"Error setting up Embucket connection for {file_path}: {e}")
 
         results = []
         execution_times = []
@@ -526,43 +506,82 @@ class SQLLogicPythonRunner:
             "error_details": error_details
         }
 
-    def run_files_parallel(self, config, file_paths, test_directory, benchmark_mode, run_mode, start_time,
+    def run_files_parallel(self, config, file_paths, test_directory, benchmark_mode, run_mode, start_time, is_embucket,
                            max_workers=None):
         """Execute test files in parallel with pre-created worker schemas"""
         import concurrent.futures
         print(f"\n=== Running {len(file_paths)} files in parallel with {max_workers} workers ===")
 
-        # Create worker schemas before starting tests
+        executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
+        executor.setup(is_embucket)
+
         worker_schemas = []
-        try:
-            # Connect to the database
-            con = connect(
-                user=config['user'],
-                password=config['password'],
-                account=config['account'],
-                warehouse=config['warehouse'],
-                database=config['database']
-            )
 
-            executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
-            executor.setup()
+        # Handle Embucket setup separately from Snowflake
+        if is_embucket:
+            try:
+                embucket_url = f"{config.get('protocol', 'http')}://{config.get('host', 'localhost')}:{config.get('port', '3000')}"
+                headers = {'Content-Type': 'application/json'}
+                database = config.get('database', 'embucket')
+                schema = config.get('schema', 'public')
 
-            # Create schemas for each worker
-            with con.cursor() as cursor:
+                # Create unique schemas for each worker in Embucket
+                print('Creating worker schemas for Embucket:')
                 for worker_id in range(1, max_workers + 1):
-                    worker_schema = f"{config['schema']}_{worker_id}"
+                    worker_schema = f"{schema}_{worker_id}"
                     worker_schemas.append(worker_schema)
                     try:
-                        # Create a unique schema for this worker
-                        cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {worker_schema}")
-                        logger.info(f"Created worker schema: {worker_schema}")
+                        # Create schema using Embucket API
+                        query = f"CREATE SCHEMA IF NOT EXISTS {database}.{worker_schema}"
+                        requests.request(
+                            "POST", f"{embucket_url}/ui/queries",
+                            headers=headers,
+                            data=json.dumps({"query": query})
+                        ).json()
+                        print(f"Created worker schema for Embucket: {worker_schema}")
                     except Exception as e:
-                        logger.error(f"Error creating worker schema {worker_schema}: {e}")
-            con.close()
-        except Exception as e:
-            logger.error(f"Error connecting to database to create schemas: {e}")
-            # Fall back to original schema if schema creation fails
+                        print(f"Error creating Embucket worker schema {worker_schema}: {e}")
+                        # Fall back to base schema if creation fails
+                        worker_schemas[-1] = schema
+
+            except Exception as e:
+                print(f"Error setting up Embucket schema: {e}")
+                # Fall back to default schema in case of error
+                worker_schemas = [config['schema']] * max_workers
+        else:
+            # Only create Snowflake schemas if not using Embucket
+            try:
+                # Connect to the database
+                con = connect(
+                    user=config['user'],
+                    password=config['password'],
+                    account=config['account'],
+                    warehouse=config['warehouse'],
+                    database=config['database']
+                )
+
+                # Create schemas for each worker in Snowflake
+                print('Creating worker schemas for Snowflake:')
+                with con.cursor() as cursor:
+                    for worker_id in range(1, max_workers + 1):
+                        worker_schema = f"{config['schema']}_{worker_id}"
+                        worker_schemas.append(worker_schema)
+                        try:
+                            # Create a unique schema for this worker
+                            cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {worker_schema}")
+                            print(f"Created worker schema for Snowflake: {worker_schema}")
+                        except Exception as e:
+                            print(f"Error creating worker schema {worker_schema}: {e}")
+                con.close()
+            except Exception as e:
+                print(f"Error connecting to database to create schemas: {e}")
+                # Fall back to original schema if schema creation fails
+                worker_schemas = [config['schema']] * max_workers
+
+        # Ensure worker_schemas is not empty to prevent division by zero
+        if not worker_schemas:
             worker_schemas = [config['schema']] * max_workers
+            print("No worker schemas created, using default schema")
 
         # Execute files in parallel
         all_results = []
@@ -606,59 +625,91 @@ class SQLLogicPythonRunner:
                 for cat, errors in result["error_details"].items():
                     all_error_details[cat].extend(errors)
 
-        # Clean up worker schemas after all tests are done
-        try:
-            con = connect(
-                user=config['user'],
-                password=config['password'],
-                account=config['account'],
-                warehouse=config['warehouse'],
-                database=config['database']
-            )
-            with con.cursor() as cursor:
-                for schema in worker_schemas:
-                    if schema == config['schema']:  # Skip dropping the default schema
-                        continue
+            # Clean up worker schemas after all tests are done
+            if is_embucket:
+                try:
+                    # Setup Embucket API URL for cleanup
+                    embucket_url = f"{config.get('protocol', 'http')}://{config.get('host', 'localhost')}:{config.get('port', '3000')}"
+                    headers = {'Content-Type': 'application/json'}
+                    database = config.get('database', 'embucket')
 
-                    # First check if the TEST_USER exists
-                    cursor.execute("SHOW USERS LIKE 'TEST_USER'")
-                    user_exists = cursor.fetchone() is not None
+                    # clean up any temporary objects created
+                    print("Cleaning up Embucket workers data:")
 
-                    if user_exists:
-                        # Check for any policies set on TEST_USER
+                    # Use Embucket API to run cleanup queries as needed
+                    for schema in set(worker_schemas):
+                        if schema == config['schema']:  # Skip primary schema if it matches default
+                            continue
+
                         try:
-                            cursor.execute(f"""
-                                SELECT policy_name, policy_schema
-                                FROM TABLE(
-                                    INFORMATION_SCHEMA.POLICY_REFERENCES(
-                                        REF_ENTITY_NAME => 'test_user',
-                                        REF_ENTITY_DOMAIN => 'USER'
-                                    )
-                                )
-                            """)
-                            policies = cursor.fetchall()
+                            # Drop the entire worker schema instead of individual tables
+                            drop_query = f"DROP SCHEMA IF EXISTS {database}.{schema} CASCADE"
+                            requests.request(
+                                "POST", f"{embucket_url}/ui/queries",
+                                headers=headers,
+                                data=json.dumps({"query": drop_query})
+                            )
+                            print(f"Dropped schema {schema} in Embucket")
+                        except Exception as e:
+                            print(f"Error cleaning up Embucket schema {schema}: {e}")
+                except Exception as e:
+                    print(f"Error in Embucket cleanup: {e}")
+            else:
+                # Original Snowflake cleanup logic for non-Embucket runs
+                # clean up any temporary objects created
+                print("Cleaning up Snowflake workers data:")
+                try:
+                    con = connect(
+                        user=config['user'],
+                        password=config['password'],
+                        account=config['account'],
+                        warehouse=config['warehouse'],
+                        database=config['database']
+                    )
+                    with con.cursor() as cursor:
+                        for schema in worker_schemas:
+                            if schema == config['schema']:  # Skip dropping the default schema
+                                continue
 
-                            # Unset each policy before dropping the schema
-                            for policy in policies:
+                            # First check if the TEST_USER exists
+                            cursor.execute("SHOW USERS LIKE 'TEST_USER'")
+                            user_exists = cursor.fetchone() is not None
+
+                            if user_exists:
+                                # Check for any policies set on TEST_USER
                                 try:
-                                    cursor.execute(
-                                        f"ALTER USER TEST_USER UNSET AUTHENTICATION POLICY")
-                                except Exception as policy_error:
-                                    logger.error(
-                                        f"Error unsetting policy: {policy_error}")
-                        except Exception as ref_error:
-                            logger.error(f"Error checking policy references: {ref_error}")
+                                    cursor.execute(f"""
+                                        SELECT policy_name, policy_schema
+                                        FROM TABLE(
+                                            INFORMATION_SCHEMA.POLICY_REFERENCES(
+                                                REF_ENTITY_NAME => 'test_user',
+                                                REF_ENTITY_DOMAIN => 'USER'
+                                            )
+                                        )
+                                    """)
+                                    policies = cursor.fetchall()
 
-                    # Now drop the schema
-                    cursor.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
-                    logger.info(f"Cleaned up worker schema {schema}")
-            con.close()
-        except Exception as e:
-            logger.error(f"Error cleaning up worker schemas: {e}")
+                                    # Unset each policy before dropping the schema
+                                    for policy in policies:
+                                        try:
+                                            cursor.execute(
+                                                f"ALTER USER TEST_USER UNSET AUTHENTICATION POLICY")
+                                        except Exception as policy_error:
+                                            print(
+                                                f"Error unsetting policy: {policy_error}")
+                                except Exception as ref_error:
+                                    print(f"Error checking policy references: {ref_error}")
 
-        # Display and save results
-        display_page_results(all_results, total_tests, total_successful, total_failed)
-        display_category_results(all_results)
+                            # Now drop the schema
+                            cursor.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
+                            print(f"Cleaned up worker schema {schema}")
+                    con.close()
+                except Exception as e:
+                    print(f"Error cleaning up worker schemas: {e}")
+
+            # Display and save results
+            display_page_results(all_results, total_tests, total_successful, total_failed)
+            display_category_results(all_results)
 
         # Save results to CSV
         csv_file_name = f"{run_mode}_test_statistics.csv" if benchmark_mode else "test_statistics.csv"
@@ -717,14 +768,29 @@ class SQLLogicPythonRunner:
         else:
             print("Running in non-parallel mode with 1 worker.")
 
+        load_dotenv()
+        # Check if running in Embucket mode
+        is_embucket = os.getenv('EMBUCKET_ENABLED', '').lower() == 'true'
         # Load configuration from env file
-        config = load_config_from_env()
+        config = load_config_from_env(is_embucket)
+
+        # check if Embucket is running:
+        if is_embucket:
+            try:
+                embucket_url = f"{config.get('protocol', 'http')}://{config.get('host', 'localhost')}:{config.get('port', '3000')}/health"
+                response = requests.get(embucket_url, timeout=5)
+                if response.status_code != 200:
+                    print(f"ERROR: Embucket is enabled but not responding correctly: {response}")
+                    return
+            except requests.exceptions.RequestException:
+                print("ERROR: Cannot connect to Embucket. Please make sure the service is running.")
+                return
 
         # Check if benchmark mode is enabled
         benchmark_mode = args.benchmark
 
         # Validation for benchmark mode
-        if benchmark_mode and os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
+        if benchmark_mode and is_embucket:
             print("ERROR: Benchmark mode cannot be used with EMBUCKET_ENABLED=true")
             print("Please set EMBUCKET_ENABLED=false in .env file when using benchmark mode")
             return
@@ -764,7 +830,7 @@ class SQLLogicPythonRunner:
             # Just run in standard mode (no benchmarking)
             default_run_mode = 'hot'  # Default to hot mode for regular runs
             print(f"\n=== Running SLT ===")
-            self.run_files_parallel(config, file_paths, test_directory, benchmark_mode, default_run_mode, start_time,
+            self.run_files_parallel(config, file_paths, test_directory, benchmark_mode, default_run_mode, start_time, is_embucket,
                                     workers)
 
     def compare_benchmark_results(self):
