@@ -46,40 +46,41 @@ impl TreeNodeRewriter for ExprRewriter<'_> {
         if let Expr::ScalarFunction(fun) = &expr {
             let name = fun.name().to_lowercase();
 
-            let scalar = match name.as_str() {
-                "current_database" => Some(self.rewriter.database.clone()),
-                "current_schema" => Some(self.rewriter.schema.clone()),
-                "current_warehouse" => Some(self.rewriter.warehouse.clone()),
-                "current_role_type" => Some("ROLE".to_string()),
-                "current_role" => Some("default".to_string()),
-                "current_version" => Some(env!("CARGO_PKG_VERSION").to_string()),
-                "current_client" => Some(format!("Embucket {}", env!("CARGO_PKG_VERSION"))),
-                "current_session" => Some(self.rewriter.session_id.to_string()),
+            let scalar_value = match name.as_str() {
+                "current_database" => Some(utf8_val(&self.rewriter.database)),
+                "current_schema" => Some(utf8_val(&self.rewriter.schema)),
+                "current_warehouse" => Some(utf8_val(&self.rewriter.warehouse)),
+                "current_role_type" => Some(utf8_val("ROLE")),
+                "current_role" => Some(utf8_val("default")),
+                "current_version" => Some(utf8_val(env!("CARGO_PKG_VERSION"))),
+                "current_client" => {
+                    Some(utf8_val(format!("Embucket {}", env!("CARGO_PKG_VERSION"))))
+                }
+                "current_session" => Some(utf8_val(&self.rewriter.session_id)),
+                "current_schemas" => Some(list_val(&self.rewriter.schemas)),
                 _ => None,
             };
 
-            if let Some(text) = scalar {
-                return Ok(Transformed::yes(
-                    Expr::Literal(ScalarValue::Utf8(Some(text))).alias(fun.name()),
-                ));
-            }
-
-            if name == "current_schemas" {
-                let mut builder = ListBuilder::new(StringBuilder::new());
-                let values_builder = builder.values();
-
-                for schema in &self.rewriter.schemas {
-                    values_builder.append_value(schema);
-                }
-
-                builder.append(true);
-                let array = builder.finish();
-                let list = ScalarValue::List(Arc::new(ListArray::from(array)));
-
-                return Ok(Transformed::yes(Expr::Literal(list).alias(fun.name())));
+            if let Some(value) = scalar_value {
+                return Ok(Transformed::yes(Expr::Literal(value).alias(fun.name())));
             }
         }
 
         Ok(Transformed::no(expr))
     }
+}
+
+fn utf8_val(val: impl Into<String>) -> ScalarValue {
+    ScalarValue::Utf8(Some(val.into()))
+}
+
+fn list_val(items: &[String]) -> ScalarValue {
+    let mut builder = ListBuilder::new(StringBuilder::new());
+    let values_builder = builder.values();
+    for item in items {
+        values_builder.append_value(item);
+    }
+    builder.append(true);
+    let array = builder.finish();
+    ScalarValue::List(Arc::new(ListArray::from(array)))
 }
