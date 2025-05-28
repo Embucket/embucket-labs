@@ -155,8 +155,9 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
     - "type/numeric/test.slt" tests numeric type functionality
 
     Please select the SLT files that test the functionality affected by my code changes.
-    Don't include any files where you don't see specific evidence that the changes are relevant.
-    Don't include files just because they are "basic" tests. Be very specific with the output.
+    Don't include any files where you don't see SPECIFIC evidence that the changes are relevant.
+    IMPORTANT: if code changed are not related to database engine - don't output any tests.
+    IMPORTANT: don't include files just because they are "basic" tests. Be very specific with the output.
     Return ONLY a JSON array with these relative paths, no explanations or other text. For example:
     ["function/aggregate/test.slt", "type/numeric/test.slt"]
     """
