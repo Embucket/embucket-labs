@@ -76,7 +76,7 @@ export function ColumnsPage() {
               )}
             </TabsContent>
             <TabsContent value="data-preview" className="m-0">
-              {![]?.length ? (
+              {!previewData?.length ? (
                 <DataPageEmptyContainer
                   tabs
                   Icon={Columns}
