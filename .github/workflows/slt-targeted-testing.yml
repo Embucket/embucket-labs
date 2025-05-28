@@ -46,20 +46,54 @@ jobs:
         run: |
           pip install openai
 
+      - name: Debug Environment
+        run: |
+          echo "Python version: $(python3 --version)"
+          echo "Current directory: $(pwd)"
+          echo "GitHub base ref: ${{ github.base_ref }}"
+          echo "OpenAI API key set: ${{ env.OPENAI_API_KEY != '' }}"
+          ls -la test/
+
       - name: Select SLT Tests
         id: selection
         working-directory: ./
         run: |
-          python test/slt_selector.py --base-branch ${{ github.base_ref }} --output-dir ./artifacts
-          if [ -f ./artifacts/selected_slts.json ]; then
-            SELECTED_COUNT=$(python -c "import json; print(len(json.load(open('./artifacts/selected_slts.json'))))")
-            echo "Selected $SELECTED_COUNT SLT files"
-            if [ "$SELECTED_COUNT" -gt 0 ]; then
-              echo "has-tests=true" >> $GITHUB_OUTPUT
+          set -e  # Exit on any error
+          echo "Running SLT selector..."
+
+          # Run the selector and capture exit code
+          if python3 test/slt_selector.py --base-branch ${{ github.base_ref }} --output-dir ./artifacts; then
+            echo "SLT selector completed successfully"
+
+            # Check if selection file exists and count selected tests
+            if [ -f ./artifacts/selected_slts.json ]; then
+              echo "Selection file found, counting tests..."
+              SELECTED_COUNT=$(python3 -c "import json; data=json.load(open('./artifacts/selected_slts.json')); print(len(data))" 2>/dev/null || echo "0")
+              echo "Selected $SELECTED_COUNT SLT files"
+
+              if [ "$SELECTED_COUNT" -gt 0 ]; then
+                echo "Setting has-tests=true"
+                echo "has-tests=true" >> $GITHUB_OUTPUT
+              else
+                echo "Setting has-tests=false (no tests selected)"
+                echo "has-tests=false" >> $GITHUB_OUTPUT
+              fi
             else
+              echo "Selection file not found, setting has-tests=false"
               echo "has-tests=false" >> $GITHUB_OUTPUT
             fi
           else
+            echo "SLT selector failed, setting has-tests=false"
+            echo "has-tests=false" >> $GITHUB_OUTPUT
+            # Don't exit with error - we want the workflow to continue and report no tests
+          fi
+
+          echo "Final output variable set. Checking..."
+          if grep -q "has-tests=" $GITHUB_OUTPUT; then
+            echo "✅ has-tests variable successfully set"
+            cat $GITHUB_OUTPUT | grep "has-tests="
+          else
+            echo "❌ has-tests variable not found in output, setting default"
             echo "has-tests=false" >> $GITHUB_OUTPUT
           fi
 

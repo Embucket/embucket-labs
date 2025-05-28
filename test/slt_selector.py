@@ -93,7 +93,17 @@ def get_all_slt_files(slt_dir="test/sql"):
 
 def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
     """Use OpenAI to select relevant SLT files based on code changes"""
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        print("ERROR: OPENAI_API_KEY environment variable not set")
+        print("Cannot perform SLT selection without OpenAI API key")
+        return []
+
+    try:
+        client = OpenAI(api_key=api_key)
+    except Exception as e:
+        print(f"ERROR: Failed to initialize OpenAI client: {e}")
+        return []
 
     # Extract meaningful paths from SLT file paths
     # This will convert paths like "test/sql/function/aggregate/test.slt" to "function/aggregate/test.slt"
@@ -141,17 +151,20 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
 
     print(prompt)
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2,
-        max_tokens=2000
-    )
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=2000
+        )
 
-    # Extract JSON from response
-    response_text = response.choices[0].message.content.strip()
-
-    print(response_text)
+        # Extract JSON from response
+        response_text = response.choices[0].message.content.strip()
+        print(response_text)
+    except Exception as e:
+        print(f"ERROR: OpenAI API call failed: {e}")
+        return []
 
     # Try to extract JSON array if it's not already a valid JSON
     if not response_text.startswith('['):
@@ -248,8 +261,8 @@ def main():
 
     print(f"Selection saved to {selection_file}")
 
-    # Return exit code: 0 if tests selected, 1 if no tests selected
-    return 0 if selected_slts else 1
+    # Always return 0 (success) - let the workflow handle the logic based on the JSON file
+    return 0
 
 
 if __name__ == "__main__":
