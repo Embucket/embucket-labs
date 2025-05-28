@@ -3,19 +3,19 @@ import { Search } from 'lucide-react';
 
 import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { RefreshButton } from '@/components/ui/refresh-button';
-import type { Column } from '@/orval/models';
-import { useGetTableColumns } from '@/orval/tables';
+import type { TablePreviewDataColumn } from '@/orval/models';
+import { useGetTablePreviewData } from '@/orval/tables';
 
-interface ColumnsPageToolbarProps {
-  columns: Column[];
-  isFetchingColumns: boolean;
+interface ColumnsPagePreviewDataToolbarProps {
+  previewData: TablePreviewDataColumn[];
+  isFetchingPreviewData: boolean;
 }
 
-export function ColumnsPageToolbar({ columns }: ColumnsPageToolbarProps) {
+export function ColumnsPagePreviewDataToolbar({ previewData }: ColumnsPagePreviewDataToolbarProps) {
   const { databaseName, schemaName, tableName } = useParams({
     from: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/',
   });
-  const { refetch: refetchColumns, isFetching: isFetchingColumns } = useGetTableColumns(
+  const { refetch: refetchPreviewData, isFetching: isFetchingPreviewData } = useGetTablePreviewData(
     databaseName,
     schemaName,
     tableName,
@@ -23,7 +23,9 @@ export function ColumnsPageToolbar({ columns }: ColumnsPageToolbarProps) {
 
   return (
     <div className="flex items-center justify-between gap-4 p-4">
-      <p className="text-muted-foreground text-sm text-nowrap">{columns.length} columns found</p>
+      <p className="text-muted-foreground text-sm text-nowrap">
+        {previewData.length} columns found
+      </p>
       <div className="justify flex items-center justify-between gap-2">
         <InputRoot className="w-full">
           <InputIcon>
@@ -31,7 +33,7 @@ export function ColumnsPageToolbar({ columns }: ColumnsPageToolbarProps) {
           </InputIcon>
           <Input disabled placeholder="Search" />
         </InputRoot>
-        <RefreshButton isDisabled={isFetchingColumns} onRefresh={refetchColumns} />
+        <RefreshButton isDisabled={isFetchingPreviewData} onRefresh={refetchPreviewData} />
       </div>
     </div>
   );

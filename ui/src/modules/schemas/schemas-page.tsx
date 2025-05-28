@@ -8,8 +8,9 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { useGetSchemas } from '@/orval/schemas';
 
 import { CreateSchemaDialog } from '../shared/create-schema-dialog/create-schema-dialog';
-import { DataPageContent } from '../shared/data-page/data-page-content';
+import { DataPageEmptyContainer } from '../shared/data-page/data-page-empty-container';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
+import { DataPageScrollArea } from '../shared/data-page/data-page-scroll-area';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { SchemasTable } from './schemas-page-table';
 import { SchemasPageToolbar } from './schemas-page-toolbar';
@@ -36,15 +37,20 @@ export function SchemasPage() {
               </Button>
             }
           />
-          <DataPageContent
-            isEmpty={!schemas?.length}
-            emptyStateIcon={FolderTree}
-            emptyStateTitle="No Schemas Found"
-            emptyStateDescription="No schemas have been found for this database."
-          >
-            <SchemasPageToolbar schemas={schemas ?? []} isFetchingSchemas={isFetching} />
-            <SchemasTable isLoading={isFetching} schemas={schemas ?? []} />
-          </DataPageContent>
+          {!schemas?.length ? (
+            <DataPageEmptyContainer
+              Icon={FolderTree}
+              title="No Schemas Found"
+              description="No schemas have been found for this database."
+            />
+          ) : (
+            <>
+              <SchemasPageToolbar schemas={schemas} isFetchingSchemas={isFetching} />
+              <DataPageScrollArea>
+                <SchemasTable isLoading={isFetching} schemas={schemas} />
+              </DataPageScrollArea>
+            </>
+          )}
         </ResizablePanel>
       </ResizablePanelGroup>
       <CreateSchemaDialog opened={opened} onSetOpened={setOpened} databaseName={databaseName} />

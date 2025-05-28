@@ -19,7 +19,7 @@ export function SchemasPageToolbar({ schemas }: SchemasPageToolbarProps) {
   const { refetch: refetchSchemas, isFetching: isFetchingSchemas } = useGetSchemas(databaseName);
 
   return (
-    <div className="mb-4 flex items-center justify-between gap-4">
+    <div className="flex items-center justify-between gap-4 p-4">
       <p className="text-muted-foreground text-sm text-nowrap">{schemas.length} schemas found</p>
       <div className="justify flex items-center justify-between gap-2">
         <InputRoot className="w-full">

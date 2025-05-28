@@ -9,10 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs2'
 import { TableDataUploadDialog } from '@/modules/shared/table-data-upload-dialog/table-data-upload-dialog';
 import { useGetTableColumns, useGetTablePreviewData } from '@/orval/tables';
 
-import { DataPageContent } from '../shared/data-page/data-page-content';
+import { DataPageEmptyContainer } from '../shared/data-page/data-page-empty-container';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
+import { DataPageScrollArea } from '../shared/data-page/data-page-scroll-area';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { DataPreviewTable } from '../shared/data-preview-table/data-preview-table';
+import { ColumnsPagePreviewDataToolbar } from './columns-page-preview-data-tooblar';
 import { ColumnsTable } from './columns-page-table';
 import { ColumnsPageToolbar } from './columns-page-tooblar';
 
@@ -53,27 +55,41 @@ export function ColumnsPage() {
               <TabsTrigger value="data-preview">Data Preview</TabsTrigger>
             </TabsList>
             <TabsContent value="columns" className="m-0">
-              <DataPageContent
-                hasTabs
-                isEmpty={!columns?.length}
-                emptyStateIcon={Columns}
-                emptyStateTitle="No Columns Found"
-                emptyStateDescription="No columns have been found for this table."
-              >
-                <ColumnsPageToolbar columns={columns ?? []} isFetchingColumns={isFetching} />
-                <ColumnsTable isLoading={isFetching} columns={columns ?? []} />
-              </DataPageContent>
+              {!columns?.length ? (
+                <DataPageEmptyContainer
+                  hasTabs
+                  Icon={Columns}
+                  title="No Columns Found"
+                  description="No columns have been found for this table."
+                />
+              ) : (
+                <>
+                  <ColumnsPageToolbar columns={columns} isFetchingColumns={isFetching} />
+                  <DataPageScrollArea hasTabs>
+                    <ColumnsTable isLoading={isFetching} columns={columns} />
+                  </DataPageScrollArea>
+                </>
+              )}
             </TabsContent>
             <TabsContent value="data-preview" className="m-0">
-              <DataPageContent
-                hasTabs
-                isEmpty={!previewData?.length}
-                emptyStateIcon={Columns}
-                emptyStateTitle="No Data Found"
-                emptyStateDescription="No data has been loaded for this table yet."
-              >
-                <DataPreviewTable columns={previewData ?? []} isLoading={isPreviewDataFetching} />
-              </DataPageContent>
+              {!previewData?.length ? (
+                <DataPageEmptyContainer
+                  hasTabs
+                  Icon={Columns}
+                  title="No Data Found"
+                  description="No data has been loaded for this table yet."
+                />
+              ) : (
+                <>
+                  <ColumnsPagePreviewDataToolbar
+                    previewData={previewData}
+                    isFetchingPreviewData={isPreviewDataFetching}
+                  />
+                  <DataPageScrollArea hasTabs>
+                    <DataPreviewTable columns={previewData} isLoading={isPreviewDataFetching} />
+                  </DataPageScrollArea>
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </ResizablePanel>

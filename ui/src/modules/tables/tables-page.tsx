@@ -7,8 +7,9 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { useGetTables } from '@/orval/tables';
 import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
-import { DataPageContent } from '../shared/data-page/data-page-content';
+import { DataPageEmptyContainer } from '../shared/data-page/data-page-empty-container';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
+import { DataPageScrollArea } from '../shared/data-page/data-page-scroll-area';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
 import { TablesTable } from './tables-page-table';
@@ -79,20 +80,25 @@ export function TablesPage() {
               </Button>
             }
           />
-          <DataPageContent
-            isEmpty={!tables?.length}
-            emptyStateIcon={Table}
-            emptyStateTitle="No Tables Found"
-            emptyStateDescription="No tables have been created yet. Create a table to get started."
-          >
-            <TablesPageToolbar tables={tables ?? []} isFetchingTables={isFetching} />
-            <TablesTable
-              isLoading={isFetching}
-              tables={tables ?? []}
-              databaseName={databaseName}
-              schemaName={schemaName}
+          {!tables?.length ? (
+            <DataPageEmptyContainer
+              Icon={Table}
+              title="No Tables Found"
+              description="No tables have been created yet. Create a table to get started."
             />
-          </DataPageContent>
+          ) : (
+            <>
+              <TablesPageToolbar tables={tables} isFetchingTables={isFetching} />
+              <DataPageScrollArea>
+                <TablesTable
+                  isLoading={isFetching}
+                  tables={tables}
+                  databaseName={databaseName}
+                  schemaName={schemaName}
+                />
+              </DataPageScrollArea>
+            </>
+          )}
         </ResizablePanel>
       </ResizablePanelGroup>
     </>

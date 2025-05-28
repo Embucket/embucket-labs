@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { useGetVolumes } from '@/orval/volumes';
 
 import { CreateVolumeDialog } from '../shared/create-volume-dialog/create-volume-dialog';
-import { DataPageContent } from '../shared/data-page/data-page-content';
+import { DataPageEmptyContainer } from '../shared/data-page/data-page-empty-container';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
+import { DataPageScrollArea } from '../shared/data-page/data-page-scroll-area';
 import { VolumesTable } from './volumes-page-table';
 import { VolumesPageToolbar } from './volumes-page-toolbar';
 
@@ -27,15 +28,20 @@ export function VolumesPage() {
           </Button>
         }
       />
-      <DataPageContent
-        isEmpty={!volumes?.length}
-        emptyStateIcon={Box}
-        emptyStateTitle="No Volumes Found"
-        emptyStateDescription="No volumes have been created yet. Create a volume to get started."
-      >
-        <VolumesPageToolbar volumes={volumes ?? []} isFetchingVolumes={isFetching} />
-        <VolumesTable volumes={volumes ?? []} isLoading={isFetching} />
-      </DataPageContent>
+      {!volumes?.length ? (
+        <DataPageEmptyContainer
+          Icon={Box}
+          title="No Volumes Found"
+          description="No volumes have been created yet. Create a volume to get started."
+        />
+      ) : (
+        <>
+          <VolumesPageToolbar volumes={volumes} isFetchingVolumes={isFetching} />
+          <DataPageScrollArea>
+            <VolumesTable volumes={volumes} isLoading={isFetching} />
+          </DataPageScrollArea>
+        </>
+      )}
       <CreateVolumeDialog opened={opened} onSetOpened={setOpened} />
     </>
   );

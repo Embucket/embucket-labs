@@ -8,8 +8,9 @@ import { useGetDatabases } from '@/orval/databases';
 import { useGetVolumes } from '@/orval/volumes';
 
 import { CreateDatabaseDialog } from '../shared/create-database-dialog/create-database-dialog';
-import { DataPageContent } from '../shared/data-page/data-page-content';
+import { DataPageEmptyContainer } from '../shared/data-page/data-page-empty-container';
 import { DataPageHeader } from '../shared/data-page/data-page-header';
+import { DataPageScrollArea } from '../shared/data-page/data-page-scroll-area';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { DatabasesTable } from './databases-page-table';
 import { DatabasesPageToolbar } from './databases-page-toolbar';
@@ -38,18 +39,23 @@ export function DatabasesPage() {
               </Button>
             }
           />
-          <DataPageContent
-            isEmpty={!databases?.length}
-            emptyStateIcon={Database}
-            emptyStateTitle="No Databases Found"
-            emptyStateDescription="No databases have been created yet. Create a database to get started."
-          >
-            <DatabasesPageToolbar
-              databases={databases ?? []}
-              isFetchingDatabases={isFetchingDatabases}
+          {!databases?.length ? (
+            <DataPageEmptyContainer
+              Icon={Database}
+              title="No Databases Found"
+              description="No databases have been created yet. Create a database to get started."
             />
-            <DatabasesTable isLoading={isFetchingDatabases} databases={databases ?? []} />
-          </DataPageContent>
+          ) : (
+            <>
+              <DatabasesPageToolbar
+                databases={databases}
+                isFetchingDatabases={isFetchingDatabases}
+              />
+              <DataPageScrollArea>
+                <DatabasesTable isLoading={isFetchingDatabases} databases={databases} />
+              </DataPageScrollArea>
+            </>
+          )}
         </ResizablePanel>
       </ResizablePanelGroup>
       <CreateDatabaseDialog opened={opened} onSetOpened={setOpened} />
