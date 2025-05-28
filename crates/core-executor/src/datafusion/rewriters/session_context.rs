@@ -14,7 +14,7 @@ pub struct SessionContextExprRewriter {
 
 impl SessionContextExprRewriter {
     fn rewrite_expr(&self, expr: Expr) -> Expr {
-        let mut rewriter = ExprRewriter { ctx: self };
+        let mut rewriter = ExprRewriter { rewriter: self };
         expr.clone()
             .rewrite(&mut rewriter)
             .map(|t| t.data)
@@ -36,56 +36,50 @@ impl SessionContextExprRewriter {
     }
 }
 struct ExprRewriter<'a> {
-    ctx: &'a SessionContextExprRewriter,
+    rewriter: &'a SessionContextExprRewriter,
 }
 
 impl TreeNodeRewriter for ExprRewriter<'_> {
     type Node = Expr;
 
     fn f_up(&mut self, expr: Expr) -> Result<Transformed<Expr>> {
-        let replacement = match &expr {
-            Expr::ScalarFunction(fun) => {
-                let name = fun.name().to_lowercase();
-                let value = match name.as_str() {
-                    "current_database" => Some(ScalarValue::Utf8(Some(self.ctx.database.clone()))),
-                    "current_schema" => Some(ScalarValue::Utf8(Some(self.ctx.schema.clone()))),
-                    "current_warehouse" => {
-                        Some(ScalarValue::Utf8(Some(self.ctx.warehouse.clone())))
-                    }
-                    "current_role_type" => Some(ScalarValue::Utf8(Some("ROLE".to_string()))),
-                    "current_role" => Some(ScalarValue::Utf8(Some("default".to_string()))),
-                    "current_version" => Some(ScalarValue::Utf8(Some(
-                        env!("CARGO_PKG_VERSION").to_string(),
-                    ))),
-                    "current_client" => Some(ScalarValue::Utf8(Some(format!(
-                        "Embucket {}",
-                        env!("CARGO_PKG_VERSION")
-                    )))),
-                    "current_session" => {
-                        Some(ScalarValue::Utf8(Some(self.ctx.session_id.to_string())))
-                    }
-                    "current_schemas" => {
-                        let mut builder = ListBuilder::new(StringBuilder::new());
-                        let values_builder = builder.values();
-                        for schema in &self.ctx.schemas {
-                            values_builder.append_value(schema);
-                        }
-                        builder.append(true);
-                        let array = builder.finish();
-                        Some(ScalarValue::List(Arc::new(ListArray::from(array))))
-                    }
-                    _ => None,
-                };
+        if let Expr::ScalarFunction(fun) = &expr {
+            let name = fun.name().to_lowercase();
 
-                if let Some(val) = value {
-                    Ok(Transformed::yes(Expr::Literal(val).alias(fun.name())))
-                } else {
-                    Ok(Transformed::no(expr))
-                }
+            let scalar = match name.as_str() {
+                "current_database" => Some(self.rewriter.database.clone()),
+                "current_schema" => Some(self.rewriter.schema.clone()),
+                "current_warehouse" => Some(self.rewriter.warehouse.clone()),
+                "current_role_type" => Some("ROLE".to_string()),
+                "current_role" => Some("default".to_string()),
+                "current_version" => Some(env!("CARGO_PKG_VERSION").to_string()),
+                "current_client" => Some(format!("Embucket {}", env!("CARGO_PKG_VERSION"))),
+                "current_session" => Some(self.rewriter.session_id.to_string()),
+                _ => None,
+            };
+
+            if let Some(text) = scalar {
+                return Ok(Transformed::yes(
+                    Expr::Literal(ScalarValue::Utf8(Some(text))).alias(fun.name()),
+                ));
             }
-            _ => Ok(Transformed::no(expr)),
-        };
 
-        replacement
+            if name == "current_schemas" {
+                let mut builder = ListBuilder::new(StringBuilder::new());
+                let values_builder = builder.values();
+
+                for schema in &self.rewriter.schemas {
+                    values_builder.append_value(schema);
+                }
+
+                builder.append(true);
+                let array = builder.finish();
+                let list = ScalarValue::List(Arc::new(ListArray::from(array)));
+
+                return Ok(Transformed::yes(Expr::Literal(list).alias(fun.name())));
+            }
+        }
+
+        Ok(Transformed::no(expr))
     }
 }

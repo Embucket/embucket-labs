@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SELECT length(CURRENT_SESSION())\""
+snapshot_kind: text
+---
+Ok(
+    [
+        "+-----------------------------------+",
+        "| character_length(current_session) |",
+        "+-----------------------------------+",
+        "| 36                                |",
+        "+-----------------------------------+",
+    ],
+)
