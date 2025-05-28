@@ -5,16 +5,8 @@ use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signatur
 use std::any::Any;
 use std::sync::Arc;
 
-// RTRIMMED_LENGTH SQL function implementation
-// This function calculates the length of a string after removing trailing whitespace characters.
-// It preserves leading whitespace but removes all trailing spaces from the input string.
 // Returns the length of its argument, minus trailing whitespace, but including leading whitespace.
 // Syntax: RTRIMMED_LENGTH( <string_expr> )
-//
-// Examples:
-// - RTRIMMED_LENGTH('  hello  ') returns 7 (includes leading spaces, excludes trailing spaces)
-// - RTRIMMED_LENGTH('hello') returns 5 (no whitespace to trim)
-// - RTRIMMED_LENGTH('   ') returns 0 (all spaces are trailing)
 #[derive(Debug)]
 pub struct RTrimmedLengthFunc {
     signature: Signature,
@@ -27,8 +19,6 @@ impl Default for RTrimmedLengthFunc {
 }
 
 impl RTrimmedLengthFunc {
-    /// Creates a new instance of the RTRIMMED_LENGTH function
-    /// This function accepts exactly one UTF-8 string argument and is immutable
     pub fn new() -> Self {
         Self {
             signature: Signature::exact(vec![DataType::Utf8], Volatility::Immutable),
@@ -57,28 +47,22 @@ impl ScalarUDFImpl for RTrimmedLengthFunc {
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
 
-        // Extract the input array from either Array or Scalar columnar value
         let arr = match &args[0] {
             ColumnarValue::Array(arr) => arr,
             ColumnarValue::Scalar(v) => &v.to_array()?,
         };
 
-        // Convert to string array for processing
         let strs = as_string_array(&arr)?;
 
-        // Process each string element: trim trailing spaces and calculate length
-        // This is the core logic that removes trailing whitespace and measures the result
         let new_array = strs
             .iter()
             .map(|array_elem| {
                 array_elem.map(|value| {
-                    // Remove trailing spaces and get the length of the trimmed string
                     value.trim_end_matches(' ').len() as u64
                 })
             })
             .collect::<UInt64Array>();
 
-        // Return the result as a columnar array
         Ok(ColumnarValue::Array(Arc::new(new_array)))
     }
 }
