@@ -16,7 +16,6 @@ datafusion-physical-plan = { workspace = true }
 paste = "1"
 serde = { workspace = true }
 serde_json = { workspace = true }
-jsonpath_lib = "0.3.0"
 ahash = { version = "0.8", default-features = false, features = [
     "runtime-rng",
 ] }

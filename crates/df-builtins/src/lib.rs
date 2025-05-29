@@ -75,6 +75,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     for func in functions {
         registry.register_udf(func)?;
     }
+    
+    variant::register_udfs(registry)?;
     session::register_session_context_udfs(registry)?;
     Ok(())
 }
