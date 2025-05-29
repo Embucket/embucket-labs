@@ -10,6 +10,7 @@ use crate::datafusion::analyzer::IcebergTypesAnalyzer;
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
+use crate::datafusion::query_planner::EmbucketQueryPlanner;
 use crate::models::QueryContext;
 use crate::query::UserQuery;
 use crate::utils::Config;
@@ -27,7 +28,6 @@ use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_functions_json::register_all as register_json_udfs;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
-use datafusion_iceberg::planner::IcebergQueryPlanner;
 use df_builtins::register_udafs;
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use df_catalog::information_schema::session_params::{SessionParams, SessionProperty};
@@ -80,7 +80,7 @@ impl UserSession {
             .with_default_features()
             .with_runtime_env(Arc::new(runtime_config))
             .with_catalog_list(catalog_list_impl.clone())
-            .with_query_planner(Arc::new(IcebergQueryPlanner::new()))
+            .with_query_planner(Arc::new(EmbucketQueryPlanner::default()))
             .with_type_planner(Arc::new(CustomTypePlanner {}))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
             .with_physical_optimizer_rules(physical_optimizer_rules())
