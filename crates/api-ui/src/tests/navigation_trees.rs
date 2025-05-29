@@ -7,9 +7,8 @@ use crate::schemas::models::SchemaCreatePayload;
 use crate::tests::common::req;
 use crate::tests::common::{Entity, Op, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumePayload};
+use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
 use crate::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
-use core_metastore::VolumeType as MetastoreVolumeType;
 use core_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
 use http::Method;
 use serde_json::json;
@@ -32,10 +31,8 @@ async fn test_ui_databases_navigation() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: VolumePayload::from(MetastoreVolume {
-                ident: String::new(),
-                volume: MetastoreVolumeType::Memory,
-            }),
+            name: "test_volume".to_string(),
+            volume: VolumeType::Memory,
         }),
     )
     .await;
@@ -43,36 +40,20 @@ async fn test_ui_databases_navigation() {
 
     // Create database, Ok
     let expected1 = DatabaseCreatePayload {
-        data: MetastoreDatabase {
-            ident: "test1".to_string(),
-            properties: None,
-            volume: volume.data.name.clone(),
-        }
-        .into(),
+        name: "test1".to_string(),
+        volume: volume.0.name.clone(),
     };
     let expected2 = DatabaseCreatePayload {
-        data: MetastoreDatabase {
-            ident: "test2".to_string(),
-            properties: None,
-            volume: volume.data.name.clone(),
-        }
-        .into(),
+        name: "test2".to_string(),
+        volume: volume.0.name.clone(),
     };
     let expected3 = DatabaseCreatePayload {
-        data: MetastoreDatabase {
-            ident: "test3".to_string(),
-            properties: None,
-            volume: volume.data.name.clone(),
-        }
-        .into(),
+        name: "test3".to_string(),
+        volume: volume.0.name.clone(),
     };
     let expected4 = DatabaseCreatePayload {
-        data: MetastoreDatabase {
-            ident: "test4".to_string(),
-            properties: None,
-            volume: volume.data.name.clone(),
-        }
-        .into(),
+        name: "test4".to_string(),
+        volume: volume.0.name.clone(),
     };
     //4 DBs
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
@@ -97,7 +78,7 @@ async fn test_ui_databases_navigation() {
         Method::POST,
         &format!(
             "http://{addr}/ui/databases/{}/schemas",
-            expected1.data.name.clone()
+            expected1.name.clone()
         )
         .to_string(),
         json!(payload).to_string(),
@@ -128,13 +109,13 @@ async fn test_ui_databases_navigation() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
+    let worksheet_id = res.json::<WorksheetResponse>().await.unwrap().0.id;
 
     let query_payload = QueryCreatePayload {
-        worksheet_id: Some(worksheet.id),
+        worksheet_id: Some(worksheet_id),
         query: format!(
             "CREATE TABLE {}.{}.{} (APP_ID TEXT)",
-            expected1.data.name.clone(),
+            expected1.name.clone(),
             schema_name.clone(),
             "tested1"
         ),

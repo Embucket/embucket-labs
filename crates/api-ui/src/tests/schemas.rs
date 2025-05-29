@@ -1,12 +1,12 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::databases::models::{DatabaseCreatePayload, DatabasePayload};
+use crate::databases::models::{DatabaseCreatePayload};
 use crate::schemas::models::{SchemaCreatePayload, SchemasResponse};
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumePayload};
+use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
 use core_metastore::{
-    Database as MetastoreDatabase, Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
+    Database as MetastoreDatabase,
 };
 use http::Method;
 use serde_json::json;
@@ -23,10 +23,8 @@ async fn test_ui_schemas() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: VolumePayload::from(MetastoreVolume {
-                ident: String::new(),
-                volume: MetastoreVolumeType::Memory,
-            }),
+            name: String::new(),
+            volume: VolumeType::Memory,
         }),
     )
     .await;
@@ -37,14 +35,15 @@ async fn test_ui_schemas() {
     let expected1 = MetastoreDatabase {
         ident: database_name.clone(),
         properties: None,
-        volume: volume.data.name.clone(),
+        volume: volume.0.name.clone(),
     };
     let _res = ui_test_op(
         addr,
         Op::Create,
         None,
         &Entity::Database(DatabaseCreatePayload {
-            data: DatabasePayload::from(expected1.clone()),
+            name: database_name.clone(),
+            volume: volume.0.name.clone(),
         }),
     )
     .await;

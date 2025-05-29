@@ -17,7 +17,6 @@ use utoipa::OpenApi;
     components(
         schemas(
             DashboardResponse,
-            Dashboard,
         )
     ),
     tags(

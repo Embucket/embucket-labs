@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::database::{Database, DatabasesTemplateType};
-use crate::external_models::VolumeType;
+use crate::external_models::{VolumeCreatePayload, VolumeType};
 use crate::seed_generator::{Generator, fake_provider::FakeProvider};
 
 // This is different from metastore's equivalent
@@ -14,9 +14,9 @@ pub struct Volume {
 }
 
 #[allow(clippy::from_over_into)]
-impl Into<crate::external_models::VolumePayload> for Volume {
-    fn into(self) -> crate::external_models::VolumePayload {
-        crate::external_models::VolumePayload {
+impl Into<VolumeCreatePayload> for Volume {
+    fn into(self) -> VolumeCreatePayload {
+        VolumeCreatePayload {
             name: self.volume_name,
             volume: self.volume_type,
         }

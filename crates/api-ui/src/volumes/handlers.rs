@@ -2,7 +2,7 @@ use crate::state::AppState;
 use crate::{
     OrderDirection, SearchParameters, apply_parameters, downcast_string_column,
     error::ErrorResponse,
-    volumes::error::{VolumesAPIError, VolumesResult},
+    volumes::error::{VolumesAPIError, VolumesResult, CreateSnafu, GetSnafu, DeleteSnafu},
     volumes::models::{
         FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
         VolumeResponse, VolumeType, VolumeUpdatePayload, VolumeUpdateResponse,
@@ -15,8 +15,9 @@ use axum::{
     extract::{Path, Query, State},
 };
 use core_executor::models::{QueryContext, QueryResult};
-use core_metastore::error::MetastoreError;
+use core_metastore::error::{MetastoreError, ValidationSnafu};
 use core_metastore::models::{AwsAccessKeyCredentials, AwsCredentials, Volume as MetastoreVolume};
+use snafu::ResultExt;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -33,7 +34,6 @@ use validator::Validate;
         schemas(
             VolumeCreatePayload,
             VolumeCreateResponse,
-            // VolumePayload,
             Volume,
             VolumeType,
             S3Volume,
@@ -83,24 +83,20 @@ pub async fn create_volume(
     State(state): State<AppState>,
     Json(volume): Json<VolumeCreatePayload>,
 ) -> VolumesResult<Json<VolumeCreateResponse>> {
-    Ok(Json(VolumeCreateResponse(Volume {
-        name: volume.name,
-        r#type: "".to_string(),
-        created_at: "".to_string(),
-        updated_at: "".to_string(),
-    })))
-    // let embucket_volume: MetastoreVolume = volume.data.into();
-    // embucket_volume
-    //     .validate()
-    //     .map_err(|e| VolumesAPIError::Create {
-    //         source: MetastoreError::Validation { source: e },
-    //     })?;
-    // state
-    //     .metastore
-    //     .create_volume(&embucket_volume.ident.clone(), embucket_volume)
-    //     .await
-    //     .map_err(VolumesAPIError::from)
-    //     .map(|o| Json(VolumeCreateResponse { data: o.into() }))
+    let embucket_volume = MetastoreVolume::new(volume.name.clone(), volume.volume.into());
+    embucket_volume
+        .validate()
+        .context(ValidationSnafu)
+        .context(CreateSnafu)?;
+
+    state
+        .metastore
+        .create_volume(&embucket_volume.ident.clone(), embucket_volume)
+        .await
+        .map_err(VolumesAPIError::from)
+        .map(Volume::from)
+        .map(VolumeCreateResponse)
+        .map(Json)
 }
 
 #[utoipa::path(
@@ -128,23 +124,17 @@ pub async fn get_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
 ) -> VolumesResult<Json<VolumeResponse>> {
-    Ok(Json(VolumeResponse(Volume {
-        name: volume_name,
-        r#type: "".to_string(),
-        created_at: "".to_string(),
-        updated_at: "".to_string(),
-    })))
-    // match state.metastore.get_volume(&volume_name).await {
-    //     Ok(Some(volume)) => Ok(Json(VolumeResponse {
-    //         data: volume.into(),
-    //     })),
-    //     Ok(None) => Err(VolumesAPIError::from(Box::new(
-    //         MetastoreError::VolumeNotFound {
-    //             volume: volume_name.clone(),
-    //         },
-    //     ))),
-    //     Err(e) => Err(VolumesAPIError::from(e)),
-    // }
+    match state.metastore.get_volume(&volume_name).await {
+        Ok(None) => Err(MetastoreError::VolumeNotFound {
+            volume: volume_name.clone(),
+        }),
+        Ok(Some(volume)) => Ok(volume),
+        Err(e) => Err(*e),
+    }
+    .context(GetSnafu)
+    .map(Volume::from)
+    .map(VolumeResponse)
+    .map(Json)
 }
 
 #[utoipa::path(
@@ -177,52 +167,8 @@ pub async fn delete_volume(
         .metastore
         .delete_volume(&volume_name, query.cascade.unwrap_or_default())
         .await
-        .map_err(VolumesAPIError::from)
-}
-
-#[utoipa::path(
-    put,
-    operation_id = "updateVolume",
-    tags = ["volumes"],
-    path = "/ui/volumes/{volumeName}",
-    params(
-        ("volumeName" = String, Path, description = "Volume name")
-    ),
-    request_body = VolumeUpdatePayload,
-    responses(
-        (status = 200, description = "Successful Response", body = VolumeUpdateResponse),
-        (status = 401,
-         description = "Unauthorized",
-         headers(
-            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
-         ),
-         body = ErrorResponse),
-        (status = 404, description = "Not found", body = ErrorResponse),
-        (status = 422, description = "Unprocessable entity", body = ErrorResponse),
-    )
-)]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn update_volume(
-    State(state): State<AppState>,
-    Path(volume_name): Path<String>,
-    Json(volume): Json<VolumeUpdatePayload>,
-) -> VolumesResult<Json<VolumeUpdateResponse>> {
-    Ok(Json(VolumeUpdateResponse(Volume {
-        name: volume_name,
-        r#type: "".to_string(),
-        created_at: "".to_string(),
-        updated_at: "".to_string(),
-    })))
-    // let volume: MetastoreVolume = volume.data.into();
-    // volume.validate().map_err(|e| VolumesAPIError::Update {
-    //     source: MetastoreError::Validation { source: e },
-    // })?;
-    // state
-    //     .metastore
-    //     .update_volume(&volume_name, volume)
-    //     .await
-    //     .map_err(VolumesAPIError::from)
-    //     .map(|o| Json(VolumeUpdateResponse { data: o.into() }))
+        .map_err(|err| *err)
+        .context(DeleteSnafu)
 }
 
 #[utoipa::path(

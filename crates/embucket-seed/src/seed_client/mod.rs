@@ -83,7 +83,7 @@ impl SeedClient {
     pub async fn seed_all(&mut self) -> SeedResult<usize> {
         let mut seeded_entities: usize = 0;
         for seed_volume in &self.seed_data {
-            let volume: external_models::VolumePayload = seed_volume.clone().into();
+            let volume: external_models::VolumeCreatePayload = seed_volume.clone().into();
             self.client
                 .create_volume(volume)
                 .await

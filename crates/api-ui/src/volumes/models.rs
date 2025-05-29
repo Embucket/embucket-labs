@@ -1,5 +1,7 @@
 use core_metastore::models::{
-    // AwsCredentials, FileVolume as MetastoreFileVolume, S3Volume as MetastoreS3Volume,
+    AwsCredentials as MetastoreAwsCredentials,
+    AwsAccessKeyCredentials as MetastoreAwsAccessKeyCredentials,
+    FileVolume as MetastoreFileVolume, S3Volume as MetastoreS3Volume,
     Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
 };
 use core_metastore::{RwObject, S3TablesVolume as MetastoreS3TablesVolume};
@@ -18,6 +20,18 @@ pub struct AwsAccessKeyCredentials {
 pub enum AwsCredentials {
     AccessKey(AwsAccessKeyCredentials),
     Token(String),
+}
+
+impl Into<MetastoreAwsCredentials> for AwsCredentials {
+    fn into(self) -> MetastoreAwsCredentials {
+        match self {
+            AwsCredentials::AccessKey(access_key) => MetastoreAwsCredentials::AccessKey(MetastoreAwsAccessKeyCredentials {
+                aws_access_key_id: access_key.aws_access_key_id,
+                aws_secret_access_key: access_key.aws_secret_access_key,
+            }),
+            AwsCredentials::Token(token) => MetastoreAwsCredentials::Token(token),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
@@ -89,39 +103,33 @@ pub enum VolumeType {
 //     }
 // }
 
-// // TODO: Remove it when found why it can't locate .into() if only From trait implemeted
-// #[allow(clippy::from_over_into)]
-// impl Into<MetastoreVolume> for VolumePayload {
-//     fn into(self) -> MetastoreVolume {
-//         MetastoreVolume {
-//             ident: self.name,
-//             volume: match self.volume {
-//                 VolumeType::S3(volume) => MetastoreVolumeType::S3(MetastoreS3Volume {
-//                     region: volume.region,
-//                     bucket: volume.bucket,
-//                     endpoint: volume.endpoint,
-//                     skip_signature: volume.skip_signature,
-//                     metadata_endpoint: volume.metadata_endpoint,
-//                     credentials: volume.credentials,
-//                 }),
-//                 VolumeType::S3Tables(volume) => {
-//                     MetastoreVolumeType::S3Tables(MetastoreS3TablesVolume {
-//                         region: volume.region,
-//                         bucket: volume.bucket,
-//                         endpoint: volume.endpoint,
-//                         credentials: volume.credentials,
-//                         name: volume.name,
-//                         arn: volume.arn,
-//                     })
-//                 }
-//                 VolumeType::File(volume) => {
-//                     MetastoreVolumeType::File(MetastoreFileVolume { path: volume.path })
-//                 }
-//                 VolumeType::Memory => MetastoreVolumeType::Memory,
-//             },
-//         }
-//     }
-// }
+#[allow(clippy::from_over_into)]
+impl Into<MetastoreVolumeType> for VolumeType {
+    fn into(self) -> MetastoreVolumeType {
+        match self {
+            VolumeType::S3(volume) => MetastoreVolumeType::S3(MetastoreS3Volume {
+                region: volume.region,
+                bucket: volume.bucket,
+                endpoint: volume.endpoint,
+                skip_signature: volume.skip_signature,
+                metadata_endpoint: volume.metadata_endpoint,
+                credentials: volume.credentials.map(AwsCredentials::into),
+            }),
+            VolumeType::S3Tables(volume) => MetastoreVolumeType::S3Tables(MetastoreS3TablesVolume {
+                region: volume.region,
+                bucket: volume.bucket,
+                endpoint: volume.endpoint,
+                credentials: volume.credentials.into(),
+                name: volume.name,
+                arn: volume.arn,
+            }),
+            VolumeType::File(volume) => MetastoreVolumeType::File(MetastoreFileVolume {
+                path: volume.path,
+            }),
+            VolumeType::Memory => MetastoreVolumeType::Memory,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

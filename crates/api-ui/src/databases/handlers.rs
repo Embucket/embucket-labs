@@ -80,22 +80,22 @@ pub async fn create_database(
     State(state): State<AppState>,
     Json(database): Json<DatabaseCreatePayload>,
 ) -> DatabasesResult<Json<DatabaseCreateResponse>> {
-    Ok(Json(DatabaseCreateResponse(Database {
-        name: database.name,
+    let database = MetastoreDatabase {
+        ident: database.name,
         volume: database.volume,
-        created_at: "".to_string(),
-        updated_at: "".to_string(),
-    })))
-    // let database: MetastoreDatabase = database.data.into();
-    // database.validate().map_err(|e| DatabasesAPIError::Create {
-    //     source: MetastoreError::Validation { source: e },
-    // })?;
-    // state
-    //     .metastore
-    //     .create_database(&database.ident.clone(), database)
-    //     .await
-    //     .context(CreateSnafu)
-    //     .map(|o| Json(DatabaseCreateResponse { data: o.into() }))
+        properties: None,
+    };
+    database.validate().map_err(|e| DatabasesAPIError::Create {
+        source: MetastoreError::Validation { source: e },
+    })?;
+    state
+        .metastore
+        .create_database(&database.ident.clone(), database)
+        .await
+        .context(CreateSnafu)
+        .map(Database::from)
+        .map(DatabaseCreateResponse)
+        .map(Json)
 }
 
 #[utoipa::path(
@@ -122,21 +122,15 @@ pub async fn get_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
 ) -> DatabasesResult<Json<DatabaseResponse>> {
-    Ok(Json(DatabaseResponse(Database {
-        name: database_name,
-        volume: "".to_string(),
-        created_at: "".to_string(),
-        updated_at: "".to_string(),
-    })))
-    // match state.metastore.get_database(&database_name).await {
-    //     Ok(Some(db)) => Ok(Json(DatabaseResponse { data: db.into() })),
-    //     Ok(None) => Err(
-    //         GetSnafu.into_error(Box::new(MetastoreError::DatabaseNotFound {
-    //             db: database_name.clone(),
-    //         })),
-    //     ),
-    //     Err(e) => Err(e).context(GetSnafu),
-    // }
+    match state.metastore.get_database(&database_name).await {
+        Ok(Some(db)) => Ok(Json(DatabaseResponse(Database::from(db)))),
+        Ok(None) => Err(
+            GetSnafu.into_error(Box::new(MetastoreError::DatabaseNotFound {
+                db: database_name.clone(),
+            })),
+        ),
+        Err(e) => Err(e).context(GetSnafu),
+    }
 }
 
 #[utoipa::path(
@@ -198,23 +192,23 @@ pub async fn update_database(
     Path(database_name): Path<String>,
     Json(database): Json<DatabaseUpdatePayload>,
 ) -> DatabasesResult<Json<DatabaseUpdateResponse>> {
-    Ok(Json(DatabaseUpdateResponse(Database {
-        name: database.name,
+    let database = MetastoreDatabase {
+        ident: database.name,
         volume: database.volume,
-        created_at: "".to_string(),
-        updated_at: "".to_string(),
-    })))
-    // let database: MetastoreDatabase = database.data.into();
-    // database.validate().map_err(|e| DatabasesAPIError::Update {
-    //     source: MetastoreError::Validation { source: e },
-    // })?;
-    // //TODO: Implement database renames
-    // state
-    //     .metastore
-    //     .update_database(&database_name, database)
-    //     .await
-    //     .context(UpdateSnafu)
-    //     .map(|o| Json(DatabaseUpdateResponse { data: o.into() }))
+        properties: None,
+    };
+    database.validate().map_err(|e| DatabasesAPIError::Update {
+        source: MetastoreError::Validation { source: e },
+    })?;
+    //TODO: Implement database renames
+    state
+        .metastore
+        .update_database(&database_name, database)
+        .await
+        .context(UpdateSnafu)
+        .map(Database::from)
+        .map(DatabaseUpdateResponse)
+        .map(Json)
 }
 
 #[utoipa::path(

@@ -7,10 +7,8 @@ use crate::schemas::models::SchemaCreatePayload;
 use crate::tests::common::req;
 use crate::tests::common::{Entity, Op, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumePayload};
+use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
 use crate::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
-use core_metastore::VolumeType as MetastoreVolumeType;
-use core_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
 use http::Method;
 use serde_json::json;
 
@@ -25,20 +23,18 @@ async fn test_ui_dashboard() {
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let dashboard: DashboardResponse = res.json().await.unwrap();
-    assert_eq!(0, dashboard.data.total_databases);
-    assert_eq!(0, dashboard.data.total_schemas);
-    assert_eq!(0, dashboard.data.total_tables);
-    assert_eq!(0, dashboard.data.total_queries);
+    assert_eq!(0, dashboard.0.total_databases);
+    assert_eq!(0, dashboard.0.total_schemas);
+    assert_eq!(0, dashboard.0.total_tables);
+    assert_eq!(0, dashboard.0.total_queries);
 
     let res = ui_test_op(
         addr,
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: VolumePayload::from(MetastoreVolume {
-                ident: String::new(),
-                volume: MetastoreVolumeType::Memory,
-            }),
+            name: "test_volume".to_string(),
+            volume: VolumeType::Memory,
         }),
     )
     .await;
@@ -46,36 +42,20 @@ async fn test_ui_dashboard() {
 
     // Create database, Ok
     let expected1 = DatabaseCreatePayload {
-        data: MetastoreDatabase {
-            ident: "test1".to_string(),
-            properties: None,
-            volume: volume.data.name.clone(),
-        }
-        .into(),
+        name: "test1".to_string(),
+        volume: volume.0.name.clone(),
     };
     let expected2 = DatabaseCreatePayload {
-        data: MetastoreDatabase {
-            ident: "test2".to_string(),
-            properties: None,
-            volume: volume.data.name.clone(),
-        }
-        .into(),
+        name: "test2".to_string(),
+        volume: volume.0.name.clone(),
     };
     let expected3 = DatabaseCreatePayload {
-        data: MetastoreDatabase {
-            ident: "test3".to_string(),
-            properties: None,
-            volume: volume.data.name.clone(),
-        }
-        .into(),
+        name: "test3".to_string(),
+        volume: volume.0.name.clone(),
     };
     let expected4 = DatabaseCreatePayload {
-        data: MetastoreDatabase {
-            ident: "test4".to_string(),
-            properties: None,
-            volume: volume.data.name.clone(),
-        }
-        .into(),
+        name: "test4".to_string(),
+        volume: volume.0.name.clone(),
     };
     //4 DBs
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
@@ -88,10 +68,10 @@ async fn test_ui_dashboard() {
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let dashboard: DashboardResponse = res.json().await.unwrap();
-    assert_eq!(4, dashboard.data.total_databases);
-    assert_eq!(0, dashboard.data.total_schemas);
-    assert_eq!(0, dashboard.data.total_tables);
-    assert_eq!(0, dashboard.data.total_queries);
+    assert_eq!(4, dashboard.0.total_databases);
+    assert_eq!(0, dashboard.0.total_schemas);
+    assert_eq!(0, dashboard.0.total_tables);
+    assert_eq!(0, dashboard.0.total_queries);
 
     let schema_name = "testing1".to_string();
     let payload = SchemaCreatePayload {
@@ -103,7 +83,7 @@ async fn test_ui_dashboard() {
         Method::POST,
         &format!(
             "http://{addr}/ui/databases/{}/schemas",
-            expected1.data.name.clone()
+            expected1.name.clone()
         )
         .to_string(),
         json!(payload).to_string(),
@@ -117,11 +97,11 @@ async fn test_ui_dashboard() {
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let dashboard: DashboardResponse = res.json().await.unwrap();
-    assert_eq!(4, dashboard.data.total_databases);
-    assert_eq!(1, dashboard.data.total_schemas);
-    assert_eq!(0, dashboard.data.total_tables);
+    assert_eq!(4, dashboard.0.total_databases);
+    assert_eq!(1, dashboard.0.total_schemas);
+    assert_eq!(0, dashboard.0.total_tables);
     //Since schemas are created with sql
-    assert_eq!(1, dashboard.data.total_queries);
+    assert_eq!(1, dashboard.0.total_queries);
 
     let res = req(
         &client,
@@ -136,10 +116,10 @@ async fn test_ui_dashboard() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let worksheet = res.json::<WorksheetResponse>().await.unwrap().data;
+    let worksheet_id = res.json::<WorksheetResponse>().await.unwrap().0.id;
 
     let query_payload = QueryCreatePayload {
-        worksheet_id: Some(worksheet.id),
+        worksheet_id: Some(worksheet_id),
         query: format!(
             "create or replace Iceberg TABLE {}.{}.{}
         external_volume = ''
@@ -153,7 +133,7 @@ async fn test_ui_dashboard() {
 	    DVCE_CREATED_TSTAMP TEXT,
 	    EVENT TEXT,
 	    EVENT_ID TEXT);",
-            expected1.data.name.clone(),
+            expected1.name.clone(),
             schema_name.clone(),
             "tested1"
         ),
@@ -175,9 +155,9 @@ async fn test_ui_dashboard() {
         .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let dashboard: DashboardResponse = res.json().await.unwrap();
-    assert_eq!(4, dashboard.data.total_databases);
-    assert_eq!(1, dashboard.data.total_schemas);
-    assert_eq!(1, dashboard.data.total_tables);
+    assert_eq!(4, dashboard.0.total_databases);
+    assert_eq!(1, dashboard.0.total_schemas);
+    assert_eq!(1, dashboard.0.total_tables);
     //Since schemas are created with sql
-    assert_eq!(2, dashboard.data.total_queries);
+    assert_eq!(2, dashboard.0.total_queries);
 }

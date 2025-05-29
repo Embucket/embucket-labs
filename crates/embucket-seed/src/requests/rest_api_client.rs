@@ -4,9 +4,9 @@
 //! including managing volumes, databases, schemas, and tables.
 
 use crate::external_models::{
-    AuthResponse, DatabaseCreatePayload, DatabaseCreateResponse, DatabasePayload,
+    AuthResponse, DatabaseCreatePayload, DatabaseCreateResponse,
     QueryCreateResponse, SchemaCreatePayload, SchemaCreateResponse, VolumeCreatePayload,
-    VolumeCreateResponse, VolumePayload,
+    VolumeCreateResponse,
 };
 use crate::requests::error::HttpRequestResult;
 use crate::requests::service_client::{BasicAuthClient, ServiceClient};
@@ -46,7 +46,7 @@ pub trait RestApiClient {
     /// Returns `HttpRequestError` if the operation fails.
     async fn create_volume(
         &mut self,
-        volume: VolumePayload,
+        volume: VolumeCreatePayload,
     ) -> HttpRequestResult<VolumeCreateResponse>;
 
     /// Creates a new database within a volume.
@@ -115,14 +115,17 @@ impl RestApiClient for RestClient {
 
     async fn create_volume(
         &mut self,
-        volume: VolumePayload,
+        volume: VolumeCreatePayload,
     ) -> HttpRequestResult<VolumeCreateResponse> {
         Ok(self
             .client
             .generic_request::<VolumeCreatePayload, VolumeCreateResponse>(
                 Method::POST,
                 &format!("http://{}/ui/volumes", self.client.addr()),
-                &VolumeCreatePayload { data: volume },
+                &VolumeCreatePayload {
+                    name: volume.name,
+                    volume: volume.volume,
+                },
             )
             .await?)
     }
@@ -138,10 +141,8 @@ impl RestApiClient for RestClient {
                 Method::POST,
                 &format!("http://{}/ui/databases", self.client.addr()),
                 &DatabaseCreatePayload {
-                    data: DatabasePayload {
-                        name: database.to_string(),
-                        volume: volume.to_string(),
-                    },
+                    name: database.to_string(),
+                    volume: volume.to_string(),
                 },
             )
             .await?)

@@ -231,7 +231,7 @@ async fn test_query_request_ok() {
         query::<QueryCreateResponse>(&client, &addr, &login_response.access_token, "SELECT 1")
             .await
             .expect("Failed to run query");
-    assert_eq!(query_response.data.query, "SELECT 1");
+    assert_eq!(query_response.0.query, "SELECT 1");
 }
 
 #[tokio::test]
@@ -329,7 +329,7 @@ async fn test_login_refresh() {
         query::<QueryCreateResponse>(&client, &addr, &login_response.access_token, "SELECT 1")
             .await
             .expect("Failed to run query");
-    assert_eq!(query_response.data.query, "SELECT 1");
+    assert_eq!(query_response.0.query, "SELECT 1");
 
     //
     // test refresh handler, using refresh_token from cookie from login
