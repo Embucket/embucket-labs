@@ -1,5 +1,5 @@
-use super::models::QueryResult;
-use crate::error::{ArrowSnafu, ExecutionResult};
+use super::models::{Column, QueryResult, ResultSet, Row};
+use crate::error::{ArrowSnafu, ExecutionResult, SerdeParseSnafu, Utf8Snafu};
 use chrono::DateTime;
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
@@ -12,19 +12,37 @@ use datafusion::arrow::array::{
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::{Field, Schema, TimeUnit};
+use datafusion::arrow::json::WriterBuilder;
+use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::ScalarValue;
 use datafusion_expr::{Expr, LogicalPlan};
+use indexmap::IndexMap;
+use serde_json::Value;
 use snafu::ResultExt;
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
 use std::sync::Arc;
 use strum::{Display, EnumString};
 
-#[derive(Copy, Clone, PartialEq, Eq, EnumString, Display)]
+#[derive(Default, Clone)]
+pub struct Config {
+    pub dbt_serialization_format: DataSerializationFormat,
+}
+
+impl Config {
+    pub fn new(data_format: &str) -> Result<Self, strum::ParseError> {
+        Ok(Self {
+            dbt_serialization_format: DataSerializationFormat::try_from(data_format)?,
+        })
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, EnumString, Display, Default)]
 #[strum(ascii_case_insensitive)]
 pub enum DataSerializationFormat {
     Arrow,
+    #[default]
     Json,
 }
 
@@ -406,6 +424,49 @@ impl std::fmt::Display for NormalizedIdent {
     }
 }
 
+pub fn query_result_to_result_set(
+    query_result: &QueryResult,
+    data_format: DataSerializationFormat,
+) -> ExecutionResult<ResultSet> {
+    // Convert the QueryResult to RecordBatches using the specified serialization format
+    // Add columns dbt metadata to each field
+    // Since we have to store already converted data to history
+    let record_batches = convert_record_batches(query_result.clone(), data_format)?;
+    let record_refs: Vec<&RecordBatch> = record_batches.iter().collect();
+
+    // Serialize the RecordBatches into a JSON string using Arrow's Writer
+    let buffer = Vec::new();
+    let mut writer = WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, JsonArray>(buffer);
+
+    writer.write_batches(&record_refs).context(ArrowSnafu)?;
+    writer.finish().context(ArrowSnafu)?;
+
+    let json_bytes = writer.into_inner();
+    let json_str = String::from_utf8(json_bytes).context(Utf8Snafu)?;
+
+    // Deserialize the JSON string into rows of values
+    let raw_rows: Vec<IndexMap<String, Value>> =
+        serde_json::from_str(&json_str).context(SerdeParseSnafu)?;
+    let rows = raw_rows
+        .into_iter()
+        .map(|map| Row::new(map.into_values().collect()))
+        .collect();
+
+    // Extract column metadata from the original QueryResult
+    let columns = query_result
+        .column_info()
+        .iter()
+        .map(|ci| Column {
+            name: ci.name.clone(),
+            r#type: ci.r#type.clone(),
+        })
+        .collect();
+
+    Ok(ResultSet { columns, rows })
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::as_conversions, clippy::expect_used)]
 mod tests {
@@ -514,7 +575,7 @@ mod tests {
             vec![int_array, timestamp_array, binary_view_array],
         )
         .unwrap();
-        let result = QueryResult::new(vec![batch], schema);
+        let result = QueryResult::new(vec![batch], schema, 0);
         let column_infos = result.column_info();
         let converted_batches =
             convert_record_batches(result.clone(), DataSerializationFormat::Json).unwrap();
@@ -680,7 +741,7 @@ mod tests {
             )
             .unwrap(),
         ];
-        let query_result = QueryResult::new(record_batches.clone(), schema);
+        let query_result = QueryResult::new(record_batches.clone(), schema, 0);
         let column_infos = query_result.column_info();
         let converted_batches =
             convert_record_batches(query_result, DataSerializationFormat::Arrow).unwrap();

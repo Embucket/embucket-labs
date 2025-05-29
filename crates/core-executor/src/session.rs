@@ -6,14 +6,17 @@ use super::error::{
     self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu,
     RegisterCatalogSnafu,
 };
-use super::query::{QueryContext, UserQuery};
 use crate::datafusion::analyzer::IcebergTypesAnalyzer;
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
+use crate::models::QueryContext;
+use crate::query::UserQuery;
+use crate::utils::Config;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
+use core_history::history_store::HistoryStore;
 use core_metastore::error::MetastoreError;
 use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
 use core_utils::scan_iterator::ScanIterator;
@@ -37,13 +40,19 @@ use std::sync::Arc;
 
 pub struct UserSession {
     pub metastore: Arc<dyn Metastore>,
+    pub history_store: Arc<dyn HistoryStore>,
     pub ctx: SessionContext,
     pub ident_normalizer: IdentNormalizer,
     pub executor: DedicatedExecutor,
+    pub config: Arc<Config>,
 }
 
 impl UserSession {
-    pub async fn new(metastore: Arc<dyn Metastore>) -> ExecutionResult<Self> {
+    pub async fn new(
+        metastore: Arc<dyn Metastore>,
+        history_store: Arc<dyn HistoryStore>,
+        config: Arc<Config>,
+    ) -> ExecutionResult<Self> {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
 
@@ -95,9 +104,11 @@ impl UserSession {
         let enable_ident_normalization = ctx.enable_ident_normalization();
         let session = Self {
             metastore,
+            history_store,
             ctx,
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
             executor: DedicatedExecutor::builder().build(),
+            config,
         };
         session.register_external_catalogs().await?;
         Ok(session)

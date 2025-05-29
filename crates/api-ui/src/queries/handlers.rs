@@ -11,8 +11,7 @@ use axum::{
     Json,
     extract::{Query, State},
 };
-use core_executor::models::QueryResult;
-use core_executor::query::QueryContext;
+use core_executor::models::{QueryContext, QueryResult};
 use core_history::{QueryRecordId, WorksheetId};
 use core_utils::iterable::IterableEntity;
 use std::collections::HashMap;

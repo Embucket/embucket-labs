@@ -7,6 +7,7 @@ license-file.workspace = true
 [dependencies]
 core-utils = { path = "../core-utils" }
 core-metastore = { path = "../core-metastore" }
+core-history = {  path = "../core-history" }
 df-builtins = { path = "../df-builtins" }
 df-catalog = { path = "../df-catalog" }
 
@@ -43,6 +44,7 @@ tokio-stream = "0.1.17"
 
 url = { workspace = true }
 uuid = { workspace = true }
+indexmap = { workspace = true }
 
 [dev-dependencies]
 bytes = { workspace = true }

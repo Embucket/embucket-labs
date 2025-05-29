@@ -4,7 +4,7 @@ use crate::error::ErrorResponse;
 use crate::queries::error::QueryError;
 use crate::state::AppState;
 use axum::{Json, extract::State};
-use core_history::GetQueries;
+use core_history::history_store::GetQueriesParams;
 use core_metastore::error::MetastoreError;
 use core_utils::scan_iterator::ScanIterator;
 use utoipa::OpenApi;
@@ -82,7 +82,7 @@ pub async fn get_dashboard(
 
     let total_queries = state
         .history_store
-        .get_queries(GetQueries::new())
+        .get_queries(GetQueriesParams::new())
         .await
         .map_err(|e| DashboardAPIError::Queries {
             source: QueryError::Store { source: e },

@@ -1,69 +1,16 @@
+use crate::errors::{self as errors, HistoryStoreError};
 use crate::{
-    QueryRecord, QueryRecordId, QueryRecordReference, SlateDBWorksheetsStore, Worksheet,
-    WorksheetId,
+    QueryRecord, QueryRecordId, QueryRecordReference, SlateDBHistoryStore, Worksheet, WorksheetId,
 };
 use async_trait::async_trait;
+use core_utils::Db;
 use core_utils::iterable::IterableCursor;
-use core_utils::{Db, Error};
 use futures::future::join_all;
 use serde_json::de;
 use slatedb::DbIterator;
-use slatedb::SlateDBError;
-use snafu::{ResultExt, Snafu};
-use std::str;
+use snafu::ResultExt;
 
-#[derive(Snafu, Debug)]
-pub enum WorksheetsStoreError {
-    #[snafu(display("Error using key: {source}"))]
-    BadKey { source: std::str::Utf8Error },
-
-    #[snafu(display("Error adding worksheet: {source}"))]
-    WorksheetAdd { source: core_utils::Error },
-
-    #[snafu(display("Error getting worksheet: {source}"))]
-    WorksheetGet { source: core_utils::Error },
-
-    #[snafu(display("Error getting worksheets: {source}"))]
-    WorksheetsList { source: core_utils::Error },
-
-    #[snafu(display("Error deleting worksheet: {source}"))]
-    WorksheetDelete { source: core_utils::Error },
-
-    #[snafu(display("Error updating worksheet: {source}"))]
-    WorksheetUpdate { source: core_utils::Error },
-
-    #[snafu(display("Error adding query record: {source}"))]
-    QueryAdd { source: core_utils::Error },
-
-    #[snafu(display("Can't locate query record by key: {key}"))]
-    QueryNotFound { key: String },
-
-    #[snafu(display("Error adding query record reference: {source}"))]
-    QueryReferenceAdd { source: core_utils::Error },
-
-    #[snafu(display("Error getting query history: {source}"))]
-    QueryGet { source: core_utils::Error },
-
-    #[snafu(display("Can't locate worksheet by key: {message}"))]
-    WorksheetNotFound { message: String },
-
-    #[snafu(display("Bad query record reference key: {key}"))]
-    QueryReferenceKey { key: String },
-
-    #[snafu(display("Error getting worksheet queries: {source}"))]
-    GetWorksheetQueries { source: Error },
-
-    #[snafu(display("Error adding query inverted key: {source}"))]
-    QueryInvertedKeyAdd { source: Error },
-
-    #[snafu(display("Query item seek error: {source}"))]
-    Seek { source: SlateDBError },
-
-    #[snafu(display("Deserialize error: {source}"))]
-    DeserializeValue { source: serde_json::Error },
-}
-
-pub type WorksheetsStoreResult<T> = std::result::Result<T, WorksheetsStoreError>;
+pub type HistoryStoreResult<T> = Result<T, HistoryStoreError>;
 
 #[derive(Default, Clone, Debug)]
 pub enum SortOrder {
@@ -73,7 +20,7 @@ pub enum SortOrder {
 }
 
 #[derive(Default)]
-pub struct GetQueries {
+pub struct GetQueriesParams {
     pub worksheet_id: Option<WorksheetId>,
     pub sql_text: Option<String>,     // filter by SQL Text
     pub min_duration_ms: Option<i64>, // filter Duration greater than
@@ -81,7 +28,7 @@ pub struct GetQueries {
     pub limit: Option<u16>,
 }
 
-impl GetQueries {
+impl GetQueriesParams {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -119,34 +66,33 @@ impl GetQueries {
 }
 
 #[async_trait]
-pub trait WorksheetsStore: std::fmt::Debug + Send + Sync {
-    async fn add_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<Worksheet>;
-    async fn get_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet>;
-    async fn delete_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<()>;
-    async fn update_worksheet(&self, mut worksheet: Worksheet) -> WorksheetsStoreResult<()>;
-    async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>>;
-
-    async fn add_query(&self, item: &QueryRecord) -> WorksheetsStoreResult<()>;
-    async fn get_query(&self, id: QueryRecordId) -> WorksheetsStoreResult<QueryRecord>;
-    async fn get_queries(&self, params: GetQueries) -> WorksheetsStoreResult<Vec<QueryRecord>>;
+pub trait HistoryStore: std::fmt::Debug + Send + Sync {
+    async fn add_worksheet(&self, worksheet: Worksheet) -> HistoryStoreResult<Worksheet>;
+    async fn get_worksheet(&self, id: WorksheetId) -> HistoryStoreResult<Worksheet>;
+    async fn update_worksheet(&self, worksheet: Worksheet) -> HistoryStoreResult<()>;
+    async fn delete_worksheet(&self, id: WorksheetId) -> HistoryStoreResult<()>;
+    async fn get_worksheets(&self) -> HistoryStoreResult<Vec<Worksheet>>;
+    async fn add_query(&self, item: &QueryRecord) -> HistoryStoreResult<()>;
+    async fn get_query(&self, id: QueryRecordId) -> HistoryStoreResult<QueryRecord>;
+    async fn get_queries(&self, params: GetQueriesParams) -> HistoryStoreResult<Vec<QueryRecord>>;
 }
 
 async fn queries_iterator(
     db: &Db,
     cursor: Option<QueryRecordId>,
-) -> WorksheetsStoreResult<DbIterator<'_>> {
+) -> HistoryStoreResult<DbIterator<'_>> {
     let start_key = QueryRecord::get_key(cursor.unwrap_or_else(QueryRecordId::min_cursor));
     let end_key = QueryRecord::get_key(QueryRecordId::max_cursor());
     db.range_iterator(start_key..end_key)
         .await
-        .context(GetWorksheetQueriesSnafu)
+        .context(errors::GetWorksheetQueriesSnafu)
 }
 
 async fn worksheet_queries_references_iterator(
     db: &Db,
     worksheet_id: WorksheetId,
     cursor: Option<QueryRecordId>,
-) -> WorksheetsStoreResult<DbIterator<'_>> {
+) -> HistoryStoreResult<DbIterator<'_>> {
     let refs_start_key = QueryRecordReference::get_key(
         worksheet_id,
         cursor.unwrap_or_else(QueryRecordId::min_cursor),
@@ -154,42 +100,46 @@ async fn worksheet_queries_references_iterator(
     let refs_end_key = QueryRecordReference::get_key(worksheet_id, QueryRecordId::max_cursor());
     db.range_iterator(refs_start_key..refs_end_key)
         .await
-        .context(GetWorksheetQueriesSnafu)
+        .context(errors::GetWorksheetQueriesSnafu)
 }
 
 #[async_trait]
-impl WorksheetsStore for SlateDBWorksheetsStore {
-    async fn add_worksheet(&self, worksheet: Worksheet) -> WorksheetsStoreResult<Worksheet> {
+impl HistoryStore for SlateDBHistoryStore {
+    async fn add_worksheet(&self, worksheet: Worksheet) -> HistoryStoreResult<Worksheet> {
         self.db
             .put_iterable_entity(&worksheet)
             .await
-            .context(WorksheetAddSnafu)?;
+            .context(errors::WorksheetAddSnafu)?;
         Ok(worksheet)
     }
 
-    async fn get_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<Worksheet> {
+    async fn get_worksheet(&self, id: WorksheetId) -> HistoryStoreResult<Worksheet> {
         // convert from Bytes to &str, for .get method to convert it back to Bytes
         let key_bytes = Worksheet::get_key(id);
-        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
+        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(errors::BadKeySnafu)?;
 
-        let res: Option<Worksheet> = self.db.get(key_str).await.context(WorksheetGetSnafu)?;
-        res.ok_or_else(|| WorksheetsStoreError::WorksheetNotFound {
+        let res: Option<Worksheet> = self
+            .db
+            .get(key_str)
+            .await
+            .context(errors::WorksheetGetSnafu)?;
+        res.ok_or_else(|| HistoryStoreError::WorksheetNotFound {
             message: key_str.to_string(),
         })
     }
 
-    async fn update_worksheet(&self, mut worksheet: Worksheet) -> WorksheetsStoreResult<()> {
+    async fn update_worksheet(&self, mut worksheet: Worksheet) -> HistoryStoreResult<()> {
         worksheet.set_updated_at(None);
 
         Ok(self
             .db
             .put_iterable_entity(&worksheet)
             .await
-            .context(WorksheetUpdateSnafu)?)
+            .context(errors::WorksheetUpdateSnafu)?)
     }
 
-    async fn delete_worksheet(&self, id: WorksheetId) -> WorksheetsStoreResult<()> {
-        // raise error if can't locate
+    async fn delete_worksheet(&self, id: WorksheetId) -> HistoryStoreResult<()> {
+        // raise an error if we can't locate
         self.get_worksheet(id).await?;
 
         let mut ref_iter = worksheet_queries_references_iterator(&self.db, id, None).await?;
@@ -204,29 +154,29 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
             .db
             .delete_key(Worksheet::get_key(id))
             .await
-            .context(WorksheetDeleteSnafu)?)
+            .context(errors::WorksheetDeleteSnafu)?)
     }
 
-    async fn get_worksheets(&self) -> WorksheetsStoreResult<Vec<Worksheet>> {
+    async fn get_worksheets(&self) -> HistoryStoreResult<Vec<Worksheet>> {
         let start_key = Worksheet::get_key(WorksheetId::min_cursor());
         let end_key = Worksheet::get_key(WorksheetId::max_cursor());
         Ok(self
             .db
             .items_from_range(start_key..end_key, None)
             .await
-            .context(WorksheetsListSnafu)?)
+            .context(errors::WorksheetsListSnafu)?)
     }
 
-    async fn add_query(&self, item: &QueryRecord) -> WorksheetsStoreResult<()> {
+    async fn add_query(&self, item: &QueryRecord) -> HistoryStoreResult<()> {
         if let Some(worksheet_id) = item.worksheet_id {
-            // add query reference to worksheet
+            // add query reference to the worksheet
             self.db
                 .put_iterable_entity(&QueryRecordReference {
                     id: item.id,
                     worksheet_id,
                 })
                 .await
-                .context(QueryReferenceAddSnafu)?;
+                .context(errors::QueryReferenceAddSnafu)?;
         }
 
         // add query record
@@ -234,21 +184,21 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
             .db
             .put_iterable_entity(item)
             .await
-            .context(QueryAddSnafu)?)
+            .context(errors::QueryAddSnafu)?)
     }
 
-    async fn get_query(&self, id: QueryRecordId) -> WorksheetsStoreResult<QueryRecord> {
+    async fn get_query(&self, id: QueryRecordId) -> HistoryStoreResult<QueryRecord> {
         let key_bytes = QueryRecord::get_key(id);
-        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(BadKeySnafu)?;
+        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(errors::BadKeySnafu)?;
 
-        let res: Option<QueryRecord> = self.db.get(key_str).await.context(QueryGetSnafu)?;
-        res.ok_or_else(|| WorksheetsStoreError::QueryNotFound {
+        let res: Option<QueryRecord> = self.db.get(key_str).await.context(errors::QueryGetSnafu)?;
+        res.ok_or_else(|| HistoryStoreError::QueryNotFound {
             key: key_str.to_string(),
         })
     }
 
-    async fn get_queries(&self, params: GetQueries) -> WorksheetsStoreResult<Vec<QueryRecord>> {
-        let GetQueries {
+    async fn get_queries(&self, params: GetQueriesParams) -> HistoryStoreResult<Vec<QueryRecord>> {
+        let GetQueriesParams {
             worksheet_id,
             sql_text: _,
             min_duration_ms: _,
@@ -270,16 +220,16 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
             let mut items: Vec<QueryRecord> = vec![];
             while let Ok(Some(item)) = refs_iter.next().await {
                 let qh_key = QueryRecordReference::extract_qh_key(&item.key).ok_or(
-                    WorksheetsStoreError::QueryReferenceKey {
+                    HistoryStoreError::QueryReferenceKey {
                         key: format!("{:?}", item.key),
                     },
                 )?;
-                queries_iter.seek(qh_key).await.context(SeekSnafu)?;
+                queries_iter.seek(qh_key).await.context(errors::SeekSnafu)?;
                 match queries_iter.next().await {
                     Ok(Some(query_record_kv)) => {
                         items.push(
                             de::from_slice(&query_record_kv.value)
-                                .context(DeserializeValueSnafu)?,
+                                .context(errors::DeserializeValueSnafu)?,
                         );
                         if items.len() >= usize::from(limit.unwrap_or(u16::MAX)) {
                             break;
@@ -297,7 +247,7 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
                 .db
                 .items_from_range(start_key..end_key, limit)
                 .await
-                .context(QueryGetSnafu)?)
+                .context(errors::QueryGetSnafu)?)
         }
     }
 }
@@ -306,7 +256,10 @@ impl WorksheetsStore for SlateDBWorksheetsStore {
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::*;
+    use crate::entities::query::{
+        ExecutionQueryRecord, MockExecutionQueryRecord, QueryRecord, QueryStatus,
+    };
+    use crate::entities::worksheet::Worksheet;
     use chrono::{Duration, TimeZone, Utc};
     use core_utils::iterable::{IterableCursor, IterableEntity};
     use tokio;
@@ -318,7 +271,7 @@ mod tests {
             ctx.expect().returning(move |query, worksheet_id| {
                 let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
                     + Duration::milliseconds(
-                        i.try_into().expect("Failed convert idx to miliseconds"),
+                        i.try_into().expect("Failed convert idx to milliseconds"),
                     );
                 QueryRecord {
                     id: start_time.timestamp_millis(),
@@ -363,9 +316,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_history() {
-        let db = SlateDBWorksheetsStore::new_in_memory().await;
+        let db = SlateDBHistoryStore::new_in_memory().await;
 
-        // create worksheet first
+        // create a worksheet first
         let worksheet = Worksheet::new(String::new(), String::new());
         let worksheet = db
             .add_worksheet(worksheet)
@@ -386,22 +339,22 @@ mod tests {
 
         let cursor = <QueryRecord as IterableEntity>::Cursor::min_cursor();
         eprintln!("cursor: {cursor}");
-        let get_queries_params = GetQueries::new()
+        let get_queries_params = GetQueriesParams::new()
             .with_worksheet_id(worksheet.id)
             .with_cursor(cursor)
             .with_limit(10);
         let retrieved = db
             .get_queries(get_queries_params)
             .await
-            .expect("Failed gettting queries");
-        // queries belong to worksheet
+            .expect("Failed getting queries");
+        // queries belong to the worksheet
         assert_eq!(3, retrieved.len());
 
-        let get_queries_params = GetQueries::new().with_cursor(cursor).with_limit(10);
+        let get_queries_params = GetQueriesParams::new().with_cursor(cursor).with_limit(10);
         let retrieved_all = db
             .get_queries(get_queries_params)
             .await
-            .expect("Failed gettting queries");
+            .expect("Failed getting queries");
         // all queries
         for item in &retrieved_all {
             eprintln!("retrieved_all : {:?}", item.key());

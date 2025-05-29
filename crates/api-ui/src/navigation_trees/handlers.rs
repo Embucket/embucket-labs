@@ -9,7 +9,7 @@ use crate::state::AppState;
 use api_sessions::DFSessionId;
 use axum::extract::Query;
 use axum::{Json, extract::State};
-use core_executor::{models::QueryResult, query::QueryContext};
+use core_executor::models::{QueryContext, QueryResult};
 use std::collections::BTreeMap;
 use utoipa::OpenApi;
 

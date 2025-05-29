@@ -12,7 +12,11 @@ use datafusion_common::TableReference;
 use snafu::ResultExt;
 
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
-use super::{models::QueryResult, query::QueryContext, session::UserSession};
+use super::{models::QueryContext, models::QueryResult, session::UserSession};
+use crate::utils::Config;
+use core_history::history_store::HistoryStore;
+use core_history::store::SlateDBHistoryStore;
+use core_history::{ExecutionQueryRecord, QueryRecord};
 use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableIdent};
 use core_utils::Db;
 use tokio::sync::RwLock;
@@ -40,14 +44,22 @@ pub trait ExecutionService: Send + Sync {
 
 pub struct CoreExecutionService {
     metastore: Arc<dyn Metastore>,
+    history_store: Arc<dyn HistoryStore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<UserSession>>>>,
+    config: Arc<Config>,
 }
 
 impl CoreExecutionService {
-    pub fn new(metastore: Arc<dyn Metastore>) -> Self {
+    pub fn new(
+        metastore: Arc<dyn Metastore>,
+        history_store: Arc<dyn HistoryStore>,
+        config: Arc<Config>,
+    ) -> Self {
         Self {
             metastore,
+            history_store,
             df_sessions: Arc::new(RwLock::new(HashMap::new())),
+            config,
         }
     }
 }
@@ -62,7 +74,14 @@ impl ExecutionService for CoreExecutionService {
                 return Ok(session.clone());
             }
         }
-        let user_session = Arc::new(UserSession::new(self.metastore.clone()).await?);
+        let user_session = Arc::new(
+            UserSession::new(
+                self.metastore.clone(),
+                self.history_store.clone(),
+                self.config.clone(),
+            )
+            .await?,
+        );
         {
             tracing::trace!("Acquiring write lock for df_sessions");
             let mut sessions = self.df_sessions.write().await;
@@ -80,7 +99,7 @@ impl ExecutionService for CoreExecutionService {
         Ok(())
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
+    // #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
     async fn query(
         &self,
@@ -97,9 +116,20 @@ impl ExecutionService for CoreExecutionService {
                 })?
                 .clone()
         };
+        let mut query_record = QueryRecord::query_start(query, query_context.worksheet_id);
+        // Attach the generated query ID to the query context before execution.
+        // This ensures consistent tracking and logging of the query across all layers.
+        let mut query_obj =
+            user_session.query(query, query_context.with_query_id(query_record.query_id()));
 
-        let mut query_obj = user_session.query(query, query_context);
-        query_obj.execute().await
+        let query_result = query_obj.execute().await;
+        // Record the query in the session’s history, including result count or error message.
+        // This ensures all queries are traceable and auditable within a session, which enables
+        // features like `last_query_id()` and enhances debugging and observability.
+        query_obj
+            .record_query(&mut query_record, &query_result)
+            .await;
+        query_result
     }
 
     #[tracing::instrument(level = "debug", skip(self, data))]
@@ -214,6 +244,11 @@ impl ExecutionService for CoreExecutionService {
 //Test environment
 pub async fn make_text_execution_svc() -> Arc<CoreExecutionService> {
     let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db));
-    Arc::new(CoreExecutionService::new(metastore))
+    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let history_store = Arc::new(SlateDBHistoryStore::new(db));
+    Arc::new(CoreExecutionService::new(
+        metastore,
+        history_store,
+        Arc::new(Config::default()),
+    ))
 }
