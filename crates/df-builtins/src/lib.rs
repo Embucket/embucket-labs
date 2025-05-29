@@ -43,6 +43,7 @@ mod timestamp_from_parts;
 mod to_boolean;
 mod to_time;
 pub mod variant;
+pub mod visitors;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![

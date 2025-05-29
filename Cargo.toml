@@ -15,7 +15,6 @@ members = [
   "crates/core-metastore",
   "crates/core-utils",
   "crates/api-sessions",
-  "crates/visitors",
 ]
 resolver = "2"
 package.license-file = "LICENSE"
