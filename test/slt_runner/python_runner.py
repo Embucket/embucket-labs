@@ -440,6 +440,53 @@ def load_config_from_env():
 
     return config
 
+
+def validate_connection(config: dict):
+    """Validate the Snowflake or Embucket connection based on the provided configuration."""
+
+    # Validate Embucket connection if enabled
+    if config.get('embucket', False):
+        # Even when Embucket is the actual execution target, the system still initializes the Snowflake connector infrastructure using these credentials fields
+        required_snowflake_fields = ['account', 'user', 'password']
+        missing_fields = []
+        for field in required_snowflake_fields:
+            if not config.get(field):
+                missing_fields.append(f"SNOWFLAKE_{field.upper()}")
+
+        if missing_fields:
+            return False, f"ERROR: Missing required Snowflake credentials placeholders: {', '.join(missing_fields)}"
+
+        print("Validating Embucket connection...")
+        try:
+            embucket_url = f"{config.get('protocol', 'http')}://{config.get('host', 'localhost')}:{config.get('port', '3000')}/health"
+            response = requests.get(embucket_url, timeout=5)
+            if response.status_code != 200:
+                return False, f"ERROR: Embucket is enabled but not responding correctly: {response}"
+        except requests.exceptions.RequestException as e:
+            return False, f"ERROR: Cannot connect to Embucket. Please make sure the service is running. Error: {str(e)}"
+
+        print("Embucket connection validated successfully.")
+
+    # Validate Snowflake connection
+    else:
+        print("Validating Snowflake connection...")
+        try:
+            conn = connect(
+                user=config.get('user'),
+                password=config.get('password'),
+                account=config.get('account'),
+                warehouse=config.get('warehouse')
+            )
+
+            # Close the connection
+            conn.close()
+            print("Snowflake connection validated successfully.")
+        except Exception as e:
+            error_message = str(e)
+            return False, f"ERROR: {error_message}"
+
+    return True, None
+
 class SQLLogicPythonRunner:
     def __init__(self, default_test_directory : Optional[str] = None):
         self.default_test_directory = default_test_directory
@@ -775,6 +822,12 @@ class SQLLogicPythonRunner:
         # Check if Embucket is enabled
         is_embucket = config.get('embucket')
 
+        # Validate the connection to Snowflake or Embucket
+        success, error_message = validate_connection(config)
+        if not success:
+            print(error_message)
+            return
+
         # check if Embucket is running:
         if is_embucket:
             try:
@@ -795,28 +848,6 @@ class SQLLogicPythonRunner:
             print("ERROR: Benchmark mode cannot be used with EMBUCKET_ENABLED=true")
             print("Please set EMBUCKET_ENABLED=false in .env file when using benchmark mode")
             return
-
-        # Early check for Embucket connectivity if enabled
-        if os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
-            try:
-                # Verify Embucket server is available
-                catalog_url = f"{config['protocol']}://{config['host']}:{config['port']}"
-                headers = {'Content-Type': 'application/json'}
-
-                try:
-                    response = requests.get(catalog_url, headers=headers, timeout=5)
-                    if response.status_code != 200:
-                        print(f"ERROR: Embucket server returned status {response.status_code}")
-                        print("Please ensure Embucket server is running correctly")
-                        return
-                except (requests.exceptions.RequestException, requests.exceptions.Timeout) as e:
-                    print(f"ERROR: Could not connect to Embucket server: {e}")
-                    print("Please ensure Embucket server is running and accessible")
-                    return
-
-            except Exception as e:
-                print(f"ERROR: Embucket configuration error: {e}")
-                return
 
         # Process test files
         file_paths = None
