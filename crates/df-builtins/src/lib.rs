@@ -25,6 +25,7 @@ mod booland;
 mod boolor;
 mod boolxor;
 mod equal_null;
+mod get;
 mod get_path;
 mod iff;
 mod insert;
@@ -69,6 +70,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         insert::get_udf(),
         strtok_to_array::get_udf(),
         object_keys::get_udf(),
+        get::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
