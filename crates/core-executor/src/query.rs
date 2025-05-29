@@ -7,13 +7,10 @@ use super::catalog::{
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu};
 use super::session::UserSession;
-use super::utils::{
-    NormalizedIdent, is_logical_plan_effectively_empty, query_result_to_result_set,
-};
+use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element};
 use crate::models::{QueryContext, QueryResult};
-use core_history::entities::query::{ExecutionQueryRecord, QueryRecord};
 use core_history::history_store::HistoryStore;
 use core_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
@@ -160,33 +157,6 @@ impl UserQuery {
             schemas,
             warehouse: "default".to_string(),
             session_id: self.session.ctx.session_id(),
-        }
-    }
-
-    pub async fn record_query(
-        &self,
-        query_record: &mut QueryRecord,
-        query_execution_result: &ExecutionResult<QueryResult>,
-    ) {
-        match query_execution_result {
-            Ok(res) => {
-                match query_result_to_result_set(res, self.session.config.dbt_serialization_format)
-                {
-                    Ok(result_set) => match serde_json::to_string(&result_set) {
-                        Ok(encoded_res) => {
-                            let result_count = i64::try_from(res.records.len()).unwrap_or(0);
-                            query_record.query_finished(result_count, Some(encoded_res));
-                        }
-                        Err(err) => query_record.query_finished_with_error(err.to_string()),
-                    },
-                    Err(err) => query_record.query_finished_with_error(err.to_string()),
-                }
-            }
-            Err(err) => query_record.query_finished_with_error(err.to_string()),
-        }
-
-        if let Err(err) = self.history_store.add_query(query_record).await {
-            tracing::error!("Failed to record query history: {err}");
         }
     }
 

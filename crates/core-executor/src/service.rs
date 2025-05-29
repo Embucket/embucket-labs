@@ -13,7 +13,7 @@ use snafu::ResultExt;
 
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
 use super::{models::QueryContext, models::QueryResult, session::UserSession};
-use crate::utils::Config;
+use crate::utils::{Config, query_result_to_result_set};
 use core_history::history_store::HistoryStore;
 use core_history::store::SlateDBHistoryStore;
 use core_history::{ExecutionQueryRecord, QueryRecord};
@@ -62,6 +62,32 @@ impl CoreExecutionService {
             config,
         }
     }
+
+    pub async fn record_query(
+        &self,
+        query_record: &mut QueryRecord,
+        query_execution_result: &ExecutionResult<QueryResult>,
+    ) {
+        match query_execution_result {
+            Ok(res) => {
+                match query_result_to_result_set(res, self.config.dbt_serialization_format) {
+                    Ok(result_set) => match serde_json::to_string(&result_set) {
+                        Ok(encoded_res) => {
+                            let result_count = i64::try_from(res.records.len()).unwrap_or(0);
+                            query_record.query_finished(result_count, Some(encoded_res));
+                        }
+                        Err(err) => query_record.query_finished_with_error(err.to_string()),
+                    },
+                    Err(err) => query_record.query_finished_with_error(err.to_string()),
+                }
+            }
+            Err(err) => query_record.query_finished_with_error(err.to_string()),
+        }
+
+        if let Err(err) = self.history_store.add_query(query_record).await {
+            tracing::error!("Failed to record query history: {err}");
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -99,7 +125,7 @@ impl ExecutionService for CoreExecutionService {
         Ok(())
     }
 
-    // #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
     async fn query(
         &self,
@@ -126,9 +152,7 @@ impl ExecutionService for CoreExecutionService {
         // Record the query in the session’s history, including result count or error message.
         // This ensures all queries are traceable and auditable within a session, which enables
         // features like `last_query_id()` and enhances debugging and observability.
-        query_obj
-            .record_query(&mut query_record, &query_result)
-            .await;
+        self.record_query(&mut query_record, &query_result).await;
         query_result
     }
 
