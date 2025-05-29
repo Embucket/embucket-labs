@@ -10,7 +10,7 @@ use crate::datafusion::analyzer::IcebergTypesAnalyzer;
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
-use crate::datafusion::query_planner::EmbucketQueryPlanner;
+use crate::datafusion::query_planner::CustomQueryPlanner;
 use crate::models::QueryContext;
 use crate::query::UserQuery;
 use crate::utils::Config;
@@ -80,7 +80,7 @@ impl UserSession {
             .with_default_features()
             .with_runtime_env(Arc::new(runtime_config))
             .with_catalog_list(catalog_list_impl.clone())
-            .with_query_planner(Arc::new(EmbucketQueryPlanner::default()))
+            .with_query_planner(Arc::new(CustomQueryPlanner::default()))
             .with_type_planner(Arc::new(CustomTypePlanner {}))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
             .with_physical_optimizer_rules(physical_optimizer_rules())

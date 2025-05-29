@@ -2,10 +2,10 @@ use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 
 #[derive(Debug, Default)]
-pub struct EmbucketExtensionPlanner {}
+pub struct CustomExtensionPlanner {}
 
 #[async_trait]
-impl ExtensionPlanner for EmbucketExtensionPlanner {
+impl ExtensionPlanner for CustomExtensionPlanner {
     async fn plan_extension(
         &self,
         _planner: &dyn datafusion::physical_planner::PhysicalPlanner,

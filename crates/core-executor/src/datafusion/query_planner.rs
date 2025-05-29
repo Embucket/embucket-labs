@@ -5,20 +5,20 @@ use datafusion::{
 };
 use std::{fmt, sync::Arc};
 
-use super::extension_planner::EmbucketExtensionPlanner;
+use super::extension_planner::CustomExtensionPlanner;
 
-pub struct EmbucketQueryPlanner(DefaultPhysicalPlanner);
+pub struct CustomQueryPlanner(DefaultPhysicalPlanner);
 
-impl Default for EmbucketQueryPlanner {
+impl Default for CustomQueryPlanner {
     fn default() -> Self {
         Self(DefaultPhysicalPlanner::with_extension_planners(vec![
-            Arc::new(EmbucketExtensionPlanner::default()),
+            Arc::new(CustomExtensionPlanner::default()),
         ]))
     }
 }
 
 #[async_trait]
-impl QueryPlanner for EmbucketQueryPlanner {
+impl QueryPlanner for CustomQueryPlanner {
     async fn create_physical_plan(
         &self,
         logical_plan: &datafusion_expr::LogicalPlan,
@@ -31,7 +31,7 @@ impl QueryPlanner for EmbucketQueryPlanner {
     }
 }
 
-impl fmt::Debug for EmbucketQueryPlanner {
+impl fmt::Debug for CustomQueryPlanner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "EmbucketQueryPlanner")
     }
