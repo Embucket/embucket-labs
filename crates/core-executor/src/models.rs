@@ -213,7 +213,8 @@ pub struct ResultSet {
 
 #[cfg(test)]
 mod tests {
-    use datafusion::arrow::datatypes::TimeUnit;
+    use crate::models::ColumnInfo;
+    use datafusion::arrow::datatypes::{DataType, Field, TimeUnit};
 
     #[tokio::test]
     #[allow(clippy::unwrap_used)]
