@@ -1,4 +1,5 @@
 use crate::catalogs::slatedb::history_store_config::HistoryStoreViewConfig;
+use core_history::QueryRecord;
 use datafusion::arrow::array::Int64Builder;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
@@ -91,30 +92,22 @@ pub struct QueriesViewBuilder {
 
 impl QueriesViewBuilder {
     #[allow(clippy::too_many_arguments)]
-    pub fn add_query(
-        &mut self,
-        query_id: i64,
-        worksheet_id: Option<i64>,
-        query: impl AsRef<str>,
-        start_time: impl AsRef<str>,
-        end_time: impl AsRef<str>,
-        duration_ms: i64,
-        result_count: i64,
-        result: Option<impl AsRef<str>>,
-        status: impl AsRef<str>,
-        error: Option<impl AsRef<str>>,
-    ) {
+    pub fn add_query(&mut self, query_record: QueryRecord) {
         // Note: append_value is actually infallible.
-        self.query_ids.append_value(query_id);
-        self.worksheet_ids.append_option(worksheet_id);
-        self.queries.append_value(query.as_ref());
-        self.start_time_timestamps.append_value(start_time.as_ref());
-        self.end_time_timestamps.append_value(end_time.as_ref());
-        self.duration_ms_values.append_value(duration_ms);
-        self.result_count_values.append_value(result_count);
-        self.results.append_option(result);
-        self.statuses.append_value(status.as_ref());
-        self.errors.append_option(error);
+        self.query_ids.append_value(query_record.id);
+        self.worksheet_ids.append_option(query_record.worksheet_id);
+        self.queries.append_value(query_record.query);
+        self.start_time_timestamps
+            .append_value(query_record.start_time.to_string());
+        self.end_time_timestamps
+            .append_value(query_record.end_time.to_string());
+        self.duration_ms_values
+            .append_value(query_record.duration_ms);
+        self.result_count_values
+            .append_value(query_record.result_count);
+        self.results.append_option(query_record.result);
+        self.statuses.append_value(query_record.status.to_string());
+        self.errors.append_option(query_record.error);
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {

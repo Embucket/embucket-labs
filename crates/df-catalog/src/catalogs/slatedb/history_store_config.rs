@@ -20,21 +20,7 @@ impl HistoryStoreViewConfig {
                 DataFusionError::Execution(format!("failed to get worksheets: {e}"))
             })?;
         for worksheet in worksheets {
-            builder.add_worksheet(
-                worksheet.id,
-                if worksheet.name.is_empty() {
-                    None
-                } else {
-                    Some(worksheet.name)
-                },
-                if worksheet.content.is_empty() {
-                    None
-                } else {
-                    Some(worksheet.content)
-                },
-                worksheet.created_at.to_string(),
-                worksheet.updated_at.to_string(),
-            );
+            builder.add_worksheet(worksheet);
         }
         Ok(())
     }
@@ -49,18 +35,7 @@ impl HistoryStoreViewConfig {
             .await
             .map_err(|e| DataFusionError::Execution(format!("failed to get queries: {e}")))?;
         for query in queries {
-            builder.add_query(
-                query.id,
-                query.worksheet_id,
-                query.query,
-                query.start_time.to_string(),
-                query.end_time.to_string(),
-                query.duration_ms,
-                query.result_count,
-                query.result,
-                query.status.to_string(),
-                query.error,
-            );
+            builder.add_query(query);
         }
         Ok(())
     }

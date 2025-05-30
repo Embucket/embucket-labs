@@ -1,4 +1,5 @@
 use crate::catalogs::slatedb::history_store_config::HistoryStoreViewConfig;
+use core_history::Worksheet;
 use datafusion::arrow::array::Int64Builder;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
@@ -75,20 +76,25 @@ pub struct WorksheetsViewBuilder {
 }
 
 impl WorksheetsViewBuilder {
-    pub fn add_worksheet(
-        &mut self,
-        worksheet_id: i64,
-        worksheet_name: Option<impl AsRef<str>>,
-        content: Option<impl AsRef<str>>,
-        created_at: impl AsRef<str>,
-        updated_at: impl AsRef<str>,
-    ) {
+    pub fn add_worksheet(&mut self, worksheet: Worksheet) {
         // Note: append_value is actually infallible.
-        self.worksheet_ids.append_value(worksheet_id);
-        self.worksheet_names.append_option(worksheet_name);
-        self.content_values.append_option(content);
-        self.created_at_timestamps.append_value(created_at.as_ref());
-        self.updated_at_timestamps.append_value(updated_at.as_ref());
+        self.worksheet_ids.append_value(worksheet.id);
+        self.worksheet_names
+            .append_option(if worksheet.name.is_empty() {
+                None
+            } else {
+                Some(worksheet.name)
+            });
+        self.content_values
+            .append_option(if worksheet.content.is_empty() {
+                None
+            } else {
+                Some(worksheet.content)
+            });
+        self.created_at_timestamps
+            .append_value(worksheet.created_at.to_string());
+        self.updated_at_timestamps
+            .append_value(worksheet.updated_at.to_string());
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
