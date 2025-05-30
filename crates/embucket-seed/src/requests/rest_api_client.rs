@@ -4,9 +4,8 @@
 //! including managing volumes, databases, schemas, and tables.
 
 use crate::external_models::{
-    AuthResponse, DatabaseCreatePayload, DatabaseCreateResponse,
-    QueryCreateResponse, SchemaCreatePayload, SchemaCreateResponse, VolumeCreatePayload,
-    VolumeCreateResponse,
+    AuthResponse, DatabaseCreatePayload, DatabaseCreateResponse, QueryCreateResponse,
+    SchemaCreatePayload, SchemaCreateResponse, VolumeCreatePayload, VolumeCreateResponse,
 };
 use crate::requests::error::HttpRequestResult;
 use crate::requests::service_client::{BasicAuthClient, ServiceClient};
@@ -122,10 +121,7 @@ impl RestApiClient for RestClient {
             .generic_request::<VolumeCreatePayload, VolumeCreateResponse>(
                 Method::POST,
                 &format!("http://{}/ui/volumes", self.client.addr()),
-                &VolumeCreatePayload {
-                    name: volume.name,
-                    volume: volume.volume,
-                },
+                &volume,
             )
             .await?)
     }

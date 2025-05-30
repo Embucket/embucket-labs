@@ -3,7 +3,7 @@ use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters,
     databases::error::{
-        CreateSnafu, DatabasesAPIError, DatabasesResult, DeleteSnafu, GetSnafu, UpdateSnafu,
+        CreateSnafu, DatabasesResult, DeleteSnafu, GetSnafu, ListSnafu, UpdateSnafu,
     },
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
@@ -20,7 +20,7 @@ use axum::{
 use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::Database as MetastoreDatabase;
 use core_metastore::error::MetastoreError;
-use snafu::{IntoError, ResultExt};
+use snafu::ResultExt;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -85,9 +85,10 @@ pub async fn create_database(
         volume: database.volume,
         properties: None,
     };
-    database.validate().map_err(|e| DatabasesAPIError::Create {
-        source: MetastoreError::Validation { source: e },
-    })?;
+    database
+        .validate()
+        .map_err(|e| Box::new(MetastoreError::Validation { source: e }))
+        .context(CreateSnafu)?;
     state
         .metastore
         .create_database(&database.ident.clone(), database)
@@ -122,15 +123,22 @@ pub async fn get_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
 ) -> DatabasesResult<Json<DatabaseResponse>> {
-    match state.metastore.get_database(&database_name).await {
-        Ok(Some(db)) => Ok(Json(DatabaseResponse(Database::from(db)))),
-        Ok(None) => Err(
-            GetSnafu.into_error(Box::new(MetastoreError::DatabaseNotFound {
-                db: database_name.clone(),
-            })),
-        ),
-        Err(e) => Err(e).context(GetSnafu),
-    }
+    state
+        .metastore
+        .get_database(&database_name)
+        .await
+        .map(|opt_rw_obj| {
+            opt_rw_obj.ok_or_else(|| {
+                Box::new(MetastoreError::DatabaseNotFound {
+                    db: database_name.clone(),
+                })
+            })
+        })
+        .context(GetSnafu)?
+        .map(Database::from)
+        .map(DatabaseResponse)
+        .map(Json)
+        .context(GetSnafu)
 }
 
 #[utoipa::path(
@@ -197,9 +205,10 @@ pub async fn update_database(
         volume: database.volume,
         properties: None,
     };
-    database.validate().map_err(|e| DatabasesAPIError::Update {
-        source: MetastoreError::Validation { source: e },
-    })?;
+    database
+        .validate()
+        .map_err(|e| Box::new(MetastoreError::Validation { source: e }))
+        .context(UpdateSnafu)?;
     //TODO: Implement database renames
     state
         .metastore
@@ -248,17 +257,15 @@ pub async fn list_databases(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| DatabasesAPIError::List { source: e })?;
+        .context(ListSnafu)?;
     let mut items = Vec::new();
     for record in records {
-        let database_names = downcast_string_column(&record, "database_name")
-            .map_err(|e| DatabasesAPIError::List { source: e })?;
-        let volume_names = downcast_string_column(&record, "volume_name")
-            .map_err(|e| DatabasesAPIError::List { source: e })?;
-        let created_at_timestamps = downcast_string_column(&record, "created_at")
-            .map_err(|e| DatabasesAPIError::List { source: e })?;
-        let updated_at_timestamps = downcast_string_column(&record, "updated_at")
-            .map_err(|e| DatabasesAPIError::List { source: e })?;
+        let database_names = downcast_string_column(&record, "database_name").context(ListSnafu)?;
+        let volume_names = downcast_string_column(&record, "volume_name").context(ListSnafu)?;
+        let created_at_timestamps =
+            downcast_string_column(&record, "created_at").context(ListSnafu)?;
+        let updated_at_timestamps =
+            downcast_string_column(&record, "updated_at").context(ListSnafu)?;
         for i in 0..record.num_rows() {
             items.push(Database {
                 name: database_names.value(i).to_string(),

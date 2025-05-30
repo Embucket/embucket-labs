@@ -1,5 +1,5 @@
 use core_metastore::RwObject;
-use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
+use core_metastore::models::Schema as MetastoreSchema;
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 use utoipa::ToSchema;
@@ -22,35 +22,6 @@ impl From<RwObject<MetastoreSchema>> for Schema {
         }
     }
 }
-
-// #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-// pub struct SchemaPayload {
-//     pub name: String,
-//     pub database: String,
-// }
-
-// impl From<MetastoreSchema> for SchemaPayload {
-//     fn from(rw_schema: MetastoreSchema) -> Self {
-//         Self {
-//             name: rw_schema.ident.schema,
-//             database: rw_schema.ident.database,
-//         }
-//     }
-// }
-
-// // TODO: Remove it when found why it can't locate .into() if only From trait implemeted
-// #[allow(clippy::from_over_into)]
-// impl Into<MetastoreSchema> for SchemaPayload {
-//     fn into(self) -> MetastoreSchema {
-//         MetastoreSchema {
-//             ident: MetastoreSchemaIdent {
-//                 schema: self.name,
-//                 database: self.database,
-//             },
-//             properties: None,
-//         }
-//     }
-// }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

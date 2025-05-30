@@ -15,24 +15,13 @@ pub enum SchemasAPIError {
     #[snafu(display("Create schema error: {source}"))]
     Create { source: ExecutionError },
     #[snafu(display("Get schema error: {source}"))]
-    Get { source: MetastoreError },
+    Get { source: Box<MetastoreError> },
     #[snafu(display("Delete schema error: {source}"))]
     Delete { source: ExecutionError },
     #[snafu(display("Update schema error: {source}"))]
-    Update { source: MetastoreError },
+    Update { source: Box<MetastoreError> },
     #[snafu(display("Get schemas error: {source}"))]
     List { source: ExecutionError },
-}
-
-// Add conversion from Box<MetastoreError> to SchemasAPIError
-impl From<Box<MetastoreError>> for SchemasAPIError {
-    fn from(boxed_error: Box<MetastoreError>) -> Self {
-        let error = *boxed_error;
-        match error {
-            err @ MetastoreError::SchemaNotFound { .. } => Self::Get { source: err },
-            err => Self::Update { source: err },
-        }
-    }
 }
 
 // Select which status code to return.
@@ -50,7 +39,7 @@ impl IntoStatusCode for SchemasAPIError {
                 },
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Get { source } => match &source {
+            Self::Get { source } => match &**source {
                 MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
@@ -61,7 +50,7 @@ impl IntoStatusCode for SchemasAPIError {
                 },
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Update { source } => match &source {
+            Self::Update { source } => match &**source {
                 MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
                 MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,

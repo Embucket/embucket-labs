@@ -3,15 +3,8 @@
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
 use crate::volumes::models::{
-    VolumeCreatePayload, VolumeCreateResponse, VolumesResponse, VolumeType, FileVolume, S3Volume,
-    AwsCredentials, AwsAccessKeyCredentials
-};
-use core_metastore::Volume as MetastoreVolume;
-use core_metastore::{
-    AwsAccessKeyCredentials as MetastoreAwsAccessKeyCredentials,
-    AwsCredentials as MetastoreAwsCredentials,
-    FileVolume as MetastoreFileVolume,
-    S3Volume as MetastoreS3Volume, VolumeType as MetastoreVolumeType,
+    AwsAccessKeyCredentials, AwsCredentials, FileVolume, S3Volume, VolumeCreatePayload,
+    VolumeCreateResponse, VolumeType, VolumesResponse,
 };
 use http::Method;
 use serde_json;

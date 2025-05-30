@@ -112,3 +112,9 @@ impl From<validator::ValidationErrors> for MetastoreError {
         Self::Validation { source }
     }
 }
+
+impl From<Box<Self>> for MetastoreError {
+    fn from(boxed_error: Box<Self>) -> Self {
+        *boxed_error
+    }
+}

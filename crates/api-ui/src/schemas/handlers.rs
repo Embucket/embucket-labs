@@ -3,10 +3,10 @@ use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters, downcast_string_column,
     error::ErrorResponse,
-    schemas::error::{SchemasAPIError, SchemasResult},
+    schemas::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu, SchemasResult, UpdateSnafu},
     schemas::models::{
-        Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaResponse,
-        SchemaUpdatePayload, SchemaUpdateResponse, SchemasResponse,
+        Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaResponse, SchemaUpdatePayload,
+        SchemaUpdateResponse, SchemasResponse,
     },
 };
 use api_sessions::DFSessionId;
@@ -16,7 +16,8 @@ use axum::{
 };
 use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::error::MetastoreError;
-use core_metastore::models::SchemaIdent as MetastoreSchemaIdent;
+use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
+use snafu::ResultExt;
 use std::convert::From;
 use std::convert::Into;
 use utoipa::OpenApi;
@@ -81,37 +82,36 @@ pub async fn create_schema(
         Some(payload.name.clone()),
         None,
     );
-    Ok(Json(SchemaCreateResponse (
-        Schema {
-            name: payload.name.clone(),
-            database: database_name.clone(),
-            created_at: "".to_string(),
-            updated_at: "".to_string(),
-        }
-    )))
-    // let sql_string = format!(
-    //     "CREATE SCHEMA {}.{}",
-    //     database_name.clone(),
-    //     payload.name.clone()
-    // );
-    // let _ = state
-    //     .execution_svc
-    //     .query(&session_id, sql_string.as_str(), context)
-    //     .await
-    //     .map_err(|e| SchemasAPIError::Create { source: e })?;
-    // let schema_ident = MetastoreSchemaIdent::new(database_name.clone(), payload.name.clone());
-    // match state.metastore.get_schema(&schema_ident).await {
-    //     Ok(Some(rw_object)) => Ok(Json(SchemaCreateResponse {
-    //         data: rw_object.into(),
-    //     })),
-    //     Ok(None) => Err(SchemasAPIError::Get {
-    //         source: MetastoreError::SchemaNotFound {
-    //             db: database_name.clone(),
-    //             schema: payload.name.clone(),
-    //         },
-    //     }),
-    //     Err(e) => Err(SchemasAPIError::from(e)),
-    // }
+    let sql_string = format!(
+        "CREATE SCHEMA {}.{}",
+        database_name.clone(),
+        payload.name.clone()
+    );
+    let _ = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
+        .await
+        .context(CreateSnafu)?;
+
+    let schema_ident = MetastoreSchemaIdent::new(database_name.clone(), payload.name.clone());
+    // after created - request schema from metadata for timestamps
+    state
+        .metastore
+        .get_schema(&schema_ident)
+        .await
+        .map(|opt_rw_obj| {
+            opt_rw_obj.ok_or_else(|| {
+                Box::new(MetastoreError::SchemaNotFound {
+                    db: database_name.clone(),
+                    schema: payload.name.clone(),
+                })
+            })
+        })
+        .context(GetSnafu)?
+        .map(Schema::from)
+        .map(SchemaCreateResponse)
+        .map(Json)
+        .context(GetSnafu)
 }
 
 #[utoipa::path(
@@ -147,12 +147,12 @@ pub async fn delete_schema(
         database_name.clone(),
         schema_name.clone()
     );
-    let _ = state
+    state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| SchemasAPIError::Delete { source: e })?;
-    Ok(())
+        .map(|_| ())
+        .context(DeleteSnafu)
 }
 
 #[utoipa::path(
@@ -181,28 +181,27 @@ pub async fn get_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> SchemasResult<Json<SchemaResponse>> {
-    Ok(Json(SchemaResponse(Schema {
-        name: schema_name.clone(),
+    let schema_ident = MetastoreSchemaIdent {
         database: database_name.clone(),
-        created_at: "".to_string(),
-        updated_at: "".to_string(),
-    })))
-    // let schema_ident = MetastoreSchemaIdent {
-    //     database: database_name.clone(),
-    //     schema: schema_name.clone(),
-    // };
-    // match state.metastore.get_schema(&schema_ident).await {
-    //     Ok(Some(rw_object)) => Ok(Json(SchemaResponse {
-    //         data: rw_object.into(),
-    //     })),
-    //     Ok(None) => Err(SchemasAPIError::Get {
-    //         source: MetastoreError::SchemaNotFound {
-    //             db: database_name.clone(),
-    //             schema: schema_name.clone(),
-    //         },
-    //     }),
-    //     Err(e) => Err(SchemasAPIError::from(e)),
-    // }
+        schema: schema_name.clone(),
+    };
+    state
+        .metastore
+        .get_schema(&schema_ident)
+        .await
+        .map(|opt_rw_obj| {
+            opt_rw_obj.ok_or_else(|| {
+                Box::new(MetastoreError::SchemaNotFound {
+                    db: database_name.clone(),
+                    schema: schema_name.clone(),
+                })
+            })
+        })
+        .context(GetSnafu)?
+        .map(Schema::from)
+        .map(SchemaResponse)
+        .map(Json)
+        .context(GetSnafu)
 }
 
 #[utoipa::path(
@@ -233,24 +232,20 @@ pub async fn update_schema(
     Path((database_name, schema_name)): Path<(String, String)>,
     Json(schema): Json<SchemaUpdatePayload>,
 ) -> SchemasResult<Json<SchemaUpdateResponse>> {
-    Ok(Json(SchemaUpdateResponse(Schema {
-        name: schema.name.clone(),
-        database: schema.database.clone(),
-        created_at: "".to_string(),
-        updated_at: "".to_string(),
-    })))
-    // let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
-    // // TODO: Implement schema renames
-    // state
-    //     .metastore
-    //     .update_schema(&schema_ident, schema.data.into())
-    //     .await
-    //     .map_err(SchemasAPIError::from)
-    //     .map(|rw_object| {
-    //         Json(SchemaUpdateResponse {
-    //             data: rw_object.into(),
-    //         })
-    //     })
+    let schema_ident = MetastoreSchemaIdent::new(schema.database, schema.name);
+    let metastore_schema = MetastoreSchema {
+        ident: schema_ident.clone(),
+        properties: None,
+    };
+    // TODO: Implement schema renames
+    state
+        .metastore
+        .update_schema(&schema_ident, metastore_schema)
+        .await
+        .map(Schema::from)
+        .map(SchemaUpdateResponse)
+        .map(Json)
+        .context(UpdateSnafu)
 }
 
 #[utoipa::path(
@@ -295,17 +290,16 @@ pub async fn list_schemas(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| SchemasAPIError::List { source: e })?;
+        .context(ListSnafu)?;
+
     let mut items = Vec::new();
     for record in records {
-        let schema_names = downcast_string_column(&record, "schema_name")
-            .map_err(|e| SchemasAPIError::List { source: e })?;
-        let database_names = downcast_string_column(&record, "database_name")
-            .map_err(|e| SchemasAPIError::List { source: e })?;
-        let created_at_timestamps = downcast_string_column(&record, "created_at")
-            .map_err(|e| SchemasAPIError::List { source: e })?;
-        let updated_at_timestamps = downcast_string_column(&record, "updated_at")
-            .map_err(|e| SchemasAPIError::List { source: e })?;
+        let schema_names = downcast_string_column(&record, "schema_name").context(ListSnafu)?;
+        let database_names = downcast_string_column(&record, "database_name").context(ListSnafu)?;
+        let created_at_timestamps =
+            downcast_string_column(&record, "created_at").context(ListSnafu)?;
+        let updated_at_timestamps =
+            downcast_string_column(&record, "updated_at").context(ListSnafu)?;
         for i in 0..record.num_rows() {
             items.push(Schema {
                 name: schema_names.value(i).to_string(),

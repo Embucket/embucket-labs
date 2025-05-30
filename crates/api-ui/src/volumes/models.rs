@@ -1,8 +1,7 @@
 use core_metastore::models::{
-    AwsCredentials as MetastoreAwsCredentials,
     AwsAccessKeyCredentials as MetastoreAwsAccessKeyCredentials,
-    FileVolume as MetastoreFileVolume, S3Volume as MetastoreS3Volume,
-    Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
+    AwsCredentials as MetastoreAwsCredentials, FileVolume as MetastoreFileVolume,
+    S3Volume as MetastoreS3Volume, Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
 };
 use core_metastore::{RwObject, S3TablesVolume as MetastoreS3TablesVolume};
 use serde::{Deserialize, Serialize};
@@ -22,14 +21,17 @@ pub enum AwsCredentials {
     Token(String),
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<MetastoreAwsCredentials> for AwsCredentials {
     fn into(self) -> MetastoreAwsCredentials {
         match self {
-            AwsCredentials::AccessKey(access_key) => MetastoreAwsCredentials::AccessKey(MetastoreAwsAccessKeyCredentials {
-                aws_access_key_id: access_key.aws_access_key_id,
-                aws_secret_access_key: access_key.aws_secret_access_key,
-            }),
-            AwsCredentials::Token(token) => MetastoreAwsCredentials::Token(token),
+            Self::AccessKey(access_key) => {
+                MetastoreAwsCredentials::AccessKey(MetastoreAwsAccessKeyCredentials {
+                    aws_access_key_id: access_key.aws_access_key_id,
+                    aws_secret_access_key: access_key.aws_secret_access_key,
+                })
+            }
+            Self::Token(token) => MetastoreAwsCredentials::Token(token),
         }
     }
 }
@@ -68,46 +70,11 @@ pub enum VolumeType {
     Memory,
 }
 
-// #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
-// pub struct VolumePayload {
-//     pub name: String,
-//     #[serde(flatten)]
-//     pub volume: VolumeType,
-// }
-
-// impl From<MetastoreVolume> for VolumePayload {
-//     fn from(volume: MetastoreVolume) -> Self {
-//         Self {
-//             name: volume.ident,
-//             volume: match volume.volume {
-//                 MetastoreVolumeType::S3(volume) => VolumeType::S3(S3Volume {
-//                     region: volume.region,
-//                     bucket: volume.bucket,
-//                     endpoint: volume.endpoint,
-//                     skip_signature: volume.skip_signature,
-//                     metadata_endpoint: volume.metadata_endpoint,
-//                     credentials: volume.credentials,
-//                 }),
-//                 MetastoreVolumeType::S3Tables(volume) => VolumeType::S3Tables(S3TablesVolume {
-//                     region: volume.region,
-//                     bucket: volume.bucket,
-//                     endpoint: volume.endpoint,
-//                     credentials: volume.credentials,
-//                     name: volume.name,
-//                     arn: volume.arn,
-//                 }),
-//                 MetastoreVolumeType::File(file) => VolumeType::File(FileVolume { path: file.path }),
-//                 MetastoreVolumeType::Memory => VolumeType::Memory,
-//             },
-//         }
-//     }
-// }
-
 #[allow(clippy::from_over_into)]
 impl Into<MetastoreVolumeType> for VolumeType {
     fn into(self) -> MetastoreVolumeType {
         match self {
-            VolumeType::S3(volume) => MetastoreVolumeType::S3(MetastoreS3Volume {
+            Self::S3(volume) => MetastoreVolumeType::S3(MetastoreS3Volume {
                 region: volume.region,
                 bucket: volume.bucket,
                 endpoint: volume.endpoint,
@@ -115,7 +82,7 @@ impl Into<MetastoreVolumeType> for VolumeType {
                 metadata_endpoint: volume.metadata_endpoint,
                 credentials: volume.credentials.map(AwsCredentials::into),
             }),
-            VolumeType::S3Tables(volume) => MetastoreVolumeType::S3Tables(MetastoreS3TablesVolume {
+            Self::S3Tables(volume) => MetastoreVolumeType::S3Tables(MetastoreS3TablesVolume {
                 region: volume.region,
                 bucket: volume.bucket,
                 endpoint: volume.endpoint,
@@ -123,10 +90,10 @@ impl Into<MetastoreVolumeType> for VolumeType {
                 name: volume.name,
                 arn: volume.arn,
             }),
-            VolumeType::File(volume) => MetastoreVolumeType::File(MetastoreFileVolume {
-                path: volume.path,
-            }),
-            VolumeType::Memory => MetastoreVolumeType::Memory,
+            Self::File(volume) => {
+                MetastoreVolumeType::File(MetastoreFileVolume { path: volume.path })
+            }
+            Self::Memory => MetastoreVolumeType::Memory,
         }
     }
 }

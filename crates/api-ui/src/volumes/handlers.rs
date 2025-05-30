@@ -2,11 +2,10 @@ use crate::state::AppState;
 use crate::{
     OrderDirection, SearchParameters, apply_parameters, downcast_string_column,
     error::ErrorResponse,
-    volumes::error::{VolumesAPIError, VolumesResult, CreateSnafu, GetSnafu, DeleteSnafu},
+    volumes::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu, VolumesResult},
     volumes::models::{
         FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
-        VolumeResponse, VolumeType, VolumeUpdatePayload, VolumeUpdateResponse,
-        VolumesResponse,
+        VolumeResponse, VolumeType, VolumesResponse,
     },
 };
 use api_sessions::DFSessionId;
@@ -87,13 +86,14 @@ pub async fn create_volume(
     embucket_volume
         .validate()
         .context(ValidationSnafu)
+        .map_err(MetastoreError::into)
         .context(CreateSnafu)?;
 
     state
         .metastore
         .create_volume(&embucket_volume.ident.clone(), embucket_volume)
         .await
-        .map_err(VolumesAPIError::from)
+        .context(CreateSnafu)
         .map(Volume::from)
         .map(VolumeCreateResponse)
         .map(Json)
@@ -124,17 +124,22 @@ pub async fn get_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
 ) -> VolumesResult<Json<VolumeResponse>> {
-    match state.metastore.get_volume(&volume_name).await {
-        Ok(None) => Err(MetastoreError::VolumeNotFound {
-            volume: volume_name.clone(),
-        }),
-        Ok(Some(volume)) => Ok(volume),
-        Err(e) => Err(*e),
-    }
-    .context(GetSnafu)
-    .map(Volume::from)
-    .map(VolumeResponse)
-    .map(Json)
+    state
+        .metastore
+        .get_volume(&volume_name)
+        .await
+        .map(|opt_rw_obj| {
+            opt_rw_obj.ok_or_else(|| {
+                Box::new(MetastoreError::VolumeNotFound {
+                    volume: volume_name.clone(),
+                })
+            })
+        })
+        .context(GetSnafu)?
+        .map(Volume::from)
+        .map(VolumeResponse)
+        .map(Json)
+        .context(GetSnafu)
 }
 
 #[utoipa::path(
@@ -167,7 +172,6 @@ pub async fn delete_volume(
         .metastore
         .delete_volume(&volume_name, query.cascade.unwrap_or_default())
         .await
-        .map_err(|err| *err)
         .context(DeleteSnafu)
 }
 
@@ -207,17 +211,15 @@ pub async fn list_volumes(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| VolumesAPIError::List { source: e })?;
+        .context(ListSnafu)?;
     let mut items = Vec::new();
     for record in records {
-        let volume_names = downcast_string_column(&record, "volume_name")
-            .map_err(|e| VolumesAPIError::List { source: e })?;
-        let volume_types = downcast_string_column(&record, "volume_type")
-            .map_err(|e| VolumesAPIError::List { source: e })?;
-        let created_at_timestamps = downcast_string_column(&record, "created_at")
-            .map_err(|e| VolumesAPIError::List { source: e })?;
-        let updated_at_timestamps = downcast_string_column(&record, "updated_at")
-            .map_err(|e| VolumesAPIError::List { source: e })?;
+        let volume_names = downcast_string_column(&record, "volume_name").context(ListSnafu)?;
+        let volume_types = downcast_string_column(&record, "volume_type").context(ListSnafu)?;
+        let created_at_timestamps =
+            downcast_string_column(&record, "created_at").context(ListSnafu)?;
+        let updated_at_timestamps =
+            downcast_string_column(&record, "updated_at").context(ListSnafu)?;
         for i in 0..record.num_rows() {
             items.push(Volume {
                 name: volume_names.value(i).to_string(),

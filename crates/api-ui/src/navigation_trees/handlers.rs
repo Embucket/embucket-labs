@@ -1,6 +1,7 @@
+use super::error::ExecutionSnafu;
 use crate::downcast_string_column;
 use crate::error::ErrorResponse;
-use crate::navigation_trees::error::{NavigationTreesAPIError, NavigationTreesResult};
+use crate::navigation_trees::error::NavigationTreesResult;
 use crate::navigation_trees::models::{
     NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable, NavigationTreesParameters,
     NavigationTreesResponse,
@@ -10,6 +11,7 @@ use api_sessions::DFSessionId;
 use axum::extract::Query;
 use axum::{Json, extract::State};
 use core_executor::models::{QueryContext, QueryResult};
+use snafu::ResultExt;
 use std::collections::BTreeMap;
 use utoipa::OpenApi;
 
@@ -69,20 +71,16 @@ pub async fn get_navigation_trees(
             QueryContext::default(),
         )
         .await
-        .map_err(|e| NavigationTreesAPIError::Execution { source: e })?;
+        .context(ExecutionSnafu)?;
 
     let mut catalogs_tree: BTreeMap<String, BTreeMap<String, Vec<(String, String)>>> =
         BTreeMap::new();
 
     for batch in tree_batches {
-        let databases = downcast_string_column(&batch, "database")
-            .map_err(|e| NavigationTreesAPIError::Execution { source: e })?;
-        let schemas = downcast_string_column(&batch, "schema")
-            .map_err(|e| NavigationTreesAPIError::Execution { source: e })?;
-        let tables = downcast_string_column(&batch, "table")
-            .map_err(|e| NavigationTreesAPIError::Execution { source: e })?;
-        let table_types = downcast_string_column(&batch, "table_type")
-            .map_err(|e| NavigationTreesAPIError::Execution { source: e })?;
+        let databases = downcast_string_column(&batch, "database").context(ExecutionSnafu)?;
+        let schemas = downcast_string_column(&batch, "schema").context(ExecutionSnafu)?;
+        let tables = downcast_string_column(&batch, "table").context(ExecutionSnafu)?;
+        let table_types = downcast_string_column(&batch, "table_type").context(ExecutionSnafu)?;
         for j in 0..batch.num_rows() {
             let database = databases.value(j).to_string();
             let schema = schemas.value(j).to_string();

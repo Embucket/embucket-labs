@@ -10,8 +10,7 @@ use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
 use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
 use crate::worksheets::{WorksheetCreatePayload, WorksheetResponse};
-use core_metastore::VolumeType as MetastoreVolumeType;
-use core_metastore::{Database as MetastoreDatabase, Volume as MetastoreVolume};
+use core_metastore::Database as MetastoreDatabase;
 use http::Method;
 use serde_json::json;
 

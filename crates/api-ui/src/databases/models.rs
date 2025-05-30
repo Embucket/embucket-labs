@@ -3,7 +3,6 @@ use core_metastore::models::Database as MetastoreDatabase;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-
 // impl From<MetastoreDatabase> for DatabasePayload {
 //     fn from(db: MetastoreDatabase) -> Self {
 //         Self {
