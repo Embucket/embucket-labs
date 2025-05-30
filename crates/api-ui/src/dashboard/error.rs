@@ -18,7 +18,7 @@ pub enum DashboardAPIError {
     Queries { source: QueryError },
     #[snafu(display("Get total: {source}"))]
     History {
-        source: core_history::WorksheetsStoreError,
+        source: core_history::errors::HistoryStoreError,
     },
 }
 
