@@ -40,18 +40,6 @@ impl From<RwObject<MetastoreDatabase>> for Database {
     }
 }
 
-// // TODO: Remove it when found why it can't locate .into() if only From trait implemeted
-// #[allow(clippy::from_over_into)]
-// impl Into<MetastoreDatabase> for DatabasePayload {
-//     fn into(self) -> MetastoreDatabase {
-//         MetastoreDatabase {
-//             ident: self.name,
-//             volume: self.volume,
-//             properties: None,
-//         }
-//     }
-// }
-
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseCreatePayload {

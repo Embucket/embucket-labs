@@ -88,7 +88,6 @@ pub struct UploadParameters {
     pub comment: Option<u8>,
 }
 
-// TODO: Remove it when found why it can't locate .into() if only From trait implemeted
 #[allow(clippy::from_over_into)]
 impl Into<Format> for UploadParameters {
     fn into(self) -> Format {
