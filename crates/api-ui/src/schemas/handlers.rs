@@ -267,7 +267,7 @@ pub async fn list_schemas(
 ) -> SchemasResult<Json<SchemasResponse>> {
     let context = QueryContext::new(Some(database_name.clone()), None, None);
     let sql_string = format!(
-        "SELECT * FROM slatedb.public.schemas WHERE database_name = '{}'",
+        "SELECT * FROM slatedb.meta.schemas WHERE database_name = '{}'",
         database_name.clone()
     );
     let sql_string = apply_parameters(&sql_string, parameters, &["schema_name", "database_name"]);

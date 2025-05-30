@@ -237,7 +237,7 @@ pub async fn list_volumes(
     State(state): State<AppState>,
 ) -> VolumesResult<Json<VolumesResponse>> {
     let context = QueryContext::default();
-    let sql_string = "SELECT * FROM slatedb.public.volumes".to_string();
+    let sql_string = "SELECT * FROM slatedb.meta.volumes".to_string();
     let sql_string = apply_parameters(&sql_string, parameters, &["volume_name", "volume_type"]);
     let QueryResult { records, .. } = state
         .execution_svc

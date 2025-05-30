@@ -230,7 +230,7 @@ pub async fn list_databases(
     State(state): State<AppState>,
 ) -> DatabasesResult<Json<DatabasesResponse>> {
     let context = QueryContext::default();
-    let sql_string = "SELECT * FROM slatedb.public.databases".to_string();
+    let sql_string = "SELECT * FROM slatedb.meta.databases".to_string();
     let sql_string = apply_parameters(&sql_string, parameters, &["database_name", "volume_name"]);
     let QueryResult { records, .. } = state
         .execution_svc
