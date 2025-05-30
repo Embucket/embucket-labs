@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { Compartment, type Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import { curSqlGutter } from '@tidbcloud/codemirror-extension-cur-sql-gutter';
 import { saveHelper } from '@tidbcloud/codemirror-extension-save-helper';
 import { SQLEditor as TiSQLEditor, useEditorCacheContext } from '@tidbcloud/tisqleditor-react';
 
+import type { Worksheet } from '@/orval/models';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
-import { useGetWorksheet, useUpdateWorksheet } from '@/orval/worksheets';
+import { getGetWorksheetQueryKey, useGetWorksheet, useUpdateWorksheet } from '@/orval/worksheets';
 
 import { sqlAutoCompletion } from './sql-editor-extensions/sql-editor-autocomplete/sql-auto-completion';
 import { setCustomKeymaps } from './sql-editor-extensions/sql-editor-custom-keymaps';
@@ -23,8 +25,25 @@ interface SQLEditorProps {
   content?: string;
 }
 
-export function SQLEditor({ readonly, content }: SQLEditorProps) {
+const useSetWorksheetContent = (worksheet?: Worksheet) => {
   const cacheCtx = useEditorCacheContext();
+
+  useEffect(() => {
+    if (!worksheet) return;
+    const activeEditor = cacheCtx.getEditor('MySQLEditor');
+    if (!activeEditor) return;
+    activeEditor.editorView.dispatch({
+      changes: {
+        from: 0,
+        to: activeEditor.editorView.state.doc.length,
+        insert: worksheet.content,
+      },
+    });
+  }, [worksheet, cacheCtx]);
+};
+
+export function SQLEditor({ readonly, content }: SQLEditorProps) {
+  const queryClient = useQueryClient();
 
   const worksheetId = useParams({
     from: '/sql-editor/$worksheetId/',
@@ -36,29 +55,42 @@ export function SQLEditor({ readonly, content }: SQLEditorProps) {
   const { data: { items: navigationTrees } = {} } = useGetNavigationTrees();
   const { mutate } = useUpdateWorksheet();
 
+  // Set initial content from fetched worksheet
+  useSetWorksheetContent(worksheet);
+
+  // Invalidate queries when worksheet ID changes
   useEffect(() => {
-    const activeEditor = cacheCtx.getEditor('MySQLEditor');
-    if (!activeEditor) return;
-    activeEditor.editorView.dispatch({
-      changes: {
-        from: 0,
-        to: activeEditor.editorView.state.doc.length,
-        insert: worksheet?.content,
-      },
+    queryClient.invalidateQueries({
+      queryKey: getGetWorksheetQueryKey(+worksheetId),
     });
-  }, [worksheet, cacheCtx]);
+  }, [worksheetId, queryClient]);
+
+  // Use ref to store the latest values without triggering re-renders
+  const latestValuesRef = useRef({
+    worksheetName: worksheet?.name,
+    worksheetId: +worksheetId,
+  });
+
+  // Update ref when worksheet changes
+  useEffect(() => {
+    latestValuesRef.current = {
+      worksheetName: worksheet?.name,
+      worksheetId: +worksheetId,
+    };
+  }, [worksheet?.name, worksheetId]);
 
   const handleSave = useCallback(
     (view: EditorView) => {
+      const { worksheetName, worksheetId: currentWorksheetId } = latestValuesRef.current;
       mutate({
         data: {
           content: view.state.doc.toString(),
-          name: worksheet?.name,
+          name: worksheetName,
         },
-        worksheetId: +worksheetId,
+        worksheetId: currentWorksheetId,
       });
     },
-    [mutate, worksheetId, worksheet?.name],
+    [mutate],
   );
 
   // TODO: Use to enable / disable Run button
@@ -78,28 +110,12 @@ export function SQLEditor({ readonly, content }: SQLEditorProps) {
       saveHelperCompartment.of(
         saveHelper({
           save: handleSave,
-          delay: 3000,
+          delay: 1000,
         }),
       ),
     ],
     [readonly, handleSave],
   );
-
-  // TODO: Hacky :(
-  useEffect(() => {
-    const activeEditor = cacheCtx.getEditor('MySQLEditor');
-    if (!activeEditor) return;
-
-    // Update only the saveHelper extension
-    activeEditor.editorView.dispatch({
-      effects: saveHelperCompartment.reconfigure(
-        saveHelper({
-          save: handleSave,
-          delay: 3000,
-        }),
-      ),
-    });
-  }, [worksheetId, cacheCtx, handleSave]);
 
   const editorDoc = content ?? worksheet?.content ?? '';
 
