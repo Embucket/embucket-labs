@@ -1,7 +1,11 @@
 pub mod catalog;
-pub mod config;
+pub mod metastore_config;
 pub mod databases;
-pub mod schema;
+pub mod metastore_schema;
 pub mod schemas;
 pub mod tables;
 pub mod volumes;
+pub mod history_store_schema;
+pub mod history_store_config;
+pub mod worksheets;
+pub mod queries;

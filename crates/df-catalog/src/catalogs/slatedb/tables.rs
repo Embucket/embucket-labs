@@ -1,4 +1,4 @@
-use crate::catalogs::slatedb::config::SlateDBViewConfig;
+use crate::catalogs::slatedb::metastore_config::MetastoreViewConfig;
 use datafusion::arrow::array::Int64Builder;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
@@ -17,11 +17,11 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct TablesView {
     schema: SchemaRef,
-    config: SlateDBViewConfig,
+    config: MetastoreViewConfig,
 }
 
 impl TablesView {
-    pub(crate) fn new(config: SlateDBViewConfig) -> Self {
+    pub(crate) fn new(config: MetastoreViewConfig) -> Self {
         let schema = Arc::new(Schema::new(vec![
             Field::new("table_name", DataType::Utf8, false),
             Field::new("schema_name", DataType::Utf8, false),

@@ -1,5 +1,5 @@
 use super::catalog::SLATEDB_CATALOG;
-use crate::catalogs::slatedb::config::SlateDBViewConfig;
+use crate::catalogs::slatedb::metastore_config::MetastoreViewConfig;
 use crate::catalogs::slatedb::databases::DatabasesView;
 use crate::catalogs::slatedb::schemas::SchemasView;
 use crate::catalogs::slatedb::tables::TablesView;
@@ -18,16 +18,16 @@ pub const VOLUMES: &str = "volumes";
 pub const SCHEMAS: &str = "schemas";
 pub const TABLES: &str = "tables";
 
-pub const VIEW_TABLES: &[&str] = &[TABLES, SCHEMAS, DATABASES, VOLUMES];
+pub const METASTORE_VIEW_TABLES: &[&str] = &[TABLES, SCHEMAS, DATABASES, VOLUMES];
 
-pub struct SlateDBViewSchemaProvider {
-    config: SlateDBViewConfig,
+pub struct MetastoreViewSchemaProvider {
+    config: MetastoreViewConfig,
 }
 
-impl SlateDBViewSchemaProvider {
+impl MetastoreViewSchemaProvider {
     pub fn new(metastore: Arc<dyn Metastore>) -> Self {
         Self {
-            config: SlateDBViewConfig {
+            config: MetastoreViewConfig {
                 database: SLATEDB_CATALOG.to_string(),
                 metastore,
             },
@@ -36,20 +36,20 @@ impl SlateDBViewSchemaProvider {
 }
 
 #[allow(clippy::missing_fields_in_debug)]
-impl std::fmt::Debug for SlateDBViewSchemaProvider {
+impl std::fmt::Debug for MetastoreViewSchemaProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SlateDBSchema").finish()
+        f.debug_struct("MetastoreSchema").finish()
     }
 }
 
 #[async_trait]
-impl SchemaProvider for SlateDBViewSchemaProvider {
+impl SchemaProvider for MetastoreViewSchemaProvider {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn table_names(&self) -> Vec<String> {
-        VIEW_TABLES.iter().map(ToString::to_string).collect()
+        METASTORE_VIEW_TABLES.iter().map(ToString::to_string).collect()
     }
 
     async fn table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
@@ -69,6 +69,6 @@ impl SchemaProvider for SlateDBViewSchemaProvider {
     }
 
     fn table_exist(&self, name: &str) -> bool {
-        VIEW_TABLES.contains(&name.to_ascii_lowercase().as_str())
+        METASTORE_VIEW_TABLES.contains(&name.to_ascii_lowercase().as_str())
     }
 }

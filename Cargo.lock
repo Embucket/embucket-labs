@@ -2729,6 +2729,7 @@ dependencies = [
  "aws-credential-types",
  "bytes",
  "chrono",
+ "core-history",
  "core-metastore",
  "core-utils",
  "dashmap",

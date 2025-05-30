@@ -56,7 +56,7 @@ impl UserSession {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
 
-        let catalog_list_impl = Arc::new(EmbucketCatalogList::new(metastore.clone()));
+        let catalog_list_impl = Arc::new(EmbucketCatalogList::new(metastore.clone(), history_store.clone()));
 
         let runtime_config = RuntimeEnvBuilder::new()
             .with_object_store_registry(catalog_list_impl.clone())

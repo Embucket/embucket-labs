@@ -8,12 +8,12 @@ use datafusion_common::DataFusionError;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
-pub struct SlateDBViewConfig {
+pub struct MetastoreViewConfig {
     pub database: String,
     pub metastore: Arc<dyn Metastore>,
 }
 
-impl SlateDBViewConfig {
+impl MetastoreViewConfig {
     pub async fn make_volumes(
         &self,
         builder: &mut VolumesViewBuilder,

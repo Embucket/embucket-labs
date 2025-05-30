@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use crate::WorksheetId;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
@@ -12,6 +13,16 @@ pub enum QueryStatus {
     Running,
     Successful,
     Failed,
+}
+
+impl Display for QueryStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueryStatus::Running => write!(f, "Running"),
+            QueryStatus::Successful => write!(f, "Successful"),
+            QueryStatus::Failed => write!(f, "Failed"),
+        }
+    }   
 }
 
 pub type QueryRecordId = i64;

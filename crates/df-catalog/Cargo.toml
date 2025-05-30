@@ -7,6 +7,7 @@ license-file.workspace = true
 [dependencies]
 core-utils = { path = "../core-utils" }
 core-metastore = { path = "../core-metastore" }
+core-history = { path = "../core-history" }
 async-trait = { workspace = true }
 aws-config = { workspace = true }
 aws-credential-types = { workspace = true }

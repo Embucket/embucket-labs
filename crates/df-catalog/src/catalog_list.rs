@@ -27,21 +27,24 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
 use url::Url;
+use core_history::HistoryStore;
 
 pub const DEFAULT_CATALOG: &str = "embucket";
 
 pub struct EmbucketCatalogList {
     pub metastore: Arc<dyn Metastore>,
+    pub history_store: Arc<dyn HistoryStore>,
     pub table_object_store: Arc<DashMap<String, Arc<dyn ObjectStore>>>,
     pub catalogs: DashMap<String, Arc<CachingCatalog>>,
 }
 
 impl EmbucketCatalogList {
-    pub fn new(metastore: Arc<dyn Metastore>) -> Self {
+    pub fn new(metastore: Arc<dyn Metastore>, history_store: Arc<dyn HistoryStore>) -> Self {
         let table_object_store: DashMap<String, Arc<dyn ObjectStore>> = DashMap::new();
         table_object_store.insert("file://".to_string(), Arc::new(LocalFileSystem::new()));
         Self {
             metastore,
+            history_store,
             table_object_store: Arc::new(table_object_store),
             catalogs: DashMap::default(),
         }
@@ -99,7 +102,7 @@ impl EmbucketCatalogList {
     #[must_use]
     pub fn slatedb_catalog(&self) -> CachingCatalog {
         let catalog: Arc<dyn CatalogProvider> =
-            Arc::new(SlateDBCatalog::new(self.metastore.clone()));
+            Arc::new(SlateDBCatalog::new(self.metastore.clone(), self.history_store.clone()));
         CachingCatalog::new(catalog, SLATEDB_CATALOG.to_string())
     }
 
