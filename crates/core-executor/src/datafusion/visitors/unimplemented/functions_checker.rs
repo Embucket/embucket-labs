@@ -8,11 +8,18 @@ use super::functions_list::get_snowflake_functions;
 #[derive(Debug, Clone)]
 pub struct UnimplementedFunctionError {
     pub function_name: String,
+    pub details: Option<String>,
 }
 
 impl std::fmt::Display for UnimplementedFunctionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Function '{}' is not implemented yet", self.function_name)
+        if let Some(details) = &self.details {
+            if !details.is_empty() {
+                return write!(f, "Function '{}' is not implemented yet. Details: {}", self.function_name, details);
+            }
+        } 
+
+        return write!(f, "Function '{}' is not implemented yet", self.function_name);
     }
 }
 
@@ -31,6 +38,7 @@ impl VisitorMut for UnimplementedFunctionsChecker {
             if snowflake_functions.is_unimplemented(&func_name) {
                 return ControlFlow::Break(UnimplementedFunctionError {
                     function_name: func_name.to_lowercase(),
+                    details: Some(snowflake_functions.get_function_info(&func_name).unwrap().description.clone()),
                 });
             }
         }
@@ -114,5 +122,29 @@ mod tests {
                 assert_eq!(e.function_name, expected_function);
             }
         }
+    }
+    
+    #[test]
+    fn test_error_message_formatting() {
+        // Test error message without details
+        let error_without_details = UnimplementedFunctionError {
+            function_name: "test_func".to_string(),
+            details: None,
+        };
+        assert_eq!(error_without_details.to_string(), "Function 'test_func' is not implemented yet");
+        
+        // Test error message with empty details
+        let error_with_empty_details = UnimplementedFunctionError {
+            function_name: "test_func".to_string(),
+            details: Some("".to_string()),
+        };
+        assert_eq!(error_with_empty_details.to_string(), "Function 'test_func' is not implemented yet");
+        
+        // Test error message with actual details
+        let error_with_details = UnimplementedFunctionError {
+            function_name: "test_func".to_string(),
+            details: Some("This function requires special handling".to_string()),
+        };
+        assert_eq!(error_with_details.to_string(), "Function 'test_func' is not implemented yet. Details: This function requires special handling");
     }
 } 
