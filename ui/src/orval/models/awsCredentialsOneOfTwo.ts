@@ -6,6 +6,6 @@
  * OpenAPI spec version: 1.0.2
  */
 
-export type VolumePayloadAllOf = {
-  name: string;
+export type AwsCredentialsOneOfTwo = {
+  token: string;
 };

@@ -6,7 +6,6 @@
  * OpenAPI spec version: 1.0.2
  */
 
-export interface DatabasePayload {
+export type VolumeCreatePayloadAllOf = {
   name: string;
-  volume: string;
-}
+};

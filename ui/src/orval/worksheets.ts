@@ -31,9 +31,8 @@ import type {
   ErrorResponse,
   GetWorksheetsParams,
   I64,
+  Worksheet,
   WorksheetCreatePayload,
-  WorksheetCreateResponse,
-  WorksheetResponse,
   WorksheetsResponse,
   WorksheetUpdatePayload,
 } from './models';
@@ -271,7 +270,7 @@ export const createWorksheet = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<WorksheetCreateResponse>(
+  return useAxiosMutator<Worksheet>(
     {
       url: `/ui/worksheets`,
       method: 'POST',
@@ -351,7 +350,7 @@ export const getWorksheet = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<WorksheetResponse>(
+  return useAxiosMutator<Worksheet>(
     { url: `/ui/worksheets/${worksheetId}`, method: 'GET', signal },
     options,
   );

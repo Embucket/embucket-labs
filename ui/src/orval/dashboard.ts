@@ -24,7 +24,7 @@ import type {
 
 import { useAxiosMutator } from '../lib/axiosMutator';
 import type { ErrorType } from '../lib/axiosMutator';
-import type { DashboardResponse, ErrorResponse } from './models';
+import type { Dashboard, ErrorResponse } from './models';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
@@ -32,10 +32,7 @@ export const getDashboard = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<DashboardResponse>(
-    { url: `/ui/dashboard`, method: 'GET', signal },
-    options,
-  );
+  return useAxiosMutator<Dashboard>({ url: `/ui/dashboard`, method: 'GET', signal }, options);
 };
 
 export const getGetDashboardQueryKey = () => {

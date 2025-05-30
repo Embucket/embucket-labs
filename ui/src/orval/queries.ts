@@ -32,7 +32,7 @@ import type {
   GetQueriesParams,
   QueriesResponse,
   QueryCreatePayload,
-  QueryCreateResponse,
+  QueryRecord,
 } from './models';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -258,7 +258,7 @@ export const createQuery = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<QueryCreateResponse>(
+  return useAxiosMutator<QueryRecord>(
     {
       url: `/ui/queries`,
       method: 'POST',

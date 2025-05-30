@@ -6,6 +6,6 @@
  * OpenAPI spec version: 1.0.2
  */
 import type { AwsCredentialsOneOf } from './awsCredentialsOneOf';
-import type { AwsCredentialsOneOfFour } from './awsCredentialsOneOfFour';
+import type { AwsCredentialsOneOfTwo } from './awsCredentialsOneOfTwo';
 
-export type AwsCredentials = AwsCredentialsOneOf | AwsCredentialsOneOfFour;
+export type AwsCredentials = AwsCredentialsOneOf | AwsCredentialsOneOfTwo;

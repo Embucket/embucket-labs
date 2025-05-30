@@ -30,8 +30,8 @@ import type { ErrorType } from '../lib/axiosMutator';
 import type {
   ErrorResponse,
   GetSchemasParams,
+  Schema,
   SchemaCreatePayload,
-  SchemaCreateResponse,
   SchemasResponse,
 } from './models';
 
@@ -270,7 +270,7 @@ export const createSchema = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<SchemaCreateResponse>(
+  return useAxiosMutator<Schema>(
     {
       url: `/ui/databases/${databaseName}/schemas`,
       method: 'POST',

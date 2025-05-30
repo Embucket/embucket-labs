@@ -5,6 +5,7 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
-import type { VolumePayload } from './volumePayload';
+import type { VolumeCreatePayloadAllOf } from './volumeCreatePayloadAllOf';
+import type { VolumeType } from './volumeType';
 
-export type VolumeCreatePayload = VolumePayload;
+export type VolumeCreatePayload = VolumeType & VolumeCreatePayloadAllOf;

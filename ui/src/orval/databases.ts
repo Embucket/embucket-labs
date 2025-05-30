@@ -28,9 +28,8 @@ import type {
 import { useAxiosMutator } from '../lib/axiosMutator';
 import type { ErrorType } from '../lib/axiosMutator';
 import type {
+  Database,
   DatabaseCreatePayload,
-  DatabaseCreateResponse,
-  DatabaseResponse,
   DatabasesResponse,
   ErrorResponse,
   GetDatabasesParams,
@@ -267,7 +266,7 @@ export const createDatabase = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<DatabaseCreateResponse>(
+  return useAxiosMutator<Database>(
     {
       url: `/ui/databases`,
       method: 'POST',
@@ -345,7 +344,7 @@ export const getDatabase = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<DatabaseResponse>(
+  return useAxiosMutator<Database>(
     { url: `/ui/databases/${databaseName}`, method: 'GET', signal },
     options,
   );
