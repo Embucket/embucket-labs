@@ -1,4 +1,5 @@
 pub mod query;
+pub mod result_set;
 pub mod worksheet;
 pub mod worksheet_query_ref;
 

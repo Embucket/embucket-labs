@@ -1815,6 +1815,7 @@ dependencies = [
  "slatedb",
  "snafu",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

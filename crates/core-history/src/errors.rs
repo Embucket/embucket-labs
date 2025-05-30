@@ -50,4 +50,7 @@ pub enum HistoryStoreError {
 
     #[snafu(display("Deserialize error: {source}"))]
     DeserializeValue { source: serde_json::Error },
+
+    #[snafu(display("Query execution error: {message}"))]
+    ExecutionResult { message: String },
 }

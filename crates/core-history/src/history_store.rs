@@ -1,4 +1,5 @@
 use crate::errors::{self as errors, HistoryStoreError};
+use crate::result_set::ResultSet;
 use crate::{
     QueryRecord, QueryRecordId, QueryRecordReference, SlateDBHistoryStore, Worksheet, WorksheetId,
 };
@@ -75,6 +76,12 @@ pub trait HistoryStore: std::fmt::Debug + Send + Sync {
     async fn add_query(&self, item: &QueryRecord) -> HistoryStoreResult<()>;
     async fn get_query(&self, id: QueryRecordId) -> HistoryStoreResult<QueryRecord>;
     async fn get_queries(&self, params: GetQueriesParams) -> HistoryStoreResult<Vec<QueryRecord>>;
+    fn query_record(&self, query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
+    async fn save_query_record(
+        &self,
+        query_record: &mut QueryRecord,
+        result: HistoryStoreResult<ResultSet>,
+    );
 }
 
 async fn queries_iterator(
@@ -250,15 +257,38 @@ impl HistoryStore for SlateDBHistoryStore {
                 .context(errors::QueryGetSnafu)?)
         }
     }
+
+    fn query_record(&self, query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord {
+        QueryRecord::new(query, worksheet_id)
+    }
+
+    async fn save_query_record(
+        &self,
+        query_record: &mut QueryRecord,
+        result: HistoryStoreResult<ResultSet>,
+    ) {
+        match result {
+            Ok(result_set) => match serde_json::to_string(&result_set) {
+                Ok(encoded_res) => {
+                    let result_count = i64::try_from(result_set.rows.len()).unwrap_or(0);
+                    query_record.finished(result_count, Some(encoded_res));
+                }
+                Err(err) => query_record.finished_with_error(err.to_string()),
+            },
+            Err(err) => query_record.finished_with_error(err.to_string()),
+        }
+
+        if let Err(err) = self.add_query(query_record).await {
+            tracing::error!("Failed to record query history: {err}");
+        }
+    }
 }
 
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::entities::query::{
-        ExecutionQueryRecord, MockExecutionQueryRecord, QueryRecord, QueryStatus,
-    };
+    use crate::entities::query::{QueryRecord, QueryStatus};
     use crate::entities::worksheet::Worksheet;
     use chrono::{Duration, TimeZone, Utc};
     use core_utils::iterable::{IterableCursor, IterableEntity};
@@ -267,44 +297,29 @@ mod tests {
     fn create_query_records(templates: &[(Option<i64>, QueryStatus)]) -> Vec<QueryRecord> {
         let mut created: Vec<QueryRecord> = vec![];
         for (i, (worksheet_id, query_status)) in templates.iter().enumerate() {
-            let ctx = MockExecutionQueryRecord::query_start_context();
-            ctx.expect().returning(move |query, worksheet_id| {
+            let query_record_fn = |query: &str, worksheet_id: Option<WorksheetId>| -> QueryRecord {
                 let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
                     + Duration::milliseconds(
                         i.try_into().expect("Failed convert idx to milliseconds"),
                     );
-                QueryRecord {
-                    id: start_time.timestamp_millis(),
-                    worksheet_id,
-                    query: query.to_string(),
-                    start_time,
-                    end_time: start_time,
-                    duration_ms: 0,
-                    result_count: 0,
-                    result: None,
-                    status: QueryStatus::Running,
-                    error: None,
-                }
-            });
+                let mut record = QueryRecord::new(query, worksheet_id);
+                record.id = start_time.timestamp_millis();
+                record.start_time = start_time;
+                record.status = QueryStatus::Running;
+                record
+            };
             let query_record = match query_status {
-                QueryStatus::Running => MockExecutionQueryRecord::query_start(
-                    format!("select {i}").as_str(),
-                    *worksheet_id,
-                ),
+                QueryStatus::Running => {
+                    query_record_fn(format!("select {i}").as_str(), *worksheet_id)
+                }
                 QueryStatus::Successful => {
-                    let mut item = MockExecutionQueryRecord::query_start(
-                        format!("select {i}").as_str(),
-                        *worksheet_id,
-                    );
-                    item.query_finished(1, Some(String::from("pseudo result")));
+                    let mut item = query_record_fn(format!("select {i}").as_str(), *worksheet_id);
+                    item.finished(1, Some(String::from("pseudo result")));
                     item
                 }
                 QueryStatus::Failed => {
-                    let mut item = MockExecutionQueryRecord::query_start(
-                        format!("select {i}").as_str(),
-                        *worksheet_id,
-                    );
-                    item.query_finished_with_error(String::from("Test query pseudo error"));
+                    let mut item = query_record_fn(format!("select {i}").as_str(), *worksheet_id);
+                    item.finished_with_error(String::from("Test query pseudo error"));
                     item
                 }
             };

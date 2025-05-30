@@ -2,8 +2,6 @@ use crate::WorksheetId;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use core_utils::iterable::IterableEntity;
-#[cfg(test)]
-use mockall::automock;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -32,18 +30,45 @@ pub struct QueryRecord {
     pub error: Option<String>,
 }
 
-#[cfg_attr(test, automock)]
-pub trait ExecutionQueryRecord {
-    fn query_id(&self) -> QueryRecordId;
-
-    fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
-
-    fn query_finished(&mut self, result_count: i64, result: Option<String>);
-
-    fn query_finished_with_error(&mut self, error: String);
-}
-
 impl QueryRecord {
+    #[must_use]
+    pub fn new(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
+        let start_time = Utc::now();
+        Self {
+            id: Self::inverted_id(start_time.timestamp_millis()),
+            worksheet_id,
+            query: String::from(query),
+            start_time,
+            end_time: start_time,
+            duration_ms: 0,
+            result_count: 0,
+            result: None,
+            status: QueryStatus::Successful,
+            error: None,
+        }
+    }
+
+    #[must_use]
+    pub const fn query_id(&self) -> QueryRecordId {
+        self.id
+    }
+
+    pub fn finished(&mut self, result_count: i64, result: Option<String>) {
+        self.result_count = result_count;
+        self.result = result;
+        self.end_time = Utc::now();
+        self.duration_ms = self
+            .end_time
+            .signed_duration_since(self.start_time)
+            .num_milliseconds();
+    }
+
+    pub fn finished_with_error(&mut self, error: String) {
+        self.finished(0, None);
+        self.status = QueryStatus::Failed;
+        self.error = Some(error);
+    }
+
     // Returns a key with inverted id for descending order
     #[must_use]
     pub fn get_key(id: QueryRecordId) -> Bytes {
@@ -73,44 +98,6 @@ impl QueryRecord {
             '9' => '0',
             _ => digit, // Return the digit unchanged if it's not a number (just in case)
         }
-    }
-}
-
-impl ExecutionQueryRecord for QueryRecord {
-    fn query_id(&self) -> QueryRecordId {
-        self.id
-    }
-
-    fn query_start(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
-        let start_time = Utc::now();
-        Self {
-            id: Self::inverted_id(start_time.timestamp_millis()),
-            worksheet_id,
-            query: String::from(query),
-            start_time,
-            end_time: start_time,
-            duration_ms: 0,
-            result_count: 0,
-            result: None,
-            status: QueryStatus::Successful,
-            error: None,
-        }
-    }
-
-    fn query_finished(&mut self, result_count: i64, result: Option<String>) {
-        self.result_count = result_count;
-        self.result = result;
-        self.end_time = Utc::now();
-        self.duration_ms = self
-            .end_time
-            .signed_duration_since(self.start_time)
-            .num_milliseconds();
-    }
-
-    fn query_finished_with_error(&mut self, error: String) {
-        self.query_finished(0, None);
-        self.status = QueryStatus::Failed;
-        self.error = Some(error);
     }
 }
 

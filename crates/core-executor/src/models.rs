@@ -2,7 +2,6 @@ use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, TimeUnit};
 use datafusion_common::arrow::datatypes::Schema;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -187,28 +186,6 @@ impl ColumnInfo {
         }
         column_info
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Column {
-    pub name: String,
-    pub r#type: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Row(Vec<Value>);
-
-impl Row {
-    #[must_use]
-    pub const fn new(values: Vec<Value>) -> Self {
-        Self(values)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ResultSet {
-    pub columns: Vec<Column>,
-    pub rows: Vec<Row>,
 }
 
 #[cfg(test)]
