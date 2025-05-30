@@ -2,7 +2,7 @@ use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::CachingCatalog;
 use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
-use crate::error::{DataFusionSnafu, Error, MetastoreSnafu, Result};
+use crate::error::{CoreSnafu, DataFusionSnafu, Error, MetastoreSnafu, Result, S3TablesSnafu};
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
@@ -80,7 +80,7 @@ impl EmbucketCatalogList {
             .iter_databases()
             .collect()
             .await
-            .map_err(|e| Error::Core { source: e })?
+            .context(CoreSnafu)?
             .into_iter()
             .map(|db| {
                 let iceberg_catalog =
@@ -109,7 +109,7 @@ impl EmbucketCatalogList {
             .iter_volumes()
             .collect()
             .await
-            .map_err(|e| Error::Core { source: e })?
+            .context(CoreSnafu)?
             .into_iter()
             .filter_map(|v| match v.volume.clone() {
                 MetastoreVolumeType::S3Tables(s3) => Some(s3),
@@ -143,9 +143,7 @@ impl EmbucketCatalogList {
                 volume.arn.as_str(),
                 ObjectStoreBuilder::S3(volume.s3_builder()),
             )
-            .map_err(|e| Error::S3Tables {
-                source: Box::new(e),
-            })?;
+            .context(S3TablesSnafu)?;
 
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await

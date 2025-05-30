@@ -1,4 +1,4 @@
-use crate::error::{IcebergAPIError, IcebergAPIResult};
+use crate::error::{self as error, IcebergAPIError, IcebergAPIResult};
 use crate::schemas::{
     CommitTable, GetConfigQuery, from_get_schema, from_schema, from_schemas_list, from_tables_list,
     to_create_table, to_schema, to_table_commit,
@@ -31,7 +31,8 @@ pub async fn create_namespace(
     let schema = state
         .metastore
         .create_schema(&ib_schema.ident.clone(), ib_schema)
-        .await?;
+        .await
+        .context(error::CreateNamespaceSnafu)?;
     Ok(Json(from_schema(schema.data)))
 }
 
@@ -48,13 +49,7 @@ pub async fn get_namespace(
         .metastore
         .get_schema(&schema_ident)
         .await
-        .map_err(IcebergAPIError::from)?
-        .ok_or_else(|| {
-            IcebergAPIError::from(MetastoreError::SchemaNotFound {
-                db: database_name.clone(),
-                schema: schema_name.clone(),
-            })
-        })?;
+        .context(error::GetNamespaceSnafu)?;
     Ok(Json(from_get_schema(schema.data)))
 }
 
@@ -68,7 +63,7 @@ pub async fn delete_namespace(
         .metastore
         .delete_schema(&schema_ident, true)
         .await
-        .map_err(IcebergAPIError::from)?;
+        .context(error::DeleteNamespaceSnafu)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -82,7 +77,7 @@ pub async fn list_namespaces(
         .iter_schemas(&database_name)
         .collect()
         .await
-        .map_err(|e| IcebergAPIError::from(MetastoreError::UtilSlateDB { source: e }))?;
+        .context(error::ListNamespacesSnafu)?;
     Ok(Json(from_schemas_list(schemas)))
 }
 
@@ -96,18 +91,17 @@ pub async fn create_table(
     let volume_ident = state
         .metastore
         .volume_for_table(&table_ident.clone())
-        .await?
-        .map(|v| v.data.ident);
-    let ib_create_table = to_create_table(table, table_ident.clone(), volume_ident);
+        .await
+        .map(|v| v.data.ident)
+        .context(error::CreateTableSnafu)?;
+    let ib_create_table = to_create_table(table, table_ident.clone(), Some(volume_ident));
 
-    ib_create_table
-        .validate()
-        .context(metastore_error::ValidationSnafu)?;
+    ib_create_table.validate().context(error::ValidationSnafu)?;
     let table = state
         .metastore
         .create_table(&table_ident, ib_create_table)
         .await
-        .map_err(IcebergAPIError::from)?;
+        .context(error::CreateTableSnafu)?;
     Ok(Json(LoadTableResult::new(table.data.metadata)))
 }
 
@@ -121,23 +115,19 @@ pub async fn register_table(
     let metadata_raw = state
         .metastore
         .volume_for_table(&table_ident)
-        .await?
+        .await
         .map(|v| v.data)
-        .ok_or(MetastoreError::VolumeNotFound {
-            volume: format!(
-                "Volume not found for database {database_name} and schema {schema_name}"
-            ),
-        })?
-        .get_object_store()?
+        .context(error::CreateTableSnafu)?
+        .get_object_store()
+        .context(error::CreateTableSnafu)?
         .get(&object_store::path::Path::from(register.metadata_location))
         .await
-        .context(metastore_error::ObjectStoreSnafu)?;
+        .context(error::ObjectStoreSnafu)?;
     let metadata_bytes = metadata_raw
         .bytes()
         .await
-        .context(metastore_error::ObjectStoreSnafu)?;
-    let table_metadata: TableMetadata =
-        from_slice(&metadata_bytes).context(metastore_error::SerdeSnafu)?;
+        .context(error::ObjectStoreSnafu)?;
+    let table_metadata: TableMetadata = from_slice(&metadata_bytes).context(error::SerdeSnafu)?;
     Ok(Json(LoadTableResult::new(table_metadata)))
 }
 
@@ -153,7 +143,7 @@ pub async fn commit_table(
         .metastore
         .update_table(&table_ident, table_updates)
         .await
-        .map_err(IcebergAPIError::from)?;
+        .context(error::CommitTableSnafu)?;
     Ok(Json(CommitTableResponse::new(
         ib_table.data.metadata_location,
         ib_table.data.metadata,
@@ -170,14 +160,7 @@ pub async fn get_table(
         .metastore
         .get_table(&table_ident)
         .await
-        .map_err(IcebergAPIError::from)?
-        .ok_or_else(|| {
-            IcebergAPIError::from(MetastoreError::TableNotFound {
-                db: database_name.clone(),
-                schema: schema_name.clone(),
-                table: table_name.clone(),
-            })
-        })?;
+        .context(error::GetTableSnafu)?;
     Ok(Json(LoadTableResult::new(table.data.metadata)))
 }
 
@@ -191,7 +174,7 @@ pub async fn delete_table(
         .metastore
         .delete_table(&table_ident, true)
         .await
-        .map_err(IcebergAPIError::from)?;
+        .context(error::DeleteTableSnafu)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -206,7 +189,7 @@ pub async fn list_tables(
         .iter_tables(&schema_ident)
         .collect()
         .await
-        .map_err(|e| IcebergAPIError::from(MetastoreError::UtilSlateDB { source: e }))?;
+        .context(error::ListTablesSnafu)?;
     Ok(Json(from_tables_list(tables)))
 }
 

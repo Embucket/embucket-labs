@@ -3,7 +3,7 @@ use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
 use super::error::{
-    self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu,
+    self as ex_error, CoreUtilsSnafu, ExecutionResult, RefreshCatalogListSnafu,
     RegisterCatalogSnafu,
 };
 use super::query::{QueryContext, UserQuery};
@@ -14,7 +14,6 @@ use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
-use core_metastore::error::MetastoreError;
 use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::CatalogProvider;
@@ -110,9 +109,7 @@ impl UserSession {
             .iter_volumes()
             .collect()
             .await
-            .map_err(|e| ExecutionError::Metastore {
-                source: Box::new(MetastoreError::UtilSlateDB { source: e }),
-            })?
+            .context(CoreUtilsSnafu)?
             .into_iter()
             .filter_map(|volume| {
                 if let MetastoreVolumeType::S3Tables(s3_volume) = volume.volume.clone() {

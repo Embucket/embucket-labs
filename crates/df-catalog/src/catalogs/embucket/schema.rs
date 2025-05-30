@@ -1,6 +1,6 @@
 use crate::catalogs::embucket::block_in_new_runtime;
 use async_trait::async_trait;
-use core_metastore::error::MetastoreError;
+use core_metastore::error::TableObjectStoreNotFoundSnafu;
 use core_metastore::{Metastore, SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::{SchemaProvider, TableProvider};
@@ -60,16 +60,9 @@ impl SchemaProvider for EmbucketSchema {
             .metastore
             .table_object_store(ident)
             .await
-            .map_err(|e| DataFusionError::External(Box::new(e)))?
-            .ok_or_else(|| {
-                DataFusionError::External(Box::new(MetastoreError::TableObjectStoreNotFound {
-                    table: ident.table.clone(),
-                    schema: ident.schema.clone(),
-                    db: ident.database.clone(),
-                }))
-            })?;
+            .map_err(|e| DataFusionError::External(Box::new(e)))?;
         match self.metastore.get_table(ident).await {
-            Ok(Some(table)) => {
+            Ok(table) => {
                 let iceberg_table = IcebergTable::new(
                     ident.to_iceberg_ident(),
                     self.iceberg_catalog.clone(),
@@ -83,7 +76,6 @@ impl SchemaProvider for EmbucketSchema {
                     Arc::new(IcebergDataFusionTable::new(tabular, None, None, None));
                 Ok(Some(table_provider))
             }
-            Ok(None) => Ok(None),
             Err(e) => Err(DataFusionError::External(Box::new(e))),
         }
     }

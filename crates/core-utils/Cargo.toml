@@ -5,6 +5,9 @@ edition = "2021"
 license-file = { workspace = true }
 
 [dependencies]
+common-proc = { path = "../common-proc" }
+common-error = { path = "../common-error" }
+
 async-trait = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }

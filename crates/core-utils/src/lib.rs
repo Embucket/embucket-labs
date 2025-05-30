@@ -4,6 +4,7 @@ pub mod scan_iterator;
 use crate::scan_iterator::{ScanIterator, VecScanIterator};
 use async_trait::async_trait;
 use bytes::Bytes;
+use common_proc::stack_trace_debug;
 use iterable::IterableEntity;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::de;
@@ -11,42 +12,83 @@ use serde_json::ser;
 use slatedb::Db as SlateDb;
 use slatedb::DbIterator;
 use slatedb::SlateDBError;
+use snafu::Location;
 use snafu::prelude::*;
 use std::ops::RangeBounds;
 use std::string::ToString;
 use std::sync::Arc;
 use uuid::Uuid;
 
-#[derive(Snafu, Debug)]
+#[derive(Snafu)]
 #[snafu(visibility(pub))]
+#[stack_trace_debug]
 pub enum Error {
-    #[snafu(display("SlateDB error: {source}"))]
-    Database { source: SlateDBError },
+    #[snafu(display("SlateDB error: {error}"))]
+    Database {
+        #[snafu(source)]
+        error: SlateDBError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("SlateDB error while fetching key {key}: {source}"))]
-    KeyGet { key: String, source: SlateDBError },
+    #[snafu(display("SlateDB error while fetching key {key}: {error}"))]
+    KeyGet {
+        key: String,
+        #[snafu(source)]
+        error: SlateDBError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("SlateDB error while deleting key {key}: {source}"))]
-    KeyDelete { key: String, source: SlateDBError },
+    #[snafu(display("SlateDB error while deleting key {key}: {error}"))]
+    KeyDelete {
+        key: String,
+        #[snafu(source)]
+        error: SlateDBError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("SlateDB error while putting key {key}: {source}"))]
-    KeyPut { key: String, source: SlateDBError },
+    #[snafu(display("SlateDB error while putting key {key}: {error}"))]
+    KeyPut {
+        key: String,
+        #[snafu(source)]
+        error: SlateDBError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Error serializing value: {source}"))]
-    SerializeValue { source: serde_json::Error },
+    #[snafu(display("Error serializing value: {error}"))]
+    SerializeValue {
+        #[snafu(source)]
+        error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Deserialize error: {source}, key: {key:?}, data: {data:?}"))]
+    #[snafu(display("Deserialize error: {error}, key: {key:?}, data: {data:?}"))]
     DeserializeValue {
-        source: serde_json::Error,
+        #[snafu(source)]
+        error: serde_json::Error,
         key: Bytes,
         data: Bytes,
+        #[snafu(implicit)]
+        location: Location,
     },
 
     #[snafu(display("Key Not found"))]
-    KeyNotFound,
+    KeyNotFound {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Scan Failed: {source}"))]
-    ScanFailed { source: SlateDBError },
+    #[snafu(display("Scan Failed: {error}"))]
+    ScanFailed {
+        #[snafu(source)]
+        error: SlateDBError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -281,7 +323,7 @@ pub trait Repository {
     async fn _get(&self, id: Uuid) -> Result<Self::Entity> {
         let key = format!("{}/{}", Self::prefix(), id);
         let entity = self.db().get(&key).await?;
-        let entity = entity.ok_or(Error::KeyNotFound)?;
+        let entity = entity.ok_or_else(|| KeyNotFoundSnafu.build())?;
         Ok(entity)
     }
 

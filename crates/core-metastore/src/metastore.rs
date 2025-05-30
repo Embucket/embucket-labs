@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 #[allow(clippy::wildcard_imports)]
 use crate::models::*;
 use crate::{
-    error::{self as metastore_error, MetastoreError, MetastoreResult},
+    error::{self as metastore_error, MetastoreResult},
     models::{
         RwObject,
         database::{Database, DatabaseIdent},
@@ -44,7 +44,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
         name: &VolumeIdent,
         volume: Volume,
     ) -> MetastoreResult<RwObject<Volume>>;
-    async fn get_volume(&self, name: &VolumeIdent) -> MetastoreResult<Option<RwObject<Volume>>>;
+    async fn get_volume(&self, name: &VolumeIdent) -> MetastoreResult<RwObject<Volume>>;
     async fn update_volume(
         &self,
         name: &VolumeIdent,
@@ -54,7 +54,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn volume_object_store(
         &self,
         name: &VolumeIdent,
-    ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>>;
+    ) -> MetastoreResult<Arc<dyn ObjectStore>>;
 
     fn iter_databases(&self) -> VecScanIterator<RwObject<Database>>;
     async fn create_database(
@@ -62,10 +62,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
         name: &DatabaseIdent,
         database: Database,
     ) -> MetastoreResult<RwObject<Database>>;
-    async fn get_database(
-        &self,
-        name: &DatabaseIdent,
-    ) -> MetastoreResult<Option<RwObject<Database>>>;
+    async fn get_database(&self, name: &DatabaseIdent) -> MetastoreResult<RwObject<Database>>;
     async fn update_database(
         &self,
         name: &DatabaseIdent,
@@ -79,7 +76,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
         ident: &SchemaIdent,
         schema: Schema,
     ) -> MetastoreResult<RwObject<Schema>>;
-    async fn get_schema(&self, ident: &SchemaIdent) -> MetastoreResult<Option<RwObject<Schema>>>;
+    async fn get_schema(&self, ident: &SchemaIdent) -> MetastoreResult<RwObject<Schema>>;
     async fn update_schema(
         &self,
         ident: &SchemaIdent,
@@ -93,24 +90,18 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
         ident: &TableIdent,
         table: TableCreateRequest,
     ) -> MetastoreResult<RwObject<Table>>;
-    async fn get_table(&self, ident: &TableIdent) -> MetastoreResult<Option<RwObject<Table>>>;
+    async fn get_table(&self, ident: &TableIdent) -> MetastoreResult<RwObject<Table>>;
     async fn update_table(
         &self,
         ident: &TableIdent,
         update: TableUpdate,
     ) -> MetastoreResult<RwObject<Table>>;
     async fn delete_table(&self, ident: &TableIdent, cascade: bool) -> MetastoreResult<()>;
-    async fn table_object_store(
-        &self,
-        ident: &TableIdent,
-    ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>>;
+    async fn table_object_store(&self, ident: &TableIdent)
+    -> MetastoreResult<Arc<dyn ObjectStore>>;
 
-    async fn table_exists(&self, ident: &TableIdent) -> MetastoreResult<bool>;
     async fn url_for_table(&self, ident: &TableIdent) -> MetastoreResult<String>;
-    async fn volume_for_table(
-        &self,
-        ident: &TableIdent,
-    ) -> MetastoreResult<Option<RwObject<Volume>>>;
+    async fn volume_for_table(&self, ident: &TableIdent) -> MetastoreResult<RwObject<Volume>>;
 }
 
 ///
@@ -179,24 +170,21 @@ impl SlateDBMetastore {
             .db
             .get::<RwObject<T>>(key)
             .await
-            .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(Box::new)?
+            .context(metastore_error::UtilSlateDBSnafu)?
             .is_none()
         {
             let rwobject = RwObject::new(object);
             self.db
                 .put(key, &rwobject)
                 .await
-                .context(metastore_error::UtilSlateDBSnafu)
-                .map_err(Box::new)?;
+                .context(metastore_error::UtilSlateDBSnafu)?;
             Ok(rwobject)
         } else {
-            Err(Box::new(
-                metastore_error::MetastoreError::ObjectAlreadyExists {
-                    type_name: object_type.to_string(),
-                    name: key.to_string(),
-                },
-            ))
+            metastore_error::ObjectAlreadyExistsSnafu {
+                type_name: object_type.to_string(),
+                name: key.to_string(),
+            }
+            .fail()?
         }
     }
 
@@ -208,18 +196,16 @@ impl SlateDBMetastore {
             .db
             .get::<RwObject<T>>(key)
             .await
-            .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(Box::new)?
+            .context(metastore_error::UtilSlateDBSnafu)?
         {
             rwo.update(object);
             self.db
                 .put(key, &rwo)
                 .await
-                .context(metastore_error::UtilSlateDBSnafu)
-                .map_err(Box::new)?;
+                .context(metastore_error::UtilSlateDBSnafu)?;
             Ok(rwo)
         } else {
-            Err(Box::new(metastore_error::MetastoreError::ObjectNotFound))
+            metastore_error::ObjectNotFoundSnafu.fail()?
         }
     }
 
@@ -263,30 +249,23 @@ impl Metastore for SlateDBMetastore {
         let object_store = volume.get_object_store()?;
         let rwobject = self
             .create_object(&key, MetastoreObjectType::Volume, volume)
-            .await
-            .map_err(|e| {
-                if matches!(
-                    *e,
-                    metastore_error::MetastoreError::ObjectAlreadyExists { .. }
-                ) {
-                    Box::new(metastore_error::MetastoreError::VolumeAlreadyExists {
-                        volume: name.clone(),
-                    })
-                } else {
-                    e
-                }
-            })?;
+            .await?;
         self.object_store_cache.insert(name.clone(), object_store);
         Ok(rwobject)
     }
 
-    async fn get_volume(&self, name: &VolumeIdent) -> MetastoreResult<Option<RwObject<Volume>>> {
+    async fn get_volume(&self, name: &VolumeIdent) -> MetastoreResult<RwObject<Volume>> {
         let key = format!("{KEY_VOLUME}/{name}");
         self.db
             .get(&key)
             .await
-            .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(Box::new)
+            .context(metastore_error::UtilSlateDBSnafu)?
+            .ok_or_else(|| {
+                metastore_error::VolumeNotFoundSnafu {
+                    volume: name.clone(),
+                }
+                .build()
+            })
     }
 
     async fn update_volume(
@@ -308,7 +287,7 @@ impl Metastore for SlateDBMetastore {
             .iter_databases()
             .collect()
             .await
-            .map_err(|e| MetastoreError::UtilSlateDB { source: e })?
+            .context(metastore_error::UtilSlateDBSnafu)?
             .into_iter()
             .filter(|db| db.volume == *name)
             .map(|db| db.ident.clone())
@@ -325,28 +304,25 @@ impl Metastore for SlateDBMetastore {
             self.object_store_cache.remove(name);
             Ok(())
         } else {
-            Err(Box::new(metastore_error::MetastoreError::VolumeInUse {
+            metastore_error::VolumeInUseSnafu {
                 database: databases_using[..].join(", "),
-            }))
+            }
+            .fail()
         }
     }
 
     async fn volume_object_store(
         &self,
         name: &VolumeIdent,
-    ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>> {
+    ) -> MetastoreResult<Arc<dyn ObjectStore>> {
         if let Some(store) = self.object_store_cache.get(name) {
-            Ok(Some(store.clone()))
+            Ok(store.clone())
         } else {
-            let volume = self.get_volume(name).await?.ok_or(
-                metastore_error::MetastoreError::VolumeNotFound {
-                    volume: name.clone(),
-                },
-            )?;
+            let volume = self.get_volume(name).await?;
             let object_store = volume.get_object_store()?;
             self.object_store_cache
                 .insert(name.clone(), object_store.clone());
-            Ok(Some(object_store))
+            Ok(object_store)
         }
     }
 
@@ -359,26 +335,19 @@ impl Metastore for SlateDBMetastore {
         name: &DatabaseIdent,
         database: Database,
     ) -> MetastoreResult<RwObject<Database>> {
-        self.get_volume(&database.volume).await?.ok_or(
-            metastore_error::MetastoreError::VolumeNotFound {
-                volume: database.volume.clone(),
-            },
-        )?;
+        self.get_volume(&database.volume).await?;
         let key = format!("{KEY_DATABASE}/{name}");
         self.create_object(&key, MetastoreObjectType::Database, database)
             .await
     }
 
-    async fn get_database(
-        &self,
-        name: &DatabaseIdent,
-    ) -> MetastoreResult<Option<RwObject<Database>>> {
+    async fn get_database(&self, name: &DatabaseIdent) -> MetastoreResult<RwObject<Database>> {
         let key = format!("{KEY_DATABASE}/{name}");
         self.db
             .get(&key)
             .await
-            .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(Box::new)
+            .context(metastore_error::UtilSlateDBSnafu)?
+            .ok_or_else(|| metastore_error::DatabaseNotFoundSnafu { db: name.clone() }.build())
     }
 
     async fn update_database(
@@ -395,7 +364,7 @@ impl Metastore for SlateDBMetastore {
             .iter_schemas(name)
             .collect()
             .await
-            .map_err(|e| MetastoreError::UtilSlateDB { source: e })?;
+            .context(metastore_error::UtilSlateDBSnafu)?;
         if cascade {
             let futures = schemas
                 .iter()
@@ -423,25 +392,24 @@ impl Metastore for SlateDBMetastore {
         schema: Schema,
     ) -> MetastoreResult<RwObject<Schema>> {
         let key = format!("{KEY_SCHEMA}/{}/{}", ident.database, ident.schema);
-        if self.get_database(&ident.database).await?.is_some() {
-            self.create_object(&key, MetastoreObjectType::Schema, schema)
-                .await
-        } else {
-            Err(Box::new(
-                metastore_error::MetastoreError::DatabaseNotFound {
-                    db: ident.database.clone(),
-                },
-            ))
-        }
+        self.get_database(&ident.database).await?;
+        self.create_object(&key, MetastoreObjectType::Schema, schema)
+            .await
     }
 
-    async fn get_schema(&self, ident: &SchemaIdent) -> MetastoreResult<Option<RwObject<Schema>>> {
+    async fn get_schema(&self, ident: &SchemaIdent) -> MetastoreResult<RwObject<Schema>> {
         let key = format!("{KEY_SCHEMA}/{}/{}", ident.database, ident.schema);
         self.db
             .get(&key)
             .await
-            .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(Box::new)
+            .context(metastore_error::UtilSlateDBSnafu)?
+            .ok_or_else(|| {
+                metastore_error::SchemaNotFoundSnafu {
+                    db: ident.database.clone(),
+                    schema: ident.schema.clone(),
+                }
+                .build()
+            })
     }
 
     async fn update_schema(
@@ -458,7 +426,7 @@ impl Metastore for SlateDBMetastore {
             .iter_tables(ident)
             .collect()
             .await
-            .map_err(|e| MetastoreError::UtilSlateDB { source: e })?;
+            .context(metastore_error::UtilSlateDBSnafu)?;
         if cascade {
             let futures = tables
                 .iter()
@@ -486,126 +454,105 @@ impl Metastore for SlateDBMetastore {
         ident: &TableIdent,
         mut table: TableCreateRequest,
     ) -> MetastoreResult<RwObject<Table>> {
-        if let Some(_schema) = self.get_schema(&ident.clone().into()).await? {
-            let key = format!(
-                "{KEY_TABLE}/{}/{}/{}",
-                ident.database, ident.schema, ident.table
+        let _ = self.get_schema(&ident.clone().into()).await?;
+        let key = format!(
+            "{KEY_TABLE}/{}/{}/{}",
+            ident.database, ident.schema, ident.table
+        );
+
+        // This is duplicating the behavior of url_for_table,
+        // but since the table won't exist yet we have to create it here
+        let table_location = if table.is_temporary.unwrap_or_default() {
+            let volume_ident: String = table.volume_ident.as_ref().map_or_else(
+                || Uuid::new_v4().to_string(),
+                std::string::ToString::to_string,
             );
-
-            // This is duplicating the behavior of url_for_table,
-            // but since the table won't exist yet we have to create it here
-            let table_location = if table.is_temporary.unwrap_or_default() {
-                let volume_ident: String = table.volume_ident.as_ref().map_or_else(
-                    || Uuid::new_v4().to_string(),
-                    std::string::ToString::to_string,
-                );
-                let volume = Volume {
-                    ident: volume_ident.clone(),
-                    volume: VolumeType::Memory,
-                };
-                let volume = self.create_volume(&volume_ident, volume).await?;
-                if table.volume_ident.is_none() {
-                    table.volume_ident = Some(volume_ident);
-                }
-
-                table.location.as_ref().map_or_else(
-                    || volume.prefix(),
-                    |volume_location| format!("{}/{volume_location}", volume.prefix()),
-                )
-            } else {
-                let database = self.get_database(&ident.database).await?.ok_or(
-                    metastore_error::MetastoreError::DatabaseNotFound {
-                        db: ident.database.clone(),
-                    },
-                )?;
-                let volume = self.get_volume(&database.volume).await?.ok_or(
-                    metastore_error::MetastoreError::VolumeNotFound {
-                        volume: database.volume.clone(),
-                    },
-                )?;
-
-                let prefix = volume.prefix();
-                format!(
-                    "{prefix}/{}/{}/{}",
-                    ident.database, ident.schema, ident.table
-                )
+            let volume = Volume {
+                ident: volume_ident.clone(),
+                volume: VolumeType::Memory,
             };
-
-            let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
-
-            let mut table_metadata = TableMetadataBuilder::default();
-
-            table_metadata
-                .current_schema_id(*table.schema.schema_id())
-                .with_schema((0, table.schema))
-                .format_version(FormatVersion::V2);
-
-            if let Some(properties) = table.properties.as_ref() {
-                table_metadata.properties(properties.clone());
+            let volume = self.create_volume(&volume_ident, volume).await?;
+            if table.volume_ident.is_none() {
+                table.volume_ident = Some(volume_ident);
             }
 
-            if let Some(partitioning) = table.partition_spec {
-                table_metadata.with_partition_spec((0, partitioning));
-            }
-
-            if let Some(sort_order) = table.sort_order {
-                table_metadata.with_sort_order((0, sort_order));
-            }
-
-            if let Some(location) = &table.location {
-                table_metadata.location(location.clone());
-            } else {
-                table_metadata.location(table_location.clone());
-            }
-
-            let table_format = table.format.unwrap_or(TableFormat::Iceberg);
-
-            let table_metadata = table_metadata
-                .build()
-                .context(metastore_error::TableMetadataBuilderSnafu)?;
-
-            let mut table_properties = table.properties.unwrap_or_default().clone();
-            Self::update_properties_timestamps(&mut table_properties);
-
-            let table = Table {
-                ident: ident.clone(),
-                metadata: table_metadata.clone(),
-                metadata_location: format!("{table_location}/{metadata_part}"),
-                properties: table_properties,
-                volume_ident: table.volume_ident,
-                volume_location: table.location,
-                is_temporary: table.is_temporary.unwrap_or_default(),
-                format: table_format,
-            };
-            let rwo_table = self
-                .create_object(&key, MetastoreObjectType::Table, table.clone())
-                .await?;
-
-            let object_store = self.table_object_store(ident).await?.ok_or(
-                metastore_error::MetastoreError::TableObjectStoreNotFound {
-                    table: ident.table.clone(),
-                    schema: ident.schema.clone(),
-                    db: ident.database.clone(),
-                },
-            )?;
-            let data = Bytes::from(
-                serde_json::to_vec(&table_metadata).context(metastore_error::SerdeSnafu)?,
-            );
-
-            let url = url::Url::parse(&table.metadata_location)
-                .context(metastore_error::UrlParseSnafu)?;
-            let path = Path::from(url.path());
-            object_store
-                .put(&path, PutPayload::from(data))
-                .await
-                .context(metastore_error::ObjectStoreSnafu)?;
-            Ok(rwo_table)
+            table.location.as_ref().map_or_else(
+                || volume.prefix(),
+                |volume_location| format!("{}/{volume_location}", volume.prefix()),
+            )
         } else {
-            Err(Box::new(metastore_error::MetastoreError::SchemaNotFound {
-                schema: ident.schema.clone(),
-                db: ident.database.clone(),
-            }))
+            let database = self.get_database(&ident.database).await?;
+            let volume = self.get_volume(&database.volume).await?;
+
+            let prefix = volume.prefix();
+            format!(
+                "{prefix}/{}/{}/{}",
+                ident.database, ident.schema, ident.table
+            )
+        };
+
+        let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
+
+        let mut table_metadata = TableMetadataBuilder::default();
+
+        table_metadata
+            .current_schema_id(*table.schema.schema_id())
+            .with_schema((0, table.schema))
+            .format_version(FormatVersion::V2);
+
+        if let Some(properties) = table.properties.as_ref() {
+            table_metadata.properties(properties.clone());
         }
+
+        if let Some(partitioning) = table.partition_spec {
+            table_metadata.with_partition_spec((0, partitioning));
+        }
+
+        if let Some(sort_order) = table.sort_order {
+            table_metadata.with_sort_order((0, sort_order));
+        }
+
+        if let Some(location) = &table.location {
+            table_metadata.location(location.clone());
+        } else {
+            table_metadata.location(table_location.clone());
+        }
+
+        let table_format = table.format.unwrap_or(TableFormat::Iceberg);
+
+        let table_metadata = table_metadata
+            .build()
+            .context(metastore_error::TableMetadataBuilderSnafu)?;
+
+        let mut table_properties = table.properties.unwrap_or_default().clone();
+        Self::update_properties_timestamps(&mut table_properties);
+
+        let table = Table {
+            ident: ident.clone(),
+            metadata: table_metadata.clone(),
+            metadata_location: format!("{table_location}/{metadata_part}"),
+            properties: table_properties,
+            volume_ident: table.volume_ident,
+            volume_location: table.location,
+            is_temporary: table.is_temporary.unwrap_or_default(),
+            format: table_format,
+        };
+        let rwo_table = self
+            .create_object(&key, MetastoreObjectType::Table, table.clone())
+            .await?;
+
+        let object_store = self.table_object_store(ident).await?;
+        let data =
+            Bytes::from(serde_json::to_vec(&table_metadata).context(metastore_error::SerdeSnafu)?);
+
+        let url =
+            url::Url::parse(&table.metadata_location).context(metastore_error::UrlParseSnafu)?;
+        let path = Path::from(url.path());
+        object_store
+            .put(&path, PutPayload::from(data))
+            .await
+            .context(metastore_error::ObjectStoreSnafu)?;
+        Ok(rwo_table)
     }
 
     async fn update_table(
@@ -613,15 +560,7 @@ impl Metastore for SlateDBMetastore {
         ident: &TableIdent,
         update: TableUpdate,
     ) -> MetastoreResult<RwObject<Table>> {
-        let mut table = self
-            .get_table(ident)
-            .await?
-            .ok_or(metastore_error::MetastoreError::TableNotFound {
-                table: ident.table.clone(),
-                schema: ident.schema.clone(),
-                db: ident.database.clone(),
-            })?
-            .data;
+        let mut table = self.get_table(ident).await?.data;
 
         update
             .requirements
@@ -647,16 +586,8 @@ impl Metastore for SlateDBMetastore {
         );
         let rw_table = self.update_object(&key, table.clone()).await?;
 
-        let db = self.get_database(&ident.database).await?.ok_or(
-            metastore_error::MetastoreError::DatabaseNotFound {
-                db: ident.database.clone(),
-            },
-        )?;
-        let volume = self.get_volume(&db.volume).await?.ok_or(
-            metastore_error::MetastoreError::VolumeNotFound {
-                volume: db.volume.clone(),
-            },
-        )?;
+        let db = self.get_database(&ident.database).await?;
+        let volume = self.get_volume(&db.volume).await?;
 
         let object_store = volume.get_object_store()?;
         let data =
@@ -674,54 +605,41 @@ impl Metastore for SlateDBMetastore {
     }
 
     async fn delete_table(&self, ident: &TableIdent, cascade: bool) -> MetastoreResult<()> {
-        if let Some(table) = self.get_table(ident).await? {
-            if cascade {
-                let object_store = self.table_object_store(ident).await?.ok_or(
-                    metastore_error::MetastoreError::TableObjectStoreNotFound {
-                        table: ident.table.clone(),
-                        schema: ident.schema.clone(),
-                        db: ident.database.clone(),
-                    },
-                )?;
-                let url = url::Url::parse(&self.url_for_table(ident).await?)
-                    .context(metastore_error::UrlParseSnafu)?;
-                let metadata_path = Path::from(url.path());
+        let table = self.get_table(ident).await?;
+        if cascade {
+            let object_store = self.table_object_store(ident).await?;
+            let url = url::Url::parse(&self.url_for_table(ident).await?)
+                .context(metastore_error::UrlParseSnafu)?;
+            let metadata_path = Path::from(url.path());
 
-                // List object
-                let locations = object_store
-                    .list(Some(&metadata_path))
-                    .map_ok(|m| m.location)
-                    .boxed();
-                // Delete them
-                object_store
-                    .delete_stream(locations)
-                    .try_collect::<Vec<Path>>()
-                    .await
-                    .context(metastore_error::ObjectStoreSnafu)?;
-            }
-
-            if table.is_temporary {
-                let volume_ident = table.volume_ident.as_ref().map_or_else(
-                    || Uuid::new_v4().to_string(),
-                    std::string::ToString::to_string,
-                );
-                self.delete_volume(&volume_ident, false).await?;
-            }
-            let key = format!(
-                "{KEY_TABLE}/{}/{}/{}",
-                ident.database, ident.schema, ident.table
-            );
-            self.delete_object(&key).await
-        } else {
-            Err(Box::new(metastore_error::MetastoreError::TableNotFound {
-                table: ident.table.clone(),
-                schema: ident.schema.clone(),
-                db: ident.database.clone(),
-            }))
+            // List object
+            let locations = object_store
+                .list(Some(&metadata_path))
+                .map_ok(|m| m.location)
+                .boxed();
+            // Delete them
+            object_store
+                .delete_stream(locations)
+                .try_collect::<Vec<Path>>()
+                .await
+                .context(metastore_error::ObjectStoreSnafu)?;
         }
+
+        if table.is_temporary {
+            let volume_ident = table.volume_ident.as_ref().map_or_else(
+                || Uuid::new_v4().to_string(),
+                std::string::ToString::to_string,
+            );
+            self.delete_volume(&volume_ident, false).await?;
+        }
+        let key = format!(
+            "{KEY_TABLE}/{}/{}/{}",
+            ident.database, ident.schema, ident.table
+        );
+        self.delete_object(&key).await
     }
 
-    async fn get_table(&self, ident: &TableIdent) -> MetastoreResult<Option<RwObject<Table>>> {
+    async fn get_table(&self, ident: &TableIdent) -> MetastoreResult<RwObject<Table>> {
         let key = format!(
             "{KEY_TABLE}/{}/{}/{}",
             ident.database, ident.schema, ident.table
@@ -729,98 +647,66 @@ impl Metastore for SlateDBMetastore {
         self.db
             .get(&key)
             .await
-            .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(Box::new)
+            .context(metastore_error::UtilSlateDBSnafu)?
+            .ok_or_else(|| {
+                metastore_error::TableNotFoundSnafu {
+                    table: ident.table.clone(),
+                    schema: ident.schema.clone(),
+                    db: ident.database.clone(),
+                }
+                .build()
+            })
     }
 
     async fn table_object_store(
         &self,
         ident: &TableIdent,
-    ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>> {
-        if let Some(volume) = self.volume_for_table(ident).await? {
-            self.volume_object_store(&volume.ident).await
-        } else {
-            Ok(None)
-        }
-    }
-
-    async fn table_exists(&self, ident: &TableIdent) -> MetastoreResult<bool> {
-        self.get_table(ident).await.map(|table| table.is_some())
+    ) -> MetastoreResult<Arc<dyn ObjectStore>> {
+        let volume = self.volume_for_table(ident).await?;
+        self.volume_object_store(&volume.ident).await
     }
 
     async fn url_for_table(&self, ident: &TableIdent) -> MetastoreResult<String> {
-        if let Some(tbl) = self.get_table(ident).await? {
-            let database = self.get_database(&ident.database).await?.ok_or(
-                metastore_error::MetastoreError::DatabaseNotFound {
-                    db: ident.database.clone(),
-                },
-            )?;
+        let tbl = self.get_table(ident).await?;
+        let database = self.get_database(&ident.database).await?;
 
-            // Table has a custom volume associated
-            if let Some(volume_ident) = tbl.volume_ident.as_ref() {
-                let volume = self.get_volume(volume_ident).await?.ok_or(
-                    metastore_error::MetastoreError::VolumeNotFound {
-                        volume: volume_ident.clone(),
-                    },
-                )?;
-
-                let prefix = volume.prefix();
-                // The location of the table within the custom volume
-                let location = tbl
-                    .volume_location
-                    .clone()
-                    .unwrap_or_else(|| "/".to_string());
-                return Ok(format!("{prefix}/{location}"));
-            }
-
-            let volume = self.get_volume(&database.volume).await?.ok_or(
-                metastore_error::MetastoreError::VolumeNotFound {
-                    volume: database.volume.clone(),
-                },
-            )?;
+        // Table has a custom volume associated
+        if let Some(volume_ident) = tbl.volume_ident.as_ref() {
+            let volume = self.get_volume(volume_ident).await?;
 
             let prefix = volume.prefix();
-
-            // The table has a custom location within the volume
-            if let Some(location) = tbl.volume_location.as_ref() {
-                return Ok(format!("{prefix}/{location}"));
-            }
-
-            return Ok(format!(
-                "{}/{}/{}/{}",
-                prefix, ident.database, ident.schema, ident.table
-            ));
+            // The location of the table within the custom volume
+            let location = tbl
+                .volume_location
+                .clone()
+                .unwrap_or_else(|| "/".to_string());
+            return Ok(format!("{prefix}/{location}"));
         }
 
-        return Err(Box::new(
-            metastore_error::MetastoreError::TableObjectStoreNotFound {
-                table: ident.table.clone(),
-                schema: ident.schema.clone(),
-                db: ident.database.clone(),
-            },
-        ));
+        let volume = self.get_volume(&database.volume).await?;
+
+        let prefix = volume.prefix();
+
+        // The table has a custom location within the volume
+        if let Some(location) = tbl.volume_location.as_ref() {
+            return Ok(format!("{prefix}/{location}"));
+        }
+
+        Ok(format!(
+            "{}/{}/{}/{}",
+            prefix, ident.database, ident.schema, ident.table
+        ))
     }
 
-    async fn volume_for_table(
-        &self,
-        ident: &TableIdent,
-    ) -> MetastoreResult<Option<RwObject<Volume>>> {
-        let volume_ident = if let Some(Some(volume_ident)) = self
-            .get_table(ident)
-            .await?
-            .map(|table| table.volume_ident.clone())
-        {
+    async fn volume_for_table(&self, ident: &TableIdent) -> MetastoreResult<RwObject<Volume>> {
+        let table = self.get_table(ident).await?;
+        let volume_ident = if let Some(volume_ident) = &table.volume_ident {
             volume_ident
         } else {
-            self.get_database(&ident.database)
-                .await?
-                .ok_or(metastore_error::MetastoreError::DatabaseNotFound {
-                    db: ident.database.clone(),
-                })?
-                .volume
-                .clone()
+            let database = self.get_database(&ident.database).await?;
+            &database.volume.clone()
         };
-        self.get_volume(&volume_ident).await
+        self.get_volume(volume_ident).await
     }
 }
 
@@ -1167,8 +1053,7 @@ mod tests {
         let vol_object_store = ms
             .volume_object_store(&"testv1".to_owned())
             .await
-            .expect("get volume object store failed")
-            .expect("Object store not found");
+            .expect("get volume object store failed");
         let paths: Result<Vec<_>, ()> = vol_object_store
             .list(None)
             .then(|c| async move { Ok::<_, ()>(c) })
@@ -1289,8 +1174,7 @@ mod tests {
         let vol_object_store = ms
             .table_object_store(&create_table.ident)
             .await
-            .expect("get table object store failed")
-            .expect("Object store not found");
+            .expect("get table object store failed");
 
         let paths: Result<Vec<_>, ()> = vol_object_store
             .list(None)

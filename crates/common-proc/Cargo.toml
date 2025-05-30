@@ -1,0 +1,16 @@
+[package]
+name = "common-proc"
+version = "0.1.0"
+edition = "2024"
+license-file.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0"
+quote = "1.0"
+proc-macro2 = "1.0"
+
+[lints]
+workspace = true

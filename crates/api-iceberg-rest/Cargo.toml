@@ -7,6 +7,8 @@ license-file.workspace = true
 [dependencies]
 core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }
+common-proc = { path = "../common-proc" }
+common-error = { path = "../common-error" }
 
 axum = { workspace = true }
 http = { workspace = true }

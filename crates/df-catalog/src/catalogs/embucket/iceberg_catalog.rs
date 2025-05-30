@@ -39,16 +39,8 @@ pub struct EmbucketIcebergCatalog {
 
 impl EmbucketIcebergCatalog {
     pub fn new(metastore: Arc<dyn Metastore>, database: String) -> MetastoreResult<Self> {
-        let db = block_on(metastore.get_database(&database))?.ok_or(
-            MetastoreError::DatabaseNotFound {
-                db: database.clone(),
-            },
-        )?;
-        let object_store = block_on(metastore.volume_object_store(&db.volume))?.ok_or(
-            MetastoreError::VolumeNotFound {
-                volume: db.volume.clone(),
-            },
-        )?;
+        let db = block_on(metastore.get_database(&database))?;
+        let object_store = block_on(metastore.volume_object_store(&db.volume))?;
         Ok(Self {
             metastore,
             database,
@@ -137,13 +129,7 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .get_schema(&schema_ident)
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?;
-        match schema {
-            Some(schema) => Ok(schema.data.properties.unwrap_or_default()),
-            None => Err(IcebergError::NotFound(format!(
-                "Namespace {}",
-                namespace.join("")
-            ))),
-        }
+        Ok(schema.data.properties.unwrap_or_default())
     }
 
     /// Update the namespace properties in the catalog
@@ -167,30 +153,23 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .get_schema(&schema_ident)
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?;
-        match schema {
-            Some(schema) => {
-                let mut schema = schema.data;
-                let mut properties = schema.properties.unwrap_or_default();
-                if let Some(updates) = updates {
-                    properties.extend(updates);
-                }
-                if let Some(removals) = removals {
-                    for key in removals {
-                        properties.remove(&key);
-                    }
-                }
-                schema.properties = Some(properties);
-                self.metastore
-                    .update_schema(&schema_ident, schema)
-                    .await
-                    .map_err(|e| IcebergError::External(Box::new(e)))?;
-                Ok(())
-            }
-            None => Err(IcebergError::NotFound(format!(
-                "Namespace {}",
-                namespace.join("")
-            ))),
+
+        let mut schema = schema.data;
+        let mut properties = schema.properties.unwrap_or_default();
+        if let Some(updates) = updates {
+            properties.extend(updates);
         }
+        if let Some(removals) = removals {
+            for key in removals {
+                properties.remove(&key);
+            }
+        }
+        schema.properties = Some(properties);
+        self.metastore
+            .update_schema(&schema_ident, schema)
+            .await
+            .map_err(|e| IcebergError::External(Box::new(e)))?;
+        Ok(())
     }
 
     /// Check if a namespace exists
@@ -204,12 +183,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
-        Ok(self
-            .metastore
-            .get_schema(&schema_ident)
-            .await
-            .map_err(|e| IcebergError::External(Box::new(e)))?
-            .is_some())
+
+        match self.metastore.get_schema(&schema_ident).await {
+            Ok(_) => Ok(true),
+            Err(MetastoreError::SchemaNotFound { .. }) => Ok(false),
+            Err(e) => Err(IcebergError::External(Box::new(e))),
+        }
     }
 
     /// Lists all tables in the given namespace.
@@ -231,9 +210,7 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .iter_tables(&schema_ident)
             .collect()
             .await
-            .map_err(|e| {
-                IcebergError::External(Box::new(MetastoreError::UtilSlateDB { source: e }))
-            })?
+            .map_err(|e| IcebergError::External(Box::new(e)))?
             .iter()
             .map(|table| {
                 IcebergIdentifier::new(
@@ -255,18 +232,14 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .iter_databases()
             .collect()
             .await
-            .map_err(|e| {
-                IcebergError::External(Box::new(MetastoreError::UtilSlateDB { source: e }))
-            })?;
+            .map_err(|e| IcebergError::External(Box::new(e)))?;
         for database in databases {
             let schemas = self
                 .metastore
                 .iter_schemas(&database.ident)
                 .collect()
                 .await
-                .map_err(|e| {
-                    IcebergError::External(Box::new(MetastoreError::UtilSlateDB { source: e }))
-                })?;
+                .map_err(|e| IcebergError::External(Box::new(e)))?;
             for schema in schemas {
                 namespaces.push(IcebergNamespace::try_new(&[schema.ident.schema.clone()])?);
             }
@@ -277,12 +250,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
     /// Check if a table exists
     async fn tabular_exists(&self, identifier: &IcebergIdentifier) -> Result<bool, IcebergError> {
         let table_ident = self.ident(identifier);
-        Ok(self
-            .metastore
-            .get_table(&table_ident)
-            .await
-            .map_err(|e| IcebergError::External(Box::new(e)))?
-            .is_some())
+
+        match self.metastore.get_table(&table_ident).await {
+            Ok(_) => Ok(true),
+            Err(MetastoreError::TableNotFound { .. }) => Ok(false),
+            Err(e) => Err(IcebergError::External(Box::new(e))),
+        }
     }
 
     /// Drop a table and delete all data and metadata files.
@@ -319,13 +292,15 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         identifier: &IcebergIdentifier,
     ) -> Result<IcebergTabular, IcebergError> {
         let ident = self.ident(identifier);
-        let table = self
-            .metastore
-            .get_table(&ident)
-            .await
-            .map_err(|e| IcebergError::External(Box::new(e)))?;
+        let table = self.metastore.get_table(&ident).await;
+
         match table {
-            Some(table) => {
+            Err(MetastoreError::TableNotFound { .. }) => Err(IcebergError::NotFound(format!(
+                "Table {}",
+                identifier.name()
+            ))),
+            Err(e) => Err(IcebergError::External(Box::new(e))),
+            Ok(table) => {
                 let iceberg_table = IcebergTable::new(
                     identifier.clone(),
                     self.clone(),
@@ -336,10 +311,6 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
 
                 Ok(IcebergTabular::Table(iceberg_table))
             }
-            None => Err(IcebergError::NotFound(format!(
-                "Table {}",
-                identifier.name()
-            ))),
         }
     }
 
