@@ -1,3 +1,5 @@
+use crate::catalogs::slatedb::history_store_config::HistoryStoreViewConfig;
+use datafusion::arrow::array::Int64Builder;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
     array::StringBuilder,
@@ -11,8 +13,6 @@ use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
 use std::fmt::Debug;
 use std::sync::Arc;
-use datafusion::arrow::array::Int64Builder;
-use crate::catalogs::slatedb::history_store_config::HistoryStoreViewConfig;
 
 #[derive(Debug)]
 pub struct WorksheetsView {

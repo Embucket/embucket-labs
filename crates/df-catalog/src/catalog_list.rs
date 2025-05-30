@@ -8,6 +8,7 @@ use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
+use core_history::HistoryStore;
 use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
 use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
@@ -27,7 +28,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
 use url::Url;
-use core_history::HistoryStore;
 
 pub const DEFAULT_CATALOG: &str = "embucket";
 
@@ -101,8 +101,10 @@ impl EmbucketCatalogList {
 
     #[must_use]
     pub fn slatedb_catalog(&self) -> CachingCatalog {
-        let catalog: Arc<dyn CatalogProvider> =
-            Arc::new(SlateDBCatalog::new(self.metastore.clone(), self.history_store.clone()));
+        let catalog: Arc<dyn CatalogProvider> = Arc::new(SlateDBCatalog::new(
+            self.metastore.clone(),
+            self.history_store.clone(),
+        ));
         CachingCatalog::new(catalog, SLATEDB_CATALOG.to_string())
     }
 

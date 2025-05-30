@@ -1,6 +1,6 @@
 use super::catalog::SLATEDB_CATALOG;
-use crate::catalogs::slatedb::metastore_config::MetastoreViewConfig;
 use crate::catalogs::slatedb::databases::DatabasesView;
+use crate::catalogs::slatedb::metastore_config::MetastoreViewConfig;
 use crate::catalogs::slatedb::schemas::SchemasView;
 use crate::catalogs::slatedb::tables::TablesView;
 use crate::catalogs::slatedb::volumes::VolumesView;
@@ -49,7 +49,10 @@ impl SchemaProvider for MetastoreViewSchemaProvider {
     }
 
     fn table_names(&self) -> Vec<String> {
-        METASTORE_VIEW_TABLES.iter().map(ToString::to_string).collect()
+        METASTORE_VIEW_TABLES
+            .iter()
+            .map(ToString::to_string)
+            .collect()
     }
 
     async fn table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {

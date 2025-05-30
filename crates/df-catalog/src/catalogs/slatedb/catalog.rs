@@ -1,9 +1,9 @@
+use crate::catalogs::slatedb::history_store_schema::HistoryStoreViewSchemaProvider;
 use crate::catalogs::slatedb::metastore_schema::MetastoreViewSchemaProvider;
+use core_history::HistoryStore;
 use core_metastore::Metastore;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use std::{any::Any, sync::Arc};
-use core_history::HistoryStore;
-use crate::catalogs::slatedb::history_store_schema::HistoryStoreViewSchemaProvider;
 
 pub const SLATEDB_CATALOG: &str = "slatedb";
 pub const METASTORE_SCHEMA: &str = "meta";
@@ -18,7 +18,10 @@ pub struct SlateDBCatalog {
 
 impl SlateDBCatalog {
     pub fn new(metastore: Arc<dyn Metastore>, history_store: Arc<dyn HistoryStore>) -> Self {
-        Self { metastore, history_store }
+        Self {
+            metastore,
+            history_store,
+        }
     }
 }
 
@@ -27,7 +30,9 @@ impl CatalogProvider for SlateDBCatalog {
         self
     }
 
-    fn schema_names(&self) -> Vec<String> { SLATEDB_SCHEMAS.iter().map(ToString::to_string).collect() }
+    fn schema_names(&self) -> Vec<String> {
+        SLATEDB_SCHEMAS.iter().map(ToString::to_string).collect()
+    }
 
     #[allow(clippy::as_conversions)]
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
@@ -35,10 +40,10 @@ impl CatalogProvider for SlateDBCatalog {
             METASTORE_SCHEMA => Some(Arc::new(MetastoreViewSchemaProvider::new(Arc::clone(
                 &self.metastore,
             )))),
-            HISTORY_STORE_SCHEMA => Some(Arc::new(HistoryStoreViewSchemaProvider::new(Arc::clone(
-                &self.history_store,
-            )))),
-            _ => None
+            HISTORY_STORE_SCHEMA => Some(Arc::new(HistoryStoreViewSchemaProvider::new(
+                Arc::clone(&self.history_store),
+            ))),
+            _ => None,
         }
     }
 }

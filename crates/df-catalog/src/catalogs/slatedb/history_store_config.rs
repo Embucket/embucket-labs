@@ -1,8 +1,8 @@
-use datafusion_common::DataFusionError;
-use std::sync::Arc;
-use core_history::{GetQueriesParams, HistoryStore};
 use crate::catalogs::slatedb::queries::QueriesViewBuilder;
 use crate::catalogs::slatedb::worksheets::WorksheetsViewBuilder;
+use core_history::{GetQueriesParams, HistoryStore};
+use datafusion_common::DataFusionError;
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct HistoryStoreViewConfig {
@@ -15,11 +15,10 @@ impl HistoryStoreViewConfig {
         &self,
         builder: &mut WorksheetsViewBuilder,
     ) -> datafusion_common::Result<(), DataFusionError> {
-        let worksheets = self
-            .history_store
-            .get_worksheets()
-            .await
-            .map_err(|e| DataFusionError::Execution(format!("failed to get worksheets: {e}")))?;
+        let worksheets =
+            self.history_store.get_worksheets().await.map_err(|e| {
+                DataFusionError::Execution(format!("failed to get worksheets: {e}"))
+            })?;
         for worksheet in worksheets {
             builder.add_worksheet(
                 worksheet.id,
@@ -60,7 +59,7 @@ impl HistoryStoreViewConfig {
                 query.result_count,
                 query.result,
                 query.status.to_string(),
-                query.error
+                query.error,
             );
         }
         Ok(())

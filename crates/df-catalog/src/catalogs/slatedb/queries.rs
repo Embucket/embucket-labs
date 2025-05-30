@@ -1,4 +1,5 @@
-use crate::catalogs::slatedb::metastore_config::MetastoreViewConfig;
+use crate::catalogs::slatedb::history_store_config::HistoryStoreViewConfig;
+use datafusion::arrow::array::Int64Builder;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
     array::StringBuilder,
@@ -12,8 +13,6 @@ use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
 use std::fmt::Debug;
 use std::sync::Arc;
-use datafusion::arrow::array::Int64Builder;
-use crate::catalogs::slatedb::history_store_config::HistoryStoreViewConfig;
 
 #[derive(Debug)]
 pub struct QueriesView {
@@ -91,6 +90,7 @@ pub struct QueriesViewBuilder {
 }
 
 impl QueriesViewBuilder {
+    #[allow(clippy::too_many_arguments)]
     pub fn add_query(
         &mut self,
         query_id: i64,

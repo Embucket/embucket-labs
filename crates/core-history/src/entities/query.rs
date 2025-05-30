@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use crate::WorksheetId;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
@@ -6,6 +5,7 @@ use core_utils::iterable::IterableEntity;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -18,11 +18,11 @@ pub enum QueryStatus {
 impl Display for QueryStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            QueryStatus::Running => write!(f, "Running"),
-            QueryStatus::Successful => write!(f, "Successful"),
-            QueryStatus::Failed => write!(f, "Failed"),
+            Self::Running => write!(f, "Running"),
+            Self::Successful => write!(f, "Successful"),
+            Self::Failed => write!(f, "Failed"),
         }
-    }   
+    }
 }
 
 pub type QueryRecordId = i64;

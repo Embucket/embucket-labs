@@ -1,15 +1,15 @@
 use super::catalog::SLATEDB_CATALOG;
+use crate::catalogs::slatedb::history_store_config::HistoryStoreViewConfig;
+use crate::catalogs::slatedb::queries::QueriesView;
+use crate::catalogs::slatedb::worksheets::WorksheetsView;
 use async_trait::async_trait;
+use core_history::HistoryStore;
 use datafusion::catalog::streaming::StreamingTable;
 use datafusion::catalog::{SchemaProvider, TableProvider};
 use datafusion_common::DataFusionError;
 use datafusion_physical_plan::streaming::PartitionStream;
 use std::any::Any;
 use std::sync::Arc;
-use core_history::HistoryStore;
-use crate::catalogs::slatedb::history_store_config::HistoryStoreViewConfig;
-use crate::catalogs::slatedb::queries::QueriesView;
-use crate::catalogs::slatedb::worksheets::WorksheetsView;
 
 pub const WORKSHEETS: &str = "worksheets";
 pub const QUERIES: &str = "queries";
@@ -44,7 +44,10 @@ impl SchemaProvider for HistoryStoreViewSchemaProvider {
     }
 
     fn table_names(&self) -> Vec<String> {
-        HISTORY_STORE_VIEW_TABLES.iter().map(ToString::to_string).collect()
+        HISTORY_STORE_VIEW_TABLES
+            .iter()
+            .map(ToString::to_string)
+            .collect()
     }
 
     async fn table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
