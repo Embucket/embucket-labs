@@ -36,9 +36,12 @@ impl VisitorMut for UnimplementedFunctionsChecker {
             let snowflake_functions = get_snowflake_functions();
             
             if snowflake_functions.is_unimplemented(&func_name) {
+                let details = snowflake_functions.get_function_info(&func_name)
+                    .and_then(|info| info.get_preferred_url().map(|url| url.to_string()));
+                
                 return ControlFlow::Break(UnimplementedFunctionError {
                     function_name: func_name.to_lowercase(),
-                    details: Some(snowflake_functions.get_function_info(&func_name).unwrap().description.clone()),
+                    details,
                 });
             }
         }
@@ -140,11 +143,18 @@ mod tests {
         };
         assert_eq!(error_with_empty_details.to_string(), "Function 'test_func' is not implemented yet");
         
-        // Test error message with actual details
-        let error_with_details = UnimplementedFunctionError {
+        // Test error message with issue URL
+        let error_with_issue_url = UnimplementedFunctionError {
             function_name: "test_func".to_string(),
-            details: Some("This function requires special handling".to_string()),
+            details: Some("https://github.com/embucket/control-plane-v2/issues/123".to_string()),
         };
-        assert_eq!(error_with_details.to_string(), "Function 'test_func' is not implemented yet. Details: This function requires special handling");
+        assert_eq!(error_with_issue_url.to_string(), "Function 'test_func' is not implemented yet. Details: https://github.com/embucket/control-plane-v2/issues/123");
+        
+        // Test error message with documentation URL
+        let error_with_docs_url = UnimplementedFunctionError {
+            function_name: "test_func".to_string(),
+            details: Some("https://docs.snowflake.com/en/sql-reference/functions/test_func".to_string()),
+        };
+        assert_eq!(error_with_docs_url.to_string(), "Function 'test_func' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/test_func");
     }
 } 

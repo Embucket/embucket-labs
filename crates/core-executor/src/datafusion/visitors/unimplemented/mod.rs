@@ -44,4 +44,9 @@ impl FunctionInfo {
         self.issue_url = Some(issue_url);
         self
     }
+    
+    /// Get the preferred URL for details (issue URL if available, otherwise documentation URL)
+    pub fn get_preferred_url(&self) -> Option<&str> {
+        self.issue_url.or(self.documentation_url)
+    }
 }
