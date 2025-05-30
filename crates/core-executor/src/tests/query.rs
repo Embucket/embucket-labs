@@ -678,13 +678,12 @@ test_query!(
 
 test_query!(
     merge_into_insert_and_update,
-    "SELECT * FROM merge_target ORDER BY ID",
+    "MERGE INTO merge_target USING merge_source ON merge_target.ID = merge_source.ID WHEN MATCHED THEN UPDATE SET description = merge_source.description WHEN NOT MATCHED THEN INSERT (ID, description) VALUES (merge_source.ID, merge_source.description)",
     setup_queries = [
-        "CREATE TABLE merge_target (ID INTEGER, description VARCHAR)",
-        "CREATE TABLE merge_source (ID INTEGER, description VARCHAR)",
-        "INSERT INTO merge_target VALUES (1, 'existing row'), (2, 'existing row')",
-        "INSERT INTO merge_source VALUES (2, 'updated row'), (3, 'new row')",
-        "MERGE INTO merge_target USING merge_source ON merge_target.ID = merge_source.ID WHEN MATCHED THEN UPDATE SET description = merge_source.description WHEN NOT MATCHED THEN INSERT (ID, description) VALUES (merge_source.ID, merge_source.description)"
+        "CREATE TABLE embucket.public.merge_target (ID INTEGER, description VARCHAR)",
+        "CREATE TABLE embucket.public.merge_source (ID INTEGER, description VARCHAR)",
+        "INSERT INTO embucket.public.merge_target VALUES (1, 'existing row'), (2, 'existing row')",
+        "INSERT INTO embucket.public.merge_source VALUES (2, 'updated row'), (3, 'new row')"
     ]
 );
 
