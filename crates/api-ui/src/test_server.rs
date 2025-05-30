@@ -8,9 +8,8 @@ use api_sessions::{RequestSessionMemory, RequestSessionStore};
 use axum::Router;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
-use core_executor::utils::DataSerializationFormat;
-use core_history::RecordingExecutionService;
-use core_history::store::SlateDBWorksheetsStore;
+use core_executor::utils::Config;
+use core_history::store::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use std::net::SocketAddr;
@@ -29,7 +28,7 @@ pub async fn run_test_server_with_demo_auth(
 
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history = Arc::new(SlateDBWorksheetsStore::new(db));
+    let history = Arc::new(SlateDBHistoryStore::new(db));
     let mut auth_config = AuthConfig::new(jwt_secret);
     auth_config.with_demo_credentials(demo_user, demo_password);
 
@@ -60,15 +59,14 @@ pub async fn run_test_server() -> SocketAddr {
 #[allow(clippy::needless_pass_by_value)]
 pub fn make_app(
     metastore: Arc<SlateDBMetastore>,
-    history_store: Arc<SlateDBWorksheetsStore>,
+    history_store: Arc<SlateDBHistoryStore>,
     config: &WebConfig,
     auth_config: AuthConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
-    let execution_svc = Arc::new(CoreExecutionService::new(metastore.clone()));
-    let execution_svc = Arc::new(RecordingExecutionService::new(
-        execution_svc,
+    let execution_svc = Arc::new(CoreExecutionService::new(
+        metastore.clone(),
         history_store.clone(),
-        DataSerializationFormat::Json,
+        Arc::new(Config::default()),
     ));
     let session_memory = RequestSessionMemory::default();
     let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());

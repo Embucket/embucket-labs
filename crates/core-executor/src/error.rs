@@ -115,6 +115,9 @@ pub enum ExecutionError {
 
     #[snafu(display("Failed to register catalog: {source}"))]
     RegisterCatalog { source: CatalogError },
+
+    #[snafu(display("Failed to parse data: {source}"))]
+    SerdeParse { source: serde_json::Error },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;

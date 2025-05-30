@@ -2,8 +2,39 @@ use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, TimeUnit};
 use datafusion_common::arrow::datatypes::Schema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct QueryContext {
+    pub database: Option<String>,
+    pub schema: Option<String>,
+    pub worksheet_id: Option<i64>,
+    pub query_id: i64,
+}
+
+impl QueryContext {
+    #[must_use]
+    pub fn new(
+        database: Option<String>,
+        schema: Option<String>,
+        worksheet_id: Option<i64>,
+    ) -> Self {
+        Self {
+            database,
+            schema,
+            worksheet_id,
+            query_id: Default::default(),
+        }
+    }
+
+    #[must_use]
+    pub const fn with_query_id(mut self, new_id: i64) -> Self {
+        self.query_id = new_id;
+        self
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct QueryResult {
@@ -16,11 +47,11 @@ pub struct QueryResult {
 
 impl QueryResult {
     #[must_use]
-    pub fn new(records: Vec<RecordBatch>, schema: Arc<ArrowSchema>) -> Self {
+    pub const fn new(records: Vec<RecordBatch>, schema: Arc<ArrowSchema>, query_id: i64) -> Self {
         Self {
             records,
             schema,
-            query_id: Default::default(),
+            query_id,
         }
     }
     #[must_use]
@@ -158,10 +189,32 @@ impl ColumnInfo {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Column {
+    pub name: String,
+    pub r#type: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Row(Vec<Value>);
+
+impl Row {
+    #[must_use]
+    pub const fn new(values: Vec<Value>) -> Self {
+        Self(values)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResultSet {
+    pub columns: Vec<Column>,
+    pub rows: Vec<Row>,
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use datafusion::arrow::datatypes::TimeUnit;
+    use crate::models::ColumnInfo;
+    use datafusion::arrow::datatypes::{DataType, Field, TimeUnit};
 
     #[tokio::test]
     #[allow(clippy::unwrap_used)]

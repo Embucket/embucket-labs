@@ -10,7 +10,8 @@ use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element};
-use crate::models::QueryResult;
+use crate::models::{QueryContext, QueryResult};
+use core_history::history_store::HistoryStore;
 use core_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
     TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
@@ -47,7 +48,6 @@ use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;
-use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
@@ -62,31 +62,9 @@ use std::sync::Arc;
 use tracing_attributes::instrument;
 use url::Url;
 
-#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct QueryContext {
-    pub database: Option<String>,
-    pub schema: Option<String>,
-    // TODO: Remove this
-    pub worksheet_id: Option<i64>,
-}
-
-impl QueryContext {
-    #[must_use]
-    pub const fn new(
-        database: Option<String>,
-        schema: Option<String>,
-        worksheet_id: Option<i64>,
-    ) -> Self {
-        Self {
-            database,
-            schema,
-            worksheet_id,
-        }
-    }
-}
-
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
+    pub history_store: Arc<dyn HistoryStore>,
     pub raw_query: String,
     pub query: String,
     pub session: Arc<UserSession>,
@@ -106,6 +84,7 @@ impl UserQuery {
         let query = Self::preprocess_query(&query.into());
         Self {
             metastore: session.metastore.clone(),
+            history_store: session.history_store.clone(),
             raw_query: query.clone(),
             query,
             session,
@@ -220,7 +199,7 @@ impl UserQuery {
                         .collect();
 
                     self.session.set_session_variable(set, params)?;
-                    return status_response();
+                    return self.status_response();
                 }
                 Statement::Use(entity) => {
                     let (variable, value) = match entity {
@@ -245,7 +224,7 @@ impl UserQuery {
                         SessionProperty::from_str_value(value, Some(self.session.ctx.session_id())),
                     )]);
                     self.session.set_session_variable(true, params)?;
-                    return status_response();
+                    return self.status_response();
                 }
                 Statement::SetVariable {
                     variables, value, ..
@@ -270,7 +249,7 @@ impl UserQuery {
                         .zip(values.into_iter())
                         .collect();
                     self.session.set_session_variable(true, params)?;
-                    return status_response();
+                    return self.status_response();
                 }
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s)).await;
@@ -433,7 +412,7 @@ impl UserQuery {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
                 return match result {
-                    Ok(_) => status_response(),
+                    Ok(_) => self.status_response(),
                     Err(err) => Err(err),
                 };
             }
@@ -467,7 +446,7 @@ impl UserQuery {
                 }
             }
         }
-        status_response()
+        self.status_response()
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
@@ -531,7 +510,7 @@ impl UserQuery {
         })) = plan
         {
             if is_logical_plan_effectively_empty(&input) {
-                return created_entity_response();
+                return self.created_entity_response();
             }
             let schema_name = name
                 .schema()
@@ -559,7 +538,7 @@ impl UserQuery {
             ));
             return self.execute_logical_plan(insert_plan).await;
         }
-        created_entity_response()
+        self.created_entity_response()
     }
 
     #[allow(unused_variables)]
@@ -579,7 +558,7 @@ impl UserQuery {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
                 return match result {
-                    Ok(_) => created_entity_response(),
+                    Ok(_) => self.created_entity_response(),
                     Err(err) => Err(err),
                 };
             }
@@ -596,7 +575,7 @@ impl UserQuery {
 
         if table_exists {
             if statement.if_not_exists {
-                return created_entity_response();
+                return self.created_entity_response();
             }
 
             if statement.or_replace {
@@ -642,7 +621,7 @@ impl UserQuery {
             .build(&[ident.schema], iceberg_catalog)
             .await
             .context(ex_error::IcebergSnafu)?;
-        created_entity_response()
+        self.created_entity_response()
     }
 
     pub async fn create_external_table_query(
@@ -706,7 +685,7 @@ impl UserQuery {
             .await
             .context(ex_error::MetastoreSnafu)?;
 
-        created_entity_response()
+        self.created_entity_response()
     }
 
     /// This is experimental CREATE STAGE support
@@ -817,7 +796,7 @@ impl UserQuery {
             )
             .await
             .context(ex_error::DataFusionSnafu)?;
-        status_response()
+        self.status_response()
     }
 
     pub async fn copy_into_snowflake_query(
@@ -970,7 +949,7 @@ impl UserQuery {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
                 return match result {
-                    Ok(_) => created_entity_response(),
+                    Ok(_) => self.created_entity_response(),
                     Err(err) => Err(err),
                 };
             }
@@ -985,7 +964,7 @@ impl UserQuery {
 
         if schema_exists {
             if if_not_exists {
-                return created_entity_response();
+                return self.created_entity_response();
             }
             return Err(ExecutionError::ObjectAlreadyExists {
                 type_name: "schema".to_string(),
@@ -999,7 +978,7 @@ impl UserQuery {
             .create_namespace(&namespace, None)
             .await
             .context(ex_error::IcebergSnafu)?;
-        created_entity_response()
+        self.created_entity_response()
     }
 
     #[allow(clippy::too_many_lines)]
@@ -1283,6 +1262,7 @@ impl UserQuery {
 
     async fn execute_sql(&self, query: &str) -> ExecutionResult<QueryResult> {
         let session = self.session.clone();
+        let query_id = self.query_context.query_id;
         let query = query.to_string();
         let stream = self
             .session
@@ -1295,7 +1275,7 @@ impl UserQuery {
                     .context(super::error::DataFusionSnafu)?;
                 let schema = df.schema().as_arrow().clone();
                 let records = df.collect().await.context(super::error::DataFusionSnafu)?;
-                Ok(QueryResult::new(records, Arc::new(schema)))
+                Ok(QueryResult::new(records, Arc::new(schema), query_id))
             })
             .await
             .context(super::error::JobSnafu)??;
@@ -1304,6 +1284,7 @@ impl UserQuery {
 
     async fn execute_logical_plan(&self, plan: LogicalPlan) -> ExecutionResult<QueryResult> {
         let session = self.session.clone();
+        let query_id = self.query_context.query_id;
         let stream = self
             .session
             .executor
@@ -1317,7 +1298,7 @@ impl UserQuery {
                     .collect()
                     .await
                     .context(super::error::DataFusionSnafu)?;
-                Ok(QueryResult::new(records, Arc::new(schema)))
+                Ok(QueryResult::new(records, Arc::new(schema), query_id))
             })
             .await
             .context(super::error::JobSnafu)??;
@@ -1843,6 +1824,35 @@ impl UserQuery {
             _ => (ObjectName(vec![]), String::new()),
         }
     }
+
+    pub fn created_entity_response(&self) -> ExecutionResult<QueryResult> {
+        let schema = Arc::new(ArrowSchema::new(vec![Field::new(
+            "count",
+            DataType::Int64,
+            false,
+        )]));
+        Ok(QueryResult::new(
+            vec![
+                RecordBatch::try_new(schema.clone(), vec![Arc::new(Int64Array::from(vec![0]))])
+                    .context(ex_error::ArrowSnafu)?,
+            ],
+            schema,
+            self.query_context.query_id,
+        ))
+    }
+
+    pub fn status_response(&self) -> ExecutionResult<QueryResult> {
+        let schema = Arc::new(ArrowSchema::new(vec![Field::new(
+            "status",
+            DataType::Utf8,
+            false,
+        )]));
+        Ok(QueryResult::new(
+            vec![RecordBatch::new_empty(schema.clone())],
+            schema,
+            self.query_context.query_id,
+        ))
+    }
 }
 
 fn build_starts_with_filter(starts_with: Option<Value>, column_name: &str) -> Option<String> {
@@ -1860,31 +1870,4 @@ fn apply_show_filters(sql: String, filters: &[String]) -> String {
     } else {
         format!("{} WHERE {}", sql, filters.join(" AND "))
     }
-}
-
-pub fn created_entity_response() -> ExecutionResult<QueryResult> {
-    let schema = Arc::new(ArrowSchema::new(vec![Field::new(
-        "count",
-        DataType::Int64,
-        false,
-    )]));
-    Ok(QueryResult::new(
-        vec![
-            RecordBatch::try_new(schema.clone(), vec![Arc::new(Int64Array::from(vec![0]))])
-                .context(ex_error::ArrowSnafu)?,
-        ],
-        schema,
-    ))
-}
-
-pub fn status_response() -> ExecutionResult<QueryResult> {
-    let schema = Arc::new(ArrowSchema::new(vec![Field::new(
-        "status",
-        DataType::Utf8,
-        false,
-    )]));
-    Ok(QueryResult::new(
-        vec![RecordBatch::new_empty(schema.clone())],
-        schema,
-    ))
 }

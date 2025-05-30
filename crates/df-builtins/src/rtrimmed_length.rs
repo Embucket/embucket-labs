@@ -82,7 +82,7 @@ mod tests {
         ctx.sql(create).await?.collect().await?;
 
         let insert = r"
-          INSERT INTO test_strings VALUES 
+          INSERT INTO test_strings VALUES
               ('  ABCD  '),
               ('   ABCDEFG'),
               ('ABCDEFGH  '),

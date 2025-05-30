@@ -26,8 +26,8 @@ use axum::{
 };
 use clap::Parser;
 use core_executor::service::CoreExecutionService;
-use core_history::RecordingExecutionService;
-use core_history::SlateDBWorksheetsStore;
+use core_executor::utils::Config as ExecutionConfig;
+use core_history::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use dotenv::dotenv;
@@ -74,6 +74,8 @@ async fn main() {
         .clone()
         .unwrap_or_else(|| "json".to_string());
     let snowflake_rest_cfg = Config::new(&data_format).expect("Failed to create snowflake config");
+    let execution_cfg =
+        ExecutionConfig::new(&data_format).expect("Failed to create execution config");
     let mut auth_config = UIAuthConfig::new(opts.jwt_secret());
     auth_config.with_demo_credentials(
         opts.auth_demo_user.clone().unwrap(),
@@ -106,13 +108,12 @@ async fn main() {
     ));
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBWorksheetsStore::new(db.clone()));
+    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
 
-    let execution_svc = Arc::new(CoreExecutionService::new(metastore.clone()));
-    let execution_svc = Arc::new(RecordingExecutionService::new(
-        execution_svc,
+    let execution_svc = Arc::new(CoreExecutionService::new(
+        metastore.clone(),
         history_store.clone(),
-        snowflake_rest_cfg.dbt_serialization_format,
+        Arc::new(execution_cfg),
     ));
 
     let session_memory = RequestSessionMemory::default();

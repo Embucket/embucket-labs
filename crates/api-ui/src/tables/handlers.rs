@@ -19,7 +19,7 @@ use axum::{
     Json,
     extract::{Multipart, Path, State},
 };
-use core_executor::{models::QueryResult, query::QueryContext};
+use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::TableIdent as MetastoreTableIdent;
 use core_metastore::error::MetastoreError;
 use datafusion::arrow::csv::reader::Format;

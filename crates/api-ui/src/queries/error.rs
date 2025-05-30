@@ -2,7 +2,7 @@ use crate::error::ErrorResponse;
 use crate::error::IntoStatusCode;
 use axum::Json;
 use axum::response::IntoResponse;
-use core_history::history_store::WorksheetsStoreError;
+use core_history::errors::HistoryStoreError;
 use http::status::StatusCode;
 use snafu::prelude::*;
 
@@ -20,7 +20,7 @@ pub enum QueryError {
     },
 
     #[snafu(transparent)]
-    Store { source: WorksheetsStoreError },
+    Store { source: HistoryStoreError },
 
     #[snafu(display("Failed to parse row JSON: {source}"))]
     ResultParse { source: serde_json::Error },
@@ -58,7 +58,7 @@ impl IntoStatusCode for QueriesAPIError {
             },
             Self::Queries { source } => match &source {
                 QueryError::Store { source } => match &source {
-                    WorksheetsStoreError::QueryGet { .. } | WorksheetsStoreError::BadKey { .. } => {
+                    HistoryStoreError::QueryGet { .. } | HistoryStoreError::BadKey { .. } => {
                         StatusCode::NOT_FOUND
                     }
                     _ => StatusCode::INTERNAL_SERVER_ERROR,

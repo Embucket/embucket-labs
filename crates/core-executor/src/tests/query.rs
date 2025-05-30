@@ -1,12 +1,16 @@
-use crate::query::{QueryContext, UserQuery};
+use crate::query::UserQuery;
 use crate::session::UserSession;
 
+use crate::models::QueryContext;
+use crate::utils::Config;
+use core_history::SlateDBHistoryStore;
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
 use core_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     Volume as MetastoreVolume,
 };
+use core_utils::Db;
 use datafusion::sql::parser::DFParser;
 use std::sync::Arc;
 
@@ -71,7 +75,10 @@ static TABLE_SETUP: &str = include_str!(r"./table_setup.sql");
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 pub async fn create_df_session() -> Arc<UserSession> {
-    let metastore = SlateDBMetastore::new_in_memory().await;
+    let db = Db::memory().await;
+    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let history_store = Arc::new(SlateDBHistoryStore::new(db));
+
     metastore
         .create_volume(
             &"test_volume".to_string(),
@@ -109,7 +116,7 @@ pub async fn create_df_session() -> Arc<UserSession> {
         .expect("Failed to create schema");
 
     let user_session = Arc::new(
-        UserSession::new(metastore)
+        UserSession::new(metastore, history_store, Arc::new(Config::default()))
             .await
             .expect("Failed to create user session"),
     );
@@ -142,13 +149,13 @@ macro_rules! test_query {
                 $(
                     $(
                         {
-                            let mut q = ctx.query($setup_queries, $crate::query::QueryContext::default());
+                            let mut q = ctx.query($setup_queries, $crate::models::QueryContext::default());
                             q.execute().await.unwrap();
                         }
                     )*
                 )?
 
-                let mut query = ctx.query($query, $crate::query::QueryContext::default());
+                let mut query = ctx.query($query, $crate::models::QueryContext::default());
                 let res = query.execute().await;
                 let sort_all = false $(|| $sort_all)?;
                 let excluded_columns: std::collections::HashSet<&str> = std::collections::HashSet::from([

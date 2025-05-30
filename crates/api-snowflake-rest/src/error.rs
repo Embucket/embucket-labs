@@ -130,6 +130,7 @@ fn convert_into_response(error: &ExecutionError) -> axum::response::Response {
         | ExecutionError::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
         ExecutionError::ObjectAlreadyExists { .. } => http::StatusCode::CONFLICT,
         ExecutionError::Arrow { .. }
+        | ExecutionError::SerdeParse { .. }
         | ExecutionError::S3Tables { .. }
         | ExecutionError::Iceberg { .. }
         | ExecutionError::CatalogListDowncast

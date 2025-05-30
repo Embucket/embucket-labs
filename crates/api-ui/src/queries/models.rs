@@ -14,7 +14,7 @@ use snafu::ResultExt;
 use std::collections::HashMap;
 use utoipa::ToSchema;
 
-pub type ExecutionContext = core_executor::query::QueryContext;
+pub type ExecutionContext = core_executor::models::QueryContext;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -180,9 +180,9 @@ pub struct GetQueriesParams {
 }
 
 #[allow(clippy::from_over_into)]
-impl Into<core_history::GetQueries> for GetQueriesParams {
-    fn into(self) -> core_history::GetQueries {
-        core_history::GetQueries {
+impl Into<core_history::GetQueriesParams> for GetQueriesParams {
+    fn into(self) -> core_history::GetQueriesParams {
+        core_history::GetQueriesParams {
             worksheet_id: self.worksheet_id,
             sql_text: self.sql_text,
             min_duration_ms: self.min_duration_ms,

@@ -6,14 +6,18 @@ use super::error::{
     self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu,
     RegisterCatalogSnafu,
 };
-use super::query::{QueryContext, UserQuery};
 use crate::datafusion::analyzer::IcebergTypesAnalyzer;
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
+use crate::datafusion::query_planner::CustomQueryPlanner;
+use crate::models::QueryContext;
+use crate::query::UserQuery;
+use crate::utils::Config;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
+use core_history::history_store::HistoryStore;
 use core_metastore::error::MetastoreError;
 use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
 use core_utils::scan_iterator::ScanIterator;
@@ -24,7 +28,6 @@ use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_functions_json::register_all as register_json_udfs;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
-use datafusion_iceberg::planner::IcebergQueryPlanner;
 use df_builtins::register_udafs;
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use df_catalog::information_schema::session_params::{SessionParams, SessionProperty};
@@ -37,13 +40,19 @@ use std::sync::Arc;
 
 pub struct UserSession {
     pub metastore: Arc<dyn Metastore>,
+    pub history_store: Arc<dyn HistoryStore>,
     pub ctx: SessionContext,
     pub ident_normalizer: IdentNormalizer,
     pub executor: DedicatedExecutor,
+    pub config: Arc<Config>,
 }
 
 impl UserSession {
-    pub async fn new(metastore: Arc<dyn Metastore>) -> ExecutionResult<Self> {
+    pub async fn new(
+        metastore: Arc<dyn Metastore>,
+        history_store: Arc<dyn HistoryStore>,
+        config: Arc<Config>,
+    ) -> ExecutionResult<Self> {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
 
@@ -71,7 +80,7 @@ impl UserSession {
             .with_default_features()
             .with_runtime_env(Arc::new(runtime_config))
             .with_catalog_list(catalog_list_impl.clone())
-            .with_query_planner(Arc::new(IcebergQueryPlanner::new()))
+            .with_query_planner(Arc::new(CustomQueryPlanner::default()))
             .with_type_planner(Arc::new(CustomTypePlanner {}))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
             .with_physical_optimizer_rules(physical_optimizer_rules())
@@ -95,9 +104,11 @@ impl UserSession {
         let enable_ident_normalization = ctx.enable_ident_normalization();
         let session = Self {
             metastore,
+            history_store,
             ctx,
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
             executor: DedicatedExecutor::builder().build(),
+            config,
         };
         session.register_external_catalogs().await?;
         Ok(session)

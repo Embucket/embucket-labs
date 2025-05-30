@@ -193,7 +193,7 @@ impl IntoResponse for SessionError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core_executor::query::QueryContext;
+    use core_executor::models::QueryContext;
     use core_executor::service::ExecutionService;
     use core_executor::service::make_text_execution_svc;
     use serde_json::json;

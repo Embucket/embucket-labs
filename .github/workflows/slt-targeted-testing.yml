@@ -1,0 +1,226 @@
+name: SLT Targeted Testing
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  pull_request:
+    paths:
+      - crates/**
+      - bin/**
+      - Cargo.toml
+      - Cargo.lock
+      - Dockerfile
+      - .github/workflows/**
+      - test/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  select-slts:
+    runs-on: ubuntu-latest
+    name: Select SLT Tests
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    outputs:
+      has-tests: ${{ steps.selection.outputs.has-tests }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Fetch PR base
+        run: |
+          git fetch origin ${{ github.base_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          pip install openai
+
+      - name: Debug Environment
+        run: |
+          echo "Python version: $(python3 --version)"
+          echo "Current directory: $(pwd)"
+          echo "GitHub base ref: ${{ github.base_ref }}"
+          echo "OpenAI API key set: ${{ env.OPENAI_API_KEY != '' }}"
+          ls -la test/
+
+      - name: Select SLT Tests
+        id: selection
+        working-directory: ./
+        run: |
+          set -e  # Exit on any error
+          echo "Running SLT selector..."
+
+          # Run the selector and capture exit code
+          if python3 test/slt_selector.py --base-branch ${{ github.base_ref }} --output-dir ./artifacts; then
+            echo "SLT selector completed successfully"
+
+            # Check if selection file exists and count selected tests
+            if [ -f ./artifacts/selected_slts.json ]; then
+              echo "Selection file found, counting tests..."
+              SELECTED_COUNT=$(python3 -c "import json; data=json.load(open('./artifacts/selected_slts.json')); print(len(data))" 2>/dev/null || echo "0")
+              echo "Selected $SELECTED_COUNT SLT files"
+
+              if [ "$SELECTED_COUNT" -gt 0 ]; then
+                echo "Setting has-tests=true"
+                echo "has-tests=true" >> $GITHUB_OUTPUT
+              else
+                echo "Setting has-tests=false (no tests selected)"
+                echo "has-tests=false" >> $GITHUB_OUTPUT
+              fi
+            else
+              echo "Selection file not found, setting has-tests=false"
+              echo "has-tests=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "SLT selector failed, setting has-tests=false"
+            echo "has-tests=false" >> $GITHUB_OUTPUT
+            # Don't exit with error - we want the workflow to continue and report no tests
+          fi
+
+          echo "Final output variable set. Checking..."
+          if grep -q "has-tests=" $GITHUB_OUTPUT; then
+            echo "✅ has-tests variable successfully set"
+            cat $GITHUB_OUTPUT | grep "has-tests="
+          else
+            echo "❌ has-tests variable not found in output, setting default"
+            echo "has-tests=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload SLT Selection
+        if: steps.selection.outputs.has-tests == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: slt-selection
+          path: ./artifacts/selected_slts.json
+
+  run-slt-tests:
+    needs: select-slts
+    if: needs.select-slts.outputs.has-tests == 'true'
+    runs-on:
+      group: large-runners
+    name: Run Selected SLT Tests
+    env:
+      SNOWFLAKE_ACCOUNT: test
+      SNOWFLAKE_USER: test
+      SNOWFLAKE_PASSWORD: test
+      WAREHOUSE: COMPUTE_WH
+      DATABASE: embucket
+      SCHEMA: public
+      RESET_DB: false
+      EMBUCKET_ENABLED: true
+      EMBUCKET_PROTOCOL: http
+      EMBUCKET_HOST: localhost
+      EMBUCKET_PORT: 3000
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Download SLT Selection
+        uses: actions/download-artifact@v4
+        with:
+          name: slt-selection
+          path: ./artifacts
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      # Build only the embucketd binary
+      - name: Build embucketd
+        run: cargo build --bin embucketd
+
+      - name: Start Embucket Server
+        run: |
+          target/debug/embucketd &
+          echo "Starting Embucket server..."
+          sleep 20
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r test/slt_runner/requirements.txt
+          pip install pandas plotly kaleido
+
+      - name: Run Selected SLT Tests
+        working-directory: ./
+        run: python test/slt_runner_targeted.py --selection-file ./artifacts/selected_slts.json --output-dir ./artifacts
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slt-targeted-test-results
+          path: ./artifacts/
+          retention-days: 7
+
+      - name: Comment on PR
+        uses: actions/github-script@v6
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+            const commentPath = './artifacts/pr_comment.md';
+
+            if (fs.existsSync(commentPath)) {
+              const comment = fs.readFileSync(commentPath, 'utf8');
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } else {
+              console.log('Comment file not found');
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: '⚠️ The SLT test execution failed. Please check the workflow logs for details.'
+              });
+            }
+
+  comment-no-tests:
+    needs: select-slts
+    if: needs.select-slts.outputs.has-tests == 'false'
+    runs-on: ubuntu-latest
+    name: Comment No Tests Selected
+    steps:
+      - name: Comment on PR - No Tests
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **SLT Targeted Testing**: No relevant SLT tests found for the changes in this PR. No testing required.'
+            });

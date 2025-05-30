@@ -14,8 +14,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use core_executor::models::QueryResult;
-use core_executor::query::QueryContext;
+use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::error::MetastoreError;
 use core_metastore::models::SchemaIdent as MetastoreSchemaIdent;
 use std::convert::From;
