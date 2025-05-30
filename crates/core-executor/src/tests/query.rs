@@ -579,6 +579,18 @@ test_query!(
     snapshot_path = "session"
 );
 
+test_query!(
+    merge_into_insert_and_update,
+    "SELECT * FROM merge_target ORDER BY ID",
+    setup_queries = [
+        "CREATE TABLE merge_target (ID INTEGER, description VARCHAR)",
+        "CREATE TABLE merge_source (ID INTEGER, description VARCHAR)",
+        "INSERT INTO merge_target VALUES (1, 'existing row'), (2, 'existing row')",
+        "INSERT INTO merge_source VALUES (2, 'updated row'), (3, 'new row')",
+        "MERGE INTO merge_target USING merge_source ON merge_target.ID = merge_source.ID WHEN MATCHED THEN UPDATE SET description = merge_source.description WHEN NOT MATCHED THEN INSERT (ID, description) VALUES (merge_source.ID, merge_source.description)"
+    ]
+);
+
 // TRUNCATE TABLE
 test_query!(truncate_table, "TRUNCATE TABLE employee_table");
 test_query!(
