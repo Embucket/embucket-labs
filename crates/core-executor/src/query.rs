@@ -10,6 +10,7 @@ use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::models::{QueryContext, QueryResult};
+use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element, unimplemented::functions_checker::visit as unimplemented_functions_checker};
 use core_history::HistoryStore;
 use core_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
@@ -40,7 +41,6 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use df_builtins::variant::visitors::visit_all;
-use df_builtins::visitors::{copy_into_identifiers, functions_rewriter, json_element};
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::information_schema::session_params::SessionProperty;
 use iceberg_rust::catalog::Catalog;
@@ -98,7 +98,11 @@ impl UserQuery {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let mut statement = state.sql_to_statement(&self.raw_query, dialect)?;
-        Self::postprocess_query_statement(&mut statement);
+        Self::postprocess_query_statement_with_validation(&mut statement)
+            .map_err(|e| match e {
+                ExecutionError::DataFusion { source } => source,
+                _ => DataFusionError::NotImplemented(e.to_string()),
+            })?;
         Ok(statement)
     }
 
@@ -165,15 +169,20 @@ impl UserQuery {
         }
     }
 
-    #[allow(clippy::unwrap_used)]
-    #[instrument(level = "trace", ret)]
-    pub fn postprocess_query_statement(statement: &mut DFStatement) {
+
+    #[instrument(level = "trace")]
+    pub fn postprocess_query_statement_with_validation(statement: &mut DFStatement) -> ExecutionResult<()> {
         if let DFStatement::Statement(value) = statement {
             json_element::visit(value);
+            unimplemented_functions_checker(value)
+                .map_err(|e| ExecutionError::DataFusion {
+                    source: DataFusionError::NotImplemented(e.to_string()),
+                })?;
             functions_rewriter::visit(value);
             copy_into_identifiers::visit(value);
             visit_all(value);
         }
+        Ok(())
     }
 
     #[instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
