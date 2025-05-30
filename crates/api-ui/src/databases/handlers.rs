@@ -19,7 +19,7 @@ use axum::{
 };
 use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::Database as MetastoreDatabase;
-use core_metastore::error::MetastoreError;
+use core_metastore::error::{MetastoreError, ValidationSnafu};
 use snafu::ResultExt;
 use utoipa::OpenApi;
 use validator::Validate;
@@ -87,7 +87,8 @@ pub async fn create_database(
     };
     database
         .validate()
-        .map_err(|e| Box::new(MetastoreError::Validation { source: e }))
+        .context(ValidationSnafu)
+        .map_err(Into::into)
         .context(CreateSnafu)?;
     state
         .metastore
@@ -207,7 +208,8 @@ pub async fn update_database(
     };
     database
         .validate()
-        .map_err(|e| Box::new(MetastoreError::Validation { source: e }))
+        .context(ValidationSnafu)
+        .map_err(Into::into)
         .context(UpdateSnafu)?;
     //TODO: Implement database renames
     state
