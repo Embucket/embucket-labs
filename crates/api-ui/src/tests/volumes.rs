@@ -22,8 +22,8 @@ async fn test_ui_volumes() {
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     assert_eq!(200, res.status());
-    let created = res.json::<VolumeCreateResponse>().await.unwrap();
-    assert_eq!(expected.name, created.0.name);
+    let VolumeCreateResponse(created) = res.json().await.unwrap();
+    assert_eq!(expected.name, created.name);
 
     // memory volume with empty ident create Ok
     let payload = r#"{"name":"embucket2","type": "file", "path":"/tmp/data"}"#;
@@ -31,8 +31,8 @@ async fn test_ui_volumes() {
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     // let res = create_test_volume(addr, &expected).await;
     assert_eq!(200, res.status());
-    let created = res.json::<VolumeCreateResponse>().await.unwrap();
-    assert_eq!(expected.name, created.0.name);
+    let VolumeCreateResponse(created) = res.json().await.unwrap();
+    assert_eq!(expected.name, created.name);
 
     let expected = VolumeCreatePayload {
         name: "embucket2".to_string(),
@@ -62,8 +62,8 @@ async fn test_ui_volumes() {
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     // let res = create_test_volume(addr, &expected).await;
     assert_eq!(200, res.status());
-    let created = res.json::<VolumeCreateResponse>().await.unwrap();
-    assert_eq!(expected.name, created.0.name);
+    let VolumeCreateResponse(created) = res.json().await.unwrap();
+    assert_eq!(expected.name, created.name);
 
     //Get list volumes
     let res = req(
@@ -123,8 +123,8 @@ async fn test_ui_volumes() {
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Volume(expected.clone())).await;
     assert_eq!(200, res.status());
-    let created = res.json::<VolumeCreateResponse>().await.unwrap();
-    assert_eq!(expected.name, created.0.name);
+    let VolumeCreateResponse(created) = res.json().await.unwrap();
+    assert_eq!(expected.name, created.name);
 
     //Get list volumes
     let res = req(

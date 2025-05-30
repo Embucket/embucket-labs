@@ -26,14 +26,14 @@ async fn test_ui_schemas() {
         }),
     )
     .await;
-    let volume: VolumeCreateResponse = res.json().await.unwrap();
+    let VolumeCreateResponse(volume) = res.json().await.unwrap();
 
     let database_name = "test1".to_string();
     // Create database, Ok
     let _expected1 = MetastoreDatabase {
         ident: database_name.clone(),
         properties: None,
-        volume: volume.0.name.clone(),
+        volume: volume.name.clone(),
     };
     let _res = ui_test_op(
         addr,
@@ -41,7 +41,7 @@ async fn test_ui_schemas() {
         None,
         &Entity::Database(DatabaseCreatePayload {
             name: database_name.clone(),
-            volume: volume.0.name.clone(),
+            volume: volume.name.clone(),
         }),
     )
     .await;

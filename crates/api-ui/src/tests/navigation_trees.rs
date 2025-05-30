@@ -8,7 +8,7 @@ use crate::tests::common::req;
 use crate::tests::common::{Entity, Op, ui_test_op};
 use crate::tests::server::run_test_server;
 use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
-use crate::worksheets::models::{WorksheetCreatePayload, WorksheetResponse};
+use crate::worksheets::models::{Worksheet, WorksheetCreatePayload, WorksheetResponse};
 use http::Method;
 use serde_json::json;
 
@@ -35,24 +35,24 @@ async fn test_ui_databases_navigation() {
         }),
     )
     .await;
-    let volume = res.json::<VolumeCreateResponse>().await.unwrap();
+    let VolumeCreateResponse(volume) = res.json().await.unwrap();
 
     // Create database, Ok
     let expected1 = DatabaseCreatePayload {
         name: "test1".to_string(),
-        volume: volume.0.name.clone(),
+        volume: volume.name.clone(),
     };
     let expected2 = DatabaseCreatePayload {
         name: "test2".to_string(),
-        volume: volume.0.name.clone(),
+        volume: volume.name.clone(),
     };
     let expected3 = DatabaseCreatePayload {
         name: "test3".to_string(),
-        volume: volume.0.name.clone(),
+        volume: volume.name.clone(),
     };
     let expected4 = DatabaseCreatePayload {
         name: "test4".to_string(),
-        volume: volume.0.name.clone(),
+        volume: volume.name.clone(),
     };
     //4 DBs
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
@@ -108,7 +108,9 @@ async fn test_ui_databases_navigation() {
     .await
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
-    let worksheet_id = res.json::<WorksheetResponse>().await.unwrap().0.id;
+    let WorksheetResponse(Worksheet {
+        id: worksheet_id, ..
+    }) = res.json().await.unwrap();
 
     let query_payload = QueryCreatePayload {
         worksheet_id: Some(worksheet_id),
