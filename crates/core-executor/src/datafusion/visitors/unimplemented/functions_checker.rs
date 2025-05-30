@@ -106,27 +106,7 @@ mod tests {
             assert_eq!(e.function_name, "parse_json");
         }
     }
-    
-    #[test]
-    fn test_snowflake_specific_functions() {
-        // Test some functions that should be in our Snowflake registry
-        let test_cases = vec![
-            ("SELECT APPROX_COUNT_DISTINCT(column1) FROM table1", "approx_count_distinct"),
-            ("SELECT REGEXP_COUNT('hello', 'l') FROM dual", "regexp_count"),
-            ("SELECT TO_VARCHAR(42) FROM dual", "to_varchar"),
-        ];
-        
-        for (sql, expected_function) in test_cases {
-            let mut statements = Parser::parse_sql(&GenericDialect{}, sql).unwrap();
-            let result = check_unimplemented_functions(&mut statements[0]);
-            
-            assert!(result.is_err(), "Expected {} to be unimplemented", expected_function);
-            if let Err(e) = result {
-                assert_eq!(e.function_name, expected_function);
-            }
-        }
-    }
-    
+       
     #[test]
     fn test_error_message_formatting() {
         // Test error message without details

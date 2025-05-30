@@ -1,0 +1,7 @@
+---
+source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
+description: "\"SELECT ARRAYS_OVERLAP(ARRAY[1, 2], ARRAY[2, 3])\""
+---
+Err(
+    "Error: DataFusion error: This feature is not implemented: Function 'arrays_overlap' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/arrays_overlap",
+)

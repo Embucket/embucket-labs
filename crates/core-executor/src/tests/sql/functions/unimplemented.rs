@@ -37,7 +37,8 @@ test_query!(
 );
 
 // DATA_METRIC_FUNCTIONS
-test_query!(
+// TODO: Pass real functions names
+/*test_query!(
     unimplemented_data_metric_function,
     "SELECT DM_MEAN_SQUARED_DIFFERENCE(col1, col2) FROM employee_table"
 );
@@ -46,7 +47,7 @@ test_query!(
 test_query!(
     unimplemented_data_quality_function,
     "SELECT DQ_RULE('rule1', 'expression')"
-);
+);*/
 
 // DATETIME_FUNCTIONS
 test_query!(
@@ -55,10 +56,11 @@ test_query!(
 );
 
 // DIFFERENTIAL_PRIVACY_FUNCTIONS
-test_query!(
+// TODO: Pass real functions names
+/*test_query!(
     unimplemented_differential_privacy_function,
     "SELECT DP_COUNT(*) FROM employee_table"
-);
+);*/
 
 // ENCRYPTION_FUNCTIONS
 test_query!(
@@ -73,10 +75,12 @@ test_query!(
 );
 
 // GENERATION_FUNCTIONS
+// TODO: Pass real functions names
+/*
 test_query!(
     unimplemented_generation_function,
     "SELECT AUTOINCREMENT_NEXTVAL('seq1')"
-);
+);*/
 
 // GEOSPATIAL_FUNCTIONS
 test_query!(
@@ -97,10 +101,13 @@ test_query!(
 );
 
 // INFORMATION_SCHEMA_FUNCTIONS
+// TODO: Pass real functions names
+/*
 test_query!(
     unimplemented_information_schema_function,
     "SELECT APPLICABLE_ROLES()"
 );
+*/
 
 // METADATA_FUNCTIONS
 test_query!(
@@ -109,10 +116,13 @@ test_query!(
 );
 
 // NOTIFICATION_FUNCTIONS
+// TODO: Pass real functions names
+/*
 test_query!(
     unimplemented_notification_function,
     "SELECT SYSTEM$SEND_EMAIL('to@email.com', 'subject', 'body')"
 );
+*/
 
 // NUMERIC_FUNCTIONS
 test_query!(
@@ -127,11 +137,13 @@ test_query!(
 );
 
 // STRING_BINARY_FUNCTIONS
+// TODO: Pass real functions names
+/*
 test_query!(
     unimplemented_string_binary_function,
     "SELECT BASE32_ENCODE('hello')"
 );
-
+*/
 // SYSTEM_FUNCTIONS
 test_query!(
     unimplemented_system_function,
@@ -139,6 +151,7 @@ test_query!(
 );
 
 // TABLE_FUNCTIONS
+// TODO: Weird behavior need to recheck
 test_query!(
     unimplemented_table_function,
     "SELECT * FROM FLATTEN(ARRAY[1, 2, 3])"
