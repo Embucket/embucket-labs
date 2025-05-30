@@ -70,7 +70,7 @@ fn test_postprocess_query_statement_functions_expressions() {
     for (init, exp) in args {
         let statement = DFParser::parse_sql(init).unwrap().pop_front();
         if let Some(mut s) = statement {
-            UserQuery::postprocess_query_statement(&mut s);
+            let _ = UserQuery::postprocess_query_statement_with_validation(&mut s);
             assert_eq!(s.to_string(), exp);
         }
     }
