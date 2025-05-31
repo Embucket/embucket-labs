@@ -6,10 +6,10 @@ import subprocess
 from openai import OpenAI
 
 
-def get_changed_files(base_branch="main"):
+def get_file_changes(base_branch="main"):
     """
-    Get the list of files changed in the current PR using git merge-base
-    Optimized for GitHub Actions environment
+    Get the actual changes (diffs) for files changed in the current PR using git merge-base
+    Optimized for GitHub Actions environment and focused on database-relevant changes
     """
     try:
         # Get the base and head refs from GitHub Actions environment
@@ -25,50 +25,142 @@ def get_changed_files(base_branch="main"):
             merge_base = subprocess.run(merge_base_cmd, capture_output=True, text=True, check=True).stdout.strip()
             print(f"Found merge-base: {merge_base}")
 
-            # Get changes between the merge-base and HEAD
-            cmd = ["git", "diff", "--name-only", merge_base, "HEAD"]
-            print(f"Running: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            changed_files = [f for f in result.stdout.strip().split("\n") if f]
+            # Get the actual diff with context lines
+            diff_cmd = ["git", "diff", "-U3", merge_base, "HEAD"]
+            print(f"Running: {' '.join(diff_cmd)}")
+            diff_result = subprocess.run(diff_cmd, capture_output=True, text=True, check=True)
 
-            print(f"Found {len(changed_files)} changed files")
-            file_contents = {}
-            for file in changed_files:
-                try:
-                    if os.path.exists(file):
-                        with open(file, 'r') as f:
-                            file_contents[file] = f.read()
-                    else:
-                        print(f"File {file} doesn't exist (might have been deleted)")
-                        file_contents[file] = "File no longer exists"
-                except Exception as e:
-                    print(f"Failed to read file {file}: {e}")
-                    file_contents[file] = f"Failed to read file: {e}"
-            return file_contents
+            return _process_git_diff(diff_result.stdout)
         else:
             # Fallback to using the provided base_branch if not in GitHub Actions
             print(f"Not in GitHub Actions environment, using base branch: {base_branch}")
             subprocess.run(["git", "fetch", "origin", base_branch], check=True, capture_output=True)
-            cmd = ["git", "diff", "--name-only", f"origin/{base_branch}", "HEAD"]
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            changed_files = [f for f in result.stdout.strip().split("\n") if f]
 
-            file_contents = {}
-            for file in changed_files:
-                try:
-                    if os.path.exists(file):
-                        with open(file, 'r') as f:
-                            file_contents[file] = f.read()
-                    else:
-                        print(f"File {file} doesn't exist (might have been deleted)")
-                        file_contents[file] = "File no longer exists"
-                except Exception as e:
-                    print(f"Failed to read file {file}: {e}")
-                    file_contents[file] = f"Failed to read file: {e}"
-            return file_contents
+            # Get the actual diff with context lines
+            diff_cmd = ["git", "diff", "-U3", f"origin/{base_branch}", "HEAD"]
+            print(f"Running: {' '.join(diff_cmd)}")
+            diff_result = subprocess.run(diff_cmd, capture_output=True, text=True, check=True)
+
+            return _process_git_diff(diff_result.stdout)
     except Exception as e:
-        print(f"Error in get_changed_files: {e}")
+        print(f"Error in get_file_changes: {e}")
         return {}
+
+
+def _process_git_diff(diff_output):
+    """
+    Process git diff output and filter for database-relevant files
+    Returns a dictionary with file paths as keys and their diffs as values
+    """
+    if not diff_output.strip():
+        print("No changes found in git diff")
+        return {}
+
+    # Split diff into individual file diffs
+    file_diffs = {}
+    current_file = None
+    current_diff_lines = []
+
+    for line in diff_output.split('\n'):
+        if line.startswith('diff --git'):
+            # Save previous file diff if exists
+            if current_file and current_diff_lines:
+                if _is_database_relevant_file(current_file):
+                    file_diffs[current_file] = '\n'.join(current_diff_lines)
+
+            # Start new file diff
+            # Extract file path from "diff --git a/path/to/file b/path/to/file"
+            parts = line.split(' ')
+            if len(parts) >= 4:
+                current_file = parts[2][2:]  # Remove "a/" prefix
+                current_diff_lines = [line]
+            else:
+                current_file = None
+                current_diff_lines = []
+        elif current_file:
+            current_diff_lines.append(line)
+
+    # Don't forget the last file
+    if current_file and current_diff_lines:
+        if _is_database_relevant_file(current_file):
+            file_diffs[current_file] = '\n'.join(current_diff_lines)
+
+    print(f"Found {len(file_diffs)} database-relevant changed files")
+    for file_path in file_diffs.keys():
+        print(f"  - {file_path}")
+
+    return file_diffs
+
+
+def _is_database_relevant_file(file_path):
+    """
+    Check if a file is likely relevant to database functionality
+    """
+    # Skip obviously irrelevant files
+    irrelevant_patterns = [
+        '.md',           # Documentation
+        '.yml', '.yaml', # CI/CD configs
+        '.json',         # Config files
+        '.txt',          # Text files
+        '.gitignore',    # Git files
+        'LICENSE',       # License files
+        'README',        # Readme files
+        '.github/',      # GitHub workflows
+        'docs/',         # Documentation
+        'ui/',           # UI components (unless they contain SQL)
+        'frontend/',     # Frontend code
+        'web/',          # Web assets
+    ]
+
+    # Check if file should be skipped
+    for pattern in irrelevant_patterns:
+        if pattern in file_path.lower():
+            # Special case: UI files might contain SQL, so include them if they mention SQL
+            if 'ui/' in file_path.lower() or 'frontend/' in file_path.lower() or 'web/' in file_path.lower():
+                if any(sql_term in file_path.lower() for sql_term in ['sql', 'query', 'database', 'db']):
+                    return True
+            return False
+
+    # Include files that are likely database-relevant
+    relevant_patterns = [
+        '.rs',           # Rust source files
+        '.py',           # Python files
+        '.sql',          # SQL files
+        '.slt',          # SLT test files
+        'src/',          # Source code
+        'crates/',       # Rust crates
+        'test/',         # Test files
+        'query',         # Query-related files
+        'executor',      # Executor-related files
+        'engine',        # Engine-related files
+        'database',      # Database-related files
+        'sql',           # SQL-related files
+    ]
+
+    for pattern in relevant_patterns:
+        if pattern in file_path.lower():
+            return True
+
+    # Default to including the file if we're unsure
+    return True
+
+
+def _format_changes_for_prompt(file_changes):
+    """
+    Format the git diff output for better readability in the OpenAI prompt
+    """
+    if not file_changes:
+        return "No relevant changes found."
+
+    formatted_output = []
+    for file_path, diff in file_changes.items():
+        formatted_output.append(f"### File: {file_path}")
+        formatted_output.append("```diff")
+        formatted_output.append(diff)
+        formatted_output.append("```")
+        formatted_output.append("")  # Empty line for separation
+
+    return "\n".join(formatted_output)
 
 
 def get_all_slt_files(slt_dir="test/sql"):
@@ -91,8 +183,8 @@ def get_all_slt_files(slt_dir="test/sql"):
     return slt_files
 
 
-def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
-    """Use OpenAI to select relevant SLT files based on code changes"""
+def select_relevant_slts(file_changes, all_slts, model="gpt-4-turbo"):
+    """Use OpenAI to select relevant SLT files based on code changes (diffs)"""
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         print("ERROR: OPENAI_API_KEY environment variable not set")
@@ -122,13 +214,14 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
             meaningful_paths.append(filename)
             slt_path_mapping[filename] = slt_path
 
+    # Format the changes for better readability in the prompt
+    formatted_changes = _format_changes_for_prompt(file_changes)
+
     # Prepare message for OpenAI
     prompt = f"""
-    I have made code changes to the following files in a Pull Request:
+    I have made code changes to the following files in a Pull Request. Below are the actual diffs showing what changed:
 
-    ```
-    {json.dumps(changed_files, indent=2)}
-    ```
+    {formatted_changes}
 
     I need to select the most relevant SQL Logic Test (SLT) files to run based on these changes.
     Here are all the available SLT files, with paths indicating their functionality:
@@ -141,9 +234,9 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
     - "function/aggregate/test.slt" tests SQL aggregate functions
     - "type/numeric/test.slt" tests numeric type functionality
 
-    Please select the SLT files that test the functionality affected by my code changes.
+    Please analyze the code changes and select the SLT files that test the functionality affected by these changes.
     Don't include any files where you don't see SPECIFIC evidence that the changes are relevant.
-    IMPORTANT: if code changed are not related to database engine - don't output any tests.
+    IMPORTANT: if code changes are not related to database engine functionality - don't output any tests.
     IMPORTANT: don't include files just because they are "basic" tests. Be very specific with the output.
     Return an explanation for selection followed by a JSON array with these relative paths. For example:
     ```
@@ -227,12 +320,12 @@ def main():
     # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # Get the changed files
-    changed_files = get_changed_files(args.base_branch)
+    # Get the file changes (diffs)
+    file_changes = get_file_changes(args.base_branch)
 
-    # If there are no changed files, exit
-    if not changed_files:
-        print("No changed files found")
+    # If there are no file changes, exit
+    if not file_changes:
+        print("No relevant file changes found")
         # Create empty selection file
         selection_file = os.path.join(args.output_dir, "selected_slts.json")
         with open(selection_file, 'w') as f:
@@ -252,7 +345,7 @@ def main():
         return 0
 
     # Select relevant SLTs
-    selected_slts = select_relevant_slts(changed_files, all_slts, args.model)
+    selected_slts = select_relevant_slts(file_changes, all_slts, args.model)
 
     # Save the selected SLTs to a JSON file
     selection_file = os.path.join(args.output_dir, "selected_slts.json")
