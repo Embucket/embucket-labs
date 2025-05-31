@@ -145,8 +145,12 @@ def select_relevant_slts(changed_files, all_slts, model="gpt-4-turbo"):
     Don't include any files where you don't see SPECIFIC evidence that the changes are relevant.
     IMPORTANT: if code changed are not related to database engine - don't output any tests.
     IMPORTANT: don't include files just because they are "basic" tests. Be very specific with the output.
-    Return ONLY a JSON array with these relative paths, no explanations or other text. For example:
+    Return an explanation for selection followed by a JSON array with these relative paths. For example:
+    ```
+    EXPLANATION: I changed the aggregate function code, so I need to run the aggregate function tests.
+    JSON:
     ["function/aggregate/test.slt", "type/numeric/test.slt"]
+    ```
     """
 
     print(prompt)
