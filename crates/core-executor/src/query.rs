@@ -16,15 +16,20 @@ use datafusion::execution::session_state::SessionState;
 use datafusion::logical_expr::{LogicalPlan, TableSource, sqlparser::ast::Insert};
 use datafusion::prelude::CsvReadOptions;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
+use datafusion::sql::planner::{PlannerContext, object_name_to_table_reference};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableObject, TableWithJoins,
 };
 use datafusion_common::{
-    DataFusionError, ResolvedTableReference, TableReference, plan_datafusion_err,
+    DFSchema, DataFusionError, ResolvedTableReference, TableReference, exec_err,
+    plan_datafusion_err, plan_err,
 };
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
-use datafusion_expr::{CreateMemoryTable, DdlStatement};
+use datafusion_expr::{
+    Case, CreateMemoryTable, DdlStatement, JoinConstraint, JoinType, LogicalPlanBuilder, Values,
+    col, lit,
+};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
@@ -35,6 +40,7 @@ use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
+use sqlparser::ast::Expr as ASTExpr;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
@@ -890,6 +896,185 @@ impl UserQuery {
         // Construct the INSERT statement
         let insert_query = format!("INSERT INTO {target_table} ({columns}) {select_query}");
         self.execute_with_custom_plan(&insert_query).await
+    }
+
+    #[instrument(level = "trace", skip(self), err, ret)]
+    pub async fn merge_query_(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
+        let Statement::Merge {
+            table,
+            mut source,
+            on,
+            clauses,
+            ..
+        } = statement
+        else {
+            return Err(ExecutionError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "Only MERGE statements are supported".to_string(),
+                ),
+            });
+        };
+
+        let target_name: ObjectName;
+        let source_name: ObjectName;
+        let (_source_table, source_alias) = Self::get_table_with_alias(source.clone());
+
+        match table {
+            TableFactor::Table {
+                name,
+                alias,
+                args,
+                with_hints,
+                version,
+                with_ordinality,
+                partitions,
+                json_path,
+                sample,
+                index_hints,
+            } => {
+                target_name = name;
+            }
+            _ => return,
+            // exec_err!("Target table can only be a table for MERGE."),
+        }
+
+        let target_table = self.resolve_table_object_name(target_name.0)?;
+        let target_src = let_table_source(target_ref.clone())?;
+        let target_scan =
+            LogicalPlanBuilder::scan(target_ref.clone(), Arc::clone(&target_src), None)?
+                .project(vec![projected_columns, lit(true).alias("target_exists")])?;
+
+        let source_query = if let TableFactor::Derived {
+            subquery,
+            lateral,
+            alias,
+        } = source
+        {
+            source = TableFactor::Derived {
+                lateral,
+                subquery,
+                alias: None,
+            };
+            alias.map_or_else(|| source.to_string(), |alias| format!("{source} {alias}"))
+        } else {
+            source.to_string()
+        };
+
+        // let target_scan = ;c
+
+        let target_schema = target_scan.schema();
+
+        let joined_schema = DFSchema::from(target_scan.schema().join(source_scan.schema())?);
+
+        let on_df_expr = self.sql_to_expr(*on, &joined_schema, &mut ctx)?;
+
+        // We here want to convert the `Box<Expr>` from the query into the equijoin
+        // on predicate.
+        let join_plan = LogicalPlan::Join(PlanJoin {
+            left: Arc::new(target_scan.clone()),
+            right: Arc::new(source_scan.clone()),
+            on: vec![],
+            filter: Some(on_df_expr),
+            join_type: JoinType::Full,
+            join_constraint: JoinConstraint::On,
+            schema: Arc::new(target_scan.schema().join(source_scan.schema())?),
+            null_equals_null: false,
+        });
+
+        // Flag checks for both tables
+        let both_not_null = col("target_exists")
+            .is_not_null()
+            .and(col("source_exists").is_not_null());
+        let only_source = col("target_exists")
+            .is_null()
+            .and(col("source_exists").is_not_null());
+        let only_target = col("target_exists")
+            .is_not_null()
+            .and(col("source_exists").is_null());
+
+        let mut when_then: Vec<(Box<Expr>, Box<Expr>)> = Vec::new();
+        let mut delete_condition = Vec::<Expr>::new();
+
+        let mut planner_context = PlannerContext::new();
+
+        for clause in clauses {
+            let base = match clause.clause_kind {
+                MergeClauseKind::Matched => both_not_null.clone(),
+                MergeClauseKind::NotMatchedByTarget | MergeClauseKind::NotMatched => {
+                    only_source.clone()
+                }
+                MergeClauseKind::NotMatchedBySource => only_target.clone(),
+            };
+
+            // Combine predicate and column check
+            let when_expr = if let Some(pred) = &clause.predicate {
+                let predicate = self.sql_to_expr(*pred, &joined_schema, &mut planner_context)?;
+                base.and(predicate)
+            } else {
+                base
+            };
+
+            match &clause.action {
+                MergeAction::Update { assignments } => {
+                    // each assignment (col = expr) becomes its own `when -> then`
+                    for assign in assignments {
+                        let value = Box::new(self.sql_to_expr(
+                            assign.value,
+                            &joined_schema,
+                            &mut planner_context,
+                        )?);
+                        when_then.push((Box::new(when_expr.clone()), value));
+                    }
+                }
+                MergeAction::Insert(insert_expr) => match &insert_expr.kind {
+                    MergeInsertKind::Values(Values { rows, .. }) => {
+                        let first_row = &rows[0];
+                        for (col_ident, val) in insert_expr.columns.iter().zip(first_row) {
+                            let value = Box::new(self.sql_to_expr(
+                                val.clone(),
+                                &joined_schema,
+                                &mut planner_context,
+                            )?);
+                            when_then.push((
+                                Box::new(when_expr.clone()),
+                                Box::new(value.clone().alias(&col_ident.value)),
+                            ));
+                        }
+                    }
+                    MergeInsertKind::Row => {
+                        for col_ident in &insert_expr.columns {
+                            let src_col = Expr::Column(col_ident.clone().into());
+                            when_then.push((Box::new(when_expr.clone()), Box::new(src_col)));
+                        }
+                    }
+                },
+
+                MergeAction::Delete => {
+                    delete_condition.push(when_expr.clone());
+                }
+            }
+        }
+
+        let delete_pred = delete_condition
+            .into_iter()
+            .reduce(|a, b| a.or(b))
+            .unwrap_or_else(|| lit(false));
+
+        let merge_exec: MergeExec = MergeExec {
+            join: join_plan,
+            case_expression: vec![Expr::Case(Case {
+                expr: None,
+                when_then_expr: when_then.clone(),
+                else_expr: Some(Box::new(col(""))),
+            })],
+            // For now this will be `None` as delete expressions are not supported yet
+            delete_filter: None,
+        };
+
+        let stream = merge_exec.execute(0, context)?;
+        let batches = common::collect(stream).await?;
+
+        Ok(merged)
     }
 
     #[instrument(level = "trace", skip(self), err, ret)]
