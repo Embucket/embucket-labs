@@ -7,6 +7,7 @@ use super::DatabaseIdent;
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
 /// A schema identifier
+#[derive(Default)]
 pub struct SchemaIdent {
     #[validate(length(min = 1))]
     /// The name of the schema

@@ -1,1 +1,0 @@
-import{o as n,p as y}from"./index-336s_lcr.js";const q=(u,r,e)=>y({url:"/ui/volumes",method:"GET",params:u,signal:e},r),i=u=>["/ui/volumes"],m=(u,r)=>{const{query:e,request:t}={};return{queryKey:(e==null?void 0:e.queryKey)??i(),queryFn:({signal:s})=>q(u,t,s),...e}};function p(u,r,e){const t=m(u),o=n(t);return o.queryKey=t.queryKey,o}export{p as u};

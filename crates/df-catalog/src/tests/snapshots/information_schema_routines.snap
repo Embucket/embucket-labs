@@ -1,6 +1,6 @@
 ---
 source: crates/df-catalog/src/tests/information_schema.rs
-description: SELECT routine_name FROM embucket.information_schema.routines GROUP BY routine_name ORDER BY routine_name
+description: "SELECT routine_name FROM embucket.information_schema.routines\n    GROUP BY routine_name ORDER BY routine_name"
 snapshot_kind: text
 ---
 +------------------------------------+

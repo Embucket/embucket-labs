@@ -1,11 +1,40 @@
-use crate::default_limit;
-use core_metastore::S3TablesVolume as MetastoreS3TablesVolume;
 use core_metastore::models::{
-    AwsCredentials, FileVolume as MetastoreFileVolume, S3Volume as MetastoreS3Volume,
-    Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
+    AwsAccessKeyCredentials as MetastoreAwsAccessKeyCredentials,
+    AwsCredentials as MetastoreAwsCredentials, FileVolume as MetastoreFileVolume,
+    S3Volume as MetastoreS3Volume, Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
 };
+use core_metastore::{RwObject, S3TablesVolume as MetastoreS3TablesVolume};
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AwsAccessKeyCredentials {
+    pub aws_access_key_id: String,
+    pub aws_secret_access_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum AwsCredentials {
+    AccessKey(AwsAccessKeyCredentials),
+    Token(String),
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<MetastoreAwsCredentials> for AwsCredentials {
+    fn into(self) -> MetastoreAwsCredentials {
+        match self {
+            Self::AccessKey(access_key) => {
+                MetastoreAwsCredentials::AccessKey(MetastoreAwsAccessKeyCredentials {
+                    aws_access_key_id: access_key.aws_access_key_id,
+                    aws_secret_access_key: access_key.aws_secret_access_key,
+                })
+            }
+            Self::Token(token) => MetastoreAwsCredentials::Token(token),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 pub struct S3Volume {
@@ -29,7 +58,7 @@ pub struct S3TablesVolume {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 pub struct FileVolume {
-    path: String,
+    pub path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
@@ -41,71 +70,30 @@ pub enum VolumeType {
     Memory,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
-pub struct Volume {
-    pub name: String,
-    #[serde(flatten)]
-    pub volume: VolumeType,
-}
-
-impl From<MetastoreVolume> for Volume {
-    fn from(volume: MetastoreVolume) -> Self {
-        Self {
-            name: volume.ident,
-            volume: match volume.volume {
-                MetastoreVolumeType::S3(volume) => VolumeType::S3(S3Volume {
-                    region: volume.region,
-                    bucket: volume.bucket,
-                    endpoint: volume.endpoint,
-                    skip_signature: volume.skip_signature,
-                    metadata_endpoint: volume.metadata_endpoint,
-                    credentials: volume.credentials,
-                }),
-                MetastoreVolumeType::S3Tables(volume) => VolumeType::S3Tables(S3TablesVolume {
-                    region: volume.region,
-                    bucket: volume.bucket,
-                    endpoint: volume.endpoint,
-                    credentials: volume.credentials,
-                    name: volume.name,
-                    arn: volume.arn,
-                }),
-                MetastoreVolumeType::File(file) => VolumeType::File(FileVolume { path: file.path }),
-                MetastoreVolumeType::Memory => VolumeType::Memory,
-            },
-        }
-    }
-}
-
-// TODO: Remove it when found why it can't locate .into() if only From trait implemeted
 #[allow(clippy::from_over_into)]
-impl Into<MetastoreVolume> for Volume {
-    fn into(self) -> MetastoreVolume {
-        MetastoreVolume {
-            ident: self.name,
-            volume: match self.volume {
-                VolumeType::S3(volume) => MetastoreVolumeType::S3(MetastoreS3Volume {
-                    region: volume.region,
-                    bucket: volume.bucket,
-                    endpoint: volume.endpoint,
-                    skip_signature: volume.skip_signature,
-                    metadata_endpoint: volume.metadata_endpoint,
-                    credentials: volume.credentials,
-                }),
-                VolumeType::S3Tables(volume) => {
-                    MetastoreVolumeType::S3Tables(MetastoreS3TablesVolume {
-                        region: volume.region,
-                        bucket: volume.bucket,
-                        endpoint: volume.endpoint,
-                        credentials: volume.credentials,
-                        name: volume.name,
-                        arn: volume.arn,
-                    })
-                }
-                VolumeType::File(volume) => {
-                    MetastoreVolumeType::File(MetastoreFileVolume { path: volume.path })
-                }
-                VolumeType::Memory => MetastoreVolumeType::Memory,
-            },
+impl Into<MetastoreVolumeType> for VolumeType {
+    fn into(self) -> MetastoreVolumeType {
+        match self {
+            Self::S3(volume) => MetastoreVolumeType::S3(MetastoreS3Volume {
+                region: volume.region,
+                bucket: volume.bucket,
+                endpoint: volume.endpoint,
+                skip_signature: volume.skip_signature,
+                metadata_endpoint: volume.metadata_endpoint,
+                credentials: volume.credentials.map(AwsCredentials::into),
+            }),
+            Self::S3Tables(volume) => MetastoreVolumeType::S3Tables(MetastoreS3TablesVolume {
+                region: volume.region,
+                bucket: volume.bucket,
+                endpoint: volume.endpoint,
+                credentials: volume.credentials.into(),
+                name: volume.name,
+                arn: volume.arn,
+            }),
+            Self::File(volume) => {
+                MetastoreVolumeType::File(MetastoreFileVolume { path: volume.path })
+            }
+            Self::Memory => MetastoreVolumeType::Memory,
         }
     }
 }
@@ -113,50 +101,51 @@ impl Into<MetastoreVolume> for Volume {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VolumeCreatePayload {
+    pub name: String,
     #[serde(flatten)]
-    pub data: Volume,
+    pub volume: VolumeType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VolumeUpdatePayload {
-    #[serde(flatten)]
-    pub data: Volume,
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct VolumeCreateResponse {
-    #[serde(flatten)]
-    pub data: Volume,
-}
+pub struct VolumeCreateResponse(pub Volume);
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct VolumeUpdateResponse {
-    #[serde(flatten)]
-    pub data: Volume,
-}
+pub struct VolumeUpdateResponse(pub Volume);
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct VolumeResponse {
-    #[serde(flatten)]
-    pub data: Volume,
+pub struct VolumeResponse(pub Volume);
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Volume {
+    pub name: String,
+    pub r#type: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl From<RwObject<MetastoreVolume>> for Volume {
+    fn from(value: RwObject<MetastoreVolume>) -> Self {
+        Self {
+            name: value.data.ident,
+            r#type: value.data.volume.to_string(),
+            created_at: value.created_at.to_string(),
+            updated_at: value.updated_at.to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VolumesResponse {
     pub items: Vec<Volume>,
-    pub current_cursor: Option<String>,
-    pub next_cursor: String,
-}
-
-#[derive(Debug, Deserialize, ToSchema, IntoParams)]
-pub struct VolumesParameters {
-    pub cursor: Option<String>,
-    #[serde(default = "default_limit")]
-    pub limit: Option<u16>,
-    pub search: Option<String>,
 }

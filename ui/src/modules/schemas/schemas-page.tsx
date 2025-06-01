@@ -8,10 +8,12 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { useGetSchemas } from '@/orval/schemas';
 
 import { CreateSchemaDialog } from '../shared/create-schema-dialog/create-schema-dialog';
-import { DataPageContent } from '../shared/data-page/data-page-content';
-import { DataPageHeader } from '../shared/data-page/data-page-header';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
+import { PageEmptyContainer } from '../shared/page/page-empty-container';
+import { PageHeader } from '../shared/page/page-header';
+import { PageScrollArea } from '../shared/page/page-scroll-area';
 import { SchemasTable } from './schemas-page-table';
+import { SchemasPageToolbar } from './schemas-page-toolbar';
 
 export function SchemasPage() {
   const [opened, setOpened] = useState(false);
@@ -26,23 +28,29 @@ export function SchemasPage() {
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel collapsible defaultSize={20} order={1}>
-          <DataPageHeader
+          <PageHeader
             title={databaseName}
             Icon={Database}
-            secondaryText={`${schemas?.length} schemas found`}
             Action={
-              <Button disabled={isFetching} onClick={() => setOpened(true)}>
+              <Button size="sm" disabled={isFetching} onClick={() => setOpened(true)}>
                 Add Schema
               </Button>
             }
           />
-          <DataPageContent
-            isEmpty={!schemas?.length}
-            Table={<SchemasTable isLoading={isFetching} schemas={schemas ?? []} />}
-            emptyStateIcon={FolderTree}
-            emptyStateTitle="No Schemas Found"
-            emptyStateDescription="No schemas have been created yet. Create a schema to get started."
-          />
+          {!schemas?.length ? (
+            <PageEmptyContainer
+              Icon={FolderTree}
+              title="No Schemas Found"
+              description="No schemas have been found for this database."
+            />
+          ) : (
+            <>
+              <SchemasPageToolbar schemas={schemas} isFetchingSchemas={isFetching} />
+              <PageScrollArea>
+                <SchemasTable isLoading={isFetching} schemas={schemas} />
+              </PageScrollArea>
+            </>
+          )}
         </ResizablePanel>
       </ResizablePanelGroup>
       <CreateSchemaDialog opened={opened} onSetOpened={setOpened} databaseName={databaseName} />

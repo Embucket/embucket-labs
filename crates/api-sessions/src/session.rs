@@ -168,7 +168,7 @@ where
 pub enum SessionError {
     #[snafu(display("Session load error: {msg}"))]
     SessionLoad { msg: String },
-    #[snafu(display("Unable to persist session"))]
+    #[snafu(display("Unable to persist session {source:?}"))]
     SessionPersist {
         source: tower_sessions::session::Error,
     },
@@ -193,7 +193,7 @@ impl IntoResponse for SessionError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core_executor::query::QueryContext;
+    use core_executor::models::QueryContext;
     use core_executor::service::ExecutionService;
     use core_executor::service::make_text_execution_svc;
     use serde_json::json;

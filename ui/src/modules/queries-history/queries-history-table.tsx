@@ -3,7 +3,7 @@ import { createColumnHelper } from '@tanstack/react-table';
 import { DataTable } from '@/components/data-table/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import dayjs from '@/lib/dayjs';
+import { formatTime } from '@/lib/formatTime';
 import { cn } from '@/lib/utils';
 import type { QueryRecord } from '@/orval/models';
 
@@ -47,11 +47,7 @@ export function QueriesHistoryTable({ isLoading, queries }: QueriesHistoryTableP
     columnHelper.accessor('startTime', {
       header: 'Start Time',
       cell: (info) => {
-        const startTime = dayjs(info.getValue());
-        const diff = dayjs().diff(startTime, 'minute');
-        const date =
-          diff < 24 ? dayjs(startTime).fromNow() : dayjs(startTime).format('DD/MM/YYYY HH:mm');
-        return <span>{date}</span>;
+        return <span>{formatTime(info.getValue())}</span>;
       },
     }),
     columnHelper.accessor('durationMs', {

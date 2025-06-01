@@ -1,4 +1,4 @@
-use crate::catalogs::slatedb::config::SlateDBViewConfig;
+use crate::catalogs::slatedb::metastore_config::MetastoreViewConfig;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
     array::StringBuilder,
@@ -16,14 +16,16 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct DatabasesView {
     schema: SchemaRef,
-    config: SlateDBViewConfig,
+    config: MetastoreViewConfig,
 }
 
 impl DatabasesView {
-    pub(crate) fn new(config: SlateDBViewConfig) -> Self {
+    pub(crate) fn new(config: MetastoreViewConfig) -> Self {
         let schema = Arc::new(Schema::new(vec![
             Field::new("database_name", DataType::Utf8, false),
             Field::new("volume_name", DataType::Utf8, false),
+            Field::new("created_at", DataType::Utf8, false),
+            Field::new("updated_at", DataType::Utf8, false),
         ]));
 
         Self { schema, config }
@@ -33,6 +35,8 @@ impl DatabasesView {
         DatabasesViewBuilder {
             database_names: StringBuilder::new(),
             volume_names: StringBuilder::new(),
+            created_at_timestamps: StringBuilder::new(),
+            updated_at_timestamps: StringBuilder::new(),
             schema: Arc::clone(&self.schema),
         }
     }
@@ -62,13 +66,23 @@ pub struct DatabasesViewBuilder {
     schema: SchemaRef,
     database_names: StringBuilder,
     volume_names: StringBuilder,
+    created_at_timestamps: StringBuilder,
+    updated_at_timestamps: StringBuilder,
 }
 
 impl DatabasesViewBuilder {
-    pub fn add_database(&mut self, database_name: impl AsRef<str>, volume_name: impl AsRef<str>) {
+    pub fn add_database(
+        &mut self,
+        database_name: impl AsRef<str>,
+        volume_name: impl AsRef<str>,
+        created_at: impl AsRef<str>,
+        updated_at: impl AsRef<str>,
+    ) {
         // Note: append_value is actually infallible.
         self.database_names.append_value(database_name.as_ref());
         self.volume_names.append_value(volume_name.as_ref());
+        self.created_at_timestamps.append_value(created_at.as_ref());
+        self.updated_at_timestamps.append_value(updated_at.as_ref());
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
@@ -77,6 +91,8 @@ impl DatabasesViewBuilder {
             vec![
                 Arc::new(self.database_names.finish()),
                 Arc::new(self.volume_names.finish()),
+                Arc::new(self.created_at_timestamps.finish()),
+                Arc::new(self.updated_at_timestamps.finish()),
             ],
         )
     }

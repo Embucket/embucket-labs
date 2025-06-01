@@ -184,6 +184,7 @@ impl Volume {
                     .build()
                     .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
                     .context(metastore_error::ObjectStoreSnafu)
+                    .map_err(Box::new)
             }
             VolumeType::S3Tables(volume) => {
                 let s3_builder = volume.s3_builder();
@@ -191,6 +192,7 @@ impl Volume {
                     .build()
                     .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
                     .context(metastore_error::ObjectStoreSnafu)
+                    .map_err(Box::new)
             }
             VolumeType::File(_) => Ok(Arc::new(
                 object_store::local::LocalFileSystem::new().with_automatic_cleanup(true),
@@ -258,7 +260,8 @@ impl Volume {
         object_store
             .get(&Path::from(self.prefix()))
             .await
-            .context(metastore_error::ObjectStoreSnafu)?;
+            .context(metastore_error::ObjectStoreSnafu)
+            .map_err(Box::new)?;
         Ok(())
     }
 }

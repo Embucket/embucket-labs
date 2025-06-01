@@ -52,7 +52,7 @@ export function CreateSchemaDialog({ opened, onSetOpened, databaseName }: Create
         </DialogHeader>
         {error && (
           <Alert variant="destructive">
-            <AlertDescription>{JSON.stringify(error.response?.data)}</AlertDescription>
+            <AlertDescription>{JSON.stringify(error.response?.data.message)}</AlertDescription>
           </Alert>
         )}
         <CreateSchemaDialogForm

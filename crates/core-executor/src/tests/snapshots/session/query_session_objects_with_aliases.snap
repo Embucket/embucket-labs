@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SELECT CURRENT_WAREHOUSE() as wh, CURRENT_DATABASE() as db, CURRENT_SCHEMA() as sch\""
+snapshot_kind: text
+---
+Ok(
+    [
+        "+---------+----------+--------+",
+        "| wh      | db       | sch    |",
+        "+---------+----------+--------+",
+        "| default | embucket | public |",
+        "+---------+----------+--------+",
+    ],
+)

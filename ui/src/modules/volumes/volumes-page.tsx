@@ -1,37 +1,47 @@
+import { useState } from 'react';
+
 import { Box } from 'lucide-react';
 
-import { EmptyContainer } from '@/components/empty-container';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { useGetVolumes } from '@/orval/volumes';
 
+import { CreateVolumeDialog } from '../shared/create-volume-dialog/create-volume-dialog';
+import { PageEmptyContainer } from '../shared/page/page-empty-container';
 import { PageHeader } from '../shared/page/page-header';
+import { PageScrollArea } from '../shared/page/page-scroll-area';
 import { VolumesTable } from './volumes-page-table';
+import { VolumesPageToolbar } from './volumes-page-toolbar';
 
 export function VolumesPage() {
+  const [opened, setOpened] = useState(false);
+
   const { data: { items: volumes } = {}, isFetching } = useGetVolumes();
 
   return (
     <>
-      <PageHeader title="Volumes" />
-      <ScrollArea className="h-[calc(100vh-65px-32px)] p-4">
-        <div className="flex size-full flex-col">
-          {volumes?.length ? (
-            <ScrollArea tableViewport>
-              <VolumesTable volumes={volumes} isLoading={isFetching} />
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
-          ) : (
-            <EmptyContainer
-              // TODO: Hardcode
-              className="min-h-[calc(100vh-32px-65px-32px)]"
-              Icon={Box}
-              title="No Volumes Found"
-              description="No volumes have been created yet. Create a volume to get started."
-            />
-          )}
-        </div>
-        <ScrollBar orientation="vertical" />
-      </ScrollArea>
+      <PageHeader
+        title="Volumes"
+        Action={
+          <Button size="sm" disabled={isFetching} onClick={() => setOpened(true)}>
+            Add Volume
+          </Button>
+        }
+      />
+      {!volumes?.length ? (
+        <PageEmptyContainer
+          Icon={Box}
+          title="No Volumes Found"
+          description="No volumes have been created yet. Create a volume to get started."
+        />
+      ) : (
+        <>
+          <VolumesPageToolbar volumes={volumes} isFetchingVolumes={isFetching} />
+          <PageScrollArea>
+            <VolumesTable volumes={volumes} isLoading={isFetching} />
+          </PageScrollArea>
+        </>
+      )}
+      <CreateVolumeDialog opened={opened} onSetOpened={setOpened} />
     </>
   );
 }

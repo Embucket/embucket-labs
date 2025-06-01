@@ -5,18 +5,27 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
+import type { OrderDirection } from './orderDirection';
 
 export type GetTablesParams = {
   /**
-   * Tables cursor
+   * Tables offset
    */
-  cursor?: string;
+  offset?: number;
   /**
    * Tables limit
    */
   limit?: number;
   /**
-   * Tables search (start with)
+   * Tables search
    */
   search?: string;
+  /**
+   * Order by: table_name (default), schema_name, database_name, volume_name, table_type, table_format, owner, created_at, updated_at
+   */
+  order_by?: string;
+  /**
+   * Order direction: ASC, DESC (default)
+   */
+  order_direction?: OrderDirection;
 };

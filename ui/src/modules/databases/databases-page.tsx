@@ -5,16 +5,20 @@ import { Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useGetDatabases } from '@/orval/databases';
+import { useGetVolumes } from '@/orval/volumes';
 
 import { CreateDatabaseDialog } from '../shared/create-database-dialog/create-database-dialog';
-import { DataPageContent } from '../shared/data-page/data-page-content';
-import { DataPageHeader } from '../shared/data-page/data-page-header';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
+import { PageEmptyContainer } from '../shared/page/page-empty-container';
+import { PageHeader } from '../shared/page/page-header';
+import { PageScrollArea } from '../shared/page/page-scroll-area';
 import { DatabasesTable } from './databases-page-table';
+import { DatabasesPageToolbar } from './databases-page-toolbar';
 
 export function DatabasesPage() {
   const [opened, setOpened] = useState(false);
-  const { data: { items: databases } = {}, isFetching } = useGetDatabases();
+  const { data: { items: databases } = {}, isFetching: isFetchingDatabases } = useGetDatabases();
+  const { data: { items: volumes } = {}, isFetching: isFetchingVolumes } = useGetVolumes();
 
   return (
     <>
@@ -24,23 +28,35 @@ export function DatabasesPage() {
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel collapsible defaultSize={20} order={1}>
-          <DataPageHeader
+          <PageHeader
             title="Databases"
-            Icon={Database}
-            secondaryText={`${databases?.length} databases found`}
             Action={
-              <Button disabled={isFetching} onClick={() => setOpened(true)}>
+              <Button
+                size="sm"
+                disabled={isFetchingDatabases || isFetchingVolumes || !volumes?.length}
+                onClick={() => setOpened(true)}
+              >
                 Add Database
               </Button>
             }
           />
-          <DataPageContent
-            isEmpty={!databases?.length}
-            Table={<DatabasesTable isLoading={isFetching} databases={databases ?? []} />}
-            emptyStateIcon={Database}
-            emptyStateTitle="No Databases Found"
-            emptyStateDescription="No databases have been created yet. Create a database to get started."
-          />
+          {!databases?.length ? (
+            <PageEmptyContainer
+              Icon={Database}
+              title="No Databases Found"
+              description="No databases have been created yet. Create a database to get started."
+            />
+          ) : (
+            <>
+              <DatabasesPageToolbar
+                databases={databases}
+                isFetchingDatabases={isFetchingDatabases}
+              />
+              <PageScrollArea>
+                <DatabasesTable isLoading={isFetchingDatabases} databases={databases} />
+              </PageScrollArea>
+            </>
+          )}
         </ResizablePanel>
       </ResizablePanelGroup>
       <CreateDatabaseDialog opened={opened} onSetOpened={setOpened} />

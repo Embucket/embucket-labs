@@ -43,7 +43,8 @@ pub enum ExecutionError {
 
     #[snafu(display("DataFusion query error: {source}, query: {query}"))]
     DataFusionQuery {
-        source: DataFusionError,
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        source: Box<DataFusionError>,
         query: String,
     },
 
@@ -52,7 +53,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Metastore error: {source}"))]
     Metastore {
-        source: core_metastore::error::MetastoreError,
+        source: Box<core_metastore::error::MetastoreError>,
     },
 
     #[snafu(display("Database {db} not found"))]
@@ -86,10 +87,16 @@ pub enum ExecutionError {
     CatalogNotFound { catalog: String },
 
     #[snafu(display("S3Tables error: {source}"))]
-    S3Tables { source: S3tablesError },
+    S3Tables {
+        #[snafu(source(from(S3tablesError, Box::new)))]
+        source: Box<S3tablesError>,
+    },
 
     #[snafu(display("Iceberg error: {source}"))]
-    Iceberg { source: IcebergError },
+    Iceberg {
+        #[snafu(source(from(IcebergError, Box::new)))]
+        source: Box<IcebergError>,
+    },
 
     #[snafu(display("URL Parsing error: {source}"))]
     UrlParse { source: url::ParseError },
@@ -108,6 +115,9 @@ pub enum ExecutionError {
 
     #[snafu(display("Failed to register catalog: {source}"))]
     RegisterCatalog { source: CatalogError },
+
+    #[snafu(display("Failed to parse data: {source}"))]
+    SerdeParse { source: serde_json::Error },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;

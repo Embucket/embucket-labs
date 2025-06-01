@@ -1,0 +1,43 @@
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE t4 (amount NUMBER);
+
+query T
+SELECT table_name
+FROM information_schema.tables
+WHERE table_name = 'T4';
+----
+T4
+
+statement ok
+DROP TABLE t4
+
+query T
+SELECT table_name
+FROM information_schema.tables
+WHERE table_name = 'T4';
+----
+
+
+statement ok
+DROP TABLE IF EXISTS t4;
+
+# Test dropping a table that has a dependent view
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE TABLE drop_t1(id INT);
+
+exclude-from-coverage
+statement ok
+CREATE OR REPLACE VIEW drop_v1 AS SELECT * FROM drop_t1;
+
+statement ok
+DROP TABLE drop_t1;
+
+# Test dropping a non-existent table without IF EXISTS
+
+statement error
+DROP TABLE nonexistent_table;
+----
+<REGEX>:002003 \(42S02\): SQL compilation error:\nTable 'EMBUCKET\.PUBLIC(_[0-9]+)?\.NONEXISTENT_TABLE' does not exist or not authorized\.

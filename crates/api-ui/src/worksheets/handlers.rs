@@ -3,7 +3,7 @@ use crate::state::AppState;
 use crate::worksheets::{
     GetWorksheetsParams, SortBy, SortOrder, Worksheet, WorksheetCreatePayload,
     WorksheetCreateResponse, WorksheetResponse, WorksheetUpdatePayload, WorksheetsResponse,
-    error::{WorksheetUpdateError, WorksheetsAPIError, WorksheetsResult},
+    error::{ListSnafu, WorksheetUpdateError, WorksheetsAPIError, WorksheetsResult},
 };
 use axum::{
     Json,
@@ -11,6 +11,7 @@ use axum::{
 };
 use chrono::Utc;
 use core_history::WorksheetId;
+use snafu::ResultExt;
 use std::convert::From;
 use tracing;
 use utoipa::OpenApi;
@@ -68,7 +69,7 @@ pub async fn worksheets(
         .history_store
         .get_worksheets()
         .await
-        .map_err(|e| WorksheetsAPIError::List { source: e })?;
+        .context(ListSnafu)?;
 
     let mut items = history_worksheets
         .into_iter()
@@ -158,7 +159,7 @@ pub async fn create_worksheet(
         .map_err(|e| WorksheetsAPIError::Create { source: e })?
         .into();
 
-    Ok(Json(WorksheetCreateResponse { data: worksheet }))
+    Ok(Json(WorksheetCreateResponse(worksheet)))
 }
 
 #[utoipa::path(
@@ -193,9 +194,7 @@ pub async fn worksheet(
         .await
         .map_err(|e| WorksheetsAPIError::Get { source: e })?;
 
-    Ok(Json(WorksheetResponse {
-        data: Worksheet::from(history_worksheet),
-    }))
+    Ok(Json(WorksheetResponse(Worksheet::from(history_worksheet))))
 }
 
 #[utoipa::path(

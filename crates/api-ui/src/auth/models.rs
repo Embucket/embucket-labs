@@ -3,7 +3,7 @@ use utoipa::ToSchema;
 
 #[derive(Clone, PartialEq, Eq, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(Debug, Deserialize))]
+#[cfg_attr(any(test, feature = "client"), derive(Debug, Deserialize))]
 pub struct AuthResponse {
     pub access_token: String,
     pub token_type: String,
@@ -23,13 +23,13 @@ impl AuthResponse {
 
 #[derive(Serialize, Clone, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(Debug, Deserialize))]
+#[cfg_attr(any(test, feature = "client"), derive(Debug, Deserialize))]
 pub struct RefreshTokenResponse {
     pub access_token: String,
 }
 
 #[derive(Deserialize, Clone, PartialEq, Eq, ToSchema)]
-#[cfg_attr(test, derive(Serialize))]
+#[cfg_attr(any(test, feature = "client"), derive(Debug, Serialize))]
 pub struct LoginPayload {
     pub username: String,
     pub password: String,

@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 license-file.workspace = true
 
+[features]
+client = []
+
 [dependencies]
 api-ui-static-assets = { path = "../api-ui-static-assets" }
 api-sessions = { path = "../api-sessions" }

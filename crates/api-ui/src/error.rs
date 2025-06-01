@@ -107,6 +107,7 @@ fn exec_error_into_response(error: &ExecutionError) -> axum::response::Response 
         | ExecutionError::JobError { .. }
         | ExecutionError::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
         ExecutionError::Arrow { .. }
+        | ExecutionError::SerdeParse { .. }
         | ExecutionError::S3Tables { .. }
         | ExecutionError::Iceberg { .. }
         | ExecutionError::CatalogListDowncast

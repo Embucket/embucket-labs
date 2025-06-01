@@ -1,0 +1,36 @@
+[package]
+name = "embucket-seed"
+version = "0.1.0"
+edition = "2024"
+license-file.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "embucket-seed"
+path = "src/bin/main.rs"
+
+[dependencies]
+core-metastore = { path = "../core-metastore" }
+api-ui = { path = "../api-ui", features = ["client"] }
+
+async-trait = { workspace = true }
+cookie = "0.18.1"
+http = { workspace = true }
+serde_yaml = { workspace = true }
+serde = { workspace = true }
+snafu = { workspace = true }
+fake = { version = "4.3.0", features = ["chrono"] }
+reqwest = "0.12.14"
+rand = "0.9.1"
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+clap = { version = "4.5.27", features = ["env", "derive"] }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { workspace = true}
+
+[lints]
+workspace = true

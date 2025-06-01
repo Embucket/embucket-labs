@@ -1,8 +1,9 @@
-use crate::schemas::models::SchemasParameters;
 use crate::state::AppState;
+use crate::{OrderDirection, apply_parameters};
 use crate::{
+    SearchParameters, downcast_string_column,
     error::ErrorResponse,
-    schemas::error::{SchemasAPIError, SchemasResult},
+    schemas::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu, SchemasResult, UpdateSnafu},
     schemas::models::{
         Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaResponse, SchemaUpdatePayload,
         SchemaUpdateResponse, SchemasResponse,
@@ -13,10 +14,10 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use core_executor::query::QueryContext;
+use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::error::MetastoreError;
-use core_metastore::models::SchemaIdent as MetastoreSchemaIdent;
-use core_utils::scan_iterator::ScanIterator;
+use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
+use snafu::ResultExt;
 use std::convert::From;
 use std::convert::Into;
 use utoipa::OpenApi;
@@ -35,8 +36,10 @@ use utoipa::OpenApi;
             SchemaCreatePayload,
             SchemaCreateResponse,
             SchemasResponse,
+            // SchemaPayload,
             Schema,
             ErrorResponse,
+            OrderDirection,
         )
     ),
     tags(
@@ -88,10 +91,27 @@ pub async fn create_schema(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| SchemasAPIError::Create { source: e })?;
-    Ok(Json(SchemaCreateResponse {
-        data: Schema::new(payload.name, database_name),
-    }))
+        .context(CreateSnafu)?;
+
+    let schema_ident = MetastoreSchemaIdent::new(database_name.clone(), payload.name.clone());
+    // after created - request schema from metadata for timestamps
+    state
+        .metastore
+        .get_schema(&schema_ident)
+        .await
+        .map(|opt_rw_obj| {
+            opt_rw_obj.ok_or_else(|| {
+                Box::new(MetastoreError::SchemaNotFound {
+                    db: database_name.clone(),
+                    schema: payload.name.clone(),
+                })
+            })
+        })
+        .context(GetSnafu)?
+        .map(Schema::from)
+        .map(SchemaCreateResponse)
+        .map(Json)
+        .context(GetSnafu)
 }
 
 #[utoipa::path(
@@ -127,12 +147,12 @@ pub async fn delete_schema(
         database_name.clone(),
         schema_name.clone()
     );
-    let _ = state
+    state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| SchemasAPIError::Delete { source: e })?;
-    Ok(())
+        .map(|_| ())
+        .context(DeleteSnafu)
 }
 
 #[utoipa::path(
@@ -165,18 +185,23 @@ pub async fn get_schema(
         database: database_name.clone(),
         schema: schema_name.clone(),
     };
-    match state.metastore.get_schema(&schema_ident).await {
-        Ok(Some(rw_object)) => Ok(Json(SchemaResponse {
-            data: Schema::from(rw_object),
-        })),
-        Ok(None) => Err(SchemasAPIError::Get {
-            source: MetastoreError::SchemaNotFound {
-                db: database_name.clone(),
-                schema: schema_name.clone(),
-            },
-        }),
-        Err(e) => Err(SchemasAPIError::Get { source: e }),
-    }
+    state
+        .metastore
+        .get_schema(&schema_ident)
+        .await
+        .map(|opt_rw_obj| {
+            opt_rw_obj.ok_or_else(|| {
+                Box::new(MetastoreError::SchemaNotFound {
+                    db: database_name.clone(),
+                    schema: schema_name.clone(),
+                })
+            })
+        })
+        .context(GetSnafu)?
+        .map(Schema::from)
+        .map(SchemaResponse)
+        .map(Json)
+        .context(GetSnafu)
 }
 
 #[utoipa::path(
@@ -207,18 +232,20 @@ pub async fn update_schema(
     Path((database_name, schema_name)): Path<(String, String)>,
     Json(schema): Json<SchemaUpdatePayload>,
 ) -> SchemasResult<Json<SchemaUpdateResponse>> {
-    let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
+    let schema_ident = MetastoreSchemaIdent::new(schema.database, schema.name);
+    let metastore_schema = MetastoreSchema {
+        ident: schema_ident.clone(),
+        properties: None,
+    };
     // TODO: Implement schema renames
     state
         .metastore
-        .update_schema(&schema_ident, schema.data.into())
+        .update_schema(&schema_ident, metastore_schema)
         .await
-        .map_err(|e| SchemasAPIError::Update { source: e })
-        .map(|rw_object| {
-            Json(SchemaUpdateResponse {
-                data: Schema::from(rw_object),
-            })
-        })
+        .map(Schema::from)
+        .map(SchemaUpdateResponse)
+        .map(Json)
+        .context(UpdateSnafu)
 }
 
 #[utoipa::path(
@@ -228,9 +255,11 @@ pub async fn update_schema(
     tags = ["schemas"],
     params(
         ("databaseName" = String, description = "Database Name"),
-        ("cursor" = Option<String>, Query, description = "Schemas cursor"),
-        ("limit" = Option<usize>, Query, description = "Schemas limit"),
-        ("search" = Option<String>, Query, description = "Schemas search (start with)"),
+        ("offset" = Option<usize>, Query, description = "Schemas offset"),
+        ("limit" = Option<u16>, Query, description = "Schemas limit"),
+        ("search" = Option<String>, Query, description = "Schemas search"),
+        ("order_by" = Option<String>, Query, description = "Order by: schema_name (default), database_name, created_at, updated_at"),
+        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     responses(
         (status = 200, body = SchemasResponse),
@@ -244,31 +273,41 @@ pub async fn update_schema(
     )
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[allow(clippy::unwrap_used)]
 pub async fn list_schemas(
-    Query(parameters): Query<SchemasParameters>,
+    DFSessionId(session_id): DFSessionId,
+    Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
     Path(database_name): Path<String>,
 ) -> SchemasResult<Json<SchemasResponse>> {
-    state
-        .metastore
-        .iter_schemas(&database_name)
-        .cursor(parameters.cursor.clone())
-        .limit(parameters.limit)
-        .token(parameters.search)
-        .collect()
+    let context = QueryContext::new(Some(database_name.clone()), None, None);
+    let sql_string = format!(
+        "SELECT * FROM slatedb.meta.schemas WHERE database_name = '{}'",
+        database_name.clone()
+    );
+    let sql_string = apply_parameters(&sql_string, parameters, &["schema_name", "database_name"]);
+    let QueryResult { records, .. } = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| SchemasAPIError::List {
-            source: MetastoreError::UtilSlateDB { source: e },
-        })
-        .map(|rw_objects| {
-            let next_cursor = rw_objects
-                .iter()
-                .last()
-                .map_or(String::new(), |rw_object| rw_object.ident.schema.clone());
-            Json(SchemasResponse {
-                items: rw_objects.into_iter().map(Schema::from).collect(),
-                current_cursor: parameters.cursor,
-                next_cursor,
-            })
-        })
+        .context(ListSnafu)?;
+
+    let mut items = Vec::new();
+    for record in records {
+        let schema_names = downcast_string_column(&record, "schema_name").context(ListSnafu)?;
+        let database_names = downcast_string_column(&record, "database_name").context(ListSnafu)?;
+        let created_at_timestamps =
+            downcast_string_column(&record, "created_at").context(ListSnafu)?;
+        let updated_at_timestamps =
+            downcast_string_column(&record, "updated_at").context(ListSnafu)?;
+        for i in 0..record.num_rows() {
+            items.push(Schema {
+                name: schema_names.value(i).to_string(),
+                database: database_names.value(i).to_string(),
+                created_at: created_at_timestamps.value(i).to_string(),
+                updated_at: updated_at_timestamps.value(i).to_string(),
+            });
+        }
+    }
+    Ok(Json(SchemasResponse { items }))
 }

@@ -208,7 +208,7 @@ mod test {
                 ];
                 if let Some(nano) = n {
                     fn_args.push(columnar_value_fn(is_scalar, *nano));
-                };
+                }
                 let result = TimeFromPartsFunc::new()
                     .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
                         args: fn_args,

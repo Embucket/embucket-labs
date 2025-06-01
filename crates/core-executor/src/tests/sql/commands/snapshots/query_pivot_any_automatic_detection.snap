@@ -1,0 +1,16 @@
+---
+source: crates/core-executor/src/tests/sql/pivot.rs
+description: "\"SELECT *\nFROM quarterly_sales\nPIVOT(SUM(amount) FOR empid IN (ANY ORDER BY empid))\nORDER BY quarter;\""
+---
+Ok(
+    [
+        "+---------+-------+-------+-------+",
+        "| quarter | 1     | 2     | 3     |",
+        "+---------+-------+-------+-------+",
+        "| 2023_Q1 | 10400 | 39500 |       |",
+        "| 2023_Q2 | 8000  | 90700 |       |",
+        "| 2023_Q3 | 11000 | 12000 | 2700  |",
+        "| 2023_Q4 | 18000 | 5300  | 28900 |",
+        "+---------+-------+-------+-------+",
+    ],
+)

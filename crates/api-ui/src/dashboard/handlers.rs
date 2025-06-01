@@ -1,12 +1,12 @@
-use crate::dashboard::error::{DashboardAPIError, DashboardResult};
+use crate::dashboard::error::{DashboardResult, HistorySnafu, MetastoreSnafu};
 use crate::dashboard::models::{Dashboard, DashboardResponse};
 use crate::error::ErrorResponse;
-use crate::queries::error::QueryError;
 use crate::state::AppState;
 use axum::{Json, extract::State};
-use core_history::GetQueries;
-use core_metastore::error::MetastoreError;
+use core_history::history_store::GetQueriesParams;
+use core_metastore::error::UtilSlateDBSnafu;
 use core_utils::scan_iterator::ScanIterator;
+use snafu::ResultExt;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -17,7 +17,6 @@ use utoipa::OpenApi;
     components(
         schemas(
             DashboardResponse,
-            Dashboard,
         )
     ),
     tags(
@@ -51,9 +50,9 @@ pub async fn get_dashboard(
         .iter_databases()
         .collect()
         .await
-        .map_err(|e| DashboardAPIError::Metastore {
-            source: MetastoreError::UtilSlateDB { source: e },
-        })?;
+        .context(UtilSlateDBSnafu)
+        .context(MetastoreSnafu)?;
+
     let total_databases = rw_databases.len();
     let mut total_schemas = 0;
     let mut total_tables = 0;
@@ -63,9 +62,8 @@ pub async fn get_dashboard(
             .iter_schemas(&rw_database.ident.clone())
             .collect()
             .await
-            .map_err(|e| DashboardAPIError::Metastore {
-                source: MetastoreError::UtilSlateDB { source: e },
-            })?;
+            .context(UtilSlateDBSnafu)
+            .context(MetastoreSnafu)?;
         total_schemas += rw_schemas.len();
         for rw_schema in rw_schemas {
             total_tables += state
@@ -73,28 +71,23 @@ pub async fn get_dashboard(
                 .iter_tables(&rw_schema.ident)
                 .collect()
                 .await
-                .map_err(|e| DashboardAPIError::Metastore {
-                    source: MetastoreError::UtilSlateDB { source: e },
-                })?
+                .context(UtilSlateDBSnafu)
+                .context(MetastoreSnafu)?
                 .len();
         }
     }
 
     let total_queries = state
         .history_store
-        .get_queries(GetQueries::new())
+        .get_queries(GetQueriesParams::new())
         .await
-        .map_err(|e| DashboardAPIError::Queries {
-            source: QueryError::Store { source: e },
-        })?
+        .context(HistorySnafu)?
         .len();
 
-    Ok(Json(DashboardResponse {
-        data: Dashboard {
-            total_databases,
-            total_schemas,
-            total_tables,
-            total_queries,
-        },
-    }))
+    Ok(Json(DashboardResponse(Dashboard {
+        total_databases,
+        total_schemas,
+        total_tables,
+        total_queries,
+    })))
 }

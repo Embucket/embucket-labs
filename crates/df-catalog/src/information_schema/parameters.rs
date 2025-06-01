@@ -22,8 +22,8 @@ pub struct InformationSchemaParameters {
 }
 
 impl InformationSchemaParameters {
-    pub fn new() -> Self {
-        let schema = Arc::new(Schema::new(vec![
+    pub fn schema() -> Arc<Schema> {
+        Arc::new(Schema::new(vec![
             Field::new("specific_catalog", DataType::Utf8, false),
             Field::new("specific_schema", DataType::Utf8, false),
             Field::new("specific_name", DataType::Utf8, false),
@@ -39,8 +39,10 @@ impl InformationSchemaParameters {
             //     - `datetrunc(Utf8, Timestamp(Microsecond, Some("+TZ"))) -> Timestamp(Microsecond, Some("+TZ"))`
             //     - `datetrunc(Utf8View, Timestamp(Nanosecond, None)) -> Timestamp(Nanosecond, None)`
             Field::new("rid", DataType::UInt8, false),
-        ]));
-
+        ]))
+    }
+    pub fn new() -> Self {
+        let schema = Self::schema();
         Self { schema }
     }
 

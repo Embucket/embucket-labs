@@ -1,5 +1,3 @@
-import type React from 'react';
-
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 
 import { cn } from '@/lib/utils';
@@ -25,7 +23,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        'relative px-3 py-4 text-sm font-medium text-gray-400 transition-colors hover:text-gray-200 focus-visible:outline-none',
+        'relative cursor-pointer px-3 py-4 text-sm font-medium text-gray-400 transition-colors hover:text-gray-200 focus-visible:outline-none',
         'data-[state=active]:text-white',
         'g after:absolute after:right-0 after:bottom-0 after:left-0 after:h-[2px] after:scale-x-0 after:transform after:bg-white after:transition-transform',
         'data-[state=active]:after:scale-x-100',

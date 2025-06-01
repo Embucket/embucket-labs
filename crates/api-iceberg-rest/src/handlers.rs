@@ -48,7 +48,7 @@ pub async fn get_namespace(
         .metastore
         .get_schema(&schema_ident)
         .await
-        .map_err(|e: MetastoreError| IcebergAPIError::from(e))?
+        .map_err(IcebergAPIError::from)?
         .ok_or_else(|| {
             IcebergAPIError::from(MetastoreError::SchemaNotFound {
                 db: database_name.clone(),
@@ -68,7 +68,7 @@ pub async fn delete_namespace(
         .metastore
         .delete_schema(&schema_ident, true)
         .await
-        .map_err(IcebergAPIError)?;
+        .map_err(IcebergAPIError::from)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -82,7 +82,7 @@ pub async fn list_namespaces(
         .iter_schemas(&database_name)
         .collect()
         .await
-        .map_err(|e| IcebergAPIError(MetastoreError::UtilSlateDB { source: e }))?;
+        .map_err(|e| IcebergAPIError::from(MetastoreError::UtilSlateDB { source: e }))?;
     Ok(Json(from_schemas_list(schemas)))
 }
 
@@ -107,7 +107,7 @@ pub async fn create_table(
         .metastore
         .create_table(&table_ident, ib_create_table)
         .await
-        .map_err(IcebergAPIError)?;
+        .map_err(IcebergAPIError::from)?;
     Ok(Json(LoadTableResult::new(table.data.metadata)))
 }
 
@@ -153,7 +153,7 @@ pub async fn commit_table(
         .metastore
         .update_table(&table_ident, table_updates)
         .await
-        .map_err(IcebergAPIError)?;
+        .map_err(IcebergAPIError::from)?;
     Ok(Json(CommitTableResponse::new(
         ib_table.data.metadata_location,
         ib_table.data.metadata,
@@ -170,7 +170,7 @@ pub async fn get_table(
         .metastore
         .get_table(&table_ident)
         .await
-        .map_err(|e: MetastoreError| IcebergAPIError::from(e))?
+        .map_err(IcebergAPIError::from)?
         .ok_or_else(|| {
             IcebergAPIError::from(MetastoreError::TableNotFound {
                 db: database_name.clone(),
@@ -191,7 +191,7 @@ pub async fn delete_table(
         .metastore
         .delete_table(&table_ident, true)
         .await
-        .map_err(IcebergAPIError)?;
+        .map_err(IcebergAPIError::from)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -206,7 +206,7 @@ pub async fn list_tables(
         .iter_tables(&schema_ident)
         .collect()
         .await
-        .map_err(|e| IcebergAPIError(MetastoreError::UtilSlateDB { source: e }))?;
+        .map_err(|e| IcebergAPIError::from(MetastoreError::UtilSlateDB { source: e }))?;
     Ok(Json(from_tables_list(tables)))
 }
 

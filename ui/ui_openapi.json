@@ -14,13 +14,20 @@
     "version": "1.0.2"
   },
   "paths": {
-    "/account": {
+    "/ui/auth/account": {
       "get": {
         "tags": ["account"],
-        "operationId": "account",
+        "operationId": "getAccount",
         "responses": {
           "200": {
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized",
@@ -43,7 +50,7 @@
         }
       }
     },
-    "/auth/login": {
+    "/ui/auth/login": {
       "post": {
         "tags": ["auth"],
         "operationId": "login",
@@ -99,7 +106,7 @@
         }
       }
     },
-    "/auth/logout": {
+    "/ui/auth/logout": {
       "post": {
         "tags": ["auth"],
         "operationId": "logout",
@@ -138,10 +145,10 @@
         }
       }
     },
-    "/auth/refresh": {
+    "/ui/auth/refresh": {
       "post": {
         "tags": ["auth"],
-        "operationId": "refresh",
+        "operationId": "refreshAuthToken",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -236,12 +243,13 @@
         "operationId": "getDatabases",
         "parameters": [
           {
-            "name": "cursor",
+            "name": "offset",
             "in": "query",
-            "description": "Databases cursor",
+            "description": "Databases offset",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 0
             }
           },
           {
@@ -257,10 +265,28 @@
           {
             "name": "search",
             "in": "query",
-            "description": "Databases search (start with)",
+            "description": "Databases search",
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Order by: database_name (default), volume_name, created_at, updated_at",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Order direction: ASC, DESC (default)",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/OrderDirection"
             }
           }
         ],
@@ -490,12 +516,13 @@
             }
           },
           {
-            "name": "cursor",
+            "name": "offset",
             "in": "query",
-            "description": "Schemas cursor",
+            "description": "Schemas offset",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 0
             }
           },
           {
@@ -505,16 +532,35 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "format": "int32",
               "minimum": 0
             }
           },
           {
             "name": "search",
             "in": "query",
-            "description": "Schemas search (start with)",
+            "description": "Schemas search",
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Order by: schema_name (default), database_name, created_at, updated_at",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Order direction: ASC, DESC (default)",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/OrderDirection"
             }
           }
         ],
@@ -738,12 +784,13 @@
             }
           },
           {
-            "name": "cursor",
+            "name": "offset",
             "in": "query",
-            "description": "Tables cursor",
+            "description": "Tables offset",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 0
             }
           },
           {
@@ -759,10 +806,28 @@
           {
             "name": "search",
             "in": "query",
-            "description": "Tables search (start with)",
+            "description": "Tables search",
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Order by: table_name (default), schema_name, database_name, volume_name, table_type, table_format, owner, created_at, updated_at",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Order direction: ASC, DESC (default)",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/OrderDirection"
             }
           }
         ],
@@ -1450,19 +1515,19 @@
               "examples": {
                 "with context": {
                   "value": {
+                    "worksheetId": null,
+                    "query": "CREATE TABLE test(a INT);",
                     "context": {
                       "database": "my_database",
                       "schema": "public"
-                    },
-                    "query": "CREATE TABLE test(a INT);",
-                    "worksheetId": null
+                    }
                   }
                 },
                 "with fully qualified name": {
                   "value": {
-                    "context": null,
+                    "worksheetId": null,
                     "query": "CREATE TABLE my_database.public.test(a INT);",
-                    "worksheetId": null
+                    "context": null
                   }
                 }
               }
@@ -1538,12 +1603,13 @@
         "operationId": "getVolumes",
         "parameters": [
           {
-            "name": "cursor",
+            "name": "offset",
             "in": "query",
-            "description": "Volumes cursor",
+            "description": "Volumes offset",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 0
             }
           },
           {
@@ -1559,10 +1625,28 @@
           {
             "name": "search",
             "in": "query",
-            "description": "Volumes search (start with)",
+            "description": "Volumes search",
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Order by: volume_name (default), volume_type, created_at, updated_at",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Order direction: ASC, DESC (default)",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/OrderDirection"
             }
           }
         ],
@@ -1587,6 +1671,80 @@
                 "description": "Bearer authentication scheme with error details"
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["volumes"],
+        "operationId": "createVolume",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VolumeCreatePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VolumeCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Bearer authentication scheme with error details"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity",
             "content": {
               "application/json": {
                 "schema": {
@@ -1633,6 +1791,64 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Bearer authentication scheme with error details"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["volumes"],
+        "operationId": "deleteVolume",
+        "parameters": [
+          {
+            "name": "volumeName",
+            "in": "path",
+            "description": "Volume name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
           },
           "401": {
             "description": "Unauthorized",
@@ -1764,14 +1980,14 @@
               "examples": {
                 "empty name": {
                   "value": {
-                    "content": "select 1",
-                    "name": ""
+                    "name": "",
+                    "content": "select 1"
                   }
                 },
                 "with name": {
                   "value": {
-                    "content": "select 1",
-                    "name": "worksheet1"
+                    "name": "worksheet1",
+                    "content": "select 1"
                   }
                 }
               }
@@ -2062,17 +2278,33 @@
   },
   "components": {
     "schemas": {
+      "AccountResponse": {
+        "type": "object",
+        "required": ["username"],
+        "properties": {
+          "username": {
+            "type": "string"
+          }
+        }
+      },
       "AuthErrorResponse": {
         "type": "object",
-        "required": ["message", "status_code"],
+        "required": ["message", "statusCode"],
         "properties": {
-          "error_kind": {
-            "type": ["string", "null"]
+          "errorKind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TokenErrorKind"
+              }
+            ]
           },
           "message": {
             "type": "string"
           },
-          "status_code": {
+          "statusCode": {
             "type": "integer",
             "format": "int32",
             "minimum": 0
@@ -2098,12 +2330,12 @@
       },
       "AwsAccessKeyCredentials": {
         "type": "object",
-        "required": ["aws-access-key-id", "aws-secret-access-key"],
+        "required": ["awsAccessKeyId", "awsSecretAccessKey"],
         "properties": {
-          "aws-access-key-id": {
+          "awsAccessKeyId": {
             "type": "string"
           },
-          "aws-secret-access-key": {
+          "awsSecretAccessKey": {
             "type": "string"
           }
         }
@@ -2111,29 +2343,20 @@
       "AwsCredentials": {
         "oneOf": [
           {
-            "allOf": [
-              {
+            "type": "object",
+            "required": ["accessKey"],
+            "properties": {
+              "accessKey": {
                 "$ref": "#/components/schemas/AwsAccessKeyCredentials"
-              },
-              {
-                "type": "object",
-                "required": ["credential_type"],
-                "properties": {
-                  "credential_type": {
-                    "type": "string",
-                    "enum": ["access_key"]
-                  }
-                }
               }
-            ]
+            }
           },
           {
             "type": "object",
-            "required": ["credential_type"],
+            "required": ["token"],
             "properties": {
-              "credential_type": {
-                "type": "string",
-                "enum": ["token"]
+              "token": {
+                "type": "string"
               }
             }
           }
@@ -2174,13 +2397,27 @@
         }
       },
       "DashboardResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Dashboard"
-          }
-        ]
+        "$ref": "#/components/schemas/Dashboard"
       },
       "Database": {
+        "type": "object",
+        "required": ["name", "volume", "created_at", "updated_at"],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "volume": {
+            "type": "string"
+          }
+        }
+      },
+      "DatabaseCreatePayload": {
         "type": "object",
         "required": ["name", "volume"],
         "properties": {
@@ -2192,42 +2429,21 @@
           }
         }
       },
-      "DatabaseCreatePayload": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Database"
-          }
-        ]
-      },
       "DatabaseCreateResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Database"
-          }
-        ]
+        "$ref": "#/components/schemas/Database"
       },
       "DatabaseResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Database"
-          }
-        ]
+        "$ref": "#/components/schemas/Database"
       },
       "DatabasesResponse": {
         "type": "object",
-        "required": ["items", "nextCursor"],
+        "required": ["items"],
         "properties": {
-          "currentCursor": {
-            "type": ["string", "null"]
-          },
           "items": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Database"
             }
-          },
-          "nextCursor": {
-            "type": "string"
           }
         }
       },
@@ -2283,12 +2499,18 @@
       },
       "NavigationTreeSchema": {
         "type": "object",
-        "required": ["name", "tables"],
+        "required": ["name", "tables", "views"],
         "properties": {
           "name": {
             "type": "string"
           },
           "tables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NavigationTreeTable"
+            }
+          },
+          "views": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/NavigationTreeTable"
@@ -2316,6 +2538,10 @@
             }
           }
         }
+      },
+      "OrderDirection": {
+        "type": "string",
+        "enum": ["ASC", "DESC"]
       },
       "QueriesResponse": {
         "type": "object",
@@ -2371,11 +2597,7 @@
         }
       },
       "QueryCreateResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/QueryRecord"
-          }
-        ]
+        "$ref": "#/components/schemas/QueryRecord"
       },
       "QueryRecord": {
         "type": "object",
@@ -2528,8 +2750,7 @@
         "required": ["name", "database", "created_at", "updated_at"],
         "properties": {
           "created_at": {
-            "type": "string",
-            "format": "date-time"
+            "type": "string"
           },
           "database": {
             "type": "string"
@@ -2538,8 +2759,7 @@
             "type": "string"
           },
           "updated_at": {
-            "type": "string",
-            "format": "date-time"
+            "type": "string"
           }
         }
       },
@@ -2553,42 +2773,52 @@
         }
       },
       "SchemaCreateResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Schema"
-          }
-        ]
+        "$ref": "#/components/schemas/Schema"
       },
       "SchemasResponse": {
         "type": "object",
-        "required": ["items", "nextCursor"],
+        "required": ["items"],
         "properties": {
-          "currentCursor": {
-            "type": ["string", "null"]
-          },
           "items": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Schema"
             }
-          },
-          "nextCursor": {
-            "type": "string"
           }
         }
       },
       "Table": {
         "type": "object",
-        "required": ["name", "type", "owner", "totalRows", "totalBytes", "createdAt", "updatedAt"],
+        "required": [
+          "name",
+          "schemaName",
+          "databaseName",
+          "volumeName",
+          "owner",
+          "tableFormat",
+          "type",
+          "totalRows",
+          "totalBytes",
+          "createdAt",
+          "updatedAt"
+        ],
         "properties": {
           "createdAt": {
-            "type": "string",
-            "format": "date-time"
+            "type": "string"
+          },
+          "databaseName": {
+            "type": "string"
           },
           "name": {
             "type": "string"
           },
           "owner": {
+            "type": "string"
+          },
+          "schemaName": {
+            "type": "string"
+          },
+          "tableFormat": {
             "type": "string"
           },
           "totalBytes": {
@@ -2603,8 +2833,10 @@
             "type": "string"
           },
           "updatedAt": {
-            "type": "string",
-            "format": "date-time"
+            "type": "string"
+          },
+          "volumeName": {
+            "type": "string"
           }
         }
       },
@@ -2718,11 +2950,7 @@
         }
       },
       "TableStatisticsResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/TableStatistics"
-          }
-        ]
+        "$ref": "#/components/schemas/TableStatistics"
       },
       "TableUploadPayload": {
         "type": "object",
@@ -2748,39 +2976,38 @@
           }
         }
       },
-      "TablesParameters": {
-        "type": "object",
-        "properties": {
-          "cursor": {
-            "type": ["string", "null"]
-          },
-          "limit": {
-            "type": ["integer", "null"],
-            "format": "int32",
-            "minimum": 0
-          },
-          "search": {
-            "type": ["string", "null"]
-          }
-        }
-      },
       "TablesResponse": {
         "type": "object",
-        "required": ["items", "nextCursor"],
+        "required": ["items"],
         "properties": {
-          "currentCursor": {
-            "type": ["string", "null"]
-          },
           "items": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Table"
             }
-          },
-          "nextCursor": {
-            "type": "string"
           }
         }
+      },
+      "TokenErrorKind": {
+        "type": "string",
+        "enum": [
+          "invalidToken",
+          "invalidSignature",
+          "invalidEcdsaKey",
+          "invalidRsaKey",
+          "rsaFailedSigning",
+          "invalidAlgorithmName",
+          "invalidKeyFormat",
+          "missingRequiredClaim",
+          "expiredSignature",
+          "invalidIssuer",
+          "invalidAudience",
+          "invalidSubject",
+          "immatureSignature",
+          "invalidAlgorithm",
+          "missingAlgorithm",
+          "other"
+        ]
       },
       "UploadParameters": {
         "type": "object",
@@ -2816,6 +3043,24 @@
         }
       },
       "Volume": {
+        "type": "object",
+        "required": ["name", "type", "createdAt", "updatedAt"],
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "VolumeCreatePayload": {
         "allOf": [
           {
             "$ref": "#/components/schemas/VolumeType"
@@ -2831,12 +3076,11 @@
           }
         ]
       },
+      "VolumeCreateResponse": {
+        "$ref": "#/components/schemas/Volume"
+      },
       "VolumeResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Volume"
-          }
-        ]
+        "$ref": "#/components/schemas/Volume"
       },
       "VolumeType": {
         "oneOf": [
@@ -2905,19 +3149,13 @@
       },
       "VolumesResponse": {
         "type": "object",
-        "required": ["items", "nextCursor"],
+        "required": ["items"],
         "properties": {
-          "currentCursor": {
-            "type": ["string", "null"]
-          },
           "items": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Volume"
             }
-          },
-          "nextCursor": {
-            "type": "string"
           }
         }
       },
@@ -2957,18 +3195,10 @@
         }
       },
       "WorksheetCreateResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Worksheet"
-          }
-        ]
+        "$ref": "#/components/schemas/Worksheet"
       },
       "WorksheetResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Worksheet"
-          }
-        ]
+        "$ref": "#/components/schemas/Worksheet"
       },
       "WorksheetUpdatePayload": {
         "type": "object",

@@ -7,6 +7,6 @@
  */
 
 export interface AwsAccessKeyCredentials {
-  'aws-access-key-id': string;
-  'aws-secret-access-key': string;
+  awsAccessKeyId: string;
+  awsSecretAccessKey: string;
 }

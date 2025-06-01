@@ -44,5 +44,5 @@ impl VisitorMut for CopyIntoStatementIdentifiers {
 }
 
 pub fn visit(stmt: &mut Statement) {
-    stmt.visit(&mut CopyIntoStatementIdentifiers {});
+    let _ = stmt.visit(&mut CopyIntoStatementIdentifiers {});
 }

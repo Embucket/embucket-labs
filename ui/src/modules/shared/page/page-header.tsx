@@ -1,25 +1,21 @@
-import { Search } from 'lucide-react';
-
-import { Input, InputIcon, InputRoot } from '@/components/ui/input';
+import type { LucideIcon } from 'lucide-react';
 
 interface PageHeaderProps {
   title: string;
-  children?: React.ReactNode;
+  Icon?: LucideIcon;
+  Action?: React.ReactNode;
 }
 
-export const PageHeader = ({ title, children }: PageHeaderProps) => {
+export const PageHeader = ({ title, Action, Icon }: PageHeaderProps) => {
   return (
-    <div className="flex items-center justify-between border-b p-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold">{title}</h1>
-        {children}
+    <div className="flex min-h-[65px] border-b p-4">
+      <div className="flex w-full items-center justify-between">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="text-muted-foreground size-5" />}
+          <h1 className="text-lg">{title}</h1>
+        </div>
+        {Action}
       </div>
-      <InputRoot>
-        <InputIcon>
-          <Search />
-        </InputIcon>
-        <Input className="min-w-80" disabled placeholder="Search" />
-      </InputRoot>
     </div>
   );
 };

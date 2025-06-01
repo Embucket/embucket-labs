@@ -12,18 +12,15 @@ use datafusion_common::TableReference;
 use snafu::ResultExt;
 
 use super::error::{self as ex_error, ExecutionError, ExecutionResult};
-use super::{
-    models::ColumnInfo,
-    models::QueryResultData,
-    query::QueryContext,
-    session::UserSession,
-    utils::{Config, convert_record_batches},
-};
-use crate::utils::DataSerializationFormat;
+use super::{models::QueryContext, models::QueryResult, session::UserSession};
+use crate::utils::{Config, query_result_to_history};
+use core_history::history_store::HistoryStore;
+use core_history::store::SlateDBHistoryStore;
 use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableIdent};
 use core_utils::Db;
 use tokio::sync::RwLock;
 use uuid::Uuid;
+
 #[async_trait::async_trait]
 pub trait ExecutionService: Send + Sync {
     async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>>;
@@ -33,7 +30,7 @@ pub trait ExecutionService: Send + Sync {
         session_id: &str,
         query: &str,
         query_context: QueryContext,
-    ) -> ExecutionResult<QueryResultData>;
+    ) -> ExecutionResult<QueryResult>;
     async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -42,20 +39,24 @@ pub trait ExecutionService: Send + Sync {
         file_name: &str,
         format: Format,
     ) -> ExecutionResult<usize>;
-    //Can't be const in trait
-    fn config(&self) -> &Config;
 }
 
 pub struct CoreExecutionService {
     metastore: Arc<dyn Metastore>,
+    history_store: Arc<dyn HistoryStore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<UserSession>>>>,
-    config: Config,
+    config: Arc<Config>,
 }
 
 impl CoreExecutionService {
-    pub fn new(metastore: Arc<dyn Metastore>, config: Config) -> Self {
+    pub fn new(
+        metastore: Arc<dyn Metastore>,
+        history_store: Arc<dyn HistoryStore>,
+        config: Arc<Config>,
+    ) -> Self {
         Self {
             metastore,
+            history_store,
             df_sessions: Arc::new(RwLock::new(HashMap::new())),
             config,
         }
@@ -72,7 +73,14 @@ impl ExecutionService for CoreExecutionService {
                 return Ok(session.clone());
             }
         }
-        let user_session = Arc::new(UserSession::new(self.metastore.clone()).await?);
+        let user_session = Arc::new(
+            UserSession::new(
+                self.metastore.clone(),
+                self.history_store.clone(),
+                self.config.clone(),
+            )
+            .await?,
+        );
         {
             tracing::trace!("Acquiring write lock for df_sessions");
             let mut sessions = self.df_sessions.write().await;
@@ -97,45 +105,38 @@ impl ExecutionService for CoreExecutionService {
         session_id: &str,
         query: &str,
         query_context: QueryContext,
-    ) -> ExecutionResult<QueryResultData> {
-        let sessions = self.df_sessions.read().await;
-        let user_session =
+    ) -> ExecutionResult<QueryResult> {
+        let user_session = {
+            let sessions = self.df_sessions.read().await;
             sessions
                 .get(session_id)
                 .ok_or(ExecutionError::MissingDataFusionSession {
                     id: session_id.to_string(),
-                })?;
-
-        let mut query_obj = user_session.query(query, query_context);
-
-        let records: Vec<RecordBatch> = query_obj.execute().await?;
-
-        let data_format = self.config().dbt_serialization_format;
-        // Add columns dbt metadata to each field
-        // TODO: RecordBatch conversion should happen somewhere outside ExecutionService
-        // Perhaps this can be moved closer to Snowflake API layer
-        let (records, columns) = convert_record_batches(records, data_format)
-            .context(ex_error::DataFusionQuerySnafu { query })?;
-
-        // TODO: Perhaps it's better to return a schema as a result of `execute` method
-        let columns_info = if columns.is_empty() {
-            query_obj
-                .get_custom_logical_plan(&query_obj.query)
-                .await?
-                .schema()
-                .fields()
-                .iter()
-                .map(|field| ColumnInfo::from_field(field))
-                .collect::<Vec<_>>()
-        } else {
-            columns
+                })?
+                .clone()
         };
 
-        Ok(QueryResultData {
-            records,
-            columns_info,
-            query_id: i64::default(), // default value for query_id is meaningless,
-        })
+        let mut history_record = self
+            .history_store
+            .query_record(query, query_context.worksheet_id);
+        // Attach the generated query ID to the query context before execution.
+        // This ensures consistent tracking and logging of the query across all layers.
+        let mut query_obj = user_session.query(
+            query,
+            query_context.with_query_id(history_record.query_id()),
+        );
+
+        let query_result = query_obj.execute().await;
+        // Record the query in the session’s history, including result count or error message.
+        // This ensures all queries are traceable and auditable within a session, which enables
+        // features like `last_query_id()` and enhances debugging and observability.
+        self.history_store
+            .save_query_record(
+                &mut history_record,
+                query_result_to_history(&query_result, self.config.dbt_serialization_format),
+            )
+            .await;
+        query_result
     }
 
     #[tracing::instrument(level = "debug", skip(self, data))]
@@ -156,13 +157,15 @@ impl ExecutionService for CoreExecutionService {
 
         // use unique name to support simultaneous uploads
         let unique_id = Uuid::new_v4().to_string().replace('-', "_");
-        let sessions = self.df_sessions.read().await;
-        let user_session =
+        let user_session = {
+            let sessions = self.df_sessions.read().await;
             sessions
                 .get(session_id)
                 .ok_or(ExecutionError::MissingDataFusionSession {
                     id: session_id.to_string(),
-                })?;
+                })?
+                .clone()
+        };
 
         let source_table =
             TableReference::full("tmp_db", "tmp_schema", format!("tmp_table_{unique_id}"));
@@ -243,22 +246,16 @@ impl ExecutionService for CoreExecutionService {
 
         Ok(rows_loaded)
     }
-
-    #[must_use]
-    fn config(&self) -> &Config {
-        &self.config
-    }
 }
 
 //Test environment
 pub async fn make_text_execution_svc() -> Arc<CoreExecutionService> {
     let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db));
-
+    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let history_store = Arc::new(SlateDBHistoryStore::new(db));
     Arc::new(CoreExecutionService::new(
         metastore,
-        Config {
-            dbt_serialization_format: DataSerializationFormat::Json,
-        },
+        history_store,
+        Arc::new(Config::default()),
     ))
 }

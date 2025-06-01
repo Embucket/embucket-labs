@@ -16,13 +16,19 @@ pub enum DashboardAPIError {
     Metastore { source: MetastoreError },
     #[snafu(display("Get total: {source}"))]
     Queries { source: QueryError },
+    #[snafu(display("Get total: {source}"))]
+    History {
+        source: core_history::errors::HistoryStoreError,
+    },
 }
 
 // Select which status code to return.
 impl IntoStatusCode for DashboardAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::Metastore { .. } | Self::Queries { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Metastore { .. } | Self::Queries { .. } | Self::History { .. } => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
         }
     }
 }

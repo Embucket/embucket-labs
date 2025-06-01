@@ -5,18 +5,27 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
+import type { OrderDirection } from './orderDirection';
 
 export type GetVolumesParams = {
   /**
-   * Volumes cursor
+   * Volumes offset
    */
-  cursor?: string;
+  offset?: number;
   /**
    * Volumes limit
    */
   limit?: number;
   /**
-   * Volumes search (start with)
+   * Volumes search
    */
   search?: string;
+  /**
+   * Order by: volume_name (default), volume_type, created_at, updated_at
+   */
+  order_by?: string;
+  /**
+   * Order direction: ASC, DESC (default)
+   */
+  order_direction?: OrderDirection;
 };

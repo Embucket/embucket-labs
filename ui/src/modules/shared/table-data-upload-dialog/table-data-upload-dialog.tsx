@@ -7,9 +7,8 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
-import { getGetDatabasesQueryKey } from '@/orval/databases';
-import { getGetNavigationTreesQueryKey, useGetNavigationTrees } from '@/orval/navigation-trees';
-import { useUploadFile } from '@/orval/tables';
+import { useGetNavigationTrees } from '@/orval/navigation-trees';
+import { getGetTablePreviewDataQueryKey, useUploadFile } from '@/orval/tables';
 
 import type { SelectedTree } from '../trees/trees-items';
 import { TableDataUploadSelect } from './table-data-upload-database-select';
@@ -49,16 +48,17 @@ export function TableDataUploadDialog({
       onSuccess: async () => {
         await Promise.all([
           queryClient.invalidateQueries({
-            queryKey: getGetNavigationTreesQueryKey(),
-          }),
-          queryClient.invalidateQueries({
             queryKey: getGetDashboardQueryKey(),
           }),
           queryClient.invalidateQueries({
-            queryKey: getGetDatabasesQueryKey(),
+            queryKey: getGetTablePreviewDataQueryKey(
+              tree.databaseName,
+              tree.schemaName,
+              tree.tableName,
+            ),
           }),
         ]);
-        toast.success('File uploaded successfully');
+        toast.success('Data uploaded successfully');
         onSetOpened(false);
       },
     },

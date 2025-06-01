@@ -136,7 +136,7 @@ class QueryResult:
     def __init__(self, result: List[Tuple[Any]], types: List[str], error: Optional[Exception] = None, metadata: Optional[List[ResultMetadata]] = []):
         self._result = result
         self.types = types
-        self.metadata = metadata # to be used with snowflake converter 
+        self.metadata = metadata # to be used with snowflake converter
         self.error = error
         if not error:
             self._column_count = len(self.types)
@@ -626,10 +626,6 @@ class SQLLogicRunner:
     def skip_active(self) -> bool:
         return self.skip_level > 0
 
-    def is_embucket(self):
-        return 'embucket' in self.config
-
-
 class SQLLogicContext:
     __slots__ = [
         'iterator',
@@ -745,7 +741,7 @@ class SQLLogicContext:
                     results_stringified = [[to_test_str(convert_value(v, rel.description[cn])) for cn, v in enumerate(r)] for r in results]
                     return QueryResult(results_stringified, aliased_columns, None, rel.description)
 
-            cursor = conn.execute(sql_query, _no_retry=self.runner.is_embucket())
+            cursor = conn.execute(sql_query, _no_retry=True)
             result = cursor.fetchall()  # call fetchall() on the cursor object
             logger.debug(f'result: {result}')
             query_result = get_query_result(cursor, result)
@@ -845,7 +841,7 @@ class SQLLogicContext:
         test_logger = SQLLogicTestLogger(self, statement, self.runner.test.path)
 
         try:
-            conn.execute(sql_query, _no_retry=self.runner.is_embucket())
+            conn.execute(sql_query, _no_retry=True)
 
             # TODO refactor: encapsulate logic, check if embucket_enabled: False
             # storing executed statements

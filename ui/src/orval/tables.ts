@@ -34,7 +34,7 @@ import type {
   TableColumnsResponse,
   TablePreviewDataResponse,
   TablesResponse,
-  TableStatisticsResponse,
+  TableStatistics,
   TableUploadPayload,
   TableUploadResponse,
   UploadFileParams,
@@ -996,7 +996,7 @@ export const getTableStatistics = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<TableStatisticsResponse>(
+  return useAxiosMutator<TableStatistics>(
     {
       url: `/ui/databases/${databaseName}/schemas/${schemaName}/tables/${tableName}/statistics`,
       method: 'GET',

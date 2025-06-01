@@ -24,14 +24,15 @@ pub struct InformationSchemaDatabases {
 }
 
 impl InformationSchemaDatabases {
-    pub(crate) fn new(config: InformationSchemaConfig) -> Self {
-        let schema = Arc::new(Schema::new(vec![
+    pub fn schema() -> Arc<Schema> {
+        Arc::new(Schema::new(vec![
             Field::new("database_name", DataType::Utf8, false),
             Field::new("database_owner", DataType::Utf8, false),
             Field::new("database_type", DataType::Utf8, false),
-            // TODO add fields from https://docs.snowflake.com/en/sql-reference/info-schema/databases
-        ]));
-
+        ]))
+    }
+    pub(crate) fn new(config: InformationSchemaConfig) -> Self {
+        let schema = Self::schema();
         Self { schema, config }
     }
 

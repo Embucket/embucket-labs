@@ -1,0 +1,27 @@
+---
+source: crates/core-executor/src/tests/sql/commands/unpivot.rs
+description: "\"SELECT dept, month, sales\n  FROM monthly_sales\n    UNPIVOT (sales FOR month IN (jan, feb, mar, apr))\n  ORDER BY dept;\""
+---
+Ok(
+    [
+        "+-------------+-------+-------+",
+        "| dept        | month | sales |",
+        "+-------------+-------+-------+",
+        "| appliances  | jan   | 100   |",
+        "| appliances  | mar   | 100   |",
+        "| appliances  | apr   | 50    |",
+        "| cars        | jan   | 200   |",
+        "| cars        | feb   | 400   |",
+        "| cars        | mar   | 100   |",
+        "| cars        | apr   | 50    |",
+        "| clothes     | jan   | 100   |",
+        "| clothes     | feb   | 300   |",
+        "| clothes     | mar   | 150   |",
+        "| clothes     | apr   | 200   |",
+        "| electronics | jan   | 100   |",
+        "| electronics | feb   | 200   |",
+        "| electronics | mar   | 300   |",
+        "| electronics | apr   | 100   |",
+        "+-------------+-------+-------+",
+    ],
+)

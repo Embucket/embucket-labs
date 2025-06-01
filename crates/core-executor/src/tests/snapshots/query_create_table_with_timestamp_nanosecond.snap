@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"CREATE TABLE embucket.public.ts_table (ts TIMESTAMP_NTZ(9)) as VALUES ('2025-04-09T21:11:23');\""
+snapshot_kind: text
+---
+Ok(
+    [
+        "+-------+",
+        "| count |",
+        "+-------+",
+        "| 1     |",
+        "+-------+",
+    ],
+)

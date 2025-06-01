@@ -1,6 +1,6 @@
 use super::columns::InformationSchemaColumnsBuilder;
-use super::df_settings::InformationSchemaDfSettingsBuilder;
-use super::information_schema::{INFORMATION_SCHEMA, INFORMATION_SCHEMA_TABLES};
+use super::df_settings::{ConfigVisitor, InformationSchemaDfSettingsBuilder};
+use super::information_schema::INFORMATION_SCHEMA;
 use super::parameters::{
     InformationSchemaParametersBuilder, get_udaf_args_and_return_types,
     get_udf_args_and_return_types, get_udwf_args_and_return_types,
@@ -11,6 +11,9 @@ use super::tables::InformationSchemaTablesBuilder;
 use super::views::InformationSchemaViewBuilder;
 use crate::information_schema::databases::InformationSchemaDatabasesBuilder;
 use crate::information_schema::navigation_tree::InformationSchemaNavigationTreeBuilder;
+use crate::information_schema::session_params::SessionParams;
+use dashmap::DashMap;
+use datafusion::arrow::datatypes::Schema;
 use datafusion::catalog::CatalogProviderList;
 use datafusion::logical_expr::{Signature, TypeSignature, Volatility};
 use datafusion_common::DataFusionError;
@@ -24,6 +27,7 @@ use std::sync::Arc;
 pub struct InformationSchemaConfig {
     pub(crate) catalog_list: Arc<dyn CatalogProviderList>,
     pub(crate) catalog_name: Arc<str>,
+    pub(crate) views_schemas: DashMap<String, Arc<Schema>>,
 }
 
 impl InformationSchemaConfig {
@@ -36,16 +40,14 @@ impl InformationSchemaConfig {
             return Ok(());
         };
 
-        for schema_name in catalog.schema_names() {
-            if schema_name == INFORMATION_SCHEMA {
-                continue;
-            }
-
-            // schema name may not exist in the catalog, so we need to check
+        for schema_name in catalog
+            .schema_names()
+            .into_iter()
+            .filter(|s| s != INFORMATION_SCHEMA)
+        {
             let Some(schema) = catalog.schema(&schema_name) else {
                 continue;
             };
-
             for table_name in schema.table_names() {
                 if let Some(table) = schema.table(&table_name).await? {
                     builder.add_table(
@@ -57,12 +59,12 @@ impl InformationSchemaConfig {
                 }
             }
         }
-        // Add a final list for the information schema tables themselves
-        for table_name in INFORMATION_SCHEMA_TABLES {
+
+        for table in &self.views_schemas {
             builder.add_table(
                 &self.catalog_name,
                 INFORMATION_SCHEMA,
-                table_name,
+                table.key(),
                 TableType::View,
             );
         }
@@ -70,39 +72,46 @@ impl InformationSchemaConfig {
         Ok(())
     }
 
-    pub(crate) fn make_navigation_tree(
+    pub(crate) async fn make_navigation_tree(
         &self,
         builder: &mut InformationSchemaNavigationTreeBuilder,
     ) -> datafusion_common::Result<(), DataFusionError> {
         for catalog_name in self.catalog_list.catalog_names() {
-            let Some(catalog) = self.catalog_list.catalog(&catalog_name) else {
-                return Err(DataFusionError::Plan(format!(
-                    "Catalog '{catalog_name}' not found in catalog list",
-                )));
-            };
+            let catalog = self.catalog_list.catalog(&catalog_name).ok_or_else(|| {
+                DataFusionError::Plan(format!(
+                    "Catalog '{catalog_name}' not found in catalog list"
+                ))
+            })?;
+            builder.add_navigation_tree(&catalog_name, None, None, None);
 
-            builder.add_navigation_tree(&catalog_name, None, None);
-
-            for schema_name in catalog.schema_names() {
-                builder.add_navigation_tree(&catalog_name, Some(schema_name.clone()), None);
-
-                if let Some(schema) = catalog.schema(&schema_name) {
-                    for table_name in schema.table_names() {
+            for schema_name in catalog
+                .schema_names()
+                .into_iter()
+                .filter(|s| s != INFORMATION_SCHEMA)
+            {
+                builder.add_navigation_tree(&catalog_name, Some(schema_name.clone()), None, None);
+                let Some(schema) = catalog.schema(&schema_name) else {
+                    continue;
+                };
+                for table_name in schema.table_names() {
+                    if let Some(table) = schema.table(&table_name).await? {
                         builder.add_navigation_tree(
                             &catalog_name,
                             Some(schema_name.clone()),
                             Some(table_name),
+                            Some(table.table_type()),
                         );
                     }
                 }
             }
 
             // Add a final list for the information schema tables themselves
-            for table_name in INFORMATION_SCHEMA_TABLES {
+            for table in &self.views_schemas {
                 builder.add_navigation_tree(
                     &catalog_name,
                     Some(INFORMATION_SCHEMA.to_string()),
-                    Some((*table_name).to_string()),
+                    Some(table.key().to_string()),
+                    Some(TableType::View),
                 );
             }
         }
@@ -111,53 +120,56 @@ impl InformationSchemaConfig {
     }
 
     pub(crate) fn make_schemata(&self, builder: &mut InformationSchemataBuilder) {
-        let Some(catalog) = self.catalog_list.catalog(&self.catalog_name) else {
-            return;
-        };
+        if let Some(catalog) = self.catalog_list.catalog(&self.catalog_name) {
+            for schema_name in catalog.schema_names() {
+                if schema_name == INFORMATION_SCHEMA {
+                    continue;
+                }
 
-        for schema_name in catalog.schema_names() {
-            if schema_name == INFORMATION_SCHEMA {
-                continue;
+                if let Some(schema) = catalog.schema(&schema_name) {
+                    let schema_owner = schema.owner_name();
+                    builder.add_schemata(&self.catalog_name, &schema_name, schema_owner);
+                }
             }
-
-            let Some(schema) = catalog.schema(&schema_name) else {
-                continue;
-            };
-
-            let schema_owner = schema.owner_name();
-            builder.add_schemata(&self.catalog_name, &schema_name, schema_owner);
         }
+        builder.add_schemata(&self.catalog_name, INFORMATION_SCHEMA, None);
     }
 
     pub(crate) async fn make_views(
         &self,
         builder: &mut InformationSchemaViewBuilder,
     ) -> datafusion_common::Result<(), DataFusionError> {
-        let Some(catalog) = self.catalog_list.catalog(&self.catalog_name) else {
-            return Ok(());
-        };
-
-        for schema_name in catalog.schema_names() {
-            if schema_name == INFORMATION_SCHEMA {
-                continue;
-            }
-
-            let Some(schema) = catalog.schema(&schema_name) else {
-                continue;
-            };
-
-            for table_name in schema.table_names() {
-                let Some(table) = schema.table(&table_name).await? else {
+        if let Some(catalog) = self.catalog_list.catalog(&self.catalog_name) {
+            for schema_name in catalog.schema_names() {
+                if schema_name == INFORMATION_SCHEMA {
                     continue;
-                };
-
-                builder.add_view(
-                    &self.catalog_name,
-                    &schema_name,
-                    &table_name,
-                    table.get_table_definition(),
-                );
+                }
+                if let Some(schema) = catalog.schema(&schema_name) {
+                    for table_name in schema.table_names() {
+                        if let Some(table) = schema.table(&table_name).await? {
+                            if table.table_type() == TableType::View {
+                                builder.add_view(
+                                    &self.catalog_name,
+                                    &schema_name,
+                                    &table_name,
+                                    table.table_type(),
+                                    table.get_table_definition(),
+                                );
+                            }
+                        }
+                    }
+                }
             }
+        }
+
+        for table in &self.views_schemas {
+            builder.add_view(
+                &self.catalog_name,
+                INFORMATION_SCHEMA,
+                table.key(),
+                TableType::View,
+                None,
+            );
         }
 
         Ok(())
@@ -168,36 +180,45 @@ impl InformationSchemaConfig {
         &self,
         builder: &mut InformationSchemaColumnsBuilder,
     ) -> datafusion_common::Result<(), DataFusionError> {
-        let Some(catalog) = self.catalog_list.catalog(&self.catalog_name) else {
-            return Ok(());
-        };
-
-        for schema_name in catalog.schema_names() {
-            if schema_name == INFORMATION_SCHEMA {
-                continue;
-            }
-
-            let Some(schema) = catalog.schema(&schema_name) else {
-                continue;
-            };
-
-            for table_name in schema.table_names() {
-                let Some(table) = schema.table(&table_name).await? else {
+        if let Some(catalog) = self.catalog_list.catalog(&self.catalog_name) {
+            for schema_name in catalog.schema_names() {
+                if schema_name == INFORMATION_SCHEMA {
                     continue;
-                };
-
-                for (field_position, field) in table.schema().fields().iter().enumerate() {
-                    builder.add_column(
-                        &self.catalog_name,
-                        &schema_name,
-                        &table_name,
-                        field_position,
-                        field,
-                    );
+                }
+                if let Some(schema) = catalog.schema(&schema_name) {
+                    for table_name in schema.table_names() {
+                        if let Some(table) = schema.table(&table_name).await? {
+                            for (field_position, field) in
+                                table.schema().fields().iter().enumerate()
+                            {
+                                builder.add_column(
+                                    &self.catalog_name,
+                                    &schema_name,
+                                    &table_name,
+                                    table.table_type(),
+                                    field_position,
+                                    field,
+                                );
+                            }
+                        }
+                    }
                 }
             }
         }
 
+        // Add a final list for the information schema tables themselves
+        for table in &self.views_schemas {
+            for (field_position, field) in table.value().fields().iter().enumerate() {
+                builder.add_column(
+                    &self.catalog_name,
+                    INFORMATION_SCHEMA,
+                    table.key(),
+                    TableType::View,
+                    field_position,
+                    field,
+                );
+            }
+        }
         Ok(())
     }
 
@@ -214,8 +235,32 @@ impl InformationSchemaConfig {
         config_options: &ConfigOptions,
         builder: &mut InformationSchemaDfSettingsBuilder,
     ) {
-        for entry in config_options.entries() {
-            builder.add_setting(entry);
+        let standard = ConfigVisitor::standard_entries(config_options);
+        for entry in standard {
+            builder.add_setting(
+                entry.key,
+                entry.value.unwrap_or_default(),
+                "text",
+                entry.description,
+                None,
+                None,
+                None,
+            );
+        }
+
+        let config = config_options.extensions.get::<SessionParams>();
+        if let Some(cfg) = config {
+            for (key, prop) in &cfg.properties {
+                builder.add_setting(
+                    key,
+                    prop.value.clone(),
+                    prop.property_type.clone(),
+                    prop.comment.clone().unwrap_or_default(),
+                    Some(prop.created_on.to_string()),
+                    Some(prop.updated_on.to_string()),
+                    prop.session_id.clone(),
+                );
+            }
         }
     }
 

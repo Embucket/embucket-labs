@@ -7,7 +7,7 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:3000';
 const ACCESS_TOKEN =
-  'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJlbWJ1Y2tldCIsImF1ZCI6IjEyNy4wLjAuMSIsImlhdCI6MTc0NzE2NTA4MywiZXhwIjoxNzQ3MTY1OTgzfQ.ZBgOwzavnE1iT9QBYOI-Qx12_alufVU-v54RsM-uX8c';
+  'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJlbWJ1Y2tldCIsImF1ZCI6ImxvY2FsaG9zdCIsImlhdCI6MTc0ODYwMzQxMCwiZXhwIjoxNzQ4NjA0MzEwfQ.F87aYD5nrDLOT_RLDm6dTcYg0922DZZFvDw-dLMePNE';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -49,7 +49,12 @@ async function createDatabases(databases) {
   for (const database of databases) {
     console.log(`Database: ${database.name} on Volume: ${database.volumeName}`);
     try {
-      await apiClient.post('/ui/databases', { volume: database.volumeName, name: database.name });
+      await apiClient.post('/ui/databases', {
+        volume: database.volumeName,
+        name: database.name,
+        created_at: '',
+        updated_at: '',
+      });
       console.log(`Database '${database.name}' created successfully.`);
     } catch (error) {
       console.error(`Failed creating database '${database.name}'.`);

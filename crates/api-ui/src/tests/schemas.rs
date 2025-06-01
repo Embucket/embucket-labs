@@ -1,13 +1,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::databases::models::{Database, DatabaseCreatePayload};
+use crate::databases::models::DatabaseCreatePayload;
 use crate::schemas::models::{SchemaCreatePayload, SchemasResponse};
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse};
-use core_metastore::{
-    Database as MetastoreDatabase, Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
-};
+use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
+use core_metastore::Database as MetastoreDatabase;
 use http::Method;
 use serde_json::json;
 
@@ -23,28 +21,27 @@ async fn test_ui_schemas() {
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            data: Volume::from(MetastoreVolume {
-                ident: String::new(),
-                volume: MetastoreVolumeType::Memory,
-            }),
+            name: String::new(),
+            volume: VolumeType::Memory,
         }),
     )
     .await;
-    let volume: VolumeCreateResponse = res.json().await.unwrap();
+    let VolumeCreateResponse(volume) = res.json().await.unwrap();
 
     let database_name = "test1".to_string();
     // Create database, Ok
-    let expected1 = MetastoreDatabase {
+    let _expected1 = MetastoreDatabase {
         ident: database_name.clone(),
         properties: None,
-        volume: volume.data.name.clone(),
+        volume: volume.name.clone(),
     };
     let _res = ui_test_op(
         addr,
         Op::Create,
         None,
         &Entity::Database(DatabaseCreatePayload {
-            data: Database::from(expected1.clone()),
+            name: database_name.clone(),
+            volume: volume.name.clone(),
         }),
     )
     .await;
@@ -140,16 +137,15 @@ async fn test_ui_schemas() {
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(1, schemas_response.items.len());
     assert_eq!(
-        "testing1".to_string(),
+        "testing3".to_string(),
         schemas_response.items.first().unwrap().name
     );
-    let cursor = schemas_response.next_cursor;
     //Get list schemas with parameters
     let res = req(
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas?cursor={cursor}",
+            "http://{addr}/ui/databases/{}/schemas?offset=1",
             database_name.clone()
         )
         .to_string(),
@@ -191,7 +187,7 @@ async fn test_ui_schemas() {
         &format!(
             "http://{addr}/ui/databases/{}/schemas?search={}",
             database_name.clone(),
-            "tes"
+            "testing"
         )
         .to_string(),
         String::new(),
@@ -202,6 +198,27 @@ async fn test_ui_schemas() {
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(3, schemas_response.items.len());
 
+    //Get list schemas with search
+    let res = req(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/databases/{}/schemas?search={}&orderDirection=ASC",
+            database_name.clone(),
+            "testing"
+        )
+        .to_string(),
+        String::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(http::StatusCode::OK, res.status());
+    let schemas_response: SchemasResponse = res.json().await.unwrap();
+    assert_eq!(
+        "testing1".to_string(),
+        schemas_response.items.first().unwrap().name
+    );
+
     //Get list schemas with parameters
     let res = req(
         &client,
@@ -209,7 +226,7 @@ async fn test_ui_schemas() {
         &format!(
             "http://{addr}/ui/databases/{}/schemas?search={}&limit=1",
             database_name.clone(),
-            "tes"
+            "testing"
         )
         .to_string(),
         String::new(),
@@ -220,18 +237,17 @@ async fn test_ui_schemas() {
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(1, schemas_response.items.len());
     assert_eq!(
-        "testing1".to_string(),
+        "testing3".to_string(),
         schemas_response.items.first().unwrap().name
     );
-    let cursor = schemas_response.next_cursor;
     //Get list schemas with parameters
     let res = req(
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/databases/{}/schemas?search={}&cursor={cursor}",
+            "http://{addr}/ui/databases/{}/schemas?search={}&offset=1",
             database_name.clone(),
-            "tes"
+            "testing"
         )
         .to_string(),
         String::new(),

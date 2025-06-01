@@ -29,6 +29,15 @@ pub enum TableError {
     Metastore { source: MetastoreError },
 }
 
+// Add conversion from Box<MetastoreError> to TableError
+impl From<Box<MetastoreError>> for TableError {
+    fn from(boxed_error: Box<MetastoreError>) -> Self {
+        Self::Metastore {
+            source: *boxed_error,
+        }
+    }
+}
+
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
 pub enum TablesAPIError {
@@ -38,6 +47,15 @@ pub enum TablesAPIError {
     Execution { source: ExecutionError },
     #[snafu(display("Get table error: {source}"))]
     GetMetastore { source: MetastoreError },
+}
+
+// Add conversion from Box<MetastoreError> to TablesAPIError
+impl From<Box<MetastoreError>> for TablesAPIError {
+    fn from(boxed_error: Box<MetastoreError>) -> Self {
+        Self::GetMetastore {
+            source: *boxed_error,
+        }
+    }
 }
 
 // Select which status code to return.

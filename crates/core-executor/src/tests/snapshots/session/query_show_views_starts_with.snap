@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SHOW VIEWS STARTS WITH 'schem'\""
+snapshot_kind: text
+---
+Ok(
+    [
+        "+------------+----------+------+---------------+--------------------+",
+        "| created_on | name     | kind | database_name | schema_name        |",
+        "+------------+----------+------+---------------+--------------------+",
+        "|            | schemata | VIEW | embucket      | information_schema |",
+        "+------------+----------+------+---------------+--------------------+",
+    ],
+)

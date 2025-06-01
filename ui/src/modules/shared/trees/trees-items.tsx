@@ -19,7 +19,10 @@ import type {
   NavigationTreeTable,
 } from '@/orval/models';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
+import { useGetVolumes } from '@/orval/volumes';
 
+import { CreateDatabaseDialog } from '../create-database-dialog/create-database-dialog';
+import { CreateVolumeDialog } from '../create-volume-dialog/create-volume-dialog';
 import { TreeCollapsibleItem } from './trees-collapsible-item';
 import { TreesToolbar } from './trees-toolbar';
 
@@ -40,6 +43,7 @@ interface TreesTablesProps extends TreeItemProps<NavigationTreeTable> {
   schema: NavigationTreeSchema;
   tables: NavigationTreeTable[];
   defaultOpen?: boolean;
+  label: string;
   renderDropdownMenu?: (tree: SelectedTree, hovered: boolean) => ReactNode;
 }
 
@@ -47,6 +51,7 @@ export function TreesTables({
   database,
   schema,
   tables,
+  label,
   onClick,
   isActive,
   renderDropdownMenu,
@@ -58,7 +63,7 @@ export function TreesTables({
   return (
     <TreeCollapsibleItem
       icon={Folder}
-      label="Tables"
+      label={label}
       triggerComponent={SidebarMenuSubButton}
       defaultOpen={defaultOpen}
       open={open}
@@ -144,21 +149,50 @@ export function TreesDatabases({
   open,
   children,
 }: TreesDatabasesProps) {
-  if (isFetchingDatabases) {
+  const { data: { items: volumes } = {}, isFetching: isFetchingVolumes } = useGetVolumes();
+
+  const [createVolumeDialogOpened, setCreateVolumeDialogOpened] = useState(false);
+  const [createDatabaseDialogOpened, setCreateDatabaseDialogOpened] = useState(false);
+
+  if (isFetchingDatabases || isFetchingVolumes) {
     return null;
+  }
+
+  if (!volumes?.length) {
+    return (
+      <>
+        <EmptyContainer
+          className="absolute text-center text-wrap"
+          Icon={Database}
+          title="No Volumes Available"
+          description="Create a volume to proceed with the database creation."
+          onCtaClick={() => setCreateVolumeDialogOpened(true)}
+          ctaText="Create volume"
+        />
+        <CreateVolumeDialog
+          opened={createVolumeDialogOpened}
+          onSetOpened={setCreateVolumeDialogOpened}
+        />
+      </>
+    );
   }
 
   if (!databases?.length) {
     return (
-      <EmptyContainer
-        className="absolute text-center text-wrap"
-        Icon={Database}
-        title="No Databases Available"
-        description="Create a database to start organizing your data."
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onCtaClick={() => {}}
-        ctaText="Create database"
-      />
+      <>
+        <EmptyContainer
+          className="absolute text-center text-wrap"
+          Icon={Database}
+          title="No Databases Available"
+          description="Create a database to get started."
+          onCtaClick={() => setCreateDatabaseDialogOpened(true)}
+          ctaText="Create database"
+        />
+        <CreateDatabaseDialog
+          opened={createDatabaseDialogOpened}
+          onSetOpened={setCreateDatabaseDialogOpened}
+        />
+      </>
     );
   }
 

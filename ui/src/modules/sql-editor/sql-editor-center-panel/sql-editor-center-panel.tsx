@@ -1,6 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import { EditorCacheProvider } from '@tidbcloud/tisqleditor-react';
+import { AxiosError } from 'axios';
+import { toast } from 'sonner';
 
 import { ResizablePanelGroup } from '@/components/ui/resizable';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -21,6 +23,7 @@ export function SqlEditorCenterPanel() {
   const selectedQueryRecord = useSqlEditorSettingsStore((state) =>
     state.getSelectedQueryRecord(+worksheetId),
   );
+  const selectedContext = useSqlEditorSettingsStore((state) => state.selectedContext);
   const setSelectedQueryRecord = useSqlEditorSettingsStore((state) => state.setSelectedQueryRecord);
 
   const {
@@ -53,6 +56,13 @@ export function SqlEditorCenterPanel() {
           setSelectedQueryRecord(+worksheetId, newQueryRecord);
         }
       },
+      onError: (error) => {
+        if (error instanceof AxiosError) {
+          toast.error(error.message, {
+            description: error.response?.data.message,
+          });
+        }
+      },
     },
   });
 
@@ -61,6 +71,10 @@ export function SqlEditorCenterPanel() {
       data: {
         query,
         worksheetId: +worksheetId,
+        context: {
+          database: selectedContext.database,
+          schema: selectedContext.schema,
+        },
       },
     });
   };
@@ -82,7 +96,7 @@ export function SqlEditorCenterPanel() {
           >
             <ScrollArea
               tableViewport
-              className="size-full [&>*>*:first-child]:h-full [&>*>*>*:first-child]:h-full"
+              className="bg-background size-full [&>*>*:first-child]:h-full [&>*>*>*:first-child]:h-full"
             >
               <SQLEditor />
               <ScrollBar orientation="horizontal" />

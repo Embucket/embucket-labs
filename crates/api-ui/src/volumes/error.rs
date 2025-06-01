@@ -2,43 +2,45 @@ use crate::error::ErrorResponse;
 use crate::error::IntoStatusCode;
 use axum::Json;
 use axum::response::IntoResponse;
+use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::prelude::*;
+
 pub type VolumesResult<T> = Result<T, VolumesAPIError>;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
 pub enum VolumesAPIError {
     #[snafu(display("Create volumes error: {source}"))]
-    Create { source: MetastoreError },
+    Create { source: Box<MetastoreError> },
     #[snafu(display("Get volume error: {source}"))]
-    Get { source: MetastoreError },
+    Get { source: Box<MetastoreError> },
     #[snafu(display("Delete volume error: {source}"))]
-    Delete { source: MetastoreError },
+    Delete { source: Box<MetastoreError> },
     #[snafu(display("Update volume error: {source}"))]
-    Update { source: MetastoreError },
-    #[snafu(display("Get volume error: {source}"))]
-    List { source: MetastoreError },
+    Update { source: Box<MetastoreError> },
+    #[snafu(display("Get volumes error: {source}"))]
+    List { source: ExecutionError },
 }
 
 // Select which status code to return.
 impl IntoStatusCode for VolumesAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::Create { source } => match &source {
+            Self::Create { source } => match &**source {
                 MetastoreError::VolumeAlreadyExists { .. }
                 | MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
                 MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Get { source } | Self::Delete { source } => match &source {
+            Self::Get { source } | Self::Delete { source } => match &**source {
                 MetastoreError::UtilSlateDB { .. } | MetastoreError::ObjectNotFound => {
                     StatusCode::NOT_FOUND
                 }
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Update { source } => match &source {
+            Self::Update { source } => match &**source {
                 MetastoreError::ObjectNotFound | MetastoreError::VolumeNotFound { .. } => {
                     StatusCode::NOT_FOUND
                 }

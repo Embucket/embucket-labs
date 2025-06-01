@@ -82,7 +82,7 @@ pub struct CliOpts {
     #[arg(
         long,
         env = "BUCKET_HOST",
-        default_value = "127.0.0.1",
+        default_value = "localhost",
         help = "Host to bind to"
     )]
     pub host: Option<String>,

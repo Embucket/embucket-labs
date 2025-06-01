@@ -4,7 +4,7 @@ import { useGetTableColumns } from '@/orval/tables';
 
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 import { SqlEditorLeftPanelTableColumns } from './sql-editor-left-panel-table-columns';
-import { SqlEditorLeftPanelTableColumnsPreviewDialog } from './sql-editor-left-panel-table-columns-preview-dialog/sql-editor-left-panel-table-columns-preview-dialog';
+import { SqlEditorLeftPanelTableColumnsPreviewDialog } from './sql-editor-left-panel-table-columns-preview-dialog';
 import { SqlEditorLeftPanelTableColumnsToolbar } from './sql-editor-left-panel-table-columns-toolbar';
 
 export function SqlEditorLeftBottomPanel() {

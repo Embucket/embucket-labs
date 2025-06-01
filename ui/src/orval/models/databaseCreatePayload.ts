@@ -5,6 +5,8 @@
  * Defines the specification for the UI Catalog API
  * OpenAPI spec version: 1.0.2
  */
-import type { Database } from './database';
 
-export type DatabaseCreatePayload = Database;
+export interface DatabaseCreatePayload {
+  name: string;
+  volume: string;
+}

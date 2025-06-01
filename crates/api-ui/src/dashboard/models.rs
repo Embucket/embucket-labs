@@ -3,10 +3,7 @@ use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct DashboardResponse {
-    #[serde(flatten)]
-    pub(crate) data: Dashboard,
-}
+pub struct DashboardResponse(pub Dashboard);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

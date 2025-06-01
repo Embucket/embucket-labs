@@ -7,11 +7,13 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { useGetTables } from '@/orval/tables';
 import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
-import { DataPageContent } from '../shared/data-page/data-page-content';
-import { DataPageHeader } from '../shared/data-page/data-page-header';
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
+import { PageEmptyContainer } from '../shared/page/page-empty-container';
+import { PageHeader } from '../shared/page/page-header';
+import { PageScrollArea } from '../shared/page/page-scroll-area';
 import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
 import { TablesTable } from './tables-page-table';
+import { TablesPageToolbar } from './tables-page-toolbar';
 
 const CREATE_TABLE_QUERY = `-- Replace <table_name> with the desired one (e.g., 's'), and specify appropriate column names and data types.
 -- Example: CREATE TABLE mydb1.myschema1.s (id INT, name VARCHAR(100));
@@ -69,30 +71,34 @@ export function TablesPage() {
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel collapsible defaultSize={20} order={1}>
-          <DataPageHeader
+          <PageHeader
             title={schemaName}
             Icon={FolderTree}
-            secondaryText={`${tables?.length} tables found`}
             Action={
-              <Button disabled={isPending} onClick={handleCreateTable}>
+              <Button size="sm" disabled={isPending} onClick={handleCreateTable}>
                 Add Table
               </Button>
             }
           />
-          <DataPageContent
-            isEmpty={!tables?.length}
-            Table={
-              <TablesTable
-                isLoading={isFetching}
-                tables={tables ?? []}
-                databaseName={databaseName}
-                schemaName={schemaName}
-              />
-            }
-            emptyStateIcon={Table}
-            emptyStateTitle="No Tables Found"
-            emptyStateDescription="No tables have been created yet. Create a table to get started."
-          />
+          {!tables?.length ? (
+            <PageEmptyContainer
+              Icon={Table}
+              title="No Tables Found"
+              description="No tables have been created yet. Create a table to get started."
+            />
+          ) : (
+            <>
+              <TablesPageToolbar tables={tables} isFetchingTables={isFetching} />
+              <PageScrollArea>
+                <TablesTable
+                  isLoading={isFetching}
+                  tables={tables}
+                  databaseName={databaseName}
+                  schemaName={schemaName}
+                />
+              </PageScrollArea>
+            </>
+          )}
         </ResizablePanel>
       </ResizablePanelGroup>
     </>

@@ -16,7 +16,10 @@ use crate::tables::handlers::{
 };
 use crate::volumes::handlers::ApiDoc as VolumesApiDoc;
 use crate::volumes::handlers::{
-    create_volume, delete_volume, get_volume, list_volumes, update_volume,
+    create_volume,
+    delete_volume,
+    get_volume,
+    list_volumes, // update_volume,
 };
 use crate::worksheets::handlers::ApiDoc as WorksheetsApiDoc;
 use crate::worksheets::handlers::{
@@ -130,7 +133,7 @@ pub fn create_router() -> Router<AppState> {
         .route("/volumes", post(create_volume).get(list_volumes))
         .route(
             "/volumes/{volumeName}",
-            delete(delete_volume).get(get_volume).put(update_volume),
+            delete(delete_volume).get(get_volume), /* .put(update_volume) */
         )
         .layer(SetSensitiveHeadersLayer::new([
             axum::http::header::AUTHORIZATION,

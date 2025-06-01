@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SELECT CURRENT_SCHEMAS() as sc\""
+snapshot_kind: text
+---
+Ok(
+    [
+        "+-------------------+",
+        "| sc                |",
+        "+-------------------+",
+        "| [embucket.public] |",
+        "+-------------------+",
+    ],
+)

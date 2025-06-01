@@ -7,6 +7,8 @@
  */
 
 export interface Database {
+  created_at: string;
   name: string;
+  updated_at: string;
   volume: string;
 }

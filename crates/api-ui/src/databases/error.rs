@@ -2,6 +2,7 @@ use crate::error::ErrorResponse;
 use crate::error::IntoStatusCode;
 use axum::Json;
 use axum::response::IntoResponse;
+use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::prelude::*;
@@ -12,15 +13,27 @@ pub type DatabasesResult<T> = Result<T, DatabasesAPIError>;
 #[snafu(visibility(pub(crate)))]
 pub enum DatabasesAPIError {
     #[snafu(display("Create database error: {source}"))]
-    Create { source: MetastoreError },
+    Create {
+        #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
+        source: MetastoreError,
+    },
     #[snafu(display("Get database error: {source}"))]
-    Get { source: MetastoreError },
+    Get {
+        #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
+        source: MetastoreError,
+    },
     #[snafu(display("Delete database error: {source}"))]
-    Delete { source: MetastoreError },
+    Delete {
+        #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
+        source: MetastoreError,
+    },
     #[snafu(display("Update database error: {source}"))]
-    Update { source: MetastoreError },
+    Update {
+        #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
+        source: MetastoreError,
+    },
     #[snafu(display("Get databases error: {source}"))]
-    List { source: MetastoreError },
+    List { source: ExecutionError },
 }
 
 // Select which status code to return.

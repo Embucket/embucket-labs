@@ -7,3 +7,4 @@ dotenv~=0.9.9
 pandas~=2.2.3
 plotly~=6.0.0
 matplotlib~=3.10.3
+kaleido~=0.2.1

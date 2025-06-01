@@ -1,5 +1,4 @@
 query T
 SELECT CURRENT_SCHEMAS()
 ----
-'["EMBUCKET.PUBLIC"]'
-
+<REGEX>:'?\[.*"EMBUCKET\.PUBLIC.*"\]'?

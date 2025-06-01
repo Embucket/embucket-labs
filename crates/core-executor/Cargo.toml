@@ -7,6 +7,7 @@ license-file.workspace = true
 [dependencies]
 core-utils = { path = "../core-utils" }
 core-metastore = { path = "../core-metastore" }
+core-history = {  path = "../core-history" }
 df-builtins = { path = "../df-builtins" }
 df-catalog = { path = "../df-catalog" }
 
@@ -23,7 +24,7 @@ datafusion-functions-json = { workspace = true }
 datafusion-physical-plan = { workspace = true }
 datafusion_iceberg = { workspace = true }
 futures = { workspace = true }
-sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "ed416548dcfe4a73a3240bbf625fb9010a4925c8", features = [
+sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "7caf74317dfc704273819e527c2536dbb3a7051f", features = [
   "visitor",
 ] }
 iceberg-rust = { workspace = true }
@@ -43,6 +44,7 @@ tokio-stream = "0.1.17"
 
 url = { workspace = true }
 uuid = { workspace = true }
+indexmap = { workspace = true }
 
 [dev-dependencies]
 bytes = { workspace = true }

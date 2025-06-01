@@ -24,8 +24,8 @@ pub struct InformationSchemata {
 }
 
 impl InformationSchemata {
-    pub fn new(config: InformationSchemaConfig) -> Self {
-        let schema = Arc::new(Schema::new(vec![
+    pub fn schema() -> Arc<Schema> {
+        Arc::new(Schema::new(vec![
             Field::new("catalog_name", DataType::Utf8, false),
             Field::new("schema_name", DataType::Utf8, false),
             Field::new("schema_owner", DataType::Utf8, true),
@@ -33,7 +33,10 @@ impl InformationSchemata {
             Field::new("default_character_set_schema", DataType::Utf8, true),
             Field::new("default_character_set_name", DataType::Utf8, true),
             Field::new("sql_path", DataType::Utf8, true),
-        ]));
+        ]))
+    }
+    pub fn new(config: InformationSchemaConfig) -> Self {
+        let schema = Self::schema();
         Self { schema, config }
     }
 

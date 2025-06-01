@@ -130,13 +130,13 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
         Entity::Volume(vol) => match op {
             Op::Create | Op::List => format!("http://{addr}/ui/volumes"),
             Op::Delete | Op::Get | Op::Update => {
-                format!("http://{addr}/ui/volumes/{}", vol.data.name)
+                format!("http://{addr}/ui/volumes/{}", vol.name)
             }
         },
         Entity::Database(db) => match op {
             Op::Create | Op::List => format!("http://{addr}/ui/databases"),
             Op::Delete | Op::Get | Op::Update => {
-                format!("http://{addr}/ui/databases/{}", db.data.name)
+                format!("http://{addr}/ui/databases/{}", db.name)
             }
         },
         // Entity::Schema(sc) => match op {

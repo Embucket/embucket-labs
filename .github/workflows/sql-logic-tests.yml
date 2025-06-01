@@ -1,0 +1,126 @@
+name: SQL Logic Tests
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - crates/**
+      - bin/**
+      - Cargo.toml
+      - Cargo.lock
+      - Dockerfile
+      - .github/workflows/**
+      - test/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  sql-logic-tests:
+    runs-on:
+      group: large-runners
+    name: SQL Logic Tests
+    env:
+      SNOWFLAKE_ACCOUNT: test
+      SNOWFLAKE_USER: test
+      SNOWFLAKE_PASSWORD: test
+      WAREHOUSE: COMPUTE_WH
+      DATABASE: embucket
+      SCHEMA: public
+      RESET_DB: false
+      EMBUCKET_ENABLED: true
+      EMBUCKET_PROTOCOL: http
+      EMBUCKET_HOST: localhost
+      EMBUCKET_PORT: 3000
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      # Build only the embucketd binary
+      - name: Build embucketd
+        run: cargo build --bin embucketd
+
+      - name: Start Embucket Server
+        run: |
+          target/debug/embucketd &
+          echo "Starting Embucket server..."
+          sleep 20
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r test/slt_runner/requirements.txt
+          # Install dependencies for asset generation
+          pip install matplotlib numpy pandas plotly kaleido
+
+      - name: Run SQL Logic Tests
+        working-directory: ./test
+        run: |
+          python -u -m slt_runner --test-dir sql --parallel
+
+      # Generate Test Assets
+      - name: Generate Test Assets
+        working-directory: ./test
+        run: |
+          mkdir -p test-assets
+          python generate_test_assets.py --stats-file test_statistics.csv --output-dir test-assets
+          
+          # Get coverage percentage for commit message
+          COVERAGE=$(grep -o '[0-9.]\+%' test-assets/badge.txt | tr -d '%')
+          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+
+      # Push Assets to Branch
+      - name: Push Assets to Branch
+        run: |
+          # Copy test assets to a temporary location before switching branches
+          mkdir -p /tmp/embucket-assets
+          cp -r test/test-assets/* /tmp/embucket-assets/
+          
+          # Setup git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Fetch and checkout the existing assets branch
+          git fetch origin assets
+          git checkout assets
+          
+          # Clean the branch content (but keep .git folder)
+          find . -mindepth 1 -not -path "./.git*" -delete
+          
+          # Create assets directory
+          mkdir -p assets
+          
+          # Copy assets from the temporary location
+          cp -r /tmp/embucket-assets/* assets/
+          
+          # Add and commit
+          git add assets
+          git commit -m "Update test assets [Coverage: $COVERAGE%] [skip ci]" || echo "No changes to commit"
+          
+          # Push to the existing assets branch
+          git push origin assets

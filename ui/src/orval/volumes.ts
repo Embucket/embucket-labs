@@ -30,9 +30,8 @@ import type { ErrorType } from '../lib/axiosMutator';
 import type {
   ErrorResponse,
   GetVolumesParams,
+  Volume,
   VolumeCreatePayload,
-  VolumeCreateResponse,
-  VolumeResponse,
   VolumesResponse,
 } from './models';
 
@@ -259,7 +258,7 @@ export const createVolume = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<VolumeCreateResponse>(
+  return useAxiosMutator<Volume>(
     {
       url: `/ui/volumes`,
       method: 'POST',
@@ -337,7 +336,7 @@ export const getVolume = (
   options?: SecondParameter<typeof useAxiosMutator>,
   signal?: AbortSignal,
 ) => {
-  return useAxiosMutator<VolumeResponse>(
+  return useAxiosMutator<Volume>(
     { url: `/ui/volumes/${volumeName}`, method: 'GET', signal },
     options,
   );

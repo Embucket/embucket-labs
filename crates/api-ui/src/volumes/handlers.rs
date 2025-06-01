@@ -1,20 +1,22 @@
 use crate::state::AppState;
-use crate::volumes::models::VolumesParameters;
 use crate::{
+    OrderDirection, SearchParameters, apply_parameters, downcast_string_column,
     error::ErrorResponse,
-    volumes::error::{VolumesAPIError, VolumesResult},
+    volumes::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu, VolumesResult},
     volumes::models::{
         FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
-        VolumeResponse, VolumeType, VolumeUpdatePayload, VolumeUpdateResponse, VolumesResponse,
+        VolumeResponse, VolumeType, VolumesResponse,
     },
 };
+use api_sessions::DFSessionId;
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use core_metastore::error::MetastoreError;
+use core_executor::models::{QueryContext, QueryResult};
+use core_metastore::error::{MetastoreError, ValidationSnafu};
 use core_metastore::models::{AwsAccessKeyCredentials, AwsCredentials, Volume as MetastoreVolume};
-use core_utils::scan_iterator::ScanIterator;
+use snafu::ResultExt;
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -41,6 +43,7 @@ use validator::Validate;
             VolumeResponse,
             VolumesResponse,
             ErrorResponse,
+            OrderDirection,
         )
     ),
     tags(
@@ -79,22 +82,21 @@ pub async fn create_volume(
     State(state): State<AppState>,
     Json(volume): Json<VolumeCreatePayload>,
 ) -> VolumesResult<Json<VolumeCreateResponse>> {
-    let embucket_volume: MetastoreVolume = volume.data.into();
+    let embucket_volume = MetastoreVolume::new(volume.name.clone(), volume.volume.into());
     embucket_volume
         .validate()
-        .map_err(|e| VolumesAPIError::Create {
-            source: MetastoreError::Validation { source: e },
-        })?;
+        .context(ValidationSnafu)
+        .map_err(MetastoreError::into)
+        .context(CreateSnafu)?;
+
     state
         .metastore
         .create_volume(&embucket_volume.ident.clone(), embucket_volume)
         .await
-        .map_err(|e| VolumesAPIError::Create { source: e })
-        .map(|o| {
-            Json(VolumeCreateResponse {
-                data: o.data.into(),
-            })
-        })
+        .context(CreateSnafu)
+        .map(Volume::from)
+        .map(VolumeCreateResponse)
+        .map(Json)
 }
 
 #[utoipa::path(
@@ -122,17 +124,22 @@ pub async fn get_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
 ) -> VolumesResult<Json<VolumeResponse>> {
-    match state.metastore.get_volume(&volume_name).await {
-        Ok(Some(volume)) => Ok(Json(VolumeResponse {
-            data: volume.data.into(),
-        })),
-        Ok(None) => Err(VolumesAPIError::Get {
-            source: MetastoreError::VolumeNotFound {
-                volume: volume_name.clone(),
-            },
-        }),
-        Err(e) => Err(VolumesAPIError::Get { source: e }),
-    }
+    state
+        .metastore
+        .get_volume(&volume_name)
+        .await
+        .map(|opt_rw_obj| {
+            opt_rw_obj.ok_or_else(|| {
+                Box::new(MetastoreError::VolumeNotFound {
+                    volume: volume_name.clone(),
+                })
+            })
+        })
+        .context(GetSnafu)?
+        .map(Volume::from)
+        .map(VolumeResponse)
+        .map(Json)
+        .context(GetSnafu)
 }
 
 #[utoipa::path(
@@ -165,59 +172,18 @@ pub async fn delete_volume(
         .metastore
         .delete_volume(&volume_name, query.cascade.unwrap_or_default())
         .await
-        .map_err(|e| VolumesAPIError::Delete { source: e })
-}
-
-#[utoipa::path(
-    put,
-    operation_id = "updateVolume",
-    tags = ["volumes"],
-    path = "/ui/volumes/{volumeName}",
-    params(
-        ("volumeName" = String, Path, description = "Volume name")
-    ),
-    request_body = VolumeUpdatePayload,
-    responses(
-        (status = 200, description = "Successful Response", body = VolumeUpdateResponse),
-        (status = 401,
-         description = "Unauthorized",
-         headers(
-            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
-         ),
-         body = ErrorResponse),
-        (status = 404, description = "Not found", body = ErrorResponse),
-        (status = 422, description = "Unprocessable entity", body = ErrorResponse),
-    )
-)]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn update_volume(
-    State(state): State<AppState>,
-    Path(volume_name): Path<String>,
-    Json(volume): Json<VolumeUpdatePayload>,
-) -> VolumesResult<Json<VolumeUpdateResponse>> {
-    let volume: MetastoreVolume = volume.data.into();
-    volume.validate().map_err(|e| VolumesAPIError::Update {
-        source: MetastoreError::Validation { source: e },
-    })?;
-    state
-        .metastore
-        .update_volume(&volume_name, volume)
-        .await
-        .map_err(|e| VolumesAPIError::Update { source: e })
-        .map(|o| {
-            Json(VolumeUpdateResponse {
-                data: o.data.into(),
-            })
-        })
+        .context(DeleteSnafu)
 }
 
 #[utoipa::path(
     get,
     operation_id = "getVolumes",
     params(
-        ("cursor" = Option<String>, Query, description = "Volumes cursor"),
+        ("offset" = Option<usize>, Query, description = "Volumes offset"),
         ("limit" = Option<usize>, Query, description = "Volumes limit"),
-        ("search" = Option<String>, Query, description = "Volumes search (start with)"),
+        ("search" = Option<String>, Query, description = "Volumes search"),
+        ("order_by" = Option<String>, Query, description = "Order by: volume_name (default), volume_type, created_at, updated_at"),
+        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     tags = ["volumes"],
     path = "/ui/volumes",
@@ -234,29 +200,34 @@ pub async fn update_volume(
 )]
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_volumes(
-    Query(parameters): Query<VolumesParameters>,
+    DFSessionId(session_id): DFSessionId,
+    Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
 ) -> VolumesResult<Json<VolumesResponse>> {
-    state
-        .metastore
-        .iter_volumes()
-        .cursor(parameters.cursor.clone())
-        .limit(parameters.limit)
-        .token(parameters.search)
-        .collect()
+    let context = QueryContext::default();
+    let sql_string = "SELECT * FROM slatedb.meta.volumes".to_string();
+    let sql_string = apply_parameters(&sql_string, parameters, &["volume_name", "volume_type"]);
+    let QueryResult { records, .. } = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
         .await
-        .map_err(|e| VolumesAPIError::List {
-            source: MetastoreError::UtilSlateDB { source: e },
-        })
-        .map(|o| {
-            let next_cursor = o
-                .iter()
-                .last()
-                .map_or(String::new(), |rw_object| rw_object.ident.clone());
-            Json(VolumesResponse {
-                items: o.into_iter().map(|x| x.data.into()).collect(),
-                current_cursor: parameters.cursor,
-                next_cursor,
-            })
-        })
+        .context(ListSnafu)?;
+    let mut items = Vec::new();
+    for record in records {
+        let volume_names = downcast_string_column(&record, "volume_name").context(ListSnafu)?;
+        let volume_types = downcast_string_column(&record, "volume_type").context(ListSnafu)?;
+        let created_at_timestamps =
+            downcast_string_column(&record, "created_at").context(ListSnafu)?;
+        let updated_at_timestamps =
+            downcast_string_column(&record, "updated_at").context(ListSnafu)?;
+        for i in 0..record.num_rows() {
+            items.push(Volume {
+                name: volume_names.value(i).to_string(),
+                r#type: volume_types.value(i).to_string(),
+                created_at: created_at_timestamps.value(i).to_string(),
+                updated_at: updated_at_timestamps.value(i).to_string(),
+            });
+        }
+    }
+    Ok(Json(VolumesResponse { items }))
 }

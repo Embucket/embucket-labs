@@ -1,6 +1,17 @@
 use super::catalog::information_schema::information_schema::{
     INFORMATION_SCHEMA, InformationSchemaProvider,
 };
+use super::catalog::{
+    catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
+};
+use super::datafusion::planner::ExtendedSqlToRel;
+use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu};
+use super::session::UserSession;
+use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
+use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
+use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element};
+use crate::models::{QueryContext, QueryResult};
+use core_history::history_store::HistoryStore;
 use core_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
     TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
@@ -13,14 +24,16 @@ use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
-use datafusion::logical_expr::{LogicalPlan, TableSource, sqlparser::ast::Insert};
+use datafusion::logical_expr::{LogicalPlan, TableSource};
 use datafusion::prelude::CsvReadOptions;
+use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
 use datafusion::sql::planner::{PlannerContext, object_name_to_table_reference};
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
-    TableFactor, TableObject, TableWithJoins,
+    TableFactor, TableWithJoins,
 };
+use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
     DFSchema, DataFusionError, ResolvedTableReference, TableReference, exec_err,
     plan_datafusion_err, plan_err,
@@ -31,6 +44,8 @@ use datafusion_expr::{
     col, lit,
 };
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use df_catalog::catalog::CachingCatalog;
+use df_catalog::information_schema::session_params::SessionProperty;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
@@ -38,58 +53,24 @@ use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;
-use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use sqlparser::ast::Expr as ASTExpr;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
-    ObjectType, Query as AstQuery, Select, SelectItem, UpdateTableFromKind, Use,
+    ObjectType, PivotValueSource, Select, SelectItem, ShowObjects, ShowStatementFilter,
+    ShowStatementIn, TruncateTableTarget, Use, Value,
 };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::fmt::Write;
 use std::sync::Arc;
-use url::Url;
-
-use super::catalog::{
-    catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
-};
-use super::datafusion::planner::ExtendedSqlToRel;
-use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu};
-use super::session::UserSession;
-use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
-use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element};
-use df_catalog::catalog::CachingCatalog;
-use df_catalog::catalogs::slatedb::schema::{
-    SLATEDB_CATALOG, SLATEDB_SCHEMA, SlateDBViewSchemaProvider,
-};
 use tracing_attributes::instrument;
-
-#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct QueryContext {
-    pub database: Option<String>,
-    pub schema: Option<String>,
-    // TODO: Remove this
-    pub worksheet_id: Option<i64>,
-}
-
-impl QueryContext {
-    #[must_use]
-    pub const fn new(
-        database: Option<String>,
-        schema: Option<String>,
-        worksheet_id: Option<i64>,
-    ) -> Self {
-        Self {
-            database,
-            schema,
-            worksheet_id,
-        }
-    }
-}
+use url::Url;
 
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
+    pub history_store: Arc<dyn HistoryStore>,
     pub raw_query: String,
     pub query: String,
     pub session: Arc<UserSession>,
@@ -98,7 +79,7 @@ pub struct UserQuery {
 
 pub enum IcebergCatalogResult {
     Catalog(Arc<dyn Catalog>),
-    Result(ExecutionResult<Vec<RecordBatch>>),
+    Result(ExecutionResult<QueryResult>),
 }
 
 impl UserQuery {
@@ -109,6 +90,7 @@ impl UserQuery {
         let query = Self::preprocess_query(&query.into());
         Self {
             metastore: session.metastore.clone(),
+            history_store: session.history_store.clone(),
             raw_query: query.clone(),
             query,
             session,
@@ -162,6 +144,28 @@ impl UserQuery {
         Ok(())
     }
 
+    fn session_context_expr_rewriter(&self) -> SessionContextExprRewriter {
+        let current_database = self.current_database();
+        let schemas: Vec<String> = self
+            .session
+            .ctx
+            .catalog(&current_database)
+            .map(|c| {
+                c.schema_names()
+                    .iter()
+                    .map(|schema| format!("{current_database}.{schema}"))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        SessionContextExprRewriter {
+            database: current_database,
+            schema: self.current_schema(),
+            schemas,
+            warehouse: "default".to_string(),
+            session_id: self.session.ctx.session_id(),
+        }
+    }
+
     #[allow(clippy::unwrap_used)]
     #[instrument(level = "trace", ret)]
     pub fn postprocess_query_statement(statement: &mut DFStatement) {
@@ -173,7 +177,7 @@ impl UserQuery {
     }
 
     #[instrument(level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
-    pub async fn execute(&mut self) -> ExecutionResult<Vec<RecordBatch>> {
+    pub async fn execute(&mut self) -> ExecutionResult<QueryResult> {
         let statement = self.parse_query().context(super::error::DataFusionSnafu)?;
         self.query = statement.to_string();
 
@@ -192,11 +196,16 @@ impl UserQuery {
                     let params = session_params
                         .options
                         .into_iter()
-                        .map(|v| (v.option_name, v.value))
+                        .map(|v| {
+                            (
+                                v.option_name.clone(),
+                                SessionProperty::from_key_value(&v, self.session.ctx.session_id()),
+                            )
+                        })
                         .collect();
 
                     self.session.set_session_variable(set, params)?;
-                    return status_response();
+                    return self.status_response();
                 }
                 Statement::Use(entity) => {
                     let (variable, value) = match entity {
@@ -216,33 +225,40 @@ impl UserQuery {
                             ),
                         });
                     }
-                    let params = HashMap::from([(variable.to_string(), value)]);
+                    let params = HashMap::from([(
+                        variable.to_string(),
+                        SessionProperty::from_str_value(value, Some(self.session.ctx.session_id())),
+                    )]);
                     self.session.set_session_variable(true, params)?;
-                    return status_response();
+                    return self.status_response();
                 }
                 Statement::SetVariable {
                     variables, value, ..
                 } => {
-                    let keys = variables.iter().map(ToString::to_string);
-                    let values: ExecutionResult<Vec<_>> = value
+                    let values: Vec<SessionProperty> = value
                         .iter()
                         .map(|v| match v {
-                            Expr::Identifier(_) | Expr::Value(_) => Ok(v.to_string()),
+                            Expr::Value(v) => Ok(SessionProperty::from_value(
+                                &v.value,
+                                self.session.ctx.session_id(),
+                            )),
                             _ => Err(ExecutionError::DataFusion {
                                 source: DataFusionError::NotImplemented(
                                     "Only primitive statements are supported".to_string(),
                                 ),
                             }),
                         })
+                        .collect::<Result<_, _>>()?;
+                    let params = variables
+                        .iter()
+                        .map(ToString::to_string)
+                        .zip(values.into_iter())
                         .collect();
-                    let values = values?;
-                    let params = keys.into_iter().zip(values.into_iter()).collect();
                     self.session.set_session_variable(true, params)?;
-                    return status_response();
+                    return self.status_response();
                 }
                 Statement::CreateTable { .. } => {
-                    let result = Box::pin(self.create_table_query(*s)).await;
-                    return result;
+                    return Box::pin(self.create_table_query(*s)).await;
                 }
                 Statement::CreateDatabase { .. } => {
                     // TODO: Databases are only able to be created through the
@@ -274,15 +290,29 @@ impl UserQuery {
                 | Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
                 | Statement::Insert { .. }
-                | Statement::ShowSchemas { .. }
-                | Statement::ShowVariable { .. }
-                | Statement::ShowObjects { .. }
                 | Statement::Update { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&self.query)).await;
+                }
+                Statement::ShowDatabases { .. }
+                | Statement::ShowSchemas { .. }
+                | Statement::ShowTables { .. }
+                | Statement::ShowColumns { .. }
+                | Statement::ShowViews { .. }
+                | Statement::ShowFunctions { .. }
+                | Statement::ShowObjects { .. }
+                | Statement::ShowVariables { .. }
+                | Statement::ShowVariable { .. } => {
+                    return Box::pin(self.show_query(*s)).await;
+                }
+                Statement::Truncate { table_names, .. } => {
+                    let result = Box::pin(self.truncate_table(table_names)).await;
+                    self.refresh_catalog().await?;
+                    return result;
                 }
                 Statement::Query(mut subquery) => {
                     self.update_qualify_in_query(subquery.as_mut());
                     Self::update_table_result_scan_in_query(subquery.as_mut());
+                    self.traverse_and_update_query(subquery.as_mut()).await;
                     return Box::pin(self.execute_with_custom_plan(&subquery.to_string())).await;
                 }
                 Statement::Drop { .. } => {
@@ -367,7 +397,7 @@ impl UserQuery {
     }
 
     #[instrument(level = "trace", skip(self), err, ret)]
-    pub async fn drop_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
+    pub async fn drop_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
         let Statement::Drop {
             names, object_type, ..
         } = statement.clone()
@@ -388,7 +418,7 @@ impl UserQuery {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
                 return match result {
-                    Ok(_) => status_response(),
+                    Ok(_) => self.status_response(),
                     Err(err) => Err(err),
                 };
             }
@@ -422,15 +452,12 @@ impl UserQuery {
                 }
             }
         }
-        status_response()
+        self.status_response()
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
     #[instrument(level = "trace", skip(self), err, ret)]
-    pub async fn create_table_query(
-        &self,
-        statement: Statement,
-    ) -> ExecutionResult<Vec<RecordBatch>> {
+    pub async fn create_table_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
         let Statement::CreateTable(mut create_table_statement) = statement.clone() else {
             return Err(ExecutionError::DataFusion {
                 source: DataFusionError::NotImplemented(
@@ -489,7 +516,7 @@ impl UserQuery {
         })) = plan
         {
             if is_logical_plan_effectively_empty(&input) {
-                return created_entity_response();
+                return self.created_entity_response();
             }
             let schema_name = name
                 .schema()
@@ -517,7 +544,7 @@ impl UserQuery {
             ));
             return self.execute_logical_plan(insert_plan).await;
         }
-        created_entity_response()
+        self.created_entity_response()
     }
 
     #[allow(unused_variables)]
@@ -529,7 +556,7 @@ impl UserQuery {
         ident: MetastoreTableIdent,
         statement: CreateTableStatement,
         plan: LogicalPlan,
-    ) -> ExecutionResult<Vec<RecordBatch>> {
+    ) -> ExecutionResult<QueryResult> {
         let iceberg_catalog = match self
             .resolve_iceberg_catalog_or_execute(catalog, catalog_name, plan.clone())
             .await
@@ -537,7 +564,7 @@ impl UserQuery {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
                 return match result {
-                    Ok(_) => created_entity_response(),
+                    Ok(_) => self.created_entity_response(),
                     Err(err) => Err(err),
                 };
             }
@@ -554,7 +581,7 @@ impl UserQuery {
 
         if table_exists {
             if statement.if_not_exists {
-                return created_entity_response();
+                return self.created_entity_response();
             }
 
             if statement.or_replace {
@@ -600,13 +627,13 @@ impl UserQuery {
             .build(&[ident.schema], iceberg_catalog)
             .await
             .context(ex_error::IcebergSnafu)?;
-        created_entity_response()
+        self.created_entity_response()
     }
 
     pub async fn create_external_table_query(
         &self,
         statement: CreateExternalTable,
-    ) -> ExecutionResult<Vec<RecordBatch>> {
+    ) -> ExecutionResult<QueryResult> {
         let table_location = statement.location.clone();
         let table_format = MetastoreTableFormat::from(statement.file_type);
         let session_context = HashMap::new();
@@ -664,7 +691,7 @@ impl UserQuery {
             .await
             .context(ex_error::MetastoreSnafu)?;
 
-        created_entity_response()
+        self.created_entity_response()
     }
 
     /// This is experimental CREATE STAGE support
@@ -675,10 +702,7 @@ impl UserQuery {
     /// - We don't need to create table in case we have common shared session context.
     ///   CSV is registered as a table which can referenced from SQL statements executed against this context
     /// - Revisit this with the new metastore approach
-    pub async fn create_stage_query(
-        &self,
-        statement: Statement,
-    ) -> ExecutionResult<Vec<RecordBatch>> {
+    pub async fn create_stage_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
         let Statement::CreateStage {
             name,
             stage_params,
@@ -778,13 +802,13 @@ impl UserQuery {
             )
             .await
             .context(ex_error::DataFusionSnafu)?;
-        status_response()
+        self.status_response()
     }
 
     pub async fn copy_into_snowflake_query(
         &self,
         statement: Statement,
-    ) -> ExecutionResult<Vec<RecordBatch>> {
+    ) -> ExecutionResult<QueryResult> {
         let Statement::CopyIntoSnowflake { into, from_obj, .. } = statement else {
             return Err(ExecutionError::DataFusion {
                 source: DataFusionError::NotImplemented(
@@ -813,7 +837,7 @@ impl UserQuery {
     }
 
     #[instrument(level = "trace", skip(self), err, ret)]
-    pub async fn merge_query(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
+    pub async fn merge_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
         let Statement::Merge {
             table,
             mut source,
@@ -1078,7 +1102,7 @@ impl UserQuery {
     }
 
     #[instrument(level = "trace", skip(self), err, ret)]
-    pub async fn create_schema(&self, statement: Statement) -> ExecutionResult<Vec<RecordBatch>> {
+    pub async fn create_schema(&self, statement: Statement) -> ExecutionResult<QueryResult> {
         let Statement::CreateSchema {
             schema_name,
             if_not_exists,
@@ -1110,7 +1134,7 @@ impl UserQuery {
             IcebergCatalogResult::Catalog(catalog) => catalog,
             IcebergCatalogResult::Result(result) => {
                 return match result {
-                    Ok(_) => created_entity_response(),
+                    Ok(_) => self.created_entity_response(),
                     Err(err) => Err(err),
                 };
             }
@@ -1125,7 +1149,7 @@ impl UserQuery {
 
         if schema_exists {
             if if_not_exists {
-                return created_entity_response();
+                return self.created_entity_response();
             }
             return Err(ExecutionError::ObjectAlreadyExists {
                 type_name: "schema".to_string(),
@@ -1139,7 +1163,244 @@ impl UserQuery {
             .create_namespace(&namespace, None)
             .await
             .context(ex_error::IcebergSnafu)?;
-        created_entity_response()
+        self.created_entity_response()
+    }
+
+    #[allow(clippy::too_many_lines)]
+    pub async fn show_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
+        let query = match statement {
+            Statement::ShowDatabases { .. } => {
+                format!(
+                    "SELECT
+                        NULL as created_on,
+                        database_name as name,
+                        'STANDARD' as kind,
+                        NULL as database_name,
+                        NULL as schema_name
+                    FROM {}.information_schema.databases",
+                    self.current_database()
+                )
+            }
+            Statement::ShowSchemas { show_options, .. } => {
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
+                let sql = format!(
+                    "SELECT
+                        NULL as created_on,
+                        schema_name as name,
+                        NULL as kind,
+                        catalog_name as database_name,
+                        NULL as schema_name
+                    FROM {catalog}.information_schema.schemata",
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "schema_name")
+                {
+                    filters.push(filter);
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowTables { show_options, .. } => {
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
+                let sql = format!(
+                    "SELECT
+                        NULL as created_on,
+                        table_name as name,
+                        table_type as kind,
+                        table_catalog as database_name,
+                        table_schema as schema_name
+                    FROM {catalog}.information_schema.tables"
+                );
+                let mut filters = vec!["table_type = 'TABLE'".to_string()];
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "table_name")
+                {
+                    filters.push(filter);
+                }
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("table_schema = '{schema}'"));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowViews { show_options, .. } => {
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
+                let sql = format!(
+                    "SELECT
+                        NULL as created_on,
+                        view_name as name,
+                        view_type as kind,
+                        view_catalog as database_name,
+                        view_schema as schema_name
+                    FROM {catalog}.information_schema.views"
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "view_name")
+                {
+                    filters.push(filter);
+                }
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("view_schema = '{schema}'"));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowObjects(ShowObjects { show_options, .. }) => {
+                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
+                let sql = format!(
+                    "SELECT
+                        NULL as created_on,
+                        upper(table_name) as name,
+                        table_type as kind,
+                        upper(table_catalog) as database_name,
+                        upper(table_schema) as schema_name,
+                        CASE WHEN table_type='TABLE' then 'Y' else 'N' end as is_iceberg,
+                        'N' as is_dynamic
+                    FROM {catalog}.information_schema.tables"
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "table_name")
+                {
+                    filters.push(filter);
+                }
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("table_schema = '{schema}'"));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowColumns { show_options, .. } => {
+                let reference = self.resolve_show_in_name(show_options.show_in.clone(), true);
+                let catalog: String = reference
+                    .catalog()
+                    .map_or_else(|| self.current_database(), ToString::to_string);
+                let sql = format!(
+                    "SELECT
+                        table_name as table_name,
+                        table_schema as schema_name,
+                        column_name as column_name,
+                        data_type as data_type,
+                        column_default as default,
+                        is_nullable as 'null?',
+                        column_type as kind,
+                        NULL as expression,
+                        table_catalog as database_name,
+                        NULL as autoincrement
+                    FROM {catalog}.information_schema.columns"
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "column_name")
+                {
+                    filters.push(filter);
+                }
+                if let Some(schema) = reference.schema().filter(|s| !s.is_empty()) {
+                    filters.push(format!("table_schema = '{schema}'"));
+                }
+                if show_options.show_in.is_some() {
+                    filters.push(format!("table_name = '{}'", reference.table()));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            Statement::ShowVariable { variable } => {
+                let variable = object_name_to_string(&ObjectName::from(variable));
+                format!(
+                    "SELECT
+                        NULL as created_on,
+                        NULL as updated_on,
+                        name,
+                        value,
+                        NULL as type,
+                        description as comment
+                    FROM {}.information_schema.df_settings
+                    WHERE name = '{}'",
+                    self.current_database(),
+                    variable
+                )
+            }
+            Statement::ShowVariables { filter, .. } => {
+                let sql = format!(
+                    "SELECT
+                        session_id,
+                        name AS name,
+                        value,
+                        type,
+                        description as comment,
+                        created_on,
+                        updated_on,
+                    FROM {}.information_schema.df_settings",
+                    self.current_database()
+                );
+                let mut filters = vec!["session_id is NOT NULL".to_string()];
+                if let Some(ShowStatementFilter::Like(pattern)) = filter {
+                    filters.push(format!("name LIKE '{pattern}'"));
+                }
+                apply_show_filters(sql, &filters)
+            }
+            _ => {
+                return Err(ExecutionError::DataFusion {
+                    source: DataFusionError::NotImplemented(format!(
+                        "unsupported SHOW statement: {statement}"
+                    )),
+                });
+            }
+        };
+        Box::pin(self.execute_with_custom_plan(&query)).await
+    }
+
+    pub async fn truncate_table(
+        &self,
+        table_names: Vec<TruncateTableTarget>,
+    ) -> ExecutionResult<QueryResult> {
+        let Some(first_table) = table_names.into_iter().next() else {
+            return Err(ExecutionError::DataFusion {
+                source: DataFusionError::NotImplemented(
+                    "No table names provided for TRUNCATE TABLE".to_string(),
+                ),
+            });
+        };
+
+        let object_name = self.resolve_table_object_name(first_table.name.0)?;
+        let mut query = self.session.query(
+            format!(
+                "CREATE OR REPLACE TABLE {object_name} as (SELECT * FROM {object_name} WHERE FALSE)",
+            ),
+            QueryContext::default(),
+        );
+        query.execute().await
+    }
+
+    #[must_use]
+    pub fn resolve_show_in_name(
+        &self,
+        show_in: Option<ShowStatementIn>,
+        table: bool,
+    ) -> TableReference {
+        let parts: Vec<String> = show_in
+            .and_then(|in_clause| in_clause.parent_name)
+            .map(|obj| obj.0.into_iter().map(|ident| ident.to_string()).collect())
+            .unwrap_or_default();
+
+        let (catalog, schema, table_name) = match parts.as_slice() {
+            [one] if table => (self.current_database(), self.current_schema(), one.clone()),
+            [one] => (self.current_database(), one.clone(), String::new()),
+            [s, t] if table => (self.current_database(), s.clone(), t.clone()),
+            [d, s] => (d.clone(), s.clone(), String::new()),
+            [d, s, t] => (d.clone(), s.clone(), t.clone()),
+            _ => (self.current_database(), String::new(), String::new()),
+        };
+        TableReference::full(catalog, schema, table_name)
     }
 
     #[instrument(level = "trace", skip(self), err, ret)]
@@ -1185,41 +1446,45 @@ impl UserQuery {
             .context(super::error::DataFusionSnafu)
     }
 
-    async fn execute_sql(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
+    async fn execute_sql(&self, query: &str) -> ExecutionResult<QueryResult> {
         let session = self.session.clone();
+        let query_id = self.query_context.query_id;
         let query = query.to_string();
         let stream = self
             .session
             .executor
             .spawn(async move {
-                session
+                let df = session
                     .ctx
                     .sql(&query)
                     .await
-                    .context(super::error::DataFusionSnafu)?
-                    .collect()
-                    .await
-                    .context(super::error::DataFusionSnafu)
+                    .context(super::error::DataFusionSnafu)?;
+                let schema = df.schema().as_arrow().clone();
+                let records = df.collect().await.context(super::error::DataFusionSnafu)?;
+                Ok(QueryResult::new(records, Arc::new(schema), query_id))
             })
             .await
             .context(super::error::JobSnafu)??;
         Ok(stream)
     }
 
-    async fn execute_logical_plan(&self, plan: LogicalPlan) -> ExecutionResult<Vec<RecordBatch>> {
+    async fn execute_logical_plan(&self, plan: LogicalPlan) -> ExecutionResult<QueryResult> {
         let session = self.session.clone();
+        let query_id = self.query_context.query_id;
         let stream = self
             .session
             .executor
             .spawn(async move {
-                session
+                let schema = plan.schema().as_arrow().clone();
+                let records = session
                     .ctx
                     .execute_logical_plan(plan)
                     .await
                     .context(super::error::DataFusionSnafu)?
                     .collect()
                     .await
-                    .context(super::error::DataFusionSnafu)
+                    .context(super::error::DataFusionSnafu)?;
+                Ok(QueryResult::new(records, Arc::new(schema), query_id))
             })
             .await
             .context(super::error::JobSnafu)??;
@@ -1227,8 +1492,12 @@ impl UserQuery {
     }
 
     #[instrument(level = "trace", skip(self), err, ret)]
-    pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<Vec<RecordBatch>> {
-        let plan = self.get_custom_logical_plan(query).await?;
+    pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<QueryResult> {
+        let mut plan = self.get_custom_logical_plan(query).await?;
+        plan = self
+            .session_context_expr_rewriter()
+            .rewrite_plan(&plan)
+            .context(super::error::DataFusionSnafu)?;
         self.execute_logical_plan(plan).await
     }
 
@@ -1355,13 +1624,6 @@ impl UserQuery {
                 resolved_ref.catalog,
             )));
         }
-
-        if *resolved_ref.catalog == *SLATEDB_CATALOG && *resolved_ref.schema == *SLATEDB_SCHEMA {
-            return Ok(Arc::new(SlateDBViewSchemaProvider::new(Arc::clone(
-                &self.metastore,
-            ))));
-        }
-
         self.session
             .ctx
             .state()
@@ -1375,140 +1637,6 @@ impl UserQuery {
                 plan_datafusion_err!("failed to resolve schema: {}", resolved_ref.schema)
             })
     }
-
-    // TODO: We need to recursively fix any missing table references with the default
-    // database and schema from the session
-    /*fn update_statement_table_references(
-        &self,
-        mut statement: DFStatement,
-    ) -> ExecutionResult<DFStatement> {
-        match statement {
-            DFStatement::Statement(ref mut s) => match **s {
-                Statement::Analyze { ref mut table_name, .. } => {
-                    *table_name = self.resolve_table_ident(table_name.0.clone())?.into();
-                },
-                Statement::Truncate { ref mut table_names, .. } => {
-                    for table_name in table_names {
-                        table_name.name = self.resolve_table_ident(table_name.name.clone().0)?.into();
-                    }
-                },
-                Statement::Msck { ref mut table_name, ..} => {
-                    *table_name = self.resolve_table_ident(table_name.0.clone())?.into();
-                },
-                Statement::Query(query) => todo!(),
-                Statement::Insert(insert) => todo!(),
-                Statement::Install { extension_name } => todo!(),
-                Statement::Load { extension_name } => todo!(),
-                Statement::Directory { overwrite, local, path, file_format, source } => todo!(),
-                Statement::Call(function) => todo!(),
-                Statement::Copy { source, to, target, options, legacy_options, values } => todo!(),
-                Statement::CopyIntoSnowflake { into, from_stage, from_stage_alias, stage_params, from_transformations, files, pattern, file_format, copy_options, validation_mode } => todo!(),
-                Statement::Close { cursor } => todo!(),
-                Statement::Update { table, assignments, from, selection, returning, or } => todo!(),
-                Statement::Delete(delete) => todo!(),
-                Statement::CreateView { or_replace, materialized, name, columns, query, options, cluster_by, comment, with_no_schema_binding, if_not_exists, temporary, to } => todo!(),
-                Statement::CreateTable(create_table) => todo!(),
-                Statement::CreateVirtualTable { name, if_not_exists, module_name, module_args } => todo!(),
-                Statement::CreateIndex(create_index) => todo!(),
-                Statement::CreateRole { names, if_not_exists, login, inherit, bypassrls, password, superuser, create_db, create_role, replication, connection_limit, valid_until, in_role, in_group, role, user, admin, authorization_owner } => todo!(),
-                Statement::CreateSecret { or_replace, temporary, if_not_exists, name, storage_specifier, secret_type, options } => todo!(),
-                Statement::CreatePolicy { name, table_name, policy_type, command, to, using, with_check } => todo!(),
-                Statement::AlterTable { name, if_exists, only, operations, location, on_cluster } => todo!(),
-                Statement::AlterIndex { name, operation } => todo!(),
-                Statement::AlterView { name, columns, query, with_options } => todo!(),
-                Statement::AlterRole { name, operation } => todo!(),
-                Statement::AlterPolicy { name, table_name, operation } => todo!(),
-                Statement::AlterSession { set, session_params } => todo!(),
-                Statement::AttachDatabase { schema_name, database_file_name, database } => todo!(),
-                Statement::AttachDuckDBDatabase { if_not_exists, database, database_path, database_alias, attach_options } => todo!(),
-                Statement::DetachDuckDBDatabase { if_exists, database, database_alias } => todo!(),
-                Statement::Drop { object_type, if_exists, names, cascade, restrict, purge, temporary } => todo!(),
-                Statement::DropFunction { if_exists, func_desc, option } => todo!(),
-                Statement::DropProcedure { if_exists, proc_desc, option } => todo!(),
-                Statement::DropSecret { if_exists, temporary, name, storage_specifier } => todo!(),
-                Statement::DropPolicy { if_exists, name, table_name, option } => todo!(),
-                Statement::Declare { stmts } => todo!(),
-                Statement::CreateExtension { name, if_not_exists, cascade, schema, version } => todo!(),
-                Statement::Fetch { name, direction, into } => todo!(),
-                Statement::Flush { object_type, location, channel, read_lock, export, tables } => todo!(),
-                Statement::Discard { object_type } => todo!(),
-                Statement::SetRole { context_modifier, role_name } => todo!(),
-                Statement::SetVariable { local, hivevar, variables, value } => todo!(),
-                Statement::SetTimeZone { local, value } => todo!(),
-                Statement::SetNames { charset_name, collation_name } => todo!(),
-                Statement::SetNamesDefault {  } => todo!(),
-                Statement::ShowFunctions { filter } => todo!(),
-                Statement::ShowVariable { variable } => todo!(),
-                Statement::ShowStatus { filter, global, session } => todo!(),
-                Statement::ShowVariables { filter, global, session } => todo!(),
-                Statement::ShowCreate { obj_type, obj_name } => todo!(),
-                Statement::ShowColumns { extended, full, show_options } => todo!(),
-                Statement::ShowDatabases { terse, history, show_options } => todo!(),
-                Statement::ShowSchemas { terse, history, show_options } => todo!(),
-                Statement::ShowObjects { terse, show_options } => todo!(),
-                Statement::ShowTables { terse, history, extended, full, external, show_options } => todo!(),
-                Statement::ShowViews { terse, materialized, show_options } => todo!(),
-                Statement::ShowCollation { filter } => todo!(),
-                Statement::Use(_) => todo!(),
-                Statement::StartTransaction { modes, begin, transaction, modifier } => todo!(),
-                Statement::SetTransaction { modes, snapshot, session } => todo!(),
-                Statement::Comment { object_type, object_name, comment, if_exists } => todo!(),
-                Statement::Commit { chain } => todo!(),
-                Statement::Rollback { chain, savepoint } => todo!(),
-                Statement::CreateSchema { schema_name, if_not_exists } => todo!(),
-                Statement::CreateDatabase { db_name, if_not_exists, location, managed_location } => todo!(),
-                Statement::CreateFunction(create_function) => todo!(),
-                Statement::CreateTrigger { or_replace, is_constraint, name, period, events, table_name, referenced_table_name, referencing, trigger_object, include_each, condition, exec_body, characteristics } => todo!(),
-                Statement::DropTrigger { if_exists, trigger_name, table_name, option } => todo!(),
-                Statement::CreateProcedure { or_alter, name, params, body } => todo!(),
-                Statement::CreateMacro { or_replace, temporary, name, args, definition } => todo!(),
-                Statement::CreateStage { or_replace, temporary, if_not_exists, name, stage_params, directory_table_params, file_format, copy_options, comment } => todo!(),
-                Statement::Assert { condition, message } => todo!(),
-                Statement::Grant { privileges, objects, grantees, with_grant_option, granted_by } => todo!(),
-                Statement::Revoke { privileges, objects, grantees, granted_by, cascade } => todo!(),
-                Statement::Deallocate { name, prepare } => todo!(),
-                Statement::Execute { name, parameters, has_parentheses, using } => todo!(),
-                Statement::Prepare { name, data_types, statement } => todo!(),
-                Statement::Kill { modifier, id } => todo!(),
-                Statement::ExplainTable { describe_alias, hive_format, has_table_keyword, table_name } => todo!(),
-                Statement::Explain { describe_alias, analyze, verbose, query_plan, statement, format, options } => todo!(),
-                Statement::Savepoint { name } => todo!(),
-                Statement::ReleaseSavepoint { name } => todo!(),
-                Statement::Merge { into, table, source, on, clauses } => todo!(),
-                Statement::Cache { table_flag, table_name, has_as, options, query } => todo!(),
-                Statement::UNCache { table_name, if_exists } => todo!(),
-                Statement::CreateSequence { temporary, if_not_exists, name, data_type, sequence_options, owned_by } => todo!(),
-                Statement::CreateType { name, representation } => todo!(),
-                Statement::Pragma { name, value, is_eq } => todo!(),
-                Statement::LockTables { tables } => todo!(),
-                Statement::UnlockTables => todo!(),
-                Statement::Unload { query, to, with } => todo!(),
-                Statement::OptimizeTable { name, on_cluster, partition, include_final, deduplicate } => todo!(),
-                Statement::LISTEN { channel } => todo!(),
-                Statement::UNLISTEN { channel } => todo!(),
-                Statement::NOTIFY { channel, payload } => todo!(),
-                Statement::LoadData { local, inpath, overwrite, table_name, partitioned, table_format } => todo!(),
-            },
-            DFStatement::CreateExternalTable(create_external_table) => todo!(),
-            DFStatement::CopyTo(copy_to_statement) => todo!(),
-            DFStatement::Explain(explain_statement) => todo!(),
-        };
-        Ok(statement)
-    }
-
-    fn update_set_expr_table_references(&self, set_expr: &mut SetExpr) {
-        match set_expr {
-            SetExpr::Select(select) => {
-                for table_with_joins in &mut select.from {
-                    self.update_table_with_joins(table_with_joins);
-                }
-            }
-            SetExpr::Query(query) => {
-                self.update_query_table_references(query);
-            }
-
-        }
-    }*/
 
     fn update_table_result_scan_in_query(query: &mut Query) {
         // TODO: Add logic to get result_scan from the historical results
@@ -1564,6 +1692,152 @@ impl UserQuery {
                 }
             }
         }
+    }
+
+    fn convert_batches_to_exprs(batches: Vec<RecordBatch>) -> Vec<sqlparser::ast::ExprWithAlias> {
+        let mut exprs = Vec::new();
+        for batch in batches {
+            if batch.num_columns() > 0 {
+                let column = batch.column(0);
+                for row_idx in 0..batch.num_rows() {
+                    if !column.is_null(row_idx) {
+                        if let Ok(scalar_value) = ScalarValue::try_from_array(column, row_idx) {
+                            let expr = if batch.schema().fields()[0].data_type().is_numeric() {
+                                Expr::Value(
+                                    Value::Number(scalar_value.to_string(), false)
+                                        .with_empty_span(),
+                                )
+                            } else {
+                                Expr::Value(
+                                    Value::SingleQuotedString(scalar_value.to_string())
+                                        .with_empty_span(),
+                                )
+                            };
+
+                            exprs.push(sqlparser::ast::ExprWithAlias { expr, alias: None });
+                        }
+                    }
+                }
+            }
+        }
+        exprs
+    }
+
+    // This function is used to update the table references in the query
+    // It executes the subquery and convert the result to a list of string expressions
+    // It then replaces the pivot value source with the list of string expressions
+    async fn replace_pivot_subquery_with_list(
+        &self,
+        table: &TableFactor,
+        value_column: &[Ident],
+        value_source: &mut PivotValueSource,
+    ) {
+        match value_source {
+            PivotValueSource::Any(order_by_expr) => {
+                let col = value_column
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(".");
+                let mut query = format!("SELECT DISTINCT {col} FROM {table} ");
+
+                if !order_by_expr.is_empty() {
+                    let order_by_clause = order_by_expr
+                        .iter()
+                        .map(|expr| {
+                            let direction = match expr.options.asc {
+                                Some(true) => " ASC",
+                                Some(false) => " DESC",
+                                None => "",
+                            };
+
+                            let nulls = match expr.options.nulls_first {
+                                Some(true) => " NULLS FIRST",
+                                Some(false) => " NULLS LAST",
+                                None => "",
+                            };
+
+                            format!("{}{}{}", expr.expr, direction, nulls)
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    let _ = write!(query, "ORDER BY {order_by_clause}");
+                }
+
+                let result = self.execute_with_custom_plan(&query).await;
+                if let Ok(batches) = result {
+                    *value_source =
+                        PivotValueSource::List(Self::convert_batches_to_exprs(batches.records));
+                }
+            }
+            PivotValueSource::Subquery(subquery) => {
+                let subquery_sql = subquery.to_string();
+
+                let result = self.execute_with_custom_plan(&subquery_sql).await;
+
+                if let Ok(batches) = result {
+                    *value_source =
+                        PivotValueSource::List(Self::convert_batches_to_exprs(batches.records));
+                }
+            }
+            PivotValueSource::List(_) => {
+                // Do nothing
+            }
+        }
+    }
+
+    /// This method traverses query including set expressions and updates it when needed.
+    fn traverse_and_update_query<'a>(
+        &'a self,
+        query: &'a mut Query,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>> {
+        Box::pin(async move {
+            fn process_set_expr<'a>(
+                this: &'a UserQuery,
+                set_expr: &'a mut sqlparser::ast::SetExpr,
+            ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>> {
+                Box::pin(async move {
+                    match set_expr {
+                        sqlparser::ast::SetExpr::Select(select) => {
+                            for table_with_joins in &mut select.from {
+                                if let TableFactor::Pivot {
+                                    table,
+                                    value_column,
+                                    value_source,
+                                    ..
+                                } = &mut table_with_joins.relation
+                                {
+                                    this.replace_pivot_subquery_with_list(
+                                        table,
+                                        value_column,
+                                        value_source,
+                                    )
+                                    .await;
+                                }
+                            }
+                        }
+
+                        sqlparser::ast::SetExpr::Query(inner_query) => {
+                            this.traverse_and_update_query(inner_query).await;
+                        }
+                        sqlparser::ast::SetExpr::SetOperation { left, right, .. } => {
+                            process_set_expr(this, left).await;
+                            process_set_expr(this, right).await;
+                        }
+                        _ => {}
+                    }
+                })
+            }
+
+            process_set_expr(self, &mut query.body).await;
+
+            if let Some(with) = &mut query.with {
+                for cte in &mut with.cte_tables {
+                    self.traverse_and_update_query(&mut cte.query).await;
+                }
+            }
+        })
     }
 
     #[allow(clippy::only_used_in_recursion)]
@@ -1635,169 +1909,6 @@ impl UserQuery {
                 _ => references.first().cloned(),
             },
             _ => references.first().cloned(),
-        }
-    }
-
-    // TODO: Modify this function to modify the statement in-place to
-    // avoid extra allocations
-    #[allow(clippy::too_many_lines)]
-    pub fn update_statement_references(
-        &self,
-        statement: DFStatement,
-    ) -> ExecutionResult<DFStatement> {
-        match statement.clone() {
-            DFStatement::CreateExternalTable(create_external) => {
-                let table_name = self.resolve_table_object_name(create_external.name.0)?;
-                let modified_statement = CreateExternalTable {
-                    name: ObjectName::from(table_name.0),
-                    ..create_external
-                };
-                Ok(DFStatement::CreateExternalTable(modified_statement))
-            }
-            DFStatement::Statement(s) => match *s {
-                Statement::AlterTable {
-                    name,
-                    if_exists,
-                    only,
-                    operations,
-                    location,
-                    on_cluster,
-                } => {
-                    let name = self.resolve_table_object_name(name.0)?;
-                    let modified_statement = Statement::AlterTable {
-                        name: ObjectName::from(name.0),
-                        if_exists,
-                        only,
-                        operations,
-                        location,
-                        on_cluster,
-                    };
-                    Ok(DFStatement::Statement(Box::new(modified_statement)))
-                }
-                Statement::Insert(insert_statement) => {
-                    // Extract ObjectName from TableObject
-                    let obj_name = match &insert_statement.table {
-                        TableObject::TableName(obj_name) => obj_name.clone(),
-                        TableObject::TableFunction(_) => {
-                            return Err(ExecutionError::DataFusion {
-                                source: DataFusionError::NotImplemented(
-                                    "Table functions are not supported in INSERT statements"
-                                        .to_string(),
-                                ),
-                            });
-                        }
-                    };
-
-                    let table_name = self.resolve_table_object_name(obj_name.0)?;
-
-                    let source = insert_statement.source.map(|mut query| {
-                        self.update_tables_in_query(query.as_mut())
-                            .map(|()| Some(Box::new(AstQuery { ..*query })))
-                    });
-
-                    let source = if let Some(source) = source {
-                        source?
-                    } else {
-                        None
-                    };
-
-                    let modified_statement = Insert {
-                        table: TableObject::TableName(ObjectName::from(table_name.0)),
-                        source,
-                        ..insert_statement
-                    };
-                    Ok(DFStatement::Statement(Box::new(Statement::Insert(
-                        modified_statement,
-                    ))))
-                }
-                Statement::Drop {
-                    object_type,
-                    if_exists,
-                    mut names,
-                    cascade,
-                    restrict,
-                    purge,
-                    temporary,
-                } => {
-                    for name in &mut names {
-                        match object_type {
-                            ObjectType::Schema => {
-                                // TODO: Check if this works the same way as the table case
-                                let schema_name =
-                                    self.resolve_schema_object_name(name.0.clone())?;
-                                *name = ObjectName(
-                                    schema_name
-                                        .0
-                                        .iter()
-                                        .map(|i| ObjectNamePart::Identifier(i.clone()))
-                                        .collect(),
-                                );
-                            }
-                            ObjectType::Table => {
-                                *name = ObjectName::from(
-                                    self.resolve_table_object_name(name.0.clone())?.0,
-                                );
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    let modified_statement = Statement::Drop {
-                        object_type,
-                        if_exists,
-                        names,
-                        cascade,
-                        restrict,
-                        purge,
-                        temporary,
-                    };
-                    Ok(DFStatement::Statement(Box::new(modified_statement)))
-                }
-                Statement::Query(mut query) => {
-                    self.update_tables_in_query(query.as_mut())?;
-                    // self.update_tables_in_query(&mut query)?;
-                    Ok(DFStatement::Statement(Box::new(Statement::Query(query))))
-                }
-                Statement::CreateTable(mut create_table_statement) => {
-                    // Remove all unsupported iceberg params (we already take them into account)
-                    create_table_statement.iceberg = false;
-                    create_table_statement.base_location = None;
-                    create_table_statement.external_volume = None;
-                    create_table_statement.catalog = None;
-                    create_table_statement.catalog_sync = None;
-                    create_table_statement.storage_serialization_policy = None;
-                    if let Some(ref mut query) = create_table_statement.query {
-                        self.update_tables_in_query(query)?;
-                    }
-                    Ok(DFStatement::Statement(Box::new(Statement::CreateTable(
-                        create_table_statement,
-                    ))))
-                }
-                Statement::Update {
-                    mut table,
-                    assignments,
-                    mut from,
-                    selection,
-                    returning,
-                    or,
-                } => {
-                    self.update_tables_in_table_with_joins(&mut table)?;
-                    if let Some(from) = from.as_mut() {
-                        self.update_tables_in_update_table_from_kind(from)?;
-                    }
-                    let modified_statement = Statement::Update {
-                        table,
-                        assignments,
-                        from,
-                        selection,
-                        returning,
-                        or,
-                    };
-                    Ok(DFStatement::Statement(Box::new(modified_statement)))
-                }
-                _ => Ok(statement),
-            },
-            _ => Ok(statement),
         }
     }
 
@@ -1900,119 +2011,49 @@ impl UserQuery {
         }
     }
 
-    fn update_tables_in_query(&self, query: &mut Query) -> ExecutionResult<()> {
-        if let Some(with) = query.with.as_mut() {
-            for cte in &mut with.cte_tables {
-                self.update_tables_in_query(&mut cte.query)?;
-            }
-        }
-
-        match query.body.as_mut() {
-            sqlparser::ast::SetExpr::Select(select) => {
-                for table_with_joins in &mut select.from {
-                    self.update_tables_in_table_with_joins(table_with_joins)?;
-                }
-
-                if let Some(expr) = &mut select.selection {
-                    self.update_tables_in_expr(expr)?;
-                }
-            }
-            sqlparser::ast::SetExpr::Query(q) => {
-                self.update_tables_in_query(q)?;
-            }
-            _ => {}
-        }
-
-        Ok(())
+    pub fn created_entity_response(&self) -> ExecutionResult<QueryResult> {
+        let schema = Arc::new(ArrowSchema::new(vec![Field::new(
+            "count",
+            DataType::Int64,
+            false,
+        )]));
+        Ok(QueryResult::new(
+            vec![
+                RecordBatch::try_new(schema.clone(), vec![Arc::new(Int64Array::from(vec![0]))])
+                    .context(ex_error::ArrowSnafu)?,
+            ],
+            schema,
+            self.query_context.query_id,
+        ))
     }
 
-    fn update_tables_in_expr(&self, expr: &mut Expr) -> ExecutionResult<()> {
-        match expr {
-            Expr::BinaryOp { left, right, .. } => {
-                self.update_tables_in_expr(left)?;
-                self.update_tables_in_expr(right)?;
-            }
-            Expr::Subquery(q) => {
-                self.update_tables_in_query(q)?;
-            }
-            Expr::Exists { subquery, .. } => {
-                self.update_tables_in_query(subquery)?;
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    fn update_tables_in_table_with_joins(
-        &self,
-        table_with_joins: &mut TableWithJoins,
-    ) -> ExecutionResult<()> {
-        self.update_tables_in_table_factor(&mut table_with_joins.relation)?;
-
-        for join in &mut table_with_joins.joins {
-            self.update_tables_in_table_factor(&mut join.relation)?;
-        }
-
-        Ok(())
-    }
-
-    fn update_tables_in_table_factor(&self, table_factor: &mut TableFactor) -> ExecutionResult<()> {
-        match table_factor {
-            TableFactor::Table { name, .. } => {
-                let compressed_name = self.resolve_table_object_name(name.clone().0)?;
-                *name = ObjectName(
-                    compressed_name
-                        .0
-                        .iter()
-                        .map(|i| ObjectNamePart::Identifier(i.clone()))
-                        .collect(),
-                );
-            }
-            TableFactor::Derived { subquery, .. } => {
-                self.update_tables_in_query(subquery)?;
-            }
-            TableFactor::NestedJoin {
-                table_with_joins, ..
-            } => {
-                self.update_tables_in_table_with_joins(table_with_joins)?;
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    fn update_tables_in_update_table_from_kind(
-        &self,
-        from_kind: &mut UpdateTableFromKind,
-    ) -> ExecutionResult<()> {
-        match from_kind {
-            UpdateTableFromKind::BeforeSet(tables) | UpdateTableFromKind::AfterSet(tables) => {
-                for table_with_joins in tables {
-                    self.update_tables_in_table_with_joins(table_with_joins)?;
-                }
-            }
-        }
-        Ok(())
+    pub fn status_response(&self) -> ExecutionResult<QueryResult> {
+        let schema = Arc::new(ArrowSchema::new(vec![Field::new(
+            "status",
+            DataType::Utf8,
+            false,
+        )]));
+        Ok(QueryResult::new(
+            vec![RecordBatch::new_empty(schema.clone())],
+            schema,
+            self.query_context.query_id,
+        ))
     }
 }
 
-pub fn created_entity_response() -> ExecutionResult<Vec<RecordBatch>> {
-    let schema = Arc::new(ArrowSchema::new(vec![Field::new(
-        "count",
-        DataType::Int64,
-        false,
-    )]));
-    Ok(vec![
-        RecordBatch::try_new(schema, vec![Arc::new(Int64Array::from(vec![0]))])
-            .context(ex_error::ArrowSnafu)?,
-    ])
+fn build_starts_with_filter(starts_with: Option<Value>, column_name: &str) -> Option<String> {
+    if let Some(Value::SingleQuotedString(prefix)) = starts_with {
+        let escaped = prefix.replace('\'', "''");
+        Some(format!("{column_name} LIKE '{escaped}%'"))
+    } else {
+        None
+    }
 }
 
-pub fn status_response() -> ExecutionResult<Vec<RecordBatch>> {
-    let schema = Arc::new(ArrowSchema::new(vec![Field::new(
-        "status",
-        DataType::Utf8,
-        false,
-    )]));
-    Ok(vec![RecordBatch::new_empty(schema)])
+fn apply_show_filters(sql: String, filters: &[String]) -> String {
+    if filters.is_empty() {
+        sql
+    } else {
+        format!("{} WHERE {}", sql, filters.join(" AND "))
+    }
 }
