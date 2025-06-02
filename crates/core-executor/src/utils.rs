@@ -1,22 +1,22 @@
 use super::models::QueryResult;
 use crate::error::{ArrowSnafu, ExecutionResult, SerdeParseSnafu, Utf8Snafu};
 use chrono::DateTime;
+use core_history::HistoryStoreResult;
 use core_history::errors::HistoryStoreError;
 use core_history::result_set::{Column, ResultSet, Row};
-use core_history::HistoryStoreResult;
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::array::{
     Array, Decimal128Array, Int16Array, Int32Array, Int64Array, StringArray,
     TimestampMicrosecondArray, TimestampMillisecondArray, TimestampNanosecondArray,
-    TimestampSecondArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array, UnionArray,
+    TimestampSecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array, UnionArray,
 };
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::{Field, Schema, TimeUnit};
-use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::json::WriterBuilder;
+use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::ScalarValue;
 use datafusion_expr::{Expr, LogicalPlan};
