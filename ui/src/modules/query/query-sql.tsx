@@ -8,8 +8,12 @@ interface QuerySQLProps {
 
 export function QuerySQL({ queryRecord }: QuerySQLProps) {
   return (
-    <div className="grid grid-cols-1 gap-6 rounded-lg border p-4 md:grid-cols-2">
-      <SQLEditor readonly content={queryRecord.query} />
+    <div className="gap-6 rounded-lg border p-4">
+      {queryRecord.error ? (
+        <span className="text-sm text-red-500">{queryRecord.error}</span>
+      ) : (
+        <SQLEditor readonly content={queryRecord.query} />
+      )}
     </div>
   );
 }
