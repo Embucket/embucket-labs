@@ -9,6 +9,15 @@ use serde_json::Value;
 use std::any::Any;
 use std::sync::Arc;
 
+// typeof SQL function
+// Returns the type of a value stored in a VARIANT column.
+// Syntax: TYPEOF( <variant_expr> )
+// Arguments:
+// - variant_expr
+//   An expression that evaluates to a value of type VARIANT.
+// Example SELECT TYPEOF('{"a":1}') as v;
+// Note `typeof` returns
+// Returns a STRING value or NULL.
 #[derive(Debug)]
 pub struct TypeofFunc {
     signature: Signature,
