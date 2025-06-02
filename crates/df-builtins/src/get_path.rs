@@ -131,9 +131,9 @@ INSERT INTO get_path_demo (id, v)
            }
          }';"#,
         )
-            .await?
-            .collect()
-            .await?;
+        .await?
+        .collect()
+        .await?;
 
         ctx.sql(
             r#"INSERT INTO get_path_demo (id, v)
@@ -151,9 +151,9 @@ INSERT INTO get_path_demo (id, v)
            }
          }';"#,
         )
-            .await?
-            .collect()
-            .await?;
+        .await?
+        .collect()
+        .await?;
 
         let sql = "SELECT id, GET_PATH(v, 'array2[0].id3') AS id3_in_array2 FROM get_path_demo;";
         let result = ctx.sql(sql).await?.collect().await?;
