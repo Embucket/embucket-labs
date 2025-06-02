@@ -47,5 +47,18 @@ pub async fn require_auth(
     let _ = get_claims_validate_jwt_token(access_token, &audience, jwt_secret)
         .context(BadAuthTokenSnafu)?;
 
-    Ok(next.run(req).await)
+    let guard = pprof::ProfilerGuardBuilder::default().frequency(1000).blocklist(&["libc", "libgcc", "pthread", "vdso"]).build().unwrap();
+    
+    let res = Ok(next.run(req).await);
+
+    if let Ok(report) = guard.report().build() {
+        let fname = format!("prof/flamegraph_{}.svg", chrono::Utc::now().timestamp());
+        let file = std::fs::File::create(fname).unwrap();
+        let mut options = pprof::flamegraph::Options::default();
+        options.image_width = Some(5000);
+        report.flamegraph_with_options(file, &mut options).unwrap();
+    };
+    drop(guard);
+
+    res
 }

@@ -14,6 +14,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use chrono::Utc;
 use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::error::MetastoreError;
 use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
@@ -87,6 +88,7 @@ pub async fn create_schema(
         database_name.clone(),
         payload.name.clone()
     );
+
     let _ = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
