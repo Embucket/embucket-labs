@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion::physical_expr_common::physical_expr::DynHash;
-use datafusion_common::{DFSchema, DFSchemaRef, TableReference};
+use datafusion_common::{DFSchema, DFSchemaRef};
 use datafusion_expr::{Expr, InvariantLevel, LogicalPlan, UserDefinedLogicalNode};
+use datafusion_iceberg::DataFusionTable;
 
 #[derive(Debug, Clone)]
 // The MergeIntoSink performs the final writing step of the "MERGE INTO" statement. It assumes
@@ -16,12 +17,15 @@ use datafusion_expr::{Expr, InvariantLevel, LogicalPlan, UserDefinedLogicalNode}
 // table accordingly.
 pub struct MergeIntoSink {
     input: Arc<LogicalPlan>,
-    target: TableReference,
+    target: DataFusionTable,
     schema: DFSchemaRef,
 }
 
 impl MergeIntoSink {
-    pub fn new(input: Arc<LogicalPlan>, target: TableReference) -> datafusion_common::Result<Self> {
+    pub fn new(
+        input: Arc<LogicalPlan>,
+        target: DataFusionTable,
+    ) -> datafusion_common::Result<Self> {
         let field = Field::new("number of rows updated", DataType::Int64, false);
         let schema = DFSchema::new_with_metadata(
             vec![(None, Arc::new(field))],
@@ -66,7 +70,7 @@ impl UserDefinedLogicalNode for MergeIntoSink {
     }
 
     fn fmt_for_explain(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "MergeIntoSink: target={}", self.target)
+        write!(f, "MergeIntoSink")
     }
 
     fn with_exprs_and_inputs(
@@ -88,13 +92,13 @@ impl UserDefinedLogicalNode for MergeIntoSink {
     }
 
     fn dyn_hash(&self, state: &mut dyn Hasher) {
+        "MergeIntoSink".dyn_hash(state);
         self.input.dyn_hash(state);
-        self.target.dyn_hash(state);
     }
 
     fn dyn_eq(&self, other: &dyn UserDefinedLogicalNode) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self.target == other.target && self.schema == other.schema
+            self.input == other.input && self.schema == other.schema
         } else {
             false
         }
