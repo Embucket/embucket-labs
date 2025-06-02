@@ -44,9 +44,11 @@ mod time_from_parts;
 mod timestamp_from_parts;
 mod to_boolean;
 mod to_time;
+mod typeof_func;
 mod try_parse_json;
 pub mod variant;
 pub mod visitors;
+
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
         convert_timezone::get_udf(),
@@ -70,6 +72,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         strtok_to_array::get_udf(),
         object_keys::get_udf(),
         try_parse_json::get_udf(),
+        get::get_udf(),
+        typeof_func::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
