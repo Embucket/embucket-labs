@@ -46,7 +46,6 @@ impl TreeNodeRewriter for ExprRewriter<'_> {
     fn f_up(&mut self, expr: Expr) -> Result<Transformed<Expr>> {
         if let Expr::ScalarFunction(fun) = &expr {
             let name = fun.name().to_lowercase();
-
             let scalar_value = match name.as_str() {
                 "current_database" => Some(utf8_val(&self.rewriter.database)),
                 "current_schema" => Some(utf8_val(&self.rewriter.schema)),
