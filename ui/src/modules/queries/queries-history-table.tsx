@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router';
 import { createColumnHelper } from '@tanstack/react-table';
 
 import { DataTable } from '@/components/data-table/data-table';
@@ -14,6 +15,7 @@ interface QueriesHistoryTableProps {
 
 export function QueriesHistoryTable({ isLoading, queries }: QueriesHistoryTableProps) {
   const columnHelper = createColumnHelper<QueryRecord>();
+  const navigate = useNavigate();
 
   const columns = [
     columnHelper.accessor('id', {
@@ -65,5 +67,22 @@ export function QueriesHistoryTable({ isLoading, queries }: QueriesHistoryTableP
     }),
   ];
 
-  return <DataTable rounded columns={columns} data={queries} isLoading={isLoading} />;
+  const handleRowClick = (row: QueryRecord) => {
+    navigate({
+      to: '/queries/$queryId',
+      params: {
+        queryId: row.id.toString(),
+      },
+    });
+  };
+
+  return (
+    <DataTable
+      rounded
+      columns={columns}
+      data={queries}
+      isLoading={isLoading}
+      onRowClick={handleRowClick}
+    />
+  );
 }

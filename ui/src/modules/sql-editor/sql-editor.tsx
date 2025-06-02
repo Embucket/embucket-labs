@@ -48,9 +48,10 @@ export function SQLEditor({ readonly, content }: SQLEditorProps) {
   const worksheetId = useParams({
     from: '/sql-editor/$worksheetId/',
     select: (params) => params.worksheetId,
+    shouldThrow: false,
   });
 
-  const { data: worksheet } = useGetWorksheet(+worksheetId);
+  const { data: worksheet } = useGetWorksheet(Number(worksheetId));
   // Not intended to be used for SQLEditor - there should be a dedicated endpoint for that
   const { data: { items: navigationTrees } = {} } = useGetNavigationTrees();
   const { mutate } = useUpdateWorksheet();
@@ -61,21 +62,21 @@ export function SQLEditor({ readonly, content }: SQLEditorProps) {
   // Invalidate queries when worksheet ID changes
   useEffect(() => {
     queryClient.invalidateQueries({
-      queryKey: getGetWorksheetQueryKey(+worksheetId),
+      queryKey: getGetWorksheetQueryKey(Number(worksheetId)),
     });
   }, [worksheetId, queryClient]);
 
   // Use ref to store the latest values without triggering re-renders
   const latestValuesRef = useRef({
     worksheetName: worksheet?.name,
-    worksheetId: +worksheetId,
+    worksheetId: Number(worksheetId),
   });
 
   // Update ref when worksheet changes
   useEffect(() => {
     latestValuesRef.current = {
       worksheetName: worksheet?.name,
-      worksheetId: +worksheetId,
+      worksheetId: Number(worksheetId),
     };
   }, [worksheet?.name, worksheetId]);
 

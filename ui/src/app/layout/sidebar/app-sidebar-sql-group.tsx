@@ -73,9 +73,10 @@ export function AppSidebarSqlGroup() {
         {
           name: 'Queries',
           linkProps: {
-            to: '/queries-history',
+            to: '/queries',
           },
           Icon: Activity,
+          isActive: pathname.includes('/queries'),
         },
       ]}
       open={open}
