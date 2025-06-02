@@ -16,9 +16,9 @@ use datafusion_iceberg::DataFusionTable;
 // It then writes the resulting data to parquet files and updates the target
 // table accordingly.
 pub struct MergeIntoSink {
-    input: Arc<LogicalPlan>,
-    target: DataFusionTable,
-    schema: DFSchemaRef,
+    pub input: Arc<LogicalPlan>,
+    pub target: DataFusionTable,
+    pub schema: DFSchemaRef,
 }
 
 impl MergeIntoSink {
