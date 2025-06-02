@@ -1,4 +1,3 @@
-use super::super::macros::make_udf_function;
 use datafusion::arrow::array::as_boolean_array;
 use datafusion::arrow::{array::AsArray, datatypes::DataType};
 use datafusion_common::cast::{as_float64_array, as_int64_array};
@@ -13,11 +12,12 @@ use serde_json::{Number, Value};
 pub struct ObjectConstructUDF {
     signature: Signature,
     aliases: Vec<String>,
+    keep_null: bool,
 }
 
 impl ObjectConstructUDF {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(keep_null: bool) -> Self {
         Self {
             signature: Signature {
                 type_signature: TypeSignature::OneOf(vec![
@@ -27,13 +27,14 @@ impl ObjectConstructUDF {
                 volatility: Volatility::Volatile,
             },
             aliases: vec!["make_object".to_string()],
+            keep_null,
         }
     }
 }
 
 impl Default for ObjectConstructUDF {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
 
@@ -43,7 +44,11 @@ impl ScalarUDFImpl for ObjectConstructUDF {
     }
 
     fn name(&self) -> &'static str {
-        "object_construct"
+        if self.keep_null {
+            "object_construct_keep_null"
+        } else {
+            "object_construct"
+        }
     }
 
     fn signature(&self) -> &Signature {
@@ -121,7 +126,13 @@ impl ScalarUDFImpl for ObjectConstructUDF {
                             )?,
                         ),
                         DataType::Boolean => Value::Bool(as_boolean_array(&value_array).value(i)),
-                        DataType::Null => continue,
+                        DataType::Null => {
+                            if self.keep_null {
+                                Value::Null
+                            } else {
+                                continue; // Skip null values if keep_null is false
+                            }
+                        }
                         _ => {
                             return Err(datafusion_common::error::DataFusionError::Execution(
                                 "object_construct value must be a string, number, or boolean"
@@ -191,8 +202,6 @@ impl ScalarUDFImpl for ObjectConstructUDF {
 //     Ok(transformed_plan)
 // }
 
-make_udf_function!(ObjectConstructUDF);
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -206,7 +215,7 @@ mod tests {
     async fn test_object_construct() -> DFResult<()> {
         let ctx = SessionContext::new();
 
-        ctx.register_udf(ScalarUDF::from(ObjectConstructUDF::new()));
+        ctx.register_udf(ScalarUDF::from(ObjectConstructUDF::new(false)));
 
         // Test basic object construction
         let sql = "SELECT object_construct('a', 1, 'b', 'hello', 'c', 2.5, 'd', null) as obj1";
@@ -251,10 +260,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_object_construct_keep_null() -> DFResult<()> {
+        let ctx = SessionContext::new();
+
+        ctx.register_udf(ScalarUDF::from(ObjectConstructUDF::new(true)));
+
+        // Test with null values
+        let sql = "SELECT object_construct_keep_null('a', 1, 'b', NULL, 'c', 3) as obj3";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+------------------------+",
+                "| obj3                   |",
+                "+------------------------+",
+                "| {\"a\":1,\"b\":null,\"c\":3} |",
+                "+------------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_object_construct_nested() -> DFResult<()> {
         let ctx = SessionContext::new();
 
-        ctx.register_udf(ScalarUDF::from(ObjectConstructUDF::new()));
+        ctx.register_udf(ScalarUDF::from(ObjectConstructUDF::new(false)));
         ctx.register_udf(ScalarUDF::from(ArrayConstructUDF::new()));
 
         // Test nested object construction
