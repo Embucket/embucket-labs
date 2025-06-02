@@ -74,6 +74,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         strtok_to_array::get_udf(),
         object_keys::get_udf(),
         try_parse_json::get_udf(),
+        typeof_func::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
