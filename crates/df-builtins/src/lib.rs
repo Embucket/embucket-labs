@@ -1,4 +1,5 @@
 pub use crate::aggregate::register_udafs;
+use crate::is_typeof::IsTypeofFunc;
 use crate::get::GetFunc;
 use crate::to_boolean::ToBooleanFunc;
 use crate::to_time::ToTimeFunc;
@@ -30,6 +31,7 @@ mod iff;
 mod insert;
 mod is_array;
 mod is_object;
+mod is_typeof;
 mod json;
 mod nullifzero;
 mod object_keys;
@@ -78,6 +80,14 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(true))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Null))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Boolean))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Double))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Real))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Integer))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::String))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Array))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Object))),
         Arc::new(ScalarUDF::from(GetFunc::new(true))),
         Arc::new(ScalarUDF::from(GetFunc::new(false))),
     ];
