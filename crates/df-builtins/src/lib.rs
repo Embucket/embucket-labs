@@ -1,4 +1,5 @@
 pub use crate::aggregate::register_udafs;
+use crate::get::GetFunc;
 use crate::to_boolean::ToBooleanFunc;
 use crate::to_time::ToTimeFunc;
 use datafusion::arrow::array::{
@@ -75,6 +76,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(true))),
+        Arc::new(ScalarUDF::from(GetFunc::new(true))),
+        Arc::new(ScalarUDF::from(GetFunc::new(false))),
     ];
 
     for func in functions {
