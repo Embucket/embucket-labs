@@ -10,6 +10,7 @@ pub struct SessionContextExprRewriter {
     pub schemas: Vec<String>,
     pub warehouse: String,
     pub session_id: String,
+    pub version: String,
 }
 
 impl SessionContextExprRewriter {
@@ -52,10 +53,8 @@ impl TreeNodeRewriter for ExprRewriter<'_> {
                 "current_warehouse" => Some(utf8_val(&self.rewriter.warehouse)),
                 "current_role_type" => Some(utf8_val("ROLE")),
                 "current_role" => Some(utf8_val("default")),
-                "current_version" => Some(utf8_val(env!("CARGO_PKG_VERSION"))),
-                "current_client" => {
-                    Some(utf8_val(format!("Embucket {}", env!("CARGO_PKG_VERSION"))))
-                }
+                "current_version" => Some(utf8_val(&self.rewriter.version)),
+                "current_client" => Some(utf8_val(format!("Embucket {}", &self.rewriter.version))),
                 "current_session" => Some(utf8_val(&self.rewriter.session_id)),
                 "current_schemas" => Some(list_val(&self.rewriter.schemas)),
                 _ => None,

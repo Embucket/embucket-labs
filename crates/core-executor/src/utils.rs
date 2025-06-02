@@ -31,12 +31,14 @@ use strum::{Display, EnumString};
 #[derive(Default, Clone)]
 pub struct Config {
     pub dbt_serialization_format: DataSerializationFormat,
+    pub embucket_version: String,
 }
 
 impl Config {
     pub fn new(data_format: &str) -> Result<Self, strum::ParseError> {
         Ok(Self {
             dbt_serialization_format: DataSerializationFormat::try_from(data_format)?,
+            embucket_version: "0.1.0".to_string(),
         })
     }
 }
