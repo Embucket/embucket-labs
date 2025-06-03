@@ -89,10 +89,20 @@ jobs:
         run: |
           mkdir -p test-assets
           python generate_test_assets.py --stats-file test_statistics.csv --output-dir test-assets
-          
+
           # Get coverage percentage for commit message
           COVERAGE=$(grep -o '[0-9.]\+%' test-assets/badge.txt | tr -d '%')
           echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+
+      # Commit test statistics to main branch
+      - name: Commit Test Statistics to Main
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add test/test_statistics.csv
+          git commit -m "Update test statistics [skip ci]" || echo "No changes to commit"
+          git push origin main
 
       # Push Assets to Branch
       - name: Push Assets to Branch
