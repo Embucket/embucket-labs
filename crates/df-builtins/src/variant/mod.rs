@@ -29,6 +29,7 @@ pub mod object_insert;
 pub mod object_pick;
 pub mod variant_element;
 pub mod visitors;
+mod to_array;
 
 use datafusion::common::Result;
 use datafusion_expr::ScalarUDF;
