@@ -43,7 +43,10 @@ impl VisitorMut for UnimplementedFunctionsChecker {
             if snowflake_functions.is_unimplemented(&func_name) {
                 let details = snowflake_functions
                     .get_function_info(&func_name)
-                    .and_then(|info| info.get_preferred_url().map(std::string::ToString::to_string));
+                    .and_then(|info| {
+                        info.get_preferred_url()
+                            .map(std::string::ToString::to_string)
+                    });
 
                 return ControlFlow::Break(UnimplementedFunctionError {
                     function_name: func_name.to_lowercase(),
@@ -81,8 +84,8 @@ mod tests {
     #[test]
     fn test_implemented_function_passes() {
         let sql = "SELECT COUNT(*), SUM(column1), AVG(column2) FROM table1";
-        let mut statements = Parser::parse_sql(&SnowflakeDialect {}, sql)
-            .expect("Failed to parse SQL in test");
+        let mut statements =
+            Parser::parse_sql(&SnowflakeDialect {}, sql).expect("Failed to parse SQL in test");
 
         let result = check_unimplemented_functions(&mut statements[0]);
         assert!(result.is_ok());
@@ -91,8 +94,8 @@ mod tests {
     #[test]
     fn test_nested_unimplemented_function() {
         let sql = "SELECT COUNT(*) FROM table1 WHERE column1 = CHECK_JSON(data)";
-        let mut statements = Parser::parse_sql(&SnowflakeDialect {}, sql)
-            .expect("Failed to parse SQL in test");
+        let mut statements =
+            Parser::parse_sql(&SnowflakeDialect {}, sql).expect("Failed to parse SQL in test");
 
         let result = check_unimplemented_functions(&mut statements[0]);
         assert!(result.is_err());
