@@ -118,7 +118,6 @@ fn list_val(items: &[String]) -> ScalarValue {
     ScalarValue::List(Arc::new(ListArray::from(array)))
 }
 
-// #[allow(clippy::cast_sign_loss)]
 fn get_query_by_index(queries: &[String], index: i64) -> Option<String> {
     match index {
         i if i < 0 => {
