@@ -20,11 +20,11 @@ impl std::fmt::Display for UnimplementedFunctionError {
             }
         }
 
-        return write!(
+        write!(
             f,
             "Function '{}' is not implemented yet",
             self.function_name
-        );
+        )
     }
 }
 
@@ -43,7 +43,7 @@ impl VisitorMut for UnimplementedFunctionsChecker {
             if snowflake_functions.is_unimplemented(&func_name) {
                 let details = snowflake_functions
                     .get_function_info(&func_name)
-                    .and_then(|info| info.get_preferred_url().map(|url| url.to_string()));
+                    .and_then(|info| info.get_preferred_url().map(std::string::ToString::to_string));
 
                 return ControlFlow::Break(UnimplementedFunctionError {
                     function_name: func_name.to_lowercase(),

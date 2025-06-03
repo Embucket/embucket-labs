@@ -18,6 +18,7 @@ pub struct FunctionInfo {
 }
 
 impl FunctionInfo {
+    #[must_use]
     pub const fn new(name: &'static str, description: &'static str) -> Self {
         Self {
             name,
@@ -28,23 +29,27 @@ impl FunctionInfo {
         }
     }
 
+    #[must_use]
     pub const fn with_docs(mut self, url: &'static str) -> Self {
         self.documentation_url = Some(url);
         self
     }
 
+    #[must_use]
     pub const fn with_subcategory(mut self, subcategory: &'static str) -> Self {
         self.subcategory = Some(subcategory);
         self
     }
 
     /// Add issue URL to existing function info (for later updates)
-    pub fn with_issue_url(mut self, issue_url: &'static str) -> Self {
+    #[must_use]
+    pub const fn with_issue_url(mut self, issue_url: &'static str) -> Self {
         self.issue_url = Some(issue_url);
         self
     }
 
     /// Get the preferred URL for details (issue URL if available, otherwise documentation URL)
+    #[must_use]
     pub fn get_preferred_url(&self) -> Option<&str> {
         self.issue_url.or(self.documentation_url)
     }
