@@ -81,7 +81,8 @@ mod tests {
     #[test]
     fn test_implemented_function_passes() {
         let sql = "SELECT COUNT(*), SUM(column1), AVG(column2) FROM table1";
-        let mut statements = Parser::parse_sql(&SnowflakeDialect {}, sql).unwrap();
+        let mut statements = Parser::parse_sql(&SnowflakeDialect {}, sql)
+            .expect("Failed to parse SQL in test");
 
         let result = check_unimplemented_functions(&mut statements[0]);
         assert!(result.is_ok());
@@ -90,7 +91,8 @@ mod tests {
     #[test]
     fn test_nested_unimplemented_function() {
         let sql = "SELECT COUNT(*) FROM table1 WHERE column1 = CHECK_JSON(data)";
-        let mut statements = Parser::parse_sql(&SnowflakeDialect {}, sql).unwrap();
+        let mut statements = Parser::parse_sql(&SnowflakeDialect {}, sql)
+            .expect("Failed to parse SQL in test");
 
         let result = check_unimplemented_functions(&mut statements[0]);
         assert!(result.is_err());
@@ -113,7 +115,7 @@ mod tests {
 
         let error_with_empty_details = UnimplementedFunctionError {
             function_name: "test_func".to_string(),
-            details: Some("".to_string()),
+            details: Some(String::new()),
         };
         assert_eq!(
             error_with_empty_details.to_string(),
