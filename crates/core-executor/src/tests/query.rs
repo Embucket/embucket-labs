@@ -3,7 +3,9 @@ use crate::session::UserSession;
 
 use crate::models::QueryContext;
 use crate::utils::Config;
-use core_history::SlateDBHistoryStore;
+#[cfg(test)]
+use core_history::MockHistoryStore;
+use core_history::{HistoryStore, QueryRecord};
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
 use core_metastore::{
@@ -77,7 +79,17 @@ static TABLE_SETUP: &str = include_str!(r"./table_setup.sql");
 pub async fn create_df_session() -> Arc<UserSession> {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db));
+    let mut mock = MockHistoryStore::new();
+    mock.expect_get_queries().returning(|_| {
+        let mut records = Vec::new();
+        for i in 0..3 {
+            let mut q = QueryRecord::new("query", None);
+            q.id = i;
+            records.push(q);
+        }
+        Ok(records)
+    });
+    let history_store: Arc<dyn HistoryStore> = Arc::new(mock);
 
     metastore
         .create_volume(
@@ -507,6 +519,16 @@ test_query!(
 test_query!(
     unset_variable,
     "UNSET v3",
+    setup_queries = ["SET v1 = 'test'", "SET v2 = 1", "SET v3 = true"],
+    snapshot_path = "session"
+);
+test_query!(
+    session_last_query_id,
+    "SELECT
+        length(LAST_QUERY_ID()) > 0 as last,
+        length(LAST_QUERY_ID(-1)) > 0 as last_index,
+        length(LAST_QUERY_ID(2)) > 0 as second,
+        length(LAST_QUERY_ID(100)) = 0 as empty",
     setup_queries = ["SET v1 = 'test'", "SET v2 = 1", "SET v3 = true"],
     snapshot_path = "session"
 );

@@ -1,7 +1,11 @@
+use crate::models::QueryContext;
+use core_history::{GetQueriesParams, HistoryStore};
 use datafusion::arrow::array::{ListArray, ListBuilder, StringBuilder};
 use datafusion::logical_expr::{Expr, LogicalPlan};
 use datafusion_common::tree_node::{Transformed, TreeNode, TreeNodeRewriter};
-use datafusion_common::{Result, ScalarValue};
+use datafusion_common::{DataFusionError, Result, ScalarValue};
+use df_catalog::block_in_new_runtime;
+use std::convert::TryFrom;
 use std::sync::Arc;
 
 pub struct SessionContextExprRewriter {
@@ -11,6 +15,8 @@ pub struct SessionContextExprRewriter {
     pub warehouse: String,
     pub session_id: String,
     pub version: String,
+    pub query_context: QueryContext,
+    pub history_store: Arc<dyn HistoryStore>,
 }
 
 impl SessionContextExprRewriter {
@@ -35,6 +41,29 @@ impl SessionContextExprRewriter {
             .collect::<Vec<_>>();
         plan.with_new_exprs(new_exprs, inputs)
     }
+
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn last_query_id(&self, index: i64) -> Result<ScalarValue> {
+        let history_store = self.history_store.clone();
+        let worksheet_id = self.query_context.worksheet_id;
+
+        let id = block_in_new_runtime(async move {
+            let mut params = GetQueriesParams::default();
+            if let Some(id) = worksheet_id {
+                params = params.with_worksheet_id(id);
+            }
+            let queries = history_store
+                .get_queries(params)
+                .await
+                .map_err(|e| DataFusionError::External(Box::new(e)))?
+                .into_iter()
+                .map(|q| q.id.to_string())
+                .collect::<Vec<_>>();
+            let query_id = get_query_by_index(&queries, index).unwrap_or_default();
+            Ok::<String, DataFusionError>(query_id)
+        })??;
+        Ok(utf8_val(&id))
+    }
 }
 struct ExprRewriter<'a> {
     rewriter: &'a SessionContextExprRewriter,
@@ -55,10 +84,16 @@ impl TreeNodeRewriter for ExprRewriter<'_> {
                 "current_version" => Some(utf8_val(&self.rewriter.version)),
                 "current_client" => Some(utf8_val(format!("Embucket {}", &self.rewriter.version))),
                 "current_session" => Some(utf8_val(&self.rewriter.session_id)),
+                "last_query_id" => {
+                    let index = match fun.args.first() {
+                        Some(Expr::Literal(value)) => value.clone().try_into().unwrap_or(-1),
+                        _ => -1,
+                    };
+                    Some(self.rewriter.last_query_id(index)?)
+                }
                 "current_schemas" => Some(list_val(&self.rewriter.schemas)),
                 _ => None,
             };
-
             if let Some(value) = scalar_value {
                 return Ok(Transformed::yes(Expr::Literal(value).alias(fun.name())));
             }
@@ -81,4 +116,21 @@ fn list_val(items: &[String]) -> ScalarValue {
     builder.append(true);
     let array = builder.finish();
     ScalarValue::List(Arc::new(ListArray::from(array)))
+}
+
+// #[allow(clippy::cast_sign_loss)]
+fn get_query_by_index(queries: &[String], index: i64) -> Option<String> {
+    match index {
+        i if i < 0 => {
+            let abs = i.checked_abs()?.checked_sub(1)?;
+            let abs_usize = usize::try_from(abs).ok()?;
+            queries.get(abs_usize).cloned()
+        }
+        i if i > 0 => {
+            let len = queries.len();
+            let rev_index = usize::try_from(i).ok()?;
+            queries.get(len.checked_sub(rev_index)?).cloned()
+        }
+        _ => None,
+    }
 }

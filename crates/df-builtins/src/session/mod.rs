@@ -1,3 +1,5 @@
+mod last_query_id;
+
 use datafusion::arrow::array::ListArray;
 use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion_common::{Result, ScalarValue};
@@ -15,7 +17,7 @@ macro_rules! create_session_context_udf {
                 value.clone(),
             ))))
         });
-        create_udf($name, vec![], DataType::Utf8, Volatility::Immutable, fun)
+        create_udf($name, vec![], DataType::Utf8, Volatility::Volatile, fun)
     }};
 }
 
@@ -41,7 +43,7 @@ fn current_schemas_udf() -> ScalarUDF {
         "current_schemas",
         vec![],
         DataType::List(Arc::new(Field::new("item", DataType::Utf8, true))),
-        Volatility::Immutable,
+        Volatility::Volatile,
         fun,
     )
 }
@@ -80,14 +82,21 @@ fn current_session_udf() -> ScalarUDF {
 }
 
 pub fn register_session_context_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
-    registry.register_udf(current_database_udf().into())?;
-    registry.register_udf(current_schema_udf().into())?;
-    registry.register_udf(current_schemas_udf().into())?;
-    registry.register_udf(current_warehouse_udf().into())?;
-    registry.register_udf(current_version_udf().into())?;
-    registry.register_udf(current_client_udf().into())?;
-    registry.register_udf(current_role_type_udf().into())?;
-    registry.register_udf(current_role_udf().into())?;
-    registry.register_udf(current_session_udf().into())?;
+    let udfs = [
+        current_database_udf(),
+        current_schema_udf(),
+        current_schemas_udf(),
+        current_warehouse_udf(),
+        current_version_udf(),
+        current_client_udf(),
+        current_role_type_udf(),
+        current_role_udf(),
+        current_session_udf(),
+    ];
+
+    for udf in udfs {
+        registry.register_udf(udf.into())?;
+    }
+    registry.register_udf(last_query_id::get_udf())?;
     Ok(())
 }

@@ -159,6 +159,8 @@ impl UserQuery {
             warehouse: "default".to_string(),
             session_id: self.session.ctx.session_id(),
             version: self.session.config.embucket_version.clone(),
+            query_context: self.query_context.clone(),
+            history_store: self.history_store.clone(),
         }
     }
 
