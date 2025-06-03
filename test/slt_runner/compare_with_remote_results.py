@@ -72,7 +72,6 @@ def compare_with_remote_results():
                 }
 
         # Find tests that exist in both local and remote results
-        print('main res: ', main_results)
         common_tests = set(local_results.keys()) & set(main_results.keys())
 
         improved_tests = []  # Tests with better success rate in local version
@@ -146,3 +145,6 @@ def compare_with_remote_results():
 
     except Exception as e:
         print(f"Error comparing with main branch: {e}")
+
+if __name__ == "__main__":
+    compare_with_remote_results()
