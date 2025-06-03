@@ -57,6 +57,7 @@ impl Default for TimeFromPartsFunc {
 }
 
 impl TimeFromPartsFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(
@@ -163,8 +164,8 @@ crate::macros::make_udf_function!(TimeFromPartsFunc);
 
 #[cfg(test)]
 mod test {
-    use crate::time_from_parts::TimeFromPartsFunc;
-    use crate::timestamp_from_parts::to_primitive_array;
+    use super::TimeFromPartsFunc;
+    use crate::datetime::timestamp_from_parts::to_primitive_array;
     use chrono::NaiveTime;
     use datafusion::arrow::datatypes::Time64NanosecondType;
     use datafusion::logical_expr::ColumnarValue;

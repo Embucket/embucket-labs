@@ -62,6 +62,7 @@ impl Default for DateFromPartsFunc {
 }
 
 impl DateFromPartsFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::uniform(
@@ -137,8 +138,8 @@ crate::macros::make_udf_function!(DateFromPartsFunc);
 
 #[cfg(test)]
 mod test {
-    use crate::date_from_parts::DateFromPartsFunc;
-    use crate::timestamp_from_parts::{UNIX_DAYS_FROM_CE, to_primitive_array};
+    use super::DateFromPartsFunc;
+    use crate::datetime::timestamp_from_parts::{UNIX_DAYS_FROM_CE, to_primitive_array};
     use chrono::NaiveDate;
     use datafusion::arrow::datatypes::Date32Type;
     use datafusion_common::ScalarValue;

@@ -28,6 +28,7 @@ impl Default for BoolXorFunc {
 }
 
 impl BoolXorFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::comparable(2, Volatility::Immutable),

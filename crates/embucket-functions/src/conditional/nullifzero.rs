@@ -52,6 +52,7 @@ impl Default for NullIfZeroFunc {
 }
 
 impl NullIfZeroFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::numeric(1, Volatility::Immutable),

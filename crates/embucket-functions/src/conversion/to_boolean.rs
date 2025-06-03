@@ -35,6 +35,7 @@ impl Default for ToBooleanFunc {
 }
 
 impl ToBooleanFunc {
+    #[must_use]
     pub fn new(try_: bool) -> Self {
         Self {
             signature: Signature::one_of(

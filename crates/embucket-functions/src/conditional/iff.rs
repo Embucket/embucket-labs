@@ -24,6 +24,7 @@ impl Default for IffFunc {
 }
 
 impl IffFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::any(3, Volatility::Immutable),

@@ -97,6 +97,7 @@ impl Default for TimestampFromPartsFunc {
 }
 
 impl TimestampFromPartsFunc {
+    #[must_use]
     pub fn new() -> Self {
         let basic_signature =
             vec![Coercion::new_exact(TypeSignatureClass::Native(logical_int64())); 6];
@@ -337,6 +338,7 @@ pub fn make_date(year: i32, month: i32, days: i32) -> Result<i32> {
     )
 }
 
+#[must_use]
 pub fn make_time(hour: i64, minute: i64, seconds: i64, nanosecond: Option<i64>) -> i64 {
     let n_hour = hour * 3_600_000_000_000;
     let n_minute = minute * 60_000_000_000;
@@ -429,7 +431,7 @@ crate::macros::make_udf_function!(TimestampFromPartsFunc);
 
 #[cfg(test)]
 mod test {
-    use crate::timestamp_from_parts::{TimestampFromPartsFunc, to_primitive_array};
+    use super::{TimestampFromPartsFunc, to_primitive_array};
     use chrono::DateTime;
     use datafusion::arrow::datatypes::TimestampNanosecondType;
     use datafusion::logical_expr::ColumnarValue;

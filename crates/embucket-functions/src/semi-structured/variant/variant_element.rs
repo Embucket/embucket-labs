@@ -203,9 +203,9 @@ make_udf_function!(VariantArrayElementUDF);
 
 #[cfg(test)]
 mod tests {
-    use super::super::array_construct::ArrayConstructUDF;
     use super::*;
-    use crate::variant::visitors::variant_element;
+    use crate::semi_structured::array::array_construct::ArrayConstructUDF;
+    use crate::semi_structured::variant::visitors::variant_element;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion::sql::parser::Statement;

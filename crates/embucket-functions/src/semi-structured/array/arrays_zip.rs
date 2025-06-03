@@ -183,7 +183,7 @@ make_udf_function!(ArraysZipUDF);
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::variant::array_construct::ArrayConstructUDF;
+    use crate::semi_structured::array::array_construct::ArrayConstructUDF;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion_expr::ScalarUDF;

@@ -69,9 +69,9 @@ pub fn visit(stmt: &mut Statement) {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::variant::array_construct::ArrayConstructUDF;
-    use crate::variant::variant_element::VariantArrayElementUDF;
-    use crate::variant::visitors::variant_element;
+    use crate::semi_structured::array::array_construct::ArrayConstructUDF;
+    use crate::semi_structured::variant::variant_element::VariantArrayElementUDF;
+    use crate::semi_structured::variant::visitors::variant_element;
     use datafusion::assert_batches_eq;
     use datafusion::prelude::SessionContext;
     use datafusion::sql::parser::Statement as DFStatement;

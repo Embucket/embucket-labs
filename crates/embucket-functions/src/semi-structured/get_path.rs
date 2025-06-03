@@ -23,6 +23,7 @@ impl Default for GetPathFunc {
 }
 
 impl GetPathFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::string(2, Volatility::Immutable),

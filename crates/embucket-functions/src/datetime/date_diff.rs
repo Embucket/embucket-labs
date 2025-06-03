@@ -28,6 +28,7 @@ impl Default for DateDiffFunc {
 }
 
 impl DateDiffFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             //TODO: Fix signature, can we diffretite between two differnt types? (ex.: date32 - timestamp)

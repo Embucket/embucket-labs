@@ -52,6 +52,7 @@ impl Default for Insert {
 }
 
 impl Insert {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(

@@ -38,6 +38,7 @@ impl Default for EqualNullFunc {
 }
 
 impl EqualNullFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::comparable(2, Volatility::Immutable),

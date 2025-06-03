@@ -33,6 +33,7 @@ impl Default for IsArrayFunc {
 }
 
 impl IsArrayFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::string(1, Volatility::Immutable),

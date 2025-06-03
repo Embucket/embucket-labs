@@ -33,6 +33,7 @@ impl Default for StrtokToArrayFunc {
 }
 
 impl StrtokToArrayFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(
@@ -134,7 +135,7 @@ crate::macros::make_udf_function!(StrtokToArrayFunc);
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_json::ParseJsonFunc;
+    use crate::semi_structured::json::parse_json::ParseJsonFunc;
 
     use super::*;
     use datafusion::prelude::SessionContext;

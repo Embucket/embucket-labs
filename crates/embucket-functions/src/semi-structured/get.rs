@@ -27,6 +27,7 @@ impl Default for GetFunc {
 }
 
 impl GetFunc {
+    #[must_use]
     pub fn new(ignore_case: bool) -> Self {
         Self {
             signature: Signature::one_of(

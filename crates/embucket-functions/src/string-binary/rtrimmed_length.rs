@@ -20,6 +20,7 @@ impl Default for RTrimmedLengthFunc {
 }
 
 impl RTrimmedLengthFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::exact(vec![DataType::Utf8], Volatility::Immutable),

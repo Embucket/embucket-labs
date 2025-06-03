@@ -63,6 +63,7 @@ impl Default for ToTimeFunc {
 }
 
 impl ToTimeFunc {
+    #[must_use]
     pub fn new(is_try: bool) -> Self {
         Self {
             signature: Signature::one_of(

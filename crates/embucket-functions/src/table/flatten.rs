@@ -467,7 +467,7 @@ fn get_args(args: &[&Expr]) -> DFResult<Args> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parse_json::ParseJsonFunc;
+    use crate::semi_structured::json::parse_json::ParseJsonFunc;
     use datafusion::prelude::SessionContext;
     use datafusion_common::assert_batches_eq;
     use std::sync::Arc;

@@ -27,6 +27,7 @@ impl Default for ObjectKeysFunc {
 }
 
 impl ObjectKeysFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::string(1, Volatility::Immutable),

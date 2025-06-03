@@ -5,10 +5,15 @@ pub mod json;
 pub mod object;
 pub mod variant;
 
-use crate::semi_structured::array::*;
-use crate::semi_structured::json::*;
-use crate::semi_structured::object::*;
-use crate::semi_structured::variant::*;
+use crate::semi_structured::array::{
+    array_append, array_cat, array_compact, array_construct, array_contains, array_distinct,
+    array_except, array_flatten, array_generate_range, array_insert, array_intersection,
+    array_max, array_min, array_position, array_prepend, array_remove, array_remove_at,
+    array_reverse, array_size, array_slice, array_sort, array_to_string, arrays_overlap,
+    arrays_to_object, arrays_zip,
+};
+use crate::semi_structured::object::{object_construct, object_delete, object_insert, object_pick};
+use crate::semi_structured::variant::variant_element;
 use datafusion::common::Result;
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;

@@ -27,6 +27,7 @@ impl Default for BoolAndFunc {
 }
 
 impl BoolAndFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::comparable(2, Volatility::Immutable),
@@ -81,6 +82,7 @@ impl ScalarUDFImpl for BoolAndFunc {
     }
 }
 
+#[must_use]
 pub fn is_true(v: Option<bool>) -> bool {
     v.unwrap_or(false)
 }

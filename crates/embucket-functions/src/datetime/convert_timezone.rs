@@ -24,6 +24,7 @@ impl Default for ConvertTimezoneFunc {
 }
 
 impl ConvertTimezoneFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(
