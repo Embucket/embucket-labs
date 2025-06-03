@@ -1,13 +1,17 @@
 use datafusion::arrow::array::RecordBatch;
-use datafusion_common::DFSchemaRef;
+use datafusion_common::{DFSchemaRef, DataFusionError, HashSet};
 use datafusion_iceberg::{DataFusionTable, error::Error as DataFusionIcebergError};
-use datafusion_physical_plan::{DisplayAs, ExecutionPlan, stream::RecordBatchStreamAdapter};
-use futures::{StreamExt, TryStreamExt};
+use datafusion_physical_plan::{
+    DisplayAs, ExecutionPlan, RecordBatchStream, SendableRecordBatchStream,
+    stream::RecordBatchStreamAdapter,
+};
+use futures::{Stream, StreamExt, TryStreamExt};
 use iceberg_rust::{
     arrow::write::write_parquet_partitioned, catalog::tabular::Tabular,
     error::Error as IcebergError,
 };
-use std::sync::Arc;
+use pin_project_lite::pin_project;
+use std::{sync::Arc, task::Poll};
 
 #[derive(Debug)]
 pub struct MergeIntoSinkExec {
@@ -41,7 +45,7 @@ impl DisplayAs for MergeIntoSinkExec {
 }
 
 impl ExecutionPlan for MergeIntoSinkExec {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "MergeIntoSinkExec"
     }
 
@@ -73,8 +77,7 @@ impl ExecutionPlan for MergeIntoSinkExec {
 
         let schema = Arc::new(self.schema.as_arrow().clone());
 
-        //TODO
-        // filter out files that don't need to be overwritten
+        let filtered = SourceExistFilterStream::new(input);
 
         //TODO
         //Project input stream onto desired Schema
@@ -92,9 +95,12 @@ impl ExecutionPlan for MergeIntoSinkExec {
                 }
                 .map_err(DataFusionIcebergError::from)?;
 
-                let datafiles =
-                    write_parquet_partitioned(table, input.map_err(Into::into), branch.as_deref())
-                        .await?;
+                let datafiles = write_parquet_partitioned(
+                    table,
+                    filtered.map_err(Into::into),
+                    branch.as_deref(),
+                )
+                .await?;
 
                 table
                     .new_transaction(branch.as_deref())
@@ -112,5 +118,66 @@ impl ExecutionPlan for MergeIntoSinkExec {
         .boxed();
 
         Ok(Box::pin(RecordBatchStreamAdapter::new(schema, stream)))
+    }
+}
+
+// Filters a stream of Recordbatches by whether the value in the "__data_file_column" already had
+// a row where the "__source_exists" column equals "true".
+pin_project! {
+    pub struct SourceExistFilterStream {
+        // Files which already encountered a "__source_exists" = true value
+        matching_files: HashSet<String>,
+        // The current datafiles being processed
+        current_file: Option<String>,
+        // If the current datafiles hasn't had any rows with "__source_exists" = true, this is used
+        // to buffer the recordbatches. If a "__source_exists" = true is encountered in a later
+        // recordbatch, the buffered recordbatches will be returned. If the `current_file` is set
+        // to another value, the buffer can be discarded as there won't be more any records from
+        // the same file.
+        current_buffer: Vec<RecordBatch>,
+        // RecordBatches ready to be consumed
+        ready_batches: Vec<RecordBatch>,
+
+        #[pin]
+        input: SendableRecordBatchStream
+    }
+}
+
+impl SourceExistFilterStream {
+    fn new(input: SendableRecordBatchStream) -> Self {
+        Self {
+            matching_files: HashSet::new(),
+            current_file: None,
+            current_buffer: Vec::new(),
+            ready_batches: Vec::new(),
+            input,
+        }
+    }
+}
+
+impl Stream for SourceExistFilterStream {
+    type Item = Result<RecordBatch, DataFusionError>;
+
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        let project = self.project();
+
+        // Return early if a batch is ready
+        if let Some(batch) = project.ready_batches.pop() {
+            return Poll::Ready(Some(Ok(batch)));
+        }
+
+        match project.input.poll_next(cx) {
+            Poll::Ready(Some(batch)) => Poll::Ready(Some(batch)),
+            x => x,
+        }
+    }
+}
+
+impl RecordBatchStream for SourceExistFilterStream {
+    fn schema(&self) -> datafusion::arrow::datatypes::SchemaRef {
+        todo!()
     }
 }
