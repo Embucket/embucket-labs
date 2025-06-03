@@ -41,7 +41,7 @@ use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::information_schema::session_params::SessionProperty;
-use embucket_functions::variant::visitors::visit_all;
+use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, functions_rewriter, json_element,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,

@@ -1,8 +1,7 @@
 pub use crate::aggregate::register_udafs;
 use crate::get::GetFunc;
 use crate::is_typeof::IsTypeofFunc;
-use crate::to_boolean::ToBooleanFunc;
-use crate::to_time::ToTimeFunc;
+use crate::conversion::{ToBooleanFunc, ToTimeFunc};
 use datafusion::arrow::array::{
     Array, ArrayRef, ArrowNativeTypeOp, BooleanArray, Decimal128Array, Decimal256Array,
     Float16Array, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array, Int64Array,
@@ -16,29 +15,16 @@ pub use std::iter as __std_iter;
 use std::sync::Arc;
 
 pub(crate) mod aggregate;
-mod convert_timezone;
-mod date_add;
-mod date_diff;
-mod date_from_parts;
+pub mod conditional;
+pub mod conversion;
+pub mod datetime;
 //pub mod geospatial;
-mod booland;
-mod boolor;
-mod boolxor;
-mod equal_null;
-mod get;
-mod get_path;
-mod iff;
-mod insert;
-mod is_array;
-mod is_object;
-mod is_typeof;
 mod json;
-mod nullifzero;
-mod object_keys;
-mod parse_json;
-mod rtrimmed_length;
+#[path = "semi-structured/mod.rs"]
+pub mod semi_structured;
 pub mod session;
-mod strtok_to_array;
+#[path = "string-binary/mod.rs"]
+pub mod string_binary;
 pub mod table;
 #[cfg(test)]
 pub mod tests;
@@ -46,33 +32,32 @@ mod time_from_parts;
 mod timestamp_from_parts;
 mod to_boolean;
 mod to_time;
-mod try_parse_json;
-mod typeof_func;
 pub mod variant;
 pub mod visitors;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
-        convert_timezone::get_udf(),
-        date_add::get_udf(),
-        parse_json::get_udf(),
-        date_diff::get_udf(),
-        timestamp_from_parts::get_udf(),
-        time_from_parts::get_udf(),
-        date_from_parts::get_udf(),
-        booland::get_udf(),
-        boolor::get_udf(),
-        boolxor::get_udf(),
-        iff::get_udf(),
-        equal_null::get_udf(),
-        nullifzero::get_udf(),
-        is_object::get_udf(),
-        is_array::get_udf(),
-        rtrimmed_length::get_udf(),
-        get_path::get_udf(),
-        insert::get_udf(),
-        strtok_to_array::get_udf(),
-        object_keys::get_udf(),
+        datetime::convert_timezone::get_udf(),
+        datetime::date_add::get_udf(),
+        semi_structured::json::parse_json::get_udf(),
+        datetime::date_diff::get_udf(),
+        datetime::timestamp_from_parts::get_udf(),
+        datetime::time_from_parts::get_udf(),
+        datetime::date_from_parts::get_udf(),
+        conditional::booland::get_udf(),
+        conditional::boolor::get_udf(),
+        conditional::boolxor::get_udf(),
+        conditional::iff::get_udf(),
+        conditional::equal_null::get_udf(),
+        conditional::nullifzero::get_udf(),
+        semi_structured::object::is_object::get_udf(),
+        semi_structured::array::is_array::get_udf(),
+        string_binary::rtrimmed_length::get_udf(),
+        semi_structured::get_path::get_udf(),
+        string_binary::insert::get_udf(),
+        semi_structured::array::strtok_to_array::get_udf(),
+        semi_structured::object::object_keys::get_udf(),
+        semi_structured::get::get_udf(),
         try_parse_json::get_udf(),
         typeof_func::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
@@ -103,7 +88,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         registry.register_udf(func)?;
     }
 
-    variant::register_udfs(registry)?;
+    semi_structured::register_udfs(registry)?;
     session::register_session_context_udfs(registry)?;
     Ok(())
 }
@@ -152,25 +137,45 @@ mod macros {
     }
 
     macro_rules! make_udf_function {
-    ($udf_type:ty) => {
-        paste::paste! {
-            static [< STATIC_ $udf_type:upper >]: std::sync::OnceLock<std::sync::Arc<datafusion::logical_expr::ScalarUDF>> =
-                std::sync::OnceLock::new();
+        ($udf_type:ty) => {
+            paste::paste! {
+                static [< STATIC_ $udf_type:upper >]: std::sync::OnceLock<std::sync::Arc<datafusion::logical_expr::ScalarUDF>> =
+                    std::sync::OnceLock::new();
 
-            pub fn get_udf() -> std::sync::Arc<datafusion::logical_expr::ScalarUDF> {
-                [< STATIC_ $udf_type:upper >]
-                    .get_or_init(|| {
-                        std::sync::Arc::new(datafusion::logical_expr::ScalarUDF::new_from_impl(
-                            <$udf_type>::default(),
-                        ))
-                    })
-                    .clone()
+                pub fn get_udf() -> std::sync::Arc<datafusion::logical_expr::ScalarUDF> {
+                    [< STATIC_ $udf_type:upper >]
+                        .get_or_init(|| {
+                            std::sync::Arc::new(datafusion::logical_expr::ScalarUDF::new_from_impl(
+                                <$udf_type>::default(),
+                            ))
+                        })
+                        .clone()
+                }
             }
         }
     }
-}
+
+    macro_rules! make_udaf_function {
+        ($udaf_type:ty) => {
+            paste::paste! {
+                static [< STATIC_ $udaf_type:upper >]: std::sync::OnceLock<std::sync::Arc<datafusion::logical_expr::AggregateUDF>> =
+                    std::sync::OnceLock::new();
+
+                pub fn get_udaf() -> std::sync::Arc<datafusion::logical_expr::AggregateUDF> {
+                    [< STATIC_ $udaf_type:upper >]
+                        .get_or_init(|| {
+                            std::sync::Arc::new(datafusion::logical_expr::AggregateUDF::new_from_impl(
+                                <$udaf_type>::default(),
+                            ))
+                        })
+                        .clone()
+                }
+            }
+        }
+    }
 
     pub(crate) use izip;
+    pub(crate) use make_udaf_function;
     pub(crate) use make_udf_function;
 }
 

@@ -17,7 +17,7 @@
 
 //! Defines the `ANY_VALUE` aggregation function.
 
-use super::macros::make_udaf_function;
+use crate::macros::make_udaf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::{DataType, Field};

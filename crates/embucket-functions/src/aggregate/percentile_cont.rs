@@ -20,7 +20,7 @@ use datafusion_expr::{
 use datafusion_macros::user_doc;
 use datafusion_physical_plan::PhysicalExpr;
 
-use super::macros::make_udaf_function;
+use crate::macros::make_udaf_function;
 
 #[user_doc(
     doc_section(label = "General Functions"),
