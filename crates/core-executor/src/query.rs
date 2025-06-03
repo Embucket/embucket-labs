@@ -10,7 +10,6 @@ use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::models::{QueryContext, QueryResult};
-use crate::datafusion::visitors::{copy_into_identifiers, functions_rewriter, json_element, unimplemented::functions_checker::visit as unimplemented_functions_checker};
 use core_history::HistoryStore;
 use core_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
@@ -40,9 +39,13 @@ use datafusion_common::{
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
-use embucket_functions::variant::visitors::visit_all;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::information_schema::session_params::SessionProperty;
+use embucket_functions::variant::visitors::visit_all;
+use embucket_functions::visitors::{
+    copy_into_identifiers, functions_rewriter, json_element,
+    unimplemented::functions_checker::visit as unimplemented_functions_checker,
+};
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
@@ -98,11 +101,10 @@ impl UserQuery {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let mut statement = state.sql_to_statement(&self.raw_query, dialect)?;
-        Self::postprocess_query_statement_with_validation(&mut statement)
-            .map_err(|e| match e {
-                ExecutionError::DataFusion { source } => source,
-                _ => DataFusionError::NotImplemented(e.to_string()),
-            })?;
+        Self::postprocess_query_statement_with_validation(&mut statement).map_err(|e| match e {
+            ExecutionError::DataFusion { source } => source,
+            _ => DataFusionError::NotImplemented(e.to_string()),
+        })?;
         Ok(statement)
     }
 
@@ -169,16 +171,16 @@ impl UserQuery {
         }
     }
 
-
     #[instrument(level = "trace")]
-    pub fn postprocess_query_statement_with_validation(statement: &mut DFStatement) -> ExecutionResult<()> {
+    pub fn postprocess_query_statement_with_validation(
+        statement: &mut DFStatement,
+    ) -> ExecutionResult<()> {
         if let DFStatement::Statement(value) = statement {
             json_element::visit(value);
             functions_rewriter::visit(value);
-            unimplemented_functions_checker(value)
-                .map_err(|e| ExecutionError::DataFusion {
-                    source: DataFusionError::NotImplemented(e.to_string()),
-                })?;
+            unimplemented_functions_checker(value).map_err(|e| ExecutionError::DataFusion {
+                source: DataFusionError::NotImplemented(e.to_string()),
+            })?;
             copy_into_identifiers::visit(value);
             visit_all(value);
         }

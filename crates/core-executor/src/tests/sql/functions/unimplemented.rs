@@ -7,7 +7,7 @@ test_query!(
     snapshot_path = "unimplemented"
 );
 
-// AGGREGATE_FUNCTIONS  
+// AGGREGATE_FUNCTIONS
 test_query!(
     unimplemented_aggregate_function,
     "SELECT APPROXIMATE_SIMILARITY(column1) FROM employee_table",
@@ -119,7 +119,6 @@ test_query!(
     "SELECT WAREHOUSE_METERING_HISTORY()",
     snapshot_path = "unimplemented"
 );
-
 
 // METADATA_FUNCTIONS
 test_query!(

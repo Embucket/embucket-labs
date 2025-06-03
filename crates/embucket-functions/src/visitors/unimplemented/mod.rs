@@ -2,7 +2,6 @@ pub mod functions_checker;
 pub mod functions_list;
 mod generated_snowflake_functions;
 
-
 /// Information about a Snowflake function
 #[derive(Debug, Clone)]
 pub struct FunctionInfo {
@@ -38,13 +37,13 @@ impl FunctionInfo {
         self.subcategory = Some(subcategory);
         self
     }
-    
+
     /// Add issue URL to existing function info (for later updates)
     pub fn with_issue_url(mut self, issue_url: &'static str) -> Self {
         self.issue_url = Some(issue_url);
         self
     }
-    
+
     /// Get the preferred URL for details (issue URL if available, otherwise documentation URL)
     pub fn get_preferred_url(&self) -> Option<&str> {
         self.issue_url.or(self.documentation_url)

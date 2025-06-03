@@ -1,17 +1,21 @@
 use crate::session::register_session_context_udfs;
+use crate::table::register_udtfs;
+use crate::{register_udafs, register_udfs};
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{SessionConfig, SessionContext};
 use std::sync::Arc;
-use crate::{register_udafs, register_udfs};
-use crate::table::register_udtfs;
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 pub fn create_session() -> Arc<SessionContext> {
     let state = SessionStateBuilder::new()
-        .with_config(SessionConfig::new().with_create_default_catalog_and_schema(true).set_bool(
-            "datafusion.execution.skip_physical_aggregate_schema_check",
-            true,
-        ))
+        .with_config(
+            SessionConfig::new()
+                .with_create_default_catalog_and_schema(true)
+                .set_bool(
+                    "datafusion.execution.skip_physical_aggregate_schema_check",
+                    true,
+                ),
+        )
         .with_default_features()
         .build();
     let mut ctx = SessionContext::new_with_state(state);

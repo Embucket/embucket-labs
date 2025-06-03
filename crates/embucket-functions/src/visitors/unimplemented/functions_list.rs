@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 // Include the generated functions
-use crate::visitors::unimplemented::generated_snowflake_functions::*;
 use crate::visitors::unimplemented::FunctionInfo;
+use crate::visitors::unimplemented::generated_snowflake_functions::*;
 
 /// Organizes Snowflake functions in a single registry
 pub struct SnowflakeFunctions {
@@ -20,8 +20,13 @@ impl Default for SnowflakeFunctions {
 }
 
 /// Helper function to convert const arrays to HashMaps
-fn build_hashmap_from_array(functions: &'static [(&'static str, FunctionInfo)]) -> HashMap<&'static str, FunctionInfo> {
-    functions.iter().map(|(name, info)| (*name, info.clone())).collect()
+fn build_hashmap_from_array(
+    functions: &'static [(&'static str, FunctionInfo)],
+) -> HashMap<&'static str, FunctionInfo> {
+    functions
+        .iter()
+        .map(|(name, info)| (*name, info.clone()))
+        .collect()
 }
 
 impl SnowflakeFunctions {
@@ -100,14 +105,18 @@ mod tests {
         }
 
         let chars: Vec<char> = name.chars().collect();
-        
+
         let first_char = chars[0];
         if !first_char.is_ascii_alphabetic() && first_char != '_' {
             return false;
         }
 
         for &ch in &chars[1..] {
-            if !ch.is_ascii_alphanumeric() && ch != '_' && ch != '$' && !(ch == ' ' && name.contains("LIKE")) {
+            if !ch.is_ascii_alphanumeric()
+                && ch != '_'
+                && ch != '$'
+                && !(ch == ' ' && name.contains("LIKE"))
+            {
                 return false;
             }
         }
@@ -119,16 +128,18 @@ mod tests {
     fn test_all_function_names_are_valid() {
         let functions = get_snowflake_functions();
         let all_names = functions.get_all_function_names();
-        
+
         let mut invalid_names = Vec::new();
-        
+
         for &name in &all_names {
             if !is_valid_sql_identifier(name) {
                 invalid_names.push(name);
             }
-        }       
-        assert!(invalid_names.is_empty(), "Found invalid function names: \n {}", invalid_names.join("\n"));
+        }
+        assert!(
+            invalid_names.is_empty(),
+            "Found invalid function names: \n {}",
+            invalid_names.join("\n")
+        );
     }
 }
-
-
