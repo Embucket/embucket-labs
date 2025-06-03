@@ -44,7 +44,7 @@ def compare_with_remote_results():
         main_results = {}
 
         # Parse local test results from current test run
-        with open("test_statistics.csv", "r") as f:
+        with open("../test_statistics.csv", "r") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 key = f"{row['page_name']}_{row['category']}"
@@ -113,7 +113,7 @@ def compare_with_remote_results():
 
         # Display detailed table of improved tests
         if improved_tests:
-            print(f"\n{GREEN}Improved Tests:{RESET}")
+            print(f"\n{GREEN}Increase in coverage:{RESET}")
             improved_table = PrettyTable()
             improved_table.field_names = ["Test", "Category", "Before (%)", "After (%)", "Improvement (%)"]
             for test in sorted(improved_tests, key=lambda x: x['improvement'], reverse=True):
