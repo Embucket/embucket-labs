@@ -27,6 +27,7 @@ use datafusion::logical_expr::{LogicalPlan, TableSource};
 use datafusion::prelude::CsvReadOptions;
 use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
+use datafusion::sql::resolve::resolve_table_references;
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableWithJoins,
@@ -54,11 +55,12 @@ use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
     ObjectType, PivotValueSource, Select, SelectItem, ShowObjects, ShowStatementFilter,
-    ShowStatementIn, TruncateTableTarget, Use, Value,
+    ShowStatementIn, TruncateTableTarget, Use, Value, visit_relations_mut,
 };
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
+use std::ops::ControlFlow;
 use std::sync::Arc;
 use tracing_attributes::instrument;
 use url::Url;
@@ -1228,9 +1230,10 @@ impl UserQuery {
 
         // We turn a query to SQL only to turn it back into a statement
         // TODO: revisit this pattern
-        let statement = state
+        let mut statement = state
             .sql_to_statement(query, dialect)
             .context(super::error::DataFusionSnafu)?;
+        self.update_statement_references(&mut statement)?;
 
         if let DFStatement::Statement(s) = statement.clone() {
             self.sql_statement_to_plan(*s).await
@@ -1240,6 +1243,43 @@ impl UserQuery {
                     "Only SQL statements are supported".to_string(),
                 ),
             })
+        }
+    }
+    pub fn update_statement_references(&self, statement: &mut DFStatement) -> ExecutionResult<()> {
+        let (_tables, ctes) = resolve_table_references(
+            statement,
+            self.session
+                .ctx
+                .state()
+                .config()
+                .options()
+                .sql_parser
+                .enable_ident_normalization,
+        )
+        .context(super::error::DataFusionSnafu)?;
+
+        match statement {
+            DFStatement::Statement(stmt) => {
+                let cte_names: HashSet<String> = ctes
+                    .into_iter()
+                    .map(|cte| cte.table().to_string())
+                    .collect();
+
+                visit_relations_mut(stmt, |table_name: &mut ObjectName| {
+                    if !cte_names.contains(&table_name.to_string()) {
+                        match self.resolve_table_object_name(table_name.0.clone()) {
+                            Ok(resolved_name) => {
+                                *table_name = ObjectName::from(resolved_name.0);
+                            }
+                            Err(e) => return ControlFlow::Break(e),
+                        }
+                    }
+                    ControlFlow::Continue(())
+                });
+                Ok(())
+            }
+            // If needed, handle other DFStatement variants like CreateExternalTable similarly
+            _ => Ok(()),
         }
     }
 
@@ -1413,7 +1453,7 @@ impl UserQuery {
             .resolve_table_references(statement)
             .context(super::error::DataFusionSnafu)?;
         for reference in references {
-            let resolved = state.resolve_table_ref(reference);
+            let resolved = self.resolve_table_ref(reference);
             if let Entry::Vacant(v) = tables.entry(resolved.clone()) {
                 if let Ok(schema) = self.schema_for_ref(resolved.clone()) {
                     if let Some(table) = schema
@@ -1427,6 +1467,17 @@ impl UserQuery {
             }
         }
         Ok(tables)
+    }
+
+    /// Resolves a [`TableReference`] to a [`ResolvedTableReference`]
+    /// using the default catalog and schema.
+    pub fn resolve_table_ref(
+        &self,
+        table_ref: impl Into<TableReference>,
+    ) -> ResolvedTableReference {
+        table_ref
+            .into()
+            .resolve(&self.current_database(), &self.current_schema())
     }
 
     pub fn schema_for_ref(

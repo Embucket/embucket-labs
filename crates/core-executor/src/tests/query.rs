@@ -1,5 +1,6 @@
 use crate::query::UserQuery;
 use crate::session::UserSession;
+use std::collections::HashMap;
 
 use crate::models::QueryContext;
 use crate::utils::Config;
@@ -12,6 +13,7 @@ use core_metastore::{
 };
 use core_utils::Db;
 use datafusion::sql::parser::DFParser;
+use df_catalog::information_schema::session_params::SessionProperty;
 use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]
@@ -71,6 +73,59 @@ fn test_postprocess_query_statement_functions_expressions() {
         }
     }
 }
+
+#[allow(clippy::unwrap_used)]
+#[tokio::test]
+async fn test_update_all_table_names_visitor() {
+    let args: [(&str, &str); 8] = [
+        ("select * from foo", "SELECT * FROM embucket.new_schema.foo"),
+        (
+            "insert into foo (id) values (5)",
+            "INSERT INTO embucket.new_schema.foo (id) VALUES (5)",
+        ),
+        (
+            "insert into foo select * from bar",
+            "INSERT INTO embucket.new_schema.foo SELECT * FROM embucket.new_schema.bar",
+        ),
+        (
+            "insert into foo select * from bar where id = 1",
+            "INSERT INTO embucket.new_schema.foo SELECT * FROM embucket.new_schema.bar WHERE id = 1",
+        ),
+        (
+            "select * from foo join bar on foo.id = bar.id",
+            "SELECT * FROM embucket.new_schema.foo JOIN embucket.new_schema.bar ON foo.id = bar.id",
+        ),
+        (
+            "select * from foo where id = 1",
+            "SELECT * FROM embucket.new_schema.foo WHERE id = 1",
+        ),
+        (
+            "select count(*) from foo",
+            "SELECT count(*) FROM embucket.new_schema.foo",
+        ),
+        (
+            "WITH sales_data AS (SELECT * FROM foo) SELECT * FROM sales_data",
+            "WITH sales_data AS (SELECT * FROM embucket.new_schema.foo) SELECT * FROM sales_data",
+        ),
+    ];
+
+    let session = create_df_session().await;
+    let mut params = HashMap::new();
+    params.insert(
+        "schema".to_string(),
+        SessionProperty::from_str_value("new_schema".to_string(), None),
+    );
+    session.set_session_variable(true, params).unwrap();
+    let query = session.query("", QueryContext::default());
+    for (init, exp) in args {
+        let statement = DFParser::parse_sql(init).unwrap().pop_front();
+        if let Some(mut s) = statement {
+            query.update_statement_references(&mut s).unwrap();
+            assert_eq!(s.to_string(), exp);
+        }
+    }
+}
+
 static TABLE_SETUP: &str = include_str!(r"./table_setup.sql");
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
