@@ -7,7 +7,7 @@ use iceberg_rust::{
     arrow::write::write_parquet_partitioned, catalog::tabular::Tabular,
     error::Error as IcebergError,
 };
-use std::{ops::DerefMut, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct MergeIntoSinkExec {
@@ -71,31 +71,34 @@ impl ExecutionPlan for MergeIntoSinkExec {
     ) -> datafusion_common::Result<datafusion_physical_plan::SendableRecordBatchStream> {
         let input = self.input.execute(partition, context)?;
 
-        //TODO
-        //Project input stream onto desired Schema
+        let schema = Arc::new(self.schema.as_arrow().clone());
 
         //TODO
         // filter out files that don't need to be overwritten
 
+        //TODO
+        //Project input stream onto desired Schema
+
         let stream = futures::stream::once({
             let tabular = self.target.tabular.clone();
             let branch = self.target.branch.clone();
+            let schema = schema.clone();
             async move {
                 let mut lock = tabular.write().await;
-                let table = if let Tabular::Table(table) = lock.deref_mut() {
+                let table = if let Tabular::Table(table) = &mut *lock {
                     Ok(table)
                 } else {
                     Err(IcebergError::InvalidFormat("database entity".to_string()))
                 }
                 .map_err(DataFusionIcebergError::from)?;
 
-                let metadata_files =
+                let datafiles =
                     write_parquet_partitioned(table, input.map_err(Into::into), branch.as_deref())
                         .await?;
 
                 table
                     .new_transaction(branch.as_deref())
-                    .append_data(metadata_files)
+                    .append_data(datafiles)
                     .commit()
                     .await
                     .map_err(DataFusionIcebergError::from)?;
@@ -103,16 +106,11 @@ impl ExecutionPlan for MergeIntoSinkExec {
                 //TODO
                 // remove files to be overwritten from iceberg metadata
 
-                Ok(RecordBatch::new_empty(Arc::new(
-                    self.schema.as_arrow().clone(),
-                )))
+                Ok(RecordBatch::new_empty(schema))
             }
         })
         .boxed();
 
-        Ok(Box::pin(RecordBatchStreamAdapter::new(
-            Arc::new(self.schema.as_arrow().clone()),
-            stream,
-        )))
+        Ok(Box::pin(RecordBatchStreamAdapter::new(schema, stream)))
     }
 }
