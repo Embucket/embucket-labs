@@ -16,7 +16,7 @@ use std::sync::Arc;
 ///
 /// Arguments:
 /// - `variant_expr`: An expression that evaluates to a value of type VARIANT.
-/// 
+///
 /// Example: `SELECT AS_ARRAY('[1,2,3]') as v;`
 ///
 /// Returns:
