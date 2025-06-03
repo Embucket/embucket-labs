@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT ST_AREA(ST_GEOGFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'))\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'st_area' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/st_area",
-)

@@ -1751,8 +1751,8 @@ dependencies = [
  "datafusion-functions-json",
  "datafusion-physical-plan",
  "datafusion_iceberg",
- "df-builtins",
  "df-catalog",
+ "embucket-functions",
  "futures",
  "iceberg-rust",
  "iceberg-s3tables-catalog",
@@ -2700,29 +2700,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abd57806937c9cc163efc8ea3910e00a62e2aeb0b8119f1793a978088f8f6b04"
 
 [[package]]
-name = "df-builtins"
-version = "0.1.0"
-dependencies = [
- "ahash 0.8.12",
- "base64 0.22.1",
- "bytes",
- "chrono",
- "datafusion",
- "datafusion-common",
- "datafusion-doc",
- "datafusion-expr",
- "datafusion-macros",
- "datafusion-physical-plan",
- "indexmap 2.9.0",
- "insta",
- "jsonpath_lib",
- "paste",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "df-catalog"
 version = "0.1.0"
 dependencies = [
@@ -2829,6 +2806,29 @@ name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
+
+[[package]]
+name = "embucket-functions"
+version = "0.1.0"
+dependencies = [
+ "ahash 0.8.12",
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "datafusion",
+ "datafusion-common",
+ "datafusion-doc",
+ "datafusion-expr",
+ "datafusion-macros",
+ "datafusion-physical-plan",
+ "indexmap 2.9.0",
+ "insta",
+ "jsonpath_lib",
+ "paste",
+ "serde",
+ "serde_json",
+ "tokio",
+]
 
 [[package]]
 name = "embucket-seed"

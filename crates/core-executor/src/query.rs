@@ -40,7 +40,7 @@ use datafusion_common::{
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
-use df_builtins::variant::visitors::visit_all;
+use embucket_functions::variant::visitors::visit_all;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::information_schema::session_params::SessionProperty;
 use iceberg_rust::catalog::Catalog;
@@ -174,11 +174,11 @@ impl UserQuery {
     pub fn postprocess_query_statement_with_validation(statement: &mut DFStatement) -> ExecutionResult<()> {
         if let DFStatement::Statement(value) = statement {
             json_element::visit(value);
+            functions_rewriter::visit(value);
             unimplemented_functions_checker(value)
                 .map_err(|e| ExecutionError::DataFusion {
                     source: DataFusionError::NotImplemented(e.to_string()),
                 })?;
-            functions_rewriter::visit(value);
             copy_into_identifiers::visit(value);
             visit_all(value);
         }

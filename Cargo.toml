@@ -8,7 +8,7 @@ members = [
   "crates/api-snowflake-rest",
   "crates/api-ui",
   "crates/api-ui-static-assets",
-  "crates/df-builtins",
+  "crates/embucket-functions",
   "crates/df-catalog",
   "crates/core-executor",
   "crates/core-history",

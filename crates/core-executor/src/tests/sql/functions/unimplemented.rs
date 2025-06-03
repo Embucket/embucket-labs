@@ -3,168 +3,183 @@ use crate::test_query;
 // ACCOUNT_FUNCTIONS
 test_query!(
     unimplemented_account_function,
-    "SELECT CUMULATIVE_PRIVACY_LOSSES()"
+    "SELECT CUMULATIVE_PRIVACY_LOSSES()",
+    snapshot_path = "unimplemented"
 );
 
 // AGGREGATE_FUNCTIONS  
 test_query!(
     unimplemented_aggregate_function,
-    "SELECT ANY_VALUE(column1) FROM employee_table"
+    "SELECT APPROXIMATE_SIMILARITY(column1) FROM employee_table",
+    snapshot_path = "unimplemented"
 );
 
 // BITWISE_FUNCTIONS
 test_query!(
     unimplemented_bitwise_function,
-    "SELECT BITAND(15, 7)"
+    "SELECT BITSHIFTLEFT(15, 7)",
+    snapshot_path = "unimplemented"
 );
 
 // CONDITIONAL_FUNCTIONS
 test_query!(
     unimplemented_conditional_function,
-    "SELECT BOOLAND(true, false)"
+    "SELECT GREATEST_IGNORE_NULLS(true, false)",
+    snapshot_path = "unimplemented"
 );
 
 // CONTEXT_FUNCTIONS
 test_query!(
     unimplemented_context_function,
-    "SELECT CURRENT_AVAILABLE_ROLES()"
+    "SELECT CURRENT_AVAILABLE_ROLES()",
+    snapshot_path = "unimplemented"
 );
 
 // CONVERSION_FUNCTIONS
 test_query!(
     unimplemented_conversion_function,
-    "SELECT TO_CHAR(123)"
+    "SELECT TO_OBJECT(123)",
+    snapshot_path = "unimplemented"
 );
 
 // DATA_METRIC_FUNCTIONS
 // TODO: Pass real functions names
-/*test_query!(
+test_query!(
     unimplemented_data_metric_function,
-    "SELECT DM_MEAN_SQUARED_DIFFERENCE(col1, col2) FROM employee_table"
+    "SELECT FRESHNESS(la)",
+    snapshot_path = "unimplemented"
 );
 
 // DATA_QUALITY_FUNCTIONS
 test_query!(
     unimplemented_data_quality_function,
-    "SELECT DQ_RULE('rule1', 'expression')"
-);*/
+    "SELECT DATA_QUALITY_MONITORING_RESULTS('rule1', 'expression')",
+    snapshot_path = "unimplemented"
+);
 
 // DATETIME_FUNCTIONS
 test_query!(
     unimplemented_datetime_function,
-    "SELECT ADD_MONTHS('2023-01-01', 3)"
+    "SELECT ADD_MONTHS('2023-01-01', 3)",
+    snapshot_path = "unimplemented"
 );
 
 // DIFFERENTIAL_PRIVACY_FUNCTIONS
-// TODO: Pass real functions names
-/*test_query!(
+test_query!(
     unimplemented_differential_privacy_function,
-    "SELECT DP_COUNT(*) FROM employee_table"
-);*/
+    "SELECT DP_INTERVAL_HIGH(*)",
+    snapshot_path = "unimplemented"
+);
 
 // ENCRYPTION_FUNCTIONS
 test_query!(
     unimplemented_encryption_function,
-    "SELECT DECRYPT('test', 'key')"
+    "SELECT DECRYPT('test', 'key')",
+    snapshot_path = "unimplemented"
 );
 
 // FILE_FUNCTIONS
 test_query!(
     unimplemented_file_function,
-    "SELECT BUILD_SCOPED_FILE_URL('@my_stage', 'file.txt')"
+    "SELECT BUILD_SCOPED_FILE_URL('@my_stage', 'file.txt')",
+    snapshot_path = "unimplemented"
 );
 
 // GENERATION_FUNCTIONS
-// TODO: Pass real functions names
-/*
 test_query!(
     unimplemented_generation_function,
-    "SELECT AUTOINCREMENT_NEXTVAL('seq1')"
-);*/
+    "SELECT NORMAL('seq1')",
+    snapshot_path = "unimplemented"
+);
 
 // GEOSPATIAL_FUNCTIONS
 test_query!(
     unimplemented_geospatial_function,
-    "SELECT ST_AREA(ST_GEOGFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'))"
+    "SELECT H3_CELL_TO_BOUNDARY('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))')",
+    snapshot_path = "unimplemented"
 );
 
 // HASH_FUNCTIONS
 test_query!(
     unimplemented_hash_function,
-    "SELECT HASH(column1) FROM employee_table"
+    "SELECT HASH(column1) FROM employee_table",
+    snapshot_path = "unimplemented"
 );
 
 // ICEBERG_FUNCTIONS
 test_query!(
     unimplemented_iceberg_function,
-    "SELECT ICEBERG_TABLE_FILES('table1')"
+    "SELECT ICEBERG_TABLE_FILES('table1')",
+    snapshot_path = "unimplemented"
 );
 
 // INFORMATION_SCHEMA_FUNCTIONS
-// TODO: Pass real functions names
-/*
 test_query!(
     unimplemented_information_schema_function,
-    "SELECT APPLICABLE_ROLES()"
+    "SELECT WAREHOUSE_METERING_HISTORY()",
+    snapshot_path = "unimplemented"
 );
-*/
+
 
 // METADATA_FUNCTIONS
 test_query!(
     unimplemented_metadata_function,
-    "SELECT GET_DDL('table', 'employee_table')"
+    "SELECT GET_DDL('table', 'employee_table')",
+    snapshot_path = "unimplemented"
 );
 
 // NOTIFICATION_FUNCTIONS
-// TODO: Pass real functions names
-/*
 test_query!(
     unimplemented_notification_function,
-    "SELECT SYSTEM$SEND_EMAIL('to@email.com', 'subject', 'body')"
+    "SELECT APPLICATION_JSON()",
+    snapshot_path = "unimplemented"
 );
-*/
 
 // NUMERIC_FUNCTIONS
 test_query!(
     unimplemented_numeric_function,
-    "SELECT ACOS(0.5)"
+    "SELECT DIV0NULL(10, 0)",
+    snapshot_path = "unimplemented"
 );
 
 // SEMISTRUCTURED_FUNCTIONS
 test_query!(
     unimplemented_semistructured_function,
-    "SELECT ARRAYS_OVERLAP(ARRAY[1, 2], ARRAY[2, 3])"
+    "SELECT CHECK_JSON('{\"key\": \"value\"}')",
+    snapshot_path = "unimplemented"
 );
 
 // STRING_BINARY_FUNCTIONS
-// TODO: Pass real functions names
-/*
 test_query!(
     unimplemented_string_binary_function,
-    "SELECT BASE32_ENCODE('hello')"
+    "SELECT BASE64_DECODE_BINARY('hello')",
+    snapshot_path = "unimplemented"
 );
-*/
+
 // SYSTEM_FUNCTIONS
 test_query!(
     unimplemented_system_function,
-    "SELECT EXTRACT_SEMANTIC_CATEGORIES('table1')"
+    "SELECT SYSTEM$GET_CMK_INFO()",
+    snapshot_path = "unimplemented"
 );
 
 // TABLE_FUNCTIONS
-// TODO: Weird behavior need to recheck
 test_query!(
     unimplemented_table_function,
-    "SELECT * FROM FLATTEN(ARRAY[1, 2, 3])"
+    "SELECT GENERATOR(10)",
+    snapshot_path = "unimplemented"
 );
 
 // VECTOR_FUNCTIONS
 test_query!(
     unimplemented_vector_function,
-    "SELECT VECTOR_COSINE_SIMILARITY(ARRAY[1, 2], ARRAY[3, 4])"
+    "SELECT VECTOR_COSINE_SIMILARITY(ARRAY[1, 2], ARRAY[3, 4])",
+    snapshot_path = "unimplemented"
 );
 
 // WINDOW_FUNCTIONS
 test_query!(
     unimplemented_window_function,
-    "SELECT CUME_DIST() OVER (ORDER BY column1) FROM employee_table"
+    "SELECT CONDITIONAL_TRUE_EVENT() OVER (ORDER BY column1) FROM employee_table",
+    snapshot_path = "unimplemented"
 );
