@@ -76,7 +76,7 @@ impl IntoStatusCode for QueriesAPIError {
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 },
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
-            }
+            },
         }
     }
 }

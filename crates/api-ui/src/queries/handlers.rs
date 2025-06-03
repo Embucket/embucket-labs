@@ -1,23 +1,26 @@
-use crate::queries::models::{GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse, QueryRecord};
+use crate::queries::error::GetQueryRecordSnafu;
+use crate::queries::error::QueriesAPIError::GetQueryRecord;
+use crate::queries::models::{
+    GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse,
+    QueryRecord,
+};
 use crate::state::AppState;
 use crate::{
     error::ErrorResponse,
     queries::error::{QueriesAPIError, QueriesResult, QueryError, QuerySnafu},
 };
 use api_sessions::DFSessionId;
+use axum::extract::Path;
 use axum::{
     Json,
     extract::{Query, State},
 };
 use core_executor::models::{QueryContext, QueryResult};
-use core_history::{HistoryStoreResult, QueryRecordId, WorksheetId};
+use core_history::{QueryRecordId, WorksheetId};
 use core_utils::iterable::IterableEntity;
 use snafu::ResultExt;
 use std::collections::HashMap;
-use axum::extract::Path;
 use utoipa::OpenApi;
-use crate::queries::error::QueriesAPIError::GetQueryRecord;
-use crate::queries::error::{GetQueryRecordSnafu, QueryRecordResult};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -140,16 +143,13 @@ pub async fn get_query(
     State(state): State<AppState>,
     Path(query_record_id): Path<QueryRecordId>,
 ) -> QueriesResult<Json<QueryGetResponse>> {
-    match state
-        .history_store
-        .get_query(query_record_id)
-        .await {
-        Ok(query_record) => {
-            Ok(Json(QueryGetResponse(query_record.try_into().context(GetQueryRecordSnafu)?)))
-        }
-        Err(error) => {
-            Err(GetQueryRecord { source: QueryError::Store { source: error }})
-        }
+    match state.history_store.get_query(query_record_id).await {
+        Ok(query_record) => Ok(Json(QueryGetResponse(
+            query_record.try_into().context(GetQueryRecordSnafu)?,
+        ))),
+        Err(error) => Err(GetQueryRecord {
+            source: QueryError::Store { source: error },
+        }),
     }
 }
 
