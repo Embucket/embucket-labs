@@ -1,14 +1,31 @@
+use crate::macros::make_udf_function;
+use datafusion::arrow::array::Array;
+use datafusion::arrow::datatypes::DataType;
+use datafusion::error::Result as DFResult;
+use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
+use datafusion_common::ScalarValue;
+use datafusion_common::arrow::array::StringBuilder;
+use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
+use serde_json::Value;
 use std::any::Any;
 use std::sync::Arc;
-use datafusion::arrow::array::{BooleanArray, BooleanBuilder};
-use datafusion::arrow::compute::kernels::cmp::eq;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
-use datafusion::physical_expr_common::datum::apply_cmp;
-use datafusion_common::exec_err;
-use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
-use datafusion::error::Result as DFResult;
 
+/// `TO_ARRAY` function
+///
+/// Converts the input expression to an ARRAY value.
+///
+/// Syntax: `TO_ARRAY(<expr>)`
+///
+/// Arguments:
+/// - `<expr>`: The expression to convert to an array. If the expression is NULL, it returns NULL.
+///
+/// Example: `TO_ARRAY('test')`
+///
+/// Returns:
+/// This function returns either an ARRAY or NULL:
+/// - If the input is an ARRAY or a VARIANT holding an ARRAY, it returns the value as-is.
+/// - If the input is NULL or a JSON null, the function returns NULL.
+/// - For all other input types, the function returns a single-element ARRAY containing the input value.
 #[derive(Debug)]
 pub struct ToArrayFunc {
     signature: Signature,
@@ -21,6 +38,7 @@ impl Default for ToArrayFunc {
 }
 
 impl ToArrayFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::any(1, Volatility::Immutable),
@@ -34,7 +52,7 @@ impl ScalarUDFImpl for ToArrayFunc {
     }
 
     fn name(&self) -> &'static str {
-        "equal_null"
+        "to_array"
     }
 
     fn signature(&self) -> &Signature {
@@ -42,45 +60,82 @@ impl ScalarUDFImpl for ToArrayFunc {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(DataType::Boolean)
+        Ok(DataType::Utf8)
     }
 
-    #[allow(clippy::unwrap_used)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
 
-        let lhs = match args[0].clone() {
-            ColumnarValue::Array(arr) => arr,
-            ColumnarValue::Scalar(v) => v.to_array()?,
-        };
-        let rhs = match args[1].clone() {
+        let arr = match args[0].clone() {
             ColumnarValue::Array(arr) => arr,
             ColumnarValue::Scalar(v) => v.to_array()?,
         };
 
-        if lhs.len() != rhs.len() {
-            return exec_err!("the first and second arguments must be of the same length");
-        }
-
-        let cmp_res = match apply_cmp(&args[0], &args[1], eq)? {
-            ColumnarValue::Array(arr) => arr,
-            ColumnarValue::Scalar(v) => v.to_array()?,
-        };
-        let cmp_res = cmp_res.as_any().downcast_ref::<BooleanArray>().unwrap();
-
-        let mut res = BooleanBuilder::with_capacity(cmp_res.len());
-        for (i, v) in cmp_res.iter().enumerate() {
-            if let Some(v) = v {
-                res.append_value(v);
-            } else if lhs.is_null(i) && rhs.is_null(i) {
-                res.append_value(true);
-            } else {
-                res.append_null();
+        let mut b = StringBuilder::with_capacity(arr.len(), 1024);
+        for i in 0..arr.len() {
+            let value = ScalarValue::try_from_array(&arr, i)?;
+            if value.is_null() {
+                b.append_null();
+                continue;
+            }
+            match value.data_type() {
+                DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
+                    match serde_json::from_str::<Value>(&value.to_string()) {
+                        Ok(v) => {
+                            if v.is_array() {
+                                b.append_value(v.to_string());
+                            } else {
+                                b.append_value(format!("[\"{value}\"]"));
+                            }
+                        }
+                        Err(_) => b.append_value(format!("[\"{value}\"]")),
+                    }
+                }
+                _ => b.append_value(format!("[{value}]")),
             }
         }
 
-        Ok(ColumnarValue::Array(Arc::new(res.finish())))
+        let res = b.finish();
+        Ok(if res.len() == 1 {
+            return Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&res, 0)?));
+        } else {
+            ColumnarValue::Array(Arc::new(b.finish()))
+        })
     }
 }
 
-super::macros::make_udf_function!(EqualNullFunc);
+make_udf_function!(ToArrayFunc);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use datafusion::prelude::SessionContext;
+    use datafusion_common::assert_batches_eq;
+    use datafusion_expr::ScalarUDF;
+
+    #[tokio::test]
+    async fn test_basic() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToArrayFunc::new()));
+        let q = "SELECT TO_ARRAY(NULL) as a1,\
+        TO_ARRAY('test') as a2, \
+        TO_ARRAY(true) as a3, \
+        TO_ARRAY('2024-04-05 01:02:03'::TIMESTAMP) as a4, \
+        TO_ARRAY([1,2,3]) as a5, \
+        TO_ARRAY('[1,2,3]') as a6;";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+----+----------+--------+-----------------------+-------------+---------+",
+                "| a1 | a2       | a3     | a4                    | a5          | a6      |",
+                "+----+----------+--------+-----------------------+-------------+---------+",
+                "|    | [\"test\"] | [true] | [1712278923000000000] | [[1, 2, 3]] | [1,2,3] |",
+                "+----+----------+--------+-----------------------+-------------+---------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+}
