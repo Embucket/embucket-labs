@@ -188,3 +188,7 @@ impl Into<core_history::GetQueriesParams> for GetQueriesParams {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryGetResponse(pub QueryRecord);

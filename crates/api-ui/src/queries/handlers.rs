@@ -1,6 +1,4 @@
-use crate::queries::models::{
-    GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryRecord,
-};
+use crate::queries::models::{GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse, QueryRecord};
 use crate::state::AppState;
 use crate::{
     error::ErrorResponse,
@@ -12,16 +10,19 @@ use axum::{
     extract::{Query, State},
 };
 use core_executor::models::{QueryContext, QueryResult};
-use core_history::{QueryRecordId, WorksheetId};
+use core_history::{HistoryStoreResult, QueryRecordId, WorksheetId};
 use core_utils::iterable::IterableEntity;
 use snafu::ResultExt;
 use std::collections::HashMap;
+use axum::extract::Path;
 use utoipa::OpenApi;
+use crate::queries::error::QueriesAPIError::GetQueryRecord;
+use crate::queries::error::{GetQueryRecordSnafu, QueryRecordResult};
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(query, queries),
-    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload,)),
+    paths(query, queries, get_query),
+    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload, QueryGetResponse, QueryRecord, QueryRecordId, ErrorResponse)),
     tags(
       (name = "queries", description = "Queries endpoints"),
     )
@@ -111,6 +112,44 @@ pub async fn query(
         Err(err) => Err(QueriesAPIError::Query {
             source: QueryError::Execution { source: err },
         }),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/ui/query/{queryRecordId}",
+    operation_id = "getQuery",
+    tags = ["queries"],
+    params(
+        ("queryRecordId" = QueryRecordId, Path, description = "Query Record Id")
+    ),
+    responses(
+        (status = 200, description = "Returns result of the query", body = QueryGetResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
+        (status = 400, description = "Bad query record id", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse)
+    )
+)]
+#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+pub async fn get_query(
+    State(state): State<AppState>,
+    Path(query_record_id): Path<QueryRecordId>,
+) -> QueriesResult<Json<QueryGetResponse>> {
+    match state
+        .history_store
+        .get_query(query_record_id)
+        .await {
+        Ok(query_record) => {
+            Ok(Json(QueryGetResponse(query_record.try_into().context(GetQueryRecordSnafu)?)))
+        }
+        Err(error) => {
+            Err(GetQueryRecord { source: QueryError::Store { source: error }})
+        }
     }
 }
 

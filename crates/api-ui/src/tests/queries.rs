@@ -1,9 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::error::ErrorResponse;
-use crate::queries::models::{
-    Column, QueriesResponse, QueryCreatePayload, QueryRecord, QueryStatus, ResultSet,
-};
+use crate::queries::models::{Column, QueriesResponse, QueryCreatePayload, QueryGetResponse, QueryRecord, QueryStatus, ResultSet};
 use crate::tests::common::http_req;
 use crate::tests::server::run_test_server;
 use crate::worksheets::models::{Worksheet, WorksheetCreatePayload, WorksheetsResponse};
@@ -39,6 +37,17 @@ async fn test_ui_queries_no_worksheet() {
     .await
     .unwrap();
     assert_eq!(history_resp.items.len(), 1);
+    let query_record_id = history_resp.items[0].id;
+    
+    let QueryGetResponse(query_record) = http_req::<QueryGetResponse>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/query/{query_record_id}"),
+        String::new(),
+    )
+        .await
+        .unwrap();
+    assert_eq!(query_record.id, query_record_id);
 }
 
 #[tokio::test]

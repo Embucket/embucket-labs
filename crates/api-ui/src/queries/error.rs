@@ -41,6 +41,8 @@ pub enum QueriesAPIError {
     Query { source: QueryError },
     #[snafu(display("Error getting queries: {source}"))]
     Queries { source: QueryError },
+    #[snafu(display("Error getting queries: {source}"))]
+    GetQueryRecord { source: QueryError },
 }
 
 // Select which status code to return.
@@ -66,6 +68,15 @@ impl IntoStatusCode for QueriesAPIError {
                 QueryError::ResultParse { .. } => StatusCode::UNPROCESSABLE_ENTITY,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
+            Self::GetQueryRecord { source } => match &source {
+                QueryError::Store { source } => match &source {
+                    HistoryStoreError::QueryGet { .. } | HistoryStoreError::BadKey { .. } => {
+                        StatusCode::NOT_FOUND
+                    }
+                    _ => StatusCode::INTERNAL_SERVER_ERROR,
+                },
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            }
         }
     }
 }
