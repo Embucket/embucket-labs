@@ -85,6 +85,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::String))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Array))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Object))),
+        try_parse_json::get_udf(),
     ];
 
     for func in functions {
