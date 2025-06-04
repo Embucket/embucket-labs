@@ -407,12 +407,6 @@ pub const CONTEXT_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/current_available_roles")
     ),
-    ("CURRENT_IP_ADDRESS", FunctionInfo::new(
-        "CURRENT_IP_ADDRESS",
-        "Returns the IP address of the client that submitted the request."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/current_ip_address")
-    ),
     ("CURRENT_ORGANIZATION_NAME", FunctionInfo::new(
         "CURRENT_ORGANIZATION_NAME",
         "Returns the name of the organization to which the current account belongs."
@@ -508,12 +502,6 @@ pub const CONTEXT_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Verifies whether the account role is in the user’s active primary or secondary role hierarchy for the session or if the specified column contains a role that is in the user’s active primary or secondary role hierarchy for the session."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_role_in_session")
-    ),
-    ("LAST_QUERY_ID", FunctionInfo::new(
-        "LAST_QUERY_ID",
-        "Returns the ID of a specified query in the current session."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/last_query_id")
     ),
     ("LAST_TRANSACTION", FunctionInfo::new(
         "LAST_TRANSACTION",

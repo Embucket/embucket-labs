@@ -107,7 +107,8 @@ covar_samp
 cume_dist                          
 current_client                     
 current_database                   
-current_date                       
+current_date
+current_ip_address                       
 current_role                       
 current_role_type                  
 current_schema                     
@@ -174,7 +175,8 @@ json_keys
 json_len                           
 json_length                        
 json_object_keys                   
-lag                                
+lag
+last_query_id                                
 last_value                         
 lcm                                
 lead                               
