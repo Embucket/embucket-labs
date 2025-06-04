@@ -1,9 +1,9 @@
+use crate::macros::make_udf_function;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
-use crate::macros::make_udf_function;
 
 #[derive(Debug)]
 pub struct ToVariantFunc {
@@ -20,7 +20,7 @@ impl ToVariantFunc {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            signature: Signature::string(1,Volatility::Immutable),
+            signature: Signature::string(1, Volatility::Immutable),
         }
     }
 }
