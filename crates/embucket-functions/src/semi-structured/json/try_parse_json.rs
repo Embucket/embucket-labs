@@ -16,6 +16,7 @@ impl Default for TryParseJsonFunc {
 }
 
 impl TryParseJsonFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(
@@ -49,4 +50,4 @@ impl ScalarUDFImpl for TryParseJsonFunc {
     }
 }
 
-super::macros::make_udf_function!(TryParseJsonFunc);
+crate::macros::make_udf_function!(TryParseJsonFunc);

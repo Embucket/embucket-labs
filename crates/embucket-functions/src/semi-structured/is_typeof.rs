@@ -42,6 +42,7 @@ impl Default for IsTypeofFunc {
 }
 
 impl IsTypeofFunc {
+    #[must_use]
     pub fn new(kind: Kind) -> Self {
         Self {
             signature: Signature::string(1, Volatility::Immutable),

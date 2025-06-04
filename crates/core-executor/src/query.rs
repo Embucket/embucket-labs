@@ -1261,7 +1261,7 @@ impl UserQuery {
                     .map(|cte| cte.table().to_string())
                     .collect();
 
-                visit_relations_mut(stmt, |table_name: &mut ObjectName| {
+                let _ = visit_relations_mut(stmt, |table_name: &mut ObjectName| {
                     if !cte_names.contains(&table_name.to_string()) {
                         match self.resolve_table_object_name(table_name.0.clone()) {
                             Ok(resolved_name) => {

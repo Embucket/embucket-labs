@@ -1,7 +1,8 @@
 pub use crate::aggregate::register_udafs;
-use crate::get::GetFunc;
-use crate::is_typeof::IsTypeofFunc;
-use crate::conversion::{ToBooleanFunc, ToTimeFunc};
+use crate::conversion::{ToBooleanFunc, ToTimeFunc, to_array};
+use crate::semi_structured::get::GetFunc;
+use crate::semi_structured::is_typeof;
+use crate::semi_structured::is_typeof::IsTypeofFunc;
 use datafusion::arrow::array::{
     Array, ArrayRef, ArrowNativeTypeOp, BooleanArray, Decimal128Array, Decimal256Array,
     Float16Array, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array, Int64Array,
@@ -28,11 +29,6 @@ pub mod string_binary;
 pub mod table;
 #[cfg(test)]
 pub mod tests;
-mod time_from_parts;
-mod timestamp_from_parts;
-mod to_boolean;
-mod to_time;
-pub mod variant;
 pub mod visitors;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
@@ -57,9 +53,9 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         string_binary::insert::get_udf(),
         semi_structured::array::strtok_to_array::get_udf(),
         semi_structured::object::object_keys::get_udf(),
-        semi_structured::get::get_udf(),
-        try_parse_json::get_udf(),
-        typeof_func::get_udf(),
+        semi_structured::json::try_parse_json::get_udf(),
+        semi_structured::typeof_func::get_udf(),
+        to_array::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),

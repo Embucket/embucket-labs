@@ -29,6 +29,7 @@ impl Default for TypeofFunc {
 }
 
 impl TypeofFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::string(1, Volatility::Immutable),
@@ -95,7 +96,7 @@ impl ScalarUDFImpl for TypeofFunc {
     }
 }
 
-super::macros::make_udf_function!(TypeofFunc);
+crate::macros::make_udf_function!(TypeofFunc);
 
 #[cfg(test)]
 mod tests {
