@@ -6,12 +6,12 @@ use core_history::errors::HistoryStoreError;
 use core_history::result_set::{Column, ResultSet, Row};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
-use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::array::{
     Array, Decimal128Array, Int16Array, Int32Array, Int64Array, StringArray,
     TimestampMicrosecondArray, TimestampMillisecondArray, TimestampNanosecondArray,
     TimestampSecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array, UnionArray,
 };
+use datafusion::arrow::array::{ArrayRef, Date32Array, Date64Array};
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::{Field, Schema, TimeUnit};
@@ -30,23 +30,20 @@ use strum::{Display, EnumString};
 
 #[derive(Clone)]
 pub struct Config {
-    pub dbt_serialization_format: DataSerializationFormat,
     pub embucket_version: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            dbt_serialization_format: DataSerializationFormat::default(),
             embucket_version: "0.1.0".to_string(),
         }
     }
 }
 
 impl Config {
-    pub fn new(data_format: &str) -> Result<Self, strum::ParseError> {
+    pub fn new() -> Result<Self, strum::ParseError> {
         Ok(Self {
-            dbt_serialization_format: DataSerializationFormat::try_from(data_format)?,
             embucket_version: "0.1.0".to_string(),
         })
     }
@@ -190,6 +187,18 @@ pub fn convert_record_batches(
                     );
                     Arc::clone(&converted_column)
                 }
+                DataType::Date32 | DataType::Date64 => {
+                    let converted_column = convert_date(column, data_format);
+                    fields.push(
+                        Field::new(
+                            field.name(),
+                            converted_column.data_type().clone(),
+                            field.is_nullable(),
+                        )
+                        .with_metadata(metadata),
+                    );
+                    Arc::clone(&converted_column)
+                }
                 DataType::UInt64 | DataType::UInt32 | DataType::UInt16 | DataType::UInt8 => {
                     let column_info = &column_infos[i];
                     convert_uint_to_int_datatypes(
@@ -304,6 +313,23 @@ fn convert_timestamp_to_struct(
             };
             Arc::new(StringArray::from(timestamps)) as ArrayRef
         }
+    }
+}
+
+#[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
+fn convert_date(column: &ArrayRef, data_format: DataSerializationFormat) -> ArrayRef {
+    match data_format {
+        DataSerializationFormat::Json => {
+            let days: Vec<Option<i32>> = match column.data_type() {
+                DataType::Date32 => downcast_and_iter!(column, Date32Array).collect(),
+                DataType::Date64 => downcast_and_iter!(column, Date64Array)
+                    .map(|ms| ms.map(|v| (v / 86_400_000) as i32))
+                    .collect(),
+                _ => return column.clone(),
+            };
+            Arc::new(Int32Array::from(days)) as ArrayRef
+        }
+        DataSerializationFormat::Arrow => column.clone(),
     }
 }
 
@@ -440,10 +466,9 @@ impl std::fmt::Display for NormalizedIdent {
 
 pub fn query_result_to_history(
     result: &ExecutionResult<QueryResult>,
-    format: DataSerializationFormat,
 ) -> HistoryStoreResult<ResultSet> {
     match result {
-        Ok(query_result) => query_result_to_result_set(query_result, format).map_err(|err| {
+        Ok(query_result) => query_result_to_result_set(query_result).map_err(|err| {
             HistoryStoreError::ExecutionResult {
                 message: err.to_string(),
             }
@@ -454,10 +479,9 @@ pub fn query_result_to_history(
     }
 }
 
-pub fn query_result_to_result_set(
-    query_result: &QueryResult,
-    data_format: DataSerializationFormat,
-) -> ExecutionResult<ResultSet> {
+pub fn query_result_to_result_set(query_result: &QueryResult) -> ExecutionResult<ResultSet> {
+    let data_format = DataSerializationFormat::Arrow;
+
     // Convert the QueryResult to RecordBatches using the specified serialization format
     // Add columns dbt metadata to each field
     // Since we have to store already converted data to history

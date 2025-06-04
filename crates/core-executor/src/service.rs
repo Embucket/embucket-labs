@@ -131,10 +131,7 @@ impl ExecutionService for CoreExecutionService {
         // This ensures all queries are traceable and auditable within a session, which enables
         // features like `last_query_id()` and enhances debugging and observability.
         self.history_store
-            .save_query_record(
-                &mut history_record,
-                query_result_to_history(&query_result, self.config.dbt_serialization_format),
-            )
+            .save_query_record(&mut history_record, query_result_to_history(&query_result))
             .await;
         query_result
     }
