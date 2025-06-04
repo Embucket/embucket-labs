@@ -13,6 +13,11 @@ class SQLLogicTestLogger:
         """Build output string from parts list"""
         return '\n'.join(parts) if isinstance(parts, list) else str(parts)
 
+    def display_error(self, error_message):
+        """Display error message in the terminal"""
+        print(error_message)
+        return error_message
+
     def print_expected_result(self, values, columns, row_wise):
         logger.debug(f'{columns}, {values}')
         if row_wise:
@@ -53,7 +58,8 @@ class SQLLogicTestLogger:
         parts.append(self.print_line_sep())
         parts.append(self.get_sql())
         parts.append(self.print_line_sep())
-        return '\n'.join(parts)
+        error_message = '\n'.join(parts)
+        return self.display_error(error_message)
 
     def expected_failure_with_wrong_error(self, expected_error, actual_error):
         parts = []
@@ -67,7 +73,8 @@ class SQLLogicTestLogger:
         parts.append('Actual error:')
         parts.append(str(actual_error))
         parts.append(self.print_line_sep())
-        return '\n'.join(parts)
+        error_message = '\n'.join(parts)
+        return self.display_error(error_message)
 
     def no_error_but_expected(self, expected_error):
         parts = []
@@ -78,7 +85,8 @@ class SQLLogicTestLogger:
         parts.append('Expected error:')
         parts.append(str(expected_error))
         parts.append(self.print_line_sep())
-        return '\n'.join(parts)
+        error_message = '\n'.join(parts)
+        return self.display_error(error_message)
 
     def output_hash(self, hash_value):
         parts = []
@@ -87,7 +95,8 @@ class SQLLogicTestLogger:
         parts.append(self.print_line_sep())
         parts.append(hash_value)
         parts.append(self.print_line_sep())
-        return '\n'.join(parts)
+        error_message = '\n'.join(parts)
+        return self.display_error(error_message)
 
     def column_count_mismatch(self, result, result_values_string, expected_column_count):
         parts = []
@@ -122,14 +131,16 @@ class SQLLogicTestLogger:
             parts.append(self.print_line_sep())
 
         parts.append("")
-        return '\n'.join(parts)
+        error_message = '\n'.join(parts)
+        return self.display_error(error_message)
 
     def not_cleanly_divisible(self, expected_column_count, actual_column_count):
         parts = []
         parts.append(self.print_error_header("Error in test!"))
         parts.append(f"Expected {expected_column_count} columns, but {actual_column_count} values were supplied")
         parts.append("This is not cleanly divisible (i.e. the last row does not have enough values)")
-        return '\n'.join(parts)
+        error_message = '\n'.join(parts)
+        return self.display_error(error_message)
 
     def wrong_row_count(self, expected_rows, result_values_string, comparison_values, expected_column_count, row_wise):
         parts = []
@@ -155,7 +166,8 @@ class SQLLogicTestLogger:
         self._format_expected_result(actual_output, result_values_string, expected_column_count, False)
         parts.extend(actual_output)
         parts.append(self.print_line_sep())
-        return '\n'.join(parts)
+        error_message = '\n'.join(parts)
+        return self.display_error(error_message)
 
     # Helper for formatting results without printing
     def _format_expected_result(self, output_list, values, columns, row_wise):
@@ -191,7 +203,8 @@ class SQLLogicTestLogger:
             f"Suggested fix: modify header to \"query {'I' * result.column_count}\""
         )
         parts.append(self.print_line_sep())
-        return '\n'.join(parts)
+        error_message = '\n'.join(parts)
+        return self.display_error(error_message)
 
     def split_mismatch(self, row_number, expected_column_count, split_count):
         parts = []
@@ -203,7 +216,8 @@ class SQLLogicTestLogger:
         )
         parts.append("Does the result contain tab values? In that case, place every value on a single row.")
         parts.append(self.print_line_sep())
-        return '\n'.join(parts)
+        error_message = '\n'.join(parts)
+        return self.display_error(error_message)
 
     def wrong_result_query(self, expected_values, result_values_string, expected_column_count, err_msg, row_wise):
         parts = []
@@ -228,7 +242,8 @@ class SQLLogicTestLogger:
         parts.extend(actual_output)
 
         parts.append(self.print_line_sep())
-        return '\n'.join(parts)
+        error_message = '\n'.join(parts)
+        return self.display_error(error_message)
 
     def wrong_result_hash(self, expected_hash, actual_hash):
         parts = []
@@ -248,4 +263,5 @@ class SQLLogicTestLogger:
             parts.append(self.print_line_sep())
             parts.append("NOTE: The hash values are identical. This may be a false positive error.")
 
-        return '\n'.join(parts)
+        error_message = '\n'.join(parts)
+        return self.display_error(error_message)
