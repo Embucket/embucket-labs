@@ -6,6 +6,7 @@ use slatedb::Db as SlateDb;
 use snafu::prelude::*;
 use std::marker::PhantomData;
 use std::sync::Arc;
+use tracing::instrument;
 
 #[async_trait]
 pub trait ScanIterator: Sized {
@@ -82,6 +83,7 @@ impl<T: Send + for<'de> serde::de::Deserialize<'de>> VecScanIterator<T> {
 impl<T: Send + for<'de> serde::de::Deserialize<'de>> ScanIterator for VecScanIterator<T> {
     type Collectable = Vec<T>;
 
+    #[instrument(level = "trace", skip(self), err)]
     async fn collect(self) -> Result<Self::Collectable> {
         //We can look with respect to limit
         // from start to end (full scan),

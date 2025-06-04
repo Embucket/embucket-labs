@@ -15,6 +15,8 @@ use snafu::prelude::*;
 use std::ops::RangeBounds;
 use std::string::ToString;
 use std::sync::Arc;
+use std::fmt::Debug;
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Snafu, Debug)]
@@ -86,6 +88,7 @@ impl Db {
     /// # Errors
     ///
     /// This function will return a `DbError` if the underlying database operation fails.
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn delete(&self, key: &str) -> Result<()> {
         self.0.delete(key.as_bytes()).await.context(KeyDeleteSnafu {
             key: key.to_string(),
@@ -97,6 +100,7 @@ impl Db {
     /// # Errors
     ///
     /// This function will return a `DbError` if the underlying database operation fails.
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn delete_key(&self, key: Bytes) -> Result<()> {
         self.0.delete(key.as_ref()).await.context(KeyDeleteSnafu {
             key: format!("{key:?}"),
@@ -109,6 +113,7 @@ impl Db {
     ///
     /// Returns a `SerializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.
+    #[instrument(level = "trace", skip(self, value), err)]
     pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
         let serialized = ser::to_vec(value).context(SerializeValueSnafu)?;
         self.0
@@ -125,6 +130,7 @@ impl Db {
     ///
     /// Returns a `DbError` if the underlying database operation fails.
     /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn get<T: for<'de> serde::de::Deserialize<'de>>(
         &self,
         key: &str,
@@ -188,6 +194,7 @@ impl Db {
     // }
 
     #[must_use]
+    #[instrument(level = "trace", skip(self))]
     pub fn iter_objects<T: Send + for<'de> serde::de::Deserialize<'de>>(
         &self,
         key: String,
@@ -201,6 +208,7 @@ impl Db {
     ///
     /// Returns a `SerializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.
+    #[instrument(level = "trace", skip(self, entity), err)]
     pub async fn put_iterable_entity<T: serde::Serialize + Sync + IterableEntity>(
         &self,
         entity: &T,
@@ -217,7 +225,8 @@ impl Db {
     /// # Errors
     ///
     /// Returns a `DbError` if the underlying database operation fails.
-    pub async fn range_iterator<R: RangeBounds<Bytes> + Send>(
+    #[instrument(level = "trace", skip(self), err)]
+    pub async fn range_iterator<R: RangeBounds<Bytes> + Send + Debug>(
         &self,
         range: R,
     ) -> Result<DbIterator<'_>> {
@@ -230,8 +239,9 @@ impl Db {
     ///
     /// Returns a `DeserializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.    
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn items_from_range<
-        R: RangeBounds<Bytes> + Send,
+        R: RangeBounds<Bytes> + Send + Debug,
         T: for<'de> serde::de::Deserialize<'de> + IterableEntity + Sync + Send,
     >(
         &self,
@@ -250,6 +260,7 @@ impl Db {
                 break;
             }
         }
+        tracing::info!(count = items.len(), "ret count items_from_range");
         Ok(items)
     }
 }

@@ -68,7 +68,7 @@ static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 async fn main() {
     dotenv().ok();
 
-    let provider = init_tracer().await.expect("Failed to initialize tracer");
+    let provider = setup_tracing().await.expect("Failed to initialize tracer");
 
     let opts = cli::CliOpts::parse();
     let slatedb_prefix = opts.slatedb_prefix.clone();
@@ -211,7 +211,7 @@ async fn main() {
 }
 
 
-async fn init_tracer() -> Result<SdkTracerProvider, Box<dyn std::error::Error + Send + Sync>> {
+async fn setup_tracing() -> Result<SdkTracerProvider, Box<dyn std::error::Error + Send + Sync>> {
     let console_layer = console_subscriber::spawn();
 
     // Initialize OTLP exporter using gRPC (Tonic)
@@ -220,8 +220,14 @@ async fn init_tracer() -> Result<SdkTracerProvider, Box<dyn std::error::Error + 
         .build()
         .expect("Failed to create OTLP exporter");
 
+    // Add service.name here
+    let resource = Resource::builder()
+        .with_service_name("Embucket")
+        .build();
+
     let provider = SdkTracerProvider::builder()
         .with_batch_exporter(exporter)
+        .with_resource(resource)
         .build();
 
     let tracer = provider.tracer("my_tracer");
@@ -233,7 +239,9 @@ async fn init_tracer() -> Result<SdkTracerProvider, Box<dyn std::error::Error + 
         .with(telemetry)
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "embucketd=debug,tower_http=debug".into()),
+                .unwrap_or_else(|_| "embucketd=debug,tower_http=debug".into())
+                .add_directive("tokio=off".parse().expect("Invalid directive tokio=off"))
+                .add_directive("tower-sessions-core=off".parse().expect("Invalid directive tower-sessions-core=off"))
         )
         .with(tracing_subscriber::fmt::layer())
         .init();

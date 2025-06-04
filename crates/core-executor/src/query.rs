@@ -331,6 +331,7 @@ impl UserQuery {
         self.execute_sql(&self.query).await
     }
 
+    #[instrument(level = "trace", skip(self), err, ret)]
     pub fn get_catalog(&self, name: &str) -> ExecutionResult<Arc<dyn CatalogProvider>> {
         self.session.ctx.state().catalog_list().catalog(name).ok_or(
             ExecutionError::CatalogNotFound {
@@ -345,6 +346,7 @@ impl UserQuery {
     /// to actually execute logical plan.
     /// Otherwise, code tries to downcast catalog to [`Catalog`] and if successful,
     /// return the catalog
+    #[instrument(level = "trace", skip(self, catalog))]
     pub async fn resolve_iceberg_catalog_or_execute(
         &self,
         catalog: Arc<dyn CatalogProvider>,
@@ -532,6 +534,7 @@ impl UserQuery {
     }
 
     #[allow(unused_variables)]
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn create_iceberg_table(
         &self,
         catalog: Arc<dyn CatalogProvider>,
@@ -614,6 +617,7 @@ impl UserQuery {
         self.created_entity_response()
     }
 
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn create_external_table_query(
         &self,
         statement: CreateExternalTable,
@@ -686,6 +690,7 @@ impl UserQuery {
     /// - We don't need to create table in case we have common shared session context.
     ///   CSV is registered as a table which can referenced from SQL statements executed against this context
     /// - Revisit this with the new metastore approach
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn create_stage_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
         let Statement::CreateStage {
             name,
@@ -789,6 +794,7 @@ impl UserQuery {
         self.status_response()
     }
 
+    #[instrument(level = "trace", skip(self), err)]
     pub async fn copy_into_snowflake_query(
         &self,
         statement: Statement,
@@ -1768,6 +1774,7 @@ impl UserQuery {
 
     // Fill in the database and schema if they are missing
     // and normalize the identifiers for ObjectNamePart
+    #[instrument(level = "trace", skip(self), err)]
     pub fn resolve_table_object_name(
         &self,
         mut table_ident: Vec<ObjectNamePart>,

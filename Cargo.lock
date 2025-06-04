@@ -1981,6 +1981,7 @@ dependencies = [
  "slatedb",
  "snafu",
  "tokio",
+ "tracing",
  "uuid",
 ]
 
