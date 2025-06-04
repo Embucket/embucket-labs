@@ -2633,12 +2633,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/ilike_any")
     ),
-    ("JAROWINKLER_SIMILARITY", FunctionInfo::new(
-        "JAROWINKLER_SIMILARITY",
-        "Computes the Jaro-Winkler similarity between two input strings."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/jarowinkler_similarity")
-    ),
     ("LEN", FunctionInfo::new(
         "LEN",
         "Returns the length of an input string or binary value."

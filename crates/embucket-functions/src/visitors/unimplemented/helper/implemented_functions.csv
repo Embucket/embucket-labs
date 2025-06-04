@@ -367,6 +367,7 @@ var
 var_pop                            
 var_population                     
 var_samp                           
-var_sample                         
-variant_element                    
+var_sample
+variant_element
 version
+jarowinkler_similarity

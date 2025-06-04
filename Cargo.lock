@@ -2827,6 +2827,7 @@ dependencies = [
  "paste",
  "serde",
  "serde_json",
+ "strsim",
  "tokio",
 ]
 

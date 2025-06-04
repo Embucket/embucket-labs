@@ -51,6 +51,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         string_binary::rtrimmed_length::get_udf(),
         semi_structured::get_path::get_udf(),
         string_binary::insert::get_udf(),
+        string_binary::jarowinkler_similarity::get_udf(),
         semi_structured::array::strtok_to_array::get_udf(),
         semi_structured::object::object_keys::get_udf(),
         semi_structured::json::try_parse_json::get_udf(),

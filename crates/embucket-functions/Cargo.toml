@@ -21,6 +21,7 @@ ahash = { version = "0.8", default-features = false, features = [
 base64 = "0.22.1"
 jsonpath_lib = "0.3.0"
 indexmap = "2.9.0"
+strsim = "0.11"
 
 [dev-dependencies]
 tokio = { workspace = true }
