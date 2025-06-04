@@ -45,7 +45,7 @@ async fn test_ui_queries_no_worksheet() {
     let QueryGetResponse(query_record) = http_req::<QueryGetResponse>(
         &client,
         Method::GET,
-        &format!("http://{addr}/ui/query/{query_record_id}"),
+        &format!("http://{addr}/ui/queries/{query_record_id}"),
         String::new(),
     )
     .await

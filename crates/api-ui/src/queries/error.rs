@@ -19,7 +19,7 @@ pub enum QueryError {
         source: core_executor::error::ExecutionError,
     },
 
-    #[snafu(transparent)]
+    #[snafu(display("History store: {source}"))]
     Store { source: HistoryStoreError },
 
     #[snafu(display("Failed to parse row JSON: {source}"))]
@@ -41,7 +41,7 @@ pub enum QueriesAPIError {
     Query { source: QueryError },
     #[snafu(display("Error getting queries: {source}"))]
     Queries { source: QueryError },
-    #[snafu(display("Error getting queries: {source}"))]
+    #[snafu(display("Error getting query record: {source}"))]
     GetQueryRecord { source: QueryError },
 }
 
@@ -58,17 +58,10 @@ impl IntoStatusCode for QueriesAPIError {
                 | QueryError::Utf8 { .. }
                 | QueryError::CreateResultSet { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Queries { source } => match &source {
-                QueryError::Store { source } => match &source {
-                    HistoryStoreError::QueryGet { .. } | HistoryStoreError::BadKey { .. } => {
-                        StatusCode::NOT_FOUND
-                    }
-                    _ => StatusCode::INTERNAL_SERVER_ERROR,
-                },
-                QueryError::ResultParse { .. } => StatusCode::UNPROCESSABLE_ENTITY,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
-            Self::GetQueryRecord { source } => match &source {
+            Self::Queries {
+                source: QueryError::ResultParse { .. },
+            } => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::GetQueryRecord { source } | Self::Queries { source } => match &source {
                 QueryError::Store { source } => match &source {
                     HistoryStoreError::QueryGet { .. } | HistoryStoreError::BadKey { .. } => {
                         StatusCode::NOT_FOUND

@@ -1,5 +1,4 @@
-use crate::queries::error::GetQueryRecordSnafu;
-use crate::queries::error::QueriesAPIError::GetQueryRecord;
+use crate::queries::error::{GetQueryRecordSnafu, StoreSnafu};
 use crate::queries::models::{
     GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse,
     QueryRecord,
@@ -120,7 +119,7 @@ pub async fn query(
 
 #[utoipa::path(
     get,
-    path = "/ui/query/{queryRecordId}",
+    path = "/ui/queries/{queryRecordId}",
     operation_id = "getQuery",
     tags = ["queries"],
     params(
@@ -143,14 +142,17 @@ pub async fn get_query(
     State(state): State<AppState>,
     Path(query_record_id): Path<QueryRecordId>,
 ) -> QueriesResult<Json<QueryGetResponse>> {
-    match state.history_store.get_query(query_record_id).await {
-        Ok(query_record) => Ok(Json(QueryGetResponse(
-            query_record.try_into().context(GetQueryRecordSnafu)?,
-        ))),
-        Err(error) => Err(GetQueryRecord {
-            source: QueryError::Store { source: error },
-        }),
-    }
+    state
+        .history_store
+        .get_query(query_record_id)
+        .await
+        .map(|query_record| {
+            Ok(Json(QueryGetResponse(
+                query_record.try_into().context(GetQueryRecordSnafu)?,
+            )))
+        })
+        .context(StoreSnafu)
+        .context(GetQueryRecordSnafu)?
 }
 
 #[utoipa::path(
