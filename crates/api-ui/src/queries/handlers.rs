@@ -9,6 +9,7 @@ use crate::{
     queries::error::{QueriesAPIError, QueriesResult, QueryError, QuerySnafu},
 };
 use api_sessions::DFSessionId;
+use axum::extract::ConnectInfo;
 use axum::extract::Path;
 use axum::{
     Json,
