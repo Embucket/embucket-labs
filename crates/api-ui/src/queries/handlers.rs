@@ -10,7 +10,6 @@ use crate::{
 };
 use api_sessions::DFSessionId;
 use axum::extract::Path;
-use axum::extract::ConnectInfo;
 use axum::{
     Json,
     extract::{Query, State},
