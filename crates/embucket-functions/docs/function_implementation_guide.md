@@ -1,4 +1,4 @@
-# Embucket UDF Implementation Guide
+# Embucket Functions Implementation Guide
 
 ## Quick Decision Matrix
 
@@ -109,9 +109,9 @@ logical_boolean()  // For boolean types
 
 ## Registration Process
 
-After implementing your UDF, you **MUST** register it properly:
+After implementing your function, you **MUST** register it properly:
 
-### 1. Register the UDF in Code
+### 1. Register the function in Code
 Add your function to the appropriate function registry module. The easiest way is to register it through lib.rs with updating `register_udfs` function.
 
 ### 2. Add to Tracking (REQUIRED)

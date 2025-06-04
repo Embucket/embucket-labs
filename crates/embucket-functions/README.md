@@ -8,9 +8,9 @@ This crate enhances the DataFusion query engine with Embucket-specific or common
 
 ## For Contributors
 
-📖 **[UDF Implementation Guide](docs/udf_implementation_guide.md)** - Complete guide for implementing User Defined Functions (UDFs) in Embucket
+📖 **[Functions Implementation Guide](docs/function_implementation_guide)** - Complete guide for implementing functions in Embucket
 
-🔧 **[UDF Template](src/scalar_template.rs)** - Ready-to-use template for creating new scalar functions
+🔧 **[Function Template](src/scalar_template.rs)** - Ready-to-use template for creating new scalar functions
 
 ## Categories
 
