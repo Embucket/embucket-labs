@@ -97,30 +97,31 @@ jobs:
       # Push Assets to Branch
       - name: Push Assets to Branch
         run: |
-          # Copy test assets to a temporary location before switching branches
+          # Copy test assets and statistics file to a temporary location before switching branches
           mkdir -p /tmp/embucket-assets
           cp -r test/test-assets/* /tmp/embucket-assets/
-          
+          cp test/test_statistics.csv /tmp/embucket-assets/
+        
           # Setup git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
+        
           # Fetch and checkout the existing assets branch
           git fetch origin assets
           git checkout assets
-          
+        
           # Clean the branch content (but keep .git folder)
           find . -mindepth 1 -not -path "./.git*" -delete
-          
+        
           # Create assets directory
           mkdir -p assets
-          
+        
           # Copy assets from the temporary location
           cp -r /tmp/embucket-assets/* assets/
-          
+        
           # Add and commit
           git add assets
           git commit -m "Update test assets [Coverage: $COVERAGE%] [skip ci]" || echo "No changes to commit"
-          
+        
           # Push to the existing assets branch
           git push origin assets

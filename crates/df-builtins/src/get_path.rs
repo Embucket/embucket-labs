@@ -13,6 +13,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct GetPathFunc {
     signature: Signature,
+    aliases: Vec<String>,
 }
 
 impl Default for GetPathFunc {
@@ -25,6 +26,7 @@ impl GetPathFunc {
     pub fn new() -> Self {
         Self {
             signature: Signature::string(2, Volatility::Immutable),
+            aliases: vec!["json_extract_path_text".to_string()],
         }
     }
 }
@@ -89,6 +91,10 @@ impl ScalarUDFImpl for GetPathFunc {
         } else {
             ColumnarValue::Array(Arc::new(res))
         })
+    }
+
+    fn aliases(&self) -> &[String] {
+        &self.aliases
     }
 }
 

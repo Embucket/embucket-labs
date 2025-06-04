@@ -17,16 +17,17 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct GetFunc {
     signature: Signature,
+    ignore_case: bool,
 }
 
 impl Default for GetFunc {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
 
 impl GetFunc {
-    pub fn new() -> Self {
+    pub fn new(ignore_case: bool) -> Self {
         Self {
             signature: Signature::one_of(
                 vec![
@@ -41,6 +42,7 @@ impl GetFunc {
                 ],
                 Volatility::Immutable,
             ),
+            ignore_case,
         }
     }
 }
@@ -51,7 +53,11 @@ impl ScalarUDFImpl for GetFunc {
     }
 
     fn name(&self) -> &'static str {
-        "get"
+        if self.ignore_case {
+            "get_ignore_case"
+        } else {
+            "get"
+        }
     }
 
     fn signature(&self) -> &Signature {
@@ -96,12 +102,29 @@ impl ScalarUDFImpl for GetFunc {
                         continue;
                     };
 
-                    let Some(value) = map.get(key) else {
+                    let value = if self.ignore_case {
+                        let mut found = None;
+                        for (k, v) in map {
+                            if k.eq_ignore_ascii_case(key) {
+                                found = Some(v);
+                                break;
+                            }
+                        }
+
+                        if let Some(value) = found {
+                            value
+                        } else {
+                            res.append_null();
+                            continue;
+                        }
+                    } else if let Some(value) = map.get(key) {
+                        value.to_owned()
+                    } else {
                         res.append_null();
                         continue;
                     };
 
-                    res.append_value(serde_json::to_string(value).map_err(|e| {
+                    res.append_value(serde_json::to_string(&value).map_err(|e| {
                         DataFusionError::Internal(format!("Failed to serialize JSON value: {e}"))
                     })?);
                 }
@@ -137,8 +160,6 @@ impl ScalarUDFImpl for GetFunc {
     }
 }
 
-super::macros::make_udf_function!(GetFunc);
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -150,7 +171,7 @@ mod tests {
     async fn test_array_indexing() -> DFResult<()> {
         let ctx = SessionContext::new();
 
-        ctx.register_udf(ScalarUDF::from(GetFunc::new()));
+        ctx.register_udf(ScalarUDF::from(GetFunc::new(false)));
 
         let sql = "SELECT get('[1, {\"a\":4}]',0) AS value;";
         let result = ctx.sql(sql).await?.collect().await?;
@@ -229,7 +250,7 @@ mod tests {
     async fn test_object_indexing() -> DFResult<()> {
         let ctx = SessionContext::new();
 
-        ctx.register_udf(ScalarUDF::from(GetFunc::new()));
+        ctx.register_udf(ScalarUDF::from(GetFunc::new(false)));
 
         let sql = "SELECT get('{\"a\":1}','a') AS value;";
         let result = ctx.sql(sql).await?.collect().await?;
@@ -246,6 +267,43 @@ mod tests {
         );
 
         let sql = "SELECT get('{\"a\":1}','b') AS value;";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+-------+",
+                "| value |",
+                "+-------+",
+                "|       |",
+                "+-------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_object_indexing_ignore_case() -> DFResult<()> {
+        let ctx = SessionContext::new();
+
+        ctx.register_udf(ScalarUDF::from(GetFunc::new(true)));
+
+        let sql = "SELECT get_ignore_case('{\"a\":1}','A') AS value;";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+-------+",
+                "| value |",
+                "+-------+",
+                "| 1     |",
+                "+-------+",
+            ],
+            &result
+        );
+
+        let sql = "SELECT get_ignore_case('{\"a\":1}','b') AS value;";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(

@@ -781,6 +781,8 @@ class SQLLogicPythonRunner:
         total_time = time.time() - start_time
         print(f"\nTotal execution time: {total_time:.2f} seconds")
 
+
+
     def run(self):
         start_time = time.time()
 
