@@ -116,7 +116,7 @@ async fn worksheet_queries_references_iterator(
 
 #[async_trait]
 impl HistoryStore for SlateDBHistoryStore {
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::add_worksheet", level = "trace", skip(self), err)]
     async fn add_worksheet(&self, worksheet: Worksheet) -> HistoryStoreResult<Worksheet> {
         self.db
             .put_iterable_entity(&worksheet)
@@ -125,7 +125,7 @@ impl HistoryStore for SlateDBHistoryStore {
         Ok(worksheet)
     }
 
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::get_worksheet", level = "trace", skip(self), err)]
     async fn get_worksheet(&self, id: WorksheetId) -> HistoryStoreResult<Worksheet> {
         // convert from Bytes to &str, for .get method to convert it back to Bytes
         let key_bytes = Worksheet::get_key(id);
@@ -141,7 +141,7 @@ impl HistoryStore for SlateDBHistoryStore {
         })
     }
 
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::update_worksheet", level = "trace", skip(self), err)]
     async fn update_worksheet(&self, mut worksheet: Worksheet) -> HistoryStoreResult<()> {
         worksheet.set_updated_at(None);
 
@@ -152,7 +152,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(errors::WorksheetUpdateSnafu)?)
     }
 
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::delete_worksheet", level = "trace", skip(self), err)]
     async fn delete_worksheet(&self, id: WorksheetId) -> HistoryStoreResult<()> {
         // raise an error if we can't locate
         self.get_worksheet(id).await?;
@@ -172,7 +172,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(errors::WorksheetDeleteSnafu)?)
     }
 
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::get_worksheets", level = "trace", skip(self), err)]
     async fn get_worksheets(&self) -> HistoryStoreResult<Vec<Worksheet>> {
         let start_key = Worksheet::get_key(WorksheetId::min_cursor());
         let end_key = Worksheet::get_key(WorksheetId::max_cursor());
@@ -183,7 +183,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(errors::WorksheetsListSnafu)?)
     }
 
-    #[instrument(level = "trace", skip(self, item), err)]
+    #[instrument(name = "HistoryStore::add_query", level = "trace", skip(self, item), err)]
     async fn add_query(&self, item: &QueryRecord) -> HistoryStoreResult<()> {
         if let Some(worksheet_id) = item.worksheet_id {
             // add query reference to the worksheet
@@ -204,7 +204,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(errors::QueryAddSnafu)?)
     }
 
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::get_query", level = "trace", skip(self), err)]
     async fn get_query(&self, id: QueryRecordId) -> HistoryStoreResult<QueryRecord> {
         let key_bytes = QueryRecord::get_key(id);
         let key_str = std::str::from_utf8(key_bytes.as_ref()).context(errors::BadKeySnafu)?;
@@ -215,7 +215,7 @@ impl HistoryStore for SlateDBHistoryStore {
         })
     }
 
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::get_queries", level = "trace", skip(self), err)]
     async fn get_queries(&self, params: GetQueriesParams) -> HistoryStoreResult<Vec<QueryRecord>> {
         let GetQueriesParams {
             worksheet_id,

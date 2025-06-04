@@ -240,8 +240,10 @@ async fn setup_tracing() -> Result<SdkTracerProvider, Box<dyn std::error::Error 
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "embucketd=debug,tower_http=debug".into())
-                .add_directive("tokio=off".parse().expect("Invalid directive tokio=off"))
-                .add_directive("tower-sessions-core=off".parse().expect("Invalid directive tower-sessions-core=off"))
+                // .add_directive("tokio=off".parse().expect("Invalid directive tokio=off"))
+                .add_directive("tower_sessions_core=off".parse().expect("Invalid directive tower_sessions_core=off"))
+                .add_directive("tower_sessions=off".parse().expect("Invalid directive tower_sessions=off"))
+                .add_directive("tower_http=off".parse().expect("Invalid directive tower_http=off"))
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
