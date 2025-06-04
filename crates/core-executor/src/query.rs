@@ -80,14 +80,13 @@ pub enum IcebergCatalogResult {
 impl UserQuery {
     pub(super) fn new<S>(session: Arc<UserSession>, query: S, query_context: QueryContext) -> Self
     where
-        S: Into<String>,
+        S: Into<String> + Clone,
     {
-        let query = Self::preprocess_query(&query.into());
         Self {
             metastore: session.metastore.clone(),
             history_store: session.history_store.clone(),
-            raw_query: query.clone(),
-            query,
+            raw_query: query.clone().into(),
+            query: query.into(),
             session,
             query_context,
         }
@@ -326,22 +325,6 @@ impl UserQuery {
             return Box::pin(self.create_external_table_query(cetable)).await;
         }
         self.execute_sql(&self.query).await
-    }
-
-    /// .
-    ///
-    /// # Panics
-    ///
-    /// Panics if .
-    #[must_use]
-    #[allow(clippy::unwrap_used)]
-    #[instrument(level = "trace", ret)]
-    pub fn preprocess_query(query: &str) -> String {
-        // TODO: This regex should be a static allocation
-        let alter_iceberg_table = regex::Regex::new(r"alter\s+iceberg\s+table").unwrap();
-        alter_iceberg_table
-            .replace_all(query, "alter table")
-            .to_string()
     }
 
     pub fn get_catalog(&self, name: &str) -> ExecutionResult<Arc<dyn CatalogProvider>> {
