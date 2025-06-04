@@ -303,26 +303,36 @@ class QueryResult:
                 error_msg = test_logger.column_count_mismatch_correct_result(original_expected_columns,
                                                                              expected_column_count, self)
                 context.fail(error_msg)
-        else:
-            hash_compare_error = False
-            if query_has_label:
-                entry = runner.hash_label_map.get(query_label)
-                if entry is None:
-                    runner.hash_label_map[query_label] = hash_value
-                    runner.result_label_map[query_label] = self
-                else:
-                    hash_compare_error = entry != hash_value
+            else:
+                hash_compare_error = False
+                if query_has_label:
+                    entry = runner.hash_label_map.get(query_label)
+                    if entry is None:
+                        runner.hash_label_map[query_label] = hash_value
+                        runner.result_label_map[query_label] = self
+                    else:
+                        # Store the actual generated hash for comparison
+                        logger.debug(f"Label: {query_label}, Expected hash: {entry}, Actual hash: {hash_value}")
+                        hash_compare_error = entry != hash_value
 
-            if is_hash:
-                hash_compare_error = expected_values[0] != hash_value
+                if is_hash:
+                    # Store the actual generated hash for comparison
+                    logger.debug(f"Expected hash: {expected_values[0]}, Actual hash: {hash_value}")
+                    hash_compare_error = expected_values[0] != hash_value
 
-            if hash_compare_error:
-                expected_result = runner.result_label_map.get(query_label)
-                error_msg = test_logger.wrong_result_hash(expected_result, self)
-                error_msg += f'\nHash compare error in query: {query}'
-                context.fail_query(error_msg)
+                if hash_compare_error:
+                    # Modify this section to pass the hash value rather than the result object
+                    expected_hash = None
+                    if query_has_label:
+                        expected_hash = runner.hash_label_map.get(query_label)
+                    elif is_hash:
+                        expected_hash = expected_values[0]
 
-            assert not hash_compare_error
+                    # Pass both expected and actual hash values instead of result objects
+                    error_msg = test_logger.wrong_result_hash(expected_hash, hash_value)
+                    context.fail_query(error_msg)
+
+                assert not hash_compare_error
 
 
 class SQLLogicConnectionPool:

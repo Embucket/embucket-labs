@@ -66,6 +66,7 @@ impl GetQueriesParams {
     }
 }
 
+#[mockall::automock]
 #[async_trait]
 pub trait HistoryStore: std::fmt::Debug + Send + Sync {
     async fn add_worksheet(&self, worksheet: Worksheet) -> HistoryStoreResult<Worksheet>;

@@ -7,7 +7,7 @@ use crate::state::AppState;
 use api_sessions::DFSessionId;
 use axum::Json;
 use axum::body::Bytes;
-use axum::extract::{Query, State};
+use axum::extract::{ConnectInfo, Query, State};
 use axum::http::HeaderMap;
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
@@ -23,6 +23,7 @@ use flate2::read::GzDecoder;
 use regex::Regex;
 use snafu::ResultExt;
 use std::io::Read;
+use std::net::SocketAddr;
 use tracing::debug;
 use uuid::Uuid;
 
@@ -93,6 +94,7 @@ fn records_to_json_string(recs: &[RecordBatch]) -> Result<String, DbtError> {
 
 #[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Query(query): Query<QueryRequest>,
@@ -116,7 +118,11 @@ pub async fn query(
     let serialization_format = state.config.dbt_serialization_format;
     let query_result = state
         .execution_svc
-        .query(&session_id, &body_json.sql_text, QueryContext::default())
+        .query(
+            &session_id,
+            &body_json.sql_text,
+            QueryContext::default().with_ip_address(addr.ip().to_string()),
+        )
         .await
         .map_err(|e| DbtError::Execution { source: e })?;
     let records = convert_record_batches(query_result.clone(), serialization_format)

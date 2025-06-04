@@ -1,5 +1,5 @@
 use super::schema::EmbucketSchema;
-use crate::catalogs::embucket::block_in_new_runtime;
+use crate::block_in_new_runtime;
 use core_metastore::{Metastore, SchemaIdent};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};

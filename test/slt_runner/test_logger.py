@@ -230,16 +230,22 @@ class SQLLogicTestLogger:
         parts.append(self.print_line_sep())
         return '\n'.join(parts)
 
-    def wrong_result_hash(self, expected_result, result):
+    def wrong_result_hash(self, expected_hash, actual_hash):
         parts = []
-        if expected_result:
-            parts.append(str(expected_result))
-        else:
-            parts.append("???")
         parts.append(self.print_error_header("Wrong result hash!"))
         parts.append(self.print_line_sep())
         parts.append(self.get_sql())
         parts.append(self.print_line_sep())
+
         parts.append("Expected result:")
+        parts.append(str(expected_hash))
+
         parts.append("Actual result:")
+        parts.append(str(actual_hash))
+
+        # Add a comparison check for debugging
+        if expected_hash == actual_hash:
+            parts.append(self.print_line_sep())
+            parts.append("NOTE: The hash values are identical. This may be a false positive error.")
+
         return '\n'.join(parts)
