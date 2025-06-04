@@ -36,6 +36,7 @@ impl Default for AsFunc {
 }
 
 impl AsFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::any(1, Volatility::Immutable),

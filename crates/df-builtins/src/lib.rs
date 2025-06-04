@@ -1,6 +1,6 @@
 pub use crate::aggregate::register_udafs;
-use crate::is_typeof::IsTypeofFunc;
 use crate::get::GetFunc;
+use crate::is_typeof::IsTypeofFunc;
 use crate::to_boolean::ToBooleanFunc;
 use crate::to_time::ToTimeFunc;
 use datafusion::arrow::array::{
