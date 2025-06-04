@@ -16,10 +16,10 @@ slatedb = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true }
 tracing = { workspace = true }
+mockall = "0.13.1"
 
 [dev-dependencies]
 tokio = { workspace = true }
-mockall = "0.13.1"
 
 [lints]
 workspace = true

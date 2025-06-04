@@ -1,9 +1,12 @@
 use crate::query::UserQuery;
 use crate::session::UserSession;
+use std::collections::HashMap;
 
 use crate::models::QueryContext;
 use crate::utils::Config;
-use core_history::SlateDBHistoryStore;
+#[cfg(test)]
+use core_history::MockHistoryStore;
+use core_history::{HistoryStore, QueryRecord};
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
 use core_metastore::{
@@ -12,6 +15,7 @@ use core_metastore::{
 };
 use core_utils::Db;
 use datafusion::sql::parser::DFParser;
+use df_catalog::information_schema::session_params::SessionProperty;
 use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]
@@ -71,13 +75,76 @@ fn test_postprocess_query_statement_functions_expressions() {
         }
     }
 }
+
+#[allow(clippy::unwrap_used)]
+#[tokio::test]
+async fn test_update_all_table_names_visitor() {
+    let args: [(&str, &str); 8] = [
+        ("select * from foo", "SELECT * FROM embucket.new_schema.foo"),
+        (
+            "insert into foo (id) values (5)",
+            "INSERT INTO embucket.new_schema.foo (id) VALUES (5)",
+        ),
+        (
+            "insert into foo select * from bar",
+            "INSERT INTO embucket.new_schema.foo SELECT * FROM embucket.new_schema.bar",
+        ),
+        (
+            "insert into foo select * from bar where id = 1",
+            "INSERT INTO embucket.new_schema.foo SELECT * FROM embucket.new_schema.bar WHERE id = 1",
+        ),
+        (
+            "select * from foo join bar on foo.id = bar.id",
+            "SELECT * FROM embucket.new_schema.foo JOIN embucket.new_schema.bar ON foo.id = bar.id",
+        ),
+        (
+            "select * from foo where id = 1",
+            "SELECT * FROM embucket.new_schema.foo WHERE id = 1",
+        ),
+        (
+            "select count(*) from foo",
+            "SELECT count(*) FROM embucket.new_schema.foo",
+        ),
+        (
+            "WITH sales_data AS (SELECT * FROM foo) SELECT * FROM sales_data",
+            "WITH sales_data AS (SELECT * FROM embucket.new_schema.foo) SELECT * FROM sales_data",
+        ),
+    ];
+
+    let session = create_df_session().await;
+    let mut params = HashMap::new();
+    params.insert(
+        "schema".to_string(),
+        SessionProperty::from_str_value("new_schema".to_string(), None),
+    );
+    session.set_session_variable(true, params).unwrap();
+    let query = session.query("", QueryContext::default());
+    for (init, exp) in args {
+        let statement = DFParser::parse_sql(init).unwrap().pop_front();
+        if let Some(mut s) = statement {
+            query.update_statement_references(&mut s).unwrap();
+            assert_eq!(s.to_string(), exp);
+        }
+    }
+}
+
 static TABLE_SETUP: &str = include_str!(r"./table_setup.sql");
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 pub async fn create_df_session() -> Arc<UserSession> {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db));
+    let mut mock = MockHistoryStore::new();
+    mock.expect_get_queries().returning(|_| {
+        let mut records = Vec::new();
+        for i in 0..3 {
+            let mut q = QueryRecord::new("query", None);
+            q.id = i;
+            records.push(q);
+        }
+        Ok(records)
+    });
+    let history_store: Arc<dyn HistoryStore> = Arc::new(mock);
 
     metastore
         .create_volume(
@@ -155,7 +222,7 @@ macro_rules! test_query {
                     )*
                 )?
 
-                let mut query = ctx.query($query, $crate::models::QueryContext::default());
+                let mut query = ctx.query($query, $crate::models::QueryContext::default().with_ip_address("test_ip".to_string()));
                 let res = query.execute().await;
                 let sort_all = false $(|| $sort_all)?;
                 let excluded_columns: std::collections::HashSet<&str> = std::collections::HashSet::from([
@@ -228,6 +295,9 @@ test_query!(
         "DROP TABLE embucket.public.test"
     ]
 );
+
+// Empty plan
+test_query!(alter_iceberg_table, "ALTER ICEBERG TABLE test ADD col INT;");
 
 // context name injection
 test_query!(
@@ -510,6 +580,16 @@ test_query!(
     setup_queries = ["SET v1 = 'test'", "SET v2 = 1", "SET v3 = true"],
     snapshot_path = "session"
 );
+test_query!(
+    session_last_query_id,
+    "SELECT
+        length(LAST_QUERY_ID()) > 0 as last,
+        length(LAST_QUERY_ID(-1)) > 0 as last_index,
+        length(LAST_QUERY_ID(2)) > 0 as second,
+        length(LAST_QUERY_ID(100)) = 0 as empty",
+    setup_queries = ["SET v1 = 'test'", "SET v2 = 1", "SET v3 = true"],
+    snapshot_path = "session"
+);
 
 // https://docs.snowflake.com/en/sql-reference/sql/explain
 // https://datafusion.apache.org/user-guide/sql/explain.html
@@ -576,6 +656,11 @@ test_query!(
     session_current_session,
     // Check only length of session id since it is dynamic uuid
     "SELECT length(CURRENT_SESSION())",
+    snapshot_path = "session"
+);
+test_query!(
+    session_current_ip_address,
+    "SELECT CURRENT_IP_ADDRESS()",
     snapshot_path = "session"
 );
 

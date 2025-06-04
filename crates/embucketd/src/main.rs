@@ -34,6 +34,7 @@ use dotenv::dotenv;
 use object_store::path::Path;
 use slatedb::{Db as SlateDb, config::DbOptions};
 use std::fs;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use time::Duration;
 use tokio::signal;
@@ -184,7 +185,8 @@ async fn main() {
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
         .layer(TimeoutLayer::new(std::time::Duration::from_secs(1200)))
-        .layer(CatchPanicLayer::new());
+        .layer(CatchPanicLayer::new())
+        .into_make_service_with_connect_info::<SocketAddr>();
 
     // Runs static assets server in background
     run_web_assets_server(&static_web_config)
