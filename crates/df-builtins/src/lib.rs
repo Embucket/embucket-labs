@@ -47,7 +47,6 @@ mod to_time;
 mod try_parse_json;
 pub mod variant;
 pub mod visitors;
-
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
         convert_timezone::get_udf(),
@@ -70,7 +69,6 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         insert::get_udf(),
         strtok_to_array::get_udf(),
         object_keys::get_udf(),
-        get::get_udf(),
         try_parse_json::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
