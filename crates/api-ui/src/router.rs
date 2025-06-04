@@ -6,7 +6,7 @@ use crate::layers::add_request_metadata;
 use crate::navigation_trees::handlers::{
     ApiDoc as DatabasesNavigationApiDoc, get_navigation_trees,
 };
-use crate::queries::handlers::ApiDoc as QueryApiDoc;
+use crate::queries::handlers::{ApiDoc as QueryApiDoc, get_query};
 use crate::queries::handlers::{queries, query};
 use crate::schemas::handlers::ApiDoc as SchemasApiDoc;
 use crate::schemas::handlers::{create_schema, delete_schema, list_schemas};
@@ -118,6 +118,7 @@ pub fn create_router() -> Router<AppState> {
                 .patch(update_worksheet),
         )
         .route("/queries", post(query).get(queries))
+        .route("/queries/{queryRecordId}", get(get_query))
         // .route(
         //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/settings",
         //     get(get_settings).post(update_table_properties),

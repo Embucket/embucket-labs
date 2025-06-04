@@ -1,4 +1,4 @@
-use crate::catalogs::embucket::block_in_new_runtime;
+use crate::block_in_new_runtime;
 use async_trait::async_trait;
 use core_metastore::error::MetastoreError;
 use core_metastore::{Metastore, SchemaIdent, TableIdent};

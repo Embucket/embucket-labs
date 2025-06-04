@@ -10,7 +10,7 @@ use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::models::{QueryContext, QueryResult};
-use core_history::history_store::HistoryStore;
+use core_history::HistoryStore;
 use core_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
     TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,
@@ -27,6 +27,7 @@ use datafusion::logical_expr::{LogicalPlan, TableSource};
 use datafusion::prelude::CsvReadOptions;
 use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, DFParser, Statement as DFStatement};
+use datafusion::sql::resolve::resolve_table_references;
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
     TableFactor, TableWithJoins,
@@ -54,11 +55,12 @@ use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
     ObjectType, PivotValueSource, Select, SelectItem, ShowObjects, ShowStatementFilter,
-    ShowStatementIn, TruncateTableTarget, Use, Value,
+    ShowStatementIn, TruncateTableTarget, Use, Value, visit_relations_mut,
 };
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
+use std::ops::ControlFlow;
 use std::sync::Arc;
 use tracing_attributes::instrument;
 use url::Url;
@@ -80,14 +82,13 @@ pub enum IcebergCatalogResult {
 impl UserQuery {
     pub(super) fn new<S>(session: Arc<UserSession>, query: S, query_context: QueryContext) -> Self
     where
-        S: Into<String>,
+        S: Into<String> + Clone,
     {
-        let query = Self::preprocess_query(&query.into());
         Self {
             metastore: session.metastore.clone(),
             history_store: session.history_store.clone(),
-            raw_query: query.clone(),
-            query,
+            raw_query: query.clone().into(),
+            query: query.into(),
             session,
             query_context,
         }
@@ -158,6 +159,9 @@ impl UserQuery {
             schemas,
             warehouse: "default".to_string(),
             session_id: self.session.ctx.session_id(),
+            version: self.session.config.embucket_version.clone(),
+            query_context: self.query_context.clone(),
+            history_store: self.history_store.clone(),
         }
     }
 
@@ -325,22 +329,6 @@ impl UserQuery {
             return Box::pin(self.create_external_table_query(cetable)).await;
         }
         self.execute_sql(&self.query).await
-    }
-
-    /// .
-    ///
-    /// # Panics
-    ///
-    /// Panics if .
-    #[must_use]
-    #[allow(clippy::unwrap_used)]
-    #[instrument(level = "trace", ret)]
-    pub fn preprocess_query(query: &str) -> String {
-        // TODO: This regex should be a static allocation
-        let alter_iceberg_table = regex::Regex::new(r"alter\s+iceberg\s+table").unwrap();
-        alter_iceberg_table
-            .replace_all(query, "alter table")
-            .to_string()
     }
 
     pub fn get_catalog(&self, name: &str) -> ExecutionResult<Arc<dyn CatalogProvider>> {
@@ -1227,9 +1215,10 @@ impl UserQuery {
 
         // We turn a query to SQL only to turn it back into a statement
         // TODO: revisit this pattern
-        let statement = state
+        let mut statement = state
             .sql_to_statement(query, dialect)
             .context(super::error::DataFusionSnafu)?;
+        self.update_statement_references(&mut statement)?;
 
         if let DFStatement::Statement(s) = statement.clone() {
             self.sql_statement_to_plan(*s).await
@@ -1239,6 +1228,43 @@ impl UserQuery {
                     "Only SQL statements are supported".to_string(),
                 ),
             })
+        }
+    }
+    pub fn update_statement_references(&self, statement: &mut DFStatement) -> ExecutionResult<()> {
+        let (_tables, ctes) = resolve_table_references(
+            statement,
+            self.session
+                .ctx
+                .state()
+                .config()
+                .options()
+                .sql_parser
+                .enable_ident_normalization,
+        )
+        .context(super::error::DataFusionSnafu)?;
+
+        match statement {
+            DFStatement::Statement(stmt) => {
+                let cte_names: HashSet<String> = ctes
+                    .into_iter()
+                    .map(|cte| cte.table().to_string())
+                    .collect();
+
+                visit_relations_mut(stmt, |table_name: &mut ObjectName| {
+                    if !cte_names.contains(&table_name.to_string()) {
+                        match self.resolve_table_object_name(table_name.0.clone()) {
+                            Ok(resolved_name) => {
+                                *table_name = ObjectName::from(resolved_name.0);
+                            }
+                            Err(e) => return ControlFlow::Break(e),
+                        }
+                    }
+                    ControlFlow::Continue(())
+                });
+                Ok(())
+            }
+            // If needed, handle other DFStatement variants like CreateExternalTable similarly
+            _ => Ok(()),
         }
     }
 
@@ -1412,7 +1438,7 @@ impl UserQuery {
             .resolve_table_references(statement)
             .context(super::error::DataFusionSnafu)?;
         for reference in references {
-            let resolved = state.resolve_table_ref(reference);
+            let resolved = self.resolve_table_ref(reference);
             if let Entry::Vacant(v) = tables.entry(resolved.clone()) {
                 if let Ok(schema) = self.schema_for_ref(resolved.clone()) {
                     if let Some(table) = schema
@@ -1426,6 +1452,17 @@ impl UserQuery {
             }
         }
         Ok(tables)
+    }
+
+    /// Resolves a [`TableReference`] to a [`ResolvedTableReference`]
+    /// using the default catalog and schema.
+    pub fn resolve_table_ref(
+        &self,
+        table_ref: impl Into<TableReference>,
+    ) -> ResolvedTableReference {
+        table_ref
+            .into()
+            .resolve(&self.current_database(), &self.current_schema())
     }
 
     pub fn schema_for_ref(
