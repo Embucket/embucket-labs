@@ -16,7 +16,6 @@ use std::sync::Arc;
 // - variant_expr
 //   An expression that evaluates to a value of type VARIANT.
 // Example SELECT TYPEOF('{"a":1}') as v;
-// Note `typeof` returns
 // Returns a STRING value or NULL.
 #[derive(Debug)]
 pub struct TypeofFunc {
@@ -62,7 +61,7 @@ impl ScalarUDFImpl for TypeofFunc {
             ColumnarValue::Scalar(v) => v.to_array()?,
         };
 
-        let mut b = StringBuilder::new();
+        let mut b = StringBuilder::with_capacity(arr.len(), 1024);
         let input = as_string_array(&arr);
         for v in input {
             let Some(v) = v else {
