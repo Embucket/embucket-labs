@@ -1,0 +1,58 @@
+version: 2
+
+sources:
+  - name: zuora_central_sandbox
+    tags: ["tdf","zuora_central_sandbox"]
+    database: '{{ env_var("SNOWFLAKE_LOAD_DATABASE") }}'
+    schema: zuora_central_sandbox_fivetran
+    loader: fivetran
+    loaded_at_field: _FIVETRAN_SYNCED
+
+    quoting:
+      database: false
+      schema: false
+      identifier: false
+
+    tables:
+      - name: account
+        columns:
+          - name: id
+            description: Primary Key for Accounts
+            data_tests:
+              - dbt_utils.expression_is_true:
+                  expression: "REGEXP '[0-9a-z]{32}'"
+      - name: accounting_period
+      - name: amendment
+      - name: contact
+      - name: invoice
+      - name: invoice_item
+      - name: invoice_payment
+      - name: order
+        identifier: ORDER
+        quoting:
+          identifier: true
+      - name: order_action
+      - name: product
+      - name: product_rate_plan
+      - name: product_rate_plan_charge
+      - name: product_rate_plan_charge_tier
+      - name: rate_plan
+      - name: rate_plan_charge
+      - name: rate_plan_charge_tier
+      - name: refund
+      - name: revenue_schedule_item
+      - name: subscription
+
+  - name: zuora_query_api_sandbox
+    tags: ["tdf","zuora_central_sandbox"]
+    database: '{{ env_var("SNOWFLAKE_LOAD_DATABASE") }}'
+    loader: Airflow
+    loaded_at_field: TO_TIMESTAMP_NTZ(CAST(_uploaded_at AS INT))::TIMESTAMP
+
+    quoting:
+      database: true
+      schema: false
+      identifier: false
+
+    tables:
+      - name: chargemetrics

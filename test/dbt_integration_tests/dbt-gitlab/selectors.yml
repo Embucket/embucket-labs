@@ -1,0 +1,224 @@
+selectors:
+
+
+  - name: non_product_models
+    description: The catch all incremental dbt build
+    definition:
+      union:
+        - method: fqn
+          value: "*"
+        - exclude:
+          - method: tag
+            value: product
+          - method: tag
+            value: six_hourly
+          - method: path
+            value: models/legacy/sheetload
+          - method: path
+            value: models/legacy/snapshots
+          - method: path
+            value: models/sources/gitlab_dotcom
+          - method: path
+            value: models/sources/sheetload
+          - method: path
+            value: models/sources/sfdc
+          - method: path
+            value: models/sources/zuora
+          - method: path
+            value: models/sources/dbt
+          - method: path
+            value: models/workspaces
+
+  - name: product_models
+    description: Selection of models that include the `product` tag that are not part of a workspace
+    definition:
+      union:
+        - method: tag
+          value: product
+        - exclude:
+          - method: path
+            value: models/workspaces
+
+  - name: non_product_models_and_product_models
+    definition:
+      union:
+        - method: selector
+          value: non_product_models
+        - method: selector
+          value: product_models
+
+  - name: workspaces
+    description: Catch all for workspace models
+    definition:
+      union:
+        - method: path
+          value: models/workspaces
+        - exclude:
+          - method: path
+            value: models/workspaces/workspace_data_science
+          - method: path
+            value: models/workspaces/workspace_data/tdf
+
+  - name: workspaces_xl
+    description: Selection of workspace models that need to run on an XL warehouse
+    definition:
+      method: path
+      value: models/workspaces/workspace_data_science
+
+  - name: workspace_trusted_data
+    description: Selection of workspace tables that are for testing and validating trusted data sources
+    definition:
+      method: path
+      value: models/workspaces/workspace_data/tdf
+
+  - name: dbt_results
+    description: Selection of models that are build from exported dbt run artifacts
+    definition:
+      method: path
+      value: models/sources/dbt
+      children: true
+
+  - name: source_snapshot_models
+    description: Catch all for building source models that are build from snapshot raw data.
+    definition:
+      union:
+        - method: path
+          value: models/legacy/snapshots
+          parents: true
+        - exclude:
+          - method: tag
+            value: edm_snapshot
+
+  - name: edm_snapshot_models
+    description: Selection of models that have the `edm_snapshot` tag.  These are models build from snapshots of non-raw models.
+    definition:
+      method: tag
+      value: edm_snapshot
+
+  - name: sheetload_models
+    description: Selection of models and source that are built directly from the sheetload raw data
+    definition:
+      union:
+        - method: path
+          value: models/sources/sheetload
+        - method: path
+          value: models/legacy/sheetload
+
+  - name: customers_source_models
+    description: Selection of source models that are built from the customers raw data.
+    definition:
+      union:
+        - method: path
+          value: models/sources/customers
+          parents: true
+        - method: path
+          value: snapshots/customers
+
+  - name: gitlab_dotcom_source_models
+    description: Selection of source models that are built from the gitlab_dotcom raw data.
+    definition:
+      union:
+        - method: path
+          value: models/sources/gitlab_dotcom
+          parents: true
+        - method: path
+          value: snapshots/gitlab_dotcom
+
+  - name: gitlab_ops_source_models
+    description: Selection of source models that are built from the gitlab_ops raw data.
+    definition:
+      union:
+        - method: path
+          value: models/sources/gitlab_ops
+          parents: true
+        - method: path
+          value: snapshots/gitlab_ops
+
+  - name: sfdc_source_models
+    description: Selection of source models that are built from the sfdc raw data.
+    definition:
+      union:
+        - method: path
+          value: models/sources/sfdc
+          parents: true
+        - method: path
+          value: snapshots/sfdc
+
+  - name: zuora_source_models
+    description: Selection of source models that are built from the zuora raw data.
+    definition:
+      union:
+        - method: path
+          value: models/sources/zuora
+          parents: true
+        - method: path
+          value: snapshots/zuora
+
+  - name: daily_snapshots
+    description: Selection of models that have the `daily` tag. Excludes snapshots that are driven by a different schedule
+    definition:
+      union:
+        - method: tag
+          value: daily
+        - exclude:
+          - method: path
+            value: snapshots/zuora
+          - method: path
+            value: snapshots/sfdc
+          - method: path
+            value: snapshots/gitlab_dotcom
+
+  - name: six_hourly_salesforce_opportunity
+    description: "Non-incremental Salesforce opportunity models"
+    definition:
+      union:
+        - method: tag
+          value: six_hourly
+
+  - name: debugging
+    description: This is a selector used for testing and debugging what it in the other selectors
+    definition:
+      union:
+        - intersection:
+            - method: selector
+              value: product_models
+            - method: source
+              value: gitlab_snowplow
+              children: true
+            #- union:
+              #- method: fqn
+                #value: snowplow_web_events
+                #parents: true
+              #- method: fqn
+                #value: snowplow_id_map
+                #parents: true
+              #- method: fqn
+                #value: snowplow_page_views
+                #parents: true
+
+  - name: unsafe_models
+    description: This is a selector used for finding the tables in-between a list of tables
+    definition:
+      union:
+        - 'tag:mnpi+'
+        - exclude:
+          - tag:mnpi_exception
+          - config.database:{{ env_var('SNOWFLAKE_PREP_DATABASE') }}
+          - config.schema:restricted_safe_common
+          - config.schema:restricted_safe_common_mapping
+          - config.schema:restricted_safe_common_mart_finance
+          - config.schema:restricted_safe_common_mart_sales
+          - config.schema:restricted_safe_common_mart_marketing
+          - config.schema:restricted_safe_common_mart_product
+          - config.schema:restricted_safe_common_prep
+          - config.schema:restricted_safe_legacy
+          - config.schema:restricted_safe_workspace_finance
+          - config.schema:restricted_safe_workspace_sales
+          - config.schema:restricted_safe_workspace_marketing
+          - config.schema:restricted_safe_workspace_engineering
+          - config.schema:restricted_safe_workspace_product
+
+  - name: contiguous_list
+    description: This selector designed for use with the `make build-changes` command and will select the intersection of the passed list of models.
+    definition:
+      intersection: [{"union": "{{ var('DOWNSTREAM_LIST','[]').split(',') }}"},{"union": "{{ var('UPSTREAM_LIST','[]').split(',') }}"}]

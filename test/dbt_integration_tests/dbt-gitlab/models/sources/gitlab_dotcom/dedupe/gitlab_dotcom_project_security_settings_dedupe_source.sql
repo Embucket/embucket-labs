@@ -1,0 +1,1 @@
+{{ dedupe_source(source_table='project_security_settings', unique_key='project_id') }}

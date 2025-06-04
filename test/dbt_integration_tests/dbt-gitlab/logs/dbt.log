@@ -1,0 +1,139 @@
+[0m21:10:45.277049 [info ] [MainThread]: 
+[0m21:10:45.284286 [error] [MainThread]:   Database Error in model zuora_credit_balance_adjustment_source (models/sources/zuora/zuora_credit_balance_adjustment_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_stitch.creditbalanceadjustment' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora/zuora_credit_balance_adjustment_source.sql
+[0m21:10:45.284591 [info ] [MainThread]: 
+[0m21:10:45.284858 [error] [MainThread]:   Database Error in model zuora_central_sandbox_order_action_source (models/sources/zuora_central_sandbox/zuora_central_sandbox_order_action_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_central_sandbox_fivetran.order_action' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_central_sandbox/zuora_central_sandbox_order_action_source.sql
+[0m21:10:45.285082 [info ] [MainThread]: 
+[0m21:10:45.285329 [error] [MainThread]:   Database Error in model zuora_rate_plan_charge_source (models/sources/zuora/zuora_rate_plan_charge_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_stitch.rateplancharge' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora/zuora_rate_plan_charge_source.sql
+[0m21:10:45.285545 [info ] [MainThread]: 
+[0m21:10:45.285787 [error] [MainThread]:   Database Error in model zuora_product_rate_plan_charge_tier_source (models/sources/zuora/zuora_product_rate_plan_charge_tier_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_stitch.productrateplanchargetier' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora/zuora_product_rate_plan_charge_tier_source.sql
+[0m21:10:45.286000 [info ] [MainThread]: 
+[0m21:10:45.286244 [error] [MainThread]:   Database Error in model zuora_revenue_book_source (models/sources/zuora_revenue/zuora_revenue_book_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_book' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_book_source.sql
+[0m21:10:45.286454 [info ] [MainThread]: 
+[0m21:10:45.286700 [error] [MainThread]:   Database Error in model zuora_revenue_revenue_contract_schedule_deleted_source (models/sources/zuora_revenue/zuora_revenue_revenue_contract_schedule_deleted_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_rc_schd_del' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_revenue_contract_schedule_deleted_source.sql
+[0m21:10:45.286917 [info ] [MainThread]: 
+[0m21:10:45.287161 [error] [MainThread]:   Database Error in model zuora_revenue_revenue_contract_bill_source (models/sources/zuora_revenue/zuora_revenue_revenue_contract_bill_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_rc_bill' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_revenue_contract_bill_source.sql
+[0m21:10:45.287376 [info ] [MainThread]: 
+[0m21:10:45.287615 [error] [MainThread]:   Database Error in model zuora_revenue_manual_journal_entry_source (models/sources/zuora_revenue/zuora_revenue_manual_journal_entry_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_mje' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_manual_journal_entry_source.sql
+[0m21:10:45.287830 [info ] [MainThread]: 
+[0m21:10:45.288075 [error] [MainThread]:   Database Error in model zuora_revenue_organization_source (models/sources/zuora_revenue/zuora_revenue_organization_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_org' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_organization_source.sql
+[0m21:10:45.288288 [info ] [MainThread]: 
+[0m21:10:45.288529 [error] [MainThread]:   Database Error in model zuora_revenue_schedule_item_snapshots_source (models/legacy/snapshots/base/zuora_revenue_schedule_item_snapshots_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.snapshots.zuora_revenue_schedule_item_snapshots' not found
+  compiled code at target/run/gitlab_snowflake/models/legacy/snapshots/base/zuora_revenue_schedule_item_snapshots_source.sql
+[0m21:10:45.288747 [info ] [MainThread]: 
+[0m21:10:45.289069 [error] [MainThread]:   Database Error in model zuora_rate_plan_charge_tier_source (models/sources/zuora/zuora_rate_plan_charge_tier_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_stitch.rateplanchargetier' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora/zuora_rate_plan_charge_tier_source.sql
+[0m21:10:45.289289 [info ] [MainThread]: 
+[0m21:10:45.289521 [error] [MainThread]:   Database Error in model zuora_product_source (models/sources/zuora/zuora_product_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_stitch.product' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora/zuora_product_source.sql
+[0m21:10:45.289727 [info ] [MainThread]: 
+[0m21:10:45.289955 [error] [MainThread]:   Database Error in model zuora_revenue_waterfall_source (models/sources/zuora_revenue/zuora_revenue_waterfall_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_wf_summ' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_waterfall_source.sql
+[0m21:10:45.290159 [info ] [MainThread]: 
+[0m21:10:45.290392 [error] [MainThread]:   Database Error in model zuora_refund_snapshots_source (models/legacy/snapshots/base/zuora_refund_snapshots_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.snapshots.zuora_refund_snapshots' not found
+  compiled code at target/run/gitlab_snowflake/models/legacy/snapshots/base/zuora_refund_snapshots_source.sql
+[0m21:10:45.290595 [info ] [MainThread]: 
+[0m21:10:45.290827 [error] [MainThread]:   Database Error in model zuora_revenue_revenue_contract_performance_obligation_source (models/sources/zuora_revenue/zuora_revenue_revenue_contract_performance_obligation_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_rc_pob' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_revenue_contract_performance_obligation_source.sql
+[0m21:10:45.291033 [info ] [MainThread]: 
+[0m21:10:45.291258 [error] [MainThread]:   Database Error in model zuora_product_snapshots_source (models/legacy/snapshots/base/zuora_product_snapshots_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.snapshots.zuora_product_snapshots' not found
+  compiled code at target/run/gitlab_snowflake/models/legacy/snapshots/base/zuora_product_snapshots_source.sql
+[0m21:10:45.291461 [info ] [MainThread]: 
+[0m21:10:45.291690 [error] [MainThread]:   Database Error in model zuora_rate_plan_snapshots_source (models/legacy/snapshots/restricted_safe/zuora_rate_plan_snapshots_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.snapshots.zuora_rateplan_snapshots' not found
+  compiled code at target/run/gitlab_snowflake/models/legacy/snapshots/restricted_safe/zuora_rate_plan_snapshots_source.sql
+[0m21:10:45.291892 [info ] [MainThread]: 
+[0m21:10:45.292121 [error] [MainThread]:   Database Error in model zuora_revenue_approval_detail_source (models/sources/zuora_revenue/zuora_revenue_approval_detail_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_appr_dtl' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_approval_detail_source.sql
+[0m21:10:45.292321 [info ] [MainThread]: 
+[0m21:10:45.292548 [error] [MainThread]:   Database Error in model zuora_product_rate_plan_source (models/sources/zuora/zuora_product_rate_plan_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_stitch.productrateplan' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora/zuora_product_rate_plan_source.sql
+[0m21:10:45.292754 [info ] [MainThread]: 
+[0m21:10:45.292978 [error] [MainThread]:   Database Error in model zuora_revenue_schedule_item_source (models/sources/zuora/zuora_revenue_schedule_item_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_stitch.revenuescheduleitem' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora/zuora_revenue_schedule_item_source.sql
+[0m21:10:45.293179 [info ] [MainThread]: 
+[0m21:10:45.293403 [error] [MainThread]:   Database Error in model zuora_rate_plan_source (models/sources/zuora/zuora_rate_plan_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_stitch.rateplan' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora/zuora_rate_plan_source.sql
+[0m21:10:45.293603 [info ] [MainThread]: 
+[0m21:10:45.293832 [error] [MainThread]:   Database Error in model zuora_revenue_revenue_contract_schedule_source (models/sources/zuora_revenue/zuora_revenue_revenue_contract_schedule_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_rc_schd' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_revenue_contract_schedule_source.sql
+[0m21:10:45.294031 [info ] [MainThread]: 
+[0m21:10:45.294253 [error] [MainThread]:   Database Error in model zuora_refund_source (models/sources/zuora/zuora_refund_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_stitch.refund' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora/zuora_refund_source.sql
+[0m21:10:45.294450 [info ] [MainThread]: 
+[0m21:10:45.294680 [error] [MainThread]:   Database Error in model zuora_rate_plan_charge_snapshots_source (models/legacy/snapshots/restricted_safe/zuora_rate_plan_charge_snapshots_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.snapshots.zuora_rateplancharge_snapshots' not found
+  compiled code at target/run/gitlab_snowflake/models/legacy/snapshots/restricted_safe/zuora_rate_plan_charge_snapshots_source.sql
+[0m21:10:45.294879 [info ] [MainThread]: 
+[0m21:10:45.295109 [error] [MainThread]:   Database Error in model zuora_product_rate_plan_snapshots_source (models/legacy/snapshots/base/zuora_product_rate_plan_snapshots_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.snapshots.zuora_product_rate_plan_snapshots' not found
+  compiled code at target/run/gitlab_snowflake/models/legacy/snapshots/base/zuora_product_rate_plan_snapshots_source.sql
+[0m21:10:45.295311 [info ] [MainThread]: 
+[0m21:10:45.295544 [error] [MainThread]:   Database Error in model zuora_revenue_revenue_contract_header_source (models/sources/zuora_revenue/zuora_revenue_revenue_contract_header_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_rc_head' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_revenue_contract_header_source.sql
+[0m21:10:45.295746 [info ] [MainThread]: 
+[0m21:10:45.295974 [error] [MainThread]:   Database Error in model zuora_revenue_accounting_type_source (models/sources/zuora_revenue/zuora_revenue_accounting_type_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_acct_type' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_accounting_type_source.sql
+[0m21:10:45.296176 [info ] [MainThread]: 
+[0m21:10:45.296401 [error] [MainThread]:   Database Error in model zuora_refund_invoice_payment_source (models/sources/zuora/zuora_refund_invoice_payment_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_stitch.refundinvoicepayment' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora/zuora_refund_invoice_payment_source.sql
+[0m21:10:45.296605 [info ] [MainThread]: 
+[0m21:10:45.296840 [error] [MainThread]:   Database Error in model zuora_product_rate_plan_charge_tier_snapshots_source (models/legacy/snapshots/base/zuora_product_rate_plan_charge_tier_snapshots_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.snapshots.zuora_product_rate_plan_charge_tier_snapshots' not found
+  compiled code at target/run/gitlab_snowflake/models/legacy/snapshots/base/zuora_product_rate_plan_charge_tier_snapshots_source.sql
+[0m21:10:45.297040 [info ] [MainThread]: 
+[0m21:10:45.297266 [error] [MainThread]:   Database Error in model zuora_revenue_calendar_source (models/sources/zuora_revenue/zuora_revenue_calendar_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_calendar' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_calendar_source.sql
+[0m21:10:45.297463 [info ] [MainThread]: 
+[0m21:10:45.297687 [error] [MainThread]:   Database Error in model zuora_invoice_payment_source (models/sources/zuora/zuora_invoice_payment_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_stitch.invoicepayment' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora/zuora_invoice_payment_source.sql
+[0m21:10:45.297889 [info ] [MainThread]: 
+[0m21:10:45.298122 [error] [MainThread]:   Database Error in model zuora_revenue_revenue_contract_line_source (models/sources/zuora_revenue/zuora_revenue_revenue_contract_line_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_rc_lns' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_revenue_contract_line_source.sql
+[0m21:10:45.298323 [info ] [MainThread]: 
+[0m21:10:45.298551 [error] [MainThread]:   Database Error in model zuora_revenue_revenue_contract_hold_source (models/sources/zuora_revenue/zuora_revenue_revenue_contract_hold_source.sql)
+  000200: DataFusion error: Error during planning: table 'embucket.zuora_revenue.bi3_rc_hold' not found
+  compiled code at target/run/gitlab_snowflake/models/sources/zuora_revenue/zuora_revenue_revenue_contract_hold_source.sql
+[0m21:10:45.299706 [info ] [MainThread]: 
+[0m21:10:45.299926 [info ] [MainThread]: Done. PASS=4 WARN=0 ERROR=863 SKIP=721 TOTAL=1588
+[0m21:10:45.324693 [debug] [MainThread]: Resource report: {"command_name": "run", "command_success": false, "command_wall_clock_time": 77.183174, "process_in_blocks": "0", "process_kernel_time": 2.582238, "process_mem_max_rss": "903200768", "process_out_blocks": "0", "process_user_time": 67.127235}
+[0m21:10:45.325234 [debug] [MainThread]: Command `dbt run` failed at 21:10:45.325052 after 77.18 seconds
+[0m21:10:45.325579 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1123dbf70>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1147aca00>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x112356dc0>]}
+[0m21:10:45.325859 [debug] [MainThread]: Flushing usage events
+[0m21:10:45.909973 [debug] [MainThread]: An error was encountered while trying to flush usage events

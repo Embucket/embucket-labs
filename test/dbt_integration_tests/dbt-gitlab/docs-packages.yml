@@ -1,0 +1,15 @@
+# Copy of packages.yml with the private data_tests package removed
+packages:
+  - git: git@gitlab.com:gitlab-data/snowflake_spend.git
+    revision: "updates_for_dbt_1_1"
+    warn-unpinned: false
+  - package: dbt-labs/audit_helper
+    version: 0.12.0
+  - package: dbt-labs/dbt_utils
+    version: 1.2.0
+  - package: dbt-labs/snowplow
+    version: 0.15.1
+  - package: dbt-labs/dbt_external_tables
+    version: 0.9.0
+  - package: brooklyn-data/dbt_artifacts
+    version: 2.6.3

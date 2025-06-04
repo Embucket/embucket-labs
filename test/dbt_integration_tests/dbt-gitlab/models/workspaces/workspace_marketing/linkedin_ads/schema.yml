@@ -1,0 +1,5 @@
+version: 2
+
+models:
+  - name: linkedin_ads
+    description: '{{ doc("linkedin_ads") }}'

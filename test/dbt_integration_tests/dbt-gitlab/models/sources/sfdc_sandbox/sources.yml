@@ -1,0 +1,29 @@
+version: 2
+
+sources:
+  - name: salesforce_sandbox
+    tags: ["tdf","sfdc"]
+    database: '{{ env_var("SNOWFLAKE_LOAD_DATABASE") }}'
+    schema: salesforce_stitch_sandbox_v2
+    loader: Stitch
+    loaded_at_field: _sdc_batched_at
+
+    quoting:
+      database: false
+      schema: false
+      identifier: false
+
+    freshness:
+        error_after: {count: 24, period: hour}
+
+    tables:
+      - name: account
+        description: '{{ doc("sfdc_account_source") }}'
+      - name: opportunity
+        description: '{{ doc("sfdc_opp_source") }}'
+      - name: user
+        description: '{{ doc("sfdc_user_source") }}'
+      - name: user_role
+        identifier: userrole
+      - name: lead
+      - name: contact

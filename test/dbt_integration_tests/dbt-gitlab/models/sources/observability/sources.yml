@@ -1,0 +1,34 @@
+version: 2
+
+sources:
+  - name: monte_carlo_prod_insights
+    database: "MONTE_CARLO"
+    schema: prod_insights
+    loader: Snowflake Data Exchange
+
+    quoting:
+      database: false
+      schema: false
+      identifier: false
+
+    tables:
+      - name: key_assets
+        identifier: key_assets
+      - name: monitors
+        identifier: monitors
+      - name: cleanup_suggestions
+        identifier: cleanup_suggestions
+      - name: custom_rules
+        identifier: custom_rules
+      - name: dashboard_analytics
+        identifier: dashboard_analytics
+      - name: field_cleanup_suggestions
+        identifier: field_cleanup_suggestions
+      - name: incident_history
+        identifier: incident_history
+      - name: monitor_issues_and_solutions
+        identifier: monitor_issues_and_solutions
+      - name: monitor_recom_field_health
+        identifier: monitor_recom_field_health
+      - name: events
+        identifier: events
