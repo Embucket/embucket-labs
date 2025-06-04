@@ -11,7 +11,7 @@ pub struct QueryContext {
     pub schema: Option<String>,
     pub worksheet_id: Option<i64>,
     pub query_id: i64,
-    pub ip_address: String,
+    pub ip_address: Option<String>,
 }
 
 impl QueryContext {
@@ -26,7 +26,7 @@ impl QueryContext {
             schema,
             worksheet_id,
             query_id: Default::default(),
-            ip_address: String::default(),
+            ip_address: None,
         }
     }
 
@@ -38,7 +38,7 @@ impl QueryContext {
 
     #[must_use]
     pub fn with_ip_address(mut self, ip_address: String) -> Self {
-        self.ip_address = ip_address;
+        self.ip_address = Some(ip_address);
         self
     }
 }

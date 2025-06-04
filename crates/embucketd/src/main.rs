@@ -185,7 +185,8 @@ async fn main() {
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
         .layer(TimeoutLayer::new(std::time::Duration::from_secs(1200)))
-        .layer(CatchPanicLayer::new());
+        .layer(CatchPanicLayer::new())
+        .into_make_service_with_connect_info::<SocketAddr>();
 
     // Runs static assets server in background
     run_web_assets_server(&static_web_config)
@@ -199,13 +200,10 @@ async fn main() {
         .expect("Failed to bind to address");
     let addr = listener.local_addr().expect("Failed to get local address");
     tracing::info!("Listening on http://{}", addr);
-    axum::serve(
-        listener,
-        router.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())))
-    .await
-    .expect("Failed to start server");
+    axum::serve(listener, router)
+        .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())))
+        .await
+        .expect("Failed to start server");
 }
 
 /// This func will wait for a signal to shutdown the service.

@@ -74,7 +74,7 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+// #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     DFSessionId(session_id): DFSessionId,

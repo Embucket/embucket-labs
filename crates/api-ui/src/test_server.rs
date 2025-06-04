@@ -42,7 +42,8 @@ pub async fn run_test_server_with_demo_auth(
         },
         auth_config,
     )
-    .unwrap();
+    .unwrap()
+    .into_make_service_with_connect_info::<SocketAddr>();
 
     tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
