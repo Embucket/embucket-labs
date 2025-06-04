@@ -19,3 +19,29 @@ test_query!(
     ) AS t(a, b)",
     snapshot_path = "jarowinkler_similarity"
 );
+
+test_query!(
+    table_input,
+    "SELECT s, t,
+       JAROWINKLER_SIMILARITY(s, t),
+       JAROWINKLER_SIMILARITY(t, s)
+  FROM ed
+  ORDER BY s, t;",
+    setup_queries = [
+        "CREATE OR REPLACE TABLE ed (
+  s VARCHAR,
+  t VARCHAR
+);",
+        "INSERT INTO ed (s, t) VALUES
+  ('', ''),
+  ('Gute nacht', 'Ich weis nicht'),
+  ('Ich weiß nicht', 'Ich wei? nicht'),
+  ('Ich weiß nicht', 'Ich weiss nicht'),
+  ('Ich weiß nicht', NULL),
+  ('Snowflake', 'Oracle'),
+  ('święta', 'swieta'),
+  (NULL, ''),
+  (NULL, NULL);"
+    ],
+    snapshot_path = "jarowinkler_similarity"
+);

@@ -75,6 +75,9 @@ impl ScalarUDFImpl for JarowinklerSimilarityFunc {
         let result = crate::macros::izip!(left.iter(), right.iter())
             .map(|(l, r)| {
                 if let (Some(lv), Some(rv)) = (l, r) {
+                    if lv.is_empty() || rv.is_empty() {
+                        return Some(0);
+                    }
                     let lv = lv.to_lowercase();
                     let rv = rv.to_lowercase();
                     let sim = jaro_winkler(&lv, &rv);
