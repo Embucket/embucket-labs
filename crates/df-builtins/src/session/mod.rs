@@ -81,6 +81,11 @@ fn current_session_udf() -> ScalarUDF {
     create_session_context_udf!("current_session", "default")
 }
 
+/// Returns the IP address of the client that submitted the request.
+fn current_ip_address_udf() -> ScalarUDF {
+    create_session_context_udf!("current_ip_address", "")
+}
+
 pub fn register_session_context_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let udfs = [
         current_database_udf(),
@@ -92,6 +97,7 @@ pub fn register_session_context_udfs(registry: &mut dyn FunctionRegistry) -> Res
         current_role_type_udf(),
         current_role_udf(),
         current_session_udf(),
+        current_ip_address_udf(),
     ];
 
     for udf in udfs {

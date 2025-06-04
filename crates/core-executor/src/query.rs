@@ -10,7 +10,7 @@ use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::models::{QueryContext, QueryResult};
-use core_history::history_store::HistoryStore;
+use core_history::HistoryStore;
 use core_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
     TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat,

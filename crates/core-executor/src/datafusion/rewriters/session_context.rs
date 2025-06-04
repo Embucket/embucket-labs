@@ -84,6 +84,7 @@ impl TreeNodeRewriter for ExprRewriter<'_> {
                 "current_version" => Some(utf8_val(&self.rewriter.version)),
                 "current_client" => Some(utf8_val(format!("Embucket {}", &self.rewriter.version))),
                 "current_session" => Some(utf8_val(&self.rewriter.session_id)),
+                "current_ip_address" => Some(utf8_val(&self.rewriter.query_context.ip_address)),
                 "last_query_id" => {
                     let index = match fun.args.first() {
                         Some(Expr::Literal(value)) => value.clone().try_into().unwrap_or(-1),

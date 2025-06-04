@@ -167,7 +167,7 @@ macro_rules! test_query {
                     )*
                 )?
 
-                let mut query = ctx.query($query, $crate::models::QueryContext::default());
+                let mut query = ctx.query($query, $crate::models::QueryContext::default().with_ip_address("test_ip".to_string()));
                 let res = query.execute().await;
                 let sort_all = false $(|| $sort_all)?;
                 let excluded_columns: std::collections::HashSet<&str> = std::collections::HashSet::from([
@@ -598,6 +598,11 @@ test_query!(
     session_current_session,
     // Check only length of session id since it is dynamic uuid
     "SELECT length(CURRENT_SESSION())",
+    snapshot_path = "session"
+);
+test_query!(
+    session_current_ip_address,
+    "SELECT CURRENT_IP_ADDRESS()",
     snapshot_path = "session"
 );
 

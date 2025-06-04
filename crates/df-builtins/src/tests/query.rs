@@ -31,3 +31,8 @@ test_query!(
     "SELECT LAST_QUERY_ID(), LAST_QUERY_ID(-1), LAST_QUERY_ID(2)",
     snapshot_path = "session"
 );
+test_query!(
+    session_current_ip_address,
+    "SELECT CURRENT_IP_ADDRESS()",
+    snapshot_path = "session"
+);

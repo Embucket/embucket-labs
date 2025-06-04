@@ -7,6 +7,7 @@ use crate::{
     queries::error::{QueriesAPIError, QueriesResult, QueryError, QuerySnafu},
 };
 use api_sessions::DFSessionId;
+use axum::extract::ConnectInfo;
 use axum::{
     Json,
     extract::{Query, State},
@@ -16,6 +17,7 @@ use core_history::{QueryRecordId, WorksheetId};
 use core_utils::iterable::IterableEntity;
 use snafu::ResultExt;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -72,8 +74,9 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+// #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Json(payload): Json<QueryCreatePayload>,
@@ -92,7 +95,8 @@ pub async fn query(
             .as_ref()
             .and_then(|c| c.get("schema").cloned()),
         payload.worksheet_id,
-    );
+    )
+    .with_ip_address(addr.ip().to_string());
 
     let query_res = state
         .execution_svc

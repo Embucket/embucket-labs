@@ -34,6 +34,7 @@ use dotenv::dotenv;
 use object_store::path::Path;
 use slatedb::{Db as SlateDb, config::DbOptions};
 use std::fs;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use time::Duration;
 use tokio::signal;
@@ -198,10 +199,13 @@ async fn main() {
         .expect("Failed to bind to address");
     let addr = listener.local_addr().expect("Failed to get local address");
     tracing::info!("Listening on http://{}", addr);
-    axum::serve(listener, router)
-        .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())))
-        .await
-        .expect("Failed to start server");
+    axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())))
+    .await
+    .expect("Failed to start server");
 }
 
 /// This func will wait for a signal to shutdown the service.
