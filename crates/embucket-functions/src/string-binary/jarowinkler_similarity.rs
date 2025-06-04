@@ -1,11 +1,11 @@
 use datafusion::arrow::{array::UInt64Array, datatypes::DataType};
 use datafusion::error::Result as DFResult;
+use datafusion::logical_expr::{Coercion, TypeSignature, TypeSignatureClass};
 use datafusion_common::cast::as_string_array;
+use datafusion_common::types::logical_string;
 use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::Arc;
-use datafusion::logical_expr::{Coercion, TypeSignature, TypeSignatureClass};
-use datafusion_common::types::logical_string;
 use strsim::jaro_winkler;
 
 #[derive(Debug)]
@@ -24,12 +24,10 @@ impl JarowinklerSimilarityFunc {
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(
-                vec![
-                    TypeSignature::Coercible(vec![
-                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                    ])
-                ],
+                vec![TypeSignature::Coercible(vec![
+                    Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                    Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                ])],
                 Volatility::Immutable,
             ),
         }
