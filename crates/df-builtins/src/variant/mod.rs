@@ -23,7 +23,7 @@ pub mod array_to_string;
 pub mod arrays_overlap;
 pub mod arrays_to_object;
 pub mod arrays_zip;
-mod as_func;
+pub mod as_func;
 pub mod object_construct;
 pub mod object_delete;
 pub mod object_insert;
