@@ -1,6 +1,6 @@
 pub use crate::aggregate::register_udafs;
-use crate::is_typeof::IsTypeofFunc;
 use crate::get::GetFunc;
+use crate::is_typeof::IsTypeofFunc;
 use crate::to_boolean::ToBooleanFunc;
 use crate::to_time::ToTimeFunc;
 use datafusion::arrow::array::{
@@ -46,7 +46,6 @@ mod time_from_parts;
 mod timestamp_from_parts;
 mod to_boolean;
 mod to_time;
-mod typeof_func;
 mod try_parse_json;
 pub mod variant;
 pub mod visitors;
@@ -74,7 +73,6 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         strtok_to_array::get_udf(),
         object_keys::get_udf(),
         try_parse_json::get_udf(),
-        get::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
