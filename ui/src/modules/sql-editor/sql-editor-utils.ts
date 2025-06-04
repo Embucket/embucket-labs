@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import type { SQLNamespace } from '@codemirror/lang-sql';
 
-import type { NavigationTreeDatabase } from '@/orval/models';
+import type { NavigationTreeDatabase, NavigationTreeTable } from '@/orval/models';
 
 export const transformNavigationTreeToSqlConfigSchema = (
   navigationTree?: NavigationTreeDatabase[],
@@ -23,7 +23,7 @@ export const transformNavigationTreeToSqlConfigSchema = (
 
     dbSchemas.forEach((schema) => {
       const schemaName = schema.name;
-      const schemaTables = schema.tables;
+      const schemaTables: NavigationTreeTable[] = [...schema.tables, ...schema.views];
 
       const schemaSelf = { label: schemaName, type: 'schema' };
       const schemaChildren = {} as SQLNamespace;
