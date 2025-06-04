@@ -34,7 +34,8 @@ time = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
 validator = { workspace = true }
-pprof = { version = "0.15", features = ["flamegraph"] }
+pprof2 = { version = "0.13.1", features = ["flamegraph", "_protobuf", "prost-codec", "prost-build"] }
+protobuf_codec = { version = "0.2.8" }
 
 [dev-dependencies]
 reqwest = "0.12.14"

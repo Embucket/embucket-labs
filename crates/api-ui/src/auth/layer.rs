@@ -47,17 +47,37 @@ pub async fn require_auth(
     let _ = get_claims_validate_jwt_token(access_token, &audience, jwt_secret)
         .context(BadAuthTokenSnafu)?;
 
-    let guard = pprof::ProfilerGuardBuilder::default().frequency(1000).blocklist(&["libc", "libgcc", "pthread", "vdso"]).build().unwrap();
+    // profiling
+    let guard = pprof2::ProfilerGuardBuilder::default().frequency(1000).blocklist(&["libc", "libgcc", "pthread", "vdso"]).build().unwrap();
     
     let res = Ok(next.run(req).await);
 
+    use std::io::Write;
+    use pprof2::protos::Message;
+    let ts = chrono::Utc::now().timestamp();
+    match guard.report().build() {
+        Ok(report) => {
+            let fname = format!("prof/profile_{}.pb", ts);
+            let mut file = std::fs::File::create(fname).unwrap();
+            let profile = report.pprof().unwrap();
+    
+            let mut content = Vec::new();
+            profile.encode(&mut content).unwrap();
+            file.write_all(&content).unwrap();
+    
+            // println!("report created: {:?}", &report);
+        }
+        Err(_) => {}
+    };
+
     if let Ok(report) = guard.report().build() {
-        let fname = format!("prof/flamegraph_{}.svg", chrono::Utc::now().timestamp());
+        let fname = format!("prof/flamegraph_{}.svg", ts);
         let file = std::fs::File::create(fname).unwrap();
-        let mut options = pprof::flamegraph::Options::default();
-        options.image_width = Some(5000);
+        let mut options = pprof2::flamegraph::Options::default();
+        // options.image_width = Some(5000);
         report.flamegraph_with_options(file, &mut options).unwrap();
     };
+    
     drop(guard);
 
     res

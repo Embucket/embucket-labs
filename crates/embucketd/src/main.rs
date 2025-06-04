@@ -32,6 +32,15 @@ use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use dotenv::dotenv;
 use object_store::path::Path;
+use opentelemetry::{global, trace::{Tracer, TracerProvider}};
+use opentelemetry_sdk::trace::SdkTracer;
+use opentelemetry_sdk::trace::TraceError;
+use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::Resource;
+use opentelemetry::KeyValue;
+use opentelemetry_otlp::{WithExportConfig, Protocol};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::Registry;
 use slatedb::{Db as SlateDb, config::DbOptions};
 use std::fs;
 use std::sync::Arc;
@@ -41,7 +50,6 @@ use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use tower_sessions::{Expiry, SessionManagerLayer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
 use utoipa::openapi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -59,13 +67,7 @@ static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 async fn main() {
     dotenv().ok();
 
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "embucketd=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let provider = init_tracer().await.expect("Failed to initialize tracer");
 
     let opts = cli::CliOpts::parse();
     let slatedb_prefix = opts.slatedb_prefix.clone();
@@ -202,6 +204,40 @@ async fn main() {
         .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())))
         .await
         .expect("Failed to start server");
+
+    provider.shutdown().expect("TracerProvider should shutdown successfully");
+}
+
+
+async fn init_tracer() -> Result<SdkTracerProvider, Box<dyn std::error::Error + Send + Sync>> {
+    let console_layer = console_subscriber::spawn();
+
+    // Initialize OTLP exporter using gRPC (Tonic)
+    let exporter = opentelemetry_otlp::SpanExporter::builder()
+        .with_tonic()
+        .build()
+        .expect("Failed to create OTLP exporter");
+
+    let provider = SdkTracerProvider::builder()
+        .with_batch_exporter(exporter)
+        .build();
+
+    let tracer = provider.tracer("my_tracer");
+
+    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer.clone());
+
+    tracing_subscriber::registry()
+        .with(console_layer)
+        .with(telemetry)
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "embucketd=debug,tower_http=debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    // tracing::subscriber::set_global_default(subscriber)?;        
+    Ok(provider)
 }
 
 /// This func will wait for a signal to shutdown the service.
