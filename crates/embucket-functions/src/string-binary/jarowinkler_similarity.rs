@@ -51,6 +51,11 @@ impl ScalarUDFImpl for JarowinklerSimilarityFunc {
         Ok(DataType::UInt64)
     }
 
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::as_conversions
+    )]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
 
