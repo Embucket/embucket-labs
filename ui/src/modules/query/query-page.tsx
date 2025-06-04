@@ -1,11 +1,10 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useParams } from '@tanstack/react-router';
 import { ArrowLeftIcon, DatabaseZap } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { QUERY_RECORDS_MOCK } from '@/mocks/query-records-mock';
-import type { QueryRecord } from '@/orval/models';
+import { useGetQuery } from '@/orval/queries';
 
 import { PageEmptyContainer } from '../shared/page/page-empty-container';
 import { PageHeader } from '../shared/page/page-header';
@@ -13,11 +12,13 @@ import { QueryDetails } from './query-details';
 import { QueryResultsTable } from './query-result-table';
 import { QuerySQL } from './query-sql';
 
-const QUERY_RECORD: QueryRecord | undefined = QUERY_RECORDS_MOCK[0];
-
 export function QueryPage() {
-  const columns = QUERY_RECORD?.result.columns ?? [];
-  const rows = QUERY_RECORD?.result.rows ?? [];
+  const { queryId } = useParams({ from: '/queries/$queryId/' });
+
+  const { data: queryRecord, isLoading } = useGetQuery(+queryId);
+
+  const columns = queryRecord?.result.columns ?? [];
+  const rows = queryRecord?.result.rows ?? [];
 
   return (
     <>
@@ -29,11 +30,11 @@ export function QueryPage() {
                 <ArrowLeftIcon className="size-4" />
               </Button>
             </Link>
-            <h1 className="text-lg">Query - {QUERY_RECORD?.id}</h1>
+            <h1 className="text-lg">Query - {queryRecord?.id}</h1>
           </div>
         }
       />
-      {!QUERY_RECORD ? (
+      {!queryRecord ? (
         <PageEmptyContainer
           Icon={DatabaseZap}
           title="Query not found"
@@ -45,11 +46,12 @@ export function QueryPage() {
           <div className="flex size-full flex-col p-4 pt-0">
             <ScrollArea tableViewport>
               <div className="mt-4 flex flex-col gap-4">
-                <QueryDetails queryRecord={QUERY_RECORD} />
+                <QueryDetails queryRecord={queryRecord} />
 
-                <QuerySQL queryRecord={QUERY_RECORD} />
-
-                <QueryResultsTable isLoading={false} rows={rows} columns={columns} />
+                <QuerySQL queryRecord={queryRecord} />
+                {!!rows.length && (
+                  <QueryResultsTable isLoading={isLoading} rows={rows} columns={columns} />
+                )}
               </div>
               <ScrollBar orientation="horizontal" />
             </ScrollArea>

@@ -30,6 +30,7 @@ import type { ErrorType } from '../lib/axiosMutator';
 import type {
   ErrorResponse,
   GetQueriesParams,
+  I64,
   QueriesResponse,
   QueryCreatePayload,
   QueryRecord,
@@ -331,3 +332,219 @@ export const useCreateQuery = <TError = ErrorType<ErrorResponse>, TContext = unk
 
   return useMutation(mutationOptions, queryClient);
 };
+export const getQuery = (
+  queryRecordId: I64,
+  options?: SecondParameter<typeof useAxiosMutator>,
+  signal?: AbortSignal,
+) => {
+  return useAxiosMutator<QueryRecord>(
+    { url: `/ui/queries/${queryRecordId}`, method: 'GET', signal },
+    options,
+  );
+};
+
+export const getGetQueryQueryKey = (queryRecordId: I64) => {
+  return [`/ui/queries/${queryRecordId}`] as const;
+};
+
+export const getGetQueryInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof getQuery>>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getQuery>>, TError, TData>>;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetQueryQueryKey(queryRecordId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getQuery>>> = ({ signal }) =>
+    getQuery(queryRecordId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!queryRecordId,
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<Awaited<ReturnType<typeof getQuery>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetQueryInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof getQuery>>>;
+export type GetQueryInfiniteQueryError = ErrorType<ErrorResponse>;
+
+export function useGetQueryInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getQuery>>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options: {
+    query: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getQuery>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getQuery>>,
+          TError,
+          Awaited<ReturnType<typeof getQuery>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetQueryInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getQuery>>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getQuery>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getQuery>>,
+          TError,
+          Awaited<ReturnType<typeof getQuery>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetQueryInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getQuery>>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getQuery>>, TError, TData>>;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+export function useGetQueryInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getQuery>>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getQuery>>, TError, TData>>;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetQueryInfiniteQueryOptions(queryRecordId, options);
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as UseInfiniteQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getGetQueryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getQuery>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getQuery>>, TError, TData>>;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetQueryQueryKey(queryRecordId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getQuery>>> = ({ signal }) =>
+    getQuery(queryRecordId, requestOptions, signal);
+
+  return { queryKey, queryFn, enabled: !!queryRecordId, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getQuery>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetQueryQueryResult = NonNullable<Awaited<ReturnType<typeof getQuery>>>;
+export type GetQueryQueryError = ErrorType<ErrorResponse>;
+
+export function useGetQuery<
+  TData = Awaited<ReturnType<typeof getQuery>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getQuery>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getQuery>>,
+          TError,
+          Awaited<ReturnType<typeof getQuery>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetQuery<
+  TData = Awaited<ReturnType<typeof getQuery>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getQuery>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getQuery>>,
+          TError,
+          Awaited<ReturnType<typeof getQuery>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetQuery<
+  TData = Awaited<ReturnType<typeof getQuery>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getQuery>>, TError, TData>>;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+export function useGetQuery<
+  TData = Awaited<ReturnType<typeof getQuery>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getQuery>>, TError, TData>>;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetQueryQueryOptions(queryRecordId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
