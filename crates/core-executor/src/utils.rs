@@ -808,4 +808,48 @@ mod tests {
             check_record_batches_uint_to_int(record_batches, converted_batches, column_infos);
         assert_eq!(fields_tested, 4);
     }
+
+    #[test]
+    fn test_convert_record_batches_dates() {
+        let date32_values = vec![Some(1), Some(2), None];
+        let date64_values = vec![Some(86_400_000), Some(172_800_000), None]; // 1, 2 days in ms
+
+        let date32_array = Arc::new(Date32Array::from(date32_values.clone())) as ArrayRef;
+        let date64_array = Arc::new(Date64Array::from(date64_values.clone())) as ArrayRef;
+
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("date32_col", DataType::Date32, true),
+            Field::new("date64_col", DataType::Date64, true),
+        ]));
+
+        let record_batch =
+            RecordBatch::try_new(schema.clone(), vec![date32_array, date64_array]).unwrap();
+        let query_result = QueryResult::new(vec![record_batch], schema, 0);
+        let converted_batches =
+            convert_record_batches(query_result, DataSerializationFormat::Json).unwrap();
+        let converted_batch = &converted_batches[0];
+
+        let result_date32 = converted_batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<Int32Array>()
+            .unwrap();
+        let result_date64 = converted_batch
+            .column(1)
+            .as_any()
+            .downcast_ref::<Int32Array>()
+            .unwrap();
+
+        for i in 0..3 {
+            assert_eq!(result_date32.is_null(i), date32_values[i].is_none());
+            assert_eq!(result_date64.is_null(i), date64_values[i].is_none());
+            if let (Some(orig32), Some(orig64)) = (date32_values[i], date64_values[i]) {
+                assert_eq!(result_date32.value(i), orig32);
+                assert_eq!(
+                    result_date64.value(i),
+                    i32::try_from(orig64 / 86_400_000).unwrap()
+                );
+            }
+        }
+    }
 }
