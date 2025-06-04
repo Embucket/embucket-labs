@@ -1,4 +1,4 @@
-use embucket_functions::test_query;
+use crate::test_query;
 
 // Basic similarity case-insensitive
 test_query!(

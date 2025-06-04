@@ -4,6 +4,8 @@ use datafusion_common::cast::as_string_array;
 use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::Arc;
+use datafusion::logical_expr::{Coercion, TypeSignature, TypeSignatureClass};
+use datafusion_common::types::logical_string;
 use strsim::jaro_winkler;
 
 #[derive(Debug)]
@@ -21,8 +23,13 @@ impl JarowinklerSimilarityFunc {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            signature: Signature::exact(
-                vec![DataType::Utf8, DataType::Utf8],
+            signature: Signature::one_of(
+                vec![
+                    TypeSignature::Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                    ])
+                ],
                 Volatility::Immutable,
             ),
         }
