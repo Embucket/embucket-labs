@@ -37,6 +37,7 @@ serde_yaml = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
+insta = "1.43.1"
 
 [lints]
 workspace = true
