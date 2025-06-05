@@ -57,13 +57,6 @@ test_query!(
     snapshot_path = "unimplemented"
 );
 
-// DATETIME_FUNCTIONS
-test_query!(
-    unimplemented_datetime_function,
-    "SELECT ADD_MONTHS('2023-01-01', 3)",
-    snapshot_path = "unimplemented"
-);
-
 // DIFFERENTIAL_PRIVACY_FUNCTIONS
 test_query!(
     unimplemented_differential_privacy_function,
