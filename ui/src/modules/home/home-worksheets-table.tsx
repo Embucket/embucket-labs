@@ -29,7 +29,7 @@ export function HomeWorksheetsTable({ isLoading, worksheets }: HomeWorksheetsTab
     columnHelper.accessor('content', {
       header: 'Content',
       meta: {
-        cellClassName: 'max-w-[300px] truncate',
+        cellClassName: 'max-w-[500px] truncate',
       },
     }),
     columnHelper.accessor('updatedAt', {
