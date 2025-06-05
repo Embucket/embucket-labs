@@ -1,3 +1,4 @@
+pub mod add_months;
 pub mod convert_timezone;
 pub mod date_add;
 pub mod date_diff;

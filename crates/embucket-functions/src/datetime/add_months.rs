@@ -1,35 +1,41 @@
-use crate::to_time::ToTimeFunc;
-use chrono::{
-    DateTime, Datelike, Duration, Months, NaiveDate, NaiveDateTime, NaiveTime, ParseError,
-    Timelike, Utc,
-};
-use datafusion::arrow::array::builder::Time64NanosecondBuilder;
-use datafusion::arrow::array::types::Time64NanosecondType;
-use datafusion::arrow::array::{Array, StringArray, TimestampNanosecondArray};
-use datafusion::arrow::array::{
-    TimestampMicrosecondArray, TimestampMillisecondArray, TimestampSecondArray,
-};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Utc};
+use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::{Coercible, Exact};
 use datafusion::logical_expr::{Coercion, ColumnarValue, TypeSignatureClass};
 use datafusion_common::{DataFusionError, ScalarValue, exec_err};
-use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
+use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::Arc;
 
+/// `ADD_MONTHS` SQL function
+///
+/// Adds or subtracts a specified number of months to a date or timestamp.
+///
+/// Syntax: `ADD_MONTHS(<date_or_timestamp>, <months>)`
+///
+/// Arguments:
+/// - `date_or_timestamp`: A date or timestamp value.
+/// - `months`: An integer value representing the number of months to add (positive) or subtract (negative).
+///
+/// Example: `SELECT ADD_MONTHS('2022-01-01', 1) AS value;`
+///
+/// Returns:
+/// - Returns a date or timestamp with the specified number of months added.
 #[derive(Debug)]
-pub struct AddMonths {
+pub struct AddMonthsFunc {
     signature: Signature,
 }
 
-impl Default for AddMonths {
+impl Default for AddMonthsFunc {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl AddMonths {
+impl AddMonthsFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(
@@ -47,12 +53,12 @@ impl AddMonths {
     }
 }
 
-impl ScalarUDFImpl for AddMonths {
+impl ScalarUDFImpl for AddMonthsFunc {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "add_months"
     }
 
@@ -61,9 +67,14 @@ impl ScalarUDFImpl for AddMonths {
     }
 
     fn return_type(&self, arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(arg_types[0].to_owned())
+        Ok(arg_types[0].clone())
     }
 
+    #[allow(
+        clippy::unwrap_used,
+        clippy::as_conversions,
+        clippy::cast_possible_truncation
+    )]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
 
@@ -90,10 +101,9 @@ impl ScalarUDFImpl for AddMonths {
             let new_naive = add_months(&naive, to_add as i32)
                 .ok_or_else(|| DataFusionError::Execution("can't parse date".to_string()))?;
 
-            let v = new_naive
-                .and_utc()
-                .timestamp_nanos_opt()
-                .expect("Timestamp out of range");
+            let v = new_naive.and_utc().timestamp_nanos_opt().ok_or_else(|| {
+                DataFusionError::Execution("timestamp is out of range".to_string())
+            })?;
             let tsv = ScalarValue::TimestampNanosecond(Some(v), None);
             res.push(tsv.cast_to(arr.data_type())?);
         }
@@ -108,6 +118,14 @@ impl ScalarUDFImpl for AddMonths {
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    clippy::cast_precision_loss,
+    clippy::as_conversions,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_wrap
+)]
 fn add_months(dt: &NaiveDateTime, months: i32) -> Option<NaiveDateTime> {
     let date = dt.date();
     let time = dt.time();
@@ -141,6 +159,7 @@ fn last_day_of_month(year: i32, month: u32) -> Option<u32> {
     Some(first_of_next_month.pred_opt()?.day())
 }
 
+crate::macros::make_udf_function!(AddMonthsFunc);
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,7 +170,7 @@ mod tests {
     #[tokio::test]
     async fn test_array_indexing() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(AddMonths::new()));
+        ctx.register_udf(ScalarUDF::from(AddMonthsFunc::new()));
 
         let sql = "SELECT add_months('2022-01-01 11:30:00'::timestamp AT TIME ZONE 'Europe/Brussels',-1) AS value;";
         let result = ctx.sql(sql).await?.collect().await?;

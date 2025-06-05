@@ -30,7 +30,6 @@ pub mod table;
 #[cfg(test)]
 pub mod tests;
 pub mod visitors;
-mod add_months;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
@@ -41,6 +40,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         datetime::timestamp_from_parts::get_udf(),
         datetime::time_from_parts::get_udf(),
         datetime::date_from_parts::get_udf(),
+        datetime::add_months::get_udf(),
         conditional::booland::get_udf(),
         conditional::boolor::get_udf(),
         conditional::boolxor::get_udf(),
