@@ -47,7 +47,7 @@ impl AggregateUDFImpl for ListAggUDAF {
     }
 
     fn accumulator(&self, acc_args: AccumulatorArgs) -> Result<Box<dyn Accumulator>> {
-        if acc_args.exprs.len() < 1 || acc_args.exprs.len() > 2 {
+        if acc_args.exprs.is_empty() || acc_args.exprs.len() > 2 {
             return exec_err!(
                 "LISTAGG requires 1 or 2 arguments, got {}",
                 acc_args.exprs.len()
@@ -95,11 +95,9 @@ impl ListAggAccumulator {
 
     fn append_value(&mut self, val: &str) {
         // If DISTINCT is enabled, check if we've seen this value before
-        if self.is_distinct {
-            if !self.seen_values.insert(val.to_string()) {
-                // Value already exists, skip it
-                return;
-            }
+        if self.is_distinct && !self.seen_values.insert(val.to_string()) {
+            // Value already exists, skip it
+            return;
         }
 
         match &mut self.result {
@@ -126,41 +124,35 @@ impl Accumulator for ListAggAccumulator {
 
         // Handle delimiter if present
         if values.len() > 1 && !self.delimiter_set {
-            match values[1].data_type() {
-                DataType::Null => {
-                    // Delimiter is NULL, keep default empty string
-                }
-                _ => {
-                    // Convert delimiter to string
-                    let delim_string_arr = compute::cast(&values[1], &DataType::Utf8)?;
-                    let delim_arr = as_string_array(&delim_string_arr);
-                    for i in 0..delim_arr.len() {
-                        if !delim_arr.is_null(i) {
-                            self.delimiter = delim_arr.value(i).to_string();
-                            self.delimiter_set = true;
-                            break;
-                        }
+            if values[1].data_type() == &DataType::Null {
+                // Delimiter is NULL, keep default empty string
+            } else {
+                // Convert delimiter to string
+                let delim_string_arr = compute::cast(&values[1], &DataType::Utf8)?;
+                let delim_arr = as_string_array(&delim_string_arr);
+                for i in 0..delim_arr.len() {
+                    if !delim_arr.is_null(i) {
+                        self.delimiter = delim_arr.value(i).to_string();
+                        self.delimiter_set = true;
+                        break;
                     }
                 }
             }
         }
 
         // Handle the main array - convert any type to string
-        match arr.data_type() {
-            DataType::Null => {
-                // All values are NULL - do nothing, will return empty string as per Snowflake spec
-            }
-            _ => {
-                // Convert the array to string representation
-                let string_arr = compute::cast(arr, &DataType::Utf8)?;
-                let string_arr = as_string_array(&string_arr);
+        if arr.data_type() == &DataType::Null {
+            // All values are NULL - do nothing, will return empty string as per Snowflake spec
+        } else {
+            // Convert the array to string representation
+            let string_arr = compute::cast(arr, &DataType::Utf8)?;
+            let string_arr = as_string_array(&string_arr);
 
-                for i in 0..string_arr.len() {
-                    if string_arr.is_null(i) {
-                        continue;
-                    }
-                    self.append_value(string_arr.value(i));
+            for i in 0..string_arr.len() {
+                if string_arr.is_null(i) {
+                    continue;
                 }
+                self.append_value(string_arr.value(i));
             }
         }
 
@@ -239,9 +231,9 @@ impl Accumulator for ListAggAccumulator {
 
     fn size(&self) -> usize {
         size_of_val(self)
-            + self.result.as_ref().map_or(0, |s| s.len())
+            + self.result.as_ref().map_or(0, std::string::String::len)
             + self.delimiter.len()
-            + self.seen_values.iter().map(|s| s.len()).sum::<usize>()
+            + self.seen_values.iter().map(std::string::String::len).sum::<usize>()
     }
 }
 
