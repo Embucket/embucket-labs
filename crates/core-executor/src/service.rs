@@ -65,7 +65,7 @@ impl CoreExecutionService {
 
 #[async_trait::async_trait]
 impl ExecutionService for CoreExecutionService {
-    #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(name = "ExecutionService::create_session", level = "debug", skip(self))]
     async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>> {
         {
             let sessions = self.df_sessions.read().await;
@@ -90,7 +90,7 @@ impl ExecutionService for CoreExecutionService {
         Ok(user_session)
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(name = "ExecutionService::delete_session", level = "debug", skip(self))]
     async fn delete_session(&self, session_id: String) -> ExecutionResult<()> {
         // TODO: Need to have a timeout for the lock
         let mut session_list = self.df_sessions.write().await;
@@ -98,7 +98,7 @@ impl ExecutionService for CoreExecutionService {
         Ok(())
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(name = "ExecutionService::query", level = "debug", skip(self))]
     #[allow(clippy::large_futures)]
     async fn query(
         &self,
@@ -139,7 +139,7 @@ impl ExecutionService for CoreExecutionService {
         query_result
     }
 
-    #[tracing::instrument(level = "debug", skip(self, data))]
+    #[tracing::instrument(name = "ExecutionService::upload_data_to_table", level = "debug", skip(self, data))]
     async fn upload_data_to_table(
         &self,
         session_id: &str,

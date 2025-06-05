@@ -86,7 +86,6 @@ pub trait HistoryStore: std::fmt::Debug + Send + Sync {
     );
 }
 
-#[instrument(level = "trace", skip(db), err)]
 async fn queries_iterator(
     db: &Db,
     cursor: Option<QueryRecordId>,
@@ -98,7 +97,6 @@ async fn queries_iterator(
         .context(errors::GetWorksheetQueriesSnafu)
 }
 
-#[instrument(level = "trace", skip(db), err)]
 async fn worksheet_queries_references_iterator(
     db: &Db,
     worksheet_id: WorksheetId,

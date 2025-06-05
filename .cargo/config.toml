@@ -3,6 +3,7 @@ WEB_ASSETS_SOURCE_PATH = { value = "ui/dist", relative = true }
 WEB_ASSETS_TARBALL_PATH = { value = "ui/dist.tar", relative = true }
 
 [build]
+# Add tokio unstable features for tokio-console
 rustflags = ["--cfg", "tokio_unstable"]
 
 [alias]

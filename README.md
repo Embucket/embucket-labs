@@ -151,6 +151,9 @@ dbt seed
 dbt run -m snowplow_web
 ```
 
+## Debugging
+Check [TRACING_AND_PROFILING.md](crates/embucketd/TRACING_AND_PROFILING.md) for information on how to trace and profile embucket service.
+
 ## Contributing  
 
 We welcome contributions! To get involved:  

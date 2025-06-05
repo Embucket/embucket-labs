@@ -32,15 +32,10 @@ use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use dotenv::dotenv;
 use object_store::path::Path;
-use opentelemetry::{global, trace::{Tracer, TracerProvider}};
-use opentelemetry_sdk::trace::SdkTracer;
-use opentelemetry_sdk::trace::TraceError;
+use opentelemetry::{trace::TracerProvider};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::Resource;
-use opentelemetry::KeyValue;
-use opentelemetry_otlp::{WithExportConfig, Protocol};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use tracing_subscriber::Registry;
 use slatedb::{Db as SlateDb, config::DbOptions};
 use std::fs;
 use std::net::SocketAddr;
@@ -68,9 +63,10 @@ static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 async fn main() {
     dotenv().ok();
 
-    let provider = setup_tracing().await.expect("Failed to initialize tracer");
-
     let opts = cli::CliOpts::parse();
+
+    let provider = setup_tracing(&opts).await.expect("Failed to initialize tracer");
+
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let data_format = opts
         .data_format
@@ -211,7 +207,8 @@ async fn main() {
 }
 
 
-async fn setup_tracing() -> Result<SdkTracerProvider, Box<dyn std::error::Error + Send + Sync>> {
+async fn setup_tracing(opts: &cli::CliOpts) -> Result<SdkTracerProvider, Box<dyn std::error::Error + Send + Sync>> {
+    // tokio-console support
     let console_layer = console_subscriber::spawn();
 
     // Initialize OTLP exporter using gRPC (Tonic)
@@ -237,14 +234,7 @@ async fn setup_tracing() -> Result<SdkTracerProvider, Box<dyn std::error::Error 
     tracing_subscriber::registry()
         .with(console_layer)
         .with(telemetry)
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "embucketd=debug,tower_http=debug".into())
-                // .add_directive("tokio=off".parse().expect("Invalid directive tokio=off"))
-                .add_directive("tower_sessions_core=off".parse().expect("Invalid directive tower_sessions_core=off"))
-                .add_directive("tower_sessions=off".parse().expect("Invalid directive tower_sessions=off"))
-                .add_directive("tower_http=off".parse().expect("Invalid directive tower_http=off"))
-        )
+        .with(opts.tracing_env_filter())
         .with(tracing_subscriber::fmt::layer())
         .init();
 

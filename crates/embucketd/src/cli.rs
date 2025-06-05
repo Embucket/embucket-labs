@@ -163,6 +163,15 @@ pub struct CliOpts {
         help = "Password for auth demo"
     )]
     pub auth_demo_password: Option<String>,
+
+    #[arg(
+        long,
+        value_enum,
+        env = "TRACING_LEVEL",
+        default_value = "info",
+        help = "Tracing level, it can be overrided by *RUST_LOG* env var"
+    )]
+    pub tracing_level: TracingLevel,    
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -211,11 +220,50 @@ impl CliOpts {
         }
     }
 
+    #[allow(clippy::unwrap_used, clippy::as_conversions)]
+    pub fn tracing_env_filter(&self) -> tracing_subscriber::EnvFilter {
+        let tracing_level = format!("{}", self.tracing_level);
+        let crates_trace_levels: String = match self.tracing_level {
+            TracingLevel::Off => "".into(),
+            _ => format!("{tracing_level},{}", [
+                "embucketd", "api_ui", "api_sessions", "api_snowflake_rest", "api_iceberg_rest",
+                "core_executor", "core_utils", "core_history", "core_metastore",
+            ].join(&format!("={},", self.tracing_level))),
+        };
+        tracing_subscriber::EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| {
+                println!("Infer from tracing level: RUST_LOG={}", crates_trace_levels);
+                crates_trace_levels.into()
+            })
+            .add_directive("tower_sessions_core=off".parse().expect("Invalid directive tower_sessions_core=off"))
+            .add_directive("tower_sessions=off".parse().expect("Invalid directive tower_sessions=off"))
+            .add_directive("tower_http=off".parse().expect("Invalid directive tower_http=off"))
+    }
+
     // method resets a secret env
     pub fn jwt_secret(&self) -> String {
         unsafe {
             std::env::remove_var("JWT_SECRET");
         }
         self.jwt_secret.clone().unwrap_or_default()
+    }
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum TracingLevel {
+    Off,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl std::fmt::Display for TracingLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Off => write!(f, "off"),
+            Self::Info => write!(f, "info"),
+            Self::Debug => write!(f, "debug"),
+            Self::Trace => write!(f, "trace"),
+        }
     }
 }

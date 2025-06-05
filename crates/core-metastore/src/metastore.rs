@@ -160,7 +160,6 @@ impl SlateDBMetastore {
         &self.db
     }
 
-    #[instrument(name = "SlateDBMetastore::iter_objects", level = "trace", skip(self))]
     fn iter_objects<T>(&self, iter_key: String) -> VecScanIterator<RwObject<T>>
     where
         T: serde::Serialize + DeserializeOwned + Eq + PartialEq + Send + Sync,

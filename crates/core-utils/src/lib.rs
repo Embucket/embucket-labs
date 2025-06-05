@@ -208,7 +208,7 @@ impl Db {
     ///
     /// Returns a `SerializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.
-    #[instrument(name = "Db::put_iterable_entity", level = "trace", skip(self, entity), err)]
+    #[instrument(name = "Db::put_iterable_entity", level = "trace", fields(key=format!("{:?}", entity.key())), skip(self, entity), err)]
     pub async fn put_iterable_entity<T: serde::Serialize + Sync + IterableEntity>(
         &self,
         entity: &T,
@@ -239,7 +239,7 @@ impl Db {
     ///
     /// Returns a `DeserializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.    
-    #[instrument(name = "Db::items_from_range", level = "trace", skip(self), err)]
+    #[instrument(name = "Db::items_from_range", level = "trace", skip(self), fields(items_count), err)]
     pub async fn items_from_range<
         R: RangeBounds<Bytes> + Send + Debug,
         T: for<'de> serde::de::Deserialize<'de> + IterableEntity + Sync + Send,
@@ -260,7 +260,10 @@ impl Db {
                 break;
             }
         }
-        tracing::info!(count = items.len(), "ret count items_from_range");
+
+        // Record the result as part of the current span.
+        tracing::Span::current().record("items_count", &items.len());
+
         Ok(items)
     }
 }

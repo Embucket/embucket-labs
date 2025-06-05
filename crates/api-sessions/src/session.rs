@@ -49,7 +49,7 @@ impl RequestSessionStore {
 
 #[async_trait::async_trait]
 impl SessionStore for RequestSessionStore {
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[tracing::instrument(name = "SessionStore::create", level = "trace", skip(self), err, ret)]
     async fn create(&self, record: &mut Record) -> session_store::Result<()> {
         let mut store_guard = self.store.lock().await;
         while store_guard.contains_key(&record.id) {
@@ -67,13 +67,13 @@ impl SessionStore for RequestSessionStore {
         Ok(())
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[tracing::instrument(name = "SessionStore::save", level = "trace", skip(self), err, ret)]
     async fn save(&self, record: &Record) -> session_store::Result<()> {
         self.store.lock().await.insert(record.id, record.clone());
         Ok(())
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[tracing::instrument(name = "SessionStore::load", level = "trace", skip(self), err, ret)]
     async fn load(&self, id: &Id) -> session_store::Result<Option<Record>> {
         Ok(self
             .store
@@ -84,7 +84,7 @@ impl SessionStore for RequestSessionStore {
             .cloned())
     }
 
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[tracing::instrument(name = "SessionStore::delete", level = "trace", skip(self), err, ret)]
     async fn delete(&self, id: &Id) -> session_store::Result<()> {
         let mut store_guard = self.store.lock().await;
         if let Some(record) = store_guard.get(id) {
@@ -102,7 +102,7 @@ impl SessionStore for RequestSessionStore {
 
 #[async_trait::async_trait]
 impl ExpiredDeletion for RequestSessionStore {
-    #[tracing::instrument(level = "trace", skip(self), err, ret)]
+    #[tracing::instrument(name = "ExpiredDeletion::delete_expired", level = "trace", skip(self), err, ret)]
     async fn delete_expired(&self) -> session_store::Result<()> {
         let store_guard = self.store.lock().await;
         let now = OffsetDateTime::now_utc();
