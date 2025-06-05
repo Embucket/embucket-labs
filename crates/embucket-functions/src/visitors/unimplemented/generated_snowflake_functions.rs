@@ -268,117 +268,92 @@ pub const AGGREGATE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
 ];
 
 pub const BITWISE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
-    (
+    ("BITAND", FunctionInfo::new(
         "BITAND",
-        FunctionInfo::new(
-            "BITAND",
-            "Returns the bitwise AND of two numeric or binary expressions.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitand"),
+        "Returns the bitwise AND of two numeric or binary expressions."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitand")
     ),
-    (
+    ("BITNOT", FunctionInfo::new(
         "BITNOT",
-        FunctionInfo::new(
-            "BITNOT",
-            "Returns the bitwise negation of a numeric or binary expression.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitnot"),
+        "Returns the bitwise negation of a numeric or binary expression."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitnot")
     ),
-    (
+    ("BITOR", FunctionInfo::new(
         "BITOR",
-        FunctionInfo::new(
-            "BITOR",
-            "Returns the bitwise OR of two numeric or binary expressions.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitor"),
+        "Returns the bitwise OR of two numeric or binary expressions."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitor")
     ),
-    (
+    ("BITSHIFTLEFT", FunctionInfo::new(
         "BITSHIFTLEFT",
-        FunctionInfo::new(
-            "BITSHIFTLEFT",
-            "Shifts the bits for a numeric or binary expression n positions to the left.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitshiftleft"),
+        "Shifts the bits for a numeric or binary expression n positions to the left."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitshiftleft")
     ),
-    (
+    ("BITSHIFTRIGHT", FunctionInfo::new(
         "BITSHIFTRIGHT",
-        FunctionInfo::new(
-            "BITSHIFTRIGHT",
-            "Shifts the bits for a numeric or binary expression n positions to the right.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitshiftright"),
+        "Shifts the bits for a numeric or binary expression n positions to the right."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitshiftright")
     ),
-    (
+    ("BITXOR", FunctionInfo::new(
         "BITXOR",
-        FunctionInfo::new(
-            "BITXOR",
-            "Returns the bitwise XOR of two numeric or binary expressions.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitxor"),
+        "Returns the bitwise XOR of two numeric or binary expressions."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/bitxor")
     ),
-    (
+    ("GETBIT", FunctionInfo::new(
         "GETBIT",
-        FunctionInfo::new(
-            "GETBIT",
-            "Given an INTEGER value, returns the value of a bit at a specified position.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/getbit"),
+        "Given an INTEGER value, returns the value of a bit at a specified position."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/getbit")
     ),
 ];
 
 pub const CONDITIONAL_FUNCTIONS: &[(&str, FunctionInfo)] = &[
-    (
+    ("BOOLNOT", FunctionInfo::new(
         "BOOLNOT",
-        FunctionInfo::new(
-            "BOOLNOT",
-            "Computes the Boolean NOT of a single numeric expression.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/boolnot"),
+        "Computes the Boolean NOT of a single numeric expression."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/boolnot")
     ),
-    (
+    ("CASE", FunctionInfo::new(
         "CASE",
-        FunctionInfo::new("CASE", "Works like a cascading “if-then-else” statement.")
-            .with_docs("https://docs.snowflake.com/en/sql-reference/functions/case"),
+        "Works like a cascading “if-then-else” statement."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/case")
     ),
-    (
+    ("GREATEST_IGNORE_NULLS", FunctionInfo::new(
         "GREATEST_IGNORE_NULLS",
-        FunctionInfo::new(
-            "GREATEST_IGNORE_NULLS",
-            "Returns the largest non-NULL value from a list of expressions.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/greatest_ignore_nulls"),
+        "Returns the largest non-NULL value from a list of expressions."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/greatest_ignore_nulls")
     ),
-    (
+    ("LEAST_IGNORE_NULLS", FunctionInfo::new(
         "LEAST_IGNORE_NULLS",
-        FunctionInfo::new(
-            "LEAST_IGNORE_NULLS",
-            "Returns the smallest non-NULL value from a list of expressions.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/least_ignore_nulls"),
+        "Returns the smallest non-NULL value from a list of expressions."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/least_ignore_nulls")
     ),
-    (
+    ("REGR_VALX", FunctionInfo::new(
         "REGR_VALX",
-        FunctionInfo::new(
-            "REGR_VALX",
-            "Returns NULL if the first argument is NULL; otherwise, returns the second argument.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/regr_valx"),
+        "Returns NULL if the first argument is NULL; otherwise, returns the second argument."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/regr_valx")
     ),
-    (
+    ("REGR_VALY", FunctionInfo::new(
         "REGR_VALY",
-        FunctionInfo::new(
-            "REGR_VALY",
-            "Returns NULL if the second argument is NULL; otherwise, returns the first argument.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/regr_valy"),
+        "Returns NULL if the second argument is NULL; otherwise, returns the first argument."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/regr_valy")
     ),
-    (
+    ("ZEROIFNULL", FunctionInfo::new(
         "ZEROIFNULL",
-        FunctionInfo::new(
-            "ZEROIFNULL",
-            "Returns 0 if its argument is null; otherwise, returns its argument.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/zeroifnull"),
+        "Returns 0 if its argument is null; otherwise, returns its argument."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/zeroifnull")
     ),
 ];
 
@@ -841,12 +816,6 @@ pub const DATA_QUALITY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
 ];
 
 pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
-    ("ADD_MONTHS", FunctionInfo::new(
-        "ADD_MONTHS",
-        "Adds or subtracts a specified number of months to a date or timestamp, preserving the end-of-month information."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/add_months")
-    ),
     ("DAY", FunctionInfo::new(
         "DAY",
         "Extracts the corresponding date part from a date or timestamp."
@@ -1705,11 +1674,14 @@ pub const GEOSPATIAL_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     ),
 ];
 
-pub const HASH_FUNCTIONS: &[(&str, FunctionInfo)] = &[(
-    "HASH",
-    FunctionInfo::new("HASH", "Returns a signed 64-bit hash value.")
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/hash"),
-)];
+pub const HASH_FUNCTIONS: &[(&str, FunctionInfo)] = &[
+    ("HASH", FunctionInfo::new(
+        "HASH",
+        "Returns a signed 64-bit hash value."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/hash")
+    ),
+];
 
 pub const ICEBERG_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     ("ICEBERG_TABLE_FILES", FunctionInfo::new(
@@ -3621,39 +3593,29 @@ pub const TABLE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
 ];
 
 pub const VECTOR_FUNCTIONS: &[(&str, FunctionInfo)] = &[
-    (
+    ("VECTOR_COSINE_SIMILARITY", FunctionInfo::new(
         "VECTOR_COSINE_SIMILARITY",
-        FunctionInfo::new(
-            "VECTOR_COSINE_SIMILARITY",
-            "Computes the cosine similarity between two vectors.",
-        )
-        .with_docs(
-            "https://docs.snowflake.com/en/sql-reference/functions/vector_cosine_similarity",
-        ),
+        "Computes the cosine similarity between two vectors."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/vector_cosine_similarity")
     ),
-    (
+    ("VECTOR_INNER_PRODUCT", FunctionInfo::new(
         "VECTOR_INNER_PRODUCT",
-        FunctionInfo::new(
-            "VECTOR_INNER_PRODUCT",
-            "Computes the inner product of two vectors.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/vector_inner_product"),
+        "Computes the inner product of two vectors."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/vector_inner_product")
     ),
-    (
+    ("VECTOR_L1_DISTANCE", FunctionInfo::new(
         "VECTOR_L1_DISTANCE",
-        FunctionInfo::new(
-            "VECTOR_L1_DISTANCE",
-            "Computes the L1 distance between two vectors.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/vector_l1_distance"),
+        "Computes the L1 distance between two vectors."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/vector_l1_distance")
     ),
-    (
+    ("VECTOR_L2_DISTANCE", FunctionInfo::new(
         "VECTOR_L2_DISTANCE",
-        FunctionInfo::new(
-            "VECTOR_L2_DISTANCE",
-            "Computes the L2 distance between two vectors.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/vector_l2_distance"),
+        "Computes the L2 distance between two vectors."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/vector_l2_distance")
     ),
 ];
 

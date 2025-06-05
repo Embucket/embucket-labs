@@ -1,12 +1,13 @@
 select DISTINCT routine_name from information_schema.routines order by routine_name
-abs                                
+abs
+add_months
 acos                               
 acosh                              
 any_value                          
 approx_distinct                    
 approx_median                      
 approx_percentile_cont             
-approx_percentile_cont_with_weight 
+approx_percentile_cont_with_weight
 array_agg                          
 array_any_value                    
 array_append                       
