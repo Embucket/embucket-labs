@@ -233,7 +233,11 @@ impl Accumulator for ListAggAccumulator {
         size_of_val(self)
             + self.result.as_ref().map_or(0, std::string::String::len)
             + self.delimiter.len()
-            + self.seen_values.iter().map(std::string::String::len).sum::<usize>()
+            + self
+                .seen_values
+                .iter()
+                .map(std::string::String::len)
+                .sum::<usize>()
     }
 }
 

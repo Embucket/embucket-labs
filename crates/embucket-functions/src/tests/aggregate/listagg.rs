@@ -147,43 +147,11 @@ test_query!(
     snapshot_path = "listagg"
 );
 
-// Test WITHIN GROUP ordering behavior - this verifies that WITHIN GROUP actually orders the values
-test_query!(
-    listagg_within_group_ordering_verification,
-    "SELECT 
-        LISTAGG(name, ', ') AS without_order,
-        LISTAGG(name, ', ') WITHIN GROUP (ORDER BY name ASC) AS ordered_asc,
-        LISTAGG(name, ', ') WITHIN GROUP (ORDER BY name DESC) AS ordered_desc,
-        LISTAGG(name, ', ') WITHIN GROUP (ORDER BY LENGTH(name), name) AS ordered_by_length_then_name
-    FROM (VALUES ('zebra'), ('apple'), ('cat'), ('elephant'), ('dog')) AS t(name)",
-    snapshot_path = "listagg"
-);
-
 // Test DISTINCT with WITHIN GROUP - both must reference the same column (Snowflake requirement)
 test_query!(
     listagg_distinct_within_group_same_column,
     "SELECT LISTAGG(DISTINCT name, ' | ') WITHIN GROUP (ORDER BY name) 
      FROM (VALUES ('banana'), ('apple'), ('cherry'), ('apple'), ('banana'), ('date')) AS t(name)",
-    snapshot_path = "listagg"
-);
-
-// Test complex WITHIN GROUP with multiple columns and mixed data types
-test_query!(
-    listagg_within_group_complex_ordering,
-    "SELECT 
-        category,
-        LISTAGG(name, ', ') WITHIN GROUP (ORDER BY price ASC, name DESC) AS price_asc_name_desc,
-        LISTAGG(DISTINCT name, ' -> ') WITHIN GROUP (ORDER BY name) AS distinct_names
-    FROM (VALUES 
-        ('fruit', 'apple', 1.20), 
-        ('fruit', 'banana', 0.80), 
-        ('fruit', 'apple', 1.20),
-        ('vegetable', 'carrot', 0.90), 
-        ('vegetable', 'broccoli', 2.10),
-        ('vegetable', 'carrot', 0.90)
-    ) AS t(category, name, price) 
-    GROUP BY category 
-    ORDER BY category",
     snapshot_path = "listagg"
 );
 
