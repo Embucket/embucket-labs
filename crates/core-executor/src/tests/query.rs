@@ -20,8 +20,8 @@ use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]
 #[test]
-fn test_postprocess_query_statement_functions_expressions() {
-    let args: [(&str, &str); 21] = [
+fn test_statement_postprocessing() {
+    let args: [(&str, &str); 25] = [
         ("select year(ts)", "SELECT date_part('year', ts)"),
         ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
         ("select day(ts)", "SELECT date_part('day', ts)"),
@@ -64,6 +64,26 @@ fn test_postprocess_query_statement_functions_expressions() {
         (
             "SELECT date_add(us, 100000, '2025-06-01')",
             "SELECT date_add('us', 100000, '2025-06-01')",
+        ),
+        // Unique expression names
+        (
+            "SELECT to_date('2024-05-10'), to_date('2024-05-10')",
+            "SELECT to_date('2024-05-10'), to_date('2024-05-10') AS expr_0",
+        ),
+        // Unique expression names with existing aliases
+        (
+            "SELECT TO_DATE('2024-05-10') AS dt, TO_DATE('2024-05-10') AS dt2",
+            "SELECT to_date('2024-05-10') AS dt, to_date('2024-05-10') AS dt2",
+        ),
+        // Unique expression names with some aliases
+        (
+            "SELECT TO_DATE('2024-05-10') AS dt, TO_DATE('2024-05-10')",
+            "SELECT to_date('2024-05-10') AS dt, to_date('2024-05-10')",
+        ),
+        // Unique expression names nested select
+        (
+            "SELECT (SELECT TO_DATE('2024-05-10'), TO_DATE('2024-05-10'))",
+            "SELECT (SELECT to_date('2024-05-10'), to_date('2024-05-10') AS expr_0)",
         ),
     ];
 
