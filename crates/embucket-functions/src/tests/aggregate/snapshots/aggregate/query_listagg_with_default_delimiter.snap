@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/aggregate/listagg.rs
+description: "\"SELECT LISTAGG(val) FROM (VALUES ('a'), ('b'), ('c')) AS t(val)\""
+---
+Ok(
+    [
+        "+----------------+",
+        "| listagg(t.val) |",
+        "+----------------+",
+        "| abc            |",
+        "+----------------+",
+    ],
+)

@@ -199,12 +199,6 @@ pub const AGGREGATE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/kurtosis")
     ),
-    ("LISTAGG", FunctionInfo::new(
-        "LISTAGG",
-        "Returns the concatenated input values, separated by the delimiter string."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/listagg")
-    ),
     ("MAX_BY", FunctionInfo::new(
         "MAX_BY",
         "Finds the row(s) containing the maximum value for a column and returns the value of another column in that row."

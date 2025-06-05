@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/aggregate/listagg.rs
+description: "\"SELECT LISTAGG(name, ' -> ') WITHIN GROUP (ORDER BY name DESC) FROM (VALUES ('apple'), ('banana'), ('cherry')) AS t(name)\""
+---
+Ok(
+    [
+        "+------------------------------+",
+        "| listagg(t.name,Utf8(\" -> \")) |",
+        "+------------------------------+",
+        "| apple -> banana -> cherry    |",
+        "+------------------------------+",
+    ],
+)

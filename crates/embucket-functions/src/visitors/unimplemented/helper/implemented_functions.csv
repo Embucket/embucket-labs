@@ -223,10 +223,11 @@ list_resize
 list_reverse                       
 list_slice                         
 list_sort                          
-list_to_string                     
-list_union                         
-ln                                 
-log                                
+list_to_string
+list_union
+listagg
+ln
+log
 log10                              
 log2                               
 lower                              

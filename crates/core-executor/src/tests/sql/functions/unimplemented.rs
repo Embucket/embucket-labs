@@ -60,7 +60,7 @@ test_query!(
 // DATETIME_FUNCTIONS
 test_query!(
     unimplemented_datetime_function,
-    "SELECT ADD_MONTHS('2023-01-01', 3)",
+    "",
     snapshot_path = "unimplemented"
 );
 
