@@ -1,5 +1,8 @@
 use crate::to_time::ToTimeFunc;
-use chrono::{DateTime, Datelike, Months, NaiveDateTime, NaiveTime, ParseError, Timelike, Utc};
+use chrono::{
+    DateTime, Datelike, Duration, Months, NaiveDate, NaiveDateTime, NaiveTime, ParseError,
+    Timelike, Utc,
+};
 use datafusion::arrow::array::builder::Time64NanosecondBuilder;
 use datafusion::arrow::array::types::Time64NanosecondType;
 use datafusion::arrow::array::{Array, StringArray, TimestampNanosecondArray};
@@ -10,7 +13,7 @@ use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::{Coercible, Exact};
 use datafusion::logical_expr::{Coercion, ColumnarValue, TypeSignatureClass};
-use datafusion_common::{ScalarValue, exec_err};
+use datafusion_common::{DataFusionError, ScalarValue, exec_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
 use std::any::Any;
 use std::sync::Arc;
@@ -40,13 +43,6 @@ impl AddMonths {
                 ],
                 Volatility::Immutable,
             ),
-            /*signature: Signature::coercible(
-                vec![
-                    Coercion::new_exact(TypeSignatureClass::Timestamp),
-                    Coercion::new_exact(TypeSignatureClass::Integer),
-                ],
-                Volatility::Immutable,
-            ),*/
         }
     }
 }
@@ -91,19 +87,9 @@ impl ScalarUDFImpl for AddMonths {
             };
 
             let naive = DateTime::<Utc>::from_timestamp_nanos(ts).naive_utc();
-            dbg!(naive.to_string());
-            let new_naive = if to_add > 0 {
-                naive
-                    .checked_add_months(Months::new(to_add as u32))
-                    .unwrap()
-            } else {
-                naive
-                    .checked_sub_months(Months::new(-to_add as u32))
-                    .unwrap()
-            };
+            let new_naive = add_months(&naive, to_add as i32)
+                .ok_or_else(|| DataFusionError::Execution("can't parse date".to_string()))?;
 
-            dbg!(new_naive.to_string());
-            // Возвращаем наносекунды
             let v = new_naive
                 .and_utc()
                 .timestamp_nanos_opt()
@@ -122,10 +108,42 @@ impl ScalarUDFImpl for AddMonths {
     }
 }
 
+fn add_months(dt: &NaiveDateTime, months: i32) -> Option<NaiveDateTime> {
+    let date = dt.date();
+    let time = dt.time();
+
+    let year = date.year();
+    let month = date.month() as i32;
+
+    let total_months = year * 12 + (month - 1) + months;
+    let new_year = total_months / 12;
+    let new_month = (total_months % 12) + 1;
+
+    let is_last_day = date.day() == last_day_of_month(year, month as u32)?;
+
+    let new_day = if is_last_day {
+        last_day_of_month(new_year, new_month as u32)?
+    } else {
+        date.day()
+            .min(last_day_of_month(new_year, new_month as u32)?)
+    };
+
+    NaiveDate::from_ymd_opt(new_year, new_month as u32, new_day).map(|d| d.and_time(time))
+}
+
+fn last_day_of_month(year: i32, month: u32) -> Option<u32> {
+    let first_of_next_month = if month == 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(year, month + 1, 1)
+    }?;
+
+    Some(first_of_next_month.pred_opt()?.day())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datafusion::arrow::util::pretty::print_batches;
     use datafusion::prelude::SessionContext;
     use datafusion_common::assert_batches_eq;
     use datafusion_expr::ScalarUDF;
@@ -163,16 +181,29 @@ mod tests {
             &result
         );
 
-        let sql = "SELECT add_months('2016-02-29'::date,1) AS value;";
+        let sql = "SELECT add_months('2016-01-31'::date,1) AS value;";
         let result = ctx.sql(sql).await?.collect().await?;
-        print_batches(&result)?;
 
         assert_batches_eq!(
             &[
                 "+------------+",
                 "| value      |",
                 "+------------+",
-                "| 2022-02-01 |",
+                "| 2016-02-29 |",
+                "+------------+",
+            ],
+            &result
+        );
+
+        let sql = "SELECT add_months('2016-02-29'::date,1) AS value;";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+------------+",
+                "| value      |",
+                "+------------+",
+                "| 2016-03-31 |",
                 "+------------+",
             ],
             &result
