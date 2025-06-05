@@ -10,6 +10,21 @@ use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::Arc;
 
+/// `LAST_DAY` SQL function
+///
+/// Returns the last day of the day/month/year for a given date or timestamp.
+///
+/// Syntax: `LAST_DAY(<date_or_timestamp>, <date_part>)`
+///
+/// Arguments:
+/// - `date_or_timestamp`: A date or timestamp value.
+/// - `date_part`: An optional string indicating the part of the date to consider.
+///
+/// Example: `SELECT LAST_DAY('2025-05-08T23:39:20.123-07:00'::date) AS value;`
+///
+/// Returns:
+/// - Returns a date representing the last day of the specified part (day, month, or year).
+
 #[derive(Debug)]
 pub struct LastDayFunc {
     signature: Signature,
