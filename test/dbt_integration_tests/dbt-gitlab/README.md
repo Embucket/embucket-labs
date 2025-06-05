@@ -23,5 +23,7 @@ chmod +x run.sh
 ```
 
 **top_errors.txt** - file with the top 10 errors
+
 **run.log** - file with the logs after the last run
+
 **target** - folder with both: compiled sql and run sql
