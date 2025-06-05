@@ -39,6 +39,10 @@ use datafusion_common::{
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use df_builtins::variant::visitors::visit_all;
+use df_builtins::visitors::{
+    copy_into_identifiers, functions_rewriter, json_element, select_expr_aliases,
+};
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::information_schema::session_params::SessionProperty;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
