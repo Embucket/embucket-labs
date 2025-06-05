@@ -1,0 +1,38 @@
+
+  
+    
+
+create or replace transient table EMBUCKET.legacy.customers_db_billing_accounts_snapshots
+    
+
+    
+    as (
+
+WITH source AS (
+
+    SELECT *
+    FROM "EMBUCKET".snapshots.customers_db_billing_accounts_snapshots
+
+), renamed AS (
+
+    SELECT 
+      dbt_scd_id::VARCHAR                                     AS billing_account_snapshot_id,
+      id::NUMBER                                              AS billing_account_id,
+      zuora_account_id::VARCHAR                               AS zuora_account_id,
+      zuora_account_name::VARCHAR                             AS zuora_account_name,
+      salesforce_account_id::VARCHAR                          AS sfdc_account_id,
+      created_at::TIMESTAMP                                   AS billing_account_created_at,
+      updated_at::TIMESTAMP                                   AS billing_account_updated_at,
+      "DBT_VALID_FROM"::TIMESTAMP                             AS valid_from,
+      "DBT_VALID_TO"::TIMESTAMP                               AS valid_to
+    FROM source
+
+)
+
+SELECT *
+FROM renamed
+    )
+;
+
+
+  

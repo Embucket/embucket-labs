@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.bizible.biz_currencies (id integer,is_corporate boolean,is_enabled boolean,modified_date timestamp without time zone,modified_date_crm timestamp without time zone,created_date timestamp without time zone,created_date_crm timestamp without time zone,iso_code integer,iso_numeric integer,exponent integer,name integer,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.bizible.biz_currencies (id, is_corporate, is_enabled, modified_date, modified_date_crm, created_date, created_date_crm, iso_code, iso_numeric, exponent, name, _created_date, _modified_date, _deleted_date, uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

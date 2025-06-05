@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_notes_internal_only (id integer,updated_at timestamp without time zone,project_id integer,line_code integer,note integer,note_html integer,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_notes_internal_only (id, updated_at, project_id, line_code, note, note_html, _uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

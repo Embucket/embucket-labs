@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.zuora_stitch.productrateplan (createdbyid integer,createddate timestamp without time zone,deleted boolean,description integer,effectiveenddate timestamp without time zone,effectivestartdate timestamp without time zone,id integer,name integer,productid integer,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer,legacytieruidisplay__c integer,guidedselling__c integer,prpcategory__c integer,productrateplannumber integer,product_category__c integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.zuora_stitch.productrateplan (createdbyid, createddate, deleted, description, effectiveenddate, effectivestartdate, id, name, productid, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version, legacytieruidisplay__c, guidedselling__c, prpcategory__c, productrateplannumber, product_category__c) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

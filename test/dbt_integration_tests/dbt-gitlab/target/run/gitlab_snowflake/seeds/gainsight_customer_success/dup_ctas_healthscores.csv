@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.gainsight_customer_success.dup_ctas_healthscores (_fivetran_id integer,_fivetran_deleted boolean,stage_name integer,objective_category_name integer,cta_status_name integer,cta_company_id integer,trend integer,cta_reason integer,playbook_name integer,reason integer,objective_category_id integer,current_score integer,company_name integer,type integer,cta_name integer,previous_score integer,measure integer,cta_type integer,cta_status_id integer,closed_date timestamp without time zone,_fivetran_synced timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.gainsight_customer_success.dup_ctas_healthscores (_fivetran_id, _fivetran_deleted, stage_name, objective_category_name, cta_status_name, cta_company_id, trend, cta_reason, playbook_name, reason, objective_category_id, current_score, company_name, type, cta_name, previous_score, measure, cta_type, cta_status_id, closed_date, _fivetran_synced) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

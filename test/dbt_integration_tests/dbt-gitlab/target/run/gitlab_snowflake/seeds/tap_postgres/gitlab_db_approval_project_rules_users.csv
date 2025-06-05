@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_approval_project_rules_users (id integer,approval_project_rule_id integer,user_id integer,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_approval_project_rules_users (id, approval_project_rule_id, user_id, _uploaded_at) values
+            (%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s)
+        
+
+;
+  

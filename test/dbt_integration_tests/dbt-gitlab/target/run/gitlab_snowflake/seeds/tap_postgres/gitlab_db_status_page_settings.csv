@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_status_page_settings (project_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,enabled boolean,aws_s3_bucket_name integer,aws_region integer,aws_access_key integer,status_page_url integer,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_status_page_settings (project_id, created_at, updated_at, enabled, aws_s3_bucket_name, aws_region, aws_access_key, status_page_url, _uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

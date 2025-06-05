@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_ci_builds_metadata (project_id integer,timeout integer,timeout_source integer,interruptible boolean,has_exposed_artifacts boolean,id integer,exit_code integer,build_id integer,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_ci_builds_metadata (project_id, timeout, timeout_source, interruptible, has_exposed_artifacts, id, exit_code, build_id, _uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

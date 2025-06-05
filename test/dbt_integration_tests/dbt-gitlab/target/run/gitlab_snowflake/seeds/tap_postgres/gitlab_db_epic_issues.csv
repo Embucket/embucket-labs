@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_epic_issues (id integer,epic_id integer,issue_id integer,relative_position integer,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_epic_issues (id, epic_id, issue_id, relative_position, _uploaded_at) values
+            (%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s)
+        
+
+;
+  

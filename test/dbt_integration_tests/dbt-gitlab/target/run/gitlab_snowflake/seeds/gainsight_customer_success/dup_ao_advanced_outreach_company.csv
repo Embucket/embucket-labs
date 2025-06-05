@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.gainsight_customer_success.dup_ao_advanced_outreach_company (_fivetran_id integer,_fivetran_deleted boolean,advanced_outreach_gsid integer,advanced_outreach_name integer,survey_id integer,advanced_outreach_id integer,survey_name integer,advanced_outreach_status integer,created_at timestamp without time zone,modified_by integer,modified_at timestamp without time zone,advanced_outreach_start_date timestamp without time zone,default_account_id integer,advanced_outreach_type integer,advanced_outreach_model_name integer,created_by integer,_fivetran_synced timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.gainsight_customer_success.dup_ao_advanced_outreach_company (_fivetran_id, _fivetran_deleted, advanced_outreach_gsid, advanced_outreach_name, survey_id, advanced_outreach_id, survey_name, advanced_outreach_status, created_at, modified_by, modified_at, advanced_outreach_start_date, default_account_id, advanced_outreach_type, advanced_outreach_model_name, created_by, _fivetran_synced) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

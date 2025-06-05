@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.prod_insights.dup_field_cleanup_suggestions (account_id integer,full_table_id integer,project_name integer,dataset_name integer,table_name integer,table_type integer,field_to_cleanup text,fields_to_keep text,percent_removable integer,table_importance_score float8,row_number integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.prod_insights.dup_field_cleanup_suggestions (account_id, full_table_id, project_name, dataset_name, table_name, table_type, field_to_cleanup, fields_to_keep, percent_removable, table_importance_score, row_number) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

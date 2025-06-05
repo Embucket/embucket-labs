@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_xactly.xc_plan_approval (business_group_id float8,created_by_id float8,created_by_name integer,created_date integer,doc_template_id float8,doc_type float8,document integer,document_html integer,effective_plan_date integer,is_active integer,manager_id float8,manager_name integer,mgr_acpt_date integer,modified_by_id float8,modified_by_name integer,modified_date integer,per_acpt_date integer,person_id float8,person_name integer,plan_approval_id float8,plan_id float8,plan_name integer,route_date integer,route_id float8,status integer,version float8,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_xactly.xc_plan_approval (business_group_id, created_by_id, created_by_name, created_date, doc_template_id, doc_type, document, document_html, effective_plan_date, is_active, manager_id, manager_name, mgr_acpt_date, modified_by_id, modified_by_name, modified_date, per_acpt_date, person_id, person_name, plan_approval_id, plan_id, plan_name, route_date, route_id, status, version, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.snapshots.gitlab_dotcom_namespace_statistics_snapshots (id integer,namespace_id integer,shared_runners_seconds integer,shared_runners_seconds_last_reset timestamp without time zone,_uploaded_at float8,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.snapshots.gitlab_dotcom_namespace_statistics_snapshots (id, namespace_id, shared_runners_seconds, shared_runners_seconds_last_reset, _uploaded_at, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

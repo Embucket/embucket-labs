@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.greenhouse.jobs_stages (job_id integer,stage_id integer,order integer,name integer,stage_alert_setting float8,created_at integer,updated_at integer,milestones integer,organization_id integer,_updated_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.greenhouse.jobs_stages (job_id, stage_id, order, name, stage_alert_setting, created_at, updated_at, milestones, organization_id, _updated_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

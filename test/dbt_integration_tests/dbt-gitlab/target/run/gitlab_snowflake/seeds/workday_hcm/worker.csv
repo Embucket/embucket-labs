@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.workday_hcm.worker (id integer,compensation_grade_id integer,compensation_grade_profile_id integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,user_id integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.workday_hcm.worker (id, compensation_grade_id, compensation_grade_profile_id, _fivetran_deleted, _fivetran_synced, user_id) values
+            (%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

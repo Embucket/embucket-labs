@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.sheetload.fy25_account_geo_map (account_id integer,fy25_business_unit integer,fy25_geo integer,fy25_segment integer,fy25_region integer,fy25_area integer,_updated_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.sheetload.fy25_account_geo_map (account_id, fy25_business_unit, fy25_geo, fy25_segment, fy25_region, fy25_area, _updated_at) values
+            (%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

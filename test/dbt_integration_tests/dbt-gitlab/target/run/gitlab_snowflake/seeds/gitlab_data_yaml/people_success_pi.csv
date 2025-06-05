@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.gitlab_data_yaml.people_success_pi (jsontext text,uploaded_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.gitlab_data_yaml.people_success_pi (jsontext, uploaded_at) values
+            (%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s)
+        
+
+;
+  

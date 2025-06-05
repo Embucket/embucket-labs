@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.demandbase.dup_demandbase_account (jsontext text,uploaded_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.demandbase.dup_demandbase_account (jsontext, uploaded_at) values
+            (%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s)
+        
+
+;
+  

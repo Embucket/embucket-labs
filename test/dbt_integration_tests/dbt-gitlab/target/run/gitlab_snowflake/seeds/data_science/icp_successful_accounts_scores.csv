@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.data_science.icp_successful_accounts_scores (crm_account_id integer,score_date timestamp without time zone,cluster_id integer,cluster_name integer,icp_group integer,model_version integer,submodel integer,uploaded_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.data_science.icp_successful_accounts_scores (crm_account_id, score_date, cluster_id, cluster_name, icp_group, model_version, submodel, uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

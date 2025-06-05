@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_onboarding_progresses (id integer,namespace_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,merge_request_created_at timestamp without time zone,pipeline_created_at timestamp without time zone,user_added_at timestamp without time zone,trial_started_at timestamp without time zone,required_mr_approvals_enabled_at timestamp without time zone,code_owners_enabled_at timestamp without time zone,issue_created_at timestamp without time zone,license_scanning_run_at timestamp without time zone,secure_dependency_scanning_run_at timestamp without time zone,secure_dast_run_at timestamp without time zone,code_added_at timestamp without time zone,ended_at timestamp without time zone,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_onboarding_progresses (id, namespace_id, created_at, updated_at, merge_request_created_at, pipeline_created_at, user_added_at, trial_started_at, required_mr_approvals_enabled_at, code_owners_enabled_at, issue_created_at, license_scanning_run_at, secure_dependency_scanning_run_at, secure_dast_run_at, code_added_at, ended_at, _uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

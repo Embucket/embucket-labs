@@ -1,0 +1,31 @@
+
+  
+    
+
+create or replace transient table EMBUCKET.snowflake.snowflake_contract_rates_source
+    
+
+    
+    as (WITH source AS (
+
+  SELECT *
+  FROM EMBUCKET.seed_data.snowflake_contract_rates
+
+), 
+
+renamed AS (
+
+  SELECT
+    effective_date::DATE                    AS contract_rate_effective_date,
+    rate::FLOAT                            AS contract_rate
+  FROM source
+
+)
+
+SELECT *
+FROM renamed
+    )
+;
+
+
+  

@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.account_usage.warehouse_metering_history (start_time timestamp without time zone,end_time timestamp without time zone,warehouse_id integer,warehouse_name integer,credits_used integer,credits_used_compute integer,credits_used_cloud_services integer,credits_attributed_compute_queries integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.account_usage.warehouse_metering_history (start_time, end_time, warehouse_id, warehouse_name, credits_used, credits_used_compute, credits_used_cloud_services, credits_attributed_compute_queries) values
+            (%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

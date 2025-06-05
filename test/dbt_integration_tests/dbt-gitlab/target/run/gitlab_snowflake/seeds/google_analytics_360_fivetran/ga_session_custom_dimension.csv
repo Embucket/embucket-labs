@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.google_analytics_360_fivetran.ga_session_custom_dimension (visit_id integer,visit_start_time timestamp without time zone,visitor_id integer,index integer,value integer,_fivetran_synced timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.google_analytics_360_fivetran.ga_session_custom_dimension (visit_id, visit_start_time, visitor_id, index, value, _fivetran_synced) values
+            (%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.netsuite_fivetran.dup_netsuite_fivetran_departments (department_id float8,date_last_modified timestamp without time zone,department_extid integer,full_name integer,isinactive integer,is_including_child_subs integer,name integer,parent_id float8,support_link integer,_fivetran_deleted boolean,date_deleted timestamp without time zone,_fivetran_synced timestamp without time zone,include_in_coupa integer,department_type_id float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.netsuite_fivetran.dup_netsuite_fivetran_departments (department_id, date_last_modified, department_extid, full_name, isinactive, is_including_child_subs, name, parent_id, support_link, _fivetran_deleted, date_deleted, _fivetran_synced, include_in_coupa, department_type_id) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

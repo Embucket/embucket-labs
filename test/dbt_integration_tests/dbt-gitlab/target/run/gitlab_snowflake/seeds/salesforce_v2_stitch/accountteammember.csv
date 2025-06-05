@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.salesforce_v2_stitch.accountteammember (accountaccesslevel integer,accountid integer,caseaccesslevel integer,contactaccesslevel integer,createdbyid integer,createddate timestamp without time zone,id integer,isdeleted boolean,lastmodifiedbyid integer,lastmodifieddate timestamp without time zone,opportunityaccesslevel integer,photourl integer,systemmodstamp timestamp without time zone,teammemberrole integer,title integer,userid integer,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer,assignment_reason__c integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.salesforce_v2_stitch.accountteammember (accountaccesslevel, accountid, caseaccesslevel, contactaccesslevel, createdbyid, createddate, id, isdeleted, lastmodifiedbyid, lastmodifieddate, opportunityaccesslevel, photourl, systemmodstamp, teammemberrole, title, userid, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version, assignment_reason__c) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

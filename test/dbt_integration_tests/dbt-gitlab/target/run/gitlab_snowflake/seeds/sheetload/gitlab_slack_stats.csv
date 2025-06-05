@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.sheetload.gitlab_slack_stats (date integer,total_enabled_membership integer,enabled_full_members integer,enabled_guests integer,daily_active_members integer,daily_members_posting_messages integer,weekly_active_members integer,weekly_members_posting_messages integer,messages_in_public_channels integer,messages_in_private_channels integer,messages_in_shared_channels integer,messages_in_dms integer,percent_of_messages_in_public_channels integer,percent_of_messages_in_private_channels integer,percent_of_messages_in_dms integer,percent_of_views_in_public_channels integer,percent_of_views_in_private_channels integer,percent_of_views_in_dms integer,files_uploaded integer,messages_posted_by_members integer,total_full_members integer,total_guests integer,total_claimed_full_members integer,total_claimed_guests integer,total_members integer,total_claimed_members integer,name integer,public_channels_in_single_workspace integer,messages_posted integer,messages_posted_by_apps integer,_updated_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.sheetload.gitlab_slack_stats (date, total_enabled_membership, enabled_full_members, enabled_guests, daily_active_members, daily_members_posting_messages, weekly_active_members, weekly_members_posting_messages, messages_in_public_channels, messages_in_private_channels, messages_in_shared_channels, messages_in_dms, percent_of_messages_in_public_channels, percent_of_messages_in_private_channels, percent_of_messages_in_dms, percent_of_views_in_public_channels, percent_of_views_in_private_channels, percent_of_views_in_dms, files_uploaded, messages_posted_by_members, total_full_members, total_guests, total_claimed_full_members, total_claimed_guests, total_members, total_claimed_members, name, public_channels_in_single_workspace, messages_posted, messages_posted_by_apps, _updated_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

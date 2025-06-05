@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.salesforce_v2_stitch.opportunitycontactrole (contactid integer,createdbyid integer,createddate timestamp without time zone,gitlab_admin__c boolean,id integer,isdeleted boolean,isprimary boolean,lastmodifiedbyid integer,lastmodifieddate timestamp without time zone,opportunityid integer,role integer,systemmodstamp timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.salesforce_v2_stitch.opportunitycontactrole (contactid, createdbyid, createddate, gitlab_admin__c, id, isdeleted, isprimary, lastmodifiedbyid, lastmodifieddate, opportunityid, role, systemmodstamp, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

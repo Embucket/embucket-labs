@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.seed_data.snowflake_contract_rates (effective_date date,rate float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.seed_data.snowflake_contract_rates (effective_date, rate) values
+            (%s,%s),(%s,%s)
+        
+
+;
+  

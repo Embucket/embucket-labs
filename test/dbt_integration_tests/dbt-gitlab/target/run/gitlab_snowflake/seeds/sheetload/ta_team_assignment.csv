@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.sheetload.ta_team_assignment (Department integer,Team integer,Recruiter integer,_updated_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.sheetload.ta_team_assignment (Department, Team, Recruiter, _updated_at) values
+            (%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s)
+        
+
+;
+  

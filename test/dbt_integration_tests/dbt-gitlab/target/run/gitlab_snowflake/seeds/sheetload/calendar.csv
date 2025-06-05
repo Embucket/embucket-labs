@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.sheetload.calendar (_updated_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.sheetload.calendar (_updated_at) values
+            (%s),(%s),(%s),(%s),(%s),(%s),(%s),(%s),(%s),(%s)
+        
+
+;
+  

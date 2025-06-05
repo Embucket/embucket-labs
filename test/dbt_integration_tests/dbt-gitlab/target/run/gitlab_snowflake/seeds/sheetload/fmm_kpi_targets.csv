@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.sheetload.fmm_kpi_targets (field_segment integer,region integer,kpi integer,goal integer,_updated_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.sheetload.fmm_kpi_targets (field_segment, region, kpi, goal, _updated_at) values
+            (%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s)
+        
+
+;
+  

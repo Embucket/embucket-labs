@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_namespace_settings (created_at timestamp without time zone,updated_at timestamp without time zone,namespace_id integer,prevent_forking_outside_group boolean,allow_mfa_for_subgroups boolean,default_branch_name integer,repository_read_only boolean,resource_access_token_creation_allowed boolean,prevent_sharing_groups_outside_hierarchy boolean,new_user_signups_cap integer,setup_for_company boolean,jobs_to_be_done integer,experiment_features_enabled boolean,code_suggestions boolean,early_access_program_participant boolean,early_access_program_joined_by_id integer,seat_control integer,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_namespace_settings (created_at, updated_at, namespace_id, prevent_forking_outside_group, allow_mfa_for_subgroups, default_branch_name, repository_read_only, resource_access_token_creation_allowed, prevent_sharing_groups_outside_hierarchy, new_user_signups_cap, setup_for_company, jobs_to_be_done, experiment_features_enabled, code_suggestions, early_access_program_participant, early_access_program_joined_by_id, seat_control, _uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

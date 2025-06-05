@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.snapshots.workday_hcm_job_profiles_snapshots (job_workday_id integer,job_code integer,job_profile integer,is_inactive boolean,job_family integer,management_level integer,job_level integer,report_effective_date date,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.snapshots.workday_hcm_job_profiles_snapshots (job_workday_id, job_code, job_profile, is_inactive, job_family, management_level, job_level, report_effective_date, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

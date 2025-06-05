@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.bamboohr.customcurrencyconversion (jsontext text,uploaded_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.bamboohr.customcurrencyconversion (jsontext, uploaded_at) values
+            (%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s)
+        
+
+;
+  

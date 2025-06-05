@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.zuora_central_sandbox_fivetran.dup_zuora_central_sandbox_fivetran_amendment (id integer,auto_renew boolean,code integer,contract_effective_date date,created_by_id integer,created_date timestamp without time zone,current_term integer,current_term_period_type integer,customer_acceptance_date date,description integer,effective_date date,name integer,renewal_setting integer,renewal_term integer,renewal_term_period_type integer,resume_date date,service_activation_date date,specific_update_date date,status integer,subscription_id integer,suspend_date date,term_start_date date,term_type integer,type integer,updated_by_id integer,updated_date timestamp without time zone,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,effective_policy integer,new_rate_plan_id integer,sub_type integer,booking_date date,removed_rate_plan_id integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.zuora_central_sandbox_fivetran.dup_zuora_central_sandbox_fivetran_amendment (id, auto_renew, code, contract_effective_date, created_by_id, created_date, current_term, current_term_period_type, customer_acceptance_date, description, effective_date, name, renewal_setting, renewal_term, renewal_term_period_type, resume_date, service_activation_date, specific_update_date, status, subscription_id, suspend_date, term_start_date, term_type, type, updated_by_id, updated_date, _fivetran_deleted, _fivetran_synced, effective_policy, new_rate_plan_id, sub_type, booking_date, removed_rate_plan_id) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

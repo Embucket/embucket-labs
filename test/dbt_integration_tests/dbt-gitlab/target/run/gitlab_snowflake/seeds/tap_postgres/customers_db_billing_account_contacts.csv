@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.customers_db_billing_account_contacts (id integer,work_email integer,created_at timestamp without time zone,updated_at timestamp without time zone,zuora_contact_id integer,zuora_account_id integer,_uploaded_at float8,_task_instance integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.customers_db_billing_account_contacts (id, work_email, created_at, updated_at, zuora_contact_id, zuora_account_id, _uploaded_at, _task_instance) values
+            (%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

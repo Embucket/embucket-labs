@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.level_up.course_completions (jsontext text,uploaded_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.level_up.course_completions (jsontext, uploaded_at) values
+            (%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s)
+        
+
+;
+  

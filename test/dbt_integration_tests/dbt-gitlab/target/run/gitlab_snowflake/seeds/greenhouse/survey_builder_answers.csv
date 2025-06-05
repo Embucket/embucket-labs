@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.greenhouse.survey_builder_answers (id integer,survey_id integer,question_id integer,submitted_at integer,value integer,comment integer,created_at integer,updated_at integer,organization_id integer,delivered_candidate_survey_id integer,_updated_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.greenhouse.survey_builder_answers (id, survey_id, question_id, submitted_at, value, comment, created_at, updated_at, organization_id, delivered_candidate_survey_id, _updated_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

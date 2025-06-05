@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.netsuite_fivetran.currencies (currency_id float8,currency_extid integer,date_last_modified timestamp without time zone,is_inactive integer,name integer,precision_0 float8,symbol integer,_fivetran_deleted boolean,date_deleted timestamp without time zone,_fivetran_synced timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.netsuite_fivetran.currencies (currency_id, currency_extid, date_last_modified, is_inactive, name, precision_0, symbol, _fivetran_deleted, date_deleted, _fivetran_synced) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

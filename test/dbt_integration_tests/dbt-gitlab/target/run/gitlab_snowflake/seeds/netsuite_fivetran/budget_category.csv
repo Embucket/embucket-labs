@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.netsuite_fivetran.budget_category (budget_category_id float8,isinactive integer,is_global integer,name integer,_fivetran_deleted boolean,date_deleted timestamp without time zone,_fivetran_synced timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.netsuite_fivetran.budget_category (budget_category_id, isinactive, is_global, name, _fivetran_deleted, date_deleted, _fivetran_synced) values
+            (%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

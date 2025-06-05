@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_issues (id integer,iid integer,title integer,author_id integer,project_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,confidential boolean,description integer,milestone_id integer,updated_by_id integer,weight integer,due_date date,moved_to_id integer,lock_version integer,time_estimate integer,last_edited_at integer,last_edited_by_id integer,discussion_locked boolean,closed_at timestamp without time zone,closed_by_id integer,relative_position integer,service_desk_reply_to integer,state_id integer,duplicated_to_id integer,promoted_to_epic_id integer,sprint_id integer,health_status integer,work_item_type_id integer,_uploaded_at float8,pgp_is_deleted boolean,pgp_is_deleted_updated_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_issues (id, iid, title, author_id, project_id, created_at, updated_at, confidential, description, milestone_id, updated_by_id, weight, due_date, moved_to_id, lock_version, time_estimate, last_edited_at, last_edited_by_id, discussion_locked, closed_at, closed_by_id, relative_position, service_desk_reply_to, state_id, duplicated_to_id, promoted_to_epic_id, sprint_id, health_status, work_item_type_id, _uploaded_at, pgp_is_deleted, pgp_is_deleted_updated_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

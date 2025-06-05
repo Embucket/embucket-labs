@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_notification_settings (id integer,user_id integer,source_id integer,source_type integer,level integer,new_note boolean,new_issue boolean,reopen_issue boolean,close_issue boolean,reassign_issue boolean,new_merge_request boolean,reopen_merge_request boolean,close_merge_request boolean,reassign_merge_request boolean,merge_merge_request boolean,failed_pipeline boolean,success_pipeline boolean,push_to_merge_request boolean,issue_due boolean,new_epic boolean,fixed_pipeline boolean,new_release boolean,moved_project boolean,change_reviewer_merge_request boolean,merge_when_pipeline_succeeds boolean,created_at integer,updated_at integer,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_notification_settings (id, user_id, source_id, source_type, level, new_note, new_issue, reopen_issue, close_issue, reassign_issue, new_merge_request, reopen_merge_request, close_merge_request, reassign_merge_request, merge_merge_request, failed_pipeline, success_pipeline, push_to_merge_request, issue_due, new_epic, fixed_pipeline, new_release, moved_project, change_reviewer_merge_request, merge_when_pipeline_succeeds, created_at, updated_at, _uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

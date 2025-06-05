@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.customers_db_cloud_activations (id integer,created_at integer,updated_at integer,customer_id integer,activation_code integer,subscription_name integer,super_sonics_aware boolean,seat_utilization_reminder_sent_at timestamp without time zone,billing_account_id integer,_uploaded_at float8,_task_instance integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.customers_db_cloud_activations (id, created_at, updated_at, customer_id, activation_code, subscription_name, super_sonics_aware, seat_utilization_reminder_sent_at, billing_account_id, _uploaded_at, _task_instance) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.snapshots.rpt_ping_metric_totals_w_estimates_monthly_snapshot (ping_metric_totals_w_estimates_monthly_id integer,metrics_path integer,ping_created_date_month date,ping_delivery_type integer,ping_edition integer,ping_product_tier integer,ping_edition_product_tier integer,stage_name integer,section_name integer,group_name integer,is_smau boolean,is_gmau boolean,is_paid_gmau boolean,is_umau boolean,reporting_count float8,not_reporting_count float8,percent_reporting float8,estimation_grain integer,total_usage_with_estimate float8,estimated_usage float8,recorded_usage integer,created_by integer,updated_by integer,model_created_date date,model_updated_date date,dbt_created_at timestamp without time zone,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone,ping_deployment_type integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.snapshots.rpt_ping_metric_totals_w_estimates_monthly_snapshot (ping_metric_totals_w_estimates_monthly_id, metrics_path, ping_created_date_month, ping_delivery_type, ping_edition, ping_product_tier, ping_edition_product_tier, stage_name, section_name, group_name, is_smau, is_gmau, is_paid_gmau, is_umau, reporting_count, not_reporting_count, percent_reporting, estimation_grain, total_usage_with_estimate, estimated_usage, recorded_usage, created_by, updated_by, model_created_date, model_updated_date, dbt_created_at, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to, ping_deployment_type) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.google_ads.ad_group_history (id integer,updated_at timestamp without time zone,campaign_id integer,base_ad_group_id integer,ad_rotation_mode integer,campaign_name integer,display_custom_bid_dimension integer,explorer_auto_optimizer_setting_opt_in boolean,final_url_suffix integer,name integer,status integer,target_restrictions integer,tracking_url_template integer,type integer,_fivetran_synced timestamp without time zone,_fivetran_start timestamp without time zone,_fivetran_end timestamp without time zone,_fivetran_active boolean)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.google_ads.ad_group_history (id, updated_at, campaign_id, base_ad_group_id, ad_rotation_mode, campaign_name, display_custom_bid_dimension, explorer_auto_optimizer_setting_opt_in, final_url_suffix, name, status, target_restrictions, tracking_url_template, type, _fivetran_synced, _fivetran_start, _fivetran_end, _fivetran_active) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

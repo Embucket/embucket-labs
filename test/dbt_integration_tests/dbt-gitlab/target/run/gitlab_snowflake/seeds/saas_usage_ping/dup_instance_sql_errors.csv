@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.saas_usage_ping.dup_instance_sql_errors (run_id integer,sql_errors integer,ping_date date,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.saas_usage_ping.dup_instance_sql_errors (run_id, sql_errors, ping_date, _uploaded_at) values
+            (%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s)
+        
+
+;
+  

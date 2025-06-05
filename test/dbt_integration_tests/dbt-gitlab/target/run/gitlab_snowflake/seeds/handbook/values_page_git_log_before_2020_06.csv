@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.handbook.values_page_git_log_before_2020_06 (sha integer,name integer,email integer,date integer,message integer,_updated_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.handbook.values_page_git_log_before_2020_06 (sha, name, email, date, message, _updated_at) values
+            (%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.account_usage.tag_references (tag_database integer,tag_schema integer,tag_id integer,tag_name integer,tag_value integer,object_database integer,object_schema integer,object_id integer,object_name integer,object_deleted timestamp without time zone,domain integer,column_id integer,column_name integer,apply_method integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.account_usage.tag_references (tag_database, tag_schema, tag_id, tag_name, tag_value, object_database, object_schema, object_id, object_name, object_deleted, domain, column_id, column_name, apply_method) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_zendesk.ticket_audits (author_id integer,created_at timestamp without time zone,events integer,id integer,ticket_id integer,via integer,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_zendesk.ticket_audits (author_id, created_at, events, id, ticket_id, via, _uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.gcp_billing.detail_gcp_billing (value text,date_part date)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.gcp_billing.detail_gcp_billing (value, date_part) values
+            (%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s)
+        
+
+;
+  

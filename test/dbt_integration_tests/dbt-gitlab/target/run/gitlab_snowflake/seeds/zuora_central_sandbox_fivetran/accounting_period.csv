@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.zuora_central_sandbox_fivetran.accounting_period (id integer,created_by_id integer,created_date timestamp without time zone,end_date date,fiscal_quarter integer,fiscal_year integer,name integer,notes integer,start_date date,status integer,updated_by_id integer,updated_date timestamp without time zone,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.zuora_central_sandbox_fivetran.accounting_period (id, created_by_id, created_date, end_date, fiscal_quarter, fiscal_year, name, notes, start_date, status, updated_by_id, updated_date, _fivetran_deleted, _fivetran_synced) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

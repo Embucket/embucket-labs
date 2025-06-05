@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.servicenow_prd.problem_task (started_by_value integer,started_at timestamp without time zone,fix_notes integer,vendor_value integer,reopen_count integer,sys_updated_on timestamp without time zone,close_code integer,sys_created_on timestamp without time zone,reopened_by_value integer,sys_id integer,problem_task_type integer,reopened_at timestamp without time zone,problem_value integer,cause_code integer,_fivetran_synced timestamp without time zone,_fivetran_deleted boolean,prb_task_model_value integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.servicenow_prd.problem_task (started_by_value, started_at, fix_notes, vendor_value, reopen_count, sys_updated_on, close_code, sys_created_on, reopened_by_value, sys_id, problem_task_type, reopened_at, problem_value, cause_code, _fivetran_synced, _fivetran_deleted, prb_task_model_value) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

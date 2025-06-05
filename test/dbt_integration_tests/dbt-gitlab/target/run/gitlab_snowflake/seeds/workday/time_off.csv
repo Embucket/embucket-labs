@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.workday.time_off (employee_id integer,_fivetran_synced timestamp without time zone,worker_workday_id integer,time_off_details_group text,_fivetran_deleted boolean)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.workday.time_off (employee_id, _fivetran_synced, worker_workday_id, time_off_details_group, _fivetran_deleted) values
+            (%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s)
+        
+
+;
+  

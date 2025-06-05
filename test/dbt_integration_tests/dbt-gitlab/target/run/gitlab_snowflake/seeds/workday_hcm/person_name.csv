@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.workday_hcm.person_name (personal_info_system_id integer,type integer,index integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,last_name integer,first_name integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.workday_hcm.person_name (personal_info_system_id, type, index, _fivetran_deleted, _fivetran_synced, last_name, first_name) values
+            (%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

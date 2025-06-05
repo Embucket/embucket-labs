@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.snapshots.cost_centers_snapshots (report_effective_date date,dept_workday_id integer,department_name integer,dept_inactive integer,division_workday_id integer,division integer,cost_center_workday_id integer,cost_center integer,_fivetran_deleted boolean,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.snapshots.cost_centers_snapshots (report_effective_date, dept_workday_id, department_name, dept_inactive, division_workday_id, division, cost_center_workday_id, cost_center, _fivetran_deleted, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

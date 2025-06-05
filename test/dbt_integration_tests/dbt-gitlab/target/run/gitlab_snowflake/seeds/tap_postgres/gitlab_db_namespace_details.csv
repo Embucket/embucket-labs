@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_namespace_details (namespace_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,free_user_cap_over_limit_notified_at timestamp without time zone,dashboard_notification_at timestamp without time zone,dashboard_enforcement_at timestamp without time zone,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_namespace_details (namespace_id, created_at, updated_at, free_user_cap_over_limit_notified_at, dashboard_notification_at, dashboard_enforcement_at, _uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

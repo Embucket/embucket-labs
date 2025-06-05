@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.greenhouse.scorecards_attributes (scorecard_id integer,attribute_id integer,rating integer,notes integer,created_at integer,updated_at integer,attribute_name integer,attribute_category integer,organization_id integer,_updated_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.greenhouse.scorecards_attributes (scorecard_id, attribute_id, rating, notes, created_at, updated_at, attribute_name, attribute_category, organization_id, _updated_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

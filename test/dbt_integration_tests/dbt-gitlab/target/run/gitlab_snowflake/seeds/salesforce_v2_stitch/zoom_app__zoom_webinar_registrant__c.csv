@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.salesforce_v2_stitch.zoom_app__zoom_webinar_registrant__c (createdbyid integer,createddate timestamp without time zone,id integer,isdeleted boolean,lastmodifiedbyid integer,lastmodifieddate timestamp without time zone,name integer,ownerid integer,systemmodstamp timestamp without time zone,zoom_app__email__c integer,zoom_app__external_key__c integer,zoom_app__first_name__c integer,zoom_app__job_title__c integer,zoom_app__join_url1__c integer,zoom_app__last_name__c integer,zoom_app__org__c integer,zoom_app__status__c integer,zoom_app__zoom_webinar__c integer,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer,lastreferenceddate timestamp without time zone,lastvieweddate timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.salesforce_v2_stitch.zoom_app__zoom_webinar_registrant__c (createdbyid, createddate, id, isdeleted, lastmodifiedbyid, lastmodifieddate, name, ownerid, systemmodstamp, zoom_app__email__c, zoom_app__external_key__c, zoom_app__first_name__c, zoom_app__job_title__c, zoom_app__join_url1__c, zoom_app__last_name__c, zoom_app__org__c, zoom_app__status__c, zoom_app__zoom_webinar__c, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version, lastreferenceddate, lastvieweddate) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

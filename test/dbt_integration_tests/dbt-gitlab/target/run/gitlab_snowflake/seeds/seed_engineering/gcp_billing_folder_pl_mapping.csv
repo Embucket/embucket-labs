@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.seed_engineering.gcp_billing_folder_pl_mapping (full_path text,free integer,paid integer,internal integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.seed_engineering.gcp_billing_folder_pl_mapping (full_path, free, paid, internal) values
+            (%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s)
+        
+
+;
+  

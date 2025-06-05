@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.aws_billing.dedicated_legacy_0475 (value text,year_mo_partition integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.aws_billing.dedicated_legacy_0475 (value, year_mo_partition) values
+            (%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s)
+        
+
+;
+  

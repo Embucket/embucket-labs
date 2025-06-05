@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.version_db.usage_ping_errors (id integer,version_id integer,host_id integer,uuid integer,elapsed integer,message integer,created_at integer,_uploaded_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.version_db.usage_ping_errors (id, version_id, host_id, uuid, elapsed, message, created_at, _uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

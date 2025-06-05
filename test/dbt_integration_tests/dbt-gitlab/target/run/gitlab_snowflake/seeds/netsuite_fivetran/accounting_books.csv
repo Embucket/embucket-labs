@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.netsuite_fivetran.accounting_books (accounting_book_id float8,accounting_book_extid integer,accounting_book_name integer,base_book_id float8,date_created timestamp without time zone,date_last_modified timestamp without time zone,effective_period_id float8,form_template_component_id integer,form_template_id float8,is_adjustment_only integer,is_arrangement_level_reclass integer,is_consolidated integer,is_contingent_revenue_handling integer,is_include_child_subsidiaries integer,is_primary integer,is_two_step_revenue_allocation integer,status integer,unbilled_receivable_grouping integer,_fivetran_deleted boolean,date_deleted timestamp without time zone,_fivetran_synced timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.netsuite_fivetran.accounting_books (accounting_book_id, accounting_book_extid, accounting_book_name, base_book_id, date_created, date_last_modified, effective_period_id, form_template_component_id, form_template_id, is_adjustment_only, is_arrangement_level_reclass, is_consolidated, is_contingent_revenue_handling, is_include_child_subsidiaries, is_primary, is_two_step_revenue_allocation, status, unbilled_receivable_grouping, _fivetran_deleted, date_deleted, _fivetran_synced) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

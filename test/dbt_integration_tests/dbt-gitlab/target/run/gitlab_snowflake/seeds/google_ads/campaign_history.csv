@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.google_ads.campaign_history (id integer,updated_at timestamp without time zone,customer_id integer,base_campaign_id integer,ad_serving_optimization_status integer,advertising_channel_subtype integer,advertising_channel_type integer,experiment_type integer,end_date integer,final_url_suffix integer,frequency_caps integer,name integer,optimization_score float8,payment_mode integer,serving_status integer,start_date integer,status integer,tracking_url_template integer,vanity_pharma_display_url_mode integer,vanity_pharma_text integer,video_brand_safety_suitability integer,_fivetran_synced timestamp without time zone,_fivetran_start timestamp without time zone,_fivetran_end timestamp without time zone,_fivetran_active boolean)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.google_ads.campaign_history (id, updated_at, customer_id, base_campaign_id, ad_serving_optimization_status, advertising_channel_subtype, advertising_channel_type, experiment_type, end_date, final_url_suffix, frequency_caps, name, optimization_score, payment_mode, serving_status, start_date, status, tracking_url_template, vanity_pharma_display_url_mode, vanity_pharma_text, video_brand_safety_suitability, _fivetran_synced, _fivetran_start, _fivetran_end, _fivetran_active) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

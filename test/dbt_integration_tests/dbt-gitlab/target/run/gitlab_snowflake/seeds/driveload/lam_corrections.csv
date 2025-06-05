@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.driveload.lam_corrections (dim_parent_crm_account_id integer,parent_crm_account_sales_segment integer,dev_count float8,estimated_capped_lam float8,valid_from date,valid_to date,valid_to_final_date timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.driveload.lam_corrections (dim_parent_crm_account_id, parent_crm_account_sales_segment, dev_count, estimated_capped_lam, valid_from, valid_to, valid_to_final_date) values
+            (%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

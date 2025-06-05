@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.sheetload.sales_dev_targets_fy25 (geo integer,target_month integer,target_fiscal_quarter integer,employee_id integer,name integer,role_type integer,manager_name integer,manager_employee_id integer,s1_pipeline_quota integer,carried_sao_quota integer,s3_pipeline_quota integer,annualized_s1_pipeline_quota integer,annualized_s3_pipeline_quota integer,full_sao_quota integer,_updated_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.sheetload.sales_dev_targets_fy25 (geo, target_month, target_fiscal_quarter, employee_id, name, role_type, manager_name, manager_employee_id, s1_pipeline_quota, carried_sao_quota, s3_pipeline_quota, annualized_s1_pipeline_quota, annualized_s3_pipeline_quota, full_sao_quota, _updated_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

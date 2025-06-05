@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.commonroom.organizations (approx_revenue_max integer,approx_revenue_min integer,domain integer,employee_count integer,first_seen_date timestamp without time zone,first_seen_source integer,last_seen_date timestamp without time zone,location integer,member_count integer,organization_name integer,_uploaded_at timestamp without time zone,_file_name integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.commonroom.organizations (approx_revenue_max, approx_revenue_min, domain, employee_count, first_seen_date, first_seen_source, last_seen_date, location, member_count, organization_name, _uploaded_at, _file_name) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

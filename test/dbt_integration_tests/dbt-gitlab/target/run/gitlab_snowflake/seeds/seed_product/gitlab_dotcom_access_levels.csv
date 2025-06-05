@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.seed_product.gitlab_dotcom_access_levels (access integer,label text,name text)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.seed_product.gitlab_dotcom_access_levels (access, label, name) values
+            (%s,%s,%s),(%s,%s,%s),(%s,%s,%s),(%s,%s,%s),(%s,%s,%s),(%s,%s,%s),(%s,%s,%s)
+        
+
+;
+  

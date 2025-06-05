@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.rspec.overall_time (commit_hash integer,commit_time integer,total_time float8,number_of_tests float8,time_per_single_test float8,total_queries float8,total_query_time float8,total_requests float8,commit_date integer,_updated_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.rspec.overall_time (commit_hash, commit_time, total_time, number_of_tests, time_per_single_test, total_queries, total_query_time, total_requests, commit_date, _updated_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

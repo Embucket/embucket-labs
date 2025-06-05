@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_xactly.xc_credit_held (created_by_id float8,created_by_name integer,created_date integer,credit_held_id float8,credit_id float8,held_date integer,is_active integer,is_held integer,modified_by_id float8,modified_by_name integer,modified_date integer,release_group_id float8,run_id float8,trans_id float8,version float8,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_xactly.xc_credit_held (created_by_id, created_by_name, created_date, credit_held_id, credit_id, held_date, is_active, is_held, modified_by_id, modified_by_name, modified_date, release_group_id, run_id, trans_id, version, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

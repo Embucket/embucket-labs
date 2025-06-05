@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.snapshots.gitlab_dotcom_gitlab_subscriptions_snapshots (id integer,created_at timestamp without time zone,updated_at timestamp without time zone,start_date date,end_date date,trial_ends_on date,namespace_id integer,hosted_plan_id integer,max_seats_used integer,seats integer,trial boolean,_uploaded_at float8,gitlab_subscriptions_rank_in_key integer,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone,_task_instance integer,trial_starts_on integer,seats_in_use integer,seats_owed integer,trial_extension_type integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.snapshots.gitlab_dotcom_gitlab_subscriptions_snapshots (id, created_at, updated_at, start_date, end_date, trial_ends_on, namespace_id, hosted_plan_id, max_seats_used, seats, trial, _uploaded_at, gitlab_subscriptions_rank_in_key, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to, _task_instance, trial_starts_on, seats_in_use, seats_owed, trial_extension_type) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

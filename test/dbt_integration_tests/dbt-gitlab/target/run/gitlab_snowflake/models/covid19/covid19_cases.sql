@@ -1,0 +1,36 @@
+
+  
+    
+
+create or replace transient table EMBUCKET.covid19.covid19_cases
+    
+
+    
+    as (WITH source AS (
+
+    SELECT *
+    FROM "COVID19".public.jhu_covid_19
+
+), renamed AS (
+
+    SELECT 
+      country_region::VARCHAR       AS country_region,
+      province_state::VARCHAR       AS province_state,
+      date::DATE                    AS date,
+      case_type::VARCHAR            AS case_type,
+      cases::NUMBER                 AS case_count,
+      long::FLOAT                   AS longitude,
+      lat::FLOAT                    AS latitude,
+      difference::NUMBER            AS case_count_change,
+      last_updated_date::TIMESTAMP  AS last_updated_date
+    FROM source
+
+)
+
+SELECT *
+FROM renamed
+    )
+;
+
+
+  

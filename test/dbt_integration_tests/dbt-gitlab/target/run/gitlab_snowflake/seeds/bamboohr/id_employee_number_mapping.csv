@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.bamboohr.id_employee_number_mapping (jsontext text,uploaded_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.bamboohr.id_employee_number_mapping (jsontext, uploaded_at) values
+            (%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s),(%s,%s)
+        
+
+;
+  

@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.zuora_central_sandbox_fivetran.invoice_payment (id integer,amount float8,created_by_id integer,created_date timestamp without time zone,refund_amount float8,updated_by_id integer,updated_date timestamp without time zone,_fivetran_deleted boolean,sold_to_contact_id integer,exchange_rate float8,account_id integer,payment_method_id integer,invoice_id integer,transaction_currency integer,amount_currency_rounding integer,exchange_rate_date date,provider_exchange_rate_date date,accounting_period_id integer,journal_entry_id integer,default_payment_method_id integer,payment_id integer,bill_to_contact_id integer,cash_accounting_code_id integer,payment_method_snapshot_id integer,amount_home_currency float8,home_currency integer,account_receivable_accounting_code_id integer,journal_run_id integer,_fivetran_synced timestamp without time zone,parent_account_id integer,ship_to_contact_id integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.zuora_central_sandbox_fivetran.invoice_payment (id, amount, created_by_id, created_date, refund_amount, updated_by_id, updated_date, _fivetran_deleted, sold_to_contact_id, exchange_rate, account_id, payment_method_id, invoice_id, transaction_currency, amount_currency_rounding, exchange_rate_date, provider_exchange_rate_date, accounting_period_id, journal_entry_id, default_payment_method_id, payment_id, bill_to_contact_id, cash_accounting_code_id, payment_method_snapshot_id, amount_home_currency, home_currency, account_receivable_accounting_code_id, journal_run_id, _fivetran_synced, parent_account_id, ship_to_contact_id) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

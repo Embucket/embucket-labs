@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_xactly.xc_quota_relationship (created_by_id float8,created_date integer,description integer,is_active integer,label integer,modified_by_id float8,modified_date integer,name integer,quota_relationship_id integer,version float8,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_xactly.xc_quota_relationship (created_by_id, created_date, description, is_active, label, modified_by_id, modified_date, name, quota_relationship_id, version, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_project_security_settings (project_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,pre_receive_secret_detection_enabled boolean,secret_push_protection_enabled boolean,_uploaded_at integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_project_security_settings (project_id, created_at, updated_at, pre_receive_secret_detection_enabled, secret_push_protection_enabled, _uploaded_at) values
+            (%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

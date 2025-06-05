@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.seed_engineering.gcp_billing_haproxy_pl_mapping (metric_backend text,free float8,paid float8,internal float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.seed_engineering.gcp_billing_haproxy_pl_mapping (metric_backend, free, paid, internal) values
+            (%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s),(%s,%s,%s,%s)
+        
+
+;
+  

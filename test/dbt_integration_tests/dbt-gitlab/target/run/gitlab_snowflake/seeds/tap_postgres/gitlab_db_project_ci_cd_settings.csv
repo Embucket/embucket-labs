@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_project_ci_cd_settings (id integer,project_id integer,group_runners_enabled boolean,merge_pipelines_enabled boolean,default_git_depth integer,forward_deployment_enabled boolean,merge_trains_enabled boolean,auto_rollback_enabled boolean,keep_latest_artifact boolean,restrict_user_defined_variables boolean,job_token_scope_enabled boolean,runner_token_expiration_interval integer,separated_caches boolean,allow_fork_pipelines_to_run_in_parent_project boolean,inbound_job_token_scope_enabled boolean,_uploaded_at float8)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.tap_postgres.gitlab_db_project_ci_cd_settings (id, project_id, group_runners_enabled, merge_pipelines_enabled, default_git_depth, forward_deployment_enabled, merge_trains_enabled, auto_rollback_enabled, keep_latest_artifact, restrict_user_defined_variables, job_token_scope_enabled, runner_token_expiration_interval, separated_caches, allow_fork_pipelines_to_run_in_parent_project, inbound_job_token_scope_enabled, _uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

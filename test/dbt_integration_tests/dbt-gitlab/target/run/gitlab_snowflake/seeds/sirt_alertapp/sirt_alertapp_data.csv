@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.sirt_alertapp.sirt_alertapp_data (alertid integer,ack_time integer,alert_name integer,alert_time integer,assignee integer,change_assignee integer,close_alert integer,comments integer,convert_incident boolean,db_date integer,event_time integer,feature integer,label integer,mitre_tac integer,mitre_teq integer,sentiment integer,gcs_uploaded_at date,snowflake_uploaded_at timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.sirt_alertapp.sirt_alertapp_data (alertid, ack_time, alert_name, alert_time, assignee, change_assignee, close_alert, comments, convert_incident, db_date, event_time, feature, label, mitre_tac, mitre_teq, sentiment, gcs_uploaded_at, snowflake_uploaded_at) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

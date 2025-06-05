@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.zuora_stitch.revenuescheduleitem (accountid integer,accountingperiodid integer,amendmentid integer,amount float8,billtocontactid integer,createdbyid integer,createddate timestamp without time zone,currency integer,defaultpaymentmethodid integer,deferredrevenueaccountingcodeid integer,deleted boolean,id integer,parentaccountid integer,productid integer,productrateplanchargeid integer,productrateplanid integer,rateplanchargeid integer,rateplanid integer,recognizedrevenueaccountingcodeid integer,revenuechargesummaryid integer,revenuescheduleid integer,soldtocontactid integer,subscriptionid integer,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.zuora_stitch.revenuescheduleitem (accountid, accountingperiodid, amendmentid, amount, billtocontactid, createdbyid, createddate, currency, defaultpaymentmethodid, deferredrevenueaccountingcodeid, deleted, id, parentaccountid, productid, productrateplanchargeid, productrateplanid, rateplanchargeid, rateplanid, recognizedrevenueaccountingcodeid, revenuechargesummaryid, revenuescheduleid, soldtocontactid, subscriptionid, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  

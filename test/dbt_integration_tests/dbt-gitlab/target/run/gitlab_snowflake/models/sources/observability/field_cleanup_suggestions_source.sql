@@ -1,0 +1,28 @@
+
+  
+    
+
+create or replace transient table EMBUCKET.legacy.field_cleanup_suggestions_source
+    
+
+    
+    as (WITH source AS (
+
+    SELECT *
+    FROM MONTE_CARLO.prod_insights.field_cleanup_suggestions
+
+), renamed AS (
+
+    SELECT
+     *
+    FROM source
+
+)
+
+SELECT *
+FROM renamed
+    )
+;
+
+
+  

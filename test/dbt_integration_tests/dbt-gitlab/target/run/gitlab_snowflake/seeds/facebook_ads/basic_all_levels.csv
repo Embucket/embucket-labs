@@ -1,0 +1,14 @@
+
+    
+    
+    
+    create table EMBUCKET.facebook_ads.basic_all_levels (ad_id integer,date date,_fivetran_id integer,account_id integer,impressions integer,inline_link_clicks integer,reach integer,cost_per_inline_link_click float8,cpc float8,cpm float8,ctr float8,frequency float8,spend float8,ad_name integer,adset_name integer,campaign_name integer,inline_link_click_ctr integer,_fivetran_synced timestamp without time zone)
+  ;
+    -- dbt seed --
+    
+            insert into EMBUCKET.facebook_ads.basic_all_levels (ad_id, date, _fivetran_id, account_id, impressions, inline_link_clicks, reach, cost_per_inline_link_click, cpc, cpm, ctr, frequency, spend, ad_name, adset_name, campaign_name, inline_link_click_ctr, _fivetran_synced) values
+            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s),(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        
+
+;
+  
