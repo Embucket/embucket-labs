@@ -36,6 +36,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         datetime::convert_timezone::get_udf(),
         datetime::date_add::get_udf(),
         semi_structured::json::parse_json::get_udf(),
+        semi_structured::json::try_parse_json::get_udf(),
         datetime::date_diff::get_udf(),
         datetime::timestamp_from_parts::get_udf(),
         datetime::time_from_parts::get_udf(),
@@ -85,7 +86,6 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::String))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Array))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Object))),
-        try_parse_json::get_udf(),
     ];
 
     for func in functions {
