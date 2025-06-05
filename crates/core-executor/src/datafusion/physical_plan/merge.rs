@@ -1,4 +1,7 @@
-use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::{
+    array::{Array, RecordBatch},
+    compute::{filter, kernels::cmp::distinct},
+};
 use datafusion_common::{DFSchemaRef, DataFusionError, HashSet};
 use datafusion_iceberg::{DataFusionTable, error::Error as DataFusionIcebergError};
 use datafusion_physical_plan::{
@@ -180,4 +183,17 @@ impl RecordBatchStream for SourceExistFilterStream {
     fn schema(&self) -> datafusion::arrow::datatypes::SchemaRef {
         todo!()
     }
+}
+
+/// Computes the
+fn unique(array: &dyn Array) -> Result<Vec<String>, DataFusionError> {
+    let slice_len = array.len() - 1;
+    let v1 = array.slice(0, slice_len);
+    let v2 = array.slice(1, slice_len);
+
+    let mask = distinct(&v1, &v2)?;
+
+    let _unique = filter(&v2, &mask)?;
+
+    Ok(Vec::new())
 }
