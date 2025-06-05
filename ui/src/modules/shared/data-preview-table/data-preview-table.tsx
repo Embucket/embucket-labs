@@ -4,15 +4,23 @@ import { createColumnHelper } from '@tanstack/react-table';
 import { DataTable } from '@/components/data-table/data-table';
 import type { TablePreviewDataColumn } from '@/orval/models';
 
+import {
+  generateDataPreviewTableRows,
+  groupDataPreviewTableColumnsByName,
+} from './data-preview-table-utils';
+
 interface DataPreviewTableProps {
   isLoading: boolean;
   columns: TablePreviewDataColumn[];
 }
 
+// TODO: Type
 export function DataPreviewTable({ isLoading, columns }: DataPreviewTableProps) {
   const columnHelper = createColumnHelper<Record<string, string>>();
 
-  const tableColumns: ColumnDef<Record<string, string>, string>[] = columns.map((column) =>
+  const groupedColumns = groupDataPreviewTableColumnsByName(columns);
+
+  const tableColumns: ColumnDef<Record<string, string>, string>[] = groupedColumns.map((column) =>
     columnHelper.accessor((row) => row[column.name], {
       header: column.name,
       cell: (info) => info.getValue(),
@@ -22,15 +30,7 @@ export function DataPreviewTable({ isLoading, columns }: DataPreviewTableProps) 
     }),
   );
 
-  const rows =
-    columns.length > 0
-      ? columns[0].rows.map((_, index) =>
-          columns.reduce<Record<string, string>>((acc, column) => {
-            acc[column.name] = column.rows[index]?.data || '';
-            return acc;
-          }, {}),
-        )
-      : [];
+  const rows = generateDataPreviewTableRows(groupedColumns);
 
   return <DataTable columns={tableColumns} data={rows} isLoading={isLoading} />;
 }
