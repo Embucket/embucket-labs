@@ -64,6 +64,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         semi_structured::json::try_parse_json::get_udf(),
         semi_structured::typeof_func::get_udf(),
         to_array::get_udf(),
+        conversion::to_variant::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),

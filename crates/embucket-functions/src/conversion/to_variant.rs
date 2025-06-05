@@ -31,7 +31,7 @@ impl ScalarUDFImpl for ToVariantFunc {
     }
 
     fn name(&self) -> &'static str {
-        "try_parse_json"
+        "to_variant"
     }
 
     fn signature(&self) -> &Signature {
