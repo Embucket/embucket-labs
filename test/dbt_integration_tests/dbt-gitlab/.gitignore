@@ -1,12 +1,10 @@
 
 env/
 .env
-#target/
 dbt_packages/
 to_check.txt
 sisense_elements.json
 reference_state/manifest.json
-#data/
 .sqlfluffignore
 .sqlfluff-ci
 .sqlfluff
