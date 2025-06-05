@@ -177,6 +177,7 @@ json_len
 json_length                        
 json_object_keys                   
 lag
+last_day
 last_query_id                                
 last_value                         
 lcm                                

@@ -883,12 +883,6 @@ pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/hour-minute-second")
     ),
-    ("LAST_DAY", FunctionInfo::new(
-        "LAST_DAY",
-        "Returns the last day of the specified date part for a date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/last_day")
-    ),
     ("LAST_SUCCESSFUL_SCHEDULED_TIME", FunctionInfo::new(
         "LAST_SUCCESSFUL_SCHEDULED_TIME",
         "Returns the timestamp representing the scheduled time for the most recent successful evaluation of the alert condition, where no errors occurred when executing the action."
