@@ -3,4 +3,3 @@ pub mod functions_rewriter;
 pub mod json_element;
 pub mod select_expr_aliases;
 pub mod unimplemented;
-pub mod select_expr_aliases;

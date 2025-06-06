@@ -1,0 +1,200 @@
+year: 1
+
+================================================================================
+Wrong result in query! (sql/sql-reference-functions/Date_&_time/year.slt:1)!
+================================================================================
+SELECT 
+       '2013-05-08T23:39:20.123-07:00'::TIMESTAMP AS tstamp,
+       YEAR(tstamp) AS "YEAR", 
+       QUARTER(tstamp) AS "QUARTER OF YEAR",
+       MONTH(tstamp) AS "MONTH", 
+       DAY(tstamp) AS "DAY",
+       DAYOFMONTH(tstamp) AS "DAY OF MONTH",
+       DAYOFYEAR(tstamp) AS "DAY OF YEAR";
+================================================================================
+Mismatch on row 1, column 1
+'2013-05-09T06:39:20.123000' <> '2013-05-08T23:39:20.123000'
+================================================================================
+Expected result:
+'2013-05-08T23:39:20.123000'	2013	2	5	8	8	128
+================================================================================
+Actual result:
+'2013-05-09T06:39:20.123000'	2013	2	5	9	9	129
+================================================================================
+
+year: 17
+
+================================================================================
+Query unexpectedly failed! (sql/sql-reference-functions/Date_&_time/year.slt:17)!
+================================================================================
+000200: DataFusion error: This feature is not implemented: Function 'yearofweek' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/year
+================================================================================
+SELECT 
+       '2016-01-02T23:39:20.123-07:00'::TIMESTAMP AS tstamp,
+       WEEK(tstamp) AS "WEEK",
+       WEEKISO(tstamp) AS "WEEK ISO",
+       WEEKOFYEAR(tstamp) AS "WEEK OF YEAR",
+       YEAROFWEEK(tstamp) AS "YEAR OF WEEK",
+       YEAROFWEEKISO(tstamp) AS "YEAR OF WEEK ISO";
+================================================================================
+
+year: 36
+
+================================================================================
+Query unexpectedly failed! (sql/sql-reference-functions/Date_&_time/year.slt:36)!
+================================================================================
+000200: DataFusion error: Execution error: Date part 'unknown' not supported
+================================================================================
+SELECT 
+       '2016-01-02T23:39:20.123-07:00'::TIMESTAMP AS tstamp,
+       DAYOFWEEK(tstamp) AS "DAY OF WEEK",
+       DAYOFWEEKISO(tstamp) AS "DAY OF WEEK ISO";
+================================================================================
+
+year: 49
+
+================================================================================
+Query unexpectedly failed! (sql/sql-reference-functions/Date_&_time/year.slt:49)!
+================================================================================
+000500: HTTP 500: Internal Server Error
+================================================================================
+CREATE OR REPLACE TABLE week_examples (d DATE);
+================================================================================
+
+year: 53
+
+================================================================================
+Query unexpectedly failed! (sql/sql-reference-functions/Date_&_time/year.slt:53)!
+================================================================================
+000200: DataFusion error: Error during planning: table 'embucket.public.week_examples' not found
+================================================================================
+INSERT INTO week_examples VALUES
+  ('2016-12-30'),
+  ('2016-12-31'),
+  ('2017-01-01'),
+  ('2017-01-02'),
+  ('2017-01-03'),
+  ('2017-01-04'),
+  ('2017-01-05'),
+  ('2017-12-30'),
+  ('2017-12-31');
+================================================================================
+
+year: 69
+
+================================================================================
+Query unexpectedly failed! (sql/sql-reference-functions/Date_&_time/year.slt:69)!
+================================================================================
+000200: DataFusion error: This feature is not implemented: Function 'dayname' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/dayname
+================================================================================
+SELECT d "Date",
+       DAYNAME(d) "Day",
+       DAYOFWEEK(d) "DOW",
+       DATE_TRUNC('week', d) "Trunc Date",
+       DAYNAME("Trunc Date") "Trunc Day",
+       LAST_DAY(d, 'week') "Last DOW Date",
+       DAYNAME("Last DOW Date") "Last DOW Day",
+       DATEDIFF('week', '2017-01-01', d) "Weeks Diff from 2017-01-01 to Date"
+  FROM week_examples;
+================================================================================
+
+year: 94
+
+================================================================================
+Query unexpectedly failed! (sql/sql-reference-functions/Date_&_time/year.slt:94)!
+================================================================================
+000200: DataFusion error: This feature is not implemented: Function 'dayname' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/dayname
+================================================================================
+SELECT d "Date",
+       DAYNAME(d) "Day",
+       DAYOFWEEK(d) "DOW",
+       DATE_TRUNC('week', d) "Trunc Date",
+       DAYNAME("Trunc Date") "Trunc Day",
+       LAST_DAY(d, 'week') "Last DOW Date",
+       DAYNAME("Last DOW Date") "Last DOW Day",
+       DATEDIFF('week', '2017-01-01', d) "Weeks Diff from 2017-01-01 to Date"
+  FROM week_examples;
+================================================================================
+
+year: 119
+
+================================================================================
+Query unexpectedly failed! (sql/sql-reference-functions/Date_&_time/year.slt:119)!
+================================================================================
+000200: DataFusion error: This feature is not implemented: Function 'dayname' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/dayname
+================================================================================
+SELECT d "Date",
+       DAYNAME(d) "Day",
+       DAYOFWEEK(d) "DOW",
+       DATE_TRUNC('week', d) "Trunc Date",
+       DAYNAME("Trunc Date") "Trunc Day",
+       LAST_DAY(d, 'week') "Last DOW Date",
+       DAYNAME("Last DOW Date") "Last DOW Day",
+       DATEDIFF('week', '2017-01-01', d) "Weeks Diff from 2017-01-01 to Date"
+  FROM week_examples;
+================================================================================
+
+year: 144
+
+================================================================================
+Query unexpectedly failed! (sql/sql-reference-functions/Date_&_time/year.slt:144)!
+================================================================================
+000200: DataFusion error: This feature is not implemented: Function 'dayname' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/dayname
+================================================================================
+SELECT d "Date",
+       DAYNAME(d) "Day",
+       WEEK(d) "WOY",
+       WEEKISO(d) "WOY (ISO)",
+       YEAROFWEEK(d) "YOW",
+       YEAROFWEEKISO(d) "YOW (ISO)"
+  FROM week_examples;
+================================================================================
+
+year: 167
+
+================================================================================
+Query unexpectedly failed! (sql/sql-reference-functions/Date_&_time/year.slt:167)!
+================================================================================
+000200: DataFusion error: This feature is not implemented: Function 'dayname' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/dayname
+================================================================================
+SELECT d "Date",
+       DAYNAME(d) "Day",
+       WEEK(d) "WOY",
+       WEEKISO(d) "WOY (ISO)",
+       YEAROFWEEK(d) "YOW",
+       YEAROFWEEKISO(d) "YOW (ISO)"
+  FROM week_examples;
+================================================================================
+
+year: 190
+
+================================================================================
+Query unexpectedly failed! (sql/sql-reference-functions/Date_&_time/year.slt:190)!
+================================================================================
+000200: DataFusion error: This feature is not implemented: Function 'dayname' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/dayname
+================================================================================
+SELECT d "Date",
+       DAYNAME(d) "Day",
+       WEEK(d) "WOY",
+       WEEKISO(d) "WOY (ISO)",
+       YEAROFWEEK(d) "YOW",
+       YEAROFWEEKISO(d) "YOW (ISO)"
+  FROM week_examples;
+================================================================================
+
+year: 213
+
+================================================================================
+Query unexpectedly failed! (sql/sql-reference-functions/Date_&_time/year.slt:213)!
+================================================================================
+000200: DataFusion error: This feature is not implemented: Function 'dayname' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/dayname
+================================================================================
+SELECT d "Date",
+       DAYNAME(d) "Day",
+       WEEK(d) "WOY",
+       WEEKISO(d) "WOY (ISO)",
+       YEAROFWEEK(d) "YOW",
+       YEAROFWEEKISO(d) "YOW (ISO)"
+  FROM week_examples;
+================================================================================
+
