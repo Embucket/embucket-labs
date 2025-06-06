@@ -8,10 +8,8 @@ Logging is the basic way to observe debug and tracing events.
 Usually `RUST_LOG=debug` is just enough. For tracing use `RUST_LOG=trace`
 
 ### Open-Telemetry with Jaeger v2
-Embucket's calls that have been instrumeneted with tracing are used as a source of tracing events. Then OpenTelemetry SDK used for sending tracing spans via OpenTelemetry protocol via the port `4317` to the *OpenTelemetry OLTP* collector, running inside the Jaeger v2 container. In case if no Jaeger is running it shouldn't give any substantial overhead on *Embucket*.
-Jaeger dashboard accessible at [localhost:16686](http://localhost:16686)
-
-[Jaeger v2](https://www.jaegertracing.io/download/) dashboard accessible at [localhost:16686](http://localhost:16686)
+Instrumented calls in Embucket produce tracing events and spans by using the OpenTelemetry SDK. These events are then sent via OTLP (OpenTelemetry Protocol) to port 4317, where OpenTelemetry Collector is listening.
+It starts collecting data when you run the Docker container, which also serves a [Jaeger](https://www.jaegertracing.io/download/) dashboard at [http://localhost:16686/](http://localhost:16686)
 
 ```bash
 # Run docker container with Jaeger UI v2
