@@ -87,7 +87,10 @@ fn test_statement_postprocessing() {
         ),
         // Inline aliases in select
         (
-            "SELECT 'test txt' AS alias, length(alias) as t",
+            "SELECT 
+       '2016-01-02T23:39:20.123-07:00'::TIMESTAMP AS tstamp,
+       DAYOFWEEK(tstamp) AS \"DAY OF WEEK\",
+       DAYOFWEEKISO(tstamp) AS \"DAY OF WEEK ISO\";",
             "SELECT 'test txt' AS alias, length('test txt') AS t",
         ),
     ];
