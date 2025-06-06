@@ -247,7 +247,8 @@ mean
 median                             
 min                                
 named_struct                       
-nanvl                              
+nanvl
+next_day
 now                                
 nth_value                          
 ntile                              
