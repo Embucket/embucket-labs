@@ -28,6 +28,9 @@ export function HomeWorksheetsTable({ isLoading, worksheets }: HomeWorksheetsTab
     }),
     columnHelper.accessor('content', {
       header: 'Content',
+      meta: {
+        cellClassName: 'max-w-[500px] truncate',
+      },
     }),
     columnHelper.accessor('updatedAt', {
       header: 'Updated At',

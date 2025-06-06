@@ -6,12 +6,12 @@ use core_history::errors::HistoryStoreError;
 use core_history::result_set::{Column, ResultSet, Row};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
-use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::array::{
     Array, Decimal128Array, Int16Array, Int32Array, Int64Array, StringArray,
     TimestampMicrosecondArray, TimestampMillisecondArray, TimestampNanosecondArray,
     TimestampSecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array, UnionArray,
 };
+use datafusion::arrow::array::{ArrayRef, Date32Array, Date64Array};
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::{Field, Schema, TimeUnit};
@@ -30,23 +30,20 @@ use strum::{Display, EnumString};
 
 #[derive(Clone)]
 pub struct Config {
-    pub dbt_serialization_format: DataSerializationFormat,
     pub embucket_version: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            dbt_serialization_format: DataSerializationFormat::default(),
             embucket_version: "0.1.0".to_string(),
         }
     }
 }
 
 impl Config {
-    pub fn new(data_format: &str) -> Result<Self, strum::ParseError> {
+    pub fn new() -> Result<Self, strum::ParseError> {
         Ok(Self {
-            dbt_serialization_format: DataSerializationFormat::try_from(data_format)?,
             embucket_version: "0.1.0".to_string(),
         })
     }
@@ -190,6 +187,18 @@ pub fn convert_record_batches(
                     );
                     Arc::clone(&converted_column)
                 }
+                DataType::Date32 | DataType::Date64 => {
+                    let converted_column = convert_date(column, data_format);
+                    fields.push(
+                        Field::new(
+                            field.name(),
+                            converted_column.data_type().clone(),
+                            field.is_nullable(),
+                        )
+                        .with_metadata(metadata),
+                    );
+                    Arc::clone(&converted_column)
+                }
                 DataType::UInt64 | DataType::UInt32 | DataType::UInt16 | DataType::UInt8 => {
                     let column_info = &column_infos[i];
                     convert_uint_to_int_datatypes(
@@ -304,6 +313,23 @@ fn convert_timestamp_to_struct(
             };
             Arc::new(StringArray::from(timestamps)) as ArrayRef
         }
+    }
+}
+
+#[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
+fn convert_date(column: &ArrayRef, data_format: DataSerializationFormat) -> ArrayRef {
+    match data_format {
+        DataSerializationFormat::Json => {
+            let days: Vec<Option<i32>> = match column.data_type() {
+                DataType::Date32 => downcast_and_iter!(column, Date32Array).collect(),
+                DataType::Date64 => downcast_and_iter!(column, Date64Array)
+                    .map(|ms| ms.map(|v| (v / 86_400_000) as i32))
+                    .collect(),
+                _ => return column.clone(),
+            };
+            Arc::new(Int32Array::from(days)) as ArrayRef
+        }
+        DataSerializationFormat::Arrow => column.clone(),
     }
 }
 
@@ -440,10 +466,9 @@ impl std::fmt::Display for NormalizedIdent {
 
 pub fn query_result_to_history(
     result: &ExecutionResult<QueryResult>,
-    format: DataSerializationFormat,
 ) -> HistoryStoreResult<ResultSet> {
     match result {
-        Ok(query_result) => query_result_to_result_set(query_result, format).map_err(|err| {
+        Ok(query_result) => query_result_to_result_set(query_result).map_err(|err| {
             HistoryStoreError::ExecutionResult {
                 message: err.to_string(),
             }
@@ -454,10 +479,9 @@ pub fn query_result_to_history(
     }
 }
 
-pub fn query_result_to_result_set(
-    query_result: &QueryResult,
-    data_format: DataSerializationFormat,
-) -> ExecutionResult<ResultSet> {
+pub fn query_result_to_result_set(query_result: &QueryResult) -> ExecutionResult<ResultSet> {
+    let data_format = DataSerializationFormat::Arrow;
+
     // Convert the QueryResult to RecordBatches using the specified serialization format
     // Add columns dbt metadata to each field
     // Since we have to store already converted data to history
@@ -783,5 +807,49 @@ mod tests {
         let fields_tested =
             check_record_batches_uint_to_int(record_batches, converted_batches, column_infos);
         assert_eq!(fields_tested, 4);
+    }
+
+    #[test]
+    fn test_convert_record_batches_dates() {
+        let date32_values = vec![Some(1), Some(2), None];
+        let date64_values = vec![Some(86_400_000), Some(172_800_000), None]; // 1, 2 days in ms
+
+        let date32_array = Arc::new(Date32Array::from(date32_values.clone())) as ArrayRef;
+        let date64_array = Arc::new(Date64Array::from(date64_values.clone())) as ArrayRef;
+
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("date32_col", DataType::Date32, true),
+            Field::new("date64_col", DataType::Date64, true),
+        ]));
+
+        let record_batch =
+            RecordBatch::try_new(schema.clone(), vec![date32_array, date64_array]).unwrap();
+        let query_result = QueryResult::new(vec![record_batch], schema, 0);
+        let converted_batches =
+            convert_record_batches(query_result, DataSerializationFormat::Json).unwrap();
+        let converted_batch = &converted_batches[0];
+
+        let result_date32 = converted_batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<Int32Array>()
+            .unwrap();
+        let result_date64 = converted_batch
+            .column(1)
+            .as_any()
+            .downcast_ref::<Int32Array>()
+            .unwrap();
+
+        for i in 0..3 {
+            assert_eq!(result_date32.is_null(i), date32_values[i].is_none());
+            assert_eq!(result_date64.is_null(i), date64_values[i].is_none());
+            if let (Some(orig32), Some(orig64)) = (date32_values[i], date64_values[i]) {
+                assert_eq!(result_date32.value(i), orig32);
+                assert_eq!(
+                    result_date64.value(i),
+                    i32::try_from(orig64 / 86_400_000).unwrap()
+                );
+            }
+        }
     }
 }

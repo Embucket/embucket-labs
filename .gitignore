@@ -32,6 +32,8 @@ crates/catalog/prefix/**
 embucket-warehouse-test/
 dummyprefix/
 tests/benchmark/*.json
+tests/error.log
+tests/test_statistics.csv
 snowplow
 
 *.manifest

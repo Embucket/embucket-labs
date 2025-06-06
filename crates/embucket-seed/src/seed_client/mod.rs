@@ -171,5 +171,5 @@ pub async fn seed_database(
             tracing::info!("Seeding finished, seeded {seeded_entities_count} entities!");
         }
         Err(err) => tracing::error!("Seeding error: {err}"),
-    };
+    }
 }

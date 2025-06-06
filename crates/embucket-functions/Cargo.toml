@@ -1,0 +1,32 @@
+[package]
+name = "embucket-functions"
+version = "0.1.0"
+edition = "2024"
+license-file.workspace = true
+
+[dependencies]
+chrono = { workspace = true }
+datafusion = { workspace = true }
+datafusion-common = { workspace = true }
+datafusion-doc = { workspace = true }
+datafusion-expr = { workspace = true }
+datafusion-macros = { workspace = true }
+datafusion-physical-plan = { workspace = true }
+paste = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
+ahash = { version = "0.8", default-features = false, features = [
+    "runtime-rng",
+] }
+base64 = "0.22.1"
+jsonpath_lib = "0.3.0"
+indexmap = "2.9.0"
+
+[dev-dependencies]
+tokio = { workspace = true }
+bytes = { workspace = true }
+insta = { version = "1.42.0", features = ["yaml", "filters"] }
+paste = "1"
+
+[lints]
+workspace = true

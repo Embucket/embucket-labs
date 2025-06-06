@@ -2,40 +2,78 @@ import type { QueryRecord } from '@/orval/models';
 
 export const QUERY_RECORDS_MOCK: QueryRecord[] = [
   {
-    id: 1,
-    query: 'SELECT * FROM users',
-    error: '',
+    id: 8251111965593,
+    query: 'SELECT * FROM information_schema.navigation_tree',
+    startTime: '2025-06-02T18:13:54.406788Z',
+    endTime: '2025-06-02T18:13:54.416249Z',
+    durationMs: 9,
+    resultCount: 18,
     result: {
       columns: [
-        { name: 'id', type: 'INT' },
-        { name: 'name', type: 'VARCHAR(255)' },
+        {
+          name: 'database',
+          type: 'text',
+        },
+        {
+          name: 'schema',
+          type: 'text',
+        },
+        {
+          name: 'table',
+          type: 'text',
+        },
+        {
+          name: 'table_type',
+          type: 'text',
+        },
       ],
       rows: [
-        [1, 'John'],
-        [2, 'Charlie'],
-        [3, 'Bob'],
+        ['slatedb', null, null, null],
+        ['slatedb', 'meta', null, null],
+        ['slatedb', 'meta', 'schemas', 'VIEW'],
+        ['slatedb', 'meta', 'databases', 'VIEW'],
+        ['slatedb', 'meta', 'tables', 'VIEW'],
+        ['slatedb', 'meta', 'volumes', 'VIEW'],
+        ['slatedb', 'history', null, null],
+        ['slatedb', 'history', 'worksheets', 'VIEW'],
+        ['slatedb', 'history', 'queries', 'VIEW'],
+        ['slatedb', 'information_schema', 'df_settings', 'VIEW'],
+        ['slatedb', 'information_schema', 'columns', 'VIEW'],
       ],
     },
-    resultCount: 0,
-    startTime: '11:55:00 AM',
-    endTime: '2023-10-01T12:00:05Z',
-    durationMs: 5000,
     status: 'successful',
-    worksheetId: 1,
+    error: '',
   },
   {
-    id: 2,
-    query: 'SELECT * FROM orders',
-    error: '',
+    id: 8251112207655,
+    query: 'SELECT * FROM slatedb.meta.volumes ORDER BY volume_name DESC LIMIT 250',
+    startTime: '2025-06-02T18:09:52.344996Z',
+    endTime: '2025-06-02T18:09:52.360947Z',
+    durationMs: 15,
+    resultCount: 0,
     result: {
-      columns: [],
+      columns: [
+        {
+          name: 'volume_name',
+          type: 'text',
+        },
+        {
+          name: 'volume_type',
+          type: 'text',
+        },
+        {
+          name: 'created_at',
+          type: 'text',
+        },
+        {
+          name: 'updated_at',
+          type: 'text',
+        },
+      ],
       rows: [],
     },
-    resultCount: 0,
-    startTime: '12:00:05 AM',
-    endTime: '2023-10-01T12:05:10Z',
-    durationMs: 10000,
     status: 'failed',
-    worksheetId: 1,
+    error:
+      "Query execution error: DataFusion error: Error during planning: table 'embucket.public.dqwdqw' not found",
   },
 ];

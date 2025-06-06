@@ -9,4 +9,4 @@ pub mod query_planner;
 pub mod rewriters;
 pub mod type_planner;
 
-pub use df_builtins as functions;
+pub use embucket_functions as functions;

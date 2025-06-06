@@ -1,0 +1,28 @@
+---
+source: crates/embucket-functions/src/tests/sql/commands/unpivot.rs
+description: "\"SELECT dept, month, sales\n  FROM monthly_sales\n    UNPIVOT (sales FOR month IN (jan, feb, mar, apr))\n  ORDER BY dept;\""
+info: "Setup queries: CREATE OR REPLACE TABLE monthly_sales(\n  empid INT,\n  dept TEXT,\n  jan INT,\n  feb INT,\n  mar INT,\n  apr INT); INSERT INTO monthly_sales VALUES\n  (1, 'electronics', 100, 200, 300, 100),\n  (2, 'clothes', 100, 300, 150, 200),\n  (3, 'cars', 200, 400, 100, 50),\n  (4, 'appliances', 100, NULL, 100, 50);"
+---
+Ok(
+    [
+        "+-------------+-------+-------+",
+        "| dept        | month | sales |",
+        "+-------------+-------+-------+",
+        "| appliances  | jan   | 100   |",
+        "| appliances  | mar   | 100   |",
+        "| appliances  | apr   | 50    |",
+        "| cars        | jan   | 200   |",
+        "| cars        | feb   | 400   |",
+        "| cars        | mar   | 100   |",
+        "| cars        | apr   | 50    |",
+        "| clothes     | jan   | 100   |",
+        "| clothes     | feb   | 300   |",
+        "| clothes     | mar   | 150   |",
+        "| clothes     | apr   | 200   |",
+        "| electronics | jan   | 100   |",
+        "| electronics | feb   | 200   |",
+        "| electronics | mar   | 300   |",
+        "| electronics | apr   | 100   |",
+        "+-------------+-------+-------+",
+    ],
+)

@@ -48,6 +48,7 @@ export * from './queryCreatePayloadContext';
 export * from './queryCreatePayloadContextAnyOf';
 export * from './queryCreatePayloadWorksheetId';
 export * from './queryCreateResponse';
+export * from './queryGetResponse';
 export * from './queryRecord';
 export * from './queryRecordWorksheetId';
 export * from './queryStatus';

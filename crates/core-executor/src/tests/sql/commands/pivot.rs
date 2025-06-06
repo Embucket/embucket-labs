@@ -1,11 +1,39 @@
 use crate::test_query;
 
+const SETUP_QUERY: &str = "CREATE OR REPLACE TABLE quarterly_sales(
+  empid INT,
+  amount INT,
+  quarter TEXT)
+  AS SELECT * FROM VALUES
+    (1, 10000, '2023_Q1'),
+    (1, 400, '2023_Q1'),
+    (2, 4500, '2023_Q1'),
+    (2, 35000, '2023_Q1'),
+    (1, 5000, '2023_Q2'),
+    (1, 3000, '2023_Q2'),
+    (2, 200, '2023_Q2'),
+    (2, 90500, '2023_Q2'),
+    (1, 6000, '2023_Q3'),
+    (1, 5000, '2023_Q3'),
+    (2, 2500, '2023_Q3'),
+    (2, 9500, '2023_Q3'),
+    (3, 2700, '2023_Q3'),
+    (1, 8000, '2023_Q4'),
+    (1, 10000, '2023_Q4'),
+    (2, 800, '2023_Q4'),
+    (2, 4500, '2023_Q4'),
+    (3, 2700, '2023_Q4'),
+    (3, 16000, '2023_Q4'),
+    (3, 10200, '2023_Q4')";
+
 test_query!(
     pivot_basic,
     "SELECT *
 FROM quarterly_sales
 PIVOT(SUM(amount) FOR quarter IN ('2023_Q1', '2023_Q2', '2023_Q3', '2023_Q4'))
-ORDER BY empid;"
+ORDER BY empid;",
+    setup_queries = [SETUP_QUERY],
+    snapshot_path = "pivot"
 );
 
 test_query!(
@@ -15,7 +43,9 @@ FROM quarterly_sales
 PIVOT(SUM(amount) 
   FOR quarter IN ('2023_Q1', '2023_Q2')
   DEFAULT ON NULL (1001))
-ORDER BY empid;"
+ORDER BY empid;",
+    setup_queries = [SETUP_QUERY],
+    snapshot_path = "pivot"
 );
 
 test_query!(
@@ -23,7 +53,9 @@ test_query!(
     "SELECT *
 FROM quarterly_sales
 PIVOT(SUM(amount) FOR empid IN (ANY ORDER BY empid))
-ORDER BY quarter;"
+ORDER BY quarter;",
+    setup_queries = [SETUP_QUERY],
+    snapshot_path = "pivot"
 );
 
 test_query!(
@@ -31,7 +63,9 @@ test_query!(
     "SELECT *
 FROM quarterly_sales
 PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter DESC))
-ORDER BY empid;"
+ORDER BY empid;",
+    setup_queries = [SETUP_QUERY],
+    snapshot_path = "pivot"
 );
 
 test_query!(
@@ -42,7 +76,9 @@ PIVOT(SUM(amount)
   FOR quarter IN (
     SELECT DISTINCT quarter FROM quarterly_sales WHERE quarter LIKE '%Q1' OR quarter LIKE '%Q3'
   ))
-ORDER BY empid;"
+ORDER BY empid;",
+    setup_queries = [SETUP_QUERY],
+    snapshot_path = "pivot"
 );
 
 test_query!(
@@ -52,7 +88,9 @@ test_query!(
 SELECT *
 FROM sales_without_discount
 PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter))
-ORDER BY empid;"
+ORDER BY empid;",
+    setup_queries = [SETUP_QUERY],
+    snapshot_path = "pivot"
 );
 
 test_query!(
@@ -64,7 +102,9 @@ FROM (
   WHERE amount > 5000
 )
 PIVOT(SUM(amount) FOR quarter IN ('2023_Q1', '2023_Q4'))
-ORDER BY empid;"
+ORDER BY empid;",
+    setup_queries = [SETUP_QUERY],
+    snapshot_path = "pivot"
 );
 
 test_query!(
@@ -81,7 +121,9 @@ FROM (
   FROM quarterly_sales
 )
 PIVOT(SUM(amount) FOR half_year IN ('H1', 'H2'))
-ORDER BY empid;"
+ORDER BY empid;",
+    setup_queries = [SETUP_QUERY],
+    snapshot_path = "pivot"
 );
 
 test_query!(
@@ -105,7 +147,9 @@ UNION
 SELECT 'Total amount' AS aggregate, *
   FROM quarterly_sales
     PIVOT(SUM(amount) FOR quarter IN ('2023_Q1', '2023_Q2', '2023_Q4'))
-ORDER BY aggregate, empid;"
+ORDER BY aggregate, empid;",
+    setup_queries = [SETUP_QUERY],
+    snapshot_path = "pivot"
 );
 
 test_query!(
@@ -129,12 +173,16 @@ UNION
 SELECT 'Total amount' AS aggregate, *
   FROM quarterly_sales
     PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter))
-ORDER BY aggregate, empid;"
+ORDER BY aggregate, empid;",
+    setup_queries = [SETUP_QUERY],
+    snapshot_path = "pivot"
 );
 
 test_query!(
     pivot_with_avg_any,
     "SELECT 'Average sale amount' AS aggregate, *
  FROM quarterly_sales
-   PIVOT(AVG(amount) FOR quarter IN (ANY ORDER BY quarter)) ORDER by empid;"
+   PIVOT(AVG(amount) FOR quarter IN (ANY ORDER BY quarter)) ORDER by empid;",
+    setup_queries = [SETUP_QUERY],
+    snapshot_path = "pivot"
 );
