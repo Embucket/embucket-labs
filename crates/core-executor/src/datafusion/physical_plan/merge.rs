@@ -1,5 +1,5 @@
 use datafusion::arrow::{
-    array::{Array, RecordBatch},
+    array::{Array, RecordBatch, StringArray, downcast_array},
     compute::{filter, kernels::cmp::distinct},
 };
 use datafusion_common::{DFSchemaRef, DataFusionError, HashSet};
@@ -185,15 +185,28 @@ impl RecordBatchStream for SourceExistFilterStream {
     }
 }
 
-/// Computes the
-fn unique(array: &dyn Array) -> Result<Vec<String>, DataFusionError> {
+// Computes a HashSet of all strings values in the array
+fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> {
     let slice_len = array.len() - 1;
     let v1 = array.slice(0, slice_len);
     let v2 = array.slice(1, slice_len);
 
     let mask = distinct(&v1, &v2)?;
 
-    let _unique = filter(&v2, &mask)?;
+    let unique = filter(&v2, &mask)?;
 
-    Ok(Vec::new())
+    let strings = downcast_array::<StringArray>(&unique);
+
+    let first = strings.value(0).to_owned();
+
+    let result = strings
+        .iter()
+        .fold(HashSet::from_iter([first]), |mut acc, x| {
+            if let Some(x) = x {
+                acc.insert(x.to_owned());
+            }
+            acc
+        });
+
+    Ok(result)
 }
