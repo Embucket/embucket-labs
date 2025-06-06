@@ -185,9 +185,16 @@ impl RecordBatchStream for SourceExistFilterStream {
     }
 }
 
-// Computes a HashSet of all strings values in the array
+// Computes a HashSet of all string values in the array
 fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> {
+    let first = downcast_array::<StringArray>(array).value(0).to_owned();
+
     let slice_len = array.len() - 1;
+
+    if slice_len == 0 {
+        return Ok(HashSet::from_iter([first]));
+    }
+
     let v1 = array.slice(0, slice_len);
     let v2 = array.slice(1, slice_len);
 
@@ -196,8 +203,6 @@ fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> 
     let unique = filter(&v2, &mask)?;
 
     let strings = downcast_array::<StringArray>(&unique);
-
-    let first = strings.value(0).to_owned();
 
     let result = strings
         .iter()
@@ -209,4 +214,46 @@ fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> 
         });
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_unique_values_with_duplicates() {
+        let array = Arc::new(StringArray::from(vec!["a", "a", "b", "b", "c"]));
+        let result = unique_values(array.as_ref()).unwrap();
+
+        let expected: HashSet<String> = ["a", "b", "c"].iter().map(|&s| s.to_string()).collect();
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_unique_values_all_same() {
+        let array = Arc::new(StringArray::from(vec!["same", "same", "same"]));
+        let result = unique_values(array.as_ref()).unwrap();
+
+        let expected: HashSet<String> = ["same"].iter().map(|&s| s.to_string()).collect();
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_unique_values_with_nulls() {
+        let array = Arc::new(StringArray::from(vec![
+            Some("a"),
+            None,
+            Some("b"),
+            None,
+            Some("a"),
+        ]));
+        let result = unique_values(array.as_ref()).unwrap();
+
+        let expected: HashSet<String> = ["a", "b"].iter().map(|&s| s.to_string()).collect();
+
+        assert_eq!(result, expected);
+    }
 }
