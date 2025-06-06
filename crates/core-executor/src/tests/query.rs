@@ -88,7 +88,7 @@ fn test_statement_postprocessing() {
         // Inline aliases in select
         (
             "SELECT 'test txt' AS alias, length(alias) as t",
-            "SELECT 'test txt' AS alias, length('test txt') as t",
+            "SELECT 'test txt' AS alias, length('test txt') AS t",
         ),
     ];
 
