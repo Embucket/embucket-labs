@@ -242,10 +242,10 @@ pub enum TracingLevel {
 impl Into<LevelFilter> for TracingLevel {
     fn into(self) -> LevelFilter {
         match self {
-            TracingLevel::Off => LevelFilter::OFF,
-            TracingLevel::Info => LevelFilter::INFO,
-            TracingLevel::Debug => LevelFilter::DEBUG,
-            TracingLevel::Trace => LevelFilter::TRACE,
+            Self::Off => LevelFilter::OFF,
+            Self::Info => LevelFilter::INFO,
+            Self::Debug => LevelFilter::DEBUG,
+            Self::Trace => LevelFilter::TRACE,
         }
     }
 }

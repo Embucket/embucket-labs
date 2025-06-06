@@ -80,9 +80,7 @@ async fn main() {
 
     let opts = cli::CliOpts::parse();
 
-    let provider = setup_tracing(&opts)
-        .await
-        .expect("Failed to initialize tracer");
+    let provider = setup_tracing(&opts);
 
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let data_format = opts
@@ -225,9 +223,8 @@ async fn main() {
         .expect("TracerProvider should shutdown successfully");
 }
 
-async fn setup_tracing(
-    opts: &cli::CliOpts,
-) -> Result<SdkTracerProvider, Box<dyn std::error::Error + Send + Sync>> {
+#[allow(clippy::expect_used)]
+fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
     // Initialize OTLP exporter using gRPC (Tonic)
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
@@ -244,11 +241,11 @@ async fn setup_tracing(
     let tracing_level: LevelFilter = opts.tracing_level.clone().into();
     let tracing_targets: Vec<(String, LevelFilter)> = TARGETS
         .iter()
-        .map(|t| (t.to_string(), tracing_level))
+        .map(|t| ((*t).to_string(), tracing_level))
         .collect();
     let default_log_targets: Vec<(String, LevelFilter)> = TARGETS
         .iter()
-        .map(|t| (t.to_string(), LevelFilter::INFO))
+        .map(|t| ((*t).to_string(), LevelFilter::INFO))
         .collect();
     tracing_subscriber::registry()
         // Telemetry filtering
@@ -286,7 +283,7 @@ async fn setup_tracing(
         )
         .init();
 
-    Ok(provider)
+    provider
 }
 
 /// This func will wait for a signal to shutdown the service.

@@ -60,7 +60,7 @@ impl SchemaProvider for EmbucketSchema {
         .unwrap_or_else(|_| vec![]);
 
         // Record the result as part of the current span.
-        tracing::Span::current().record("tables_names_count", &table_names.len());
+        tracing::Span::current().record("tables_names_count", table_names.len());
 
         table_names
     }

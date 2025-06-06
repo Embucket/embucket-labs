@@ -111,7 +111,7 @@ impl<T: Send + for<'de> serde::de::Deserialize<'de>> ScanIterator for VecScanIte
         let limit = self.limit.unwrap_or(u16::MAX) as usize;
 
         // Record the result as part of the current span.
-        tracing::Span::current().record("keys_range", &format!("{start}..{end}"));
+        tracing::Span::current().record("keys_range", format!("{start}..{end}"));
 
         let range = Bytes::from(start)..Bytes::from(end);
         let mut iter = self.db.scan(range).await.context(ScanFailedSnafu)?;
@@ -129,7 +129,7 @@ impl<T: Send + for<'de> serde::de::Deserialize<'de>> ScanIterator for VecScanIte
         }
 
         // Record the result as part of the current span.
-        tracing::Span::current().record("items_count", &objects.len());
+        tracing::Span::current().record("items_count", objects.len());
 
         Ok(objects)
     }

@@ -268,7 +268,7 @@ impl Db {
         }
 
         // Record the result as part of the current span.
-        tracing::Span::current().record("items_count", &items.len());
+        tracing::Span::current().record("items_count", items.len());
 
         Ok(items)
     }
