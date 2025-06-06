@@ -102,7 +102,13 @@ impl SessionStore for RequestSessionStore {
 
 #[async_trait::async_trait]
 impl ExpiredDeletion for RequestSessionStore {
-    #[tracing::instrument(name = "ExpiredDeletion::delete_expired", level = "trace", skip(self), err, ret)]
+    #[tracing::instrument(
+        name = "ExpiredDeletion::delete_expired",
+        level = "trace",
+        skip(self),
+        err,
+        ret
+    )]
     async fn delete_expired(&self) -> session_store::Result<()> {
         let store_guard = self.store.lock().await;
         let now = OffsetDateTime::now_utc();

@@ -172,7 +172,7 @@ pub struct CliOpts {
         default_value = "info",
         help = "Tracing level, it can be overrided by *RUST_LOG* env var"
     )]
-    pub tracing_level: TracingLevel,    
+    pub tracing_level: TracingLevel,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

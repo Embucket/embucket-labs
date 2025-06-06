@@ -167,7 +167,12 @@ impl SlateDBMetastore {
         self.db.iter_objects(iter_key)
     }
 
-    #[instrument(name = "SlateDBMetastore::create_object", level = "trace", skip(self, object), err)]
+    #[instrument(
+        name = "SlateDBMetastore::create_object",
+        level = "trace",
+        skip(self, object),
+        err
+    )]
     async fn create_object<T>(
         &self,
         key: &str,
@@ -202,7 +207,12 @@ impl SlateDBMetastore {
         }
     }
 
-    #[instrument(name = "SlateDBMetastore::update_object", level = "trace", skip(self, object), err)]
+    #[instrument(
+        name = "SlateDBMetastore::update_object",
+        level = "trace",
+        skip(self, object),
+        err
+    )]
     async fn update_object<T>(&self, key: &str, object: T) -> MetastoreResult<RwObject<T>>
     where
         T: serde::Serialize + DeserializeOwned + Eq + PartialEq + Send + Sync,
@@ -226,7 +236,12 @@ impl SlateDBMetastore {
         }
     }
 
-    #[instrument(name = "SlateDBMetastore::delete_object", level = "trace", skip(self), err)]
+    #[instrument(
+        name = "SlateDBMetastore::delete_object",
+        level = "trace",
+        skip(self),
+        err
+    )]
     async fn delete_object(&self, key: &str) -> MetastoreResult<()> {
         self.db.delete(key).await.ok();
         Ok(())
@@ -258,7 +273,12 @@ impl Metastore for SlateDBMetastore {
         self.iter_objects(KEY_VOLUME.to_string())
     }
 
-    #[instrument(name = "Metastore::create_volume", level = "trace", skip(self, volume), err)]
+    #[instrument(
+        name = "Metastore::create_volume",
+        level = "trace",
+        skip(self, volume),
+        err
+    )]
     async fn create_volume(
         &self,
         name: &VolumeIdent,
@@ -295,7 +315,12 @@ impl Metastore for SlateDBMetastore {
             .map_err(Box::new)
     }
 
-    #[instrument(name = "Metastore::update_volume", level = "trace", skip(self, volume), err)]
+    #[instrument(
+        name = "Metastore::update_volume",
+        level = "trace",
+        skip(self, volume),
+        err
+    )]
     async fn update_volume(
         &self,
         name: &VolumeIdent,
@@ -339,7 +364,12 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    #[instrument(name = "Metastore::volume_object_store", level = "trace", skip(self), err)]
+    #[instrument(
+        name = "Metastore::volume_object_store",
+        level = "trace",
+        skip(self),
+        err
+    )]
     async fn volume_object_store(
         &self,
         name: &VolumeIdent,
@@ -364,7 +394,12 @@ impl Metastore for SlateDBMetastore {
         self.iter_objects(KEY_DATABASE.to_string())
     }
 
-    #[instrument(name = "Metastore::create_database", level = "trace", skip(self, database), err)]
+    #[instrument(
+        name = "Metastore::create_database",
+        level = "trace",
+        skip(self, database),
+        err
+    )]
     async fn create_database(
         &self,
         name: &DatabaseIdent,
@@ -393,7 +428,12 @@ impl Metastore for SlateDBMetastore {
             .map_err(Box::new)
     }
 
-    #[instrument(name = "Metastore::update_database", level = "trace", skip(self, database), err)]
+    #[instrument(
+        name = "Metastore::update_database",
+        level = "trace",
+        skip(self, database),
+        err
+    )]
     async fn update_database(
         &self,
         name: &DatabaseIdent,
@@ -431,7 +471,12 @@ impl Metastore for SlateDBMetastore {
         self.iter_objects(key)
     }
 
-    #[instrument(name = "Metastore::create_schema", level = "trace", skip(self, schema), err)]
+    #[instrument(
+        name = "Metastore::create_schema",
+        level = "trace",
+        skip(self, schema),
+        err
+    )]
     async fn create_schema(
         &self,
         ident: &SchemaIdent,
@@ -460,7 +505,12 @@ impl Metastore for SlateDBMetastore {
             .map_err(Box::new)
     }
 
-    #[instrument(name = "Metastore::update_schema", level = "trace", skip(self, schema), err)]
+    #[instrument(
+        name = "Metastore::update_schema",
+        level = "trace",
+        skip(self, schema),
+        err
+    )]
     async fn update_schema(
         &self,
         ident: &SchemaIdent,
@@ -628,7 +678,12 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    #[instrument(name = "Metastore::update_table", level = "trace", skip(self, update), err)]
+    #[instrument(
+        name = "Metastore::update_table",
+        level = "trace",
+        skip(self, update),
+        err
+    )]
     async fn update_table(
         &self,
         ident: &TableIdent,

@@ -62,7 +62,12 @@ impl EmbucketCatalogList {
     /// - Failure to access or query the metastore (e.g., database listing or volume parsing).
     /// - Errors initializing internal or external catalogs (e.g., Iceberg metadata failures).
     #[allow(clippy::as_conversions)]
-    #[tracing::instrument(name = "EmbucketCatalogList::register_catalogs", level = "debug", skip(self), err)]
+    #[tracing::instrument(
+        name = "EmbucketCatalogList::register_catalogs",
+        level = "debug",
+        skip(self),
+        err
+    )]
     pub async fn register_catalogs(self: &Arc<Self>) -> Result<()> {
         let mut all_catalogs = Vec::new();
         // Internal catalogs
@@ -79,7 +84,12 @@ impl EmbucketCatalogList {
         Ok(())
     }
 
-    #[tracing::instrument(name = "EmbucketCatalogList::internal_catalogs", level = "debug", skip(self), err)]
+    #[tracing::instrument(
+        name = "EmbucketCatalogList::internal_catalogs",
+        level = "debug",
+        skip(self),
+        err
+    )]
     pub async fn internal_catalogs(&self) -> Result<Vec<CachingCatalog>> {
         self.metastore
             .iter_databases()
@@ -102,7 +112,11 @@ impl EmbucketCatalogList {
     }
 
     #[must_use]
-    #[tracing::instrument(name = "EmbucketCatalogList::slatedb_catalog", level = "debug", skip(self))]
+    #[tracing::instrument(
+        name = "EmbucketCatalogList::slatedb_catalog",
+        level = "debug",
+        skip(self)
+    )]
     pub fn slatedb_catalog(&self) -> CachingCatalog {
         let catalog: Arc<dyn CatalogProvider> = Arc::new(SlateDBCatalog::new(
             self.metastore.clone(),
@@ -111,7 +125,12 @@ impl EmbucketCatalogList {
         CachingCatalog::new(catalog, SLATEDB_CATALOG.to_string())
     }
 
-    #[tracing::instrument(name = "EmbucketCatalogList::external_catalogs", level = "debug", skip(self), err)]
+    #[tracing::instrument(
+        name = "EmbucketCatalogList::external_catalogs",
+        level = "debug",
+        skip(self),
+        err
+    )]
     pub async fn external_catalogs(&self) -> Result<Vec<CachingCatalog>> {
         let volumes = self
             .metastore
@@ -167,7 +186,12 @@ impl EmbucketCatalogList {
     }
 
     #[allow(clippy::as_conversions, clippy::too_many_lines)]
-    #[tracing::instrument(name = "EmbucketCatalogList::refresh", level = "debug", skip(self), err)]
+    #[tracing::instrument(
+        name = "EmbucketCatalogList::refresh",
+        level = "debug",
+        skip(self),
+        err
+    )]
     pub async fn refresh(&self) -> Result<()> {
         for catalog in self.catalogs.iter_mut() {
             if catalog.should_refresh {
@@ -225,7 +249,11 @@ impl EmbucketCatalogList {
     ///
     /// This ensures that newly created databases are gradually recognized and integrated
     /// into the query engine without requiring a full session restart.
-    #[tracing::instrument(name = "EmbucketCatalogList::start_refresh_internal_catalogs_task", level = "debug", skip(self))]
+    #[tracing::instrument(
+        name = "EmbucketCatalogList::start_refresh_internal_catalogs_task",
+        level = "debug",
+        skip(self)
+    )]
     pub fn start_refresh_internal_catalogs_task(self: Arc<Self>, interval_secs: u64) {
         tokio::spawn(async move {
             let mut interval = interval(Duration::from_secs(interval_secs));
@@ -268,7 +296,11 @@ fn get_url_key(url: &Url) -> String {
 }
 
 impl ObjectStoreRegistry for EmbucketCatalogList {
-    #[tracing::instrument(name = "ObjectStoreRegistry::register_store", level = "debug", skip(self, store))]
+    #[tracing::instrument(
+        name = "ObjectStoreRegistry::register_store",
+        level = "debug",
+        skip(self, store)
+    )]
     fn register_store(
         &self,
         url: &Url,
@@ -278,7 +310,12 @@ impl ObjectStoreRegistry for EmbucketCatalogList {
         self.table_object_store.insert(url, store)
     }
 
-    #[tracing::instrument(name = "ObjectStoreRegistry::get_store", level = "debug", skip(self), err)]
+    #[tracing::instrument(
+        name = "ObjectStoreRegistry::get_store",
+        level = "debug",
+        skip(self),
+        err
+    )]
     fn get_store(&self, url: &Url) -> datafusion_common::Result<Arc<dyn ObjectStore>> {
         let url = get_url_key(url);
         if let Some(object_store) = self.table_object_store.get(&url) {
@@ -296,7 +333,11 @@ impl CatalogProviderList for EmbucketCatalogList {
         self
     }
 
-    #[tracing::instrument(name = "CatalogProviderList::register_catalog", level = "debug", skip(self, catalog))]
+    #[tracing::instrument(
+        name = "CatalogProviderList::register_catalog",
+        level = "debug",
+        skip(self, catalog)
+    )]
     fn register_catalog(
         &self,
         name: String,
@@ -311,7 +352,11 @@ impl CatalogProviderList for EmbucketCatalogList {
             })
     }
 
-    #[tracing::instrument(name = "CatalogProviderList::catalog_names", level = "debug", skip(self))]
+    #[tracing::instrument(
+        name = "CatalogProviderList::catalog_names",
+        level = "debug",
+        skip(self)
+    )]
     fn catalog_names(&self) -> Vec<String> {
         self.catalogs.iter().map(|c| c.key().clone()).collect()
     }

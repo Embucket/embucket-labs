@@ -32,13 +32,10 @@ use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use dotenv::dotenv;
 use object_store::path::Path;
-use opentelemetry::{trace::TracerProvider};
-use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
-use tracing_subscriber::filter::{LevelFilter, Targets};
-use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
+use opentelemetry_sdk::trace::SdkTracerProvider;
 use slatedb::{Db as SlateDb, config::DbOptions};
-use tracing_subscriber::fmt::format::FmtSpan;
 use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -48,6 +45,9 @@ use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use tower_sessions::{Expiry, SessionManagerLayer};
+use tracing_subscriber::filter::{LevelFilter, Targets};
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
 use utoipa::openapi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -56,8 +56,16 @@ use utoipa_swagger_ui::SwaggerUi;
 static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 
 const TARGETS: [&str; 10] = [
-    "embucketd", "api_ui", "api_sessions", "api_snowflake_rest", "api_iceberg_rest",
-    "core_executor", "core_utils", "core_history", "core_metastore", "df_catalog",
+    "embucketd",
+    "api_ui",
+    "api_sessions",
+    "api_snowflake_rest",
+    "api_iceberg_rest",
+    "core_executor",
+    "core_utils",
+    "core_history",
+    "core_metastore",
+    "df_catalog",
 ];
 
 #[tokio::main]
@@ -72,7 +80,9 @@ async fn main() {
 
     let opts = cli::CliOpts::parse();
 
-    let provider = setup_tracing(&opts).await.expect("Failed to initialize tracer");
+    let provider = setup_tracing(&opts)
+        .await
+        .expect("Failed to initialize tracer");
 
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let data_format = opts
@@ -210,20 +220,21 @@ async fn main() {
         .await
         .expect("Failed to start server");
 
-    provider.shutdown().expect("TracerProvider should shutdown successfully");
+    provider
+        .shutdown()
+        .expect("TracerProvider should shutdown successfully");
 }
 
-
-async fn setup_tracing(opts: &cli::CliOpts) -> Result<SdkTracerProvider, Box<dyn std::error::Error + Send + Sync>> {
+async fn setup_tracing(
+    opts: &cli::CliOpts,
+) -> Result<SdkTracerProvider, Box<dyn std::error::Error + Send + Sync>> {
     // Initialize OTLP exporter using gRPC (Tonic)
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
         .build()
         .expect("Failed to create OTLP exporter");
 
-    let resource = Resource::builder()
-        .with_service_name("Em")
-        .build();
+    let resource = Resource::builder().with_service_name("Em").build();
 
     let provider = SdkTracerProvider::builder()
         .with_batch_exporter(exporter)
@@ -231,26 +242,48 @@ async fn setup_tracing(opts: &cli::CliOpts) -> Result<SdkTracerProvider, Box<dyn
         .build();
 
     let tracing_level: LevelFilter = opts.tracing_level.clone().into();
-    let tracing_targets: Vec<(String, LevelFilter)> = TARGETS.iter().map(|t| (t.to_string(), tracing_level)).collect();
-    let default_log_targets: Vec<(String, LevelFilter)> = TARGETS.iter().map(|t| (t.to_string(), LevelFilter::INFO)).collect();
+    let tracing_targets: Vec<(String, LevelFilter)> = TARGETS
+        .iter()
+        .map(|t| (t.to_string(), tracing_level))
+        .collect();
+    let default_log_targets: Vec<(String, LevelFilter)> = TARGETS
+        .iter()
+        .map(|t| (t.to_string(), LevelFilter::INFO))
+        .collect();
     tracing_subscriber::registry()
         // Telemetry filtering
-        .with(tracing_opentelemetry::OpenTelemetryLayer::new(provider.tracer("embucket"))
-            .with_level(true)
-            .with_filter(Targets::default()
-                .with_targets(tracing_targets)))
+        .with(
+            tracing_opentelemetry::OpenTelemetryLayer::new(provider.tracer("embucket"))
+                .with_level(true)
+                .with_filter(Targets::default().with_targets(tracing_targets)),
+        )
         // Logs filtering
-        .with(tracing_subscriber::fmt::layer()
-            .with_span_events(FmtSpan::CLOSE)
-            .with_filter(Targets::default()
-                .with_targets(default_log_targets))
-            .with_filter(tracing_subscriber::EnvFilter::builder()
-                .with_default_directive(LevelFilter::INFO.into())
-                .from_env_lossy()
-                .add_directive("h2=off".parse().expect("Invalid directive h2=off"))
-                .add_directive("slatedb=off".parse().expect("Invalid directive tower_sessions_core=off"))
-                .add_directive("tower_sessions=off".parse().expect("Invalid directive tower_sessions=off"))
-                .add_directive("tower_http=off".parse().expect("Invalid directive tower_http=off"))))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_span_events(FmtSpan::CLOSE)
+                .with_filter(Targets::default().with_targets(default_log_targets))
+                .with_filter(
+                    tracing_subscriber::EnvFilter::builder()
+                        .with_default_directive(LevelFilter::INFO.into())
+                        .from_env_lossy()
+                        .add_directive("h2=off".parse().expect("Invalid directive h2=off"))
+                        .add_directive(
+                            "slatedb=off"
+                                .parse()
+                                .expect("Invalid directive tower_sessions_core=off"),
+                        )
+                        .add_directive(
+                            "tower_sessions=off"
+                                .parse()
+                                .expect("Invalid directive tower_sessions=off"),
+                        )
+                        .add_directive(
+                            "tower_http=off"
+                                .parse()
+                                .expect("Invalid directive tower_http=off"),
+                        ),
+                ),
+        )
         .init();
 
     Ok(provider)

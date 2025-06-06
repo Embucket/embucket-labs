@@ -12,10 +12,10 @@ use slatedb::Db as SlateDb;
 use slatedb::DbIterator;
 use slatedb::SlateDBError;
 use snafu::prelude::*;
+use std::fmt::Debug;
 use std::ops::RangeBounds;
 use std::string::ToString;
 use std::sync::Arc;
-use std::fmt::Debug;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -239,7 +239,13 @@ impl Db {
     ///
     /// Returns a `DeserializeError` if the value cannot be serialized to JSON.
     /// Returns a `DbError` if the underlying database operation fails.    
-    #[instrument(name = "Db::items_from_range", level = "trace", skip(self), fields(items_count), err)]
+    #[instrument(
+        name = "Db::items_from_range",
+        level = "trace",
+        skip(self),
+        fields(items_count),
+        err
+    )]
     pub async fn items_from_range<
         R: RangeBounds<Bytes> + Send + Debug,
         T: for<'de> serde::de::Deserialize<'de> + IterableEntity + Sync + Send,

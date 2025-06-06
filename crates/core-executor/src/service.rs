@@ -65,7 +65,12 @@ impl CoreExecutionService {
 
 #[async_trait::async_trait]
 impl ExecutionService for CoreExecutionService {
-    #[tracing::instrument(name = "ExecutionService::create_session", level = "debug", skip(self), err)]
+    #[tracing::instrument(
+        name = "ExecutionService::create_session",
+        level = "debug",
+        skip(self),
+        err
+    )]
     async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>> {
         {
             let sessions = self.df_sessions.read().await;
@@ -90,7 +95,12 @@ impl ExecutionService for CoreExecutionService {
         Ok(user_session)
     }
 
-    #[tracing::instrument(name = "ExecutionService::delete_session", level = "debug", skip(self), err)]
+    #[tracing::instrument(
+        name = "ExecutionService::delete_session",
+        level = "debug",
+        skip(self),
+        err
+    )]
     async fn delete_session(&self, session_id: String) -> ExecutionResult<()> {
         // TODO: Need to have a timeout for the lock
         let mut session_list = self.df_sessions.write().await;
@@ -139,7 +149,13 @@ impl ExecutionService for CoreExecutionService {
         query_result
     }
 
-    #[tracing::instrument(name = "ExecutionService::upload_data_to_table", level = "debug", skip(self, data), err, ret)]
+    #[tracing::instrument(
+        name = "ExecutionService::upload_data_to_table",
+        level = "debug",
+        skip(self, data),
+        err,
+        ret
+    )]
     async fn upload_data_to_table(
         &self,
         session_id: &str,

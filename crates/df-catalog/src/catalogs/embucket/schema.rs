@@ -36,7 +36,12 @@ impl SchemaProvider for EmbucketSchema {
         self
     }
 
-    #[tracing::instrument(name = "SchemaProvider::table_names", level = "debug", skip(self), fields(tables_names_count))]
+    #[tracing::instrument(
+        name = "SchemaProvider::table_names",
+        level = "debug",
+        skip(self),
+        fields(tables_names_count)
+    )]
     fn table_names(&self) -> Vec<String> {
         let metastore = self.metastore.clone();
         let database = self.database.clone();

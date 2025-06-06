@@ -271,7 +271,12 @@ pub async fn delete_worksheet(
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(name = "api_ui::update_worksheet", level = "info", skip(state, payload), err)]
+#[tracing::instrument(
+    name = "api_ui::update_worksheet",
+    level = "info",
+    skip(state, payload),
+    err
+)]
 pub async fn update_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,

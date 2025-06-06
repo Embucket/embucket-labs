@@ -83,7 +83,13 @@ impl<T: Send + for<'de> serde::de::Deserialize<'de>> VecScanIterator<T> {
 impl<T: Send + for<'de> serde::de::Deserialize<'de>> ScanIterator for VecScanIterator<T> {
     type Collectable = Vec<T>;
 
-    #[instrument(name="VecScanIterator::collect", level = "trace", skip(self), fields(keys_range, items_count), err)]
+    #[instrument(
+        name = "VecScanIterator::collect",
+        level = "trace",
+        skip(self),
+        fields(keys_range, items_count),
+        err
+    )]
     async fn collect(self) -> Result<Self::Collectable> {
         //We can look with respect to limit
         // from start to end (full scan),

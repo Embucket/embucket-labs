@@ -114,7 +114,12 @@ async fn worksheet_queries_references_iterator(
 
 #[async_trait]
 impl HistoryStore for SlateDBHistoryStore {
-    #[instrument(name = "HistoryStore::add_worksheet", level = "trace", skip(self, worksheet), err)]
+    #[instrument(
+        name = "HistoryStore::add_worksheet",
+        level = "trace",
+        skip(self, worksheet),
+        err
+    )]
     async fn add_worksheet(&self, worksheet: Worksheet) -> HistoryStoreResult<Worksheet> {
         self.db
             .put_iterable_entity(&worksheet)
@@ -150,7 +155,12 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(errors::WorksheetUpdateSnafu)?)
     }
 
-    #[instrument(name = "HistoryStore::delete_worksheet", level = "trace", skip(self), err)]
+    #[instrument(
+        name = "HistoryStore::delete_worksheet",
+        level = "trace",
+        skip(self),
+        err
+    )]
     async fn delete_worksheet(&self, id: WorksheetId) -> HistoryStoreResult<()> {
         // raise an error if we can't locate
         self.get_worksheet(id).await?;
@@ -170,7 +180,12 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(errors::WorksheetDeleteSnafu)?)
     }
 
-    #[instrument(name = "HistoryStore::get_worksheets", level = "trace", skip(self), err)]
+    #[instrument(
+        name = "HistoryStore::get_worksheets",
+        level = "trace",
+        skip(self),
+        err
+    )]
     async fn get_worksheets(&self) -> HistoryStoreResult<Vec<Worksheet>> {
         let start_key = Worksheet::get_key(WorksheetId::min_cursor());
         let end_key = Worksheet::get_key(WorksheetId::max_cursor());
@@ -181,7 +196,12 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(errors::WorksheetsListSnafu)?)
     }
 
-    #[instrument(name = "HistoryStore::add_query", level = "trace", skip(self, item), err)]
+    #[instrument(
+        name = "HistoryStore::add_query",
+        level = "trace",
+        skip(self, item),
+        err
+    )]
     async fn add_query(&self, item: &QueryRecord) -> HistoryStoreResult<()> {
         if let Some(worksheet_id) = item.worksheet_id {
             // add query reference to the worksheet
