@@ -116,7 +116,7 @@ async fn worksheet_queries_references_iterator(
 impl HistoryStore for SlateDBHistoryStore {
     #[instrument(
         name = "HistoryStore::add_worksheet",
-        level = "trace",
+        level = "debug",
         skip(self, worksheet),
         err
     )]
@@ -128,7 +128,7 @@ impl HistoryStore for SlateDBHistoryStore {
         Ok(worksheet)
     }
 
-    #[instrument(name = "HistoryStore::get_worksheet", level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::get_worksheet", level = "debug", skip(self), err)]
     async fn get_worksheet(&self, id: WorksheetId) -> HistoryStoreResult<Worksheet> {
         // convert from Bytes to &str, for .get method to convert it back to Bytes
         let key_bytes = Worksheet::get_key(id);
@@ -144,7 +144,7 @@ impl HistoryStore for SlateDBHistoryStore {
         })
     }
 
-    #[instrument(name = "HistoryStore::update_worksheet", level = "trace", skip(self, worksheet), fields(id = worksheet.id), err)]
+    #[instrument(name = "HistoryStore::update_worksheet", level = "debug", skip(self, worksheet), fields(id = worksheet.id), err)]
     async fn update_worksheet(&self, mut worksheet: Worksheet) -> HistoryStoreResult<()> {
         worksheet.set_updated_at(None);
 
@@ -157,7 +157,7 @@ impl HistoryStore for SlateDBHistoryStore {
 
     #[instrument(
         name = "HistoryStore::delete_worksheet",
-        level = "trace",
+        level = "debug",
         skip(self),
         err
     )]
@@ -182,7 +182,7 @@ impl HistoryStore for SlateDBHistoryStore {
 
     #[instrument(
         name = "HistoryStore::get_worksheets",
-        level = "trace",
+        level = "debug",
         skip(self),
         err
     )]
@@ -198,7 +198,7 @@ impl HistoryStore for SlateDBHistoryStore {
 
     #[instrument(
         name = "HistoryStore::add_query",
-        level = "trace",
+        level = "debug",
         skip(self, item),
         err
     )]
@@ -222,7 +222,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(errors::QueryAddSnafu)?)
     }
 
-    #[instrument(name = "HistoryStore::get_query", level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::get_query", level = "debug", skip(self), err)]
     async fn get_query(&self, id: QueryRecordId) -> HistoryStoreResult<QueryRecord> {
         let key_bytes = QueryRecord::get_key(id);
         let key_str = std::str::from_utf8(key_bytes.as_ref()).context(errors::BadKeySnafu)?;
@@ -233,7 +233,7 @@ impl HistoryStore for SlateDBHistoryStore {
         })
     }
 
-    #[instrument(name = "HistoryStore::get_queries", level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::get_queries", level = "debug", skip(self), err)]
     async fn get_queries(&self, params: GetQueriesParams) -> HistoryStoreResult<Vec<QueryRecord>> {
         let GetQueriesParams {
             worksheet_id,
