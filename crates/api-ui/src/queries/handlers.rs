@@ -77,7 +77,7 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::query", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     DFSessionId(session_id): DFSessionId,
@@ -141,7 +141,7 @@ pub async fn query(
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::get_query", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_query(
     State(state): State<AppState>,
     Path(query_record_id): Path<QueryRecordId>,
@@ -182,7 +182,7 @@ pub async fn get_query(
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::queries", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn queries(
     Query(params): Query<GetQueriesParams>,
     State(state): State<AppState>,

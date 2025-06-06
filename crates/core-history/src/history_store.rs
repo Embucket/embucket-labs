@@ -114,7 +114,7 @@ async fn worksheet_queries_references_iterator(
 
 #[async_trait]
 impl HistoryStore for SlateDBHistoryStore {
-    #[instrument(name = "HistoryStore::add_worksheet", level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::add_worksheet", level = "trace", skip(self, worksheet), err)]
     async fn add_worksheet(&self, worksheet: Worksheet) -> HistoryStoreResult<Worksheet> {
         self.db
             .put_iterable_entity(&worksheet)
@@ -139,7 +139,7 @@ impl HistoryStore for SlateDBHistoryStore {
         })
     }
 
-    #[instrument(name = "HistoryStore::update_worksheet", level = "trace", skip(self), err)]
+    #[instrument(name = "HistoryStore::update_worksheet", level = "trace", skip(self, worksheet), fields(id = worksheet.id), err)]
     async fn update_worksheet(&self, mut worksheet: Worksheet) -> HistoryStoreResult<()> {
         worksheet.set_updated_at(None);
 

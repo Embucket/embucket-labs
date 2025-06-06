@@ -84,7 +84,7 @@ pub struct ApiDoc;
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::get_table_statistics", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
 pub async fn get_table_statistics(
     State(state): State<AppState>,
@@ -149,7 +149,7 @@ pub async fn get_table_statistics(
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::get_table_columns", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
 pub async fn get_table_columns(
     DFSessionId(session_id): DFSessionId,
@@ -208,7 +208,7 @@ pub async fn get_table_columns(
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::get_table_preview_data", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
 pub async fn get_table_preview_data(
     DFSessionId(session_id): DFSessionId,
@@ -295,7 +295,7 @@ pub async fn get_table_preview_data(
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state, multipart), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::upload_file", level = "info", skip(state, multipart), err, ret(level = tracing::Level::TRACE))]
 pub async fn upload_file(
     DFSessionId(session_id): DFSessionId,
     Query(parameters): Query<UploadParameters>,
@@ -378,7 +378,7 @@ pub async fn upload_file(
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::get_tables", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
 pub async fn get_tables(
     DFSessionId(session_id): DFSessionId,

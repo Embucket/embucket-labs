@@ -75,7 +75,7 @@ pub struct QueryParameters {
         (status = 400, description = "Bad request", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::create_database", level = "info", skip(state, database), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_database(
     State(state): State<AppState>,
     Json(database): Json<DatabaseCreatePayload>,
@@ -119,7 +119,7 @@ pub async fn create_database(
         (status = 404, description = "Not found", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::get_database", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
@@ -161,7 +161,7 @@ pub async fn get_database(
         (status = 404, description = "Not found", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::delete_database", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_database(
     State(state): State<AppState>,
     Query(query): Query<QueryParameters>,
@@ -195,7 +195,7 @@ pub async fn delete_database(
         (status = 400, description = "Invalid data", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::update_database", level = "info", skip(state, database), err, ret(level = tracing::Level::TRACE))]
 pub async fn update_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
@@ -245,7 +245,7 @@ pub async fn update_database(
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::list_databases", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
 pub async fn list_databases(
     DFSessionId(session_id): DFSessionId,

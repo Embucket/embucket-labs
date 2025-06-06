@@ -41,7 +41,7 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::get_dashboard", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_dashboard(
     State(state): State<AppState>,
 ) -> DashboardResult<Json<DashboardResponse>> {

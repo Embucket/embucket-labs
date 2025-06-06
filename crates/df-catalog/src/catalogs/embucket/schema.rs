@@ -36,12 +36,13 @@ impl SchemaProvider for EmbucketSchema {
         self
     }
 
+    #[tracing::instrument(name = "SchemaProvider::table_names", level = "debug", skip(self), fields(tables_names_count))]
     fn table_names(&self) -> Vec<String> {
         let metastore = self.metastore.clone();
         let database = self.database.clone();
         let schema = self.schema.to_string();
 
-        block_in_new_runtime(async move {
+        let table_names = block_in_new_runtime(async move {
             match metastore
                 .iter_tables(&SchemaIdent::new(database, schema))
                 .collect()
@@ -51,9 +52,15 @@ impl SchemaProvider for EmbucketSchema {
                 Err(_) => vec![],
             }
         })
-        .unwrap_or_else(|_| vec![])
+        .unwrap_or_else(|_| vec![]);
+
+        // Record the result as part of the current span.
+        tracing::Span::current().record("tables_names_count", &table_names.len());
+
+        table_names
     }
 
+    #[tracing::instrument(name = "SchemaProvider::table", level = "debug", skip(self), err)]
     async fn table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
         let ident = &TableIdent::new(&self.database.clone(), &self.schema.clone(), name);
         let object_store = self

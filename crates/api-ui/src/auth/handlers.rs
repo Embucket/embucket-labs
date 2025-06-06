@@ -21,7 +21,6 @@ use snafu::ResultExt;
 use time::Duration;
 use tower_sessions::cookie::{Cookie, SameSite};
 use tracing;
-use tracing::Level;
 use utoipa::OpenApi;
 
 pub const REFRESH_TOKEN_EXPIRATION_HOURS: u32 = 24 * 7;
@@ -169,7 +168,7 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = AuthErrorResponse),
     )
 )]
-#[tracing::instrument(level = Level::ERROR, skip_all, err)]
+#[tracing::instrument(name = "api_ui::login", level = "info", skip_all, err)]
 pub async fn login(
     //TODO: add DFSessionId (to start the session on login)
     State(state): State<AppState>,
@@ -221,7 +220,7 @@ pub async fn login(
         (status = 500, description = "Internal server error", body = AuthErrorResponse),
     )
 )]
-#[tracing::instrument(level = Level::ERROR, skip_all, err)]
+#[tracing::instrument(name = "api_ui::refresh_access_token", level = "info", skip_all, err)]
 pub async fn refresh_access_token(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -271,7 +270,7 @@ pub async fn refresh_access_token(
         (status = 500, description = "Internal server error", body = AuthErrorResponse),
     )
 )]
-#[tracing::instrument(level = Level::ERROR, skip_all, err)]
+#[tracing::instrument(name = "api_ui::logout", level = "info", skip_all, err)]
 pub async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -312,7 +311,7 @@ pub async fn logout(
             body = AuthErrorResponse),
     )
 )]
-#[tracing::instrument(level = Level::ERROR, skip_all, err)]
+#[tracing::instrument(name = "api_ui::account", level = "info", skip_all, err)]
 pub async fn account(
     State(state): State<AppState>,
     headers: HeaderMap,

@@ -14,7 +14,6 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use chrono::Utc;
 use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::error::MetastoreError;
 use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
@@ -71,7 +70,7 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::create_schema", level = "info", skip(state, payload), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_schema(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
@@ -137,7 +136,7 @@ pub async fn create_schema(
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::delete_schema", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_schema(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
@@ -178,7 +177,7 @@ pub async fn delete_schema(
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::get_schema", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
@@ -228,7 +227,7 @@ pub async fn get_schema(
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::update_schema", level = "info", skip(state, schema), err, ret(level = tracing::Level::TRACE))]
 pub async fn update_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
@@ -274,7 +273,7 @@ pub async fn update_schema(
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::list_schemas", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 #[allow(clippy::unwrap_used)]
 pub async fn list_schemas(
     DFSessionId(session_id): DFSessionId,

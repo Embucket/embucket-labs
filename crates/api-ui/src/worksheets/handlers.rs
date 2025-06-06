@@ -57,7 +57,7 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::worksheets", level = "info", skip(state), err)]
 pub async fn worksheets(
     State(state): State<AppState>,
     Query(GetWorksheetsParams {
@@ -139,7 +139,7 @@ pub async fn worksheets(
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::create_worksheet", level = "info", skip(state, payload), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_worksheet(
     State(state): State<AppState>,
     Json(payload): Json<WorksheetCreatePayload>,
@@ -183,7 +183,7 @@ pub async fn create_worksheet(
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::worksheet", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
@@ -217,7 +217,7 @@ pub async fn worksheet(
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::delete_worksheet", level = "info", skip(state), err)]
 pub async fn delete_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
@@ -271,7 +271,7 @@ pub async fn delete_worksheet(
         (status = 500, description = "Internal server error", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::update_worksheet", level = "info", skip(state, payload), err)]
 pub async fn update_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,

@@ -77,7 +77,7 @@ pub struct QueryParameters {
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::create_volume", level = "info", skip(state, volume), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_volume(
     State(state): State<AppState>,
     Json(volume): Json<VolumeCreatePayload>,
@@ -119,7 +119,7 @@ pub async fn create_volume(
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::get_volume", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
@@ -162,7 +162,7 @@ pub async fn get_volume(
         (status = 422, description = "Unprocessable entity", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::delete_volume", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_volume(
     State(state): State<AppState>,
     Query(query): Query<QueryParameters>,
@@ -198,7 +198,7 @@ pub async fn delete_volume(
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::list_volumes", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_volumes(
     DFSessionId(session_id): DFSessionId,
     Query(parameters): Query<SearchParameters>,

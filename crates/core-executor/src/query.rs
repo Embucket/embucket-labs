@@ -166,7 +166,7 @@ impl UserQuery {
     }
 
     #[allow(clippy::unwrap_used)]
-    #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace", ret)]
+    #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace")]
     pub fn postprocess_query_statement(statement: &mut DFStatement) {
         if let DFStatement::Statement(value) = statement {
             json_element::visit(value);
@@ -176,7 +176,7 @@ impl UserQuery {
         }
     }
 
-    #[instrument(name = "UserQuery::execute", level = "debug", skip(self), err, ret(level = tracing::Level::TRACE))]
+    #[instrument(name = "UserQuery::execute", level = "debug", skip(self), err)]
     pub async fn execute(&mut self) -> ExecutionResult<QueryResult> {
         let statement = self.parse_query().context(super::error::DataFusionSnafu)?;
         self.query = statement.to_string();
@@ -331,7 +331,7 @@ impl UserQuery {
         self.execute_sql(&self.query).await
     }
 
-    #[instrument(name = "UserQuery::get_catalog", level = "trace", skip(self), err, ret)]
+    #[instrument(name = "UserQuery::get_catalog", level = "trace", skip(self), err)]
     pub fn get_catalog(&self, name: &str) -> ExecutionResult<Arc<dyn CatalogProvider>> {
         self.session.ctx.state().catalog_list().catalog(name).ok_or(
             ExecutionError::CatalogNotFound {
@@ -382,7 +382,7 @@ impl UserQuery {
         }
     }
 
-    #[instrument(name = "UserQuery::drop_query", level = "trace", skip(self), err, ret)]
+    #[instrument(name = "UserQuery::drop_query", level = "trace", skip(self), err)]
     pub async fn drop_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
         let Statement::Drop {
             names, object_type, ..
@@ -442,7 +442,7 @@ impl UserQuery {
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
-    #[instrument(name = "UserQuery::create_table_query", level = "trace", skip(self), err, ret)]
+    #[instrument(name = "UserQuery::create_table_query", level = "trace", skip(self), err)]
     pub async fn create_table_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
         let Statement::CreateTable(mut create_table_statement) = statement.clone() else {
             return Err(ExecutionError::DataFusion {
@@ -826,7 +826,7 @@ impl UserQuery {
         }
     }
 
-    #[instrument(name = "UserQuery::merge_query", level = "trace", skip(self), err, ret)]
+    #[instrument(name = "UserQuery::merge_query", level = "trace", skip(self), err)]
     pub async fn merge_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
         let Statement::Merge {
             table,
@@ -912,7 +912,7 @@ impl UserQuery {
         self.execute_with_custom_plan(&insert_query).await
     }
 
-    #[instrument(name = "UserQuery::create_schema", level = "trace", skip(self), err, ret)]
+    #[instrument(name = "UserQuery::create_schema", level = "trace", skip(self), err)]
     pub async fn create_schema(&self, statement: Statement) -> ExecutionResult<QueryResult> {
         let Statement::CreateSchema {
             schema_name,
@@ -1340,7 +1340,7 @@ impl UserQuery {
         Ok(stream)
     }
 
-    #[instrument(name = "UserQuery::execute_with_custom_plan", level = "trace", skip(self), err, ret)]
+    #[instrument(name = "UserQuery::execute_with_custom_plan", level = "trace", skip(self), err)]
     pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<QueryResult> {
         let mut plan = self.get_custom_logical_plan(query).await?;
         plan = self
