@@ -199,6 +199,12 @@ pub const AGGREGATE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/kurtosis")
     ),
+    ("LISTAGG", FunctionInfo::new(
+        "LISTAGG",
+        "Returns the concatenated input values, separated by the delimiter string."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/listagg")
+    ),
     ("MAX_BY", FunctionInfo::new(
         "MAX_BY",
         "Finds the row(s) containing the maximum value for a column and returns the value of another column in that row."
@@ -913,11 +919,11 @@ pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/months_between")
     ),
-    ("PREVIOUS_DAY", FunctionInfo::new(
-        "PREVIOUS_DAY",
-        "Returns the date of the first specified DOW (day of week) that occurs before the input date."
+    ("NEXT_DAY", FunctionInfo::new(
+        "NEXT_DAY",
+        "Returns the date of the first specified DOW (day of week) that occurs after the input date."
     )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/previous_day")
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/next_day")
     ),
     ("QUARTER", FunctionInfo::new(
         "QUARTER",
@@ -2608,6 +2614,12 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Performs a case-insensitive comparison to match a string against any of one or more specified patterns."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/ilike_any")
+    ),
+    ("JAROWINKLER_SIMILARITY", FunctionInfo::new(
+        "JAROWINKLER_SIMILARITY",
+        "Computes the Jaro-Winkler similarity between two input strings."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/jarowinkler_similarity")
     ),
     ("LEN", FunctionInfo::new(
         "LEN",

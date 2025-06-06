@@ -272,7 +272,8 @@ percentile_cont
 pi                                 
 position                           
 pow                                
-power                              
+power
+previous_day
 radians                            
 random                             
 range                              

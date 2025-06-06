@@ -3,6 +3,7 @@ pub mod convert_timezone;
 pub mod date_add;
 pub mod date_diff;
 pub mod date_from_parts;
+pub mod previous_day;
 pub mod last_day;
 pub mod next_day;
 pub mod time_from_parts;
