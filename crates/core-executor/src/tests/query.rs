@@ -21,7 +21,7 @@ use std::sync::Arc;
 #[allow(clippy::unwrap_used)]
 #[test]
 fn test_statement_postprocessing() {
-    let args: [(&str, &str); 25] = [
+    let args: [(&str, &str); 26] = [
         ("select year(ts)", "SELECT date_part('year', ts)"),
         ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
         ("select day(ts)", "SELECT date_part('day', ts)"),
@@ -84,6 +84,11 @@ fn test_statement_postprocessing() {
         (
             "SELECT (SELECT TO_DATE('2024-05-10'), TO_DATE('2024-05-10'))",
             "SELECT (SELECT to_date('2024-05-10'), to_date('2024-05-10') AS expr_0)",
+        ),
+        // Inline aliases in select
+        (
+            "SELECT 'test txt' AS alias, length(alias) as t",
+            "SELECT 'test txt' AS alias, length('test txt') as t",
         ),
     ];
 
