@@ -237,48 +237,41 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
         .with_resource(resource)
         .build();
 
-    let tracing_level: LevelFilter = opts.tracing_level.clone().into();
-    let tracing_targets: Vec<(String, LevelFilter)> = TARGETS
-        .iter()
-        .map(|t| ((*t).to_string(), tracing_level))
-        .collect();
-    let default_log_targets: Vec<(String, LevelFilter)> = TARGETS
-        .iter()
-        .map(|t| ((*t).to_string(), LevelFilter::INFO))
-        .collect();
+    let targets_with_level = |level: LevelFilter| -> Vec<(&str, LevelFilter)> {
+        // let default_log_targets: Vec<(String, LevelFilter)> =
+        TARGETS.iter().map(|t| ((*t), level)).collect()
+    };
+
     tracing_subscriber::registry()
         // Telemetry filtering
         .with(
             tracing_opentelemetry::OpenTelemetryLayer::new(provider.tracer("embucket"))
                 .with_level(true)
-                .with_filter(Targets::default().with_targets(tracing_targets)),
+                .with_filter(
+                    Targets::default()
+                        .with_targets(targets_with_level(opts.tracing_level.clone().into())),
+                ),
         )
         // Logs filtering
         .with(
             tracing_subscriber::fmt::layer()
                 .with_span_events(FmtSpan::CLOSE)
-                .with_filter(Targets::default().with_targets(default_log_targets))
-                .with_filter(
-                    tracing_subscriber::EnvFilter::builder()
-                        .with_default_directive(LevelFilter::INFO.into())
-                        .from_env_lossy()
-                        .add_directive("h2=off".parse().expect("Invalid directive h2=off"))
-                        .add_directive(
-                            "slatedb=off"
-                                .parse()
-                                .expect("Invalid directive tower_sessions_core=off"),
-                        )
-                        .add_directive(
-                            "tower_sessions=off"
-                                .parse()
-                                .expect("Invalid directive tower_sessions=off"),
-                        )
-                        .add_directive(
-                            "tower_http=off"
-                                .parse()
-                                .expect("Invalid directive tower_http=off"),
-                        ),
-                ),
+                .with_filter(match std::env::var("RUST_LOG") {
+                    Ok(val) => match val.parse::<Targets>() {
+                        // env var parse OK
+                        Ok(log_targets_from_env) => log_targets_from_env,
+                        Err(err) => {
+                            eprintln!("Failed to parse RUST_LOG: {err:?}");
+                            Targets::default()
+                                .with_targets(targets_with_level(LevelFilter::DEBUG))
+                                .with_default(LevelFilter::DEBUG)
+                        }
+                    },
+                    // No var set: use default log level INFO
+                    _ => Targets::default()
+                        .with_targets(targets_with_level(LevelFilter::INFO))
+                        .with_default(LevelFilter::INFO),
+                }),
         )
         .init();
 
