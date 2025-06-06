@@ -171,7 +171,6 @@ impl UserQuery {
         }
     }
 
-    #[instrument(level = "trace")]
     #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace", err)]
     pub fn postprocess_query_statement_with_validation(
         statement: &mut DFStatement,
