@@ -1,6 +1,7 @@
 use datafusion::arrow::{
-    array::{Array, RecordBatch, StringArray, downcast_array},
-    compute::{filter, kernels::cmp::distinct},
+    array::{Array, BooleanArray, PrimitiveArray, RecordBatch, StringArray, downcast_array},
+    compute::{filter, kernels::cmp::distinct, unary},
+    datatypes::UInt8Type,
 };
 use datafusion_common::{DFSchemaRef, DataFusionError, HashSet};
 use datafusion_iceberg::{DataFusionTable, error::Error as DataFusionIcebergError};
@@ -15,6 +16,9 @@ use iceberg_rust::{
 };
 use pin_project_lite::pin_project;
 use std::{sync::Arc, task::Poll};
+
+static SOURCE_EXISTS_COLUMN: &str = "__source_exists";
+static DATA_FILE_PATH_COLUMN: &str = "__data_file_path";
 
 #[derive(Debug)]
 pub struct MergeIntoSinkExec {
@@ -76,11 +80,17 @@ impl ExecutionPlan for MergeIntoSinkExec {
         partition: usize,
         context: Arc<datafusion::execution::TaskContext>,
     ) -> datafusion_common::Result<datafusion_physical_plan::SendableRecordBatchStream> {
+        let input_schema = self.input.schema();
+        let source_exists_index = input_schema.index_of(SOURCE_EXISTS_COLUMN)?;
+        //TODO test how it works
+        let data_file_path_index = input_schema.index_of(DATA_FILE_PATH_COLUMN)?;
+
         let input = self.input.execute(partition, context)?;
 
         let schema = Arc::new(self.schema.as_arrow().clone());
 
-        let filtered = SourceExistFilterStream::new(input);
+        let filtered =
+            SourceExistFilterStream::new(input, source_exists_index, data_file_path_index);
 
         //TODO
         //Project input stream onto desired Schema
@@ -140,6 +150,8 @@ pin_project! {
         current_buffer: Vec<RecordBatch>,
         // RecordBatches ready to be consumed
         ready_batches: Vec<RecordBatch>,
+        source_exists_index: usize,
+        data_file_path_index: usize,
 
         #[pin]
         input: SendableRecordBatchStream
@@ -147,13 +159,19 @@ pin_project! {
 }
 
 impl SourceExistFilterStream {
-    fn new(input: SendableRecordBatchStream) -> Self {
+    fn new(
+        input: SendableRecordBatchStream,
+        source_exists_index: usize,
+        data_file_path_index: usize,
+    ) -> Self {
         Self {
             matching_files: HashSet::new(),
             current_file: None,
             current_buffer: Vec::new(),
             ready_batches: Vec::new(),
             input,
+            source_exists_index,
+            data_file_path_index,
         }
     }
 }
@@ -165,6 +183,8 @@ impl Stream for SourceExistFilterStream {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
+        let source_exists_index = self.source_exists_index;
+        let data_file_path_index = self.data_file_path_index;
         let project = self.project();
 
         // Return early if a batch is ready
@@ -173,7 +193,23 @@ impl Stream for SourceExistFilterStream {
         }
 
         match project.input.poll_next(cx) {
-            Poll::Ready(Some(batch)) => Poll::Ready(Some(batch)),
+            Poll::Ready(Some(Ok(batch))) => {
+                let source_exists = batch.column(source_exists_index);
+                let file_data_path = batch.column(data_file_path_index);
+
+                let required_files = filter(
+                    &file_data_path,
+                    &downcast_array::<BooleanArray>(source_exists),
+                )?;
+
+                let unique_files = unique_values(&required_files)?;
+
+                if unique_files.is_empty() {
+                    Poll::Pending
+                } else {
+                    Poll::Ready(Some(Ok(batch)))
+                }
+            }
             x => x,
         }
     }
