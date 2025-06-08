@@ -77,7 +77,7 @@ def generate_dbt_chart(output_dir='charts', errors_file='top_errors.txt'):
 
         fig.update_layout(
             barmode='stack',
-            title=f"DBT Run Status (Total: {data['TOTAL']})",
+            title=f"Embucket DBT-Gitlab Run Status (Total: {data['TOTAL']})",
             xaxis_title='',
             yaxis_title='Run',
             xaxis=dict(range=[0, data['TOTAL']]),
@@ -92,9 +92,10 @@ def generate_dbt_chart(output_dir='charts', errors_file='top_errors.txt'):
             margin=dict(l=30, r=30, t=30, b=30),
             width=900,
             height=150,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
             showlegend=True
         )
-
         fig.write_image(output_file)
         print(f"Chart saved to {output_file}")
         return output_file
