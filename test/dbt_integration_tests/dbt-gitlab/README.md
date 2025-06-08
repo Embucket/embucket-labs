@@ -27,3 +27,7 @@ chmod +x run.sh
 **run.log** - file with the logs after the last run
 
 **target** - folder with both: compiled sql and run sql
+
+
+Emucket dbt run result:
+![alt text](charts/dbt_run_status.png)

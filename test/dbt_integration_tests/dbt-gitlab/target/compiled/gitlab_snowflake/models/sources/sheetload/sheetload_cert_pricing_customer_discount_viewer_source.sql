@@ -1,9 +1,0 @@
-WITH source AS (
-
-    SELECT *
-    FROM EMBUCKET.sheetload.cert_pricing_customer_discount_viewer
-
-)
-
-SELECT *
-FROM source

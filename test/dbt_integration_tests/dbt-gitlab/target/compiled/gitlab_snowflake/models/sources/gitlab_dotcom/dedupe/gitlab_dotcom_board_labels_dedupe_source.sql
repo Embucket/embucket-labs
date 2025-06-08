@@ -1,6 +1,0 @@
-
-
-SELECT *
-FROM EMBUCKET.tap_postgres.gitlab_db_board_labels
-
-QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY _uploaded_at DESC) = 1
