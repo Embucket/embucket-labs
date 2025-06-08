@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SENSITIVE"."WK_SALES_CLARI_NET_ARR_FORECAST_HISTORICAL";
+    
+    create table EMBUCKET.sensitive.wk_sales_clari_net_arr_forecast_historical (user_full_name integer,user_email integer,crm_user_id integer,sales_team_role integer,parent_role integer,fiscal_quarter integer,field_name integer,week_number integer,week_start_date date,week_end_date date,field_type integer,forecast_value integer,is_updated boolean,forecast_id integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sensitive.wk_sales_clari_net_arr_forecast_historical (user_full_name, user_email, crm_user_id, sales_team_role, parent_role, fiscal_quarter, field_name, week_number, week_start_date, week_end_date, field_type, forecast_value, is_updated, forecast_id) values

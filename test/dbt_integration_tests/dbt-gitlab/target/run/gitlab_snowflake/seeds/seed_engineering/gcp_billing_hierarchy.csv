@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_ENGINEERING"."GCP_BILLING_HIERARCHY";
+    
+    create table EMBUCKET.seed_engineering.gcp_billing_hierarchy (level_0 text,level_1 text,level_2 text,level_3 text,level_4 text,GCP_PROJECT_ID text,FULL_PATH text,FROM_MAPPING text,INFRA_LABEL text)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_engineering.gcp_billing_hierarchy (level_0, level_1, level_2, level_3, level_4, GCP_PROJECT_ID, FULL_PATH, FROM_MAPPING, INFRA_LABEL) values

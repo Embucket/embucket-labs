@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_ENGINEERING"."GCP_BILLING_INFRA_PL_MAPPING";
+    
+    create table EMBUCKET.seed_engineering.gcp_billing_infra_pl_mapping (infra_label text,free float8,paid float8,internal float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_engineering.gcp_billing_infra_pl_mapping (infra_label, free, paid, internal) values

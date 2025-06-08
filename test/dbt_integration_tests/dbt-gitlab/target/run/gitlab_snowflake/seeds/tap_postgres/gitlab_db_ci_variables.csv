@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CI_VARIABLES";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_ci_variables (id integer,project_id integer,protected boolean,masked boolean,variable_type integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_ci_variables (id, project_id, protected, masked, variable_type, _uploaded_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."BIZIBLE"."BIZ_PLACEMENTS";
+    
+    create table EMBUCKET.bizible.biz_placements (id integer,display_id integer,ad_account_unique_id integer,ad_account_name integer,advertiser_unique_id integer,advertiser_name integer,ad_group_unique_id integer,ad_group_name integer,ad_campaign_unique_id integer,ad_campaign_name integer,is_active boolean,is_deleted boolean,modified_date timestamp without time zone,first_imported timestamp without time zone,name integer,needs_update boolean,grouping_key integer,entity_type integer,provider_type integer,row_key integer,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.bizible.biz_placements (id, display_id, ad_account_unique_id, ad_account_name, advertiser_unique_id, advertiser_name, ad_group_unique_id, ad_group_name, ad_campaign_unique_id, ad_campaign_name, is_active, is_deleted, modified_date, first_imported, name, needs_update, grouping_key, entity_type, provider_type, row_key, _created_date, _modified_date, _deleted_date, uploaded_at) values

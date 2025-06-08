@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."INFLUX_DB"."ALL_FABRICATION_STATS";
+    
+    create table EMBUCKET.influx_db.all_fabrication_stats (timestamp timestamp without time zone,resource integer,fabrication_method integer,http_method integer,run_type integer,merge_request boolean,fabrication_time float8,info integer,job_url integer,_uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.influx_db.all_fabrication_stats (timestamp, resource, fabrication_method, http_method, run_type, merge_request, fabrication_time, info, job_url, _uploaded_at) values

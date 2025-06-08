@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GAINSIGHT_CUSTOMER_SUCCESS"."DUP_COMPANIES_AND_EBRS";
+    
+    create table EMBUCKET.gainsight_customer_success.dup_companies_and_ebrs (_fivetran_id integer,_fivetran_deleted boolean,company_pubsec_type integer,company_csm_manager_name integer,cta_company_gsid integer,company_account_demographics_role_type integer,cta_company_name integer,company_arr float8,cta_created_date timestamp without time zone,company_name integer,company_csm_name integer,company_gsid integer,company_account_demographics_geo integer,cta_start_date timestamp without time zone,cta_max_of_closed_date timestamp without time zone,cta_closed_date timestamp without time zone,company_original_contract_date date,company_csm_prioritization integer,company_sales_segment integer,cta_owner_name integer,cta_type_name integer,cta_status_name integer,cta_csm_name integer,company_account_demographics_business_unit integer,cta_nr_of_days_past_ebr_closed_success float8,cta_name integer,company_account_demographics_region integer,company_public_sector_account boolean,cta_gsid integer,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.gainsight_customer_success.dup_companies_and_ebrs (_fivetran_id, _fivetran_deleted, company_pubsec_type, company_csm_manager_name, cta_company_gsid, company_account_demographics_role_type, cta_company_name, company_arr, cta_created_date, company_name, company_csm_name, company_gsid, company_account_demographics_geo, cta_start_date, cta_max_of_closed_date, cta_closed_date, company_original_contract_date, company_csm_prioritization, company_sales_segment, cta_owner_name, cta_type_name, cta_status_name, cta_csm_name, company_account_demographics_business_unit, cta_nr_of_days_past_ebr_closed_success, cta_name, company_account_demographics_region, company_public_sector_account, cta_gsid, _fivetran_synced) values

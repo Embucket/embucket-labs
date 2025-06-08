@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_ENGINEERING"."ENGINEERING_PRODUCTIVITY_METRICS_PROJECTS_TO_INCLUDE";
+    
+    create table EMBUCKET.seed_engineering.engineering_productivity_metrics_projects_to_include (project_path text,project_id integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_engineering.engineering_productivity_metrics_projects_to_include (project_path, project_id) values

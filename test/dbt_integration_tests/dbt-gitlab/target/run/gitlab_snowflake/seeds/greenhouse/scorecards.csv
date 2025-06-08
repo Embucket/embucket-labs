@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GREENHOUSE"."SCORECARDS";
+    
+    create table EMBUCKET.greenhouse.scorecards (id integer,application_id integer,stage_id integer,interview_id integer,interviewer_id integer,submitter_id integer,overall_recommendation integer,submitted_at integer,scheduled_interview_ended_at integer,total_focus_attributes integer,completed_focus_attributes integer,interviewer integer,submitter integer,stage_name integer,created_at integer,updated_at integer,interview_name integer,organization_id integer,key_takeaways integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.greenhouse.scorecards (id, application_id, stage_id, interview_id, interviewer_id, submitter_id, overall_recommendation, submitted_at, scheduled_interview_ended_at, total_focus_attributes, completed_focus_attributes, interviewer, submitter, stage_name, created_at, updated_at, interview_name, organization_id, key_takeaways, _updated_at) values

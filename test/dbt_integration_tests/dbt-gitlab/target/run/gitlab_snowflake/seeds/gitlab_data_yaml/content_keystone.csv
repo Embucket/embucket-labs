@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GITLAB_DATA_YAML"."CONTENT_KEYSTONE";
+    
+    create table EMBUCKET.gitlab_data_yaml.content_keystone (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.gitlab_data_yaml.content_keystone (jsontext, uploaded_at) values

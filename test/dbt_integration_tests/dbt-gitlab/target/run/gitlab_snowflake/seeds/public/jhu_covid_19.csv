@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."PUBLIC"."JHU_COVID_19";
+    
+    create table EMBUCKET.public.jhu_covid_19 (country_region integer,province_state integer,county integer,fips integer,date date,case_type integer,cases integer,long float8,lat float8,iso3166_1 integer,iso3166_2 integer,difference integer,last_updated_date timestamp without time zone,last_reported_flag boolean)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.public.jhu_covid_19 (country_region, province_state, county, fips, date, case_type, cases, long, lat, iso3166_1, iso3166_2, difference, last_updated_date, last_reported_flag) values

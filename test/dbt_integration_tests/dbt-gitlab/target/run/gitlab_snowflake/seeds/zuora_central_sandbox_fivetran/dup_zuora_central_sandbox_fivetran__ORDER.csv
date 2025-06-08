@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_CENTRAL_SANDBOX_FIVETRAN"."DUP_ZUORA_CENTRAL_SANDBOX_FIVETRAN__ORDER";
+    
+    create table EMBUCKET.zuora_central_sandbox_fivetran.dup_zuora_central_sandbox_fivetran__ORDER (id integer,created_by_id integer,created_by_migration boolean,created_date timestamp without time zone,description integer,order_date date,order_number integer,state integer,status integer,updated_by_id integer,updated_date timestamp without time zone,_fivetran_deleted boolean,sold_to_contact_id integer,account_id integer,bill_to_contact_id integer,default_payment_method_id integer,_fivetran_synced timestamp without time zone,category integer,error_message integer,scheduled_date_policy integer,response integer,error_code integer,scheduled_date date,is_ramp_c integer,parent_account_id integer,invoice_schedule_id integer,is_scheduled boolean,reverted_date date,reverted_order_id integer,is_reverting boolean,reverting_order_id integer,reverted_order_number integer,reversion_order boolean,reverted_by_order_id integer,cancel_reason integer,ship_to_contact_id integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_central_sandbox_fivetran.dup_zuora_central_sandbox_fivetran__ORDER (id, created_by_id, created_by_migration, created_date, description, order_date, order_number, state, status, updated_by_id, updated_date, _fivetran_deleted, sold_to_contact_id, account_id, bill_to_contact_id, default_payment_method_id, _fivetran_synced, category, error_message, scheduled_date_policy, response, error_code, scheduled_date, is_ramp_c, parent_account_id, invoice_schedule_id, is_scheduled, reverted_date, reverted_order_id, is_reverting, reverting_order_id, reverted_order_number, reversion_order, reverted_by_order_id, cancel_reason, ship_to_contact_id) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TABLEAU_CLOUD"."DUP_TABLEAU_CLOUD_EVENTS";
+    
+    create table EMBUCKET.tableau_cloud.dup_tableau_cloud_events (Site integer,Historical integer,Site_2 integer,Actor integer,Target integer,Actor_2 integer,Event integer,Event_2 integer,Event_3 integer,Event_4 date,Actor_3 integer,Actor_4 integer,Item integer,Item_2 integer,Item_3 integer,Item_4 integer,Workbook integer,Historical_2 integer,Project integer,Item_5 integer,Item_6 integer,Item_7 integer,Historical_3 integer,Admin integer,Count integer,Event_5 date,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tableau_cloud.dup_tableau_cloud_events (Site, Historical, Site_2, Actor, Target, Actor_2, Event, Event_2, Event_3, Event_4, Actor_3, Actor_4, Item, Item_2, Item_3, Item_4, Workbook, Historical_2, Project, Item_5, Item_6, Item_7, Historical_3, Admin, Count, Event_5, uploaded_at) values

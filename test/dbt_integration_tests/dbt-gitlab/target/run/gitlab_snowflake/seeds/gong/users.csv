@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GONG"."USERS";
+    
+    create table EMBUCKET.gong.users (id integer,gong_connect_enabled boolean,meeting_consent_page_url integer,prevent_web_conference_recording boolean,phone_number integer,prevent_email_import boolean,emails_imported boolean,telephony_calls_imported boolean,manager_id integer,non_recorded_meetings_imported boolean,extension integer,last_name integer,first_name integer,title integer,web_conferences_recorded boolean,email_address integer,active boolean,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,created timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.gong.users (id, gong_connect_enabled, meeting_consent_page_url, prevent_web_conference_recording, phone_number, prevent_email_import, emails_imported, telephony_calls_imported, manager_id, non_recorded_meetings_imported, extension, last_name, first_name, title, web_conferences_recorded, email_address, active, _fivetran_deleted, _fivetran_synced, created) values

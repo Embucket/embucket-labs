@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."CERT_PRODUCT_GEO_VIEWER";
+    
+    create table EMBUCKET.sheetload.cert_product_geo_viewer (Timestamp integer,Email_Address integer,Score integer,certification integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.cert_product_geo_viewer (Timestamp, Email_Address, Score, certification, _updated_at) values

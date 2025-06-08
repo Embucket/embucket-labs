@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ITERABLE"."TEMPLATE_HISTORY";
+    
+    create table EMBUCKET.iterable.template_history (id integer,updated_at timestamp without time zone,message_type_id integer,client_template_id integer,created_at timestamp without time zone,creator_user_id integer,name integer,template_type integer,_fivetran_synced timestamp without time zone,_fivetran_deleted boolean)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.iterable.template_history (id, updated_at, message_type_id, client_template_id, created_at, creator_user_id, name, template_type, _fivetran_synced, _fivetran_deleted) values

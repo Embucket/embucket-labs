@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SALESFORCE_V2_STITCH"."ZOOM_APP__ZOOM_WEBINAR_HISTORY__C";
+    
+    create table EMBUCKET.salesforce_v2_stitch.zoom_app__zoom_webinar_history__c (createdbyid integer,createddate timestamp without time zone,id integer,isdeleted boolean,lastmodifiedbyid integer,lastmodifieddate timestamp without time zone,name integer,ownerid integer,systemmodstamp timestamp without time zone,zoom_app__contact__c integer,zoom_app__is_attendeed__c boolean,zoom_app__lead__c integer,zoom_app__webinar_topic__c integer,zoom_app__zoom_webinar_attendee__c integer,zoom_app__zoom_webinar_panelist__c integer,zoom_app__zoom_webinar_registrant__c integer,zoom_app__zoom_webinar__c integer,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer,lastreferenceddate timestamp without time zone,lastvieweddate timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.salesforce_v2_stitch.zoom_app__zoom_webinar_history__c (createdbyid, createddate, id, isdeleted, lastmodifiedbyid, lastmodifieddate, name, ownerid, systemmodstamp, zoom_app__contact__c, zoom_app__is_attendeed__c, zoom_app__lead__c, zoom_app__webinar_topic__c, zoom_app__zoom_webinar_attendee__c, zoom_app__zoom_webinar_panelist__c, zoom_app__zoom_webinar_registrant__c, zoom_app__zoom_webinar__c, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version, lastreferenceddate, lastvieweddate) values

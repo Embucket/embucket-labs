@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."QUALTRICS"."DISTRIBUTION";
+    
+    create table EMBUCKET.qualtrics.distribution (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.qualtrics.distribution (jsontext, uploaded_at) values

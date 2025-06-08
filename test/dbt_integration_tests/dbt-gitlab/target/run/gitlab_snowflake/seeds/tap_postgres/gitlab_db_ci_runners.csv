@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CI_RUNNERS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_ci_runners (id integer,created_at integer,updated_at integer,description integer,contacted_at integer,active boolean,version integer,revision integer,platform integer,run_untagged boolean,locked boolean,access_level integer,maximum_timeout integer,runner_type integer,public_projects_minutes_cost_factor float8,private_projects_minutes_cost_factor float8,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_ci_runners (id, created_at, updated_at, description, contacted_at, active, version, revision, platform, run_untagged, locked, access_level, maximum_timeout, runner_type, public_projects_minutes_cost_factor, private_projects_minutes_cost_factor, _uploaded_at) values

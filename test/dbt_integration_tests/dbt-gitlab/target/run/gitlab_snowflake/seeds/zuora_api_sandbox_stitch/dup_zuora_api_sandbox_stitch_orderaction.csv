@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_API_SANDBOX_STITCH"."DUP_ZUORA_API_SANDBOX_STITCH_ORDERACTION";
+    
+    create table EMBUCKET.zuora_api_sandbox_stitch.dup_zuora_api_sandbox_stitch_orderaction (accountid integer,autorenew boolean,billtocontactid integer,cancellationpolicy integer,contracteffectivedate timestamp without time zone,createdbyid integer,createddate timestamp without time zone,currentterm integer,currenttermperiodtype integer,customeracceptancedate timestamp without time zone,defaultpaymentmethodid integer,deleted boolean,id integer,orderid integer,parentaccountid integer,renewalterm integer,renewaltermperiodtype integer,renewsetting integer,sequence integer,serviceactivationdate timestamp without time zone,soldtocontactid integer,subscriptionid integer,subscriptionversionamendmentid integer,termstartdate timestamp without time zone,termtype integer,type integer,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer,cancellationeffectivedate timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_api_sandbox_stitch.dup_zuora_api_sandbox_stitch_orderaction (accountid, autorenew, billtocontactid, cancellationpolicy, contracteffectivedate, createdbyid, createddate, currentterm, currenttermperiodtype, customeracceptancedate, defaultpaymentmethodid, deleted, id, orderid, parentaccountid, renewalterm, renewaltermperiodtype, renewsetting, sequence, serviceactivationdate, soldtocontactid, subscriptionid, subscriptionversionamendmentid, termstartdate, termtype, type, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version, cancellationeffectivedate) values

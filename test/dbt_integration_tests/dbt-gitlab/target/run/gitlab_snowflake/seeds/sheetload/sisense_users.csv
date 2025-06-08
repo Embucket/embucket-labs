@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."SISENSE_USERS";
+    
+    create table EMBUCKET.sheetload.sisense_users (id integer,first_name integer,last_name integer,email_address integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.sisense_users (id, first_name, last_name, email_address, _updated_at) values

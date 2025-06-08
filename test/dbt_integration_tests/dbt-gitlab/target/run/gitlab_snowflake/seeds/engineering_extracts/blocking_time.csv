@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ENGINEERING_EXTRACTS"."BLOCKING_TIME";
+    
+    create table EMBUCKET.engineering_extracts.blocking_time (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.engineering_extracts.blocking_time (jsontext, uploaded_at) values

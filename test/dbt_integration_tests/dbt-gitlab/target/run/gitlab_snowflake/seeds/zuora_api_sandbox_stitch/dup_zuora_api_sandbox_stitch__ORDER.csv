@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_API_SANDBOX_STITCH"."DUP_ZUORA_API_SANDBOX_STITCH__ORDER";
+    
+    create table EMBUCKET.zuora_api_sandbox_stitch.dup_zuora_api_sandbox_stitch__ORDER (accountid integer,billtocontactid integer,createdbyid integer,createdbymigration boolean,createddate timestamp without time zone,defaultpaymentmethodid integer,deleted boolean,description integer,id integer,orderdate timestamp without time zone,ordernumber integer,parentaccountid integer,soldtocontactid integer,state integer,status integer,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_api_sandbox_stitch.dup_zuora_api_sandbox_stitch__ORDER (accountid, billtocontactid, createdbyid, createdbymigration, createddate, defaultpaymentmethodid, deleted, description, id, orderdate, ordernumber, parentaccountid, soldtocontactid, state, status, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

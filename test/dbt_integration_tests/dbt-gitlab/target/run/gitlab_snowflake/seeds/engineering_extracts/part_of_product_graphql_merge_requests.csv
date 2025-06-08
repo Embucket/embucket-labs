@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ENGINEERING_EXTRACTS"."PART_OF_PRODUCT_GRAPHQL_MERGE_REQUESTS";
+    
+    create table EMBUCKET.engineering_extracts.part_of_product_graphql_merge_requests (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.engineering_extracts.part_of_product_graphql_merge_requests (jsontext, uploaded_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ITERABLE"."DUP_ITERABLE_CAMPAIGN_HISTORY";
+    
+    create table EMBUCKET.iterable.dup_iterable_campaign_history (id integer,updated_at timestamp without time zone,template_id integer,recurring_campaign_id integer,campaign_state integer,created_at timestamp without time zone,created_by_user_id integer,ended_at timestamp without time zone,name integer,send_size integer,start_at timestamp without time zone,type integer,workflow_id integer,message_medium integer,updated_by_user_id integer,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.iterable.dup_iterable_campaign_history (id, updated_at, template_id, recurring_campaign_id, campaign_state, created_at, created_by_user_id, ended_at, name, send_size, start_at, type, workflow_id, message_medium, updated_by_user_id, _fivetran_synced) values

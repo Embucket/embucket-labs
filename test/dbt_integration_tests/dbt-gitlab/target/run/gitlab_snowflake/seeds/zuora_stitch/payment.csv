@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_STITCH"."PAYMENT";
+    
+    create table EMBUCKET.zuora_stitch.payment (accountid integer,accountingcode integer,amount float8,appliedamount float8,appliedcreditbalanceamount float8,cancelledon timestamp without time zone,comment integer,createdbyid integer,createddate timestamp without time zone,effectivedate timestamp without time zone,id integer,paymentmethodid integer,paymentnumber integer,refundamount float8,source integer,status integer,type integer,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_stitch.payment (accountid, accountingcode, amount, appliedamount, appliedcreditbalanceamount, cancelledon, comment, createdbyid, createddate, effectivedate, id, paymentmethodid, paymentnumber, refundamount, source, status, type, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

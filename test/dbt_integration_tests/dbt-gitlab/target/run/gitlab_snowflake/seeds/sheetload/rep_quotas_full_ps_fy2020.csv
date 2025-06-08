@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."REP_QUOTAS_FULL_PS_FY2020";
+    
+    create table EMBUCKET.sheetload.rep_quotas_full_ps_fy2020 (sales_rep integer,type integer,team integer,fiscal_year integer,ps_quota integer,bamboo_employee_id integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.rep_quotas_full_ps_fy2020 (sales_rep, type, team, fiscal_year, ps_quota, bamboo_employee_id, _updated_at) values

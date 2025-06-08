@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SNAPSHOTS"."ZUORA_PRODUCT_RATE_PLAN_CHARGE_TIER_SNAPSHOTS";
+    
+    create table EMBUCKET.snapshots.zuora_product_rate_plan_charge_tier_snapshots (active boolean,createdbyid integer,createddate timestamp without time zone,currency integer,deleted boolean,discountamount float8,discountpercentage float8,endingunit float8,id integer,price float8,priceformat integer,productid integer,productrateplanchargeid integer,productrateplanid integer,startingunit float8,tier integer,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.zuora_product_rate_plan_charge_tier_snapshots (active, createdbyid, createddate, currency, deleted, discountamount, discountpercentage, endingunit, id, price, priceformat, productid, productrateplanchargeid, productrateplanid, startingunit, tier, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values

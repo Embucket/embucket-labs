@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_APPROVAL_PROJECT_RULES_PROTECTED_BRANCHES";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_approval_project_rules_protected_branches (approval_project_rule_id integer,protected_branch_id integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_approval_project_rules_protected_branches (approval_project_rule_id, protected_branch_id, _uploaded_at) values

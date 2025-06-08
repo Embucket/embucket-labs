@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GAINSIGHT_CUSTOMER_SUCCESS"."DUP_ACTIVITY_COMMENTS";
+    
+    create table EMBUCKET.gainsight_customer_success.dup_activity_comments (comment_id integer,_fivetran_deleted boolean,comment integer,created_by_user_id integer,activity_id integer,created_date timestamp without time zone,modified_by_user_id integer,modified_date timestamp without time zone,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.gainsight_customer_success.dup_activity_comments (comment_id, _fivetran_deleted, comment, created_by_user_id, activity_id, created_date, modified_by_user_id, modified_date, _fivetran_synced) values

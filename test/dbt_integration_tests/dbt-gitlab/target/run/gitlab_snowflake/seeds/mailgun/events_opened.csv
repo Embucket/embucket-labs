@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."MAILGUN"."EVENTS_OPENED";
+    
+    create table EMBUCKET.mailgun.events_opened (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.mailgun.events_opened (jsontext, uploaded_at) values

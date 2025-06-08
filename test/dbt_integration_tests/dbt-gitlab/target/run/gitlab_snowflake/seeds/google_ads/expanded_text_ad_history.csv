@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GOOGLE_ADS"."EXPANDED_TEXT_AD_HISTORY";
+    
+    create table EMBUCKET.google_ads.expanded_text_ad_history (ad_group_id integer,ad_id integer,updated_at timestamp without time zone,description integer,description_2 integer,headline_part_1 integer,headline_part_2 integer,headline_part_3 integer,path_1 integer,path_2 integer,_fivetran_synced timestamp without time zone,_fivetran_start timestamp without time zone,_fivetran_end timestamp without time zone,_fivetran_active boolean)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.google_ads.expanded_text_ad_history (ad_group_id, ad_id, updated_at, description, description_2, headline_part_1, headline_part_2, headline_part_3, path_1, path_2, _fivetran_synced, _fivetran_start, _fivetran_end, _fivetran_active) values

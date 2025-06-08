@@ -81,8 +81,26 @@ echo ""
     # dbt run --full-refresh --select result:success --state target_to_run 2>&1 | tee run.log
     # fi
     dbt run --full-refresh --select result:success --state target_to_run 2>&1 | tee run.log
+
+
+# Load data and create embucket catalog if the embucket is a target 
+echo "###############################"
+echo ""
+echo "Updating the errors log and total results"
+if [ "$DBT_TARGET" = "embucket" ]; then
+   ./statistics.sh
+fi
+echo ""
+
+# Load data and create embucket catalog if the embucket is a target 
+echo "###############################"
+echo ""
+echo "Updating the chart result"
+if [ "$DBT_TARGET" = "embucket" ]; then
+   $PYTHON_CMD gen_dbt_run_chart.py 
+fi
+echo ""
+echo "###############################"
+echo ""
+
 deactivate
-
-chmod +x statistics.sh
-
-./statistics.sh

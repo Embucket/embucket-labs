@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SNAPSHOTS"."RPT_EVENT_XMAU_METRIC_MONTHLY_SNAPSHOT";
+    
+    create table EMBUCKET.snapshots.rpt_event_xmau_metric_monthly_snapshot (xmau_metric_monthly_id integer,event_calendar_month date,is_umau boolean,is_gmau boolean,is_smau boolean,section_name integer,stage_name integer,group_name integer,user_group integer,event_name_array text,event_count integer,ultimate_parent_namespace_count integer,user_count integer,created_by integer,updated_by integer,model_created_date date,model_updated_date date,dbt_created_at timestamp without time zone,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.rpt_event_xmau_metric_monthly_snapshot (xmau_metric_monthly_id, event_calendar_month, is_umau, is_gmau, is_smau, section_name, stage_name, group_name, user_group, event_name_array, event_count, ultimate_parent_namespace_count, user_count, created_by, updated_by, model_created_date, model_updated_date, dbt_created_at, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CLUSTER_AGENT_TOKENS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_cluster_agent_tokens (id integer,created_at timestamp without time zone,updated_at timestamp without time zone,agent_id integer,status integer,last_used_at timestamp without time zone,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_cluster_agent_tokens (id, created_at, updated_at, agent_id, status, last_used_at, _uploaded_at) values

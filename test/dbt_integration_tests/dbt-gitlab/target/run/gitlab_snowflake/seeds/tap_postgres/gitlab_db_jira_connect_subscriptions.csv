@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_JIRA_CONNECT_SUBSCRIPTIONS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_jira_connect_subscriptions (id integer,jira_connect_installation_id integer,namespace_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_jira_connect_subscriptions (id, jira_connect_installation_id, namespace_id, created_at, updated_at, _uploaded_at) values

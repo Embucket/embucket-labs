@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."DRIVELOAD"."GDPR_DELETE_REQUESTS";
+    
+    create table EMBUCKET.driveload.gdpr_delete_requests (email_address integer,delete_type integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.driveload.gdpr_delete_requests (email_address, delete_type, _updated_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_INCIDENT_MANAGEMENT_TIMELINE_EVENTS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_incident_management_timeline_events (id integer,created_at timestamp without time zone,updated_at timestamp without time zone,occurred_at timestamp without time zone,project_id integer,author_id integer,issue_id integer,updated_by_user_id integer,promoted_from_note_id integer,cached_markdown_version integer,editable boolean,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_incident_management_timeline_events (id, created_at, updated_at, occurred_at, project_id, author_id, issue_id, updated_by_user_id, promoted_from_note_id, cached_markdown_version, editable, _uploaded_at) values

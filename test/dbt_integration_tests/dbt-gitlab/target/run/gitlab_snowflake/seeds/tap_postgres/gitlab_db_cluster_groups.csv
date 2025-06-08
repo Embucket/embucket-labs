@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CLUSTER_GROUPS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_cluster_groups (id integer,cluster_id integer,group_id integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_cluster_groups (id, cluster_id, group_id, _uploaded_at) values

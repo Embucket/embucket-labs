@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_PAGES_DOMAINS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_pages_domains (id integer,project_id integer,verified_at timestamp without time zone,enabled_until timestamp without time zone,remove_at timestamp without time zone,auto_ssl_enabled boolean,wildcard boolean,usage integer,scope integer,auto_ssl_failed boolean,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_pages_domains (id, project_id, verified_at, enabled_until, remove_at, auto_ssl_enabled, wildcard, usage, scope, auto_ssl_failed, _uploaded_at) values

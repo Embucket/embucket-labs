@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."PUBLIC"."COUNTRY_CODES";
+    
+    create table EMBUCKET.public.country_codes (name text,two_letter_iso_code text,three_letter_iso_code text)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.public.country_codes (name, two_letter_iso_code, three_letter_iso_code) values

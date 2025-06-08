@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_CENTRAL_SANDBOX_FIVETRAN"."REVENUE_SCHEDULE_ITEM";
+    
+    create table EMBUCKET.zuora_central_sandbox_fivetran.revenue_schedule_item (id integer,amount float8,created_by_id integer,created_date timestamp without time zone,currency integer,updated_by_id integer,updated_date timestamp without time zone,_fivetran_deleted boolean,sold_to_contact_id integer,revenue_schedule_id integer,exchange_rate float8,account_id integer,product_id integer,transaction_currency integer,subscription_id integer,amount_currency_rounding integer,exchange_rate_date date,provider_exchange_rate_date date,accounting_period_id integer,default_payment_method_id integer,revenue_charge_summary_id integer,amendment_id integer,rate_plan_charge_id integer,deferred_revenue_accounting_code_id integer,product_rate_plan_id integer,recognized_revenue_accounting_code_id integer,bill_to_contact_id integer,rate_plan_id integer,product_rate_plan_charge_id integer,amount_home_currency float8,home_currency integer,_fivetran_synced timestamp without time zone,parent_account_id integer,ship_to_contact_id integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_central_sandbox_fivetran.revenue_schedule_item (id, amount, created_by_id, created_date, currency, updated_by_id, updated_date, _fivetran_deleted, sold_to_contact_id, revenue_schedule_id, exchange_rate, account_id, product_id, transaction_currency, subscription_id, amount_currency_rounding, exchange_rate_date, provider_exchange_rate_date, accounting_period_id, default_payment_method_id, revenue_charge_summary_id, amendment_id, rate_plan_charge_id, deferred_revenue_accounting_code_id, product_rate_plan_id, recognized_revenue_accounting_code_id, bill_to_contact_id, rate_plan_id, product_rate_plan_charge_id, amount_home_currency, home_currency, _fivetran_synced, parent_account_id, ship_to_contact_id) values

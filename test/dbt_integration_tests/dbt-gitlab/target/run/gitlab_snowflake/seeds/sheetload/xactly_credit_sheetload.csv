@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."XACTLY_CREDIT_SHEETLOAD";
+    
+    create table EMBUCKET.sheetload.xactly_credit_sheetload (year_name integer,period_name integer,person_name integer,start_date_in_role integer,participant_employee_id integer,title integer,user_segment integer,credit_type_name integer,credit_amount integer,business_credit_amount integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.xactly_credit_sheetload (year_name, period_name, person_name, start_date_in_role, participant_employee_id, title, user_segment, credit_type_name, credit_amount, business_credit_amount, _updated_at) values

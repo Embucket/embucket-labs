@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_XACTLY"."XC_POS_HIERARCHY_HIST";
+    
+    create table EMBUCKET.tap_xactly.xc_pos_hierarchy_hist (created_by_id float8,created_by_name integer,created_date integer,from_pos_id float8,from_pos_name integer,is_active integer,modified_by_id float8,modified_by_name integer,modified_date integer,object_id float8,pos_hierarchy_id float8,pos_hierarchy_type_id float8,to_pos_id float8,to_pos_name integer,version float8,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_xactly.xc_pos_hierarchy_hist (created_by_id, created_by_name, created_date, from_pos_id, from_pos_name, is_active, modified_by_id, modified_by_name, modified_date, object_id, pos_hierarchy_id, pos_hierarchy_type_id, to_pos_id, to_pos_name, version, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values

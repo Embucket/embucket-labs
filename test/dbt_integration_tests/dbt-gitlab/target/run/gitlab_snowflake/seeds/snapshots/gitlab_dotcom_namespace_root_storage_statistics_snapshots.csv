@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SNAPSHOTS"."GITLAB_DOTCOM_NAMESPACE_ROOT_STORAGE_STATISTICS_SNAPSHOTS";
+    
+    create table EMBUCKET.snapshots.gitlab_dotcom_namespace_root_storage_statistics_snapshots (namespace_id integer,repository_size integer,lfs_objects_size integer,wiki_size integer,build_artifacts_size integer,storage_size integer,packages_size integer,updated_at timestamp without time zone,_uploaded_at float8,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone,container_registry_size integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.gitlab_dotcom_namespace_root_storage_statistics_snapshots (namespace_id, repository_size, lfs_objects_size, wiki_size, build_artifacts_size, storage_size, packages_size, updated_at, _uploaded_at, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to, container_registry_size) values

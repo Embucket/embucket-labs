@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."DATA_SCIENCE"."DUP_NAMESPACE_SEGMENTATION_SCORES";
+    
+    create table EMBUCKET.data_science.dup_namespace_segmentation_scores (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.data_science.dup_namespace_segmentation_scores (jsontext, uploaded_at) values

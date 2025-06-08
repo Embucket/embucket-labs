@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_ENGINEERING"."ENGINEERING_ANALYTICS_WORKFLOW_LABELS";
+    
+    create table EMBUCKET.seed_engineering.engineering_analytics_workflow_labels (workflow_label text,cycle text)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_engineering.engineering_analytics_workflow_labels (workflow_label, cycle) values

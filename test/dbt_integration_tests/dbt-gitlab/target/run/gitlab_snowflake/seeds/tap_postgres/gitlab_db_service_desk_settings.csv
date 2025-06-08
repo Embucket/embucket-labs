@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_SERVICE_DESK_SETTINGS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_service_desk_settings (project_id integer,custom_email_enabled boolean,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_service_desk_settings (project_id, custom_email_enabled, _uploaded_at) values

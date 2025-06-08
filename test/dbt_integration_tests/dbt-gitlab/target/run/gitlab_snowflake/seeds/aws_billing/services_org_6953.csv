@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."AWS_BILLING"."SERVICES_ORG_6953";
+    
+    create table EMBUCKET.aws_billing.services_org_6953 (value text,year_mo_partition integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.aws_billing.services_org_6953 (value, year_mo_partition) values

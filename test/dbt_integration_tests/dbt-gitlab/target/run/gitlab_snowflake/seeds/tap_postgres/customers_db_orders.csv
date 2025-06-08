@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."CUSTOMERS_DB_ORDERS";
+    
+    create table EMBUCKET.tap_postgres.customers_db_orders (id integer,customer_id integer,product_rate_plan_id integer,subscription_id integer,subscription_name integer,start_date date,end_date date,quantity integer,created_at integer,updated_at integer,gl_namespace_id integer,gl_namespace_name integer,amendment_type integer,trial boolean,trial_type integer,last_extra_ci_minutes_sync_at integer,zuora_account_id integer,increased_billing_rate_notified_at integer,source integer,billing_account_id integer,_uploaded_at float8,_task_instance integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.customers_db_orders (id, customer_id, product_rate_plan_id, subscription_id, subscription_name, start_date, end_date, quantity, created_at, updated_at, gl_namespace_id, gl_namespace_name, amendment_type, trial, trial_type, last_extra_ci_minutes_sync_at, zuora_account_id, increased_billing_rate_notified_at, source, billing_account_id, _uploaded_at, _task_instance) values

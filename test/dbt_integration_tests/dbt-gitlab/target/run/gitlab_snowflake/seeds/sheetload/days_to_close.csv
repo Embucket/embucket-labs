@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."DAYS_TO_CLOSE";
+    
+    create table EMBUCKET.sheetload.days_to_close (close_month integer,days_to_close integer,days_to_close_target integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.days_to_close (close_month, days_to_close, days_to_close_target, _updated_at) values

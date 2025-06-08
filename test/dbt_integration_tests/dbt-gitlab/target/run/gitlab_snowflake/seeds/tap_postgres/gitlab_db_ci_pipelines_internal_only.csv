@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CI_PIPELINES_INTERNAL_ONLY";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_ci_pipelines_internal_only (id integer,updated_at integer,ref integer,project_id integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_ci_pipelines_internal_only (id, updated_at, ref, project_id, _uploaded_at) values

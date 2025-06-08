@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ENGINEERING_EXTRACTS"."LAYOUT_SHIFT";
+    
+    create table EMBUCKET.engineering_extracts.layout_shift (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.engineering_extracts.layout_shift (jsontext, uploaded_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."ALLY_CERTIFICATE";
+    
+    create table EMBUCKET.sheetload.ally_certificate (Timestamp integer,Score integer,Being_an_Ally_means_you_do_all_of_the_following_EXCEPT integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.ally_certificate (Timestamp, Score, Being_an_Ally_means_you_do_all_of_the_following_EXCEPT, _updated_at) values

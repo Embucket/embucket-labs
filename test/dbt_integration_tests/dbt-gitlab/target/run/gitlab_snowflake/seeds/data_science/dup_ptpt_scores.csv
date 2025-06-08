@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."DATA_SCIENCE"."DUP_PTPT_SCORES";
+    
+    create table EMBUCKET.data_science.dup_ptpt_scores (namespace_id integer,score_date timestamp without time zone,score integer,decile integer,importance integer,grouping integer,insights integer,uploaded_at timestamp without time zone,model_version integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.data_science.dup_ptpt_scores (namespace_id, score_date, score, decile, importance, grouping, insights, uploaded_at, model_version) values

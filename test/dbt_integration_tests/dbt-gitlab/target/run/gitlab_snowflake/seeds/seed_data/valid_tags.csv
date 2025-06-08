@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_DATA"."VALID_TAGS";
+    
+    create table EMBUCKET.seed_data.valid_tags (tag text,description text)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_data.valid_tags (tag, description) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."OMAMORI"."GITLAB_DELETED_PROJECTS_EXTERNAL";
+    
+    create table EMBUCKET.omamori.gitlab_deleted_projects_external (value text,date_part date)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.omamori.gitlab_deleted_projects_external (value, date_part) values

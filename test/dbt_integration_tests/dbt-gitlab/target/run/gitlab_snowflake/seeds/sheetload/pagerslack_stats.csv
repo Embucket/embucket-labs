@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."PAGERSLACK_STATS";
+    
+    create table EMBUCKET.sheetload.pagerslack_stats (attempts integer,weekend_pinged integer,unavailable integer,incident_url integer,reported_by integer,reported_at integer,time_to_response integer,time_at_response integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.pagerslack_stats (attempts, weekend_pinged, unavailable, incident_url, reported_by, reported_at, time_to_response, time_at_response, _updated_at) values

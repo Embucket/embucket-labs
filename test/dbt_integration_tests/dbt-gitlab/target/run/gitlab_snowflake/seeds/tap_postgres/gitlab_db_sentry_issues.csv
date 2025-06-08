@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_SENTRY_ISSUES";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_sentry_issues (id integer,issue_id integer,sentry_issue_identifier integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_sentry_issues (id, issue_id, sentry_issue_identifier, _uploaded_at) values

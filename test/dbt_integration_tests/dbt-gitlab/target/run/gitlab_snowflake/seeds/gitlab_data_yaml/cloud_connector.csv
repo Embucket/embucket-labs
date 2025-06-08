@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GITLAB_DATA_YAML"."CLOUD_CONNECTOR";
+    
+    create table EMBUCKET.gitlab_data_yaml.cloud_connector (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.gitlab_data_yaml.cloud_connector (jsontext, uploaded_at) values

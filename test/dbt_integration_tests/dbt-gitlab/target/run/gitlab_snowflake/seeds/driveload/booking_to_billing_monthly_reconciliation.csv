@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."DRIVELOAD"."BOOKING_TO_BILLING_MONTHLY_RECONCILIATION";
+    
+    create table EMBUCKET.driveload.booking_to_billing_monthly_reconciliation (btb_account_number integer,btb_account_name integer,btb_invoice_date integer,btb_invoice_number integer,btb_invoice_net_amount float8,btb_total_opportunity_amount_per_invoice float8,btb_variance float8,btb_category_of_variance integer,btb_category_of_variance_comment integer,btb_opportunity_id integer,btb_opportunity_name integer,btb_opportunity_account integer,btb_opportunity_amount float8,btb_opportunity2_id integer,btb_opportunity2_name integer,btb_opportunity2_account integer,btb_opportunity2_amount float8,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.driveload.booking_to_billing_monthly_reconciliation (btb_account_number, btb_account_name, btb_invoice_date, btb_invoice_number, btb_invoice_net_amount, btb_total_opportunity_amount_per_invoice, btb_variance, btb_category_of_variance, btb_category_of_variance_comment, btb_opportunity_id, btb_opportunity_name, btb_opportunity_account, btb_opportunity_amount, btb_opportunity2_id, btb_opportunity2_name, btb_opportunity2_account, btb_opportunity2_amount, _updated_at) values

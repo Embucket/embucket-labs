@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."HANDBOOK"."VALUES_PAGE_GIT_LOG";
+    
+    create table EMBUCKET.handbook.values_page_git_log (sha integer,name integer,email integer,date integer,message integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.handbook.values_page_git_log (sha, name, email, date, message, _updated_at) values

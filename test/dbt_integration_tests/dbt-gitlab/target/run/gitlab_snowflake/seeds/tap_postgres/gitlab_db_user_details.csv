@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_USER_DETAILS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_user_details (user_id integer,job_title integer,registration_objective integer,provisioned_by_group_id integer,provisioned_by_group_at integer,organization integer,discord integer,enterprise_group_id integer,onboarding_status integer,_uploaded_at float8,_task_instance integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_user_details (user_id, job_title, registration_objective, provisioned_by_group_id, provisioned_by_group_at, organization, discord, enterprise_group_id, onboarding_status, _uploaded_at, _task_instance) values

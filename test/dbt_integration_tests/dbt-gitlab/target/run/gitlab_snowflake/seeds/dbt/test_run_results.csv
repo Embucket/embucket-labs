@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."DBT"."TEST_RUN_RESULTS";
+    
+    create table EMBUCKET.dbt.test_run_results (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.dbt.test_run_results (jsontext, uploaded_at) values

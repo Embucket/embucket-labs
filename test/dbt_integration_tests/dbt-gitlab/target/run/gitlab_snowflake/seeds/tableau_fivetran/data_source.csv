@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TABLEAU_FIVETRAN"."DATA_SOURCE";
+    
+    create table EMBUCKET.tableau_fivetran.data_source (id integer,_fivetran_deleted boolean,owner_id integer,project_id integer,_fivetran_synced timestamp without time zone,has_extract boolean,encrypt_extract boolean,is_certified boolean,created_at timestamp without time zone,description integer,use_remote_query_agent boolean,updated_at timestamp without time zone,name integer,content_url integer,webpage_url integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tableau_fivetran.data_source (id, _fivetran_deleted, owner_id, project_id, _fivetran_synced, has_extract, encrypt_extract, is_certified, created_at, description, use_remote_query_agent, updated_at, name, content_url, webpage_url) values

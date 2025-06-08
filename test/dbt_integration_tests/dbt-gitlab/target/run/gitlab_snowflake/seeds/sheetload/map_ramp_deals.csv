@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."MAP_RAMP_DEALS";
+    
+    create table EMBUCKET.sheetload.map_ramp_deals (dim_crm_account_id integer,dim_crm_opportunity_id integer,Salesforce_Link integer,opportunity_name integer,ssp_id integer,opportunity_category integer,opportunity_term integer,Overwrite_SSP_ID integer,Overwrite_Term integer,arr_basis integer,net_arr integer,created_date integer,close_date integer,quote_start_date integer,subscription_start_date integer,subscription_end_date integer,is_won integer,is_closed integer,BN_Notes integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.map_ramp_deals (dim_crm_account_id, dim_crm_opportunity_id, Salesforce_Link, opportunity_name, ssp_id, opportunity_category, opportunity_term, Overwrite_SSP_ID, Overwrite_Term, arr_basis, net_arr, created_date, close_date, quote_start_date, subscription_start_date, subscription_end_date, is_won, is_closed, BN_Notes, _updated_at) values

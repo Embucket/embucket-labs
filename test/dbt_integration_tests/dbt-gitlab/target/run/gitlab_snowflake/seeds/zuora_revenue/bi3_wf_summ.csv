@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_REVENUE"."BI3_WF_SUMM";
+    
+    create table EMBUCKET.zuora_revenue.bi3_wf_summ (as_of_prd_id integer,schd_id integer,line_id integer,root_line_id integer,prd_id integer,post_prd_id integer,sec_atr_val integer,book_id integer,client_id integer,acctg_seg integer,acctg_type_id integer,netting_entry_flag integer,schd_type_flag integer,t_at integer,f_at integer,r_at integer,crtd_prd_id integer,crtd_dt integer,crtd_by integer,updt_dt integer,updt_by integer,incr_updt_dt integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_revenue.bi3_wf_summ (as_of_prd_id, schd_id, line_id, root_line_id, prd_id, post_prd_id, sec_atr_val, book_id, client_id, acctg_seg, acctg_type_id, netting_entry_flag, schd_type_flag, t_at, f_at, r_at, crtd_prd_id, crtd_dt, crtd_by, updt_dt, updt_by, incr_updt_dt) values

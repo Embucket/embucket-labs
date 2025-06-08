@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ITERABLE"."CAMPAIGN_SUPPRESSION_LIST_HISTORY";
+    
+    create table EMBUCKET.iterable.campaign_suppression_list_history (campaign_id integer,suppressed_list_id integer,updated_at timestamp without time zone,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.iterable.campaign_suppression_list_history (campaign_id, suppressed_list_id, updated_at, _fivetran_synced) values

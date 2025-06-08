@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."DRIVELOAD"."PENDING_INVOICES_REPORT";
+    
+    create table EMBUCKET.driveload.pending_invoices_report (invoice_amount float8,subscription_name integer,invoice_start_date integer,account_id integer,po_required integer,invoice_owner_id integer,opportunity_id integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.driveload.pending_invoices_report (invoice_amount, subscription_name, invoice_start_date, account_id, po_required, invoice_owner_id, opportunity_id, _updated_at) values

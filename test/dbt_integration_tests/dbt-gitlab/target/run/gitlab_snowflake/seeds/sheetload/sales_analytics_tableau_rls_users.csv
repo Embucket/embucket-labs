@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."SALES_ANALYTICS_TABLEAU_RLS_USERS";
+    
+    create table EMBUCKET.sheetload.sales_analytics_tableau_rls_users (email integer,username integer,role integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.sales_analytics_tableau_rls_users (email, username, role, _updated_at) values

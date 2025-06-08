@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_ZENGRC"."DUP_TAP_ZENGRC_VENDORS";
+    
+    create table EMBUCKET.tap_zengrc.dup_tap_zengrc_vendors (_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone,code integer,created_at integer,custom_attributes text,description integer,end_date integer,id integer,mapped text,notes integer,reference_url integer,risk_rating integer,secondary_contact text,start_date integer,status integer,tags text,title integer,type integer,updated_at integer,url integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_zengrc.dup_tap_zengrc_vendors (_sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at, code, created_at, custom_attributes, description, end_date, id, mapped, notes, reference_url, risk_rating, secondary_contact, start_date, status, tags, title, type, updated_at, url) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SNAPSHOTS"."CUSTOMERS_DB_BILLING_ACCOUNTS_SNAPSHOTS";
+    
+    create table EMBUCKET.snapshots.customers_db_billing_accounts_snapshots (id integer,zuora_account_name integer,zuora_account_id integer,salesforce_account_id integer,created_at integer,updated_at integer,_uploaded_at float8,_task_instance integer,billing_account_rank_in_key integer,dbt_scd_id integer,dbt_updated_at integer,dbt_valid_from integer,dbt_valid_to integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.customers_db_billing_accounts_snapshots (id, zuora_account_name, zuora_account_id, salesforce_account_id, created_at, updated_at, _uploaded_at, _task_instance, billing_account_rank_in_key, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values

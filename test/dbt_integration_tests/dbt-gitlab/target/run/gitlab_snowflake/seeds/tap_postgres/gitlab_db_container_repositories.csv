@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CONTAINER_REPOSITORIES";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_container_repositories (id integer,project_id integer,created_at integer,updated_at integer,status integer,expiration_policy_started_at timestamp without time zone,expiration_policy_cleanup_status integer,expiration_policy_completed_at timestamp without time zone,last_cleanup_deleted_tags_count integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_container_repositories (id, project_id, created_at, updated_at, status, expiration_policy_started_at, expiration_policy_cleanup_status, expiration_policy_completed_at, last_cleanup_deleted_tags_count, _uploaded_at) values

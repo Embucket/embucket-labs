@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GOOGLE_ANALYTICS_360_FIVETRAN"."SESSION_HIT_CUSTOM_DIMENSION";
+    
+    create table EMBUCKET.google_analytics_360_fivetran.session_hit_custom_dimension (visit_id integer,hit_number integer,visit_start_time timestamp without time zone,visitor_id integer,index integer,value integer,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.google_analytics_360_fivetran.session_hit_custom_dimension (visit_id, hit_number, visit_start_time, visitor_id, index, value, _fivetran_synced) values

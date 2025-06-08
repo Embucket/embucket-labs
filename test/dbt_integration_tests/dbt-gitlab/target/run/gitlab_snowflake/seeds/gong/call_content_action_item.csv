@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GONG"."CALL_CONTENT_ACTION_ITEM";
+    
+    create table EMBUCKET.gong.call_content_action_item (_fivetran_id integer,call_id integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,snippet_end_time float8,snippet_start_time float8,speaker_id integer,snippet integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.gong.call_content_action_item (_fivetran_id, call_id, _fivetran_deleted, _fivetran_synced, snippet_end_time, snippet_start_time, speaker_id, snippet) values

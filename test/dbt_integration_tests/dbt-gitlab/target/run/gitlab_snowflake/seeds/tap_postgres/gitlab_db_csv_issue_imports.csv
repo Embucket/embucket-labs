@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CSV_ISSUE_IMPORTS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_csv_issue_imports (id integer,project_id integer,user_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_csv_issue_imports (id, project_id, user_id, created_at, updated_at, _uploaded_at) values

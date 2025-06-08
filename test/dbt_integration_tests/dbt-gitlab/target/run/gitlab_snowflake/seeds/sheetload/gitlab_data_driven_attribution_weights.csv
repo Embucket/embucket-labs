@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."GITLAB_DATA_DRIVEN_ATTRIBUTION_WEIGHTS";
+    
+    create table EMBUCKET.sheetload.gitlab_data_driven_attribution_weights (channel float8,offer_type integer,weight integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.gitlab_data_driven_attribution_weights (channel, offer_type, weight, _updated_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_DATA"."INTERNAL_GITLAB_INSTALLATIONS";
+    
+    create table EMBUCKET.seed_data.internal_gitlab_installations (dim_installation_id text,host_name text)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_data.internal_gitlab_installations (dim_installation_id, host_name) values

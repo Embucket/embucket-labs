@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_ZENDESK"."GROUP_MEMBERSHIPS";
+    
+    create table EMBUCKET.tap_zendesk.group_memberships (created_at timestamp without time zone,default boolean,group_id integer,id integer,updated_at timestamp without time zone,url integer,user_id integer,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_zendesk.group_memberships (created_at, default, group_id, id, updated_at, url, user_id, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values

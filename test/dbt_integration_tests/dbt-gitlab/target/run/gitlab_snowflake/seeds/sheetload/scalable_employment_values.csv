@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."SCALABLE_EMPLOYMENT_VALUES";
+    
+    create table EMBUCKET.sheetload.scalable_employment_values (Month integer,total_workforce integer,nbr_in_scalable_solution integer,nbr_in_process integer,nbr_to_be_converted integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.scalable_employment_values (Month, total_workforce, nbr_in_scalable_solution, nbr_in_process, nbr_to_be_converted, _updated_at) values

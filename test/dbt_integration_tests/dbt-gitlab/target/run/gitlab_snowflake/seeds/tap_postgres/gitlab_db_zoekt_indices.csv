@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_ZOEKT_INDICES";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_zoekt_indices (id integer,zoekt_enabled_namespace_id integer,zoekt_node_id integer,namespace_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,state integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_zoekt_indices (id, zoekt_enabled_namespace_id, zoekt_node_id, namespace_id, created_at, updated_at, state, _uploaded_at) values

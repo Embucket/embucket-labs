@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_ENGINEERING"."HANDBOOK_FILE_CLASSIFICATION_MAPPING";
+    
+    create table EMBUCKET.seed_engineering.handbook_file_classification_mapping (handbook_path text,file_classification text)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_engineering.handbook_file_classification_mapping (handbook_path, file_classification) values

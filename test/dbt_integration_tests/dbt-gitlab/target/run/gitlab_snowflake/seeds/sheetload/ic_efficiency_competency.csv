@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."IC_EFFICIENCY_COMPETENCY";
+    
+    create table EMBUCKET.sheetload.ic_efficiency_competency (Timestamp integer,Email_Address float8,Score float8,First_Name float8,Last_Name float8,I_work_ float8,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.ic_efficiency_competency (Timestamp, Email_Address, Score, First_Name, Last_Name, I_work_, _updated_at) values

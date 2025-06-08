@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_ZENDESK"."TICKET_COMMENTS";
+    
+    create table EMBUCKET.tap_zendesk.ticket_comments (_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone,attachments text,audit_id integer,author_id integer,body integer,created_at timestamp without time zone,html_body integer,id integer,metadata text,plain_body integer,public boolean,ticket_id integer,type integer,via text)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_zendesk.ticket_comments (_sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at, attachments, audit_id, author_id, body, created_at, html_body, id, metadata, plain_body, public, ticket_id, type, via) values

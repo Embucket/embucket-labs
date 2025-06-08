@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."WORKDAY"."COST_CENTERS";
+    
+    create table EMBUCKET.workday.cost_centers (dept_reference_id integer,department_name integer,dept_inactive integer,cost_center integer,division_refid integer,division integer,cost_center_refid integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,dept_workday_id integer,division_workday_id integer,report_effective_date date,cost_center_workday_id integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.workday.cost_centers (dept_reference_id, department_name, dept_inactive, cost_center, division_refid, division, cost_center_refid, _fivetran_deleted, _fivetran_synced, dept_workday_id, division_workday_id, report_effective_date, cost_center_workday_id) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_PRODUCT"."LEGACY_DOTCOM_EVENT_NAME_TO_EDM_EVENT_NAME_MAPPING";
+    
+    create table EMBUCKET.seed_product.legacy_dotcom_event_name_to_edm_event_name_mapping (LEGACY_DOTCOM_EVENT_NAME text,PREP_EVENT_NAME text)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_product.legacy_dotcom_event_name_to_edm_event_name_mapping (LEGACY_DOTCOM_EVENT_NAME, PREP_EVENT_NAME) values

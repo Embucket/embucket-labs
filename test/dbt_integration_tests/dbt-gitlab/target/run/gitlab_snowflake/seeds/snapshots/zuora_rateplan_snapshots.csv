@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SNAPSHOTS"."ZUORA_RATEPLAN_SNAPSHOTS";
+    
+    create table EMBUCKET.snapshots.zuora_rateplan_snapshots (accountid integer,amendmentid integer,amendmenttype integer,billtocontactid integer,createdbyid integer,createddate timestamp without time zone,defaultpaymentmethodid integer,deleted boolean,id integer,name integer,parentaccountid integer,productid integer,productrateplanid integer,soldtocontactid integer,subscriptionid integer,subscriptionversionamendmentid integer,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone,externallymanagedplanid integer,synctriggerupdate__c timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.zuora_rateplan_snapshots (accountid, amendmentid, amendmenttype, billtocontactid, createdbyid, createddate, defaultpaymentmethodid, deleted, id, name, parentaccountid, productid, productrateplanid, soldtocontactid, subscriptionid, subscriptionversionamendmentid, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to, externallymanagedplanid, synctriggerupdate__c) values

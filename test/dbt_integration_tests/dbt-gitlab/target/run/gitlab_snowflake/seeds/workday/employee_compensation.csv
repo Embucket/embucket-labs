@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."WORKDAY"."EMPLOYEE_COMPENSATION";
+    
+    create table EMBUCKET.workday.employee_compensation (employee_id integer,compensation_history text,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.workday.employee_compensation (employee_id, compensation_history, _fivetran_deleted, _fivetran_synced) values

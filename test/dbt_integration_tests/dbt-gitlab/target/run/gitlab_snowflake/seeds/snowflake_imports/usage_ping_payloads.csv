@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SNOWFLAKE_IMPORTS"."USAGE_PING_PAYLOADS";
+    
+    create table EMBUCKET.snowflake_imports.usage_ping_payloads (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.snowflake_imports.usage_ping_payloads (jsontext, uploaded_at) values

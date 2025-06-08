@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SNAPSHOTS"."CUSTOMERS_DB_CLOUD_ACTIVATIONS_SNAPSHOTS";
+    
+    create table EMBUCKET.snapshots.customers_db_cloud_activations_snapshots (id integer,created_at integer,updated_at integer,customer_id integer,activation_code integer,subscription_name integer,super_sonics_aware boolean,seat_utilization_reminder_sent_at timestamp without time zone,billing_account_id integer,_uploaded_at float8,_task_instance integer,cloud_activation_rank_in_key integer,dbt_scd_id integer,dbt_updated_at integer,dbt_valid_from integer,dbt_valid_to integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.customers_db_cloud_activations_snapshots (id, created_at, updated_at, customer_id, activation_code, subscription_name, super_sonics_aware, seat_utilization_reminder_sent_at, billing_account_id, _uploaded_at, _task_instance, cloud_activation_rank_in_key, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values

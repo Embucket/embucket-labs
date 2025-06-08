@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CI_BUILDS_RUNNER_SESSION";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_ci_builds_runner_session (build_id integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_ci_builds_runner_session (build_id, _uploaded_at) values

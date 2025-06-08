@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_NOTES";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_notes (id integer,note integer,noteable_type integer,author_id float8,created_at timestamp without time zone,updated_at timestamp without time zone,project_id integer,attachment integer,line_code integer,commit_id integer,noteable_id float8,system boolean,st_diff integer,updated_by_id float8,type integer,position integer,original_position integer,resolved_at integer,resolved_by_id integer,discussion_id integer,note_html integer,cached_markdown_version float8,change_position integer,resolved_by_push integer,_uploaded_at float8,pgp_is_deleted boolean,pgp_is_deleted_updated_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_notes (id, note, noteable_type, author_id, created_at, updated_at, project_id, attachment, line_code, commit_id, noteable_id, system, st_diff, updated_by_id, type, position, original_position, resolved_at, resolved_by_id, discussion_id, note_html, cached_markdown_version, change_position, resolved_by_push, _uploaded_at, pgp_is_deleted, pgp_is_deleted_updated_at) values

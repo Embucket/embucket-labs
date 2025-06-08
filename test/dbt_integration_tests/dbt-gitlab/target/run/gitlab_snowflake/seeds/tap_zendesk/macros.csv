@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_ZENDESK"."MACROS";
+    
+    create table EMBUCKET.tap_zendesk.macros (actions_20230408_1140 integer,active boolean,created_at timestamp without time zone,description integer,id integer,position integer,restriction__id integer,restriction__ids integer,restriction__type integer,title integer,updated_at timestamp without time zone,url integer,__loaded_at timestamp without time zone,restriction text,actions text,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_zendesk.macros (actions_20230408_1140, active, created_at, description, id, position, restriction__id, restriction__ids, restriction__type, title, updated_at, url, __loaded_at, restriction, actions, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values

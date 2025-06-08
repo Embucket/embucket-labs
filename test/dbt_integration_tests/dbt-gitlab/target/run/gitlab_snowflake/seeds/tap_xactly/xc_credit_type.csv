@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_XACTLY"."XC_CREDIT_TYPE";
+    
+    create table EMBUCKET.tap_xactly.xc_credit_type (created_by_id float8,created_by_name integer,created_date integer,credit_type_id float8,descr integer,is_active integer,modified_by_id float8,modified_by_name integer,modified_date integer,name integer,version float8,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_xactly.xc_credit_type (created_by_id, created_by_name, created_date, credit_type_id, descr, is_active, modified_by_id, modified_by_name, modified_date, name, version, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values

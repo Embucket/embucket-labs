@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."BIZIBLE"."BIZ_LEADS";
+    
+    create table EMBUCKET.bizible.biz_leads (id integer,modified_date timestamp without time zone,created_date timestamp without time zone,email integer,web_site integer,company integer,lead_source integer,is_converted boolean,converted_opportunity_id integer,converted_date timestamp without time zone,converted_contact_id integer,accountid integer,bizible_stage integer,bizible_stage_previous integer,odds_of_conversion integer,lead_score_model integer,lead_score_results integer,bizible_cookie_id integer,is_deleted boolean,is_duplicate boolean,source_system integer,other_system_id integer,custom_properties integer,row_key integer,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.bizible.biz_leads (id, modified_date, created_date, email, web_site, company, lead_source, is_converted, converted_opportunity_id, converted_date, converted_contact_id, accountid, bizible_stage, bizible_stage_previous, odds_of_conversion, lead_score_model, lead_score_results, bizible_cookie_id, is_deleted, is_duplicate, source_system, other_system_id, custom_properties, row_key, _created_date, _modified_date, _deleted_date, uploaded_at) values

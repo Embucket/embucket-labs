@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."HYPERPROOF"."DUP_HYPERPROOF_USERS";
+    
+    create table EMBUCKET.hyperproof.dup_hyperproof_users (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.hyperproof.dup_hyperproof_users (jsontext, uploaded_at) values

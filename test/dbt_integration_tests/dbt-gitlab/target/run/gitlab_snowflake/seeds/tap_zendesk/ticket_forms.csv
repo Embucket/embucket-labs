@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_ZENDESK"."TICKET_FORMS";
+    
+    create table EMBUCKET.tap_zendesk.ticket_forms (_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone,active boolean,created_at timestamp without time zone,default boolean,display_name integer,end_user_visible boolean,id integer,in_all_brands boolean,name integer,position integer,raw_display_name integer,raw_name integer,restricted_brand_ids text,ticket_field_ids text,updated_at timestamp without time zone,url integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_zendesk.ticket_forms (_sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at, active, created_at, default, display_name, end_user_visible, id, in_all_brands, name, position, raw_display_name, raw_name, restricted_brand_ids, ticket_field_ids, updated_at, url) values

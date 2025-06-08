@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."GA360_CUSTOMDIMENSIONS";
+    
+    create table EMBUCKET.sheetload.ga360_customdimensions (dimension_name integer,dimension_index integer,dimension_scope integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.ga360_customdimensions (dimension_name, dimension_index, dimension_scope, _updated_at) values

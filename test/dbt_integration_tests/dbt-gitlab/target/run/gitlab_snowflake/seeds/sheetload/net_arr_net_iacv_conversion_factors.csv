@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."NET_ARR_NET_IACV_CONVERSION_FACTORS";
+    
+    create table EMBUCKET.sheetload.net_arr_net_iacv_conversion_factors (opportunity_id integer,order_type_stamped integer,user_segment integer,net_iacv integer,net_arr integer,ratio_net_iacv_to_net_arr integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.net_arr_net_iacv_conversion_factors (opportunity_id, order_type_stamped, user_segment, net_iacv, net_arr, ratio_net_iacv_to_net_arr, _updated_at) values

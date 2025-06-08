@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ECOSYSTEMS"."CVA";
+    
+    create table EMBUCKET.ecosystems.cva (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.ecosystems.cva (jsontext, uploaded_at) values

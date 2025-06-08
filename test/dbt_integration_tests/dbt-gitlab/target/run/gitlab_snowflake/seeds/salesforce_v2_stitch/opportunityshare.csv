@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SALESFORCE_V2_STITCH"."OPPORTUNITYSHARE";
+    
+    create table EMBUCKET.salesforce_v2_stitch.opportunityshare (id integer,isdeleted boolean,lastmodifiedbyid integer,lastmodifieddate timestamp without time zone,opportunityaccesslevel integer,opportunityid integer,rowcause integer,userorgroupid integer,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.salesforce_v2_stitch.opportunityshare (id, isdeleted, lastmodifiedbyid, lastmodifieddate, opportunityaccesslevel, opportunityid, rowcause, userorgroupid, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

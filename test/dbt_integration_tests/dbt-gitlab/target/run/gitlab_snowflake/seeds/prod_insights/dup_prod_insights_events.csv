@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."PROD_INSIGHTS"."DUP_PROD_INSIGHTS_EVENTS";
+    
+    create table EMBUCKET.prod_insights.dup_prod_insights_events (account_id integer,type integer,full_table_id integer,project_name integer,dataset_name integer,table_name integer,table_type integer,field integer,field_val integer,created_at timestamp without time zone,last_update integer,anomalous_data_time timestamp without time zone,min_expected integer,expected integer,max_expected integer,actual integer,first_status integer,first_status_time timestamp without time zone,hours_to_first_status integer,last_status integer,last_status_time timestamp without time zone,last_status_user integer,resolve_time timestamp without time zone,hours_to_resolution integer,mc_incident_id integer,event_app_url integer,mc_event_id integer,event_data integer,domains integer,severity integer,priority integer,segmented_fields integer,segmented_fields_values integer,monitor_id integer,monitor_description integer,row_number integer,monitor_uuid integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.prod_insights.dup_prod_insights_events (account_id, type, full_table_id, project_name, dataset_name, table_name, table_type, field, field_val, created_at, last_update, anomalous_data_time, min_expected, expected, max_expected, actual, first_status, first_status_time, hours_to_first_status, last_status, last_status_time, last_status_user, resolve_time, hours_to_resolution, mc_incident_id, event_app_url, mc_event_id, event_data, domains, severity, priority, segmented_fields, segmented_fields_values, monitor_id, monitor_description, row_number, monitor_uuid) values

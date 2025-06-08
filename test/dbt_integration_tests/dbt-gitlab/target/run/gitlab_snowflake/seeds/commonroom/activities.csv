@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."COMMONROOM"."ACTIVITIES";
+    
+    create table EMBUCKET.commonroom.activities (activity_timestamp timestamp without time zone,activity_type integer,first_activity_date timestamp without time zone,full_name integer,member_id integer,profiles integer,service_name integer,_uploaded_at timestamp without time zone,_file_name integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.commonroom.activities (activity_timestamp, activity_type, first_activity_date, full_name, member_id, profiles, service_name, _uploaded_at, _file_name) values

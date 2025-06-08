@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GITLAB_DATA_YAML"."STAGES";
+    
+    create table EMBUCKET.gitlab_data_yaml.stages (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.gitlab_data_yaml.stages (jsontext, uploaded_at) values

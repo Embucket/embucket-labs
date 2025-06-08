@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_RESOURCE_MILESTONE_EVENTS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_resource_milestone_events (id integer,user_id integer,issue_id float8,merge_request_id float8,milestone_id float8,action integer,state integer,created_at timestamp without time zone,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_resource_milestone_events (id, user_id, issue_id, merge_request_id, milestone_id, action, state, created_at, _uploaded_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."BIZIBLE"."BIZ_OPPORTUNITIES";
+    
+    create table EMBUCKET.bizible.biz_opportunities (id integer,modified_date timestamp without time zone,created_date timestamp without time zone,account_id integer,name integer,opportunity_type integer,is_won boolean,is_closed boolean,close_date timestamp without time zone,bizible_custom_model_date timestamp without time zone,amount integer,converted_from_lead_id integer,primary_contact_id integer,odds_of_conversion integer,bizible_stage integer,bizible_stage_previous integer,is_deleted boolean,custom_properties integer,currency_iso_code integer,row_key integer,currency_id integer,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.bizible.biz_opportunities (id, modified_date, created_date, account_id, name, opportunity_type, is_won, is_closed, close_date, bizible_custom_model_date, amount, converted_from_lead_id, primary_contact_id, odds_of_conversion, bizible_stage, bizible_stage_previous, is_deleted, custom_properties, currency_iso_code, row_key, currency_id, _created_date, _modified_date, _deleted_date, uploaded_at) values

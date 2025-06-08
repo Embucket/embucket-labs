@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_QUERY_API"."DUP_ZUORA_QUERY_API_USERS";
+    
+    create table EMBUCKET.zuora_query_api.dup_zuora_query_api_users (Id integer,Email integer,FirstName integer,LastName integer,Username integer,CreatedDate integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_query_api.dup_zuora_query_api_users (Id, Email, FirstName, LastName, Username, CreatedDate, _uploaded_at) values

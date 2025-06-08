@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."MARKETING_CORE_USERS_FROM_DOCS_GITLAB_COM";
+    
+    create table EMBUCKET.sheetload.marketing_core_users_from_docs_gitlab_com (Company_Name integer,Total_Page_Count integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.marketing_core_users_from_docs_gitlab_com (Company_Name, Total_Page_Count, _updated_at) values

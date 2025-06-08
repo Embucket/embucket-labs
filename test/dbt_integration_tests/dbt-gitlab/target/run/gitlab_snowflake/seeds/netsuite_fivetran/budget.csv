@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."NETSUITE_FIVETRAN"."BUDGET";
+    
+    create table EMBUCKET.netsuite_fivetran.budget (budget_id float8,accounting_book_id float8,accounting_period_id float8,account_id float8,amount float8,budget_date timestamp without time zone,category_id float8,class_id float8,customer_id float8,department_id float8,item_id float8,location_id float8,subsidiary_id float8,_fivetran_deleted boolean,date_deleted timestamp without time zone,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.netsuite_fivetran.budget (budget_id, accounting_book_id, accounting_period_id, account_id, amount, budget_date, category_id, class_id, customer_id, department_id, item_id, location_id, subsidiary_id, _fivetran_deleted, date_deleted, _fivetran_synced) values

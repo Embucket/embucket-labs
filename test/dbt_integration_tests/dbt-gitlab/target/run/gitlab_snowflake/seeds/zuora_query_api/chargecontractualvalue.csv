@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_QUERY_API"."CHARGECONTRACTUALVALUE";
+    
+    create table EMBUCKET.zuora_query_api.chargecontractualvalue (amount integer,createdBy integer,createdOn integer,currency integer,elp integer,elpTaxAmount integer,estimatedEvergreenEndDate integer,id integer,ratePlanChargeId integer,reason integer,subscriptionId integer,taxAmount integer,updatedBy integer,updatedOn integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_query_api.chargecontractualvalue (amount, createdBy, createdOn, currency, elp, elpTaxAmount, estimatedEvergreenEndDate, id, ratePlanChargeId, reason, subscriptionId, taxAmount, updatedBy, updatedOn, _uploaded_at) values

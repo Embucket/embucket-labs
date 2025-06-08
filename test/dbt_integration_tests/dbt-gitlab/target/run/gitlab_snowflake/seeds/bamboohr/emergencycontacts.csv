@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."BAMBOOHR"."EMERGENCYCONTACTS";
+    
+    create table EMBUCKET.bamboohr.emergencycontacts (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.bamboohr.emergencycontacts (jsontext, uploaded_at) values

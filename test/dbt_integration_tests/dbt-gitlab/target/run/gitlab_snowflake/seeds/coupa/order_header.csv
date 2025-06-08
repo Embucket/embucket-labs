@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."COUPA"."ORDER_HEADER";
+    
+    create table EMBUCKET.coupa.order_header (id integer,custom_fields text,acknowledged_at integer,acknowledged_flag boolean,change_type integer,coupa_accelerate_status integer,created_at timestamp without time zone,created_by_id integer,currency_id integer,exported boolean,internal_revision integer,invoice_stop boolean,last_exported_at timestamp without time zone,payment_method integer,payment_term_id integer,pcard_id integer,po_number integer,price_hidden boolean,requester_id integer,requisition_header_id integer,ship_to_address_id integer,ship_to_attention integer,ship_to_user_id integer,shipping_term_id integer,status integer,supplier_id integer,transmission_emails integer,transmission_method_override integer,transmission_status integer,type integer,updated_at timestamp without time zone,updated_by_id integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.coupa.order_header (id, custom_fields, acknowledged_at, acknowledged_flag, change_type, coupa_accelerate_status, created_at, created_by_id, currency_id, exported, internal_revision, invoice_stop, last_exported_at, payment_method, payment_term_id, pcard_id, po_number, price_hidden, requester_id, requisition_header_id, ship_to_address_id, ship_to_attention, ship_to_user_id, shipping_term_id, status, supplier_id, transmission_emails, transmission_method_override, transmission_status, type, updated_at, updated_by_id, _fivetran_deleted, _fivetran_synced) values

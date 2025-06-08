@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_QUERY_API"."ORDERACTIONRATEPLAN";
+    
+    create table EMBUCKET.zuora_query_api.orderactionrateplan (deleted boolean,Id integer,OrderActionId integer,RatePlanId integer,CreatedById integer,CreatedDate integer,UpdatedById integer,UpdatedDate integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_query_api.orderactionrateplan (deleted, Id, OrderActionId, RatePlanId, CreatedById, CreatedDate, UpdatedById, UpdatedDate, _uploaded_at) values

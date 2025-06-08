@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."KANTATA"."_REMAINING_TO_FORECAST";
+    
+    create table EMBUCKET.kantata._remaining_to_forecast (Account integer,Lead integer,Project integer,Project_2 integer,Opp integer,Segment integer,Billing integer,SFDC integer,Type integer,Project_3 integer,FF integer,Total integer,Remaining integer,Remaining_2 integer,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.kantata._remaining_to_forecast (Account, Lead, Project, Project_2, Opp, Segment, Billing, SFDC, Type, Project_3, FF, Total, Remaining, Remaining_2, uploaded_at) values

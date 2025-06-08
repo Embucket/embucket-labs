@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_CENTRAL_SANDBOX_FIVETRAN"."PRODUCT_RATE_PLAN";
+    
+    create table EMBUCKET.zuora_central_sandbox_fivetran.product_rate_plan (id integer,created_by_id integer,created_date timestamp without time zone,description integer,effective_end_date date,effective_start_date date,guided_selling_c integer,legacy_tier_uidisplay_c integer,name integer,prpcategory_c integer,updated_by_id integer,updated_date timestamp without time zone,_fivetran_deleted boolean,product_id integer,_fivetran_synced timestamp without time zone,external_id_source_system integer,product_rate_plan_number integer,product_category_c integer,showin_partner_discount_c boolean,show_in_eco_system_c integer,group_charges_c integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_central_sandbox_fivetran.product_rate_plan (id, created_by_id, created_date, description, effective_end_date, effective_start_date, guided_selling_c, legacy_tier_uidisplay_c, name, prpcategory_c, updated_by_id, updated_date, _fivetran_deleted, product_id, _fivetran_synced, external_id_source_system, product_rate_plan_number, product_category_c, showin_partner_discount_c, show_in_eco_system_c, group_charges_c) values

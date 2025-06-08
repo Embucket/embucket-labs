@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CLUSTERS_APPLICATIONS_CERT_MANAGERS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_clusters_applications_cert_managers (id integer,cluster_id integer,status integer,version integer,created_at timestamp without time zone,updated_at timestamp without time zone,status_reason integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_clusters_applications_cert_managers (id, cluster_id, status, version, created_at, updated_at, status_reason, _uploaded_at) values

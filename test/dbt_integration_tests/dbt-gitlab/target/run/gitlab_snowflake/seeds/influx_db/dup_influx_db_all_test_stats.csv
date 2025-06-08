@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."INFLUX_DB"."DUP_INFLUX_DB_ALL_TEST_STATS";
+    
+    create table EMBUCKET.influx_db.dup_influx_db_all_test_stats (id integer,testcase integer,file_path integer,name integer,product_group integer,stage integer,job_id integer,job_name integer,job_url integer,pipeline_id integer,pipeline_url integer,merge_request boolean,merge_request_iid integer,smoke boolean,reliable boolean,quarantined boolean,retried boolean,retry_attempts integer,run_time integer,run_type integer,status integer,ui_fabrication integer,api_fabrication integer,total_fabrication integer,_uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.influx_db.dup_influx_db_all_test_stats (id, testcase, file_path, name, product_group, stage, job_id, job_name, job_url, pipeline_id, pipeline_url, merge_request, merge_request_iid, smoke, reliable, quarantined, retried, retry_attempts, run_time, run_type, status, ui_fabrication, api_fabrication, total_fabrication, _uploaded_at) values

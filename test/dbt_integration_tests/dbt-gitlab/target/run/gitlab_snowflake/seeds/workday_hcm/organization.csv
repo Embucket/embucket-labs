@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."WORKDAY_HCM"."ORGANIZATION";
+    
+    create table EMBUCKET.workday_hcm.organization (id integer,organization_code integer,name integer,description integer,include_manager_in_name boolean,include_organization_code_in_name boolean,type integer,sub_type integer,availability_date timestamp without time zone,last_updated_date_time timestamp without time zone,inactive boolean,inactive_date date,manager_id integer,organization_owner_id integer,visibility integer,external_url integer,top_level_organization_id integer,superior_organization_id integer,staffing_model integer,location integer,available_for_hire boolean,hiring_freeze boolean,supervisory_position_availability_date date,supervisory_position_earliest_hire_date date,supervisory_position_worker_type integer,supervisory_position_time_type integer,code integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.workday_hcm.organization (id, organization_code, name, description, include_manager_in_name, include_organization_code_in_name, type, sub_type, availability_date, last_updated_date_time, inactive, inactive_date, manager_id, organization_owner_id, visibility, external_url, top_level_organization_id, superior_organization_id, staffing_model, location, available_for_hire, hiring_freeze, supervisory_position_availability_date, supervisory_position_earliest_hire_date, supervisory_position_worker_type, supervisory_position_time_type, code, _fivetran_deleted, _fivetran_synced) values

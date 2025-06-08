@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_LFS_FILE_LOCKS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_lfs_file_locks (id integer,project_id integer,user_id integer,created_at integer,path integer,_uploaded_at float8,_task_instance integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_lfs_file_locks (id, project_id, user_id, created_at, path, _uploaded_at, _task_instance) values

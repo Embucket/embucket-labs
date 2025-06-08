@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ACCOUNT_USAGE"."TABLES";
+    
+    create table EMBUCKET.account_usage.tables (table_id integer,table_name integer,table_schema_id integer,table_schema integer,table_catalog_id integer,table_catalog integer,table_owner integer,table_type integer,is_transient integer,is_iceberg integer,is_dynamic integer,is_hybrid integer,clustering_key integer,row_count integer,bytes integer,retention_time integer,self_referencing_column_name integer,reference_generation integer,user_defined_type_catalog integer,user_defined_type_schema integer,user_defined_type_name integer,is_insertable_into integer,is_typed integer,commit_action integer,created timestamp without time zone,last_altered timestamp without time zone,last_ddl timestamp without time zone,last_ddl_by integer,deleted timestamp without time zone,auto_clustering_on integer,comment integer,owner_role_type integer,instance_id integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.account_usage.tables (table_id, table_name, table_schema_id, table_schema, table_catalog_id, table_catalog, table_owner, table_type, is_transient, is_iceberg, is_dynamic, is_hybrid, clustering_key, row_count, bytes, retention_time, self_referencing_column_name, reference_generation, user_defined_type_catalog, user_defined_type_schema, user_defined_type_name, is_insertable_into, is_typed, commit_action, created, last_altered, last_ddl, last_ddl_by, deleted, auto_clustering_on, comment, owner_role_type, instance_id) values

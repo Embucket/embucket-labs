@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SNAPSHOTS"."CUSTOMERS_DB_BILLING_ACCOUNT_CONTACTS_SNAPSHOTS";
+    
+    create table EMBUCKET.snapshots.customers_db_billing_account_contacts_snapshots (id integer,work_email integer,created_at timestamp without time zone,updated_at timestamp without time zone,zuora_contact_id integer,zuora_account_id integer,_uploaded_at float8,_task_instance integer,billing_account_contact_rank_in_key integer,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.customers_db_billing_account_contacts_snapshots (id, work_email, created_at, updated_at, zuora_contact_id, zuora_account_id, _uploaded_at, _task_instance, billing_account_contact_rank_in_key, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values

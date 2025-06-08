@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."NETSUITE_FIVETRAN"."CONSOLIDATED_EXCHANGE_RATES";
+    
+    create table EMBUCKET.netsuite_fivetran.consolidated_exchange_rates (consolidated_exchange_rate_id float8,accounting_book_id float8,accounting_period_id float8,average_budget_rate float8,average_rate float8,current_budget_rate float8,current_rate float8,from_subsidiary_id float8,historical_budget_rate float8,historical_rate float8,to_subsidiary_id float8,_fivetran_deleted boolean,date_deleted timestamp without time zone,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.netsuite_fivetran.consolidated_exchange_rates (consolidated_exchange_rate_id, accounting_book_id, accounting_period_id, average_budget_rate, average_rate, current_budget_rate, current_rate, from_subsidiary_id, historical_budget_rate, historical_rate, to_subsidiary_id, _fivetran_deleted, date_deleted, _fivetran_synced) values

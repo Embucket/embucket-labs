@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_OAUTH_ACCESS_TOKENS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_oauth_access_tokens (id integer,resource_owner_id float8,application_id float8,expires_in float8,revoked_at timestamp without time zone,created_at timestamp without time zone,scopes integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_oauth_access_tokens (id, resource_owner_id, application_id, expires_in, revoked_at, created_at, scopes, _uploaded_at) values

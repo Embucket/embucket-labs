@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_QUERY_API"."RAMP";
+    
+    create table EMBUCKET.zuora_query_api.ramp (Id integer,OrderId integer,Name integer,Description float8,GrossTcb float8,DiscountTcv float8,NetTcb float8,MetricsProcessingStatus integer,GrossTcv float8,Number integer,NetTcv float8,SubscriptionNumbers integer,ChargeNumbers integer,DiscountTcb float8,CreatedById integer,CreatedDate integer,UpdatedById integer,UpdatedDate integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_query_api.ramp (Id, OrderId, Name, Description, GrossTcb, DiscountTcv, NetTcb, MetricsProcessingStatus, GrossTcv, Number, NetTcv, SubscriptionNumbers, ChargeNumbers, DiscountTcb, CreatedById, CreatedDate, UpdatedById, UpdatedDate, _uploaded_at) values

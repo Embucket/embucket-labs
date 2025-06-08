@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_XACTLY"."XC_PERIOD";
+    
+    create table EMBUCKET.tap_xactly.xc_period (calendar_id float8,created_by_id float8,created_by_name integer,created_date integer,end_date integer,is_active integer,is_calc_period integer,is_etl_excluded integer,is_hidden integer,is_open integer,is_published integer,is_visible integer,modified_by_id float8,modified_by_name integer,modified_date integer,name integer,order_number float8,parent_period_id float8,period_id float8,period_type_id_fk float8,start_date integer,version float8,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_xactly.xc_period (calendar_id, created_by_id, created_by_name, created_date, end_date, is_active, is_calc_period, is_etl_excluded, is_hidden, is_open, is_published, is_visible, modified_by_id, modified_by_name, modified_date, name, order_number, parent_period_id, period_id, period_type_id_fk, start_date, version, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values

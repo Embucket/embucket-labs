@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SNAPSHOTS"."CUSTOMERS_DB_LEADS_SNAPSHOTS";
+    
+    create table EMBUCKET.snapshots.customers_db_leads_snapshots (id integer,created_at timestamp without time zone,updated_at timestamp without time zone,trial_start_date date,namespace_id integer,user_id integer,opt_in boolean,currently_in_trial boolean,is_for_business_use boolean,first_name integer,last_name integer,email integer,phone integer,company_name integer,employees_bucket integer,country integer,state integer,product_interaction integer,provider integer,comment_capture integer,glm_content integer,glm_source integer,sent_at timestamp without time zone,website_url integer,role integer,jtbd integer,_uploaded_at float8,_task_instance integer,leads_rank_in_key integer,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.customers_db_leads_snapshots (id, created_at, updated_at, trial_start_date, namespace_id, user_id, opt_in, currently_in_trial, is_for_business_use, first_name, last_name, email, phone, company_name, employees_bucket, country, state, product_interaction, provider, comment_capture, glm_content, glm_source, sent_at, website_url, role, jtbd, _uploaded_at, _task_instance, leads_rank_in_key, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values

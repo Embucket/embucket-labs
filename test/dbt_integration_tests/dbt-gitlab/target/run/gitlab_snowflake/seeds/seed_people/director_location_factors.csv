@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_PEOPLE"."DIRECTOR_LOCATION_FACTORS";
+    
+    create table EMBUCKET.seed_people.director_location_factors (country text,locality text,factor float8,valid_from date,valid_to date,is_current boolean)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_people.director_location_factors (country, locality, factor, valid_from, valid_to, is_current) values

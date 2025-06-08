@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."CLARI_AI_PROJECTION";
+    
+    create table EMBUCKET.sheetload.clari_ai_projection (Date integer,Projection_Error_Percentage integer,Top_1_Source_of_Error integer,Top_2_Source_of_Error integer,Closed_Converted_by_EOQ_Percentage integer,Projected_Closed_Converted_by_EOQ_Percentage integer,New_Converted_by_EOQ_Percentage integer,Projected_New_Converted_by_EOQ_Percentage integer,Best_Case_Converted_by_EOQ_Percentage integer,Projected_Best_Case_Converted_by_EOQ_Percentage integer,Commit_Converted_by_EOQ_Percentage integer,Projected_Commit_Converted_by_EOQ_Percentage integer,Omitted_Converted_by_EOQ_Percentage integer,Projected_Omitted_Converted_by_EOQ_Percentage integer,Pipeline_Converted_by_EOQ_Percentage integer,Projected_Pipeline_Converted_by_EOQ_Percentage integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.clari_ai_projection (Date, Projection_Error_Percentage, Top_1_Source_of_Error, Top_2_Source_of_Error, Closed_Converted_by_EOQ_Percentage, Projected_Closed_Converted_by_EOQ_Percentage, New_Converted_by_EOQ_Percentage, Projected_New_Converted_by_EOQ_Percentage, Best_Case_Converted_by_EOQ_Percentage, Projected_Best_Case_Converted_by_EOQ_Percentage, Commit_Converted_by_EOQ_Percentage, Projected_Commit_Converted_by_EOQ_Percentage, Omitted_Converted_by_EOQ_Percentage, Projected_Omitted_Converted_by_EOQ_Percentage, Pipeline_Converted_by_EOQ_Percentage, Projected_Pipeline_Converted_by_EOQ_Percentage, _updated_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GAINSIGHT_CUSTOMER_SUCCESS"."DUP_EMAIL_LOGS";
+    
+    create table EMBUCKET.gainsight_customer_success.dup_email_logs (id integer,_fivetran_deleted boolean,gs_user_id integer,clicked integer,rejected_on timestamp without time zone,opened_on timestamp without time zone,soft_bounced integer,person_type integer,rejected integer,company_name integer,clicked_on timestamp without time zone,sent integer,opened integer,batch_id integer,triggered_on timestamp without time zone,email_address integer,hard_bounced integer,marked_spam integer,person_id integer,clicked_url integer,soft_bounce_on timestamp without time zone,delayed_on timestamp without time zone,parent_gsid integer,marked_spam_on timestamp without time zone,triggered_date timestamp without time zone,batch_name integer,open_count integer,clicked_ip integer,template_name integer,opened_ip integer,template_id integer,unsubscribed integer,hard_bounce_on timestamp without time zone,person_name integer,user_name integer,delayed integer,company_id integer,variant_name integer,unsubscribed_on timestamp without time zone,use_case integer,variant_id integer,click_count integer,event_message integer,address_type integer,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.gainsight_customer_success.dup_email_logs (id, _fivetran_deleted, gs_user_id, clicked, rejected_on, opened_on, soft_bounced, person_type, rejected, company_name, clicked_on, sent, opened, batch_id, triggered_on, email_address, hard_bounced, marked_spam, person_id, clicked_url, soft_bounce_on, delayed_on, parent_gsid, marked_spam_on, triggered_date, batch_name, open_count, clicked_ip, template_name, opened_ip, template_id, unsubscribed, hard_bounce_on, person_name, user_name, delayed, company_id, variant_name, unsubscribed_on, use_case, variant_id, click_count, event_message, address_type, _fivetran_synced) values

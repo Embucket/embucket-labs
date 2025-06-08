@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GREENHOUSE"."APPLICATION_STAGES";
+    
+    create table EMBUCKET.greenhouse.application_stages (application_id integer,stage_id float8,entered_on integer,exited_on integer,stage_name integer,organization_id integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.greenhouse.application_stages (application_id, stage_id, entered_on, exited_on, stage_name, organization_id, _updated_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ENGINEERING_EXTRACTS"."COMMIT_STATS";
+    
+    create table EMBUCKET.engineering_extracts.commit_stats (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.engineering_extracts.commit_stats (jsontext, uploaded_at) values

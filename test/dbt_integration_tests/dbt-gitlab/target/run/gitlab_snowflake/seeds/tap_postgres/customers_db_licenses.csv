@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."CUSTOMERS_DB_LICENSES";
+    
+    create table EMBUCKET.tap_postgres.customers_db_licenses (id integer,name integer,company integer,users_count integer,email integer,license_file integer,expires_at date,created_at timestamp without time zone,updated_at timestamp without time zone,plan_name integer,starts_at date,zuora_subscription_id integer,notes integer,previous_users_count integer,trueup_quantity integer,trueup_from date,trueup_to date,plan_code integer,trial boolean,zuora_subscription_name integer,license_file_md5 integer,creator_id integer,license_file_sha256 integer,billing_account_id integer,_uploaded_at float8,_task_instance integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.customers_db_licenses (id, name, company, users_count, email, license_file, expires_at, created_at, updated_at, plan_name, starts_at, zuora_subscription_id, notes, previous_users_count, trueup_quantity, trueup_from, trueup_to, plan_code, trial, zuora_subscription_name, license_file_md5, creator_id, license_file_sha256, billing_account_id, _uploaded_at, _task_instance) values

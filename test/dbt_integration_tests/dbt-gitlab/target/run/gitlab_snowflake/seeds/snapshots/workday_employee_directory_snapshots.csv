@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SNAPSHOTS"."WORKDAY_EMPLOYEE_DIRECTORY_SNAPSHOTS";
+    
+    create table EMBUCKET.snapshots.workday_employee_directory_snapshots (employee_id integer,work_email integer,full_name integer,job_title integer,supervisor integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.workday_employee_directory_snapshots (employee_id, work_email, full_name, job_title, supervisor, _fivetran_deleted, _fivetran_synced, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values

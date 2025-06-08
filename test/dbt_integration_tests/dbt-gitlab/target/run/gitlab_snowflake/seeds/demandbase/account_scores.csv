@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."DEMANDBASE"."ACCOUNT_SCORES";
+    
+    create table EMBUCKET.demandbase.account_scores (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.demandbase.account_scores (jsontext, uploaded_at) values

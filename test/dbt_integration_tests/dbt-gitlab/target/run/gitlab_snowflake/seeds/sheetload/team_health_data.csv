@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."TEAM_HEALTH_DATA";
+    
+    create table EMBUCKET.sheetload.team_health_data (timestamp integer,email_address integer,question integer,rating_description integer,rating_value integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.team_health_data (timestamp, email_address, question, rating_description, rating_value, _updated_at) values

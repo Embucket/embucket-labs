@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."FY25_YEARLIES_TARGET";
+    
+    create table EMBUCKET.sheetload.fy25_yearlies_target (yearly_name integer,yearly_dri integer,yearly_description integer,is_mnpi integer,fy25_q4 integer,fy25_q3 integer,fy25_q2 integer,fy25_q1 integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.fy25_yearlies_target (yearly_name, yearly_dri, yearly_description, is_mnpi, fy25_q4, fy25_q3, fy25_q2, fy25_q1, _updated_at) values

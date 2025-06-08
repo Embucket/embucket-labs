@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_PROJECT_INCIDENT_MANAGEMENT_SETTINGS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_project_incident_management_settings (project_id integer,create_issue boolean,send_email boolean,issue_template_key integer,pagerduty_active boolean,auto_close_incident boolean,sla_timer boolean,sla_timer_minutes integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_project_incident_management_settings (project_id, create_issue, send_email, issue_template_key, pagerduty_active, auto_close_incident, sla_timer, sla_timer_minutes, _uploaded_at) values

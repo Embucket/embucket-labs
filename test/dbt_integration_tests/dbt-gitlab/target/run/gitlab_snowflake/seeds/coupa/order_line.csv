@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."COUPA"."ORDER_LINE";
+    
+    create table EMBUCKET.coupa.order_line (order_header_id integer,id integer,custom_fields text,account_id integer,accounting_total float8,accounting_total_currency_id integer,contract_id integer,created_at timestamp without time zone,created_by_id integer,department_id integer,description integer,extra_line_attribute_id integer,invoice_stop boolean,invoiced float8,item_id integer,line_num integer,match_type integer,need_by_date timestamp without time zone,order_header_number integer,price float8,quantity float8,receipt_required boolean,received float8,reporting_total float8,requester_id integer,savings_pct float8,service_type integer,source_part_num integer,status integer,sub_line_num integer,supp_aux_part_num integer,supplier_order_number integer,supplier_site_id integer,total float8,type integer,updated_at timestamp without time zone,updated_by_id integer,version integer,uom_id integer,commodity_id integer,period_id integer,bulk_price_id integer,receiving_warehouse_id integer,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.coupa.order_line (order_header_id, id, custom_fields, account_id, accounting_total, accounting_total_currency_id, contract_id, created_at, created_by_id, department_id, description, extra_line_attribute_id, invoice_stop, invoiced, item_id, line_num, match_type, need_by_date, order_header_number, price, quantity, receipt_required, received, reporting_total, requester_id, savings_pct, service_type, source_part_num, status, sub_line_num, supp_aux_part_num, supplier_order_number, supplier_site_id, total, type, updated_at, updated_by_id, version, uom_id, commodity_id, period_id, bulk_price_id, receiving_warehouse_id, _fivetran_synced) values

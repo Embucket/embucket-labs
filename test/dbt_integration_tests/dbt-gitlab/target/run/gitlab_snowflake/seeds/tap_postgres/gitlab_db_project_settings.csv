@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_PROJECT_SETTINGS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_project_settings (project_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,push_rule_id integer,show_default_award_emojis boolean,allow_merge_on_skipped_pipeline boolean,squash_option integer,has_confluence boolean,has_vulnerabilities boolean,prevent_merge_without_jira_issue boolean,cve_id_request_enabled boolean,mr_default_target_self boolean,previous_default_branch integer,warn_about_potentially_unwanted_characters boolean,merge_commit_template integer,has_shimo boolean,squash_commit_template integer,legacy_open_source_license_available boolean,target_platforms integer,enforce_auth_checks_on_uploads boolean,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_project_settings (project_id, created_at, updated_at, push_rule_id, show_default_award_emojis, allow_merge_on_skipped_pipeline, squash_option, has_confluence, has_vulnerabilities, prevent_merge_without_jira_issue, cve_id_request_enabled, mr_default_target_self, previous_default_branch, warn_about_potentially_unwanted_characters, merge_commit_template, has_shimo, squash_commit_template, legacy_open_source_license_available, target_platforms, enforce_auth_checks_on_uploads, _uploaded_at) values

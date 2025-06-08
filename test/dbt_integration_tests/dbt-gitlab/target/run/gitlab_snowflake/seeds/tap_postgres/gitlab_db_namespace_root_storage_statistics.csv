@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_NAMESPACE_ROOT_STORAGE_STATISTICS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_namespace_root_storage_statistics (namespace_id integer,repository_size integer,lfs_objects_size integer,wiki_size integer,build_artifacts_size integer,storage_size integer,packages_size integer,container_registry_size integer,updated_at timestamp without time zone,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_namespace_root_storage_statistics (namespace_id, repository_size, lfs_objects_size, wiki_size, build_artifacts_size, storage_size, packages_size, container_registry_size, updated_at, _uploaded_at) values

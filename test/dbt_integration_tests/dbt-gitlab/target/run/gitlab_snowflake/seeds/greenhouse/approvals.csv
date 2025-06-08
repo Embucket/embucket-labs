@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GREENHOUSE"."APPROVALS";
+    
+    create table EMBUCKET.greenhouse.approvals (offer_id float8,application_id float8,job_id integer,job_name integer,candidate_id float8,candidate_name integer,approver_id integer,approver_name integer,approval_type integer,status integer,version float8,final_version float8,group_id integer,group_order integer,group_quorum integer,assigned integer,completed integer,created_at integer,updated_at integer,organization_id integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.greenhouse.approvals (offer_id, application_id, job_id, job_name, candidate_id, candidate_name, approver_id, approver_name, approval_type, status, version, final_version, group_id, group_order, group_quorum, assigned, completed, created_at, updated_at, organization_id, _updated_at) values

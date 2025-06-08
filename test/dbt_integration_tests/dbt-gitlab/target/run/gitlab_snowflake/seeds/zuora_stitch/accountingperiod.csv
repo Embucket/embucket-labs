@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_STITCH"."ACCOUNTINGPERIOD";
+    
+    create table EMBUCKET.zuora_stitch.accountingperiod (createdbyid integer,createddate timestamp without time zone,enddate timestamp without time zone,fiscalyear integer,id integer,name integer,notes integer,startdate timestamp without time zone,status integer,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_stitch.accountingperiod (createdbyid, createddate, enddate, fiscalyear, id, name, notes, startdate, status, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

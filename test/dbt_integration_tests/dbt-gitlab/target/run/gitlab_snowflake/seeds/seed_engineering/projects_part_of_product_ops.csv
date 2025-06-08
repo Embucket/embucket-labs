@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_ENGINEERING"."PROJECTS_PART_OF_PRODUCT_OPS";
+    
+    create table EMBUCKET.seed_engineering.projects_part_of_product_ops (project_path text,project_id integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_engineering.projects_part_of_product_ops (project_path, project_id) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."LOCATION_FACTOR_TARGETS";
+    
+    create table EMBUCKET.sheetload.location_factor_targets (department integer,target integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.location_factor_targets (department, target, _updated_at) values

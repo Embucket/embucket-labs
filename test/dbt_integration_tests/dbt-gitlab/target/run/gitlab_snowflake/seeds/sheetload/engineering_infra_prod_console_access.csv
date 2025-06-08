@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."ENGINEERING_INFRA_PROD_CONSOLE_ACCESS";
+    
+    create table EMBUCKET.sheetload.engineering_infra_prod_console_access (Date_of_report integer,Count_of_people_with_GCP_production_project_access integer,Count_of_people_in_Company integer,percent_with_Prod_Read_Write_access integer,percent_with_Prod_Read_access integer,percent_with_GCP_production_access integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.engineering_infra_prod_console_access (Date_of_report, Count_of_people_with_GCP_production_project_access, Count_of_people_in_Company, percent_with_Prod_Read_Write_access, percent_with_Prod_Read_access, percent_with_GCP_production_access, _updated_at) values

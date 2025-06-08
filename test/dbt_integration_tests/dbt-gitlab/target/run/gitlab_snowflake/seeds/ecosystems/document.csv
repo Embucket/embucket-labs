@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ECOSYSTEMS"."DOCUMENT";
+    
+    create table EMBUCKET.ecosystems.document (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.ecosystems.document (jsontext, uploaded_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GAINSIGHT_CUSTOMER_SUCCESS"."DUP_ADVANCED_OUTREACH_PARTICIPANT_ACTIVITY";
+    
+    create table EMBUCKET.gainsight_customer_success.dup_advanced_outreach_participant_activity (gsid integer,_fivetran_deleted boolean,previous_step_id integer,created_at timestamp without time zone,previous_step_name integer,current_step_id integer,participant_id integer,modified_at timestamp without time zone,participantactivity_id integer,current_step_name integer,advancedoutreach_id integer,gs_participant_id integer,gs_advanced_outreach_id integer,_fivetran_synced timestamp without time zone,node_type integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.gainsight_customer_success.dup_advanced_outreach_participant_activity (gsid, _fivetran_deleted, previous_step_id, created_at, previous_step_name, current_step_id, participant_id, modified_at, participantactivity_id, current_step_name, advancedoutreach_id, gs_participant_id, gs_advanced_outreach_id, _fivetran_synced, node_type) values

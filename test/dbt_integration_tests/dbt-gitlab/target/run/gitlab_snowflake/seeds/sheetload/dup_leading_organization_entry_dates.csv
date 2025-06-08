@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."DUP_LEADING_ORGANIZATION_ENTRY_DATES";
+    
+    create table EMBUCKET.sheetload.dup_leading_organization_entry_dates (contributor_organization integer,individual_contributor integer,date_of_entry_in_program integer,date_of_exit_of_program integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.dup_leading_organization_entry_dates (contributor_organization, individual_contributor, date_of_entry_in_program, date_of_exit_of_program, _updated_at) values

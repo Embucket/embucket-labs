@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."PROD_INSIGHTS"."DUP_CLEANUP_SUGGESTIONS";
+    
+    create table EMBUCKET.prod_insights.dup_cleanup_suggestions (account_id integer,full_table_id integer,project_name integer,dataset_name integer,table_name integer,table_type integer,days_since_last_write integer,last_write integer,last_read integer,total_row_count integer,total_byte_count integer,domains integer,row_number integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.prod_insights.dup_cleanup_suggestions (account_id, full_table_id, project_name, dataset_name, table_name, table_type, days_since_last_write, last_write, last_read, total_row_count, total_byte_count, domains, row_number) values

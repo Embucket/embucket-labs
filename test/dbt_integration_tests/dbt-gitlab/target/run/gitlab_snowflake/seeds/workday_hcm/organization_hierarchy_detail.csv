@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."WORKDAY_HCM"."ORGANIZATION_HIERARCHY_DETAIL";
+    
+    create table EMBUCKET.workday_hcm.organization_hierarchy_detail (organization_id integer,type integer,linked_organization_id integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.workday_hcm.organization_hierarchy_detail (organization_id, type, linked_organization_id, _fivetran_deleted, _fivetran_synced) values

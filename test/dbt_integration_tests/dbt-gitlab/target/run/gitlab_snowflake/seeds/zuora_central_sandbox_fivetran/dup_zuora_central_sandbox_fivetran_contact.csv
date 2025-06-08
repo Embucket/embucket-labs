@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_CENTRAL_SANDBOX_FIVETRAN"."DUP_ZUORA_CENTRAL_SANDBOX_FIVETRAN_CONTACT";
+    
+    create table EMBUCKET.zuora_central_sandbox_fivetran.dup_zuora_central_sandbox_fivetran_contact (id integer,account_id integer,address_1 integer,address_2 integer,city integer,country integer,county integer,created_by_id integer,created_date timestamp without time zone,description integer,fax integer,finance_verified_contact_c integer,first_name integer,home_phone integer,last_name integer,mobile_phone integer,nick_name integer,other_phone integer,other_phone_type integer,personal_email integer,postal_code integer,state integer,tax_region integer,updated_by_id integer,updated_date timestamp without time zone,work_email integer,work_phone integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,uattestcase_3_c integer,as_sold_to boolean,as_ship_to boolean,as_bill_to boolean)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_central_sandbox_fivetran.dup_zuora_central_sandbox_fivetran_contact (id, account_id, address_1, address_2, city, country, county, created_by_id, created_date, description, fax, finance_verified_contact_c, first_name, home_phone, last_name, mobile_phone, nick_name, other_phone, other_phone_type, personal_email, postal_code, state, tax_region, updated_by_id, updated_date, work_email, work_phone, _fivetran_deleted, _fivetran_synced, uattestcase_3_c, as_sold_to, as_ship_to, as_bill_to) values

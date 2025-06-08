@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."DAYS_SALES_OUTSTANDING";
+    
+    create table EMBUCKET.sheetload.days_sales_outstanding (period integer,total_touch_billings integer,total_beginning_ar integer,total_ar_at_end_of_period integer,nbr_of_days_in_period integer,dso integer,collections_based_on_formula integer,total_current_ar_close integer,p_d_ar integer,collection_effectiveness_index integer,dso_trend integer,cei_trend integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.days_sales_outstanding (period, total_touch_billings, total_beginning_ar, total_ar_at_end_of_period, nbr_of_days_in_period, dso, collections_based_on_formula, total_current_ar_close, p_d_ar, collection_effectiveness_index, dso_trend, cei_trend, _updated_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."MARKETO"."ACTIVITY_MERGE_LEADS";
+    
+    create table EMBUCKET.marketo.activity_merge_leads (id integer,lead_id integer,activity_date timestamp without time zone,activity_type_id integer,campaign_id integer,primary_attribute_value_id integer,primary_attribute_value integer,merge_ids integer,_fivetran_synced timestamp without time zone,merged_in_sales boolean,merge_source integer,master_updated boolean,action_result integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.marketo.activity_merge_leads (id, lead_id, activity_date, activity_type_id, campaign_id, primary_attribute_value_id, primary_attribute_value, merge_ids, _fivetran_synced, merged_in_sales, merge_source, master_updated, action_result) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."DEMANDBASE"."ACCOUNT_SITE_PAGE_METRICS";
+    
+    create table EMBUCKET.demandbase.account_site_page_metrics (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.demandbase.account_site_page_metrics (jsontext, uploaded_at) values

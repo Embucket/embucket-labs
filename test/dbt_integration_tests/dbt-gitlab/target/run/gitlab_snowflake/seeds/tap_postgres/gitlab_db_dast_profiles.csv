@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_DAST_PROFILES";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_dast_profiles (id integer,project_id integer,dast_site_profile_id integer,dast_scanner_profile_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_dast_profiles (id, project_id, dast_site_profile_id, dast_scanner_profile_id, created_at, updated_at, _uploaded_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_ZENDESK"."DUP_TAP_ZENDESK_ORGANIZATIONS";
+    
+    create table EMBUCKET.tap_zendesk.dup_tap_zendesk_organizations (_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone,created_at timestamp without time zone,deleted_at timestamp without time zone,details integer,domain_names text,external_id integer,group_id integer,id integer,name integer,notes integer,organization_fields text,shared_comments boolean,shared_tickets boolean,tags text,updated_at timestamp without time zone,url integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_zendesk.dup_tap_zendesk_organizations (_sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at, created_at, deleted_at, details, domain_names, external_id, group_id, id, name, notes, organization_fields, shared_comments, shared_tickets, tags, updated_at, url) values

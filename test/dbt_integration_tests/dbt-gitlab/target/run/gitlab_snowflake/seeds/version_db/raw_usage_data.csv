@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."VERSION_DB"."RAW_USAGE_DATA";
+    
+    create table EMBUCKET.version_db.raw_usage_data (id integer,created_at integer,payload integer,recorded_at integer,uuid integer,_uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.version_db.raw_usage_data (id, created_at, payload, recorded_at, uuid, _uploaded_at) values

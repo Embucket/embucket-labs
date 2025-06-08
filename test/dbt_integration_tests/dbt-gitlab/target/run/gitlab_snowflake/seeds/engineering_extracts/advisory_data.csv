@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ENGINEERING_EXTRACTS"."ADVISORY_DATA";
+    
+    create table EMBUCKET.engineering_extracts.advisory_data (file integer,pubdate integer,mergedate integer,delta integer,packagetype integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.engineering_extracts.advisory_data (file, pubdate, mergedate, delta, packagetype, _updated_at) values

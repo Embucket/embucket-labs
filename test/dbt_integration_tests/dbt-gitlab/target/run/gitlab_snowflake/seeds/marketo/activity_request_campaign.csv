@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."MARKETO"."ACTIVITY_REQUEST_CAMPAIGN";
+    
+    create table EMBUCKET.marketo.activity_request_campaign (id integer,lead_id integer,activity_date timestamp without time zone,activity_type_id integer,campaign_id integer,primary_attribute_value_id integer,primary_attribute_value integer,source integer,_fivetran_synced timestamp without time zone,action_result integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.marketo.activity_request_campaign (id, lead_id, activity_date, activity_type_id, campaign_id, primary_attribute_value_id, primary_attribute_value, source, _fivetran_synced, action_result) values

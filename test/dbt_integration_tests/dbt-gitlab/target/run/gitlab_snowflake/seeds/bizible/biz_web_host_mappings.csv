@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."BIZIBLE"."BIZ_WEB_HOST_MAPPINGS";
+    
+    create table EMBUCKET.bizible.biz_web_host_mappings (id integer,cookie_id integer,visitor_id integer,session_id integer,event_date timestamp without time zone,modified_date timestamp without time zone,current_page integer,current_page_raw integer,ip_address integer,city integer,region integer,country integer,type integer,user_agent_string integer,client_sequence integer,client_random integer,is_duplicated boolean,is_processed boolean,mapping_type integer,mapping_org_id integer,mapping_cookie_id integer,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.bizible.biz_web_host_mappings (id, cookie_id, visitor_id, session_id, event_date, modified_date, current_page, current_page_raw, ip_address, city, region, country, type, user_agent_string, client_sequence, client_random, is_duplicated, is_processed, mapping_type, mapping_org_id, mapping_cookie_id, _created_date, _modified_date, _deleted_date, uploaded_at) values

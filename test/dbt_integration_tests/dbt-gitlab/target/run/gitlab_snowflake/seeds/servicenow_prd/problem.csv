@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SERVICENOW_PRD"."PROBLEM";
+    
+    create table EMBUCKET.servicenow_prd.problem (rfc_value integer,confirmed_by_value integer,confirmed_at timestamp without time zone,sys_updated_on timestamp without time zone,duplicate_of_value integer,workaround_communicated_at timestamp without time zone,fix_at timestamp without time zone,resolved_at timestamp without time zone,fix_communicated_by_value integer,resolved_by_value integer,sys_created_on timestamp without time zone,fix_by_value integer,workaround_applied boolean,fix_communicated_at timestamp without time zone,related_incidents integer,reopen_count integer,subcategory integer,known_error boolean,first_reported_by_task_value integer,workaround_communicated_by_value integer,category integer,reopened_by_value integer,sys_id integer,reopened_at timestamp without time zone,resolution_code integer,major_problem boolean,_fivetran_synced timestamp without time zone,_fivetran_deleted boolean,prb_model_value integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.servicenow_prd.problem (rfc_value, confirmed_by_value, confirmed_at, sys_updated_on, duplicate_of_value, workaround_communicated_at, fix_at, resolved_at, fix_communicated_by_value, resolved_by_value, sys_created_on, fix_by_value, workaround_applied, fix_communicated_at, related_incidents, reopen_count, subcategory, known_error, first_reported_by_task_value, workaround_communicated_by_value, category, reopened_by_value, sys_id, reopened_at, resolution_code, major_problem, _fivetran_synced, _fivetran_deleted, prb_model_value) values

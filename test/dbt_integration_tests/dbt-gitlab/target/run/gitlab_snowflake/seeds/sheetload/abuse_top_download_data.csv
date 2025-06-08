@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."ABUSE_TOP_DOWNLOAD_DATA";
+    
+    create table EMBUCKET.sheetload.abuse_top_download_data (tracked_date integer,legit_users integer,legit_gb integer,blocked_users integer,blocked_gb integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.abuse_top_download_data (tracked_date, legit_users, legit_gb, blocked_users, blocked_gb, _updated_at) values

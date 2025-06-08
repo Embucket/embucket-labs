@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ELASTICSEARCH_BILLING"."ITEMIZED_COSTS";
+    
+    create table EMBUCKET.elasticsearch_billing.itemized_costs (payload integer,extraction_start_date date,extraction_end_date date,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.elasticsearch_billing.itemized_costs (payload, extraction_start_date, extraction_end_date, _uploaded_at) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_NAMESPACES";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_namespaces (id integer,name integer,path integer,owner_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,type integer,avatar integer,membership_lock boolean,share_with_group_lock boolean,visibility_level integer,request_access_enabled boolean,ldap_sync_status integer,ldap_sync_error integer,ldap_sync_last_update_at integer,ldap_sync_last_successful_update_at integer,ldap_sync_last_sync_at integer,lfs_enabled boolean,parent_id integer,shared_runners_minutes_limit integer,extra_shared_runners_minutes_limit integer,repository_size_limit integer,require_two_factor_authentication boolean,two_factor_grace_period integer,project_creation_level integer,auto_devops_enabled boolean,push_rule_id integer,shared_runners_enabled boolean,custom_project_templates_group_id integer,traversal_ids integer,_uploaded_at float8,pgp_is_deleted boolean,pgp_is_deleted_updated_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_namespaces (id, name, path, owner_id, created_at, updated_at, type, avatar, membership_lock, share_with_group_lock, visibility_level, request_access_enabled, ldap_sync_status, ldap_sync_error, ldap_sync_last_update_at, ldap_sync_last_successful_update_at, ldap_sync_last_sync_at, lfs_enabled, parent_id, shared_runners_minutes_limit, extra_shared_runners_minutes_limit, repository_size_limit, require_two_factor_authentication, two_factor_grace_period, project_creation_level, auto_devops_enabled, push_rule_id, shared_runners_enabled, custom_project_templates_group_id, traversal_ids, _uploaded_at, pgp_is_deleted, pgp_is_deleted_updated_at) values

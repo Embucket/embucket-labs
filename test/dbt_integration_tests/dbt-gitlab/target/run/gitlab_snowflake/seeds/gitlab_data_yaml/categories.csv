@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GITLAB_DATA_YAML"."CATEGORIES";
+    
+    create table EMBUCKET.gitlab_data_yaml.categories (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.gitlab_data_yaml.categories (jsontext, uploaded_at) values

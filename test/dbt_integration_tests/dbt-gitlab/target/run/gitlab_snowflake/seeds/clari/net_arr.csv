@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."CLARI"."NET_ARR";
+    
+    create table EMBUCKET.clari.net_arr (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.clari.net_arr (jsontext, uploaded_at) values

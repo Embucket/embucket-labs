@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_ZENDESK"."TICKET_FIELDS";
+    
+    create table EMBUCKET.tap_zendesk.ticket_fields (active boolean,agent_description integer,collapsed_for_agents boolean,created_at timestamp without time zone,custom_field_options_20230426_1416 integer,description integer,editable_in_portal boolean,id integer,position integer,raw_description integer,raw_title integer,raw_title_in_portal integer,regexp_for_validation integer,removable boolean,required boolean,required_in_portal boolean,sub_type_id integer,system_field_options_20230426_1416 integer,tag integer,title integer,title_in_portal integer,type integer,updated_at timestamp without time zone,url integer,visible_in_portal boolean,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone,custom_field_options text,system_field_options text)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_zendesk.ticket_fields (active, agent_description, collapsed_for_agents, created_at, custom_field_options_20230426_1416, description, editable_in_portal, id, position, raw_description, raw_title, raw_title_in_portal, regexp_for_validation, removable, required, required_in_portal, sub_type_id, system_field_options_20230426_1416, tag, title, title_in_portal, type, updated_at, url, visible_in_portal, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at, custom_field_options, system_field_options) values

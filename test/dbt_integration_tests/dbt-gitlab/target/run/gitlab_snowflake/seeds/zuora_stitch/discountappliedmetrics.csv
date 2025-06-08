@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_STITCH"."DISCOUNTAPPLIEDMETRICS";
+    
+    create table EMBUCKET.zuora_stitch.discountappliedmetrics (accountid integer,amendmentid integer,billtocontactid integer,createdbyid integer,createddate timestamp without time zone,defaultpaymentmethodid integer,discountrateplanchargeid integer,enddate timestamp without time zone,id integer,mrr float8,parentaccountid integer,productid integer,productrateplanchargeid integer,productrateplanid integer,rateplanchargeid integer,rateplanid integer,soldtocontactid integer,startdate timestamp without time zone,subscriptionid integer,tcv float8,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_stitch.discountappliedmetrics (accountid, amendmentid, billtocontactid, createdbyid, createddate, defaultpaymentmethodid, discountrateplanchargeid, enddate, id, mrr, parentaccountid, productid, productrateplanchargeid, productrateplanid, rateplanchargeid, rateplanid, soldtocontactid, startdate, subscriptionid, tcv, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

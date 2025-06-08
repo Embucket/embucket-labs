@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SNOWFLAKE"."TASK_HISTORY_VIEW";
+    
+    create table EMBUCKET.snowflake.task_history_view (query_id integer,name integer,database_name integer,schema_name integer,query_text integer,condition_text integer,state integer,error_code integer,error_message integer,scheduled_time timestamp without time zone,query_start_time timestamp without time zone,next_scheduled_time timestamp without time zone,completed_time timestamp without time zone,root_task_id integer,graph_version integer,run_id integer,return_value integer,scheduled_from integer,attempt_number integer,config integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.snowflake.task_history_view (query_id, name, database_name, schema_name, query_text, condition_text, state, error_code, error_message, scheduled_time, query_start_time, next_scheduled_time, completed_time, root_task_id, graph_version, run_id, return_value, scheduled_from, attempt_number, config) values

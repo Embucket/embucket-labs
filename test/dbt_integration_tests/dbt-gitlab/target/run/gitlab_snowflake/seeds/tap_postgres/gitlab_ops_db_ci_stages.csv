@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_OPS_DB_CI_STAGES";
+    
+    create table EMBUCKET.tap_postgres.gitlab_ops_db_ci_stages (id integer,project_id integer,pipeline_id integer,created_at integer,updated_at integer,name integer,status integer,lock_version integer,position integer,_uploaded_at float8,pgp_is_deleted boolean)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_ops_db_ci_stages (id, project_id, pipeline_id, created_at, updated_at, name, status, lock_version, position, _uploaded_at, pgp_is_deleted) values

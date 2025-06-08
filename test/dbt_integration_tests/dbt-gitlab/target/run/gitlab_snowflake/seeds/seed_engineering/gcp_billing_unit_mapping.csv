@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_ENGINEERING"."GCP_BILLING_UNIT_MAPPING";
+    
+    create table EMBUCKET.seed_engineering.gcp_billing_unit_mapping (raw_unit text,category text,converted_unit text,rate float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_engineering.gcp_billing_unit_mapping (raw_unit, category, converted_unit, rate) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_AWARD_EMOJI";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_award_emoji (id integer,name integer,user_id integer,awardable_id integer,awardable_type integer,created_at integer,updated_at integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_award_emoji (id, name, user_id, awardable_id, awardable_type, created_at, updated_at, _uploaded_at) values

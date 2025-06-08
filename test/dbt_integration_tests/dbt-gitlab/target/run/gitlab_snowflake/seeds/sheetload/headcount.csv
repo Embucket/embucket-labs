@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."HEADCOUNT";
+    
+    create table EMBUCKET.sheetload.headcount (uniquekey integer,month integer,function integer,employee_cnt integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.headcount (uniquekey, month, function, employee_cnt, _updated_at) values

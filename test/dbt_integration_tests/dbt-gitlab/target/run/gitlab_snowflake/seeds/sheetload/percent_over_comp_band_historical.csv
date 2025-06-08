@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."PERCENT_OVER_COMP_BAND_HISTORICAL";
+    
+    create table EMBUCKET.sheetload.percent_over_comp_band_historical (breakout_type integer,date_actual integer,division integer,department integer,sum_of_weighted_out_of_band integer,total_employees float8,percent_over_comp_band integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.percent_over_comp_band_historical (breakout_type, date_actual, division, department, sum_of_weighted_out_of_band, total_employees, percent_over_comp_band, _updated_at) values

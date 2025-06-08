@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."YC_COMPANIES";
+    
+    create table EMBUCKET.sheetload.yc_companies (Name integer,Batch integer,Description integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.yc_companies (Name, Batch, Description, _updated_at) values

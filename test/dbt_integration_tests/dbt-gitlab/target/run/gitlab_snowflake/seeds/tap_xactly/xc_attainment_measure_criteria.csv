@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_XACTLY"."XC_ATTAINMENT_MEASURE_CRITERIA";
+    
+    create table EMBUCKET.tap_xactly.xc_attainment_measure_criteria (attainment_measure_criteria_id integer,attainment_measure_id integer,created_by_id float8,created_date integer,criteria_id float8,history_uuid integer,is_active integer,modified_by_id float8,modified_date integer,name integer,type integer,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_xactly.xc_attainment_measure_criteria (attainment_measure_criteria_id, attainment_measure_id, created_by_id, created_date, criteria_id, history_uuid, is_active, modified_by_id, modified_date, name, type, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values

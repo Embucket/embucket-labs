@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_ZENGRC"."RISKS";
+    
+    create table EMBUCKET.tap_zengrc.risks (_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone,code integer,created_at integer,custom_attributes text,description integer,id integer,links text,risk_vector_score_values text,status integer,title integer,type integer,updated_at integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_zengrc.risks (_sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at, code, created_at, custom_attributes, description, id, links, risk_vector_score_values, status, title, type, updated_at) values

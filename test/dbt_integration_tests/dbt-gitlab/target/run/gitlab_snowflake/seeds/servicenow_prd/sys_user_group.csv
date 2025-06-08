@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SERVICENOW_PRD"."SYS_USER_GROUP";
+    
+    create table EMBUCKET.servicenow_prd.sys_user_group (sys_id integer,sys_updated_by integer,default_assignee_value integer,name integer,manager_value integer,include_members boolean,sys_updated_on timestamp without time zone,sys_mod_count integer,cost_center_value integer,source integer,sys_created_on timestamp without time zone,exclude_manager boolean,type integer,description integer,parent_value integer,sys_created_by integer,active boolean,_fivetran_synced timestamp without time zone,_fivetran_deleted boolean)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.servicenow_prd.sys_user_group (sys_id, sys_updated_by, default_assignee_value, name, manager_value, include_members, sys_updated_on, sys_mod_count, cost_center_value, source, sys_created_on, exclude_manager, type, description, parent_value, sys_created_by, active, _fivetran_synced, _fivetran_deleted) values

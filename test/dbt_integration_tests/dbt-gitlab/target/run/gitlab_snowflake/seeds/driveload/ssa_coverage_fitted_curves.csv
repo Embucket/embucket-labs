@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."DRIVELOAD"."SSA_COVERAGE_FITTED_CURVES";
+    
+    create table EMBUCKET.driveload.ssa_coverage_fitted_curves (key_agg_day integer,agg_key_name integer,agg_key_value integer,close_day_of_fiscal_quarter_normalised integer,bookings_linearity float8,open_1plus_net_arr_coverage float8,open_3plus_net_arr_coverage float8,open_4plus_net_arr_coverage float8,rq_plus_1_open_1plus_net_arr_coverage float8,rq_plus_1_open_3plus_net_arr_coverage float8,rq_plus_1_open_4plus_net_arr_coverage float8,rq_plus_2_open_1plus_net_arr_coverage float8,rq_plus_2_open_3plus_net_arr_coverage float8,rq_plus_2_open_4plus_net_arr_coverage float8,last_updated_at integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.driveload.ssa_coverage_fitted_curves (key_agg_day, agg_key_name, agg_key_value, close_day_of_fiscal_quarter_normalised, bookings_linearity, open_1plus_net_arr_coverage, open_3plus_net_arr_coverage, open_4plus_net_arr_coverage, rq_plus_1_open_1plus_net_arr_coverage, rq_plus_1_open_3plus_net_arr_coverage, rq_plus_1_open_4plus_net_arr_coverage, rq_plus_2_open_1plus_net_arr_coverage, rq_plus_2_open_3plus_net_arr_coverage, rq_plus_2_open_4plus_net_arr_coverage, last_updated_at, _updated_at) values

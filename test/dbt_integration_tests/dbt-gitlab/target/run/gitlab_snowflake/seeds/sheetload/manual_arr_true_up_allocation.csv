@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."MANUAL_ARR_TRUE_UP_ALLOCATION";
+    
+    create table EMBUCKET.sheetload.manual_arr_true_up_allocation (accounting_period integer,account_id integer,crm_account_id integer,rate_plan_charge_id integer,dim_subscription_id integer,subscription_name integer,subscription_status integer,dim_product_detail_id integer,mrr integer,delta_tcv integer,unit_of_measure integer,quantity integer,effective_start_date integer,effective_end_date integer,created_by integer,created_date integer,updated_by integer,updated_date integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.manual_arr_true_up_allocation (accounting_period, account_id, crm_account_id, rate_plan_charge_id, dim_subscription_id, subscription_name, subscription_status, dim_product_detail_id, mrr, delta_tcv, unit_of_measure, quantity, effective_start_date, effective_end_date, created_by, created_date, updated_by, updated_date, _updated_at) values

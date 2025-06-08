@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_QUERY_API"."CHARGEMETRICSDISCOUNTALLOCATIONDETAIL";
+    
+    create table EMBUCKET.zuora_query_api.chargemetricsdiscountallocationdetail (Id integer,ChargeMetricsId integer,DiscountChargeNumber integer,DiscountMrr float8,DiscountTcv float8,CreatedDate integer,UpdatedDate integer,deleted boolean,SubscriptionOwnerAccountNumber integer,InvoiceOwnerAccountNumber integer,SubscriptionName integer,ChargeNumber integer,RatePlanChargeId integer,ProductId integer,ProductRatePlanId integer,ProductRatePlanChargeId integer,AmendmentId integer,AmendmentType integer,StartDate integer,EndDate integer,Currency integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_query_api.chargemetricsdiscountallocationdetail (Id, ChargeMetricsId, DiscountChargeNumber, DiscountMrr, DiscountTcv, CreatedDate, UpdatedDate, deleted, SubscriptionOwnerAccountNumber, InvoiceOwnerAccountNumber, SubscriptionName, ChargeNumber, RatePlanChargeId, ProductId, ProductRatePlanId, ProductRatePlanChargeId, AmendmentId, AmendmentType, StartDate, EndDate, Currency, _uploaded_at) values

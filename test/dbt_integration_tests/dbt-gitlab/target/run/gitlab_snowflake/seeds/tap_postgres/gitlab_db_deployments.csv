@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_DEPLOYMENTS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_deployments (id integer,iid integer,project_id integer,environment_id integer,ref integer,tag boolean,user_id float8,deployable_id integer,deployable_type integer,created_at timestamp without time zone,updated_at timestamp without time zone,on_stop integer,status integer,finished_at timestamp without time zone,cluster_id integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_deployments (id, iid, project_id, environment_id, ref, tag, user_id, deployable_id, deployable_type, created_at, updated_at, on_stop, status, finished_at, cluster_id, _uploaded_at) values

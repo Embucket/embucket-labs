@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."BIZIBLE"."BIZ_ACCOUNT_TO_EMAILS";
+    
+    create table EMBUCKET.bizible.biz_account_to_emails (id integer,account_id integer,email integer,modified_date timestamp without time zone,created_date timestamp without time zone,is_deleted boolean,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.bizible.biz_account_to_emails (id, account_id, email, modified_date, created_date, is_deleted, _created_date, _modified_date, _deleted_date, uploaded_at) values

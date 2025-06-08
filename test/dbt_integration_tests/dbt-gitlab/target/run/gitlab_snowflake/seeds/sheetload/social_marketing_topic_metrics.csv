@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."SOCIAL_MARKETING_TOPIC_METRICS";
+    
+    create table EMBUCKET.sheetload.social_marketing_topic_metrics (month integer,sprout_tag integer,channel integer,brand integer,metric integer,is_organic integer,value integer,source integer,source_details integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.social_marketing_topic_metrics (month, sprout_tag, channel, brand, metric, is_organic, value, source, source_details, _updated_at) values

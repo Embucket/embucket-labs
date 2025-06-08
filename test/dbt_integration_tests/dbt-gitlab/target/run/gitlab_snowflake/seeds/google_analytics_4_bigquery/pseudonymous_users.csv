@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."GOOGLE_ANALYTICS_4_BIGQUERY"."PSEUDONYMOUS_USERS";
+    
+    create table EMBUCKET.google_analytics_4_bigquery.pseudonymous_users (value text,date_part date)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.google_analytics_4_bigquery.pseudonymous_users (value, date_part) values

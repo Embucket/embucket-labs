@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TABLEAU_CLOUD"."GROUPS";
+    
+    create table EMBUCKET.tableau_cloud.groups (Group integer,Group_2 integer,Group_3 integer,Group_4 integer,Site integer,Site_2 integer,User integer,User_2 integer,Admin integer,Count integer,Count_2 integer,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tableau_cloud.groups (Group, Group_2, Group_3, Group_4, Site, Site_2, User, User_2, Admin, Count, Count_2, uploaded_at) values

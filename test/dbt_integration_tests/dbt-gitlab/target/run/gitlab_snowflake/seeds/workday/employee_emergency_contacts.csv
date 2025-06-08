@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."WORKDAY"."EMPLOYEE_EMERGENCY_CONTACTS";
+    
+    create table EMBUCKET.workday.employee_emergency_contacts (employee_id integer,emergency_contacts text,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.workday.employee_emergency_contacts (employee_id, emergency_contacts, _fivetran_deleted, _fivetran_synced) values

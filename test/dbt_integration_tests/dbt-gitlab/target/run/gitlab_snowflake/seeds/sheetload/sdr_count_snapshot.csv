@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."SDR_COUNT_SNAPSHOT";
+    
+    create table EMBUCKET.sheetload.sdr_count_snapshot (Quarter integer,Sales_Segment integer,SDR_Count integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.sdr_count_snapshot (Quarter, Sales_Segment, SDR_Count, _updated_at) values

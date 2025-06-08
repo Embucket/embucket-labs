@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_ZENDESK"."SLA_POLICIES";
+    
+    create table EMBUCKET.tap_zendesk.sla_policies (_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone,created_at timestamp without time zone,description integer,filter text,id integer,policy_metrics text,position integer,title integer,updated_at timestamp without time zone,url integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_zendesk.sla_policies (_sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at, created_at, description, filter, id, policy_metrics, position, title, updated_at, url) values

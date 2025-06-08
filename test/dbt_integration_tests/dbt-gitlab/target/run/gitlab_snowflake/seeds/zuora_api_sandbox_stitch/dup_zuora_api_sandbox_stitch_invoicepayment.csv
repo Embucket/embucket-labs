@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."ZUORA_API_SANDBOX_STITCH"."DUP_ZUORA_API_SANDBOX_STITCH_INVOICEPAYMENT";
+    
+    create table EMBUCKET.zuora_api_sandbox_stitch.dup_zuora_api_sandbox_stitch_invoicepayment (accountid integer,accountingperiodid integer,accountreceivableaccountingcodeid integer,amount float8,billtocontactid integer,cashaccountingcodeid integer,createdbyid integer,createddate timestamp without time zone,defaultpaymentmethodid integer,deleted boolean,id integer,invoiceid integer,journalentryid integer,journalrunid integer,parentaccountid integer,paymentid integer,paymentmethodid integer,paymentmethodsnapshotid integer,refundamount float8,soldtocontactid integer,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.zuora_api_sandbox_stitch.dup_zuora_api_sandbox_stitch_invoicepayment (accountid, accountingperiodid, accountreceivableaccountingcodeid, amount, billtocontactid, cashaccountingcodeid, createdbyid, createddate, defaultpaymentmethodid, deleted, id, invoiceid, journalentryid, journalrunid, parentaccountid, paymentid, paymentmethodid, paymentmethodsnapshotid, refundamount, soldtocontactid, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CLUSTERS_APPLICATIONS_INGRESS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_clusters_applications_ingress (id integer,cluster_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,status integer,ingress_type integer,version integer,cluster_ip integer,status_reason integer,external_ip integer,external_hostname integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_clusters_applications_ingress (id, cluster_id, created_at, updated_at, status, ingress_type, version, cluster_ip, status_reason, external_ip, external_hostname, _uploaded_at) values

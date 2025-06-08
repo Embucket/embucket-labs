@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SEED_DATA"."SNOWFLAKE_CONTRACT_RATES";
+    
+    create table EMBUCKET.seed_data.snowflake_contract_rates (effective_date date,rate float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.seed_data.snowflake_contract_rates (effective_date, rate) values

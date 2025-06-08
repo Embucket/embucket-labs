@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."PROD_INSIGHTS"."CUSTOM_RULES";
+    
+    create table EMBUCKET.prod_insights.custom_rules (account_id integer,rule_description integer,rule_uuid integer,generated_by_rule_uuid integer,monitor_type integer,rule_type integer,labels text,namespace integer,tables integer,running_time timestamp without time zone,query_value text,threshold integer,pass_or_breach integer,job_uuid integer,incident_id integer,alert_id integer,row_number integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.prod_insights.custom_rules (account_id, rule_description, rule_uuid, generated_by_rule_uuid, monitor_type, rule_type, labels, namespace, tables, running_time, query_value, threshold, pass_or_breach, job_uuid, incident_id, alert_id, row_number) values

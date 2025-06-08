@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SENSITIVE"."DUP_QUALTRICS_POST_PURCHASE_SURVEY_ANSWERS_FROM_ISSUE_15225";
+    
+    create table EMBUCKET.sensitive.dup_qualtrics_post_purchase_survey_answers_from_issue_15225 (answer_id integer,response_id integer,response_recorded_at integer,survey_end_date integer,survey_start_date integer,answer_display integer,distribution_channel integer,has_finished_survey boolean,question_id integer,question_description integer,user_language integer,user_plan integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sensitive.dup_qualtrics_post_purchase_survey_answers_from_issue_15225 (answer_id, response_id, response_recorded_at, survey_end_date, survey_start_date, answer_display, distribution_channel, has_finished_survey, question_id, question_description, user_language, user_plan) values

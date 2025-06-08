@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."LEVEL_UP"."LEARNING_PATH_ACTIONS";
+    
+    create table EMBUCKET.level_up.learning_path_actions (jsontext text,uploaded_at timestamp without time zone)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.level_up.learning_path_actions (jsontext, uploaded_at) values

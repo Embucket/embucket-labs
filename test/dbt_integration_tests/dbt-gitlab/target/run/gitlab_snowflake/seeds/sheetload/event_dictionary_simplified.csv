@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SHEETLOAD"."EVENT_DICTIONARY_SIMPLIFIED";
+    
+    create table EMBUCKET.sheetload.event_dictionary_simplified (Metric_Name integer,Example_Value integer,Product_Owner integer,PM_Lookup integer,CS_Stage_Adoption float8,Description integer,Product_Category integer,Stage_Lookup integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.event_dictionary_simplified (Metric_Name, Example_Value, Product_Owner, PM_Lookup, CS_Stage_Adoption, Description, Product_Category, Stage_Lookup, _updated_at) values

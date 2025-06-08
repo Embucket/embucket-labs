@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."DRIVELOAD"."EMAIL_DOMAIN_CLASSIFICATION";
+    
+    create table EMBUCKET.driveload.email_domain_classification (domain integer,classification integer,_updated_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.driveload.email_domain_classification (domain, classification, _updated_at) values

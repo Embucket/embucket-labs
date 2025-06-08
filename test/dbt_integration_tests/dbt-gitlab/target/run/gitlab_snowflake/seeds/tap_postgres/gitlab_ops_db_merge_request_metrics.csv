@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_OPS_DB_MERGE_REQUEST_METRICS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_ops_db_merge_request_metrics (id integer,merge_request_id integer,latest_build_started_at integer,latest_build_finished_at integer,first_deployed_to_production_at integer,merged_at integer,created_at integer,updated_at integer,_uploaded_at float8,pgp_is_deleted boolean)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_ops_db_merge_request_metrics (id, merge_request_id, latest_build_started_at, latest_build_finished_at, first_deployed_to_production_at, merged_at, created_at, updated_at, _uploaded_at, pgp_is_deleted) values

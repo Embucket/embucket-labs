@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."SALESFORCE_STITCH_SANDBOX_V2"."DUP_SALESFORCE_STITCH_SANDBOX_V2_USERROLE";
+    
+    create table EMBUCKET.salesforce_stitch_sandbox_v2.dup_salesforce_stitch_sandbox_v2_userrole (caseaccessforaccountowner integer,contactaccessforaccountowner integer,developername integer,forecastuserid integer,id integer,lastmodifiedbyid integer,lastmodifieddate timestamp without time zone,mayforecastmanagershare boolean,name integer,opportunityaccessforaccountowner integer,parentroleid integer,portalaccountid integer,portalrole integer,portaltype integer,rollupdescription integer,systemmodstamp timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.salesforce_stitch_sandbox_v2.dup_salesforce_stitch_sandbox_v2_userrole (caseaccessforaccountowner, contactaccessforaccountowner, developername, forecastuserid, id, lastmodifiedbyid, lastmodifieddate, mayforecastmanagershare, name, opportunityaccessforaccountowner, parentroleid, portalaccountid, portalrole, portaltype, rollupdescription, systemmodstamp, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

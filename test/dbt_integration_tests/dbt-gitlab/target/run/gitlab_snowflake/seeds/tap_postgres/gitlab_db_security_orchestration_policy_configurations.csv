@@ -1,7 +1,9 @@
 
     
     
-    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_SECURITY_ORCHESTRATION_POLICY_CONFIGURATIONS";
+    
+    create table EMBUCKET.tap_postgres.gitlab_db_security_orchestration_policy_configurations (id integer,project_id integer,security_policy_management_project_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,configured_at timestamp without time zone,namespace_id integer,_uploaded_at float8)
+  ;
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_security_orchestration_policy_configurations (id, project_id, security_policy_management_project_id, created_at, updated_at, configured_at, namespace_id, _uploaded_at) values
