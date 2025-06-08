@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.google_ads.ad_stats (customer_id integer,date date,_fivetran_id integer,campaign_base_campaign integer,conversions_value float8,conversions float8,interactions integer,ad_id integer,ad_network_type integer,interaction_event_types integer,campaign_id integer,impressions integer,active_view_viewability float8,ad_group_id integer,device integer,view_through_conversions integer,active_view_impressions integer,video_views integer,clicks integer,active_view_measurable_impressions integer,active_view_measurable_cost_micros integer,active_view_measurability float8,ad_group_base_ad_group integer,cost_micros integer,_fivetran_synced timestamp without time zone,cost_per_conversion float8)
-  ;
+    truncate table "EMBUCKET"."GOOGLE_ADS"."AD_STATS";
     -- dbt seed --
     
             insert into EMBUCKET.google_ads.ad_stats (customer_id, date, _fivetran_id, campaign_base_campaign, conversions_value, conversions, interactions, ad_id, ad_network_type, interaction_event_types, campaign_id, impressions, active_view_viewability, ad_group_id, device, view_through_conversions, active_view_impressions, video_views, clicks, active_view_measurable_impressions, active_view_measurable_cost_micros, active_view_measurability, ad_group_base_ad_group, cost_micros, _fivetran_synced, cost_per_conversion) values

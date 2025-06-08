@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.gitlab_data_yaml.feature_flags (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."GITLAB_DATA_YAML"."FEATURE_FLAGS";
     -- dbt seed --
     
             insert into EMBUCKET.gitlab_data_yaml.feature_flags (jsontext, uploaded_at) values

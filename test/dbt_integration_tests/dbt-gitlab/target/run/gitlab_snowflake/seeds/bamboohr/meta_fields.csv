@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.bamboohr.meta_fields (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."BAMBOOHR"."META_FIELDS";
     -- dbt seed --
     
             insert into EMBUCKET.bamboohr.meta_fields (jsontext, uploaded_at) values

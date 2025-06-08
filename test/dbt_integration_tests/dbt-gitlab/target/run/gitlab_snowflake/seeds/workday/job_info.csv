@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.workday.job_info (employee_id integer,job_info_group text,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."WORKDAY"."JOB_INFO";
     -- dbt seed --
     
             insert into EMBUCKET.workday.job_info (employee_id, job_info_group, _fivetran_deleted, _fivetran_synced) values

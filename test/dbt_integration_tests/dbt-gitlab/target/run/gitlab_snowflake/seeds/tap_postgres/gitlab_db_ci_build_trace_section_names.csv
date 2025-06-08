@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_ci_build_trace_section_names (id integer,project_id integer,name integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CI_BUILD_TRACE_SECTION_NAMES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_ci_build_trace_section_names (id, project_id, name, _uploaded_at) values

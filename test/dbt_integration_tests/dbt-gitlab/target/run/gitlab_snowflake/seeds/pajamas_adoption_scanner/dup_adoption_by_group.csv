@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.pajamas_adoption_scanner.dup_adoption_by_group (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."PAJAMAS_ADOPTION_SCANNER"."DUP_ADOPTION_BY_GROUP";
     -- dbt seed --
     
             insert into EMBUCKET.pajamas_adoption_scanner.dup_adoption_by_group (jsontext, uploaded_at) values

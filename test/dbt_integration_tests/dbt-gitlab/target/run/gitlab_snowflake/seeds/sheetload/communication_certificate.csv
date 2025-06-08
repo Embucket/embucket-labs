@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.communication_certificate (Timestamp integer,Score integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."COMMUNICATION_CERTIFICATE";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.communication_certificate (Timestamp, Score, _updated_at) values

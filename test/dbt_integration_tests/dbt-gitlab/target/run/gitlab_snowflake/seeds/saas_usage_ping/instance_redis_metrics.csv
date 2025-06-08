@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.saas_usage_ping.instance_redis_metrics (jsontext integer,ping_date date,run_id integer,_uploaded_at float8,recorded_at integer,version integer,edition integer,recording_ce_finished_at integer,recording_ee_finished_at integer,uuid integer)
-  ;
+    truncate table "EMBUCKET"."SAAS_USAGE_PING"."INSTANCE_REDIS_METRICS";
     -- dbt seed --
     
             insert into EMBUCKET.saas_usage_ping.instance_redis_metrics (jsontext, ping_date, run_id, _uploaded_at, recorded_at, version, edition, recording_ce_finished_at, recording_ee_finished_at, uuid) values

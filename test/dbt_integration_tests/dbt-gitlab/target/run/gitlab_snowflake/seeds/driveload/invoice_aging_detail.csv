@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.driveload.invoice_aging_detail (dim_invoice_id integer,accounting_period_id integer,accounting_period_end_date integer,account_balance_impact float8,days_overdue integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."DRIVELOAD"."INVOICE_AGING_DETAIL";
     -- dbt seed --
     
             insert into EMBUCKET.driveload.invoice_aging_detail (dim_invoice_id, accounting_period_id, accounting_period_end_date, account_balance_impact, days_overdue, _updated_at) values

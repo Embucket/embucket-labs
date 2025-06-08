@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.salesforce_v2_stitch.casehistory (caseid integer,createdbyid integer,createddate timestamp without time zone,datatype integer,field integer,id integer,isdeleted boolean,newvalue integer,oldvalue integer,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer,oldvalue__fl float8)
-  ;
+    truncate table "EMBUCKET"."SALESFORCE_V2_STITCH"."CASEHISTORY";
     -- dbt seed --
     
             insert into EMBUCKET.salesforce_v2_stitch.casehistory (caseid, createdbyid, createddate, datatype, field, id, isdeleted, newvalue, oldvalue, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version, oldvalue__fl) values

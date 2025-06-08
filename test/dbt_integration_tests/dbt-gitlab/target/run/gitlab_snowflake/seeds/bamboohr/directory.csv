@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.bamboohr.directory (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."BAMBOOHR"."DIRECTORY";
     -- dbt seed --
     
             insert into EMBUCKET.bamboohr.directory (jsontext, uploaded_at) values

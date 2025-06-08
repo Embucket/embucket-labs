@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.maxmind_ranges (network_start_ip integer,network_last_ip integer,geoname_id integer,registered_country_geoname_id integer,represented_country_geoname_id integer,is_anonymous_proxy integer,is_satellite_provider integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."MAXMIND_RANGES";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.maxmind_ranges (network_start_ip, network_last_ip, geoname_id, registered_country_geoname_id, represented_country_geoname_id, is_anonymous_proxy, is_satellite_provider, _updated_at) values

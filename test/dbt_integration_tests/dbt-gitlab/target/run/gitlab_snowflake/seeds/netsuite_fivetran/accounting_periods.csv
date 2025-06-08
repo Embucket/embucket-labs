@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.netsuite_fivetran.accounting_periods (accounting_period_id float8,fivetran_index integer,closed integer,closed_accounts_payable integer,closed_accounts_receivable integer,closed_all integer,closed_on timestamp without time zone,closed_payroll integer,date_last_modified timestamp without time zone,ending timestamp without time zone,fiscal_calendar_id float8,full_name integer,isinactive integer,is_adjustment integer,locked_accounts_payable integer,locked_accounts_receivable integer,locked_all integer,locked_payroll integer,name integer,parent_id float8,quarter integer,starting timestamp without time zone,year_0 integer,year_id float8,_fivetran_deleted boolean,date_deleted timestamp without time zone,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."NETSUITE_FIVETRAN"."ACCOUNTING_PERIODS";
     -- dbt seed --
     
             insert into EMBUCKET.netsuite_fivetran.accounting_periods (accounting_period_id, fivetran_index, closed, closed_accounts_payable, closed_accounts_receivable, closed_all, closed_on, closed_payroll, date_last_modified, ending, fiscal_calendar_id, full_name, isinactive, is_adjustment, locked_accounts_payable, locked_accounts_receivable, locked_all, locked_payroll, name, parent_id, quarter, starting, year_0, year_id, _fivetran_deleted, date_deleted, _fivetran_synced) values

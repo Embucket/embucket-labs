@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.iterable.event (_fivetran_id integer,_fivetran_user_id integer,campaign_id integer,message_id integer,content_id integer,created_at timestamp without time zone,event_name integer,ip integer,is_custom_event boolean,message_bus_id integer,message_type_id integer,recipient_state integer,status integer,unsub_source integer,user_agent integer,user_agent_device integer,transactional_data text,additional_properties text,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."ITERABLE"."EVENT";
     -- dbt seed --
     
             insert into EMBUCKET.iterable.event (_fivetran_id, _fivetran_user_id, campaign_id, message_id, content_id, created_at, event_name, ip, is_custom_event, message_bus_id, message_type_id, recipient_state, status, unsub_source, user_agent, user_agent_device, transactional_data, additional_properties, _fivetran_synced) values

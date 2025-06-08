@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.servicenow_prd.sys_user (sys_id integer,sso_source integer,default_perspective_value integer,cost_center_value integer,hashed_user_id integer,sys_created_on timestamp without time zone,active boolean,sys_created_by integer,sys_class_name integer,sys_mod_count integer,date_format integer,time_format integer,locked_out boolean,schedule_value integer,manager_value integer,sys_updated_on timestamp without time zone,u_gl_department integer,failed_attempts integer,last_login date,sys_domain_path integer,sys_domain_value integer,sys_updated_by integer,internal_integration_user boolean,u_gl_division integer,source integer,federated_id integer,accumulated_roles integer,enable_multifactor_authn boolean,u_job_start_date date,_fivetran_synced timestamp without time zone,_fivetran_deleted boolean,email integer)
-  ;
+    truncate table "EMBUCKET"."SERVICENOW_PRD"."SYS_USER";
     -- dbt seed --
     
             insert into EMBUCKET.servicenow_prd.sys_user (sys_id, sso_source, default_perspective_value, cost_center_value, hashed_user_id, sys_created_on, active, sys_created_by, sys_class_name, sys_mod_count, date_format, time_format, locked_out, schedule_value, manager_value, sys_updated_on, u_gl_department, failed_attempts, last_login, sys_domain_path, sys_domain_value, sys_updated_by, internal_integration_user, u_gl_division, source, federated_id, accumulated_roles, enable_multifactor_authn, u_job_start_date, _fivetran_synced, _fivetran_deleted, email) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.pto.dup_gitlab_pto (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."PTO"."DUP_GITLAB_PTO";
     -- dbt seed --
     
             insert into EMBUCKET.pto.dup_gitlab_pto (jsontext, uploaded_at) values

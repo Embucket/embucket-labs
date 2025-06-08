@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.rally_webhook_stitch.data (email integer,optedout boolean,updatedat integer,_sdc_batched_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer,__sdc_primary_key integer,_eventtype integer)
-  ;
+    truncate table "EMBUCKET"."RALLY_WEBHOOK_STITCH"."DATA";
     -- dbt seed --
     
             insert into EMBUCKET.rally_webhook_stitch.data (email, optedout, updatedat, _sdc_batched_at, _sdc_received_at, _sdc_sequence, _sdc_table_version, __sdc_primary_key, _eventtype) values

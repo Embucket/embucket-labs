@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.discourse.dup_signups (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."DISCOURSE"."DUP_SIGNUPS";
     -- dbt seed --
     
             insert into EMBUCKET.discourse.dup_signups (jsontext, uploaded_at) values

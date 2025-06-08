@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.engineering_extracts.red_master_stats (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."ENGINEERING_EXTRACTS"."RED_MASTER_STATS";
     -- dbt seed --
     
             insert into EMBUCKET.engineering_extracts.red_master_stats (jsontext, uploaded_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.gainsight_customer_success.dup_activity_attendee (activity_id integer,_fivetran_deleted boolean,attendee_type integer,external_attendee_sfdc_id integer,internal_attendee_sfdc_id integer,external_attendee_gs_id integer,internal_attendee_gs_id integer,_fivetran_synced timestamp without time zone,_fivetran_id integer,email_address integer,company_person_gsid integer)
-  ;
+    truncate table "EMBUCKET"."GAINSIGHT_CUSTOMER_SUCCESS"."DUP_ACTIVITY_ATTENDEE";
     -- dbt seed --
     
             insert into EMBUCKET.gainsight_customer_success.dup_activity_attendee (activity_id, _fivetran_deleted, attendee_type, external_attendee_sfdc_id, internal_attendee_sfdc_id, external_attendee_gs_id, internal_attendee_gs_id, _fivetran_synced, _fivetran_id, email_address, company_person_gsid) values

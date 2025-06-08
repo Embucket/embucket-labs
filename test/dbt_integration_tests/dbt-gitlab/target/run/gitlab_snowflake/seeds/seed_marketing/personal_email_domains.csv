@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.seed_marketing.personal_email_domains (type_of_match text,personal_email_domain text)
-  ;
+    truncate table "EMBUCKET"."SEED_MARKETING"."PERSONAL_EMAIL_DOMAINS";
     -- dbt seed --
     
             insert into EMBUCKET.seed_marketing.personal_email_domains (type_of_match, personal_email_domain) values

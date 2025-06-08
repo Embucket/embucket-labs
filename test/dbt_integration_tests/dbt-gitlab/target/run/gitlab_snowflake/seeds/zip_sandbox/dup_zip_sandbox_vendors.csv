@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.zip_sandbox.dup_zip_sandbox_vendors (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."ZIP_SANDBOX"."DUP_ZIP_SANDBOX_VENDORS";
     -- dbt seed --
     
             insert into EMBUCKET.zip_sandbox.dup_zip_sandbox_vendors (jsontext, uploaded_at) values

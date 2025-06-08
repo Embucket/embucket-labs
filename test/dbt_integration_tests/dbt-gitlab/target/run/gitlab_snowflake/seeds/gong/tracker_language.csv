@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.gong.tracker_language (tracker_id integer,tracker_language integer,include_related_forms integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."GONG"."TRACKER_LANGUAGE";
     -- dbt seed --
     
             insert into EMBUCKET.gong.tracker_language (tracker_id, tracker_language, include_related_forms, _fivetran_deleted, _fivetran_synced) values

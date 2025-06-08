@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_bulk_import_entities (id integer,bulk_import_id integer,parent_id integer,namespace_id integer,project_id integer,source_type integer,status integer,created_at timestamp without time zone,updated_at timestamp without time zone,has_failures boolean,_uploaded_at float8,_task_instance integer)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_BULK_IMPORT_ENTITIES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_bulk_import_entities (id, bulk_import_id, parent_id, namespace_id, project_id, source_type, status, created_at, updated_at, has_failures, _uploaded_at, _task_instance) values

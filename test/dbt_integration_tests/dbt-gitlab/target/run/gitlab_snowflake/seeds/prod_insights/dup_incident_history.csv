@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.prod_insights.dup_incident_history (account_id integer,incident_id integer,project_name integer,dataset_name integer,incident_type integer,incident_created_date date,incident_created_timestamp timestamp without time zone,n_events integer,n_tables integer,n_key_assets integer,last_feedback integer,last_feedback_date date,last_feedback_timestamp timestamp without time zone,first_feedback integer,first_feedback_timestamp timestamp without time zone,max_importance_score float8,avg_importance_score float8,incident_app_url integer,key_assets_with_importance_score text,non_key_assets_with_importance_score text,owner integer,severity integer,sent_via integer,sent_via_channel integer,domains integer,tags integer,custom_sql integer,rule_uuid integer,rule_description integer,rule_type integer,job_uuid integer,linked_tickets integer,row_number integer)
-  ;
+    truncate table "EMBUCKET"."PROD_INSIGHTS"."DUP_INCIDENT_HISTORY";
     -- dbt seed --
     
             insert into EMBUCKET.prod_insights.dup_incident_history (account_id, incident_id, project_name, dataset_name, incident_type, incident_created_date, incident_created_timestamp, n_events, n_tables, n_key_assets, last_feedback, last_feedback_date, last_feedback_timestamp, first_feedback, first_feedback_timestamp, max_importance_score, avg_importance_score, incident_app_url, key_assets_with_importance_score, non_key_assets_with_importance_score, owner, severity, sent_via, sent_via_channel, domains, tags, custom_sql, rule_uuid, rule_description, rule_type, job_uuid, linked_tickets, row_number) values

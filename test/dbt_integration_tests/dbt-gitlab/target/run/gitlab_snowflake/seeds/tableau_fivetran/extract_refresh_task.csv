@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tableau_fivetran.extract_refresh_task (id integer,schedule_frequency_details_interval_weekday text,site_id integer,_fivetran_deleted boolean,datasource_id integer,workbook_id integer,_fivetran_synced timestamp without time zone,schedule_next_run_at timestamp without time zone,schedule_frequency integer,priority integer,type integer,schedule_frequency_details_start integer,consecutive_failed_count integer,schedule_id integer)
-  ;
+    truncate table "EMBUCKET"."TABLEAU_FIVETRAN"."EXTRACT_REFRESH_TASK";
     -- dbt seed --
     
             insert into EMBUCKET.tableau_fivetran.extract_refresh_task (id, schedule_frequency_details_interval_weekday, site_id, _fivetran_deleted, datasource_id, workbook_id, _fivetran_synced, schedule_next_run_at, schedule_frequency, priority, type, schedule_frequency_details_start, consecutive_failed_count, schedule_id) values

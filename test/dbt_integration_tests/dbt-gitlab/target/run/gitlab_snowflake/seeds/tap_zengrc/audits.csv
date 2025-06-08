@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_zengrc.audits (_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone,audit_managers text,code integer,created_at integer,custom_attributes text,description integer,end_date integer,id integer,links text,mapped text,program text,report_period_end_date integer,report_period_start_date integer,start_date integer,status integer,sync_external_attachments boolean,sync_external_comments boolean,title integer,type integer,updated_at integer)
-  ;
+    truncate table "EMBUCKET"."TAP_ZENGRC"."AUDITS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_zengrc.audits (_sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at, audit_managers, code, created_at, custom_attributes, description, end_date, id, links, mapped, program, report_period_end_date, report_period_start_date, start_date, status, sync_external_attachments, sync_external_comments, title, type, updated_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.greenhouse.scheduled_interviews (id integer,application_id integer,interview_id integer,status integer,scheduled_by_id integer,scheduled_at integer,starts_at integer,ends_at integer,all_day_start_date float8,all_day_end_date float8,stage_name integer,interview_name integer,organization_id integer,location integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."GREENHOUSE"."SCHEDULED_INTERVIEWS";
     -- dbt seed --
     
             insert into EMBUCKET.greenhouse.scheduled_interviews (id, application_id, interview_id, status, scheduled_by_id, scheduled_at, starts_at, ends_at, all_day_start_date, all_day_end_date, stage_name, interview_name, organization_id, location, _updated_at) values

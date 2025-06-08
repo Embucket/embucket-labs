@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.hire_plan (function integer,department integer,month_year integer,plan integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."HIRE_PLAN";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.hire_plan (function, department, month_year, plan, _updated_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_ci_subscriptions_projects (id integer,downstream_project_id integer,upstream_project_id integer,author_id integer,_uploaded_at integer)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CI_SUBSCRIPTIONS_PROJECTS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_ci_subscriptions_projects (id, downstream_project_id, upstream_project_id, author_id, _uploaded_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.level_up.course_purchases (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."LEVEL_UP"."COURSE_PURCHASES";
     -- dbt seed --
     
             insert into EMBUCKET.level_up.course_purchases (jsontext, uploaded_at) values

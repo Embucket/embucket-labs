@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.omamori.entity_data_external (value text,date_part date)
-  ;
+    truncate table "EMBUCKET"."OMAMORI"."ENTITY_DATA_EXTERNAL";
     -- dbt seed --
     
             insert into EMBUCKET.omamori.entity_data_external (value, date_part) values

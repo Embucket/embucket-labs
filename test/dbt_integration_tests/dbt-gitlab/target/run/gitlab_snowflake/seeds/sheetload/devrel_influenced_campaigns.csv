@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.devrel_influenced_campaigns (campaign_name integer,campaign_type integer,description integer,influence_type integer,url integer,dri integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."DEVREL_INFLUENCED_CAMPAIGNS";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.devrel_influenced_campaigns (campaign_name, campaign_type, description, influence_type, url, dri, _updated_at) values

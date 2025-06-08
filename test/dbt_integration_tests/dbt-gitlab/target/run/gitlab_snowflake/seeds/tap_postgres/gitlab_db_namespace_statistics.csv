@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_namespace_statistics (id integer,namespace_id integer,shared_runners_seconds integer,shared_runners_seconds_last_reset timestamp without time zone,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_NAMESPACE_STATISTICS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_namespace_statistics (id, namespace_id, shared_runners_seconds, shared_runners_seconds_last_reset, _uploaded_at) values

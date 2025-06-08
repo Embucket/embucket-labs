@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.demandbase.account_keyword_historical_rollup (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."DEMANDBASE"."ACCOUNT_KEYWORD_HISTORICAL_ROLLUP";
     -- dbt seed --
     
             insert into EMBUCKET.demandbase.account_keyword_historical_rollup (jsontext, uploaded_at) values

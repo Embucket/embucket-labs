@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_status_page_published_incidents (id integer,created_at timestamp without time zone,updated_at timestamp without time zone,issue_id integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_STATUS_PAGE_PUBLISHED_INCIDENTS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_status_page_published_incidents (id, created_at, updated_at, issue_id, _uploaded_at) values

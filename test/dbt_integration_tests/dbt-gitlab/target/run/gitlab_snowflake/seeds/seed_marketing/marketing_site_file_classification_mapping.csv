@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.seed_marketing.marketing_site_file_classification_mapping (marketing_site_path text,file_classification text)
-  ;
+    truncate table "EMBUCKET"."SEED_MARKETING"."MARKETING_SITE_FILE_CLASSIFICATION_MAPPING";
     -- dbt seed --
     
             insert into EMBUCKET.seed_marketing.marketing_site_file_classification_mapping (marketing_site_path, file_classification) values

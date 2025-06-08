@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.zuora_central_sandbox_fivetran.dup_zuora_central_sandbox_fivetran_product (id integer,allow_feature_changes boolean,category integer,created_by_id integer,created_date timestamp without time zone,description integer,effective_end_date date,effective_start_date date,name integer,sku integer,updated_by_id integer,updated_date timestamp without time zone,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,product_number integer,product_tier_c integer,product_delivery_c integer,product_deployment_c integer,product_family_c integer)
-  ;
+    truncate table "EMBUCKET"."ZUORA_CENTRAL_SANDBOX_FIVETRAN"."DUP_ZUORA_CENTRAL_SANDBOX_FIVETRAN_PRODUCT";
     -- dbt seed --
     
             insert into EMBUCKET.zuora_central_sandbox_fivetran.dup_zuora_central_sandbox_fivetran_product (id, allow_feature_changes, category, created_by_id, created_date, description, effective_end_date, effective_start_date, name, sku, updated_by_id, updated_date, _fivetran_deleted, _fivetran_synced, product_number, product_tier_c, product_delivery_c, product_deployment_c, product_family_c) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_subscription_add_ons (id integer,created_at timestamp without time zone,updated_at timestamp without time zone,name integer,description integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_SUBSCRIPTION_ADD_ONS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_subscription_add_ons (id, created_at, updated_at, name, description, _uploaded_at) values

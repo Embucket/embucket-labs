@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_analytics_cycle_analytics_group_stages (id integer,created_at timestamp without time zone,updated_at timestamp without time zone,relative_position integer,start_event_identifier integer,end_event_identifier integer,group_id integer,start_event_label_id integer,end_event_label_id integer,hidden boolean,custom boolean,group_value_stream_id integer,_uploaded_at float8,pgp_is_deleted boolean)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_ANALYTICS_CYCLE_ANALYTICS_GROUP_STAGES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_analytics_cycle_analytics_group_stages (id, created_at, updated_at, relative_position, start_event_identifier, end_event_identifier, group_id, start_event_label_id, end_event_label_id, hidden, custom, group_value_stream_id, _uploaded_at, pgp_is_deleted) values

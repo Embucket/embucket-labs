@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.seed_sales.net_iacv_to_net_arr_ratio (order_type text,user_segment_stamped text,ratio_net_iacv_to_net_arr float8)
-  ;
+    truncate table "EMBUCKET"."SEED_SALES"."NET_IACV_TO_NET_ARR_RATIO";
     -- dbt seed --
     
             insert into EMBUCKET.seed_sales.net_iacv_to_net_arr_ratio (order_type, user_segment_stamped, ratio_net_iacv_to_net_arr) values

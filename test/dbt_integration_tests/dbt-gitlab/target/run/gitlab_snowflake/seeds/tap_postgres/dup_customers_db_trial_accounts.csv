@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.dup_customers_db_trial_accounts (id integer,billing_account_id integer,company integer,name integer,email integer,created_at timestamp without time zone,updated_at timestamp without time zone,_uploaded_at float8,_task_instance integer)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."DUP_CUSTOMERS_DB_TRIAL_ACCOUNTS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.dup_customers_db_trial_accounts (id, billing_account_id, company, name, email, created_at, updated_at, _uploaded_at, _task_instance) values

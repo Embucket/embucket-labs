@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_ci_job_artifacts (id integer,project_id integer,job_id integer,file_type integer,size integer,created_at timestamp without time zone,updated_at timestamp without time zone,expire_at timestamp without time zone,file integer,file_store integer,file_format integer,file_location integer,locked integer,_uploaded_at float8,pgp_is_deleted boolean,pgp_is_deleted_updated_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CI_JOB_ARTIFACTS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_ci_job_artifacts (id, project_id, job_id, file_type, size, created_at, updated_at, expire_at, file, file_store, file_format, file_location, locked, _uploaded_at, pgp_is_deleted, pgp_is_deleted_updated_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.version_db.versions (id integer,created_at integer,updated_at integer,version integer,vulnerable integer,details integer,_uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."VERSION_DB"."VERSIONS";
     -- dbt seed --
     
             insert into EMBUCKET.version_db.versions (id, created_at, updated_at, version, vulnerable, details, _uploaded_at) values

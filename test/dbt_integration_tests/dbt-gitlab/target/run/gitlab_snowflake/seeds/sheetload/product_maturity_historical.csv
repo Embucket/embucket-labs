@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.product_maturity_historical (stage integer,category integer,marketing integer,fiscal_quarter integer,quarter_start_status integer,quarter_end_status integer,quarter_end_target integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."PRODUCT_MATURITY_HISTORICAL";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.product_maturity_historical (stage, category, marketing, fiscal_quarter, quarter_start_status, quarter_end_status, quarter_end_target, _updated_at) values

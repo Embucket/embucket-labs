@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.abuse_mitigation (email_domain integer,account_creation_date integer,account_creation_time integer,account_creation_timestamp integer,category integer,description integer,automation integer,mitigation_week integer,mitigation_month integer,mitigation_date integer,mitigation_time integer,mitigation_timestamp integer,timezone integer,time_to_mitigate integer,rule_id integer,rule_name integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."ABUSE_MITIGATION";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.abuse_mitigation (email_domain, account_creation_date, account_creation_time, account_creation_timestamp, category, description, automation, mitigation_week, mitigation_month, mitigation_date, mitigation_time, mitigation_timestamp, timezone, time_to_mitigate, rule_id, rule_name, _updated_at) values

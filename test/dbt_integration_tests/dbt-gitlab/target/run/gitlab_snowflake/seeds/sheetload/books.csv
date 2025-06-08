@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.books (bookID integer,title integer,authors integer,average_rating integer,isbn integer,isbn13 integer,language_code integer,num_pages integer,ratings_count integer,text_reviews_count integer,publication_date integer,publisher integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."BOOKS";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.books (bookID, title, authors, average_rating, isbn, isbn13, language_code, num_pages, ratings_count, text_reviews_count, publication_date, publisher, _updated_at) values

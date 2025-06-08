@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.gong.transcript (call_id integer,index integer,workspace_id integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,sentence text,speaker_id integer,topic integer)
-  ;
+    truncate table "EMBUCKET"."GONG"."TRANSCRIPT";
     -- dbt seed --
     
             insert into EMBUCKET.gong.transcript (call_id, index, workspace_id, _fivetran_deleted, _fivetran_synced, sentence, speaker_id, topic) values

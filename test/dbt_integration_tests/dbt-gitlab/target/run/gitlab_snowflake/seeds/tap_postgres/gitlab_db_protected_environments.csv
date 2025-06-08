@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_protected_environments (id integer,project_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,name integer,group_id integer,required_approval_count integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_PROTECTED_ENVIRONMENTS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_protected_environments (id, project_id, created_at, updated_at, name, group_id, required_approval_count, _uploaded_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.version_db.usage_ping_metadata (id integer,created_at integer,metrics integer,uuid integer,_uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."VERSION_DB"."USAGE_PING_METADATA";
     -- dbt seed --
     
             insert into EMBUCKET.version_db.usage_ping_metadata (id, created_at, metrics, uuid, _uploaded_at) values

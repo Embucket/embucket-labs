@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_subscription_user_add_on_assignment_versions (id integer,organization_id integer,item_id integer,purchase_id integer,user_id integer,created_at timestamp without time zone,event integer,item_type integer,namespace_path integer,add_on_name integer,object integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_SUBSCRIPTION_USER_ADD_ON_ASSIGNMENT_VERSIONS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_subscription_user_add_on_assignment_versions (id, organization_id, item_id, purchase_id, user_id, created_at, event, item_type, namespace_path, add_on_name, object, _uploaded_at) values

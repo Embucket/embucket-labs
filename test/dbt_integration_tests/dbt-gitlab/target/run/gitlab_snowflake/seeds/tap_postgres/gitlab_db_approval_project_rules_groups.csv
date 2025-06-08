@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_approval_project_rules_groups (id integer,approval_project_rule_id integer,group_id integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_APPROVAL_PROJECT_RULES_GROUPS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_approval_project_rules_groups (id, approval_project_rule_id, group_id, _uploaded_at) values

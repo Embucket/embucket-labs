@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.omamori.rule_evaluations_external (value text,date_part date)
-  ;
+    truncate table "EMBUCKET"."OMAMORI"."RULE_EVALUATIONS_EXTERNAL";
     -- dbt seed --
     
             insert into EMBUCKET.omamori.rule_evaluations_external (value, date_part) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.workday.employment_status (employee_id integer,employment_status text,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,employment_status_group text)
-  ;
+    truncate table "EMBUCKET"."WORKDAY"."EMPLOYMENT_STATUS";
     -- dbt seed --
     
             insert into EMBUCKET.workday.employment_status (employee_id, employment_status, _fivetran_deleted, _fivetran_synced, employment_status_group) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.netsuite_fivetran.currency_exchange_rates (currency_rate_id float8,anchor_currency_id float8,base_currency_id float8,currency_id float8,currency_rate_provider_id integer,currency_rate_type_id float8,date_effective timestamp without time zone,date_last_modified timestamp without time zone,entity_id float8,exchange_rate float8,is_anchor_only integer,update_method_id integer,_fivetran_deleted boolean,date_deleted timestamp without time zone,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."NETSUITE_FIVETRAN"."CURRENCY_EXCHANGE_RATES";
     -- dbt seed --
     
             insert into EMBUCKET.netsuite_fivetran.currency_exchange_rates (currency_rate_id, anchor_currency_id, base_currency_id, currency_id, currency_rate_provider_id, currency_rate_type_id, date_effective, date_last_modified, entity_id, exchange_rate, is_anchor_only, update_method_id, _fivetran_deleted, date_deleted, _fivetran_synced) values

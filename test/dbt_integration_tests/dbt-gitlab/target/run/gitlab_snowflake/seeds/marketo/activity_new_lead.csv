@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.marketo.activity_new_lead (id integer,lead_id integer,activity_date timestamp without time zone,activity_type_id integer,campaign_id integer,primary_attribute_value_id integer,primary_attribute_value integer,modifying_user integer,created_date date,api_method_name integer,source_type integer,request_id integer,_fivetran_synced timestamp without time zone,form_name integer,lead_source integer,sfdc_type integer,list_name integer,action_result integer)
-  ;
+    truncate table "EMBUCKET"."MARKETO"."ACTIVITY_NEW_LEAD";
     -- dbt seed --
     
             insert into EMBUCKET.marketo.activity_new_lead (id, lead_id, activity_date, activity_type_id, campaign_id, primary_attribute_value_id, primary_attribute_value, modifying_user, created_date, api_method_name, source_type, request_id, _fivetran_synced, form_name, lead_source, sfdc_type, list_name, action_result) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.seed_product.gitlab_dotcom_access_levels (access integer,label text,name text)
-  ;
+    truncate table "EMBUCKET"."SEED_PRODUCT"."GITLAB_DOTCOM_ACCESS_LEVELS";
     -- dbt seed --
     
             insert into EMBUCKET.seed_product.gitlab_dotcom_access_levels (access, label, name) values

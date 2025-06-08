@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.bizible.biz_urls (id integer,scheme integer,host integer,port integer,path integer,row_key integer,page_title integer,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."BIZIBLE"."BIZ_URLS";
     -- dbt seed --
     
             insert into EMBUCKET.bizible.biz_urls (id, scheme, host, port, path, row_key, page_title, _created_date, _modified_date, _deleted_date, uploaded_at) values

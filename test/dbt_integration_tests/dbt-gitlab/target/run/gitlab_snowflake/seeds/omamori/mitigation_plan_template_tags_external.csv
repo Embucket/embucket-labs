@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.omamori.mitigation_plan_template_tags_external (value text,date_part date)
-  ;
+    truncate table "EMBUCKET"."OMAMORI"."MITIGATION_PLAN_TEMPLATE_TAGS_EXTERNAL";
     -- dbt seed --
     
             insert into EMBUCKET.omamori.mitigation_plan_template_tags_external (value, date_part) values

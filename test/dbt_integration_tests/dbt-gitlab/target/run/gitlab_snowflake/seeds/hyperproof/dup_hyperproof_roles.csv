@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.hyperproof.dup_hyperproof_roles (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."HYPERPROOF"."DUP_HYPERPROOF_ROLES";
     -- dbt seed --
     
             insert into EMBUCKET.hyperproof.dup_hyperproof_roles (jsontext, uploaded_at) values

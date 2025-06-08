@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.greenhouse.offers (id integer,application_id integer,status integer,created_at integer,sent_at integer,resolved_at integer,start_date integer,created_by integer,updated_at integer,organization_id integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."GREENHOUSE"."OFFERS";
     -- dbt seed --
     
             insert into EMBUCKET.greenhouse.offers (id, application_id, status, created_at, sent_at, resolved_at, start_date, created_by, updated_at, organization_id, _updated_at) values

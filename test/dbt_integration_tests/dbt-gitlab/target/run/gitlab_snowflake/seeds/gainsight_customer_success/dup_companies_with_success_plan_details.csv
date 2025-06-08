@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.gainsight_customer_success.dup_companies_with_success_plan_details (_fivetran_id integer,_fivetran_deleted boolean,status integer,company integer,type_name integer,count_of_open_objective_count integer,sales_segment integer,status_name integer,count_of_total_objective_count integer,account_gsid integer,type integer,tam_gsid integer,number_of_success_plans integer,account_arr integer,tam_name integer,account_name integer,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."GAINSIGHT_CUSTOMER_SUCCESS"."DUP_COMPANIES_WITH_SUCCESS_PLAN_DETAILS";
     -- dbt seed --
     
             insert into EMBUCKET.gainsight_customer_success.dup_companies_with_success_plan_details (_fivetran_id, _fivetran_deleted, status, company, type_name, count_of_open_objective_count, sales_segment, status_name, count_of_total_objective_count, account_gsid, type, tam_gsid, number_of_success_plans, account_arr, tam_name, account_name, _fivetran_synced) values

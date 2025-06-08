@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.qualtrics.nps_survey_responses (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."QUALTRICS"."NPS_SURVEY_RESPONSES";
     -- dbt seed --
     
             insert into EMBUCKET.qualtrics.nps_survey_responses (jsontext, uploaded_at) values

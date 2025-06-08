@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.bizible.biz_opp_stage_transitions (id integer,account_id integer,opportunity_id integer,contact_id integer,email integer,touchpoint_id integer,transition_date timestamp without time zone,stage_id integer,stage integer,rank integer,index integer,last_index integer,is_pending boolean,is_non_transitional boolean,previous_stage_date timestamp without time zone,next_stage_date timestamp without time zone,modified_date timestamp without time zone,is_deleted boolean,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."BIZIBLE"."BIZ_OPP_STAGE_TRANSITIONS";
     -- dbt seed --
     
             insert into EMBUCKET.bizible.biz_opp_stage_transitions (id, account_id, opportunity_id, contact_id, email, touchpoint_id, transition_date, stage_id, stage, rank, index, last_index, is_pending, is_non_transitional, previous_stage_date, next_stage_date, modified_date, is_deleted, _created_date, _modified_date, _deleted_date, uploaded_at) values

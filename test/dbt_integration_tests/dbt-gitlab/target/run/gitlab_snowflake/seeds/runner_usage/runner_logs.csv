@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.runner_usage.runner_logs (value text,customer integer,runner integer,_year integer,_month integer,_day integer)
-  ;
+    truncate table "EMBUCKET"."RUNNER_USAGE"."RUNNER_LOGS";
     -- dbt seed --
     
             insert into EMBUCKET.runner_usage.runner_logs (value, customer, runner, _year, _month, _day) values

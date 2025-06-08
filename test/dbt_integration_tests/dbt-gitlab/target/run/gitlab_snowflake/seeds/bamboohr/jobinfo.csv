@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.bamboohr.jobinfo (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."BAMBOOHR"."JOBINFO";
     -- dbt seed --
     
             insert into EMBUCKET.bamboohr.jobinfo (jsontext, uploaded_at) values

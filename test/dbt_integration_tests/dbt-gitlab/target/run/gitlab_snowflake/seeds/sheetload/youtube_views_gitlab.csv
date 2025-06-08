@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.youtube_views_gitlab (video_id integer,team integer,account integer,playlist integer,url integer,video_title integer,publication_date integer,gitlab_publication_quarter integer,language integer,include_in_looker_report integer,video_topic integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."YOUTUBE_VIEWS_GITLAB";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.youtube_views_gitlab (video_id, team, account, playlist, url, video_title, publication_date, gitlab_publication_quarter, language, include_in_looker_report, video_topic, _updated_at) values

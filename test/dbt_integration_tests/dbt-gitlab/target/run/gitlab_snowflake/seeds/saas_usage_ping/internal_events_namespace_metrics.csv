@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.saas_usage_ping.internal_events_namespace_metrics (id integer,namespace_ultimate_parent_id integer,counter_value integer,ping_name integer,level integer,query_ran integer,error integer,ping_date date,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."SAAS_USAGE_PING"."INTERNAL_EVENTS_NAMESPACE_METRICS";
     -- dbt seed --
     
             insert into EMBUCKET.saas_usage_ping.internal_events_namespace_metrics (id, namespace_ultimate_parent_id, counter_value, ping_name, level, query_ran, error, ping_date, _uploaded_at) values

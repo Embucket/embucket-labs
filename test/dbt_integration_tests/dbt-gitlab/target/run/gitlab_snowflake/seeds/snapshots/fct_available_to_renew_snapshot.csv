@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.snapshots.fct_available_to_renew_snapshot (primary_key integer,dim_charge_id integer,fiscal_quarter_name_fy integer,fiscal_year integer,dim_crm_account_id integer,dim_crm_opportunity_id integer,dim_subscription_id integer,subscription_name integer,dim_billing_account_id integer,dim_product_detail_id integer,dim_parent_crm_account_id integer,dim_crm_user_id integer,renewal_subscription_name integer,renewal_month date,parent_crm_account_name integer,user_name integer,crm_user_sales_segment integer,crm_user_geo integer,crm_user_region integer,crm_user_area integer,atr_term_start_date date,atr_term_end_date date,quantity float8,arr float8,created_by integer,updated_by integer,model_created_date date,model_updated_date date,dbt_created_at timestamp without time zone,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."SNAPSHOTS"."FCT_AVAILABLE_TO_RENEW_SNAPSHOT";
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.fct_available_to_renew_snapshot (primary_key, dim_charge_id, fiscal_quarter_name_fy, fiscal_year, dim_crm_account_id, dim_crm_opportunity_id, dim_subscription_id, subscription_name, dim_billing_account_id, dim_product_detail_id, dim_parent_crm_account_id, dim_crm_user_id, renewal_subscription_name, renewal_month, parent_crm_account_name, user_name, crm_user_sales_segment, crm_user_geo, crm_user_region, crm_user_area, atr_term_start_date, atr_term_end_date, quantity, arr, created_by, updated_by, model_created_date, model_updated_date, dbt_created_at, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values

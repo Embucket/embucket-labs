@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_saml_providers (id integer,group_id integer,enabled boolean,certificate_fingerprint integer,sso_url integer,enforced_sso boolean,enforced_group_managed_accounts boolean,prohibited_outer_forks boolean,default_membership_role integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_SAML_PROVIDERS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_saml_providers (id, group_id, enabled, certificate_fingerprint, sso_url, enforced_sso, enforced_group_managed_accounts, prohibited_outer_forks, default_membership_role, _uploaded_at) values

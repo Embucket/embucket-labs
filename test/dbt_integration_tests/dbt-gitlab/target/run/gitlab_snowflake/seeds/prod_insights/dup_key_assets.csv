@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.prod_insights.dup_key_assets (account_id integer,resource_type integer,full_table_id integer,project_name integer,dataset_name integer,table_name integer,table_type integer,importance integer,importance_score float8,is_key_asset_marked_by_client integer,prc_active_days float8,users integer,read_users integer,read_users_list integer,write_users integer,write_users_list integer,reads float8,distinct_reads float8,prc_distinct_reads float8,avg_reads_per_active_day float8,writes float8,distinct_writes float8,prc_distinct_writes float8,avg_writes_per_active_day float8,last_read timestamp without time zone,days_since_last_read float8,last_write timestamp without time zone,days_since_last_write float8,direct_upstream_tables float8,direct_downstream_tables float8,total_rows float8,total_bytes float8,rows_per_day float8,bytes_per_day float8,periodicity integer,url integer,domains integer,has_description boolean,is_key_source_node boolean,is_key_hub_node boolean,is_key_analytical_node boolean,row_number integer)
-  ;
+    truncate table "EMBUCKET"."PROD_INSIGHTS"."DUP_KEY_ASSETS";
     -- dbt seed --
     
             insert into EMBUCKET.prod_insights.dup_key_assets (account_id, resource_type, full_table_id, project_name, dataset_name, table_name, table_type, importance, importance_score, is_key_asset_marked_by_client, prc_active_days, users, read_users, read_users_list, write_users, write_users_list, reads, distinct_reads, prc_distinct_reads, avg_reads_per_active_day, writes, distinct_writes, prc_distinct_writes, avg_writes_per_active_day, last_read, days_since_last_read, last_write, days_since_last_write, direct_upstream_tables, direct_downstream_tables, total_rows, total_bytes, rows_per_day, bytes_per_day, periodicity, url, domains, has_description, is_key_source_node, is_key_hub_node, is_key_analytical_node, row_number) values

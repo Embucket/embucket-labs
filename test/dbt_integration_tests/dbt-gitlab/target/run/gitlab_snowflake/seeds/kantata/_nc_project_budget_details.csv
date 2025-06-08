@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.kantata._nc_project_budget_details (Project integer,GitLab integer,Internal integer,Free integer,Date integer,Date_2 integer,Date_3 integer,Date_4 integer,Bill integer,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."KANTATA"."_NC_PROJECT_BUDGET_DETAILS";
     -- dbt seed --
     
             insert into EMBUCKET.kantata._nc_project_budget_details (Project, GitLab, Internal, Free, Date, Date_2, Date_3, Date_4, Bill, uploaded_at) values

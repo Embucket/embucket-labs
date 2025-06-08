@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.dbt.manifest (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."DBT"."MANIFEST";
     -- dbt seed --
     
             insert into EMBUCKET.dbt.manifest (jsontext, uploaded_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.ic_collaboration_competency (_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."IC_COLLABORATION_COMPETENCY";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.ic_collaboration_competency (_updated_at) values

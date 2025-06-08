@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_catalog_resource_versions (id integer,release_id integer,catalog_resource_id integer,project_id integer,created_at timestamp without time zone,released_at timestamp without time zone,semver_major integer,semver_minor integer,semver_patch integer,semver_prerelease integer,_uploaded_at float8,_task_instance integer)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CATALOG_RESOURCE_VERSIONS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_catalog_resource_versions (id, release_id, catalog_resource_id, project_id, created_at, released_at, semver_major, semver_minor, semver_patch, semver_prerelease, _uploaded_at, _task_instance) values

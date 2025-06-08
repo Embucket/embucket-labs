@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.deleted_mrs (deleted_merge_request_id integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."DELETED_MRS";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.deleted_mrs (deleted_merge_request_id, _updated_at) values

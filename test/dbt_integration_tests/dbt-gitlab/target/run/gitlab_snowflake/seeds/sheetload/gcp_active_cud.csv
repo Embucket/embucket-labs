@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.gcp_active_cud (start_date integer,end_date integer,vcpus integer,ram integer,commit_term integer,region integer,machine_type integer,is_active integer,hourly_commit_vcpus integer,hourly_commit_ram integer,total_hourly_commit integer,daily_commit_amount_vcpus integer,daily_commit_amount_ram integer,daily_total_commit integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."GCP_ACTIVE_CUD";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.gcp_active_cud (start_date, end_date, vcpus, ram, commit_term, region, machine_type, is_active, hourly_commit_vcpus, hourly_commit_ram, total_hourly_commit, daily_commit_amount_vcpus, daily_commit_amount_ram, daily_total_commit, _updated_at) values

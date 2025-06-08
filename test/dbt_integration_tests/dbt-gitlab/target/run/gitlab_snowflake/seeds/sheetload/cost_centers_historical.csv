@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.cost_centers_historical (report_effective_date integer,dept_workday_id integer,dept_reference_id integer,department_name integer,dept_inactive integer,division_workday_id integer,division_refid integer,division integer,cost_center_workday_id integer,cost_center integer,cost_center_refid integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."COST_CENTERS_HISTORICAL";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.cost_centers_historical (report_effective_date, dept_workday_id, dept_reference_id, department_name, dept_inactive, division_workday_id, division_refid, division, cost_center_workday_id, cost_center, cost_center_refid, _updated_at) values

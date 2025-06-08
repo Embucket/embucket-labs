@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.google_ads.dup_google_ads_ad_history (ad_group_id integer,id integer,updated_at timestamp without time zone,action_items integer,ad_strength integer,added_by_google_ads boolean,device_preference integer,display_url integer,final_url_suffix integer,final_app_urls integer,final_mobile_urls integer,final_urls integer,name integer,policy_summary_approval_status integer,policy_summary_review_status integer,status integer,system_managed_resource_source integer,tracking_url_template integer,type integer,url_collections integer,_fivetran_synced timestamp without time zone,_fivetran_start timestamp without time zone,_fivetran_end timestamp without time zone,_fivetran_active boolean)
-  ;
+    truncate table "EMBUCKET"."GOOGLE_ADS"."DUP_GOOGLE_ADS_AD_HISTORY";
     -- dbt seed --
     
             insert into EMBUCKET.google_ads.dup_google_ads_ad_history (ad_group_id, id, updated_at, action_items, ad_strength, added_by_google_ads, device_preference, display_url, final_url_suffix, final_app_urls, final_mobile_urls, final_urls, name, policy_summary_approval_status, policy_summary_review_status, status, system_managed_resource_source, tracking_url_template, type, url_collections, _fivetran_synced, _fivetran_start, _fivetran_end, _fivetran_active) values

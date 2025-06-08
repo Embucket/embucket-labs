@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.iterable.list_user_history (_fivetran_id integer,list_id integer,updated_at timestamp without time zone,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."ITERABLE"."LIST_USER_HISTORY";
     -- dbt seed --
     
             insert into EMBUCKET.iterable.list_user_history (_fivetran_id, list_id, updated_at, _fivetran_synced) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.infrastructure_missing_employees (employee_id integer,gitlab_dotcom_user_id integer,full_name integer,work_email integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."INFRASTRUCTURE_MISSING_EMPLOYEES";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.infrastructure_missing_employees (employee_id, gitlab_dotcom_user_id, full_name, work_email, _updated_at) values

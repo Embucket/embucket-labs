@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_user_preferences (user_id integer,issue_notes_filter integer,merge_request_notes_filter integer,created_at timestamp without time zone,updated_at timestamp without time zone,epics_sort integer,roadmap_epics_state integer,epic_notes_filter integer,issues_sort integer,merge_requests_sort integer,roadmaps_sort integer,first_day_of_week integer,timezone integer,time_display_relative boolean,time_format_in_24h integer,projects_sort integer,show_whitespace_in_diffs boolean,sourcegraph_enabled boolean,setup_for_company boolean,render_whitespace_in_code boolean,tab_width integer,experience_level integer,view_diffs_file_by_file boolean,id integer,gitpod_enabled boolean,use_new_navigation boolean,early_access_program_participant boolean,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_USER_PREFERENCES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_user_preferences (user_id, issue_notes_filter, merge_request_notes_filter, created_at, updated_at, epics_sort, roadmap_epics_state, epic_notes_filter, issues_sort, merge_requests_sort, roadmaps_sort, first_day_of_week, timezone, time_display_relative, time_format_in_24h, projects_sort, show_whitespace_in_diffs, sourcegraph_enabled, setup_for_company, render_whitespace_in_code, tab_width, experience_level, view_diffs_file_by_file, id, gitpod_enabled, use_new_navigation, early_access_program_participant, _uploaded_at) values

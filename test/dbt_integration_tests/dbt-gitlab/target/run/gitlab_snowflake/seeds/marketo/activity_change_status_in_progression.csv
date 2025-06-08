@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.marketo.activity_change_status_in_progression (id integer,lead_id integer,activity_date timestamp without time zone,activity_type_id integer,campaign_id integer,primary_attribute_value_id integer,primary_attribute_value integer,old_status_id integer,new_status_id integer,acquired_by boolean,old_status integer,new_status integer,program_member_id integer,success boolean,_fivetran_synced timestamp without time zone,registration_code integer,webinar_url integer,reason integer,reached_success_date timestamp without time zone,status_reason integer,action_result integer)
-  ;
+    truncate table "EMBUCKET"."MARKETO"."ACTIVITY_CHANGE_STATUS_IN_PROGRESSION";
     -- dbt seed --
     
             insert into EMBUCKET.marketo.activity_change_status_in_progression (id, lead_id, activity_date, activity_type_id, campaign_id, primary_attribute_value_id, primary_attribute_value, old_status_id, new_status_id, acquired_by, old_status, new_status, program_member_id, success, _fivetran_synced, registration_code, webinar_url, reason, reached_success_date, status_reason, action_result) values

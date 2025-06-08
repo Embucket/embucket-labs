@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.hiring_manager_survey_responses (timestamp integer,month float8,overall_rating integer,additional_feedback integer,sourced_by_TA integer,recruiter_communication integer,TA_customer_service_rating integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."HIRING_MANAGER_SURVEY_RESPONSES";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.hiring_manager_survey_responses (timestamp, month, overall_rating, additional_feedback, sourced_by_TA, recruiter_communication, TA_customer_service_rating, _updated_at) values

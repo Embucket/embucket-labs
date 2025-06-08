@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.snapshots.customers_db_customers_snapshots (id integer,created_at timestamp without time zone,updated_at timestamp without time zone,current_sign_in_at timestamp without time zone,last_sign_in_at timestamp without time zone,current_sign_in_ip integer,last_sign_in_ip integer,provider integer,uid integer,zuora_account_id integer,country integer,state integer,city integer,company integer,salesforce_account_id integer,billable boolean,access_token integer,confirmation_token integer,confirmed_at timestamp without time zone,confirmation_sent_at timestamp without time zone,_uploaded_at float8,customers_rank_in_key integer,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone,_task_instance integer,company_size integer,sign_in_count integer,vat_code integer,first_name integer,last_name integer,email integer,phone_number integer)
-  ;
+    truncate table "EMBUCKET"."SNAPSHOTS"."CUSTOMERS_DB_CUSTOMERS_SNAPSHOTS";
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.customers_db_customers_snapshots (id, created_at, updated_at, current_sign_in_at, last_sign_in_at, current_sign_in_ip, last_sign_in_ip, provider, uid, zuora_account_id, country, state, city, company, salesforce_account_id, billable, access_token, confirmation_token, confirmed_at, confirmation_sent_at, _uploaded_at, customers_rank_in_key, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to, _task_instance, company_size, sign_in_count, vat_code, first_name, last_name, email, phone_number) values

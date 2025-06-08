@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.greenhouse.employments (candidate_id integer,company_name integer,title integer,start integer,end integer,latest boolean,created_at integer,updated_at integer,organization_id integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."GREENHOUSE"."EMPLOYMENTS";
     -- dbt seed --
     
             insert into EMBUCKET.greenhouse.employments (candidate_id, company_name, title, start, end, latest, created_at, updated_at, organization_id, _updated_at) values

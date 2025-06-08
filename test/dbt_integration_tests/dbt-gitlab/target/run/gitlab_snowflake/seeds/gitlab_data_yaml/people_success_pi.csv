@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.gitlab_data_yaml.people_success_pi (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."GITLAB_DATA_YAML"."PEOPLE_SUCCESS_PI";
     -- dbt seed --
     
             insert into EMBUCKET.gitlab_data_yaml.people_success_pi (jsontext, uploaded_at) values

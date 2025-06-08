@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.gcp_billing.detail_gcp_billing (value text,date_part date)
-  ;
+    truncate table "EMBUCKET"."GCP_BILLING"."DETAIL_GCP_BILLING";
     -- dbt seed --
     
             insert into EMBUCKET.gcp_billing.detail_gcp_billing (value, date_part) values

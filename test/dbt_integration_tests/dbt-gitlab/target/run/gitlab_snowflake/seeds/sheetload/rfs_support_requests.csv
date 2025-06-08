@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.rfs_support_requests (customer_prospect_name integer,request_type integer,market_industry_vertical integer,customer_prospect_size integer,sfdc_link integer,iacv_impact integer,product_host integer,due_date integer,other integer,requestor_name integer,additional_gitlab_team_members integer,month integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."RFS_SUPPORT_REQUESTS";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.rfs_support_requests (customer_prospect_name, request_type, market_industry_vertical, customer_prospect_size, sfdc_link, iacv_impact, product_host, due_date, other, requestor_name, additional_gitlab_team_members, month, _updated_at) values

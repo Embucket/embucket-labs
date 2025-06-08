@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.iterable.dup_user_unsubscribed_message_type (_fivetran_id integer,message_type_id integer,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."ITERABLE"."DUP_USER_UNSUBSCRIBED_MESSAGE_TYPE";
     -- dbt seed --
     
             insert into EMBUCKET.iterable.dup_user_unsubscribed_message_type (_fivetran_id, message_type_id, _fivetran_synced) values

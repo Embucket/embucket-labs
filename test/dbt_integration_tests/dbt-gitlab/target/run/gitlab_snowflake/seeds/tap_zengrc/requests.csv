@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_zengrc.requests (_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone,assignees text,audit text,code integer,created_at integer,custom_attributes text,description integer,end_date integer,id integer,links text,mapped text,requesters text,start_date integer,status integer,stop_date integer,tags text,title integer,type integer,updated_at integer)
-  ;
+    truncate table "EMBUCKET"."TAP_ZENGRC"."REQUESTS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_zengrc.requests (_sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at, assignees, audit, code, created_at, custom_attributes, description, end_date, id, links, mapped, requesters, start_date, status, stop_date, tags, title, type, updated_at) values

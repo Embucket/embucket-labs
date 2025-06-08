@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.seed_finance.zuora_country_geographic_region (standard_country_name text,country_name_in_zuora text,iso_alpha_2_code text,iso_alpha_3_code text,geographic_region text)
-  ;
+    truncate table "EMBUCKET"."SEED_FINANCE"."ZUORA_COUNTRY_GEOGRAPHIC_REGION";
     -- dbt seed --
     
             insert into EMBUCKET.seed_finance.zuora_country_geographic_region (standard_country_name, country_name_in_zuora, iso_alpha_2_code, iso_alpha_3_code, geographic_region) values

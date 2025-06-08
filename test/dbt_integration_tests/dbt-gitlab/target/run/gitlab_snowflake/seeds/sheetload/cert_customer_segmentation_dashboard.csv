@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.cert_customer_segmentation_dashboard (Timestamp integer,Email_Address integer,Score integer,certification integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."CERT_CUSTOMER_SEGMENTATION_DASHBOARD";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.cert_customer_segmentation_dashboard (Timestamp, Email_Address, Score, certification, _updated_at) values

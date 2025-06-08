@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.zip_sandbox.agreements (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."ZIP_SANDBOX"."AGREEMENTS";
     -- dbt seed --
     
             insert into EMBUCKET.zip_sandbox.agreements (jsontext, uploaded_at) values

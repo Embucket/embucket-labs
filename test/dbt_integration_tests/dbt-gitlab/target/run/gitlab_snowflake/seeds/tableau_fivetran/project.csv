@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tableau_fivetran.project (id integer,_fivetran_deleted boolean,controlling_permissions_project_id integer,owner_id integer,parent_project_id integer,_fivetran_synced timestamp without time zone,created_at timestamp without time zone,description integer,content_permission integer,updated_at timestamp without time zone,name integer)
-  ;
+    truncate table "EMBUCKET"."TABLEAU_FIVETRAN"."PROJECT";
     -- dbt seed --
     
             insert into EMBUCKET.tableau_fivetran.project (id, _fivetran_deleted, controlling_permissions_project_id, owner_id, parent_project_id, _fivetran_synced, created_at, description, content_permission, updated_at, name) values

@@ -82,3 +82,7 @@ echo ""
     # fi
     dbt run --full-refresh --select result:success --state target_to_run 2>&1 | tee run.log
 deactivate
+
+chmod +x statistics.sh
+
+./statistics.sh

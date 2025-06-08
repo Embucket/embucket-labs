@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.snapshots.zuora_amendment_snapshots (autorenew boolean,code integer,contracteffectivedate timestamp without time zone,createdbyid integer,createddate timestamp without time zone,currentterm integer,currenttermperiodtype integer,customeracceptancedate timestamp without time zone,deleted boolean,description integer,effectivedate timestamp without time zone,id integer,name integer,renewalsetting integer,renewalterm integer,renewaltermperiodtype integer,serviceactivationdate timestamp without time zone,status integer,subscriptionid integer,termstartdate timestamp without time zone,termtype integer,type integer,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone,specificupdatedate timestamp without time zone,bookingdate timestamp without time zone,newrateplanid integer,subtype integer,removedrateplanid integer,effectivepolicy integer)
-  ;
+    truncate table "EMBUCKET"."SNAPSHOTS"."ZUORA_AMENDMENT_SNAPSHOTS";
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.zuora_amendment_snapshots (autorenew, code, contracteffectivedate, createdbyid, createddate, currentterm, currenttermperiodtype, customeracceptancedate, deleted, description, effectivedate, id, name, renewalsetting, renewalterm, renewaltermperiodtype, serviceactivationdate, status, subscriptionid, termstartdate, termtype, type, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to, specificupdatedate, bookingdate, newrateplanid, subtype, removedrateplanid, effectivepolicy) values

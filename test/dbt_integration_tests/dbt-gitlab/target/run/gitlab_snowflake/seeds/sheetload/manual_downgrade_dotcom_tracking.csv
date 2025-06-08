@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.manual_downgrade_dotcom_tracking (namespace_id integer,downgraded_date integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."MANUAL_DOWNGRADE_DOTCOM_TRACKING";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.manual_downgrade_dotcom_tracking (namespace_id, downgraded_date, _updated_at) values

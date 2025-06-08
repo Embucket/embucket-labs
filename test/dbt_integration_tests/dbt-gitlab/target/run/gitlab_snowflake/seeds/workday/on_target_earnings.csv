@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.workday.on_target_earnings (employee_id integer,compensation_history text,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."WORKDAY"."ON_TARGET_EARNINGS";
     -- dbt seed --
     
             insert into EMBUCKET.workday.on_target_earnings (employee_id, compensation_history, _fivetran_deleted, _fivetran_synced) values

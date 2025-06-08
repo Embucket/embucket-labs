@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.version_db.conversational_development_indices (id integer,created_at integer,instance_boards integer,instance_ci_pipelines integer,instance_deployments integer,instance_environments integer,instance_issues integer,instance_merge_requests integer,instance_milestones integer,instance_notes integer,instance_projects_prometheus_active integer,instance_service_desk_issues integer,leader_boards integer,leader_ci_pipelines integer,leader_deployments integer,leader_environments integer,leader_issues integer,leader_merge_requests integer,leader_milestones integer,leader_notes integer,leader_projects_prometheus_active integer,leader_service_desk_issues integer,percentage_boards integer,percentage_ci_pipelines integer,percentage_deployments integer,percentage_environments integer,percentage_issues integer,percentage_merge_requests integer,percentage_milestones integer,percentage_notes integer,percentage_projects_prometheus_active integer,percentage_service_desk_issues integer,updated_at integer,usage_data_id integer,_uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."VERSION_DB"."CONVERSATIONAL_DEVELOPMENT_INDICES";
     -- dbt seed --
     
             insert into EMBUCKET.version_db.conversational_development_indices (id, created_at, instance_boards, instance_ci_pipelines, instance_deployments, instance_environments, instance_issues, instance_merge_requests, instance_milestones, instance_notes, instance_projects_prometheus_active, instance_service_desk_issues, leader_boards, leader_ci_pipelines, leader_deployments, leader_environments, leader_issues, leader_merge_requests, leader_milestones, leader_notes, leader_projects_prometheus_active, leader_service_desk_issues, percentage_boards, percentage_ci_pipelines, percentage_deployments, percentage_environments, percentage_issues, percentage_merge_requests, percentage_milestones, percentage_notes, percentage_projects_prometheus_active, percentage_service_desk_issues, updated_at, usage_data_id, _uploaded_at) values

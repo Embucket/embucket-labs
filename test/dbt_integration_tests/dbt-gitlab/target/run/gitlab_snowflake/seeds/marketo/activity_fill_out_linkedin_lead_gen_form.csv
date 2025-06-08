@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.marketo.activity_fill_out_linkedin_lead_gen_form (id integer,lead_id integer,activity_date timestamp without time zone,activity_type_id integer,campaign_id integer,primary_attribute_value_id integer,primary_attribute_value integer,lead_gen_campaign_name integer,lead_gen_creative_id integer,lead_gen_account_name integer,_fivetran_synced timestamp without time zone,action_result integer)
-  ;
+    truncate table "EMBUCKET"."MARKETO"."ACTIVITY_FILL_OUT_LINKEDIN_LEAD_GEN_FORM";
     -- dbt seed --
     
             insert into EMBUCKET.marketo.activity_fill_out_linkedin_lead_gen_form (id, lead_id, activity_date, activity_type_id, campaign_id, primary_attribute_value_id, primary_attribute_value, lead_gen_campaign_name, lead_gen_creative_id, lead_gen_account_name, _fivetran_synced, action_result) values

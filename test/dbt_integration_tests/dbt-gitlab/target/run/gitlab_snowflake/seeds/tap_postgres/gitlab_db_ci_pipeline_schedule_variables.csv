@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_ci_pipeline_schedule_variables (id integer,pipeline_schedule_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,variable_type integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CI_PIPELINE_SCHEDULE_VARIABLES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_ci_pipeline_schedule_variables (id, pipeline_schedule_id, created_at, updated_at, variable_type, _uploaded_at) values

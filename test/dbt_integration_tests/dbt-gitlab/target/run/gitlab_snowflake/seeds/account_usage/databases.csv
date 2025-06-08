@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.account_usage.databases (database_id integer,database_name integer,database_owner integer,is_transient integer,comment integer,created timestamp without time zone,last_altered timestamp without time zone,deleted timestamp without time zone,retention_time integer,resource_group integer,type integer,owner_role_type integer,object_visibility text)
-  ;
+    truncate table "EMBUCKET"."ACCOUNT_USAGE"."DATABASES";
     -- dbt seed --
     
             insert into EMBUCKET.account_usage.databases (database_id, database_name, database_owner, is_transient, comment, created, last_altered, deleted, retention_time, resource_group, type, owner_role_type, object_visibility) values

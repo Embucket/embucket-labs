@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.e2e_metrics.main_test_stats (payload text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."E2E_METRICS"."MAIN_TEST_STATS";
     -- dbt seed --
     
             insert into EMBUCKET.e2e_metrics.main_test_stats (payload, uploaded_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.zero_dollar_subscription_to_paid_subscription (dim_original_subscription_id_zero_duo_trial integer,dim_original_subscription_id_paid_plan integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."ZERO_DOLLAR_SUBSCRIPTION_TO_PAID_SUBSCRIPTION";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.zero_dollar_subscription_to_paid_subscription (dim_original_subscription_id_zero_duo_trial, dim_original_subscription_id_paid_plan, _updated_at) values

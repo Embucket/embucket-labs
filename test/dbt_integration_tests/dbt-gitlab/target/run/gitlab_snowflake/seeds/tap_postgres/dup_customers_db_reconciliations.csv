@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.dup_customers_db_reconciliations (completed_email_sent_at timestamp without time zone,created_at integer,error_message integer,id integer,order_id integer,qsr_opportunity_id integer,quoted_invoice_amount integer,quoted_invoice_at timestamp without time zone,reconcile_done_at integer,reconcile_on date,skip_reason integer,upcoming_email_sent_at timestamp without time zone,updated_at integer,user_count integer,_uploaded_at float8,_task_instance integer)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."DUP_CUSTOMERS_DB_RECONCILIATIONS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.dup_customers_db_reconciliations (completed_email_sent_at, created_at, error_message, id, order_id, qsr_opportunity_id, quoted_invoice_amount, quoted_invoice_at, reconcile_done_at, reconcile_on, skip_reason, upcoming_email_sent_at, updated_at, user_count, _uploaded_at, _task_instance) values

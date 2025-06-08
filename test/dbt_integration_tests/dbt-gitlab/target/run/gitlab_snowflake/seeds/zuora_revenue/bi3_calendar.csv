@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.zuora_revenue.bi3_calendar (id integer,period_name integer,period_num integer,start_date integer,end_date integer,year_start_dt integer,qtr_num integer,qtr_start_dt integer,period_year integer,qtr_end_dt integer,year_end_dt integer,client_id integer,crtd_by integer,crtd_dt integer,updt_by integer,updt_dt integer,incr_updt_dt integer)
-  ;
+    truncate table "EMBUCKET"."ZUORA_REVENUE"."BI3_CALENDAR";
     -- dbt seed --
     
             insert into EMBUCKET.zuora_revenue.bi3_calendar (id, period_name, period_num, start_date, end_date, year_start_dt, qtr_num, qtr_start_dt, period_year, qtr_end_dt, year_end_dt, client_id, crtd_by, crtd_dt, updt_by, updt_dt, incr_updt_dt) values

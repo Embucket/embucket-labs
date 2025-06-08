@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.greenhouse.rejection_question_custom_fields (application_id integer,custom_field integer,float_value float8,date_value float8,display_value integer,unit float8,min_value float8,max_value float8,user_id float8,created_at integer,updated_at integer,key integer,text_value integer,organization_id integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."GREENHOUSE"."REJECTION_QUESTION_CUSTOM_FIELDS";
     -- dbt seed --
     
             insert into EMBUCKET.greenhouse.rejection_question_custom_fields (application_id, custom_field, float_value, date_value, display_value, unit, min_value, max_value, user_id, created_at, updated_at, key, text_value, organization_id, _updated_at) values

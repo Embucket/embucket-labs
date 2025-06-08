@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.customers_db_trial_histories (gl_namespace_id integer,start_date date,expired_on date,created_at integer,updated_at integer,glm_source integer,glm_content integer,trial_type integer,product_rate_plan_id integer,_uploaded_at float8,_task_instance integer)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."CUSTOMERS_DB_TRIAL_HISTORIES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.customers_db_trial_histories (gl_namespace_id, start_date, expired_on, created_at, updated_at, glm_source, glm_content, trial_type, product_rate_plan_id, _uploaded_at, _task_instance) values

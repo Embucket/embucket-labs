@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_jira_imports (id integer,project_id integer,user_id integer,label_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,finished_at timestamp without time zone,jira_project_xid integer,total_issue_count integer,imported_issues_count integer,failed_to_import_count integer,status integer,jid integer,scheduled_at timestamp without time zone,error_message integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_JIRA_IMPORTS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_jira_imports (id, project_id, user_id, label_id, created_at, updated_at, finished_at, jira_project_xid, total_issue_count, imported_issues_count, failed_to_import_count, status, jid, scheduled_at, error_message, _uploaded_at) values

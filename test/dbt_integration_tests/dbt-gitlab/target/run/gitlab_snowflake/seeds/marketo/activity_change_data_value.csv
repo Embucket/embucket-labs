@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.marketo.activity_change_data_value (id integer,lead_id integer,activity_date timestamp without time zone,activity_type_id integer,campaign_id integer,primary_attribute_value_id integer,primary_attribute_value integer,old_value integer,new_value integer,reason integer,source integer,_fivetran_synced timestamp without time zone,api_method_name integer,modifying_user integer,request_id integer,action_result integer)
-  ;
+    truncate table "EMBUCKET"."MARKETO"."ACTIVITY_CHANGE_DATA_VALUE";
     -- dbt seed --
     
             insert into EMBUCKET.marketo.activity_change_data_value (id, lead_id, activity_date, activity_type_id, campaign_id, primary_attribute_value_id, primary_attribute_value, old_value, new_value, reason, source, _fivetran_synced, api_method_name, modifying_user, request_id, action_result) values

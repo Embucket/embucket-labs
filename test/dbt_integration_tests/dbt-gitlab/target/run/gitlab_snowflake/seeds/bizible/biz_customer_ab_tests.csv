@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.bizible.biz_customer_ab_tests (visitor_id integer,cookie_id integer,event_date timestamp without time zone,modified_date timestamp without time zone,ip_address integer,city integer,region integer,country integer,experiment_id integer,experiment_name integer,variation_id integer,variation_name integer,abtest_user_id integer,is_deleted boolean,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."BIZIBLE"."BIZ_CUSTOMER_AB_TESTS";
     -- dbt seed --
     
             insert into EMBUCKET.bizible.biz_customer_ab_tests (visitor_id, cookie_id, event_date, modified_date, ip_address, city, region, country, experiment_id, experiment_name, variation_id, variation_name, abtest_user_id, is_deleted, _created_date, _modified_date, _deleted_date, uploaded_at) values

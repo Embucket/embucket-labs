@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_group_audit_events (id integer,group_id integer,created_at timestamp without time zone,author_id integer,target_id integer,event_name integer,details integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_GROUP_AUDIT_EVENTS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_group_audit_events (id, group_id, created_at, author_id, target_id, event_name, details, _uploaded_at) values

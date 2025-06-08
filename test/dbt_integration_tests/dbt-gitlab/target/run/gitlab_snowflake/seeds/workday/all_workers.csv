@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.workday.all_workers (employee_id integer,nationality integer,preferred_last_name integer,preferred_first_name integer,gender integer,work_email integer,date_of_birth date,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,ethnicity integer,country integer,city integer,state_province integer)
-  ;
+    truncate table "EMBUCKET"."WORKDAY"."ALL_WORKERS";
     -- dbt seed --
     
             insert into EMBUCKET.workday.all_workers (employee_id, nationality, preferred_last_name, preferred_first_name, gender, work_email, date_of_birth, _fivetran_deleted, _fivetran_synced, ethnicity, country, city, state_province) values

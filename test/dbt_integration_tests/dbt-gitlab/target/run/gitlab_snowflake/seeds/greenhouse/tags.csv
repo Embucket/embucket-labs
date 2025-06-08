@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.greenhouse.tags (id integer,organization_id integer,name integer,created_at integer,updated_at integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."GREENHOUSE"."TAGS";
     -- dbt seed --
     
             insert into EMBUCKET.greenhouse.tags (id, organization_id, name, created_at, updated_at, _updated_at) values

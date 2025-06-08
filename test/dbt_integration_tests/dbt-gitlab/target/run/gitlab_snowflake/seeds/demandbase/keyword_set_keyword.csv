@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.demandbase.keyword_set_keyword (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."DEMANDBASE"."KEYWORD_SET_KEYWORD";
     -- dbt seed --
     
             insert into EMBUCKET.demandbase.keyword_set_keyword (jsontext, uploaded_at) values

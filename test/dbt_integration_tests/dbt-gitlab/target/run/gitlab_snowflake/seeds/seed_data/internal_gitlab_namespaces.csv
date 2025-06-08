@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.seed_data.internal_gitlab_namespaces (namespace_path text,namespace_id integer)
-  ;
+    truncate table "EMBUCKET"."SEED_DATA"."INTERNAL_GITLAB_NAMESPACES";
     -- dbt seed --
     
             insert into EMBUCKET.seed_data.internal_gitlab_namespaces (namespace_path, namespace_id) values

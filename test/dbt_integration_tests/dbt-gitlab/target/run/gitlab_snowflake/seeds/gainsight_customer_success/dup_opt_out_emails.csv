@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.gainsight_customer_success.dup_opt_out_emails (gsid integer,_fivetran_deleted boolean,category_id integer,page_id integer,company_id integer,entity_name integer,person_type integer,email_address integer,reason integer,entity_id integer,entity_type integer,modified_at timestamp without time zone,person_id integer,reason_text integer,full_name integer,reason_type integer,email_log_ide_7940_f integer,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."GAINSIGHT_CUSTOMER_SUCCESS"."DUP_OPT_OUT_EMAILS";
     -- dbt seed --
     
             insert into EMBUCKET.gainsight_customer_success.dup_opt_out_emails (gsid, _fivetran_deleted, category_id, page_id, company_id, entity_name, person_type, email_address, reason, entity_id, entity_type, modified_at, person_id, reason_text, full_name, reason_type, email_log_ide_7940_f, _fivetran_synced) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.demandbase.campaign_account_performance (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."DEMANDBASE"."CAMPAIGN_ACCOUNT_PERFORMANCE";
     -- dbt seed --
     
             insert into EMBUCKET.demandbase.campaign_account_performance (jsontext, uploaded_at) values

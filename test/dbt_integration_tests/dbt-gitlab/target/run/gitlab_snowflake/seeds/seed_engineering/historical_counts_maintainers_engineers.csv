@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.seed_engineering.historical_counts_maintainers_engineers (date_week date,domain text,maintainers integer,engineers integer)
-  ;
+    truncate table "EMBUCKET"."SEED_ENGINEERING"."HISTORICAL_COUNTS_MAINTAINERS_ENGINEERS";
     -- dbt seed --
     
             insert into EMBUCKET.seed_engineering.historical_counts_maintainers_engineers (date_week, domain, maintainers, engineers) values

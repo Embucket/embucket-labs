@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.toy_marketing_handbook (age integer,job integer,marital integer,education integer,default integer,balance integer,housing integer,loan integer,contact integer,day integer,month integer,duration integer,num_contacts_during_campaign integer,prev_campaign_passed_days integer,prev_contacts integer,prev_outcome integer,outcome integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."TOY_MARKETING_HANDBOOK";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.toy_marketing_handbook (age, job, marital, education, default, balance, housing, loan, contact, day, month, duration, num_contacts_during_campaign, prev_campaign_passed_days, prev_contacts, prev_outcome, outcome, _updated_at) values

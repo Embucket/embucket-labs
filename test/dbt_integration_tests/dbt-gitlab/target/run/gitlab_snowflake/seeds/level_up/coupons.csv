@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.level_up.coupons (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."LEVEL_UP"."COUPONS";
     -- dbt seed --
     
             insert into EMBUCKET.level_up.coupons (jsontext, uploaded_at) values

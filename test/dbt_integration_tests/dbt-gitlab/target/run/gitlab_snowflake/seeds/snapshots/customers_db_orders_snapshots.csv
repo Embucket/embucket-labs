@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.snapshots.customers_db_orders_snapshots (id integer,customer_id integer,product_rate_plan_id integer,subscription_id integer,subscription_name integer,start_date date,end_date date,quantity float8,created_at timestamp without time zone,updated_at timestamp without time zone,gl_namespace_id integer,gl_namespace_name integer,amendment_type integer,trial boolean,last_extra_ci_minutes_sync_at timestamp without time zone,_uploaded_at float8,orders_rank_in_key integer,dbt_scd_id integer,dbt_updated_at timestamp without time zone,dbt_valid_from timestamp without time zone,dbt_valid_to timestamp without time zone,_task_instance integer,zuora_account_id integer,increased_billing_rate_notified_at timestamp without time zone,source integer,billing_account_id integer,trial_type integer)
-  ;
+    truncate table "EMBUCKET"."SNAPSHOTS"."CUSTOMERS_DB_ORDERS_SNAPSHOTS";
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.customers_db_orders_snapshots (id, customer_id, product_rate_plan_id, subscription_id, subscription_name, start_date, end_date, quantity, created_at, updated_at, gl_namespace_id, gl_namespace_name, amendment_type, trial, last_extra_ci_minutes_sync_at, _uploaded_at, orders_rank_in_key, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to, _task_instance, zuora_account_id, increased_billing_rate_notified_at, source, billing_account_id, trial_type) values

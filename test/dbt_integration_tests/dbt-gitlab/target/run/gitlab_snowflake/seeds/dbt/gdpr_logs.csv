@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.dbt.gdpr_logs (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."DBT"."GDPR_LOGS";
     -- dbt seed --
     
             insert into EMBUCKET.dbt.gdpr_logs (jsontext, uploaded_at) values

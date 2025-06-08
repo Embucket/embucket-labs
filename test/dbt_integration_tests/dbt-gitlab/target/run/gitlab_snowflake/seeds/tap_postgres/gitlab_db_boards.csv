@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_boards (id integer,project_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,milestone_id float8,group_id integer,weight integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_BOARDS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_boards (id, project_id, created_at, updated_at, milestone_id, group_id, weight, _uploaded_at) values

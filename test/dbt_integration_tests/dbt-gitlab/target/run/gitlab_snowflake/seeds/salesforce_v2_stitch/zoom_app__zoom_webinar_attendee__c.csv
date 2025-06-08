@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.salesforce_v2_stitch.zoom_app__zoom_webinar_attendee__c (createdbyid integer,createddate timestamp without time zone,id integer,isdeleted boolean,lastmodifiedbyid integer,lastmodifieddate timestamp without time zone,name integer,ownerid integer,systemmodstamp timestamp without time zone,zoom_app__duration_hh_mi_ss__c integer,zoom_app__duration__c float8,zoom_app__join_time__c timestamp without time zone,zoom_app__leave_time__c timestamp without time zone,zoom_app__name__c integer,zoom_app__user_email__c integer,zoom_app__user_id__c integer,zoom_app__uuid__c integer,zoom_app__zoom_webinar_panelist__c integer,zoom_app__zoom_webinar_registrant__c integer,zoom_app__zoom_webinar__c integer,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer,lastvieweddate timestamp without time zone,lastreferenceddate timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."SALESFORCE_V2_STITCH"."ZOOM_APP__ZOOM_WEBINAR_ATTENDEE__C";
     -- dbt seed --
     
             insert into EMBUCKET.salesforce_v2_stitch.zoom_app__zoom_webinar_attendee__c (createdbyid, createddate, id, isdeleted, lastmodifiedbyid, lastmodifieddate, name, ownerid, systemmodstamp, zoom_app__duration_hh_mi_ss__c, zoom_app__duration__c, zoom_app__join_time__c, zoom_app__leave_time__c, zoom_app__name__c, zoom_app__user_email__c, zoom_app__user_id__c, zoom_app__uuid__c, zoom_app__zoom_webinar_panelist__c, zoom_app__zoom_webinar_registrant__c, zoom_app__zoom_webinar__c, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version, lastvieweddate, lastreferenceddate) values

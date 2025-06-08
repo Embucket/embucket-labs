@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.saas_usage_ping.dup_instance_combined_metrics (query_map integer,run_results integer,ping_date date,_uploaded_at float8,run_id integer,recorded_at integer,version integer,edition integer,recording_ce_finished_at integer,recording_ee_finished_at integer,uuid integer,source integer,load_metadata integer)
-  ;
+    truncate table "EMBUCKET"."SAAS_USAGE_PING"."DUP_INSTANCE_COMBINED_METRICS";
     -- dbt seed --
     
             insert into EMBUCKET.saas_usage_ping.dup_instance_combined_metrics (query_map, run_results, ping_date, _uploaded_at, run_id, recorded_at, version, edition, recording_ce_finished_at, recording_ee_finished_at, uuid, source, load_metadata) values

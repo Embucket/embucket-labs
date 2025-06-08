@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.snowplow.fishtown_events_sample (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."SNOWPLOW"."FISHTOWN_EVENTS_SAMPLE";
     -- dbt seed --
     
             insert into EMBUCKET.snowplow.fishtown_events_sample (jsontext, uploaded_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.bizible.biz_email_to_visitor_ids (id integer,email integer,visitor_id integer,modified_date timestamp without time zone,created_date timestamp without time zone,is_ignore boolean,is_deleted boolean,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."BIZIBLE"."BIZ_EMAIL_TO_VISITOR_IDS";
     -- dbt seed --
     
             insert into EMBUCKET.bizible.biz_email_to_visitor_ids (id, email, visitor_id, modified_date, created_date, is_ignore, is_deleted, _created_date, _modified_date, _deleted_date, uploaded_at) values

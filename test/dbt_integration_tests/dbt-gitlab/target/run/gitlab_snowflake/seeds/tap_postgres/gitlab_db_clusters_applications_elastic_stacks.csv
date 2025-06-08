@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_clusters_applications_elastic_stacks (id integer,cluster_id integer,status integer,version integer,created_at timestamp without time zone,updated_at timestamp without time zone,status_reason integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_CLUSTERS_APPLICATIONS_ELASTIC_STACKS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_clusters_applications_elastic_stacks (id, cluster_id, status, version, created_at, updated_at, status_reason, _uploaded_at) values

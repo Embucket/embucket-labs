@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_elasticsearch_indexed_namespaces (created_at timestamp without time zone,updated_at timestamp without time zone,namespace_id integer,_uploaded_at float8,_task_instance integer)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_ELASTICSEARCH_INDEXED_NAMESPACES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_elasticsearch_indexed_namespaces (created_at, updated_at, namespace_id, _uploaded_at, _task_instance) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.osat (timestamp integer,hire_date integer,division integer,satisfaction_score integer,recommend_to_friend integer,onboarding_buddy_experience_score integer,employee_name integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."OSAT";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.osat (timestamp, hire_date, division, satisfaction_score, recommend_to_friend, onboarding_buddy_experience_score, employee_name, _updated_at) values

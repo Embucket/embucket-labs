@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.greenhouse.dup_greenhouse_organizations (id integer,name integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."GREENHOUSE"."DUP_GREENHOUSE_ORGANIZATIONS";
     -- dbt seed --
     
             insert into EMBUCKET.greenhouse.dup_greenhouse_organizations (id, name, _updated_at) values

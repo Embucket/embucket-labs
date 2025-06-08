@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.zuora_query_api.rampintervalmetrics (Id integer,ChargeNumber integer,ProductRatePlanChargeId integer,StartDate integer,EndDate integer,Quantity float8,GrossTcb float8,NetTcb float8,DiscountTcb float8,GrossTcv float8,NetTcv float8,DiscountTcv float8,RampIntervalId integer,RatePlanChargeId integer,SubscriptionNumber integer,CreatedById integer,CreatedDate integer,UpdatedById integer,UpdatedDate integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."ZUORA_QUERY_API"."RAMPINTERVALMETRICS";
     -- dbt seed --
     
             insert into EMBUCKET.zuora_query_api.rampintervalmetrics (Id, ChargeNumber, ProductRatePlanChargeId, StartDate, EndDate, Quantity, GrossTcb, NetTcb, DiscountTcb, GrossTcv, NetTcv, DiscountTcv, RampIntervalId, RatePlanChargeId, SubscriptionNumber, CreatedById, CreatedDate, UpdatedById, UpdatedDate, _uploaded_at) values

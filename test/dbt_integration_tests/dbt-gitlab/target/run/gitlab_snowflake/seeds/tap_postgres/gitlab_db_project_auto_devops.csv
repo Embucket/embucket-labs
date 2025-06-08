@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_project_auto_devops (id integer,project_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,enabled boolean,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_PROJECT_AUTO_DEVOPS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_project_auto_devops (id, project_id, created_at, updated_at, enabled, _uploaded_at) values

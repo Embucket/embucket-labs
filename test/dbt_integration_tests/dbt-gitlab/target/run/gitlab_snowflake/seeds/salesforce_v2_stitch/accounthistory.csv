@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.salesforce_v2_stitch.accounthistory (accountid integer,createdbyid integer,createddate timestamp without time zone,datatype integer,field integer,id integer,isdeleted boolean,newvalue__bo boolean,newvalue__de integer,newvalue__fl float8,newvalue__st integer,oldvalue__bo boolean,oldvalue__de integer,oldvalue__fl float8,oldvalue__st integer,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
-  ;
+    truncate table "EMBUCKET"."SALESFORCE_V2_STITCH"."ACCOUNTHISTORY";
     -- dbt seed --
     
             insert into EMBUCKET.salesforce_v2_stitch.accounthistory (accountid, createdbyid, createddate, datatype, field, id, isdeleted, newvalue__bo, newvalue__de, newvalue__fl, newvalue__st, oldvalue__bo, oldvalue__de, oldvalue__fl, oldvalue__st, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

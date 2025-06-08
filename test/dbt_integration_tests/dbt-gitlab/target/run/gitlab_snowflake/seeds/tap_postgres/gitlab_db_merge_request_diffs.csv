@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_merge_request_diffs (id integer,state integer,merge_request_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,base_commit_sha integer,real_size integer,head_commit_sha integer,start_commit_sha integer,commits_count integer,external_diff integer,external_diff_store integer,stored_externally boolean,files_count integer,sorted boolean,diff_type integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_MERGE_REQUEST_DIFFS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_merge_request_diffs (id, state, merge_request_id, created_at, updated_at, base_commit_sha, real_size, head_commit_sha, start_commit_sha, commits_count, external_diff, external_diff_store, stored_externally, files_count, sorted, diff_type, _uploaded_at) values

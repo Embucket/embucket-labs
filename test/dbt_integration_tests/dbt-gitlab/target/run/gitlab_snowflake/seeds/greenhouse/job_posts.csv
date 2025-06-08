@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.greenhouse.job_posts (id integer,job_id float8,title integer,live boolean,job_board_name integer,language integer,location integer,created_at integer,updated_at integer,eeoc_enabled boolean,indeed_feed boolean,linkedin_feed float8,glassdoor_feed float8,first_published integer,organization_id integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."GREENHOUSE"."JOB_POSTS";
     -- dbt seed --
     
             insert into EMBUCKET.greenhouse.job_posts (id, job_id, title, live, job_board_name, language, location, created_at, updated_at, eeoc_enabled, indeed_feed, linkedin_feed, glassdoor_feed, first_published, organization_id, _updated_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.level_up.code_redemptions (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."LEVEL_UP"."CODE_REDEMPTIONS";
     -- dbt seed --
     
             insert into EMBUCKET.level_up.code_redemptions (jsontext, uploaded_at) values

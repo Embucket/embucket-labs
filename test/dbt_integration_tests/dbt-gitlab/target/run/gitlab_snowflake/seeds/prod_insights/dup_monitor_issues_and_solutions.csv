@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.prod_insights.dup_monitor_issues_and_solutions (account_id integer,tables text,full_table_id integer,project_name integer,dataset_name integer,created_on timestamp without time zone,table_name integer,table_type integer,monitor_uuid integer,monitor_type integer,agg_type integer,monitor_status integer,breach_rate_last_10_runs integer,suggestion integer,last_modified_by integer,monitor_url integer,domains integer,row_number integer)
-  ;
+    truncate table "EMBUCKET"."PROD_INSIGHTS"."DUP_MONITOR_ISSUES_AND_SOLUTIONS";
     -- dbt seed --
     
             insert into EMBUCKET.prod_insights.dup_monitor_issues_and_solutions (account_id, tables, full_table_id, project_name, dataset_name, created_on, table_name, table_type, monitor_uuid, monitor_type, agg_type, monitor_status, breach_rate_last_10_runs, suggestion, last_modified_by, monitor_url, domains, row_number) values

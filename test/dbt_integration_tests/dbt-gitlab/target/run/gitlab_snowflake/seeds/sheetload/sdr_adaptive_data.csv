@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.sdr_adaptive_data (current_month integer,name integer,start_month integer,add_internal_accounted integer,hiring_manager integer,role integer,region integer,segment integer,ghpid integer,employment integer,status integer,weighting integer,months_tenure integer,first_2_months integer,ramping integer,ramp_cutoff_date integer,start_date_assumption integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."SDR_ADAPTIVE_DATA";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.sdr_adaptive_data (current_month, name, start_month, add_internal_accounted, hiring_manager, role, region, segment, ghpid, employment, status, weighting, months_tenure, first_2_months, ramping, ramp_cutoff_date, start_date_assumption, _updated_at) values

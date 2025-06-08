@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.marketo.activity_email_bounced_soft (id integer,lead_id integer,activity_date timestamp without time zone,activity_type_id integer,campaign_id integer,primary_attribute_value_id integer,primary_attribute_value integer,campaign_run_id integer,category integer,email integer,details integer,subcategory integer,step_id integer,choice_number integer,_fivetran_synced timestamp without time zone,test_variant integer,action_result integer)
-  ;
+    truncate table "EMBUCKET"."MARKETO"."ACTIVITY_EMAIL_BOUNCED_SOFT";
     -- dbt seed --
     
             insert into EMBUCKET.marketo.activity_email_bounced_soft (id, lead_id, activity_date, activity_type_id, campaign_id, primary_attribute_value_id, primary_attribute_value, campaign_run_id, category, email, details, subcategory, step_id, choice_number, _fivetran_synced, test_variant, action_result) values

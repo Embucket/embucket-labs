@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.seed_data.snowflake_non_team_member_user_types (user_type text,user_name text,division text,department text)
-  ;
+    truncate table "EMBUCKET"."SEED_DATA"."SNOWFLAKE_NON_TEAM_MEMBER_USER_TYPES";
     -- dbt seed --
     
             insert into EMBUCKET.seed_data.snowflake_non_team_member_user_types (user_type, user_name, division, department) values

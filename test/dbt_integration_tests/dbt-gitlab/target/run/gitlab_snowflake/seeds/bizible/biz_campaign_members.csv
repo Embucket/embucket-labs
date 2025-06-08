@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.bizible.biz_campaign_members (id integer,modified_date timestamp without time zone,created_date timestamp without time zone,bizible_touch_point_date timestamp without time zone,lead_id integer,lead_email integer,contact_id integer,contact_email integer,status integer,has_responded boolean,first_responded_date timestamp without time zone,campaign_name integer,campaign_id integer,campaign_type integer,campaign_sync_type integer,lead_sync_status integer,contact_sync_status integer,opp_sync_status integer,is_deleted boolean,custom_properties integer,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."BIZIBLE"."BIZ_CAMPAIGN_MEMBERS";
     -- dbt seed --
     
             insert into EMBUCKET.bizible.biz_campaign_members (id, modified_date, created_date, bizible_touch_point_date, lead_id, lead_email, contact_id, contact_email, status, has_responded, first_responded_date, campaign_name, campaign_id, campaign_type, campaign_sync_type, lead_sync_status, contact_sync_status, opp_sync_status, is_deleted, custom_properties, _created_date, _modified_date, _deleted_date, uploaded_at) values

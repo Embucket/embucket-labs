@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.marketo.activity_click_email (id integer,lead_id integer,activity_date timestamp without time zone,activity_type_id integer,campaign_id integer,primary_attribute_value_id integer,primary_attribute_value integer,campaign_run_id integer,platform integer,is_mobile_device boolean,step_id integer,device integer,choice_number integer,is_bot_activity boolean,user_agent integer,bot_activity_pattern integer,link integer,_fivetran_synced timestamp without time zone,test_variant integer,action_result integer,browser integer)
-  ;
+    truncate table "EMBUCKET"."MARKETO"."ACTIVITY_CLICK_EMAIL";
     -- dbt seed --
     
             insert into EMBUCKET.marketo.activity_click_email (id, lead_id, activity_date, activity_type_id, campaign_id, primary_attribute_value_id, primary_attribute_value, campaign_run_id, platform, is_mobile_device, step_id, device, choice_number, is_bot_activity, user_agent, bot_activity_pattern, link, _fivetran_synced, test_variant, action_result, browser) values

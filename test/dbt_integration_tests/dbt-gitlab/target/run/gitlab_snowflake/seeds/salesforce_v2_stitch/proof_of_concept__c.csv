@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.salesforce_v2_stitch.proof_of_concept__c (account__c integer,createdbyid integer,createddate timestamp without time zone,decline_reason__c integer,general_notes__c integer,id integer,isdeleted boolean,lastactivitydate timestamp without time zone,lastmodifiedbyid integer,lastmodifieddate timestamp without time zone,lastreferenceddate timestamp without time zone,lastvieweddate timestamp without time zone,name integer,opportunity__c integer,poc_close_date__c timestamp without time zone,poc_length__c float8,poc_milestone_in_collaboration_project__c integer,poc_owner__c integer,poc_start_date__c timestamp without time zone,poc_type__c integer,result__c integer,sa_asm_leader_approved__c boolean,solutions_architect__c integer,status__c integer,success_criteria__c integer,systemmodstamp timestamp without time zone,technical_account_manager__c integer,unsuccessful_reason__c integer,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
-  ;
+    truncate table "EMBUCKET"."SALESFORCE_V2_STITCH"."PROOF_OF_CONCEPT__C";
     -- dbt seed --
     
             insert into EMBUCKET.salesforce_v2_stitch.proof_of_concept__c (account__c, createdbyid, createddate, decline_reason__c, general_notes__c, id, isdeleted, lastactivitydate, lastmodifiedbyid, lastmodifieddate, lastreferenceddate, lastvieweddate, name, opportunity__c, poc_close_date__c, poc_length__c, poc_milestone_in_collaboration_project__c, poc_owner__c, poc_start_date__c, poc_type__c, result__c, sa_asm_leader_approved__c, solutions_architect__c, status__c, success_criteria__c, systemmodstamp, technical_account_manager__c, unsuccessful_reason__c, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

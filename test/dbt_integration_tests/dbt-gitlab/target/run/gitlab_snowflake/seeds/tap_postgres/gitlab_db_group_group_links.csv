@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_group_group_links (id integer,created_at timestamp without time zone,updated_at timestamp without time zone,shared_group_id integer,shared_with_group_id integer,expires_at date,group_access integer,_uploaded_at float8,_task_instance integer)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_GROUP_GROUP_LINKS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_group_group_links (id, created_at, updated_at, shared_group_id, shared_with_group_id, expires_at, group_access, _uploaded_at, _task_instance) values

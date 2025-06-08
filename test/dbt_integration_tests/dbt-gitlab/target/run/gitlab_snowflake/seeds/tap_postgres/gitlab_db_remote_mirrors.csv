@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_remote_mirrors (id integer,project_id integer,url integer,enabled boolean,update_status integer,last_update_at integer,last_successful_update_at integer,last_error integer,created_at integer,updated_at integer,last_update_started_at integer,only_protected_branches boolean,remote_name integer,error_notification_sent boolean,keep_divergent_refs boolean,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_REMOTE_MIRRORS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_remote_mirrors (id, project_id, url, enabled, update_status, last_update_at, last_successful_update_at, last_error, created_at, updated_at, last_update_started_at, only_protected_branches, remote_name, error_notification_sent, keep_divergent_refs, _uploaded_at) values

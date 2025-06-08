@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.calendar (_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."CALENDAR";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.calendar (_updated_at) values

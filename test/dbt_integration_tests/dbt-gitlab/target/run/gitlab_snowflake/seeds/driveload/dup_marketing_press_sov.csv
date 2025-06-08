@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.driveload.dup_marketing_press_sov (Brand integer,Date integer,Media_Type integer,Media_Outlet integer,Title integer,Link integer,Author integer,Sentiment integer,Circulation integer,Desktop_Readership integer,Mobile_Readership integer,Total_Readership integer,Local_Viewership integer,National_Viewership float8,Shares float8,Ad_Equivalency integer,Article_Impact integer,SEO_Impact float8,Tags integer,Country integer,State integer,City integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."DRIVELOAD"."DUP_MARKETING_PRESS_SOV";
     -- dbt seed --
     
             insert into EMBUCKET.driveload.dup_marketing_press_sov (Brand, Date, Media_Type, Media_Outlet, Title, Link, Author, Sentiment, Circulation, Desktop_Readership, Mobile_Readership, Total_Readership, Local_Viewership, National_Viewership, Shares, Ad_Equivalency, Article_Impact, SEO_Impact, Tags, Country, State, City, _updated_at) values

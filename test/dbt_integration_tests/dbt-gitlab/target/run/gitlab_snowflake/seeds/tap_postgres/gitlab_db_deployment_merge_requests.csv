@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_deployment_merge_requests (deployment_id integer,merge_request_id integer,deployment_merge_request_id integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_DEPLOYMENT_MERGE_REQUESTS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_deployment_merge_requests (deployment_id, merge_request_id, deployment_merge_request_id, _uploaded_at) values

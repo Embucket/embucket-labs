@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_ml_experiments (id integer,created_at timestamp without time zone,updated_at timestamp without time zone,iid integer,project_id integer,user_id integer,name integer,deleted_on timestamp without time zone,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_ML_EXPERIMENTS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_ml_experiments (id, created_at, updated_at, iid, project_id, user_id, name, deleted_on, _uploaded_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.iterable.dup_user_history (_fivetran_id integer,updated_at timestamp without time zone,first_name integer,last_name integer,phone_number integer,user_id integer,signup_date timestamp without time zone,signup_source integer,email_list_ids text,email integer,phone_number_carrier integer,phone_number_country_code_iso integer,phone_number_line_type integer,phone_number_updated_at integer,iterable_user_id integer,additional_properties text,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."ITERABLE"."DUP_USER_HISTORY";
     -- dbt seed --
     
             insert into EMBUCKET.iterable.dup_user_history (_fivetran_id, updated_at, first_name, last_name, phone_number, user_id, signup_date, signup_source, email_list_ids, email, phone_number_carrier, phone_number_country_code_iso, phone_number_line_type, phone_number_updated_at, iterable_user_id, additional_properties, _fivetran_synced) values

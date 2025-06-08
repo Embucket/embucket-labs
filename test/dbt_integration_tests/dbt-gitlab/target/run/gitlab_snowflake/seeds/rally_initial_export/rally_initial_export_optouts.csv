@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.rally_initial_export.rally_initial_export_optouts (email integer,optedout boolean,updated_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."RALLY_INITIAL_EXPORT"."RALLY_INITIAL_EXPORT_OPTOUTS";
     -- dbt seed --
     
             insert into EMBUCKET.rally_initial_export.rally_initial_export_optouts (email, optedout, updated_at) values

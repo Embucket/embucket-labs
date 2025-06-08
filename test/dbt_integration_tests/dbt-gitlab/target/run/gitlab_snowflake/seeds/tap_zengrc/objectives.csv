@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_zengrc.objectives (_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone,code integer,created_at integer,custom_attributes text,description integer,id integer,links text,os_state integer,status integer,title integer,type integer,updated_at integer)
-  ;
+    truncate table "EMBUCKET"."TAP_ZENGRC"."OBJECTIVES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_zengrc.objectives (_sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at, code, created_at, custom_attributes, description, id, links, os_state, status, title, type, updated_at) values

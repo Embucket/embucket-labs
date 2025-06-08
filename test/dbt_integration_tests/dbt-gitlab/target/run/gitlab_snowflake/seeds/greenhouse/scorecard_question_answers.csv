@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.greenhouse.scorecard_question_answers (scorecard_id integer,application_id integer,question integer,answer integer,created_at integer,updated_at integer,scorecard_question_id integer,organization_id integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."GREENHOUSE"."SCORECARD_QUESTION_ANSWERS";
     -- dbt seed --
     
             insert into EMBUCKET.greenhouse.scorecard_question_answers (scorecard_id, application_id, question, answer, created_at, updated_at, scorecard_question_id, organization_id, _updated_at) values

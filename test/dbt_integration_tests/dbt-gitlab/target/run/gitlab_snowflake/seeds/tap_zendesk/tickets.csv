@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_zendesk.tickets (allow_attachments boolean,allow_channelback boolean,assignee_id float8,brand_id integer,collaborator_ids integer,created_at timestamp without time zone,custom_fields integer,description integer,due_at timestamp without time zone,email_cc_ids integer,external_id float8,follower_ids integer,followup_ids integer,forum_topic_id float8,generated_timestamp integer,group_id float8,has_incidents boolean,id integer,is_public boolean,organization_id float8,priority integer,problem_id float8,recipient integer,requester_id integer,satisfaction_rating integer,sharing_agreement_ids integer,status integer,subject integer,submitter_id integer,tags integer,ticket_form_id float8,type integer,updated_at timestamp without time zone,url integer,via integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_ZENDESK"."TICKETS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_zendesk.tickets (allow_attachments, allow_channelback, assignee_id, brand_id, collaborator_ids, created_at, custom_fields, description, due_at, email_cc_ids, external_id, follower_ids, followup_ids, forum_topic_id, generated_timestamp, group_id, has_incidents, id, is_public, organization_id, priority, problem_id, recipient, requester_id, satisfaction_rating, sharing_agreement_ids, status, subject, submitter_id, tags, ticket_form_id, type, updated_at, url, via, _uploaded_at) values

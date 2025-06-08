@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_integrations (id integer,type integer,project_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,active boolean,template integer,push_events boolean,issues_events boolean,merge_requests_events boolean,tag_push_events boolean,note_events boolean,category integer,wiki_page_events boolean,pipeline_events boolean,confidential_issues_events boolean,commit_events boolean,job_events boolean,confidential_note_events boolean,deployment_events boolean,comment_on_event_enabled boolean,group_id integer,inherit_from_id integer,instance boolean,type_new integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_INTEGRATIONS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_integrations (id, type, project_id, created_at, updated_at, active, template, push_events, issues_events, merge_requests_events, tag_push_events, note_events, category, wiki_page_events, pipeline_events, confidential_issues_events, commit_events, job_events, confidential_note_events, deployment_events, comment_on_event_enabled, group_id, inherit_from_id, instance, type_new, _uploaded_at) values

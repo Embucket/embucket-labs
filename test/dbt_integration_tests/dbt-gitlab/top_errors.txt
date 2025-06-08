@@ -1,4 +1,4 @@
- TOP errors:
+# Total top10 errors
  204 DataFusion error: Error during planning: Inserting query must have the same schema with the table.
   22 DataFusion error: Error during planning: Invalid function 'sha2'.
   15 DataFusion error: This feature is not implemented: Unsupported SQL type Datetime(None)
@@ -9,8 +9,8 @@
    6 DataFusion error: Error during planning: Cannot infer common argument type for comparison operation Boolean = Int64
    4 DataFusion error: This feature is not implemented: Unsupported SQL type Custom(ObjectName([Identifier(Ident { value: "TIMESTAMP_TZ", quote_style: None, span: Span(Location(1,282)..Location(1,294)) })]), [])
    4 DataFusion error: This feature is not implemented: Unsupported SQL type Custom(ObjectName([Identifier(Ident { value: "TIMESTAMP_TZ", quote_style: None, span: Span(Location(1,267)..Location(1,279)) })]), [])
-  
-  TOP errors, function specific:
+
+# Top functions errors
   22 DataFusion error: Error during planning: Invalid function 'sha2'.
    2 DataFusion error: Error during planning: Invalid function 'try_to_number'.
    2 DataFusion error: Error during planning: Invalid function 'try_to_date'.

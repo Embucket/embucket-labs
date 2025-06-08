@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.data_team_capacity (milestone_name integer,milestone_id integer,gitlab_handle integer,capacity integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."DATA_TEAM_CAPACITY";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.data_team_capacity (milestone_name, milestone_id, gitlab_handle, capacity, _updated_at) values

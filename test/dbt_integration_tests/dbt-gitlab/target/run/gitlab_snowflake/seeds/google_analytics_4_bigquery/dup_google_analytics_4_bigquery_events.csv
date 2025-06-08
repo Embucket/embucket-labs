@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.google_analytics_4_bigquery.dup_google_analytics_4_bigquery_events (value text,date_part date)
-  ;
+    truncate table "EMBUCKET"."GOOGLE_ANALYTICS_4_BIGQUERY"."DUP_GOOGLE_ANALYTICS_4_BIGQUERY_EVENTS";
     -- dbt seed --
     
             insert into EMBUCKET.google_analytics_4_bigquery.dup_google_analytics_4_bigquery_events (value, date_part) values

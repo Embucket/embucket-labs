@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_issues_internal_only (id integer,iid integer,title integer,description integer,project_id integer,service_desk_reply_to integer,updated_at timestamp without time zone,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_ISSUES_INTERNAL_ONLY";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_issues_internal_only (id, iid, title, description, project_id, service_desk_reply_to, updated_at, _uploaded_at) values

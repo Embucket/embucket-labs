@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.workday.gitlab_usernames (workday_id integer,effective_date date,employee_id integer,gitlab_username integer,date_time_completed timestamp without time zone,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."WORKDAY"."GITLAB_USERNAMES";
     -- dbt seed --
     
             insert into EMBUCKET.workday.gitlab_usernames (workday_id, effective_date, employee_id, gitlab_username, date_time_completed, _fivetran_deleted, _fivetran_synced) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.license_md5_to_subscription_mapping (license_md5 integer,zuora_subscription_id integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."LICENSE_MD5_TO_SUBSCRIPTION_MAPPING";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.license_md5_to_subscription_mapping (license_md5, zuora_subscription_id, _updated_at) values

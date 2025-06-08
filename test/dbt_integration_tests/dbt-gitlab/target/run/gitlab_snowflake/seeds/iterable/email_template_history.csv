@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.iterable.email_template_history (id integer,updated_at timestamp without time zone,campaign_id integer,from_email integer,from_name integer,google_analytics_campaign_name integer,html integer,plain_text integer,preheader_text integer,reply_to_email integer,subject integer,locale integer,cache_data_feed boolean,data_feed_id integer,data_feed_ids text,is_default_locale boolean,merge_data_feed_context boolean,_fivetran_synced timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."ITERABLE"."EMAIL_TEMPLATE_HISTORY";
     -- dbt seed --
     
             insert into EMBUCKET.iterable.email_template_history (id, updated_at, campaign_id, from_email, from_name, google_analytics_campaign_name, html, plain_text, preheader_text, reply_to_email, subject, locale, cache_data_feed, data_feed_id, data_feed_ids, is_default_locale, merge_data_feed_context, _fivetran_synced) values

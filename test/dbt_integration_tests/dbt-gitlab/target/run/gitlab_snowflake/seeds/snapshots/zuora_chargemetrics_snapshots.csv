@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.snapshots.zuora_chargemetrics_snapshots (id integer,subscriptionowneraccountnumber integer,invoiceowneraccountnumber integer,subscriptionname integer,chargenumber integer,rateplanchargeid integer,productid integer,productrateplanid integer,productrateplanchargeid integer,amendmentid integer,amendmenttype integer,startdate integer,enddate integer,mrrgrossamount float8,mrrnetamount float8,mrrdiscountamount float8,tcvgrossamount float8,tcvnetamount float8,tcvdiscountamount float8,currency integer,createddate integer,updateddate integer,deleted boolean,_uploaded_at float8,dbt_scd_id integer,dbt_updated_at integer,dbt_valid_from integer,dbt_valid_to integer)
-  ;
+    truncate table "EMBUCKET"."SNAPSHOTS"."ZUORA_CHARGEMETRICS_SNAPSHOTS";
     -- dbt seed --
     
             insert into EMBUCKET.snapshots.zuora_chargemetrics_snapshots (id, subscriptionowneraccountnumber, invoiceowneraccountnumber, subscriptionname, chargenumber, rateplanchargeid, productid, productrateplanid, productrateplanchargeid, amendmentid, amendmenttype, startdate, enddate, mrrgrossamount, mrrnetamount, mrrdiscountamount, tcvgrossamount, tcvnetamount, tcvdiscountamount, currency, createddate, updateddate, deleted, _uploaded_at, dbt_scd_id, dbt_updated_at, dbt_valid_from, dbt_valid_to) values

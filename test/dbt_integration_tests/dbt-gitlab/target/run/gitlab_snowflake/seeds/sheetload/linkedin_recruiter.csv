@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.linkedin_recruiter (seat_holder integer,messages_sent integer,responses_received integer,acceptances integer,declines integer,no_response integer,responses_rate integer,accept_rate integer,month integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."LINKEDIN_RECRUITER";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.linkedin_recruiter (seat_holder, messages_sent, responses_received, acceptances, declines, no_response, responses_rate, accept_rate, month, _updated_at) values

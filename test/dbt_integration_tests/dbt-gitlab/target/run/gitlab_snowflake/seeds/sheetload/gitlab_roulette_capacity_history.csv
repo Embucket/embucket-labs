@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.gitlab_roulette_capacity_history (project integer,role integer,timestamp integer,total_team_members integer,available_team_members integer,hungry_team_members integer,reduced_capacity_team_members integer,ooo_team_members integer,no_capacity_team_members integer,total_review_slots integer,available_review_slots integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."GITLAB_ROULETTE_CAPACITY_HISTORY";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.gitlab_roulette_capacity_history (project, role, timestamp, total_team_members, available_team_members, hungry_team_members, reduced_capacity_team_members, ooo_team_members, no_capacity_team_members, total_review_slots, available_review_slots, _updated_at) values

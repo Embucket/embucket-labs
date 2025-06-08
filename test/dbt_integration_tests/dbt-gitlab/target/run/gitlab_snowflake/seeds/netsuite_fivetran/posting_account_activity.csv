@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.netsuite_fivetran.posting_account_activity (account_id float8,fivetran_index integer,accounting_book_id float8,accounting_period_id float8,activity_date timestamp without time zone,amount float8,amount_foreign float8,class_id float8,department_id float8,entity_id float8,item_id float8,location_id float8,partner_id float8,promotion_code_id float8,quantity float8,sales_rep_id float8,subsidiary_id float8,_fivetran_deleted boolean,date_deleted timestamp without time zone,_fivetran_synced timestamp without time zone,custom_transaction_type_id float8,transaction_type integer)
-  ;
+    truncate table "EMBUCKET"."NETSUITE_FIVETRAN"."POSTING_ACCOUNT_ACTIVITY";
     -- dbt seed --
     
             insert into EMBUCKET.netsuite_fivetran.posting_account_activity (account_id, fivetran_index, accounting_book_id, accounting_period_id, activity_date, amount, amount_foreign, class_id, department_id, entity_id, item_id, location_id, partner_id, promotion_code_id, quantity, sales_rep_id, subsidiary_id, _fivetran_deleted, date_deleted, _fivetran_synced, custom_transaction_type_id, transaction_type) values

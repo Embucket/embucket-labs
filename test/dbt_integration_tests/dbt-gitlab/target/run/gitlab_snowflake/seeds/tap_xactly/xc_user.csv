@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_xactly.xc_user (accepted_contract integer,activated_date integer,business_group_id float8,created_by_id float8,created_by_name integer,created_date integer,email integer,enabled integer,ip_addresses integer,is_active integer,is_internal_user integer,is_passwd_reset integer,locale integer,modified_by_id float8,modified_by_name integer,modified_date integer,name integer,passwd_chg_dt integer,passwd_exp_dt integer,primary_role_type integer,source_id float8,user_id float8,user_uuid integer,version float8,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."TAP_XACTLY"."XC_USER";
     -- dbt seed --
     
             insert into EMBUCKET.tap_xactly.xc_user (accepted_contract, activated_date, business_group_id, created_by_id, created_by_name, created_date, email, enabled, ip_addresses, is_active, is_internal_user, is_passwd_reset, locale, modified_by_id, modified_by_name, modified_date, name, passwd_chg_dt, passwd_exp_dt, primary_role_type, source_id, user_id, user_uuid, version, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values

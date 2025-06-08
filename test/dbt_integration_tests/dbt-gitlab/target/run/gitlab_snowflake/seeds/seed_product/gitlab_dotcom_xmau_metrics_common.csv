@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.seed_product.gitlab_dotcom_xmau_metrics_common (common_events_to_include text,stage_name text,smau boolean,group_name text,gmau boolean,section_name text,is_umau boolean)
-  ;
+    truncate table "EMBUCKET"."SEED_PRODUCT"."GITLAB_DOTCOM_XMAU_METRICS_COMMON";
     -- dbt seed --
     
             insert into EMBUCKET.seed_product.gitlab_dotcom_xmau_metrics_common (common_events_to_include, stage_name, smau, group_name, gmau, section_name, is_umau) values

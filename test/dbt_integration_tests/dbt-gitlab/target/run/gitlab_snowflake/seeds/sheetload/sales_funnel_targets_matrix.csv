@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.sales_funnel_targets_matrix (kpi_name integer,month integer,opportunity_source integer,order_type integer,area integer,allocated_target integer,user_segment integer,user_geo integer,user_region integer,user_area integer,user_business_unit integer,user_role_type integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."SALES_FUNNEL_TARGETS_MATRIX";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.sales_funnel_targets_matrix (kpi_name, month, opportunity_source, order_type, area, allocated_target, user_segment, user_geo, user_region, user_area, user_business_unit, user_role_type, _updated_at) values

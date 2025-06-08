@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.marketo_lead_scores (activity_type integer,scored_action integer,previous_score integer,current_score integer,test_score integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."MARKETO_LEAD_SCORES";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.marketo_lead_scores (activity_type, scored_action, previous_score, current_score, test_score, _updated_at) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.bizible.biz_segments (id integer,name integer,row_key integer,_created_date timestamp without time zone,_modified_date timestamp without time zone,_deleted_date timestamp without time zone,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."BIZIBLE"."BIZ_SEGMENTS";
     -- dbt seed --
     
             insert into EMBUCKET.bizible.biz_segments (id, name, row_key, _created_date, _modified_date, _deleted_date, uploaded_at) values

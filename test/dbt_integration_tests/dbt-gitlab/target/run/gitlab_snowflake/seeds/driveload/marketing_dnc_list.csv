@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.driveload.marketing_dnc_list (address integer,is_role_address boolean,is_disposable_address boolean,did_you_mean float8,result integer,reason integer,risk integer,root_address integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."DRIVELOAD"."MARKETING_DNC_LIST";
     -- dbt seed --
     
             insert into EMBUCKET.driveload.marketing_dnc_list (address, is_role_address, is_disposable_address, did_you_mean, result, reason, risk, root_address, _updated_at) values

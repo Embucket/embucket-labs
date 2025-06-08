@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.salesforce_v2_stitch.opportunitysplittype (createdbyid integer,createddate timestamp without time zone,description integer,developername integer,id integer,isactive boolean,isdeleted boolean,istotalvalidated boolean,language integer,lastmodifiedbyid integer,lastmodifieddate timestamp without time zone,masterlabel integer,splitdatastatus integer,splitentity integer,splitfield integer,systemmodstamp timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
-  ;
+    truncate table "EMBUCKET"."SALESFORCE_V2_STITCH"."OPPORTUNITYSPLITTYPE";
     -- dbt seed --
     
             insert into EMBUCKET.salesforce_v2_stitch.opportunitysplittype (createdbyid, createddate, description, developername, id, isactive, isdeleted, istotalvalidated, language, lastmodifiedbyid, lastmodifieddate, masterlabel, splitdatastatus, splitentity, splitfield, systemmodstamp, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

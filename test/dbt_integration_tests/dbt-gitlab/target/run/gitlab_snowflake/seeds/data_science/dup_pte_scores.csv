@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.data_science.dup_pte_scores (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."DATA_SCIENCE"."DUP_PTE_SCORES";
     -- dbt seed --
     
             insert into EMBUCKET.data_science.dup_pte_scores (jsontext, uploaded_at) values

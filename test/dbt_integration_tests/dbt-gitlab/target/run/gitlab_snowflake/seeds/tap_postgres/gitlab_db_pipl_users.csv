@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_pipl_users (user_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,initial_email_sent_at timestamp without time zone,last_access_from_pipl_country_at timestamp without time zone,_uploaded_at integer)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_PIPL_USERS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_pipl_users (user_id, created_at, updated_at, initial_email_sent_at, last_access_from_pipl_country_at, _uploaded_at) values

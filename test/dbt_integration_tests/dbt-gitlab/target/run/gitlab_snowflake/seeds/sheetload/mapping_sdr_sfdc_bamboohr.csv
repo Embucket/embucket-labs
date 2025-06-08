@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.mapping_sdr_sfdc_bamboohr (user_id integer,first_name integer,last_name integer,username integer,active integer,profile integer,eeid integer,sdr_segment integer,sdr_region integer,sdr_order_type integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."MAPPING_SDR_SFDC_BAMBOOHR";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.mapping_sdr_sfdc_bamboohr (user_id, first_name, last_name, username, active, profile, eeid, sdr_segment, sdr_region, sdr_order_type, _updated_at) values

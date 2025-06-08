@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_alert_management_alert_assignees (id integer,user_id integer,alert_id integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_ALERT_MANAGEMENT_ALERT_ASSIGNEES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_alert_management_alert_assignees (id, user_id, alert_id, _uploaded_at) values

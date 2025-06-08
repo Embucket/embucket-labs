@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.seed_finance.zuora_excluded_accounts (account_id text,is_permanently_excluded boolean,description text)
-  ;
+    truncate table "EMBUCKET"."SEED_FINANCE"."ZUORA_EXCLUDED_ACCOUNTS";
     -- dbt seed --
     
             insert into EMBUCKET.seed_finance.zuora_excluded_accounts (account_id, is_permanently_excluded, description) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_packages_packages (id integer,project_id integer,created_at timestamp without time zone,updated_at timestamp without time zone,name integer,version integer,package_type integer,creator_id integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_PACKAGES_PACKAGES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_packages_packages (id, project_id, created_at, updated_at, name, version, package_type, creator_id, _uploaded_at) values

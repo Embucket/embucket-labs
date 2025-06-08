@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.version_db.fortune_companies (id integer,company integer,created_at integer,domain integer,rank integer,updated_at integer,_uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."VERSION_DB"."FORTUNE_COMPANIES";
     -- dbt seed --
     
             insert into EMBUCKET.version_db.fortune_companies (id, company, created_at, domain, rank, updated_at, _uploaded_at) values

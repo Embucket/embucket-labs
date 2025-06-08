@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.airflow_stitch.dag_run (creating_job_id integer,dag_hash integer,dag_id integer,data_interval_end timestamp without time zone,data_interval_start timestamp without time zone,end_date timestamp without time zone,execution_date timestamp without time zone,external_trigger boolean,id integer,last_scheduling_decision timestamp without time zone,log_template_id integer,queued_at timestamp without time zone,run_id integer,run_type integer,start_date timestamp without time zone,state integer,updated_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
-  ;
+    truncate table "EMBUCKET"."AIRFLOW_STITCH"."DAG_RUN";
     -- dbt seed --
     
             insert into EMBUCKET.airflow_stitch.dag_run (creating_job_id, dag_hash, dag_id, data_interval_end, data_interval_start, end_date, execution_date, external_trigger, id, last_scheduling_decision, log_template_id, queued_at, run_id, run_type, start_date, state, updated_at, _sdc_batched_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

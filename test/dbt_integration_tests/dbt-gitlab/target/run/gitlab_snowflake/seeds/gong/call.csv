@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.gong.call (id integer,workspace_id integer,primary_user_id integer,calendar_event_id integer,url integer,media integer,custom_data integer,sdr_disposition integer,is_private boolean,client_unique_id integer,direction integer,languages integer,scope integer,duration integer,title integer,meeting_url integer,systems integer,purpose integer,_fivetran_deleted boolean,_fivetran_synced timestamp without time zone,scheduled timestamp without time zone,media_video_url integer,company_question_count integer,non_company_question_count integer,started timestamp without time zone,media_audio_url integer)
-  ;
+    truncate table "EMBUCKET"."GONG"."CALL";
     -- dbt seed --
     
             insert into EMBUCKET.gong.call (id, workspace_id, primary_user_id, calendar_event_id, url, media, custom_data, sdr_disposition, is_private, client_unique_id, direction, languages, scope, duration, title, meeting_url, systems, purpose, _fivetran_deleted, _fivetran_synced, scheduled, media_video_url, company_question_count, non_company_question_count, started, media_audio_url) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.prometheus.periodic_queries (jsontext text,uploaded_at timestamp without time zone,source_file_name integer)
-  ;
+    truncate table "EMBUCKET"."PROMETHEUS"."PERIODIC_QUERIES";
     -- dbt seed --
     
             insert into EMBUCKET.prometheus.periodic_queries (jsontext, uploaded_at, source_file_name) values

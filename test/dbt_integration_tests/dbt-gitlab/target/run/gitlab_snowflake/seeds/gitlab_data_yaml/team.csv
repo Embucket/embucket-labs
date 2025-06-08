@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.gitlab_data_yaml.team (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."GITLAB_DATA_YAML"."TEAM";
     -- dbt seed --
     
             insert into EMBUCKET.gitlab_data_yaml.team (jsontext, uploaded_at) values

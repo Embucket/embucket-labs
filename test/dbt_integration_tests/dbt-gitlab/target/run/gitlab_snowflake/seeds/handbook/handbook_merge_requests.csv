@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.handbook.handbook_merge_requests (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."HANDBOOK"."HANDBOOK_MERGE_REQUESTS";
     -- dbt seed --
     
             insert into EMBUCKET.handbook.handbook_merge_requests (jsontext, uploaded_at) values

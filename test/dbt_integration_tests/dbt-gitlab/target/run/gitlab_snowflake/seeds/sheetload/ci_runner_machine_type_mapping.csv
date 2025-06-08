@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.ci_runner_machine_type_mapping (ci_runner_machine_type integer,ci_runner_description_mapping integer,cost_factor integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."CI_RUNNER_MACHINE_TYPE_MAPPING";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.ci_runner_machine_type_mapping (ci_runner_machine_type, ci_runner_description_mapping, cost_factor, _updated_at) values

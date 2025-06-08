@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_suggestions (id integer,note_id integer,relative_order integer,applied boolean,commit_id integer,from_content integer,to_content integer,lines_above integer,lines_below integer,outdated boolean,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_SUGGESTIONS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_suggestions (id, note_id, relative_order, applied, commit_id, from_content, to_content, lines_above, lines_below, outdated, _uploaded_at) values

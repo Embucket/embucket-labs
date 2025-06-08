@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.zuora_stitch.productrateplanchargetier (active boolean,createdbyid integer,createddate timestamp without time zone,currency integer,deleted boolean,discountamount float8,discountpercentage float8,endingunit float8,id integer,price float8,priceformat integer,productid integer,productrateplanchargeid integer,productrateplanid integer,startingunit float8,tier integer,updatedbyid integer,updateddate timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_extracted_at timestamp without time zone,_sdc_received_at timestamp without time zone,_sdc_sequence integer,_sdc_table_version integer)
-  ;
+    truncate table "EMBUCKET"."ZUORA_STITCH"."PRODUCTRATEPLANCHARGETIER";
     -- dbt seed --
     
             insert into EMBUCKET.zuora_stitch.productrateplanchargetier (active, createdbyid, createddate, currency, deleted, discountamount, discountpercentage, endingunit, id, price, priceformat, productid, productrateplanchargeid, productrateplanid, startingunit, tier, updatedbyid, updateddate, _sdc_batched_at, _sdc_extracted_at, _sdc_received_at, _sdc_sequence, _sdc_table_version) values

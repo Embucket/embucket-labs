@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_xactly.xc_quota_totals (amount float8,created_by_id float8,created_by_name integer,created_date integer,is_active integer,modified_by_id float8,modified_by_name integer,modified_date integer,name integer,participant_id float8,participant_name integer,period_id float8,position_id float8,position_name integer,quota_totals_id float8,unittype_id float8,version float8,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."TAP_XACTLY"."XC_QUOTA_TOTALS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_xactly.xc_quota_totals (amount, created_by_id, created_by_name, created_date, is_active, modified_by_id, modified_by_name, modified_date, name, participant_id, participant_name, period_id, position_id, position_name, quota_totals_id, unittype_id, version, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values

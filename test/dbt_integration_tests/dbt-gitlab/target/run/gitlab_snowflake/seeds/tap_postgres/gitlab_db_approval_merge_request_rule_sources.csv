@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_approval_merge_request_rule_sources (id integer,approval_merge_request_rule_id integer,approval_project_rule_id integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_APPROVAL_MERGE_REQUEST_RULE_SOURCES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_approval_merge_request_rule_sources (id, approval_merge_request_rule_id, approval_project_rule_id, _uploaded_at) values

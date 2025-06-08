@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_project_features (id integer,project_id integer,merge_requests_access_level integer,issues_access_level integer,wiki_access_level integer,snippets_access_level integer,builds_access_level integer,created_at integer,updated_at integer,repository_access_level integer,pages_access_level integer,forking_access_level integer,metrics_dashboard_access_level integer,requirements_access_level integer,operations_access_level integer,analytics_access_level integer,security_and_compliance_access_level integer,container_registry_access_level integer,package_registry_access_level integer,monitor_access_level integer,infrastructure_access_level integer,feature_flags_access_level integer,environments_access_level integer,releases_access_level integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_PROJECT_FEATURES";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_project_features (id, project_id, merge_requests_access_level, issues_access_level, wiki_access_level, snippets_access_level, builds_access_level, created_at, updated_at, repository_access_level, pages_access_level, forking_access_level, metrics_dashboard_access_level, requirements_access_level, operations_access_level, analytics_access_level, security_and_compliance_access_level, container_registry_access_level, package_registry_access_level, monitor_access_level, infrastructure_access_level, feature_flags_access_level, environments_access_level, releases_access_level, _uploaded_at) values

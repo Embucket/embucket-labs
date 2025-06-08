@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_zendesk.dup_tap_zendesk_tags (count integer,name integer,__loaded_at timestamp without time zone,_sdc_batched_at timestamp without time zone,_sdc_deleted_at integer,_sdc_extracted_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."TAP_ZENDESK"."DUP_TAP_ZENDESK_TAGS";
     -- dbt seed --
     
             insert into EMBUCKET.tap_zendesk.dup_tap_zendesk_tags (count, name, __loaded_at, _sdc_batched_at, _sdc_deleted_at, _sdc_extracted_at) values

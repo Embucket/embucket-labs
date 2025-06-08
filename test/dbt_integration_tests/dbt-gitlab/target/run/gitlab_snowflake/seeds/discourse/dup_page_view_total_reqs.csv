@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.discourse.dup_page_view_total_reqs (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."DISCOURSE"."DUP_PAGE_VIEW_TOTAL_REQS";
     -- dbt seed --
     
             insert into EMBUCKET.discourse.dup_page_view_total_reqs (jsontext, uploaded_at) values

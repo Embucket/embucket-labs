@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.snowplow.bad_events (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."SNOWPLOW"."BAD_EVENTS";
     -- dbt seed --
     
             insert into EMBUCKET.snowplow.bad_events (jsontext, uploaded_at) values

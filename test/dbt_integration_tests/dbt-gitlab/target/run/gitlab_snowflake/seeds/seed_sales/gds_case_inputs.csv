@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.seed_sales.gds_case_inputs (CASE_TRIGGER_ID integer,CASE_TRIGGER text,OWNER_ID text,STATUS text,CASE_ORIGIN text,TYPE text,CASE_SUBJECT text,CASE_REASON text,RECORD_TYPE_ID text,PRIORITY text,LIVE boolean,CASE_CTA text,CASE_CONTEXT text)
-  ;
+    truncate table "EMBUCKET"."SEED_SALES"."GDS_CASE_INPUTS";
     -- dbt seed --
     
             insert into EMBUCKET.seed_sales.gds_case_inputs (CASE_TRIGGER_ID, CASE_TRIGGER, OWNER_ID, STATUS, CASE_ORIGIN, TYPE, CASE_SUBJECT, CASE_REASON, RECORD_TYPE_ID, PRIORITY, LIVE, CASE_CTA, CASE_CONTEXT) values

@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.level_up.content (jsontext text,uploaded_at timestamp without time zone)
-  ;
+    truncate table "EMBUCKET"."LEVEL_UP"."CONTENT";
     -- dbt seed --
     
             insert into EMBUCKET.level_up.content (jsontext, uploaded_at) values

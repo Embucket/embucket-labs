@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.tap_postgres.gitlab_db_system_note_metadata (id integer,note_id integer,commit_count float8,action integer,created_at timestamp without time zone,updated_at timestamp without time zone,description_version_id integer,_uploaded_at float8)
-  ;
+    truncate table "EMBUCKET"."TAP_POSTGRES"."GITLAB_DB_SYSTEM_NOTE_METADATA";
     -- dbt seed --
     
             insert into EMBUCKET.tap_postgres.gitlab_db_system_note_metadata (id, note_id, commit_count, action, created_at, updated_at, description_version_id, _uploaded_at) values

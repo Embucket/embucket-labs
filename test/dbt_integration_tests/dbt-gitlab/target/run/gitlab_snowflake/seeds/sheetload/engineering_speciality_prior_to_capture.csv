@@ -1,9 +1,7 @@
 
     
     
-    
-    create table EMBUCKET.sheetload.engineering_speciality_prior_to_capture (employee_id integer,full_name integer,reports_to integer,division integer,department integer,jobtitle_speciality integer,effective_date integer,end_date integer,_updated_at float8)
-  ;
+    truncate table "EMBUCKET"."SHEETLOAD"."ENGINEERING_SPECIALITY_PRIOR_TO_CAPTURE";
     -- dbt seed --
     
             insert into EMBUCKET.sheetload.engineering_speciality_prior_to_capture (employee_id, full_name, reports_to, division, department, jobtitle_speciality, effective_date, end_date, _updated_at) values
