@@ -81,10 +81,17 @@ def generate_dbt_chart(output_dir='charts', errors_file='top_errors.txt'):
             xaxis_title='',
             yaxis_title='Run',
             xaxis=dict(range=[0, data['TOTAL']]),
-            legend=dict(orientation='h', yanchor='bottom', y=-0.2, xanchor='center', x=0.5),
-            margin=dict(t=50, l=50, r=50, b=50),
+            legend=dict(
+                orientation='h',
+                yanchor='bottom',
+                y=-0.7,
+                xanchor='center',
+                x=0.5,
+                font=dict(size=8)
+            ),
+            margin=dict(l=30, r=30, t=30, b=30),
             width=900,
-            height=400,
+            height=150,
             showlegend=True
         )
 
