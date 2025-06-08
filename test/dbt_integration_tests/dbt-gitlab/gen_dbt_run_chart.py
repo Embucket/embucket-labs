@@ -62,6 +62,7 @@ def generate_dbt_chart(output_dir='charts', errors_file='top_errors.txt'):
         fig = go.Figure(data=[
             go.Bar(
                 y=['DBT Run'],
+                #yaxis=dict(title_font=dict(size=10, color='black'), tickfont=dict(color='white')),
                 x=[df.loc[df['Status'] == status, 'Count'].iloc[0]],
                 name=status,
                 marker_color=color,
@@ -77,9 +78,15 @@ def generate_dbt_chart(output_dir='charts', errors_file='top_errors.txt'):
 
         fig.update_layout(
             barmode='stack',
-            title=f"Embucket DBT-Gitlab Run Status (Total: {data['TOTAL']})",
+            title=dict(
+                text=f"Embucket DBT-Gitlab Run Status (Total: {data['TOTAL']})",
+                font=dict(size=12, color='black'),
+                y=0.9,  # Moved down slightly
+                x=0.5,
+                xanchor='center'
+            ),
             xaxis_title='',
-            yaxis_title='Run',
+            #yaxis_title='Run',
             xaxis=dict(range=[0, data['TOTAL']]),
             legend=dict(
                 orientation='h',
