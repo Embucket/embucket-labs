@@ -669,7 +669,6 @@ function SidebarMenuSubButton({
         size === 'sm' && 'text-xs',
         size === 'md' && 'text-sm',
         'group-data-[collapsible=icon]:hidden',
-        disabled && 'pointer-events-none opacity-50',
         className,
       )}
       {...props}

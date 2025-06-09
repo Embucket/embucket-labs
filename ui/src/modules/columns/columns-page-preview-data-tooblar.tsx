@@ -23,7 +23,9 @@ export function ColumnsPagePreviewDataToolbar({ previewData }: ColumnsPagePrevie
 
   return (
     <div className="flex items-center justify-between gap-4 p-4">
-      <p className="text-muted-foreground text-sm text-nowrap">{previewData.length} rows found</p>
+      <p className="text-muted-foreground text-sm text-nowrap">
+        {previewData[0]?.rows.length ?? 0} rows found
+      </p>
       <div className="justify flex items-center justify-between gap-2">
         <InputRoot className="w-full">
           <InputIcon>

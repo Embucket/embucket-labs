@@ -143,8 +143,8 @@ interface TreesDatabasesProps extends TreeItemProps<NavigationTreeDatabase> {
 }
 
 export function TreesDatabases({
-  isFetchingDatabases,
   databases,
+  isFetchingDatabases,
   isActive,
   defaultOpen,
   onClick,
@@ -156,10 +156,11 @@ export function TreesDatabases({
   const [createVolumeDialogOpened, setCreateVolumeDialogOpened] = useState(false);
   const [createDatabaseDialogOpened, setCreateDatabaseDialogOpened] = useState(false);
 
-  if (isFetchingDatabases || isFetchingVolumes) {
-    return null;
+  if (isFetchingVolumes || isFetchingDatabases) {
+    return <TreesSkeleton />;
   }
 
+  // TODO: Not the best place to put empty states for volumes
   if (!volumes?.length) {
     return (
       <>

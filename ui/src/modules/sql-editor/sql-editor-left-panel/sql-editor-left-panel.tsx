@@ -12,7 +12,6 @@ import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { SqlEditorResizableHandle, SqlEditorResizablePanel } from '../sql-editor-resizable';
 import type { LeftPanelTab } from '../sql-editor-settings-store';
 import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
-import { useSyncSqlEditorTabs } from '../use-sync-sql-editor-tabs';
 import { SqlEditorLeftBottomPanel } from './sql-editor-left-panel-table-columns/sql-editor-left-bottom-panel';
 import { SqlEditorLeftPanelTrees } from './sql-editor-left-panel-trees/sql-editor-left-panel-trees';
 import { SqlEditorLeftPanelWorksheetsToolbar } from './sql-editor-left-panel-worksheets-toolbar';
@@ -32,8 +31,6 @@ export const SqlEditorLeftPanel = () => {
   } = useGetWorksheets();
 
   const { leftBottomRef, setLeftBottomPanelExpanded } = useSqlEditorPanelsState();
-
-  useSyncSqlEditorTabs();
 
   return (
     <>
@@ -84,7 +81,10 @@ export const SqlEditorLeftPanel = () => {
                   isFetchingWorksheets={isFetchingWorksheets}
                   onRefetchWorksheets={refetchWorksheets}
                 />
-                <SqlEditorLeftPanelWorksheets worksheets={worksheets ?? []} />
+                <SqlEditorLeftPanelWorksheets
+                  isFetchingWorksheets={isFetchingWorksheets}
+                  worksheets={worksheets ?? []}
+                />
               </TabsContent>
             </SidebarGroupContent>
           </SidebarGroup>

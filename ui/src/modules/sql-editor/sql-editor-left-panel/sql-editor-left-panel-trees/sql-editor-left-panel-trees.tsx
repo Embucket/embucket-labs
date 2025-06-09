@@ -39,7 +39,9 @@ export function SqlEditorLeftPanelTrees() {
           isFetchingDatabases={isFetchingNavigationTrees}
           defaultOpen={(db) =>
             db.schemas.some((schema) =>
-              schema.tables.some((table) => table.name === selectedTree?.tableName),
+              [...schema.tables, ...schema.views].some(
+                (table) => table.name === selectedTree?.tableName,
+              ),
             ) && db.name === selectedTree?.databaseName
           }
         >
@@ -47,8 +49,9 @@ export function SqlEditorLeftPanelTrees() {
             <TreesSchemas
               schemas={database.schemas}
               defaultOpen={(schema) =>
-                schema.tables.some((table) => table.name === selectedTree?.tableName) &&
-                schema.name === selectedTree?.schemaName
+                [...schema.tables, ...schema.views].some(
+                  (table) => table.name === selectedTree?.tableName,
+                ) && schema.name === selectedTree?.schemaName
               }
             >
               {(schema) => (

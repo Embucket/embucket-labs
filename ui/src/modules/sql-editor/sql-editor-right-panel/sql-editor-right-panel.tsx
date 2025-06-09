@@ -7,11 +7,12 @@ import { useGetQueries } from '@/orval/queries';
 
 import { useSqlEditorPanelsState } from '../sql-editor-panels-state-provider';
 import { SqlEditorRightPanelQueries } from './sql-editor-right-panel-queries';
+import { SqlEditorRightPanelQueriesSkeleton } from './sql-editor-right-panel-queries-skeleton';
 
 export const SqlEditorRightPanel = () => {
   const { toggleRightPanel } = useSqlEditorPanelsState();
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
-  const { data: { items: queries } = {} } = useGetQueries(
+  const { data: { items: queries } = {}, isFetching: isFetchingQueries } = useGetQueries(
     { worksheetId: +worksheetId },
     { query: { enabled: worksheetId !== 'undefined' } },
   );
@@ -37,7 +38,11 @@ export const SqlEditorRightPanel = () => {
       </div>
       {/* TODO: Hardcode */}
       <ScrollArea className="h-[calc(100vh-136px)]">
-        <SqlEditorRightPanelQueries />
+        {isFetchingQueries ? (
+          <SqlEditorRightPanelQueriesSkeleton />
+        ) : (
+          <SqlEditorRightPanelQueries />
+        )}
         <ScrollBar orientation="vertical" />
       </ScrollArea>
     </>

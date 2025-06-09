@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { useGetNavigationTrees } from '@/orval/navigation-trees';
 import { useGetTableColumns, useGetTablePreviewData } from '@/orval/tables';
 
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
@@ -11,11 +12,25 @@ export function SqlEditorLeftBottomPanel() {
   const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
   const [open, setOpen] = useState(false);
 
+  const { isFetching: isFetchingNavigationTrees } = useGetNavigationTrees();
+
+  const isEnabled =
+    !isFetchingNavigationTrees &&
+    !!selectedTree?.databaseName &&
+    !!selectedTree.schemaName &&
+    !!selectedTree.tableName;
+
   const { data: { items: previewData } = {}, isFetching: isPreviewDataFetching } =
     useGetTablePreviewData(
       selectedTree?.databaseName ?? '',
       selectedTree?.schemaName ?? '',
       selectedTree?.tableName ?? '',
+      undefined,
+      {
+        query: {
+          enabled: isEnabled,
+        },
+      },
     );
 
   const { data: { items: columns } = {} } = useGetTableColumns(
@@ -24,8 +39,7 @@ export function SqlEditorLeftBottomPanel() {
     selectedTree?.tableName ?? '',
     {
       query: {
-        enabled:
-          !!selectedTree?.databaseName && !!selectedTree.schemaName && !!selectedTree.tableName,
+        enabled: isEnabled,
       },
     },
   );

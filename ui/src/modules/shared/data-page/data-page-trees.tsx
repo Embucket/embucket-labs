@@ -58,7 +58,7 @@ export function DataPageTrees() {
               schemas={database.schemas}
               defaultOpen={(schema) =>
                 schema.name === schemaName ||
-                schema.tables.some((table) => table.name === tableName)
+                [...schema.tables, ...schema.views].some((table) => table.name === tableName)
               }
               isActive={(schema) => schema.name === schemaName}
               onClick={handleSchemaClick}
