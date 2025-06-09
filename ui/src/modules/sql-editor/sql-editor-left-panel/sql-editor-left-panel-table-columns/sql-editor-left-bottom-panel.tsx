@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { useGetTableColumns } from '@/orval/tables';
+import { useGetTableColumns, useGetTablePreviewData } from '@/orval/tables';
 
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 import { SqlEditorLeftPanelTableColumns } from './sql-editor-left-panel-table-columns';
@@ -10,6 +10,13 @@ import { SqlEditorLeftPanelTableColumnsToolbar } from './sql-editor-left-panel-t
 export function SqlEditorLeftBottomPanel() {
   const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
   const [open, setOpen] = useState(false);
+
+  const { data: { items: previewData } = {}, isFetching: isPreviewDataFetching } =
+    useGetTablePreviewData(
+      selectedTree?.databaseName ?? '',
+      selectedTree?.schemaName ?? '',
+      selectedTree?.tableName ?? '',
+    );
 
   const { data: { items: columns } = {} } = useGetTableColumns(
     selectedTree?.databaseName ?? '',
@@ -29,10 +36,16 @@ export function SqlEditorLeftBottomPanel() {
 
   return (
     <>
-      <SqlEditorLeftPanelTableColumnsToolbar selectedTree={selectedTree} onSetOpen={setOpen} />
+      <SqlEditorLeftPanelTableColumnsToolbar
+        previewData={previewData ?? []}
+        selectedTree={selectedTree}
+        onSetOpen={setOpen}
+      />
       <SqlEditorLeftPanelTableColumns columns={columns} />
       {selectedTree && (
         <SqlEditorLeftPanelTableColumnsPreviewDialog
+          previewData={previewData ?? []}
+          isPreviewDataFetching={isPreviewDataFetching}
           selectedTree={selectedTree}
           opened={open}
           onSetOpened={setOpen}

@@ -2,29 +2,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { DataPreviewTable } from '@/modules/shared/data-preview-table/data-preview-table';
 import type { SelectedTree } from '@/modules/shared/trees/trees-items';
-import { useGetTablePreviewData } from '@/orval/tables';
+import type { TablePreviewDataColumn } from '@/orval/models';
 
 interface SqlEditorLeftPanelTableColumnsPreviewDialogProps {
   opened: boolean;
   selectedTree: SelectedTree;
   onSetOpened: (opened: boolean) => void;
+  previewData: TablePreviewDataColumn[];
+  isPreviewDataFetching: boolean;
 }
 
 export function SqlEditorLeftPanelTableColumnsPreviewDialog({
   opened,
   onSetOpened,
-  selectedTree,
+  previewData,
+  isPreviewDataFetching,
 }: SqlEditorLeftPanelTableColumnsPreviewDialogProps) {
-  const { data: { items: columns } = {}, isFetching } = useGetTablePreviewData(
-    selectedTree.databaseName,
-    selectedTree.schemaName,
-    selectedTree.tableName,
-  );
-
-  if (!columns?.length) {
-    return null;
-  }
-
   return (
     <Dialog open={opened} onOpenChange={onSetOpened}>
       {/* TODO: Hardcode */}
@@ -37,7 +30,7 @@ export function SqlEditorLeftPanelTableColumnsPreviewDialog({
           tableViewport
           className="size-full max-h-[calc(100vh-32px-48px-18px-24px)]! max-w-[calc(100vw-32px-48px)]!"
         >
-          <DataPreviewTable columns={columns} isLoading={isFetching} />
+          <DataPreviewTable columns={previewData} isLoading={isPreviewDataFetching} />
           <ScrollBar orientation="horizontal" />
           <ScrollBar orientation="vertical" />
         </ScrollArea>
