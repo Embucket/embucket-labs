@@ -58,7 +58,7 @@ SELECT
   REGEXP_REPLACE(page_url, '^https?:\/\/')                                                                          AS page_url_host_path,
   page_urlscheme                                                                                                    AS page_url_scheme,
   page_urlpath                                                                                                      AS page_url_path,
-  {{ clean_url('page_urlpath') }} AS clean_url_path,
+  Null AS clean_url_path,
   page_urlfragment                                                                                                  AS page_url_fragment,
   page_urlquery                                                                                                     AS page_url_query,
   {{ dbt_utils.generate_surrogate_key([
