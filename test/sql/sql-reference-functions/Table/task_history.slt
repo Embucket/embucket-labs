@@ -6,7 +6,7 @@ exclude-from-coverage
 statement ok
 CREATE OR REPLACE TASK task_history_test_task
   WAREHOUSE = COMPUTE_WH
-  SCHEDULE = '1 MINUTE'
+  SCHEDULE = 'USING CRON 0 0 * * * UTC'
 AS
   INSERT INTO task_history_test_table VALUES (1);
 
