@@ -71,10 +71,10 @@ echo ""
     dbt clean
     dbt deps
     if [ "$DBT_TARGET" = "embucket" ]; then
-    dbt seed
+        dbt seed
     fi
-#    dbt seed --select gitlab_db_project_statistics
-#    dbt run --full-refresh
+    # dbt seed --select gitlab_db_project_statistics
+    # dbt run
     # if [ "$DBT_TARGET" = "embucket" ]; then
     # dbt run --full-refresh --select result:success --state target_to_run 2>&1 | tee run.log
     # else 
