@@ -645,12 +645,14 @@ function SidebarMenuSubButton({
   asChild = false,
   size = 'md',
   isActive = false,
+  disabled,
   className,
   ...props
 }: React.ComponentProps<'a'> & {
   asChild?: boolean;
   size?: 'sm' | 'md';
   isActive?: boolean;
+  disabled?: boolean;
 }) {
   const Comp = asChild ? Slot : 'a';
 
@@ -660,12 +662,14 @@ function SidebarMenuSubButton({
       data-sidebar="menu-sub-button"
       data-size={size}
       data-active={isActive}
+      aria-disabled={disabled}
       className={cn(
         'text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:text-sidebar-accent-foreground [&>svg]:text-muted-foreground data-[active=true]:[&>svg]:text-foreground flex h-7 min-w-0 -translate-x-px cursor-pointer items-center gap-2 overflow-hidden rounded-md px-2 outline-hidden focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0',
         'data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground',
         size === 'sm' && 'text-xs',
         size === 'md' && 'text-sm',
         'group-data-[collapsible=icon]:hidden',
+        disabled && 'pointer-events-none opacity-50',
         className,
       )}
       {...props}

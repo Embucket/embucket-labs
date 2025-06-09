@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 
+import { keepPreviousData } from '@tanstack/react-query';
 import { Database, Folder, FolderTree, Table } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
@@ -24,6 +25,7 @@ import { useGetVolumes } from '@/orval/volumes';
 import { CreateDatabaseDialog } from '../create-database-dialog/create-database-dialog';
 import { CreateVolumeDialog } from '../create-volume-dialog/create-volume-dialog';
 import { TreeCollapsibleItem } from './trees-collapsible-item';
+import { TreesSkeleton } from './trees-skeleton';
 import { TreesToolbar } from './trees-toolbar';
 
 interface TreeItemProps<T> {
@@ -223,8 +225,11 @@ interface TreesLayoutProps {
 }
 
 export function TreesLayout({ children, scrollAreaClassName }: TreesLayoutProps) {
-  const { refetch: refetchNavigationTrees, isFetching: isFetchingNavigationTrees } =
-    useGetNavigationTrees();
+  const {
+    refetch: refetchNavigationTrees,
+    isFetching: isFetchingNavigationTrees,
+    isLoading: isLoadingNavigationTrees,
+  } = useGetNavigationTrees({}, { query: { placeholderData: keepPreviousData } });
 
   return (
     <>
@@ -233,7 +238,9 @@ export function TreesLayout({ children, scrollAreaClassName }: TreesLayoutProps)
         onRefetchNavigationTrees={refetchNavigationTrees}
       />
       <ScrollArea className={cn('py-2', scrollAreaClassName)}>
-        <SidebarMenu className="w-full px-2 select-none">{children}</SidebarMenu>
+        <SidebarMenu className="w-full px-2 select-none">
+          {isLoadingNavigationTrees ? <TreesSkeleton /> : children}
+        </SidebarMenu>
         <ScrollBar orientation="vertical" />
       </ScrollArea>
     </>
