@@ -109,13 +109,13 @@ logical_boolean()  // For boolean types
 
 ## Registration Process
 
-After implementing your function, you **MUST** register it properly:
+After implementing the function, it **MUST** be registered properly:
 
 ### 1. Register the function in Code
-Add your function to the appropriate function registry module. The easiest way is to register it through lib.rs with updating `register_udfs` function.
+Add the function to the appropriate function registry module. The easiest way is to register it through lib.rs with updating `register_udfs` function.
 
 ### 2. Add to Tracking (REQUIRED)
-Add your function name to `implemented_functions.csv`:
+Add the function name to `implemented_functions.csv`:
 
 ### 3. Regenerate Unimplemented Functions with Documentation (RECOMMENDED)
 ```bash
@@ -124,7 +124,7 @@ cargo fmt
 ```
 
 ### 4. Alternative (NOT RECOMMENDED)
-For simplicity or when using AI agents, you can manually delete the function from `generated_snowflake_functions.rs`, but this approach is **not recommended** in general or if you work on multiple function simultaneously.
+For simplicity or when using AI agents, the function from `generated_snowflake_functions.rs` can be manually deleted, but this approach is **not recommended** in general or if multiple functions are implemented simultaneously.
 
 ## Testing Strategy
 
@@ -133,17 +133,17 @@ Use the `test_query!` macro for integration testing:
 
 ```rust
 test_query!(
-    your_function_name,
-    "SELECT your_function_name('test_input')",
+    function_name,
+    "SELECT function_name('test_input')",
     "CREATE TABLE test_table (col_name string)", // setup queries optional
-    snapshot_path = "your_function_name"
+    snapshot_path = "function_name"
 );
 ```
 
-The snapshot test folder should match your function name.
+The snapshot test folder should match the function name.
 
 ### Optional: Unit Tests
-You can add unit tests directly in your function file:
+Unit tests can be added directly in the function file:
 
 ```rust
 #[cfg(test)]
@@ -182,13 +182,15 @@ fn return_type(&self, arg_types: &[DataType]) -> Result<DataType> {
 fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
     // Use exec_err! for runtime execution errors
     // Handle nulls appropriately (usually null in → null out)
+    // Try using arrow compute methods (datafusion::arrow::compute) where possible.
+    // For exmaple: datafusion::arrow::compute::cast for casting, datafusion::arrow::compute::kernels::cmp::eq for equality checks, etc.
 }
 ```
 
 ## Common Pitfalls
 
 1. **Performance**: Handle scalar inputs efficiently, don't always convert to arrays
-2. **Nulls**: Properly handle null propagation in your logic
+2. **Nulls**: Properly handle null propagation in the logic
 3. **Types**: Validate input types in `return_type()` or `invoke_with_args()`
 4. **Memory**: Use appropriate Arrow array builders for large results
 5. **Errors**: Use `exec_err!()` for return_type errors, handle planning vs execution errors appropriately

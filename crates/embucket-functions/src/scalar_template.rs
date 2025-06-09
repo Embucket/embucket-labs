@@ -20,6 +20,7 @@ use datafusion_expr::simplify::{ExprSimplifyResult, SimplifyInfo};
 /// 4. Implement the core logic in `invoke_with_args`
 /// 5. Add/remove optional methods based on your needs (see comments below)
 /// 6. Add doc-style comments to the function
+/// 7. Remove all instruction comments
 #[derive(Debug)]
 pub struct YourFunctionName {
     signature: Signature,
