@@ -1,5 +1,5 @@
 use crate::visitors::{
-    functions_rewriter, inline_aliases_in_query, json_element, select_expr_aliases,
+    functions_rewriter, inline_aliases_in_query, json_element, select_expr_aliases, table_function,
 };
 use datafusion::prelude::SessionContext;
 use datafusion::sql::parser::Statement as DFStatement;
@@ -169,6 +169,39 @@ fn test_inline_aliases_in_query() -> DFResult<()> {
         let mut statement = state.sql_to_statement(input, "snowflake")?;
         if let DFStatement::Statement(ref mut stmt) = statement {
             inline_aliases_in_query::visit(stmt);
+        }
+        assert_eq!(statement.to_string(), expected);
+    }
+    Ok(())
+}
+
+#[test]
+fn test_table_function_result_scan() -> DFResult<()> {
+    let state = SessionContext::new().state();
+    let cases = vec![
+        (
+            "SELECT * FROM table(RESULT_SCAN(LAST_QUERY_ID(-2)))",
+            "SELECT * FROM RESULT_SCAN(LAST_QUERY_ID(-2))",
+        ),
+        (
+            "SELECT * FROM table(FUNC('1'))",
+            "SELECT * FROM TABLE(FUNC('1'))",
+        ),
+        (
+            "SELECT c2 FROM TABLE(RESULT_SCAN('id')) WHERE c2 > 1",
+            "SELECT c2 FROM RESULT_SCAN('id') WHERE c2 > 1",
+        ),
+        (
+            "select a.*, b.IS_ICEBERG as 'is_iceberg'
+            from table(result_scan(last_query_id(-1))) a left join test as b on a.t = b.t",
+            "SELECT a.*, b.IS_ICEBERG AS 'is_iceberg' FROM result_scan(last_query_id(-1)) AS a LEFT JOIN test AS b ON a.t = b.t",
+        ),
+    ];
+
+    for (input, expected) in cases {
+        let mut statement = state.sql_to_statement(input, "snowflake")?;
+        if let DFStatement::Statement(ref mut stmt) = statement {
+            table_function::visit(stmt);
         }
         assert_eq!(statement.to_string(), expected);
     }
