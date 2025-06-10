@@ -8,6 +8,7 @@ use datafusion_iceberg::{DataFusionTable, error::Error as DataFusionIcebergError
 use datafusion_physical_plan::{
     DisplayAs, ExecutionPlan, PhysicalExpr, RecordBatchStream, SendableRecordBatchStream,
     expressions::Column, projection::ProjectionExec, stream::RecordBatchStreamAdapter,
+    PlanProperties, DisplayFormatType,
 };
 use futures::{Stream, StreamExt, TryStreamExt};
 use iceberg_rust::{
@@ -26,6 +27,7 @@ pub struct MergeIntoSinkExec {
     schema: DFSchemaRef,
     input: Arc<dyn ExecutionPlan>,
     target: DataFusionTable,
+    properties: PlanProperties,
 }
 
 impl MergeIntoSinkExec {
@@ -34,10 +36,12 @@ impl MergeIntoSinkExec {
         input: Arc<dyn ExecutionPlan>,
         target: DataFusionTable,
     ) -> Self {
+        let properties = input.properties().clone();
         Self {
             schema,
             input,
             target,
+            properties,
         }
     }
 }
@@ -45,10 +49,14 @@ impl MergeIntoSinkExec {
 impl DisplayAs for MergeIntoSinkExec {
     fn fmt_as(
         &self,
-        t: datafusion_physical_plan::DisplayFormatType,
+        t: DisplayFormatType,
         f: &mut std::fmt::Formatter,
     ) -> std::fmt::Result {
-        todo!()
+        match t {
+            DisplayFormatType::Default | DisplayFormatType::Verbose | DisplayFormatType::TreeRender => {
+                write!(f, "MergeIntoSinkExec")
+            }
+        }
     }
 }
 
@@ -61,8 +69,8 @@ impl ExecutionPlan for MergeIntoSinkExec {
         self
     }
 
-    fn properties(&self) -> &datafusion_physical_plan::PlanProperties {
-        todo!()
+    fn properties(&self) -> &PlanProperties {
+        &self.properties
     }
 
     fn children(&self) -> Vec<&Arc<dyn ExecutionPlan>> {
@@ -73,7 +81,16 @@ impl ExecutionPlan for MergeIntoSinkExec {
         self: Arc<Self>,
         children: Vec<Arc<dyn ExecutionPlan>>,
     ) -> datafusion_common::Result<Arc<dyn ExecutionPlan>> {
-        todo!()
+        if children.len() != 1 {
+            return Err(DataFusionError::Internal(
+                "MergeIntoSinkExec requires exactly one child".to_string(),
+            ));
+        }
+        Ok(Arc::new(MergeIntoSinkExec::new(
+            self.schema.clone(),
+            children[0].clone(),
+            self.target.clone(),
+        )))
     }
 
     fn execute(
@@ -132,46 +149,57 @@ impl ExecutionPlan for MergeIntoSinkExec {
 #[derive(Debug)]
 struct SourceExistFilterExec {
     input: Arc<dyn ExecutionPlan>,
+    properties: PlanProperties,
 }
 
 impl SourceExistFilterExec {
     fn new(input: Arc<dyn ExecutionPlan>) -> Self {
-        Self { input }
+        let properties = input.properties().clone();
+        Self { input, properties }
     }
 }
 
 impl DisplayAs for SourceExistFilterExec {
     fn fmt_as(
         &self,
-        t: datafusion_physical_plan::DisplayFormatType,
+        t: DisplayFormatType,
         f: &mut std::fmt::Formatter,
     ) -> std::fmt::Result {
-        todo!()
+        match t {
+            DisplayFormatType::Default | DisplayFormatType::Verbose | DisplayFormatType::TreeRender => {
+                write!(f, "SourceExistFilterExec")
+            }
+        }
     }
 }
 
 impl ExecutionPlan for SourceExistFilterExec {
     fn name(&self) -> &str {
-        todo!()
+        "SourceExistFilterExec"
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        todo!()
+        self
     }
 
-    fn properties(&self) -> &datafusion_physical_plan::PlanProperties {
-        todo!()
+    fn properties(&self) -> &PlanProperties {
+        &self.properties
     }
 
     fn children(&self) -> Vec<&Arc<dyn ExecutionPlan>> {
-        todo!()
+        vec![&self.input]
     }
 
     fn with_new_children(
         self: Arc<Self>,
         children: Vec<Arc<dyn ExecutionPlan>>,
     ) -> datafusion_common::Result<Arc<dyn ExecutionPlan>> {
-        todo!()
+        if children.len() != 1 {
+            return Err(DataFusionError::Internal(
+                "SourceExistFilterExec requires exactly one child".to_string(),
+            ));
+        }
+        Ok(Arc::new(SourceExistFilterExec::new(children[0].clone())))
     }
 
     fn execute(
@@ -257,7 +285,7 @@ impl Stream for SourceExistFilterStream {
                     &downcast_array::<BooleanArray>(source_exists),
                 )?;
 
-                let unique_manifest_files = unique_values(&required_manifest_files)?;
+                let _unique_manifest_files = unique_values(&required_manifest_files)?;
 
                 if unique_data_files.is_empty() {
                     Poll::Pending
@@ -272,7 +300,7 @@ impl Stream for SourceExistFilterStream {
 
 impl RecordBatchStream for SourceExistFilterStream {
     fn schema(&self) -> datafusion::arrow::datatypes::SchemaRef {
-        todo!()
+        self.input.schema()
     }
 }
 
