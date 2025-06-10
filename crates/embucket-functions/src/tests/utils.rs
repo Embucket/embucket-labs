@@ -8,7 +8,7 @@ use datafusion::prelude::{SessionConfig, SessionContext};
 use std::sync::Arc;
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
-pub async fn create_session() -> Arc<SessionContext> {
+pub fn create_session() -> Arc<SessionContext> {
     let state = SessionStateBuilder::new()
         .with_config(
             SessionConfig::new()
@@ -70,7 +70,7 @@ macro_rules! test_query {
         paste::paste! {
             #[tokio::test]
             async fn [< query_ $test_fn_name >]() {
-                let ctx = $crate::tests::utils::create_session().await;
+                let ctx = $crate::tests::utils::create_session();
 
                 // Execute all setup queries (if provided) to set up the session context
                 $(
