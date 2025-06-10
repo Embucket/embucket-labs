@@ -841,12 +841,6 @@ pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
     ),
-    ("DAYNAME", FunctionInfo::new(
-        "DAYNAME",
-        "Extracts the three-letter day-of-week name from the specified date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/dayname")
-    ),
     ("DAYOFMONTH", FunctionInfo::new(
         "DAYOFMONTH",
         "Extracts the corresponding date part from a date or timestamp."

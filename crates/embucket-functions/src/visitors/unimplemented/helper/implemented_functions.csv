@@ -130,7 +130,8 @@ dateadd
 datediff                           
 datefromparts                      
 datepart                           
-datetrunc                          
+datetrunc
+dayname
 decode                             
 degrees                            
 dense_rank                         
