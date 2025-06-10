@@ -2925,6 +2925,7 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "chrono",
+ "core-history",
  "datafusion",
  "datafusion-common",
  "datafusion-doc",

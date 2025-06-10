@@ -29,6 +29,7 @@ pub mod string_binary;
 pub mod table;
 #[cfg(test)]
 pub mod tests;
+mod utils;
 pub mod visitors;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
