@@ -9,6 +9,19 @@ use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::Arc;
 
+/// `DAYNAME` SQL function
+///
+/// Extracts the three-letter day-of-week name from the specified date or timestamp.
+///
+/// Syntax: `DAYNAME(<date_or_timestamp>)`
+///
+/// Arguments:
+/// - `date_or_timestamp`: A date or timestamp value.
+///
+/// Example: `SELECT dayname('2025-05-08T23:39:20.123-07:00'::timestamp) AS value;`
+///
+/// Returns:
+/// - Returns a string representing the three-letter day-of-week name (e.g., "Mon", "Tue", "Wed", etc.).
 #[derive(Debug)]
 pub struct DayNameFunc {
     signature: Signature,
