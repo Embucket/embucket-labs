@@ -34,8 +34,6 @@ export const useSyncSqlEditorSelectedTree = () => {
       (table) => table.name === selectedTree?.tableName,
     );
 
-    console.log('navigationTreeTable', navigationTreeTable);
-
     if (!navigationTreeTable) {
       setSelectedTree({
         databaseName: '',
