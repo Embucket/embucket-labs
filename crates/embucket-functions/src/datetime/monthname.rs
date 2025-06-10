@@ -2,8 +2,9 @@ use chrono::{DateTime, Utc};
 use datafusion::arrow::array::{Array, StringBuilder};
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
-use datafusion::logical_expr::TypeSignature::{Coercible, Exact};
+use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::{Coercion, ColumnarValue, TypeSignatureClass};
+use datafusion_common::types::logical_date;
 use datafusion_common::{ScalarValue, exec_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
@@ -40,8 +41,9 @@ impl MonthNameFunc {
             signature: Signature::one_of(
                 vec![
                     Coercible(vec![Coercion::new_exact(TypeSignatureClass::Timestamp)]),
-                    Exact(vec![DataType::Date32]),
-                    Exact(vec![DataType::Date64]),
+                    Coercible(vec![Coercion::new_exact(TypeSignatureClass::Native(
+                        logical_date(),
+                    ))]),
                 ],
                 Volatility::Immutable,
             ),
@@ -74,28 +76,36 @@ impl ScalarUDFImpl for MonthNameFunc {
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
 
-        let arr = match args[0].clone() {
-            ColumnarValue::Array(arr) => arr,
-            ColumnarValue::Scalar(v) => v.to_array()?,
-        };
+        match args[0].clone() {
+            ColumnarValue::Array(arr) => {
+                let mut res = StringBuilder::with_capacity(arr.len(), 1024);
+                for i in 0..arr.len() {
+                    let v = ScalarValue::try_from_array(&arr, i)?
+                        .cast_to(&DataType::Timestamp(TimeUnit::Nanosecond, None))?;
+                    let ScalarValue::TimestampNanosecond(Some(ts), None) = v else {
+                        return exec_err!(
+                            "First argument must be a timestamp with nanosecond precision"
+                        );
+                    };
+                    let naive = DateTime::<Utc>::from_timestamp_nanos(ts).naive_utc();
+                    res.append_value(format!("{}", naive.format("%b")));
+                }
 
-        let mut res = StringBuilder::with_capacity(arr.len(), 1024);
-        for i in 0..arr.len() {
-            let v = ScalarValue::try_from_array(&arr, i)?
-                .cast_to(&DataType::Timestamp(TimeUnit::Nanosecond, None))?;
-            let ScalarValue::TimestampNanosecond(Some(ts), None) = v else {
-                return exec_err!("First argument must be a timestamp with nanosecond precision");
-            };
-            let naive = DateTime::<Utc>::from_timestamp_nanos(ts).naive_utc();
-            res.append_value(format!("{}", naive.format("%b")));
+                Ok(ColumnarValue::Array(Arc::new(res.finish())))
+            }
+            ColumnarValue::Scalar(v) => {
+                let v = v.cast_to(&DataType::Timestamp(TimeUnit::Nanosecond, None))?;
+
+                let ScalarValue::TimestampNanosecond(Some(ts), None) = v else {
+                    return exec_err!(
+                        "First argument must be a timestamp with nanosecond precision"
+                    );
+                };
+                let naive = DateTime::<Utc>::from_timestamp_nanos(ts).naive_utc();
+
+                Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(naive.format("%b").to_string()))))
+            }
         }
-
-        let res = res.finish();
-        Ok(if res.len() == 1 {
-            ColumnarValue::Scalar(ScalarValue::try_from_array(&res, 0)?)
-        } else {
-            ColumnarValue::Array(Arc::new(res))
-        })
     }
 }
 
