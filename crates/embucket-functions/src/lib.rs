@@ -42,6 +42,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         datetime::date_from_parts::get_udf(),
         datetime::last_day::get_udf(),
         datetime::add_months::get_udf(),
+        datetime::dayname::get_udf(),
         datetime::previous_day::get_udf(),
         datetime::next_day::get_udf(),
         conditional::booland::get_udf(),
