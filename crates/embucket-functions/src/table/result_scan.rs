@@ -16,6 +16,20 @@ pub struct ResultScanFunc {
     history_store: Arc<dyn HistoryStore>,
 }
 
+/// `RESULT_SCAN`
+/// Returns the result set of a previous command (within 24 hours of when you executed the query)
+/// as if the result was a table
+///
+/// Syntax: `RESULT_SCAN` ( { '<`query_id`>' | <`query_index`>  | `LAST_QUERY_ID()` } )
+///
+/// Arguments
+/// `query_id` or `query_index` or `LAST_QUERY_ID()`
+/// A specification of a query you executed within the last 24 hours in any session,
+/// an integer index of a query in the current session, or the `LAST_QUERY_ID` function,
+/// which returns the ID of a query within your current session.
+/// Query indexes are relative to the first query in the current session (if positive)
+/// or to the most recent query (if negative).
+/// For example, RESULT_SCAN(-1) is equivalent to `RESULT_SCAN(LAST_QUERY_ID())`.
 impl ResultScanFunc {
     #[must_use]
     pub fn new(history_store: Arc<dyn HistoryStore>) -> Self {
