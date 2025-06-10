@@ -107,6 +107,7 @@ Ok(
         "| source_table      | public             | id                            | Int32     |         | YES   | COLUMN      |            | embucket      |               |",
         "| t1                | public             | col1                          | Int32     |         | YES   | COLUMN      |            | embucket      |               |",
         "| t2                | public             | col1                          | Int32     |         | YES   | COLUMN      |            | embucket      |               |",
+        "| tables            | information_schema | is_iceberg                    | Utf8      |         | YES   | VIEW_COLUMN |            | embucket      |               |",
         "| tables            | information_schema | table_catalog                 | Utf8      |         | NO    | VIEW_COLUMN |            | embucket      |               |",
         "| tables            | information_schema | table_name                    | Utf8      |         | NO    | VIEW_COLUMN |            | embucket      |               |",
         "| tables            | information_schema | table_schema                  | Utf8      |         | NO    | VIEW_COLUMN |            | embucket      |               |",
