@@ -18,7 +18,7 @@ use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::history_store::HistoryStore;
-use core_metastore::error::MetastoreError;
+use core_metastore::error::{self as metastore_error, MetastoreError};
 use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::CatalogProvider;
@@ -65,7 +65,7 @@ impl UserSession {
         let runtime_config = RuntimeEnvBuilder::new()
             .with_object_store_registry(catalog_list_impl.clone())
             .build()
-            .context(ex_error::DataFusionSnafu)?;
+            .map_err(|e| ex_error::DataFusionSnafu { error: e }.build())?;
 
         let state = SessionStateBuilder::new()
             .with_config(
@@ -90,21 +90,22 @@ impl UserSession {
             .with_physical_optimizer_rules(physical_optimizer_rules())
             .build();
         let mut ctx = SessionContext::new_with_state(state);
-        register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
-        register_udafs(&mut ctx).context(ex_error::RegisterUDAFSnafu)?;
+        register_udfs(&mut ctx).map_err(|error| ex_error::RegisterUDFSnafu { error }.build())?;
+        register_udafs(&mut ctx).map_err(|error| ex_error::RegisterUDAFSnafu { error }.build())?;
         register_udtfs(&ctx);
-        register_json_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
+        register_json_udfs(&mut ctx)
+            .map_err(|error| ex_error::RegisterUDFSnafu { error }.build())?;
         //register_geo_native(&ctx);
         //register_geo_udfs(&ctx);
 
         catalog_list_impl
             .register_catalogs()
             .await
-            .context(RegisterCatalogSnafu)?;
+            .context(ex_error::RegisterCatalogSnafu)?;
         catalog_list_impl
             .refresh()
             .await
-            .context(RefreshCatalogListSnafu)?;
+            .context(ex_error::RefreshCatalogListSnafu)?;
         catalog_list_impl.start_refresh_internal_catalogs_task(10);
         let enable_ident_normalization = ctx.enable_ident_normalization();
         let session = Self {
@@ -126,9 +127,9 @@ impl UserSession {
             .iter_volumes()
             .collect()
             .await
-            .map_err(|e| ExecutionError::Metastore {
-                source: Box::new(MetastoreError::UtilSlateDB { source: e }),
-            })?
+            .context(metastore_error::UtilSlateDBSnafu)
+            .map_err(Box::new)
+            .context(ex_error::MetastoreSnafu)?
             .into_iter()
             .filter_map(|volume| {
                 if let MetastoreVolumeType::S3Tables(s3_volume) = volume.volume.clone() {
@@ -167,7 +168,7 @@ impl UserSession {
 
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await
-                .context(ex_error::DataFusionSnafu)?;
+                .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
             let catalog_provider = Arc::new(catalog) as Arc<dyn CatalogProvider>;
 
             self.ctx.register_catalog(volume.name, catalog_provider);
@@ -204,17 +205,17 @@ impl UserSession {
         for (key, value) in datafusion_params {
             options
                 .set(&key, &value)
-                .context(ex_error::DataFusionSnafu)?;
+                .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
         }
 
         let config = options.extensions.get_mut::<SessionParams>();
         if let Some(cfg) = config {
             if set {
                 cfg.set_properties(session_params)
-                    .context(ex_error::DataFusionSnafu)?;
+                    .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
             } else {
                 cfg.remove_properties(session_params)
-                    .context(ex_error::DataFusionSnafu)?;
+                    .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
             }
         }
         Ok(())

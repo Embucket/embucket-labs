@@ -5,42 +5,59 @@ use axum::response::IntoResponse;
 use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
+use snafu::Location;
 use snafu::prelude::*;
+use stack_error;
+use stack_error_proc::stack_trace_debug;
 
 pub type DatabasesResult<T> = Result<T, DatabasesAPIError>;
 
-#[derive(Debug, Snafu)]
+#[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
+#[stack_trace_debug]
 pub enum DatabasesAPIError {
     #[snafu(display("Create database error: {source}"))]
     Create {
         #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
         source: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
     },
     #[snafu(display("Get database error: {source}"))]
     Get {
         #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
         source: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
     },
     #[snafu(display("Delete database error: {source}"))]
     Delete {
         #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
         source: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
     },
     #[snafu(display("Update database error: {source}"))]
     Update {
         #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
         source: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
     },
+
     #[snafu(display("Get databases error: {source}"))]
-    List { source: ExecutionError },
+    List {
+        source: ExecutionError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Select which status code to return.
 impl IntoStatusCode for DatabasesAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::Create { source } => match &source {
+            Self::Create { source, .. } => match &source {
                 MetastoreError::DatabaseAlreadyExists { .. }
                 | MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
                 MetastoreError::VolumeNotFound { .. } | MetastoreError::Validation { .. } => {
@@ -48,11 +65,11 @@ impl IntoStatusCode for DatabasesAPIError {
                 }
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Get { source } | Self::Delete { source } => match &source {
+            Self::Get { source, .. } | Self::Delete { source, .. } => match &source {
                 MetastoreError::DatabaseNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Update { source } => match &source {
+            Self::Update { source, .. } => match &source {
                 MetastoreError::DatabaseNotFound { .. } => StatusCode::NOT_FOUND,
                 MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,

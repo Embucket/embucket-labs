@@ -1,4 +1,4 @@
-use super::error::{MetastoreAPIError, MetastoreAPIResult};
+use super::error::{self as api_internal_error, MetastoreAPIError, MetastoreAPIResult};
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -32,7 +32,7 @@ pub async fn list_volumes(
         .iter_volumes()
         .collect()
         .await
-        .map_err(|e| MetastoreAPIError::from(MetastoreError::UtilSlateDB { source: e }))?
+        .context(metastore_error::UtilSlateDBSnafu)?
         .iter()
         .map(|v| hide_sensitive(v.clone()))
         .collect();
@@ -46,9 +46,10 @@ pub async fn get_volume(
 ) -> MetastoreAPIResult<Json<RwObject<Volume>>> {
     match state.metastore.get_volume(&volume_name).await {
         Ok(Some(volume)) => Ok(Json(hide_sensitive(volume))),
-        Ok(None) => Err(MetastoreError::VolumeNotFound {
+        Ok(None) => Err(metastore_error::VolumeNotFoundSnafu {
             volume: volume_name.clone(),
         }
+        .build()
         .into()),
         Err(e) => Err(MetastoreAPIError::from(e)),
     }
@@ -122,7 +123,8 @@ pub async fn list_databases(
         .iter_databases()
         .collect()
         .await
-        .map_err(|e| MetastoreAPIError::from(MetastoreError::UtilSlateDB { source: e }))
+        .context(metastore_error::UtilSlateDBSnafu)
+        .context(api_internal_error::MetastoreSnafu)
         .map(Json)
 }
 
@@ -133,9 +135,10 @@ pub async fn get_database(
 ) -> MetastoreAPIResult<Json<RwObject<Database>>> {
     match state.metastore.get_database(&database_name).await {
         Ok(Some(db)) => Ok(Json(db)),
-        Ok(None) => Err(MetastoreError::DatabaseNotFound {
+        Ok(None) => Err(metastore_error::DatabaseNotFoundSnafu {
             db: database_name.clone(),
         }
+        .build()
         .into()),
         Err(e) => Err(MetastoreAPIError::from(e)),
     }

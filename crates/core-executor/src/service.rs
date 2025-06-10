@@ -120,9 +120,12 @@ impl ExecutionService for CoreExecutionService {
             let sessions = self.df_sessions.read().await;
             sessions
                 .get(session_id)
-                .ok_or(ExecutionError::MissingDataFusionSession {
-                    id: session_id.to_string(),
-                })?
+                .ok_or(
+                    ex_error::MissingDataFusionSessionSnafu {
+                        id: session_id.to_string(),
+                    }
+                    .build(),
+                )?
                 .clone()
         };
 
@@ -174,9 +177,12 @@ impl ExecutionService for CoreExecutionService {
             let sessions = self.df_sessions.read().await;
             sessions
                 .get(session_id)
-                .ok_or(ExecutionError::MissingDataFusionSession {
-                    id: session_id.to_string(),
-                })?
+                .ok_or(
+                    ex_error::MissingDataFusionSessionSnafu {
+                        id: session_id.to_string(),
+                    }
+                    .build(),
+                )?
                 .clone()
         };
 
@@ -193,7 +199,7 @@ impl ExecutionService for CoreExecutionService {
                 source_table.schema().unwrap_or_default(),
                 Arc::new(MemorySchemaProvider::new()),
             )
-            .context(ex_error::DataFusionSnafu)?;
+            .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
         user_session.ctx.register_catalog(
             source_table.catalog().unwrap_or_default(),
             Arc::new(inmem_catalog),
@@ -203,19 +209,19 @@ impl ExecutionService for CoreExecutionService {
         let exists = user_session
             .ctx
             .table_exist(target_table.clone())
-            .context(ex_error::DataFusionSnafu)?;
+            .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
 
         let schema = if exists {
             let table = user_session
                 .ctx
                 .table(target_table)
                 .await
-                .context(ex_error::DataFusionSnafu)?;
+                .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
             table.schema().as_arrow().to_owned()
         } else {
             let (schema, _) = format
                 .infer_schema(data.clone().reader(), None)
-                .map_err(|e| ExecutionError::DataFusion { source: e.into() })?;
+                .map_err(|error| ex_error::ArrowSnafu { error }.build())?;
             schema
         };
         let schema = Arc::new(schema);
@@ -226,21 +232,22 @@ impl ExecutionService for CoreExecutionService {
         let csv = ReaderBuilder::new(schema.clone())
             .with_format(format)
             .build_buffered(data.reader())
-            .context(ex_error::ArrowSnafu)?;
+            .map_err(|e| ex_error::ArrowSnafu { error: e }.build())?;
 
         let batches: Result<Vec<_>, _> = csv.collect();
-        let batches = batches.context(ex_error::ArrowSnafu)?;
+        let batches = batches.map_err(|e| ex_error::ArrowSnafu { error: e }.build())?;
 
         let rows_loaded = batches
             .iter()
             .map(|batch: &RecordBatch| batch.num_rows())
             .sum();
 
-        let table = MemTable::try_new(schema, vec![batches]).context(ex_error::DataFusionSnafu)?;
+        let table = MemTable::try_new(schema, vec![batches])
+            .map_err(|e| ex_error::DataFusionSnafu { error: e }.build())?;
         user_session
             .ctx
             .register_table(source_table.clone(), Arc::new(table))
-            .context(ex_error::DataFusionSnafu)?;
+            .map_err(|e| ex_error::DataFusionSnafu { error: e }.build())?;
 
         let table = source_table.clone();
         let query = if exists {
@@ -255,7 +262,7 @@ impl ExecutionService for CoreExecutionService {
         user_session
             .ctx
             .deregister_table(source_table)
-            .context(ex_error::DataFusionSnafu)?;
+            .map_err(|e| ex_error::DataFusionSnafu { error: e }.build())?;
 
         Ok(rows_loaded)
     }

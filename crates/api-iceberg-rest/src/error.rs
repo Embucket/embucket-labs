@@ -53,7 +53,7 @@ impl IntoResponse for IcebergAPIError {
             | MetastoreError::VolumeInUse { .. } => http::StatusCode::CONFLICT,
             MetastoreError::TableRequirementFailed { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
             MetastoreError::VolumeValidationFailed { .. }
-            | MetastoreError::VolumeMissingCredentials
+            | MetastoreError::VolumeMissingCredentials { .. }
             | MetastoreError::Validation { .. } => http::StatusCode::BAD_REQUEST,
             MetastoreError::CloudProviderNotImplemented { .. } => {
                 http::StatusCode::PRECONDITION_FAILED
@@ -62,7 +62,7 @@ impl IntoResponse for IcebergAPIError {
             | MetastoreError::DatabaseNotFound { .. }
             | MetastoreError::SchemaNotFound { .. }
             | MetastoreError::TableNotFound { .. }
-            | MetastoreError::ObjectNotFound => http::StatusCode::NOT_FOUND,
+            | MetastoreError::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
             MetastoreError::ObjectStore { .. }
             | MetastoreError::ObjectStorePath { .. }
             | MetastoreError::CreateDirectory { .. }

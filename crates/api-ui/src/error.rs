@@ -20,19 +20,6 @@ pub(crate) trait IntoStatusCode {
     fn status_code(&self) -> StatusCode;
 }
 
-// #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-// #[serde(rename_all = "camelCase")]
-// pub(crate) struct UIResponse<T> {
-//     #[serde(flatten)]
-//     pub(crate) data: T,
-// }
-//
-// impl<T> UIResponse<T> {
-//     pub const fn from(data: T) -> Json<Self> {
-//         Json(Self { data })
-//     }
-// }
-
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ErrorResponse {
     pub message: String,
@@ -60,14 +47,14 @@ fn metastore_error_into_response(error: &MetastoreError) -> axum::response::Resp
         | MetastoreError::VolumeInUse { .. } => http::StatusCode::CONFLICT,
         MetastoreError::TableRequirementFailed { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
         MetastoreError::VolumeValidationFailed { .. }
-        | MetastoreError::VolumeMissingCredentials
+        | MetastoreError::VolumeMissingCredentials { .. }
         | MetastoreError::Validation { .. } => http::StatusCode::BAD_REQUEST,
         MetastoreError::CloudProviderNotImplemented { .. } => http::StatusCode::PRECONDITION_FAILED,
         MetastoreError::VolumeNotFound { .. }
         | MetastoreError::DatabaseNotFound { .. }
         | MetastoreError::SchemaNotFound { .. }
         | MetastoreError::TableNotFound { .. }
-        | MetastoreError::ObjectNotFound => http::StatusCode::NOT_FOUND,
+        | MetastoreError::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
         MetastoreError::ObjectStore { .. }
         | MetastoreError::ObjectStorePath { .. }
         | MetastoreError::CreateDirectory { .. }
@@ -110,7 +97,7 @@ fn exec_error_into_response(error: &ExecutionError) -> axum::response::Response 
         | ExecutionError::SerdeParse { .. }
         | ExecutionError::S3Tables { .. }
         | ExecutionError::Iceberg { .. }
-        | ExecutionError::CatalogListDowncast
+        | ExecutionError::CatalogListDowncast { .. }
         | ExecutionError::CatalogDownCast { .. }
         | ExecutionError::RegisterCatalog { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
         ExecutionError::DatabaseNotFound { .. }
@@ -123,42 +110,73 @@ fn exec_error_into_response(error: &ExecutionError) -> axum::response::Response 
     };
 
     let message = match &error {
-        ExecutionError::DataFusion { source } => format!("DataFusion error: {source}"),
-        ExecutionError::DataFusionQuery { source, query } => {
-            format!("DataFusion error: {source}, query: {query}")
+        ExecutionError::DataFusion { error, location } => {
+            format!("DataFusion error: {error}, location: {location}")
         }
-        ExecutionError::InvalidTableIdentifier { ident } => {
-            format!("Invalid table identifier: {ident}")
+        ExecutionError::DataFusionQuery {
+            error,
+            query,
+            location,
+        } => {
+            format!("DataFusion error: {error}, query: {query}, location: {location}")
         }
-        ExecutionError::InvalidSchemaIdentifier { ident } => {
-            format!("Invalid schema identifier: {ident}")
+        ExecutionError::InvalidTableIdentifier { ident, location } => {
+            format!("Invalid table identifier: {ident}, location: {location}")
         }
-        ExecutionError::InvalidFilePath { path } => format!("Invalid file path: {path}"),
-        ExecutionError::InvalidBucketIdentifier { ident } => {
-            format!("Invalid bucket identifier: {ident}")
+        ExecutionError::InvalidSchemaIdentifier { ident, location } => {
+            format!("Invalid schema identifier: {ident}, location: {location}")
         }
-        ExecutionError::Arrow { source } => format!("Arrow error: {source}"),
-        ExecutionError::TableProviderNotFound { table_name } => {
-            format!("No Table Provider found for table: {table_name}")
+        ExecutionError::InvalidFilePath { path, location } => {
+            format!("Invalid file path: {path}, location: {location}")
         }
-        ExecutionError::MissingDataFusionSession { id } => {
-            format!("Missing DataFusion session for id: {id}")
+        ExecutionError::InvalidBucketIdentifier { ident, location } => {
+            format!("Invalid bucket identifier: {ident}, location: {location}")
         }
-        ExecutionError::Utf8 { source } => format!("Error encoding UTF8 string: {source}"),
-        ExecutionError::Metastore { source } => format!("Metastore error: {source}"),
-        ExecutionError::DatabaseNotFound { db } => format!("Database not found: {db}"),
-        ExecutionError::TableNotFound { table } => format!("Table not found: {table}"),
-        ExecutionError::SchemaNotFound { schema } => format!("Schema not found: {schema}"),
-        ExecutionError::VolumeNotFound { volume } => format!("Volume not found: {volume}"),
-        ExecutionError::ObjectStore { source } => format!("Object store error: {source}"),
-        ExecutionError::ObjectAlreadyExists { type_name, name } => {
-            format!("Object of type {type_name} with name {name} already exists")
+        ExecutionError::Arrow { error, location } => {
+            format!("Arrow error: {error}, location: {location}")
         }
-        ExecutionError::UnsupportedFileFormat { format } => {
-            format!("Unsupported file format {format}")
+        ExecutionError::TableProviderNotFound {
+            table_name,
+            location,
+        } => {
+            format!("No Table Provider found for table: {table_name}, location: {location}")
         }
-        ExecutionError::RefreshCatalogList { source } => {
-            format!("Refresh Catalog List error: {source}")
+        ExecutionError::MissingDataFusionSession { id, location } => {
+            format!("Missing DataFusion session for id: {id}, location: {location}")
+        }
+        ExecutionError::Utf8 { error, location } => {
+            format!("Error encoding UTF8 string: {error}, location: {location}")
+        }
+        ExecutionError::Metastore { source, location } => {
+            format!("Metastore error: {source}, location: {location}")
+        }
+        ExecutionError::DatabaseNotFound { db, location } => {
+            format!("Database not found: {db}, location: {location}")
+        }
+        ExecutionError::TableNotFound { table, location } => {
+            format!("Table not found: {table}, location: {location}")
+        }
+        ExecutionError::SchemaNotFound { schema, location } => {
+            format!("Schema not found: {schema}, location: {location}")
+        }
+        ExecutionError::VolumeNotFound { volume, location } => {
+            format!("Volume not found: {volume}, location: {location}")
+        }
+        ExecutionError::ObjectStore { error, location } => {
+            format!("Object store error: {error}, location: {location}")
+        }
+        ExecutionError::ObjectAlreadyExists {
+            type_name,
+            name,
+            location,
+        } => format!(
+            "Object of type {type_name} with name {name} already exists, location: {location}"
+        ),
+        ExecutionError::UnsupportedFileFormat { format, location } => {
+            format!("Unsupported file format {format}, location: {location}")
+        }
+        ExecutionError::RefreshCatalogList { source, location } => {
+            format!("Refresh Catalog List error: {source}, location: {location}")
         }
         _ => "Internal server error".to_string(),
     };

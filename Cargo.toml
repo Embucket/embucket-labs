@@ -10,6 +10,8 @@ members = [
   "crates/api-ui-static-assets",
   "crates/embucket-functions",
   "crates/df-catalog",
+  "crates/stack-error",
+  "crates/stack-error-proc",
   "crates/core-executor",
   "crates/core-history",
   "crates/core-metastore",

@@ -25,6 +25,8 @@ url = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
 validator = { workspace = true }
+stack-error-proc = { path = "../stack-error-proc" }
+stack-error = { path = "../stack-error" }
 
 [dev-dependencies]
 insta = { version = "1.42.0", features = ["yaml", "filters", "redactions"] }

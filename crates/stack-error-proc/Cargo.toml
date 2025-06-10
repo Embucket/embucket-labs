@@ -1,0 +1,17 @@
+[package]
+name = "stack-error-proc"
+version = "0.1.0"
+edition = "2024"
+license-file.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0"
+quote = "1.0"
+proc-macro2 = "1.0"
+stack-error = { path = "../stack-error" }
+
+[lints]
+workspace = true

@@ -14,7 +14,7 @@ use axum::{
     extract::{Path, Query, State},
 };
 use core_executor::models::{QueryContext, QueryResult};
-use core_metastore::error::{MetastoreError, ValidationSnafu};
+use core_metastore::error::{self as metastore_error, MetastoreError, ValidationSnafu};
 use core_metastore::models::{AwsAccessKeyCredentials, AwsCredentials, Volume as MetastoreVolume};
 use snafu::ResultExt;
 use utoipa::OpenApi;
@@ -130,9 +130,12 @@ pub async fn get_volume(
         .await
         .map(|opt_rw_obj| {
             opt_rw_obj.ok_or_else(|| {
-                Box::new(MetastoreError::VolumeNotFound {
-                    volume: volume_name.clone(),
-                })
+                Box::new(
+                    metastore_error::VolumeNotFoundSnafu {
+                        volume: volume_name.clone(),
+                    }
+                    .build(),
+                )
             })
         })
         .context(GetSnafu)?

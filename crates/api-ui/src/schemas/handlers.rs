@@ -15,7 +15,7 @@ use axum::{
     extract::{Path, Query, State},
 };
 use core_executor::models::{QueryContext, QueryResult};
-use core_metastore::error::MetastoreError;
+use core_metastore::error::{self as metastore_error, MetastoreError};
 use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
 use snafu::ResultExt;
 use std::convert::From;
@@ -102,10 +102,13 @@ pub async fn create_schema(
         .await
         .map(|opt_rw_obj| {
             opt_rw_obj.ok_or_else(|| {
-                Box::new(MetastoreError::SchemaNotFound {
-                    db: database_name.clone(),
-                    schema: payload.name.clone(),
-                })
+                Box::new(
+                    metastore_error::SchemaNotFoundSnafu {
+                        db: database_name.clone(),
+                        schema: payload.name.clone(),
+                    }
+                    .build(),
+                )
             })
         })
         .context(GetSnafu)?
@@ -192,10 +195,13 @@ pub async fn get_schema(
         .await
         .map(|opt_rw_obj| {
             opt_rw_obj.ok_or_else(|| {
-                Box::new(MetastoreError::SchemaNotFound {
-                    db: database_name.clone(),
-                    schema: schema_name.clone(),
-                })
+                Box::new(
+                    metastore_error::SchemaNotFoundSnafu {
+                        db: database_name.clone(),
+                        schema: schema_name.clone(),
+                    }
+                    .build(),
+                )
             })
         })
         .context(GetSnafu)?

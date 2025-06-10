@@ -4,120 +4,235 @@ use datafusion_common::DataFusionError;
 use df_catalog::error::Error as CatalogError;
 use iceberg_rust::error::Error as IcebergError;
 use iceberg_s3tables_catalog::error::Error as S3tablesError;
+use snafu::Location;
 use snafu::prelude::*;
+use stack_error_proc::stack_trace_debug;
 
-#[derive(Debug, Snafu)]
-#[snafu(visibility(pub(crate)))]
+#[derive(Snafu)]
+#[snafu(visibility(pub))]
+#[stack_trace_debug]
 pub enum ExecutionError {
     #[snafu(display("Cannot register UDF functions"))]
-    RegisterUDF { source: DataFusionError },
+    RegisterUDF {
+        error: DataFusionError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Cannot register UDAF functions"))]
-    RegisterUDAF { source: DataFusionError },
+    RegisterUDAF {
+        error: DataFusionError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("DataFusion error: {source}"))]
-    DataFusion { source: DataFusionError },
+    #[snafu(display("DataFusion error: {error}"))]
+    DataFusion {
+        error: DataFusionError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Invalid table identifier: {ident}"))]
-    InvalidTableIdentifier { ident: String },
+    InvalidTableIdentifier {
+        ident: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Invalid schema identifier: {ident}"))]
-    InvalidSchemaIdentifier { ident: String },
+    InvalidSchemaIdentifier {
+        ident: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Invalid file path: {path}"))]
-    InvalidFilePath { path: String },
+    InvalidFilePath {
+        path: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Invalid bucket identifier: {ident}"))]
-    InvalidBucketIdentifier { ident: String },
+    InvalidBucketIdentifier {
+        ident: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Arrow error: {source}"))]
+    #[snafu(display("Arrow error: {error}"))]
     Arrow {
-        source: datafusion::arrow::error::ArrowError,
+        error: datafusion::arrow::error::ArrowError,
+        #[snafu(implicit)]
+        location: Location,
     },
 
     #[snafu(display("No Table Provider found for table: {table_name}"))]
-    TableProviderNotFound { table_name: String },
-
-    #[snafu(display("Missing DataFusion session for id {id}"))]
-    MissingDataFusionSession { id: String },
-
-    #[snafu(display("DataFusion query error: {source}, query: {query}"))]
-    DataFusionQuery {
-        #[snafu(source(from(DataFusionError, Box::new)))]
-        source: Box<DataFusionError>,
-        query: String,
+    TableProviderNotFound {
+        table_name: String,
+        #[snafu(implicit)]
+        location: Location,
     },
 
-    #[snafu(display("Error encoding UTF8 string: {source}"))]
-    Utf8 { source: std::string::FromUtf8Error },
+    #[snafu(display("Missing DataFusion session for id {id}"))]
+    MissingDataFusionSession {
+        id: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("DataFusion query error: {error}, query: {query}"))]
+    DataFusionQuery {
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        error: Box<DataFusionError>,
+        query: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Error encoding UTF8 string: {error}"))]
+    Utf8 {
+        error: std::string::FromUtf8Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Metastore error: {source}"))]
     Metastore {
         source: Box<core_metastore::error::MetastoreError>,
+        #[snafu(implicit)]
+        location: Location,
     },
 
     #[snafu(display("Database {db} not found"))]
-    DatabaseNotFound { db: String },
+    DatabaseNotFound {
+        db: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Table {table} not found"))]
-    TableNotFound { table: String },
+    TableNotFound {
+        table: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Schema {schema} not found"))]
-    SchemaNotFound { schema: String },
+    SchemaNotFound {
+        schema: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Volume {volume} not found"))]
-    VolumeNotFound { volume: String },
+    VolumeNotFound {
+        volume: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Object store error: {source}"))]
-    ObjectStore { source: object_store::Error },
+    #[snafu(display("Object store error: {error}"))]
+    ObjectStore {
+        error: object_store::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Object of type {type_name} with name {name} already exists"))]
-    ObjectAlreadyExists { type_name: String, name: String },
+    ObjectAlreadyExists {
+        type_name: String,
+        name: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Unsupported file format {format}"))]
-    UnsupportedFileFormat { format: String },
+    UnsupportedFileFormat {
+        format: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Cannot refresh catalog list: {source}"))]
-    RefreshCatalogList { source: CatalogError },
+    RefreshCatalogList {
+        source: CatalogError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Catalog {catalog} cannot be downcasted"))]
-    CatalogDownCast { catalog: String },
+    CatalogDownCast {
+        catalog: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Catalog {catalog} not found"))]
-    CatalogNotFound { catalog: String },
+    CatalogNotFound {
+        catalog: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("S3Tables error: {source}"))]
+    #[snafu(display("S3Tables error: {error}"))]
     S3Tables {
         #[snafu(source(from(S3tablesError, Box::new)))]
-        source: Box<S3tablesError>,
+        error: Box<S3tablesError>,
+        #[snafu(implicit)]
+        location: Location,
     },
 
-    #[snafu(display("Iceberg error: {source}"))]
+    #[snafu(display("Iceberg error: {error}"))]
     Iceberg {
         #[snafu(source(from(IcebergError, Box::new)))]
-        source: Box<IcebergError>,
+        error: Box<IcebergError>,
+        #[snafu(implicit)]
+        location: Location,
     },
 
-    #[snafu(display("URL Parsing error: {source}"))]
-    UrlParse { source: url::ParseError },
+    #[snafu(display("URL Parsing error: {error}"))]
+    UrlParse {
+        error: url::ParseError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Threaded Job error: {source}: {backtrace}"))]
+    #[snafu(display("Threaded Job error: {error}: {backtrace}"))]
     JobError {
-        source: crate::dedicated_executor::JobError,
+        error: crate::dedicated_executor::JobError,
         backtrace: Backtrace,
+        #[snafu(implicit)]
+        location: Location,
     },
 
     #[snafu(display("Failed to upload file: {message}"))]
-    UploadFailed { message: String },
+    UploadFailed {
+        message: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("CatalogList failed"))]
-    CatalogListDowncast,
+    CatalogListDowncast {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Failed to register catalog: {source}"))]
-    RegisterCatalog { source: CatalogError },
+    RegisterCatalog {
+        source: CatalogError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Failed to parse data: {source}"))]
-    SerdeParse { source: serde_json::Error },
+    #[snafu(display("Failed to parse data: {error}"))]
+    SerdeParse {
+        error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;

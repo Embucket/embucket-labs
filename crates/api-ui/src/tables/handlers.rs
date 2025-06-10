@@ -21,7 +21,7 @@ use axum::{
 };
 use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::TableIdent as MetastoreTableIdent;
-use core_metastore::error::MetastoreError;
+use core_metastore::error::{self as metastore_error, MetastoreError};
 use datafusion::arrow::csv::reader::Format;
 use datafusion::arrow::util::display::array_value_to_string;
 use snafu::ResultExt;
@@ -118,11 +118,12 @@ pub async fn get_table_statistics(
             })))
         }
         Ok(None) => Err(TablesAPIError::GetMetastore {
-            source: MetastoreError::TableNotFound {
+            source: metastore_error::TableNotFoundSnafu {
                 table: database_name,
                 schema: schema_name,
                 db: table_name,
-            },
+            }
+            .build(),
         }),
         Err(e) => Err(TablesAPIError::from(e)),
     }

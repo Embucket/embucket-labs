@@ -14,6 +14,8 @@ core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }
 core-executor = { path = "../core-executor" }
 core-history = { path = "../core-history" }
+stack-error-proc = { path = "../stack-error-proc" }
+stack-error = { path = "../stack-error" }
 
 axum = { workspace = true }
 chrono = { workspace = true }

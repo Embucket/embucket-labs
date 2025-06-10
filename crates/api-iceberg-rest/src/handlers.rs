@@ -1,4 +1,4 @@
-use crate::error::{IcebergAPIError, IcebergAPIResult};
+use crate::error::{self as api_iceberg_error, IcebergAPIError, IcebergAPIResult};
 use crate::schemas::{
     CommitTable, GetConfigQuery, from_get_schema, from_schema, from_schemas_list, from_tables_list,
     to_create_table, to_schema, to_table_commit,
@@ -50,10 +50,11 @@ pub async fn get_namespace(
         .await
         .map_err(IcebergAPIError::from)?
         .ok_or_else(|| {
-            IcebergAPIError::from(MetastoreError::SchemaNotFound {
+            metastore_error::SchemaNotFoundSnafu {
                 db: database_name.clone(),
                 schema: schema_name.clone(),
-            })
+            }
+            .build()
         })?;
     Ok(Json(from_get_schema(schema.data)))
 }
@@ -82,7 +83,7 @@ pub async fn list_namespaces(
         .iter_schemas(&database_name)
         .collect()
         .await
-        .map_err(|e| IcebergAPIError::from(MetastoreError::UtilSlateDB { source: e }))?;
+        .context(metastore_error::UtilSlateDBSnafu)?;
     Ok(Json(from_schemas_list(schemas)))
 }
 
@@ -123,11 +124,14 @@ pub async fn register_table(
         .volume_for_table(&table_ident)
         .await?
         .map(|v| v.data)
-        .ok_or(MetastoreError::VolumeNotFound {
-            volume: format!(
-                "Volume not found for database {database_name} and schema {schema_name}"
-            ),
-        })?
+        .ok_or(
+            metastore_error::VolumeNotFoundSnafu {
+                volume: format!(
+                    "Volume not found for database {database_name} and schema {schema_name}"
+                ),
+            }
+            .build(),
+        )?
         .get_object_store()?
         .get(&object_store::path::Path::from(register.metadata_location))
         .await
@@ -172,11 +176,14 @@ pub async fn get_table(
         .await
         .map_err(IcebergAPIError::from)?
         .ok_or_else(|| {
-            IcebergAPIError::from(MetastoreError::TableNotFound {
-                db: database_name.clone(),
-                schema: schema_name.clone(),
-                table: table_name.clone(),
-            })
+            IcebergAPIError::from(
+                metastore_error::TableNotFoundSnafu {
+                    db: database_name.clone(),
+                    schema: schema_name.clone(),
+                    table: table_name.clone(),
+                }
+                .build(),
+            )
         })?;
     Ok(Json(LoadTableResult::new(table.data.metadata)))
 }
@@ -206,7 +213,7 @@ pub async fn list_tables(
         .iter_tables(&schema_ident)
         .collect()
         .await
-        .map_err(|e| IcebergAPIError::from(MetastoreError::UtilSlateDB { source: e }))?;
+        .context(metastore_error::UtilSlateDBSnafu)?;
     Ok(Json(from_tables_list(tables)))
 }
 
