@@ -2397,13 +2397,6 @@ pub const SEMISTRUCTURED_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/transform")
     ),
-    ("TRY_PARSE_JSON", FunctionInfo::new(
-        "TRY_PARSE_JSON",
-        "A special version of PARSE_JSON that returns a NULL value if an error occurs during parsing."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_parse_json")
-    .with_subcategory("json")
-    ),
     ("TYPEOF", FunctionInfo::new(
         "TYPEOF",
         "Returns the type of a value stored in a VARIANT column."

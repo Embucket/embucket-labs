@@ -363,7 +363,8 @@ to_timestamp_seconds
 to_unixtime                        
 today                              
 translate                          
-trim                               
+trim
+try_parse_json
 trunc                              
 try_to_boolean                     
 try_to_time                        
