@@ -20,3 +20,8 @@ test_query!(
 );
 // Failed query with error
 test_query!(result_scan_failed_query, "SELECT * FROM result_scan('100')");
+// Invalid id type
+test_query!(
+    result_scan_invalid_query_id,
+    "SELECT * FROM result_scan('aa')"
+);

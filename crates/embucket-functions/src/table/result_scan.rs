@@ -17,8 +17,7 @@ pub struct ResultScanFunc {
 }
 
 /// `RESULT_SCAN`
-/// Returns the result set of a previous command (within 24 hours of when you executed the query)
-/// as if the result was a table
+/// Returns the result set of a previous command as if the result was a table
 ///
 /// Syntax: `RESULT_SCAN` ( { '<`query_id`>' | <`query_index`>  | `LAST_QUERY_ID()` } )
 ///
