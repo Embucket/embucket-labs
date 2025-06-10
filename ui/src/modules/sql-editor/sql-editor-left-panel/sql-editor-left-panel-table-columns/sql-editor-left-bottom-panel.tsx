@@ -6,7 +6,6 @@ import { useGetTableColumns, useGetTablePreviewData } from '@/orval/tables';
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 import { SqlEditorLeftPanelTableColumns } from './sql-editor-left-panel-table-columns';
 import { SqlEditorLeftPanelTableColumnsPreviewDialog } from './sql-editor-left-panel-table-columns-preview-dialog';
-import { SqlEditorLeftPanelTableColumnsSkeleton } from './sql-editor-left-panel-table-columns-skeleton';
 import { SqlEditorLeftPanelTableColumnsToolbar } from './sql-editor-left-panel-table-columns-toolbar';
 
 export function SqlEditorLeftBottomPanel() {
