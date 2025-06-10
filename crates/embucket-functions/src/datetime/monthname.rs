@@ -103,7 +103,9 @@ impl ScalarUDFImpl for MonthNameFunc {
                 };
                 let naive = DateTime::<Utc>::from_timestamp_nanos(ts).naive_utc();
 
-                Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(naive.format("%b").to_string()))))
+                Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(
+                    naive.format("%b").to_string(),
+                ))))
             }
         }
     }
