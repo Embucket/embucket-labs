@@ -47,6 +47,7 @@ export function SqlEditorLeftPanelTrees() {
         >
           {(database) => (
             <TreesSchemas
+              database={database}
               schemas={database.schemas}
               defaultOpen={(schema) =>
                 [...schema.tables, ...schema.views].some(
@@ -62,11 +63,11 @@ export function SqlEditorLeftPanelTrees() {
                       tables={schema.tables}
                       database={database}
                       schema={schema}
-                      onClick={(table) =>
+                      onClick={(tree) =>
                         handleTableClick({
-                          databaseName: database.name,
-                          schemaName: schema.name,
-                          tableName: table.name,
+                          databaseName: tree.databaseName,
+                          schemaName: tree.schemaName,
+                          tableName: tree.tableName,
                         })
                       }
                       isActive={(table) =>
@@ -93,11 +94,11 @@ export function SqlEditorLeftPanelTrees() {
                       tables={schema.views}
                       database={database}
                       schema={schema}
-                      onClick={(table) =>
+                      onClick={(tree) =>
                         handleTableClick({
-                          databaseName: database.name,
-                          schemaName: schema.name,
-                          tableName: table.name,
+                          databaseName: tree.databaseName,
+                          schemaName: tree.schemaName,
+                          tableName: tree.tableName,
                         })
                       }
                       isActive={(table) =>

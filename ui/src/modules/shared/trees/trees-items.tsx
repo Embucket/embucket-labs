@@ -30,7 +30,7 @@ import { TreesToolbar } from './trees-toolbar';
 
 interface TreeItemProps<T> {
   isActive?: (item: T) => boolean;
-  onClick?: (item: T) => void;
+  onClick?: (item: SelectedTree) => void;
   open?: boolean;
 }
 
@@ -82,7 +82,7 @@ export function TreesTables({
               className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
               isActive={isActive?.(table)}
               onClick={() => {
-                onClick?.(table);
+                onClick?.(tree);
               }}
               onMouseEnter={() => setHoveredTable(table)}
               onMouseLeave={() => setHoveredTable(undefined)}
@@ -101,12 +101,14 @@ export function TreesTables({
 }
 
 interface TreesSchemasProps extends TreeItemProps<NavigationTreeSchema> {
+  database: NavigationTreeDatabase;
   schemas: NavigationTreeSchema[];
   defaultOpen?: (schema: NavigationTreeSchema) => boolean;
   children: (schema: NavigationTreeSchema) => React.ReactNode;
 }
 
 export function TreesSchemas({
+  database,
   schemas,
   onClick,
   isActive,
@@ -123,7 +125,13 @@ export function TreesSchemas({
             label={schema.name}
             triggerComponent={SidebarMenuSubButton}
             isActive={isActive?.(schema)}
-            onClick={() => onClick?.(schema)}
+            onClick={() =>
+              onClick?.({
+                databaseName: database.name,
+                schemaName: schema.name,
+                tableName: '',
+              })
+            }
             defaultOpen={defaultOpen?.(schema)}
             open={open}
           >
@@ -209,7 +217,13 @@ export function TreesDatabases({
             triggerComponent={SidebarMenuButton}
             isActive={isActive?.(database)}
             defaultOpen={defaultOpen?.(database)}
-            onClick={() => onClick?.(database)}
+            onClick={() =>
+              onClick?.({
+                databaseName: database.name,
+                schemaName: '',
+                tableName: '',
+              })
+            }
             open={open}
           >
             {children(database)}

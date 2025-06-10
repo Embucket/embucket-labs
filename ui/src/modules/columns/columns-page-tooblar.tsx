@@ -23,7 +23,9 @@ export function ColumnsPageToolbar({ columns }: ColumnsPageToolbarProps) {
 
   return (
     <div className="flex items-center justify-between gap-4 p-4">
-      <p className="text-muted-foreground text-sm text-nowrap">{columns.length} columns found</p>
+      <p className="text-muted-foreground text-sm text-nowrap">
+        {columns.length ? `${columns.length} columns found` : ''}
+      </p>
       <div className="justify flex items-center justify-between gap-2">
         <InputRoot className="w-full">
           <InputIcon>

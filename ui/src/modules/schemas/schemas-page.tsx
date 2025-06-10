@@ -18,7 +18,11 @@ import { SchemasPageToolbar } from './schemas-page-toolbar';
 export function SchemasPage() {
   const [opened, setOpened] = useState(false);
   const { databaseName } = useParams({ from: '/databases/$databaseName/schemas/' });
-  const { data: { items: schemas } = {}, isFetching } = useGetSchemas(databaseName);
+  const {
+    data: { items: schemas } = {},
+    isFetching: isFetchingSchemas,
+    isLoading: isLoadingSchemas,
+  } = useGetSchemas(databaseName);
 
   return (
     <>
@@ -32,12 +36,16 @@ export function SchemasPage() {
             title={databaseName}
             Icon={Database}
             Action={
-              <Button size="sm" disabled={isFetching} onClick={() => setOpened(true)}>
+              <Button
+                size="sm"
+                disabled={isFetchingSchemas || isLoadingSchemas}
+                onClick={() => setOpened(true)}
+              >
                 Add Schema
               </Button>
             }
           />
-          {!schemas?.length ? (
+          {!schemas?.length && !isLoadingSchemas ? (
             <PageEmptyContainer
               Icon={FolderTree}
               title="No Schemas Found"
@@ -45,9 +53,9 @@ export function SchemasPage() {
             />
           ) : (
             <>
-              <SchemasPageToolbar schemas={schemas} isFetchingSchemas={isFetching} />
+              <SchemasPageToolbar schemas={schemas ?? []} isFetchingSchemas={isFetchingSchemas} />
               <PageScrollArea>
-                <SchemasTable isLoading={isFetching} schemas={schemas} />
+                <SchemasTable isLoading={isLoadingSchemas} schemas={schemas ?? []} />
               </PageScrollArea>
             </>
           )}

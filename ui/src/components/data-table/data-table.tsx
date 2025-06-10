@@ -13,14 +13,15 @@ import { cn } from '@/lib/utils';
 
 function DataTableLoadingRows({ columnsLength }: { columnsLength: number }) {
   const rowsLength = 9;
+  const defaultColumnsLength = 5;
 
   return (
     <>
       {Array.from({ length: rowsLength }).map((_, rowIndex) => (
         <TableRow key={rowIndex}>
-          {Array.from({ length: columnsLength }).map((_, colIndex) => (
+          {Array.from({ length: columnsLength || defaultColumnsLength }).map((_, colIndex) => (
             <TableCell key={colIndex}>
-              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-5 w-full" />
             </TableCell>
           ))}
         </TableRow>

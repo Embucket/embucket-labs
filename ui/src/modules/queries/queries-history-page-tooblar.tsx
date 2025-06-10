@@ -15,7 +15,9 @@ export function QueriesHistoryPageToolbar({ queries }: QueriesHistoryPageToolbar
 
   return (
     <div className="flex items-center justify-between gap-4 p-4">
-      <p className="text-muted-foreground text-sm text-nowrap">{queries.length} queries found</p>
+      <p className="text-muted-foreground text-sm text-nowrap">
+        {queries.length ? `${queries.length} queries found` : ''}
+      </p>
       <div className="justify flex items-center justify-between gap-2">
         <InputRoot className="w-full">
           <InputIcon>

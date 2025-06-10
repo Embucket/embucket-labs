@@ -26,13 +26,17 @@ export function TablesPage() {
   const { databaseName, schemaName } = useParams({
     from: '/databases/$databaseName/schemas/$schemaName/tables/',
   });
-  const { data: { items: tables } = {}, isFetching } = useGetTables(databaseName, schemaName);
+  const {
+    data: { items: tables } = {},
+    isFetching: isFetchingTables,
+    isLoading: isLoadingTables,
+  } = useGetTables(databaseName, schemaName);
 
   const addTab = useSqlEditorSettingsStore((state) => state.addTab);
   const setSelectedTree = useSqlEditorSettingsStore((state) => state.setSelectedTree);
   const queryClient = useQueryClient();
 
-  const { mutateAsync, isPending } = useCreateWorksheet({
+  const { mutateAsync, isPending: isPendingCreateWorksheet } = useCreateWorksheet({
     mutation: {
       onSuccess: (worksheet) => {
         addTab(worksheet);
@@ -75,12 +79,12 @@ export function TablesPage() {
             title={schemaName}
             Icon={FolderTree}
             Action={
-              <Button size="sm" disabled={isPending} onClick={handleCreateTable}>
+              <Button size="sm" disabled={isPendingCreateWorksheet} onClick={handleCreateTable}>
                 Add Table
               </Button>
             }
           />
-          {!tables?.length ? (
+          {!tables?.length && !isLoadingTables ? (
             <PageEmptyContainer
               Icon={Table}
               title="No Tables Found"
@@ -88,11 +92,11 @@ export function TablesPage() {
             />
           ) : (
             <>
-              <TablesPageToolbar tables={tables} isFetchingTables={isFetching} />
+              <TablesPageToolbar tables={tables ?? []} isFetchingTables={isFetchingTables} />
               <PageScrollArea>
                 <TablesTable
-                  isLoading={isFetching}
-                  tables={tables}
+                  isLoading={isLoadingTables}
+                  tables={tables ?? []}
                   databaseName={databaseName}
                   schemaName={schemaName}
                 />

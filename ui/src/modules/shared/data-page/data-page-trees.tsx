@@ -1,16 +1,12 @@
 import { useNavigate, useParams } from '@tanstack/react-router';
 
+import type { SelectedTree } from '@/modules/shared/trees/trees-items';
 import {
   TreesDatabases,
   TreesLayout,
   TreesSchemas,
   TreesTables,
 } from '@/modules/shared/trees/trees-items';
-import type {
-  NavigationTreeDatabase,
-  NavigationTreeSchema,
-  NavigationTreeTable,
-} from '@/orval/models';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
 
 export function DataPageTrees() {
@@ -21,24 +17,31 @@ export function DataPageTrees() {
   const { data: { items: navigationTrees } = {}, isFetching: isFetchingNavigationTrees } =
     useGetNavigationTrees();
 
-  const handleDatabaseClick = (database: NavigationTreeDatabase) => {
-    navigate({ to: '/databases/$databaseName/schemas', params: { databaseName: database.name } });
+  const handleDatabaseClick = (tree: SelectedTree) => {
+    navigate({
+      to: '/databases/$databaseName/schemas',
+      params: { databaseName: tree.databaseName },
+    });
   };
 
-  const handleSchemaClick = (schema: NavigationTreeSchema) => {
+  const handleSchemaClick = (tree: SelectedTree) => {
     if (databaseName) {
       navigate({
         to: '/databases/$databaseName/schemas/$schemaName/tables',
-        params: { databaseName: databaseName, schemaName: schema.name },
+        params: { databaseName: tree.databaseName, schemaName: tree.schemaName },
       });
     }
   };
 
-  const handleTableClick = (table: NavigationTreeTable) => {
+  const handleTableClick = (tree: SelectedTree) => {
     if (databaseName && schemaName) {
       navigate({
         to: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns',
-        params: { databaseName: databaseName, schemaName: schemaName, tableName: table.name },
+        params: {
+          databaseName: tree.databaseName,
+          schemaName: tree.schemaName,
+          tableName: tree.tableName,
+        },
       });
     }
   };
@@ -55,11 +58,9 @@ export function DataPageTrees() {
         >
           {(database) => (
             <TreesSchemas
+              database={database}
               schemas={database.schemas}
-              defaultOpen={(schema) =>
-                schema.name === schemaName ||
-                [...schema.tables, ...schema.views].some((table) => table.name === tableName)
-              }
+              defaultOpen={(schema) => database.name === databaseName && schema.name === schemaName}
               isActive={(schema) => schema.name === schemaName}
               onClick={handleSchemaClick}
             >
@@ -82,7 +83,11 @@ export function DataPageTrees() {
                       label="Views"
                       tables={schema.views}
                       database={database}
-                      isActive={(table) => table.name === tableName}
+                      isActive={(view) =>
+                        database.name === databaseName &&
+                        schema.name === schemaName &&
+                        view.name === tableName
+                      }
                       schema={schema}
                       defaultOpen={true}
                       onClick={handleTableClick}

@@ -41,9 +41,9 @@ export function SqlEditorCenterBottomPanel({
         <Tabs defaultValue="results" className="size-full">
           <TabsList className="px-4">
             <TabsTrigger value="results">Results</TabsTrigger>
-            <TabsTrigger disabled value="chart">
+            {/* <TabsTrigger disabled value="chart">
               Chart
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
           <div className="flex items-center px-4 py-2">
             {!isLoading && (

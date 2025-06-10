@@ -31,7 +31,7 @@ export const SqlEditorRightPanel = () => {
         </Button>
       </div>
       <div className="text-muted-foreground flex items-center justify-between px-4 py-2 text-sm text-nowrap">
-        <p className="mr-2">All queries ({queries?.length})</p>
+        <p className="mr-2">All queries {queries?.length ? `(${queries.length})` : ''}</p>
         <Button disabled size="icon" variant="ghost" className="size-8">
           <SlidersHorizontal />
         </Button>
