@@ -98,6 +98,7 @@ macro_rules! test_query {
                     settings.bind(|| {
                         insta::assert_debug_snapshot!(err);
                     });
+                    return
                 }
                 let res = res.unwrap().collect().await;
 
