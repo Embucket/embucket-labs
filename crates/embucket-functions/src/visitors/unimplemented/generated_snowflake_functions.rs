@@ -3525,13 +3525,7 @@ pub const TABLE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/rest_event_history")
     ),
-    ("RESULT_SCAN", FunctionInfo::new(
-        "RESULT_SCAN",
-        "Returns the result set of a previous command (within 24 hours of when you executed the query) as if the result was a table."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/result_scan")
-    ),
-    ("SPLIT_TO_TABLE", FunctionInfo::new(
+       ("SPLIT_TO_TABLE", FunctionInfo::new(
         "SPLIT_TO_TABLE",
         "This table function splits a string (based on a specified delimiter) and flattens the results into rows."
     )
