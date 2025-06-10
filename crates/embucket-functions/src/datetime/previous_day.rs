@@ -114,7 +114,7 @@ impl ScalarUDFImpl for PreviousDayFunc {
 fn prev_day(ndt: &NaiveDateTime, dow: &str) -> DFResult<NaiveDateTime> {
     let target_dow = match dow.chars().take(2).collect::<String>().as_str() {
         "mo" => Weekday::Mon,
-        "tu" => Weekday::Thu,
+        "tu" => Weekday::Tue,
         "we" => Weekday::Wed,
         "th" => Weekday::Thu,
         "fr" => Weekday::Fri,
