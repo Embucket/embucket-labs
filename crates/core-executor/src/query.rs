@@ -1119,7 +1119,7 @@ impl UserQuery {
                         table_type as kind,
                         upper(table_catalog) as database_name,
                         upper(table_schema) as schema_name,
-                        CASE WHEN table_type='TABLE' then 'Y' else 'N' end as is_iceberg,
+                        is_iceberg,
                         'N' as is_dynamic
                     FROM {catalog}.information_schema.tables"
                 );
