@@ -47,7 +47,7 @@
 Signature::uniform(1, logical_string(), Volatility::Immutable)
 
 // Multiple type coercions
-Signature::any(vec![
+Signature::one_of(vec![
     Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
     Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
 ])
