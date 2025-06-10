@@ -22,11 +22,17 @@ chmod +x run.sh
 ./run.sh --target snowflake
 ```
 
+Optionally, a specific model pipeline can be triggered using the following command:
+```sh
+./run.sh --target database --model model_name
+```
+
+
+Files to start with:
+
 **top_errors.txt** - file with the top 10 errors
 
 **run.log** - file with the logs after the last run
-
-**target** - folder with both: compiled sql and run sql
 
 
 Emucket dbt run result:

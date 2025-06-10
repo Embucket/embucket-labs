@@ -1,14 +1,14 @@
 #!/bin/bash
 
-# Parse --target argument
+# Parse --target and --model arguments
 while [[ "$#" -gt 0 ]]; do
   case $1 in
     --target) DBT_TARGET="$2"; shift ;;
+    --model) DBT_MODEL="$2"; shift ;;
     *) echo "Unknown parameter: $1"; exit 1 ;;
   esac
   shift
 done
-
 # Set DBT_TARGET to "embucket" if not provided
 export DBT_TARGET=${DBT_TARGET:-"embucket"}
 
@@ -70,17 +70,16 @@ echo ""
     dbt debug
     dbt clean
     dbt deps
+# dbt seed
     if [ "$DBT_TARGET" = "embucket" ]; then
         dbt seed
     fi
-    # dbt seed --select gitlab_db_project_statistics
-    # dbt run
-    # if [ "$DBT_TARGET" = "embucket" ]; then
-    # dbt run --full-refresh --select result:success --state target_to_run 2>&1 | tee run.log
-    # else 
-    # dbt run --full-refresh --select result:success --state target_to_run 2>&1 | tee run.log
-    # fi
-    dbt run --full-refresh --select result:success --state target_to_run 2>&1 | tee run.log
+# dbt run
+    if [ -n "$DBT_MODEL" ]; then
+        dbt run --full-refresh --select +"$DBT_MODEL" 2>&1 | tee run.log
+    else
+        dbt run --full-refresh --select result:success --state target_to_run 2>&1 | tee run.log
+    fi 
 
 
 # Load data and create embucket catalog if the embucket is a target 

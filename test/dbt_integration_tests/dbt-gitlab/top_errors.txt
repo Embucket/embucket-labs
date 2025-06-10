@@ -25,4 +25,3 @@ TOTAL: 1588
    1 DataFusion error: Error during planning: Invalid function 'to_timestamp_ntz'.
    1 DataFusion error: Error during planning: Invalid function 'parse_ip'.
    1 DataFusion error: Error during planning: Invalid function 'conditional_true_event'.
-
