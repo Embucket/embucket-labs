@@ -1,1 +1,1 @@
-mod table;
+mod result_scan;
