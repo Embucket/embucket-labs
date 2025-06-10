@@ -6,3 +6,4 @@ mod semi_structured;
 mod string_binary;
 mod utils;
 mod visitors;
+mod conversion;
