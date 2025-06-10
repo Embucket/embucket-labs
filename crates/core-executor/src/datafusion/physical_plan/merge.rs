@@ -1,12 +1,13 @@
 use datafusion::arrow::{
     array::{Array, BooleanArray, RecordBatch, StringArray, downcast_array},
     compute::{filter, kernels::cmp::distinct},
+    datatypes::Schema,
 };
 use datafusion_common::{DFSchemaRef, DataFusionError, HashSet};
 use datafusion_iceberg::{DataFusionTable, error::Error as DataFusionIcebergError};
 use datafusion_physical_plan::{
-    DisplayAs, ExecutionPlan, RecordBatchStream, SendableRecordBatchStream,
-    stream::RecordBatchStreamAdapter,
+    DisplayAs, ExecutionPlan, PhysicalExpr, RecordBatchStream, SendableRecordBatchStream,
+    expressions::Column, projection::ProjectionExec, stream::RecordBatchStreamAdapter,
 };
 use futures::{Stream, StreamExt, TryStreamExt};
 use iceberg_rust::{
@@ -80,14 +81,14 @@ impl ExecutionPlan for MergeIntoSinkExec {
         partition: usize,
         context: Arc<datafusion::execution::TaskContext>,
     ) -> datafusion_common::Result<datafusion_physical_plan::SendableRecordBatchStream> {
-        let input = self.input.execute(partition, context)?;
-
         let schema = Arc::new(self.schema.as_arrow().clone());
 
-        let filtered = SourceExistFilterStream::new(input);
+        let filtered: Arc<dyn ExecutionPlan> =
+            Arc::new(SourceExistFilterExec::new(self.input.clone()));
 
-        //TODO
-        //Project input stream onto desired Schema
+        let projection = ProjectionExec::try_new(schema_projection(&schema), filtered)?;
+
+        let batches = projection.execute(partition, context)?;
 
         let stream = futures::stream::once({
             let tabular = self.target.tabular.clone();
@@ -104,7 +105,7 @@ impl ExecutionPlan for MergeIntoSinkExec {
 
                 let datafiles = write_parquet_partitioned(
                     table,
-                    filtered.map_err(Into::into),
+                    batches.map_err(Into::into),
                     branch.as_deref(),
                 )
                 .await?;
@@ -125,6 +126,62 @@ impl ExecutionPlan for MergeIntoSinkExec {
         .boxed();
 
         Ok(Box::pin(RecordBatchStreamAdapter::new(schema, stream)))
+    }
+}
+
+#[derive(Debug)]
+struct SourceExistFilterExec {
+    input: Arc<dyn ExecutionPlan>,
+}
+
+impl SourceExistFilterExec {
+    fn new(input: Arc<dyn ExecutionPlan>) -> Self {
+        Self { input }
+    }
+}
+
+impl DisplayAs for SourceExistFilterExec {
+    fn fmt_as(
+        &self,
+        t: datafusion_physical_plan::DisplayFormatType,
+        f: &mut std::fmt::Formatter,
+    ) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+impl ExecutionPlan for SourceExistFilterExec {
+    fn name(&self) -> &str {
+        todo!()
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        todo!()
+    }
+
+    fn properties(&self) -> &datafusion_physical_plan::PlanProperties {
+        todo!()
+    }
+
+    fn children(&self) -> Vec<&Arc<dyn ExecutionPlan>> {
+        todo!()
+    }
+
+    fn with_new_children(
+        self: Arc<Self>,
+        children: Vec<Arc<dyn ExecutionPlan>>,
+    ) -> datafusion_common::Result<Arc<dyn ExecutionPlan>> {
+        todo!()
+    }
+
+    fn execute(
+        &self,
+        partition: usize,
+        context: Arc<datafusion::execution::TaskContext>,
+    ) -> datafusion_common::Result<SendableRecordBatchStream> {
+        Ok(Box::pin(SourceExistFilterStream::new(
+            self.input.execute(partition, context)?,
+        )))
     }
 }
 
@@ -248,6 +305,28 @@ fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> 
         });
 
     Ok(result)
+}
+
+fn schema_projection(schema: &Schema) -> Vec<(Arc<dyn PhysicalExpr>, String)> {
+    schema
+        .fields()
+        .iter()
+        .enumerate()
+        .filter_map(|(i, field)| {
+            let name = field.name();
+            if name != SOURCE_EXISTS_COLUMN
+                && name != DATA_FILE_PATH_COLUMN
+                && name != MANIFEST_FILE_PATH_COLUMN
+            {
+                Some((
+                    Arc::new(Column::new(name, i)) as Arc<dyn PhysicalExpr>,
+                    name.to_owned(),
+                ))
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
