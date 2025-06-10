@@ -1,7 +1,7 @@
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const QUERIES = 10;
+const QUERIES = 12;
 
 const SkeletonRow = () => {
   return (

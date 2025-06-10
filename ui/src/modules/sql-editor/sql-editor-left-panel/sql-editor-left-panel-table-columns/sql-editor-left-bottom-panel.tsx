@@ -6,6 +6,7 @@ import { useGetTableColumns, useGetTablePreviewData } from '@/orval/tables';
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 import { SqlEditorLeftPanelTableColumns } from './sql-editor-left-panel-table-columns';
 import { SqlEditorLeftPanelTableColumnsPreviewDialog } from './sql-editor-left-panel-table-columns-preview-dialog';
+import { SqlEditorLeftPanelTableColumnsSkeleton } from './sql-editor-left-panel-table-columns-skeleton';
 import { SqlEditorLeftPanelTableColumnsToolbar } from './sql-editor-left-panel-table-columns-toolbar';
 
 export function SqlEditorLeftBottomPanel() {
@@ -33,7 +34,7 @@ export function SqlEditorLeftBottomPanel() {
       },
     );
 
-  const { data: { items: columns } = {} } = useGetTableColumns(
+  const { data: { items: columns } = {}, isLoading: isLoadingColumns } = useGetTableColumns(
     selectedTree?.databaseName ?? '',
     selectedTree?.schemaName ?? '',
     selectedTree?.tableName ?? '',
@@ -44,7 +45,7 @@ export function SqlEditorLeftBottomPanel() {
     },
   );
 
-  if (!columns?.length) {
+  if (!selectedTree) {
     return null;
   }
 
@@ -55,16 +56,16 @@ export function SqlEditorLeftBottomPanel() {
         selectedTree={selectedTree}
         onSetOpen={setOpen}
       />
-      <SqlEditorLeftPanelTableColumns columns={columns} />
-      {selectedTree && (
-        <SqlEditorLeftPanelTableColumnsPreviewDialog
-          previewData={previewData ?? []}
-          isPreviewDataFetching={isPreviewDataFetching}
-          selectedTree={selectedTree}
-          opened={open}
-          onSetOpened={setOpen}
-        />
-      )}
+
+      <SqlEditorLeftPanelTableColumns isLoadingColumns={isLoadingColumns} columns={columns ?? []} />
+
+      <SqlEditorLeftPanelTableColumnsPreviewDialog
+        previewData={previewData ?? []}
+        isPreviewDataFetching={isPreviewDataFetching}
+        selectedTree={selectedTree}
+        opened={open}
+        onSetOpened={setOpen}
+      />
     </>
   );
 }
