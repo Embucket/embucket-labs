@@ -2939,6 +2939,7 @@ dependencies = [
  "serde_json",
  "strsim",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

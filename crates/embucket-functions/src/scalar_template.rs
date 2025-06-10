@@ -85,6 +85,9 @@ impl ScalarUDFImpl for YourFunctionName {
 
     /// REQUIRED: Core function implementation
     /// This is where your main logic goes
+    /// Add tracing for a functions that can be heavy on computation
+    #[tracing::instrument(level = "trace", skip(self, args))]
+
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
         // TODO: Implement your function logic here
         // 

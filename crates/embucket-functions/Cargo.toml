@@ -22,6 +22,7 @@ base64 = "0.22.1"
 jsonpath_lib = "0.3.0"
 indexmap = "2.9.0"
 strsim = "0.11"
+tracing = "0.1.41"
 
 [dev-dependencies]
 tokio = { workspace = true }
