@@ -895,12 +895,6 @@ pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
     ),
-    ("MONTHNAME", FunctionInfo::new(
-        "MONTHNAME",
-        "Extracts the three-letter month name from the specified date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/monthname")
-    ),
     ("MONTHS_BETWEEN", FunctionInfo::new(
         "MONTHS_BETWEEN",
         "Returns the number of months between two DATE or TIMESTAMP values."

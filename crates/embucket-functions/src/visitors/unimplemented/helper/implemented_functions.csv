@@ -248,7 +248,8 @@ max
 md5                                
 mean                               
 median                             
-min                                
+min
+monthname
 named_struct                       
 nanvl
 next_day
