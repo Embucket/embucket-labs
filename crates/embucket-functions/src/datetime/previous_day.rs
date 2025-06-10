@@ -112,22 +112,14 @@ impl ScalarUDFImpl for PreviousDayFunc {
     clippy::cast_lossless
 )]
 fn prev_day(ndt: &NaiveDateTime, dow: &str) -> DFResult<NaiveDateTime> {
-    let target_dow = if dow.starts_with("su") {
-        Weekday::Sun
-    } else if dow.starts_with("mo") {
-        Weekday::Mon
-    } else if dow.starts_with("tu") {
-        Weekday::Tue
-    } else if dow.starts_with("we") {
-        Weekday::Wed
-    } else if dow.starts_with("th") {
-        Weekday::Thu
-    } else if dow.starts_with("fr") {
-        Weekday::Fri
-    } else if dow.starts_with("sa") {
-        Weekday::Sat
-    } else {
-        return exec_err!("Invalid day of week: {}", dow);
+    let target_dow = match dow.chars().take(2).collect::<String>().as_str() {
+        "mo" => Weekday::Mon,
+        "tu" => Weekday::Thu,
+        "we" => Weekday::Wed,
+        "th" => Weekday::Thu,
+        "fr" => Weekday::Fri,
+        "sa" => Weekday::Sat,
+        _ => return exec_err!("Invalid day of week: {}", dow),
     };
 
     let current_dow = ndt.date().weekday();
