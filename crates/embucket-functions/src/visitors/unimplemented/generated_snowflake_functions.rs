@@ -241,11 +241,23 @@ pub const AGGREGATE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/skew")
     ),
+    ("VARIANCE", FunctionInfo::new(
+        "VARIANCE",
+        "Returns the sample variance of non-NULL records in a group."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/variance")
+    ),
     ("VARIANCE_POP", FunctionInfo::new(
         "VARIANCE_POP",
         "Returns the population variance of non-NULL records in a group."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/variance_pop")
+    ),
+    ("VARIANCE_SAMP", FunctionInfo::new(
+        "VARIANCE_SAMP",
+        "Returns the sample variance of non-NULL records in a group."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/variance")
     ),
 ];
 
