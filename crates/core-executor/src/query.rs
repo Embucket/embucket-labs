@@ -1322,7 +1322,7 @@ impl UserQuery {
                     let is_table_func = self
                         .session
                         .ctx
-                        .table_function(table_name.to_string().as_str())
+                        .table_function(table_name.to_string().to_lowercase().as_str())
                         .is_ok();
                     if !cte_names.contains(&table_name.to_string()) && !is_table_func {
                         match self.resolve_table_object_name(table_name.0.clone()) {

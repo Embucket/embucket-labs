@@ -4,12 +4,13 @@ use core_history::{GetQueriesParams, HistoryStore, QueryRecord};
 use datafusion::arrow;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::arrow::json::reader::{ReaderBuilder, infer_json_schema};
+use datafusion::arrow::json::StructMode;
+use datafusion::arrow::json::reader::ReaderBuilder;
 use datafusion::catalog::{TableFunctionImpl, TableProvider};
 use datafusion::datasource::MemTable;
 use datafusion_common::{DataFusionError, Result as DFResult, ScalarValue, exec_err};
 use datafusion_expr::Expr;
-use std::io::{BufReader, Cursor};
+use std::io::Cursor;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -85,12 +86,14 @@ impl ResultScanFunc {
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
         let arrow_json = convert_resultset_to_arrow_json_lines(&result_set)?;
-        let mut buf_reader = BufReader::new(Cursor::new(&arrow_json));
-        let (inferred_schema, _) = infer_json_schema(&mut buf_reader, None)
+
+        // Parse schema from serialized JSON
+        let schema_value = serde_json::from_str(&result_set.schema)
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
-        let schema_ref: SchemaRef = Arc::new(inferred_schema);
+        let schema_ref: SchemaRef = Arc::new(schema_value);
         let json_reader = ReaderBuilder::new(schema_ref.clone())
+            .with_struct_mode(StructMode::ListOnly)
             .build(Cursor::new(&arrow_json))
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
@@ -146,20 +149,17 @@ fn utf8_val(val: impl Into<String>) -> ScalarValue {
     ScalarValue::Utf8(Some(val.into()))
 }
 
-fn convert_resultset_to_arrow_json_lines(
+pub fn convert_resultset_to_arrow_json_lines(
     result_set: &ResultSet,
 ) -> Result<String, DataFusionError> {
-    let mut output = String::new();
-
+    let mut lines = String::new();
     for row in &result_set.rows {
-        let mut record = serde_json::Map::with_capacity(result_set.columns.len());
-        for (col, value) in result_set.columns.iter().zip(&row.0) {
-            record.insert(col.name.clone(), value.clone());
-        }
-        let json_line =
-            serde_json::to_string(&record).map_err(|e| DataFusionError::External(Box::new(e)))?;
-        output.push_str(&json_line);
-        output.push('\n');
+        let json_value = serde_json::Value::Array(row.0.clone());
+        lines.push_str(
+            &serde_json::to_string(&json_value)
+                .map_err(|e| DataFusionError::External(Box::new(e)))?,
+        );
+        lines.push('\n');
     }
-    Ok(output)
+    Ok(lines)
 }

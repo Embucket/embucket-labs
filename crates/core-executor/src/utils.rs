@@ -518,10 +518,13 @@ pub fn query_result_to_result_set(query_result: &QueryResult) -> ExecutionResult
         })
         .collect();
 
+    // Serialize original Schema into a JSON string
+    let schema = serde_json::to_string(&query_result.schema).context(SerdeParseSnafu)?;
     Ok(ResultSet {
         columns,
         rows,
         data_format: data_format.to_string(),
+        schema,
     })
 }
 

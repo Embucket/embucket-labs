@@ -5,6 +5,7 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+arrow-schema = { version = "55", features = ["serde"] }
 chrono = { workspace = true }
 core-history = { path = "../core-history" }
 datafusion = { workspace = true }

@@ -22,4 +22,5 @@ pub struct ResultSet {
     pub columns: Vec<Column>,
     pub rows: Vec<Row>,
     pub data_format: String,
+    pub schema: String,
 }
