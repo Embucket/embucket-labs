@@ -6,9 +6,9 @@ use datafusion::arrow::{
 use datafusion_common::{DFSchemaRef, DataFusionError, HashSet};
 use datafusion_iceberg::{DataFusionTable, error::Error as DataFusionIcebergError};
 use datafusion_physical_plan::{
-    DisplayAs, ExecutionPlan, PhysicalExpr, RecordBatchStream, SendableRecordBatchStream,
-    expressions::Column, projection::ProjectionExec, stream::RecordBatchStreamAdapter,
-    PlanProperties, DisplayFormatType,
+    DisplayAs, DisplayFormatType, ExecutionPlan, PhysicalExpr, PlanProperties, RecordBatchStream,
+    SendableRecordBatchStream, expressions::Column, projection::ProjectionExec,
+    stream::RecordBatchStreamAdapter,
 };
 use futures::{Stream, StreamExt, TryStreamExt};
 use iceberg_rust::{
@@ -47,13 +47,11 @@ impl MergeIntoSinkExec {
 }
 
 impl DisplayAs for MergeIntoSinkExec {
-    fn fmt_as(
-        &self,
-        t: DisplayFormatType,
-        f: &mut std::fmt::Formatter,
-    ) -> std::fmt::Result {
+    fn fmt_as(&self, t: DisplayFormatType, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match t {
-            DisplayFormatType::Default | DisplayFormatType::Verbose | DisplayFormatType::TreeRender => {
+            DisplayFormatType::Default
+            | DisplayFormatType::Verbose
+            | DisplayFormatType::TreeRender => {
                 write!(f, "MergeIntoSinkExec")
             }
         }
@@ -100,9 +98,11 @@ impl ExecutionPlan for MergeIntoSinkExec {
     ) -> datafusion_common::Result<datafusion_physical_plan::SendableRecordBatchStream> {
         let schema = Arc::new(self.schema.as_arrow().clone());
 
+        // Filter out rows whoose __data_file_path doesn't have a matching row
         let filtered: Arc<dyn ExecutionPlan> =
             Arc::new(SourceExistFilterExec::new(self.input.clone()));
 
+        // Remove auxiliary columns
         let projection = ProjectionExec::try_new(schema_projection(&schema), filtered)?;
 
         let batches = projection.execute(partition, context)?;
@@ -120,6 +120,7 @@ impl ExecutionPlan for MergeIntoSinkExec {
                 }
                 .map_err(DataFusionIcebergError::from)?;
 
+                // Write recordbatches into parquet files on object-storage
                 let datafiles = write_parquet_partitioned(
                     table,
                     batches.map_err(Into::into),
@@ -127,6 +128,7 @@ impl ExecutionPlan for MergeIntoSinkExec {
                 )
                 .await?;
 
+                // Commit transaction on Iceberg table
                 table
                     .new_transaction(branch.as_deref())
                     .append_data(datafiles)
@@ -160,13 +162,11 @@ impl SourceExistFilterExec {
 }
 
 impl DisplayAs for SourceExistFilterExec {
-    fn fmt_as(
-        &self,
-        t: DisplayFormatType,
-        f: &mut std::fmt::Formatter,
-    ) -> std::fmt::Result {
+    fn fmt_as(&self, t: DisplayFormatType, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match t {
-            DisplayFormatType::Default | DisplayFormatType::Verbose | DisplayFormatType::TreeRender => {
+            DisplayFormatType::Default
+            | DisplayFormatType::Verbose
+            | DisplayFormatType::TreeRender => {
                 write!(f, "SourceExistFilterExec")
             }
         }
@@ -335,6 +335,7 @@ fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> 
     Ok(result)
 }
 
+// Remove auxiliary columns from schema
 fn schema_projection(schema: &Schema) -> Vec<(Arc<dyn PhysicalExpr>, String)> {
     schema
         .fields()
