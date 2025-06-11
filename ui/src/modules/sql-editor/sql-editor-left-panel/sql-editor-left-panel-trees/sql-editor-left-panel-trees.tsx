@@ -39,16 +39,20 @@ export function SqlEditorLeftPanelTrees() {
           isFetchingDatabases={isFetchingNavigationTrees}
           defaultOpen={(db) =>
             db.schemas.some((schema) =>
-              schema.tables.some((table) => table.name === selectedTree?.tableName),
+              [...schema.tables, ...schema.views].some(
+                (table) => table.name === selectedTree?.tableName,
+              ),
             ) && db.name === selectedTree?.databaseName
           }
         >
           {(database) => (
             <TreesSchemas
+              database={database}
               schemas={database.schemas}
               defaultOpen={(schema) =>
-                schema.tables.some((table) => table.name === selectedTree?.tableName) &&
-                schema.name === selectedTree?.schemaName
+                [...schema.tables, ...schema.views].some(
+                  (table) => table.name === selectedTree?.tableName,
+                ) && schema.name === selectedTree?.schemaName
               }
             >
               {(schema) => (
@@ -59,11 +63,11 @@ export function SqlEditorLeftPanelTrees() {
                       tables={schema.tables}
                       database={database}
                       schema={schema}
-                      onClick={(table) =>
+                      onClick={(tree) =>
                         handleTableClick({
-                          databaseName: database.name,
-                          schemaName: schema.name,
-                          tableName: table.name,
+                          databaseName: tree.databaseName,
+                          schemaName: tree.schemaName,
+                          tableName: tree.tableName,
                         })
                       }
                       isActive={(table) =>
@@ -90,11 +94,11 @@ export function SqlEditorLeftPanelTrees() {
                       tables={schema.views}
                       database={database}
                       schema={schema}
-                      onClick={(table) =>
+                      onClick={(tree) =>
                         handleTableClick({
-                          databaseName: database.name,
-                          schemaName: schema.name,
-                          tableName: table.name,
+                          databaseName: tree.databaseName,
+                          schemaName: tree.schemaName,
+                          tableName: tree.tableName,
                         })
                       }
                       isActive={(table) =>

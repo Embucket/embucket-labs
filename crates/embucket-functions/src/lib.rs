@@ -29,6 +29,7 @@ pub mod string_binary;
 pub mod table;
 #[cfg(test)]
 pub mod tests;
+mod utils;
 pub mod visitors;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
@@ -36,11 +37,17 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         datetime::convert_timezone::get_udf(),
         datetime::date_add::get_udf(),
         semi_structured::json::parse_json::get_udf(),
+        semi_structured::json::try_parse_json::get_udf(),
         datetime::date_diff::get_udf(),
         datetime::timestamp_from_parts::get_udf(),
         datetime::time_from_parts::get_udf(),
         datetime::date_from_parts::get_udf(),
+        datetime::last_day::get_udf(),
         datetime::add_months::get_udf(),
+        datetime::monthname::get_udf(),
+        datetime::dayname::get_udf(),
+        datetime::previous_day::get_udf(),
+        datetime::next_day::get_udf(),
         conditional::booland::get_udf(),
         conditional::boolor::get_udf(),
         conditional::boolxor::get_udf(),
@@ -52,11 +59,13 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         string_binary::rtrimmed_length::get_udf(),
         semi_structured::get_path::get_udf(),
         string_binary::insert::get_udf(),
+        string_binary::jarowinkler_similarity::get_udf(),
         semi_structured::array::strtok_to_array::get_udf(),
         semi_structured::object::object_keys::get_udf(),
         semi_structured::json::try_parse_json::get_udf(),
         semi_structured::typeof_func::get_udf(),
         to_array::get_udf(),
+        conversion::to_variant::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),

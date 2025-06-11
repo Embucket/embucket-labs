@@ -16,7 +16,7 @@ export function DatabasesPageToolbar({ databases }: DatabasesPageToolbarProps) {
   return (
     <div className="flex items-center justify-between gap-4 p-4">
       <p className="text-muted-foreground text-sm text-nowrap">
-        {databases.length} databases found
+        {databases.length ? `${databases.length} databases found` : ''}
       </p>
       <div className="justify flex items-center justify-between gap-2">
         <InputRoot className="w-full">

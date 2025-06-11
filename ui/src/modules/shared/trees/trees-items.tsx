@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 
+import { keepPreviousData } from '@tanstack/react-query';
 import { Database, Folder, FolderTree, Table } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
@@ -24,11 +25,12 @@ import { useGetVolumes } from '@/orval/volumes';
 import { CreateDatabaseDialog } from '../create-database-dialog/create-database-dialog';
 import { CreateVolumeDialog } from '../create-volume-dialog/create-volume-dialog';
 import { TreeCollapsibleItem } from './trees-collapsible-item';
+import { TreesSkeleton } from './trees-skeleton';
 import { TreesToolbar } from './trees-toolbar';
 
 interface TreeItemProps<T> {
   isActive?: (item: T) => boolean;
-  onClick?: (item: T) => void;
+  onClick?: (item: SelectedTree) => void;
   open?: boolean;
 }
 
@@ -80,7 +82,7 @@ export function TreesTables({
               className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
               isActive={isActive?.(table)}
               onClick={() => {
-                onClick?.(table);
+                onClick?.(tree);
               }}
               onMouseEnter={() => setHoveredTable(table)}
               onMouseLeave={() => setHoveredTable(undefined)}
@@ -99,12 +101,14 @@ export function TreesTables({
 }
 
 interface TreesSchemasProps extends TreeItemProps<NavigationTreeSchema> {
+  database: NavigationTreeDatabase;
   schemas: NavigationTreeSchema[];
   defaultOpen?: (schema: NavigationTreeSchema) => boolean;
   children: (schema: NavigationTreeSchema) => React.ReactNode;
 }
 
 export function TreesSchemas({
+  database,
   schemas,
   onClick,
   isActive,
@@ -121,7 +125,13 @@ export function TreesSchemas({
             label={schema.name}
             triggerComponent={SidebarMenuSubButton}
             isActive={isActive?.(schema)}
-            onClick={() => onClick?.(schema)}
+            onClick={() =>
+              onClick?.({
+                databaseName: database.name,
+                schemaName: schema.name,
+                tableName: '',
+              })
+            }
             defaultOpen={defaultOpen?.(schema)}
             open={open}
           >
@@ -141,8 +151,8 @@ interface TreesDatabasesProps extends TreeItemProps<NavigationTreeDatabase> {
 }
 
 export function TreesDatabases({
-  isFetchingDatabases,
   databases,
+  isFetchingDatabases,
   isActive,
   defaultOpen,
   onClick,
@@ -154,10 +164,11 @@ export function TreesDatabases({
   const [createVolumeDialogOpened, setCreateVolumeDialogOpened] = useState(false);
   const [createDatabaseDialogOpened, setCreateDatabaseDialogOpened] = useState(false);
 
-  if (isFetchingDatabases || isFetchingVolumes) {
-    return null;
+  if (isFetchingVolumes || isFetchingDatabases) {
+    return <TreesSkeleton />;
   }
 
+  // TODO: Not the best place to put empty states for volumes
   if (!volumes?.length) {
     return (
       <>
@@ -206,7 +217,13 @@ export function TreesDatabases({
             triggerComponent={SidebarMenuButton}
             isActive={isActive?.(database)}
             defaultOpen={defaultOpen?.(database)}
-            onClick={() => onClick?.(database)}
+            onClick={() =>
+              onClick?.({
+                databaseName: database.name,
+                schemaName: '',
+                tableName: '',
+              })
+            }
             open={open}
           >
             {children(database)}
@@ -223,8 +240,11 @@ interface TreesLayoutProps {
 }
 
 export function TreesLayout({ children, scrollAreaClassName }: TreesLayoutProps) {
-  const { refetch: refetchNavigationTrees, isFetching: isFetchingNavigationTrees } =
-    useGetNavigationTrees();
+  const {
+    refetch: refetchNavigationTrees,
+    isFetching: isFetchingNavigationTrees,
+    isLoading: isLoadingNavigationTrees,
+  } = useGetNavigationTrees({}, { query: { placeholderData: keepPreviousData } });
 
   return (
     <>
@@ -233,7 +253,9 @@ export function TreesLayout({ children, scrollAreaClassName }: TreesLayoutProps)
         onRefetchNavigationTrees={refetchNavigationTrees}
       />
       <ScrollArea className={cn('py-2', scrollAreaClassName)}>
-        <SidebarMenu className="w-full px-2 select-none">{children}</SidebarMenu>
+        <SidebarMenu className="w-full px-2 select-none">
+          {isLoadingNavigationTrees ? <TreesSkeleton /> : children}
+        </SidebarMenu>
         <ScrollBar orientation="vertical" />
       </ScrollArea>
     </>

@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { ChevronRight, type LucideIcon } from 'lucide-react';
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -7,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 interface TreeCollapsibleItemProps {
   icon: LucideIcon;
-  label: string;
+  label: ReactNode;
   triggerComponent?: typeof SidebarMenuButton | typeof SidebarMenuSubButton;
   children: React.ReactNode;
   defaultOpen?: boolean;
@@ -17,6 +19,7 @@ interface TreeCollapsibleItemProps {
   triggerClassName?: string;
   contentClassName?: string;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
 export function TreeCollapsibleItem({
@@ -31,6 +34,7 @@ export function TreeCollapsibleItem({
   triggerClassName,
   contentClassName,
   onClick,
+  disabled = false,
 }: TreeCollapsibleItemProps) {
   return (
     <Collapsible
@@ -49,10 +53,11 @@ export function TreeCollapsibleItem({
           )}
           onClick={onClick}
           isActive={isActive}
+          disabled={disabled}
         >
           <ChevronRight className="transition-transform" />
           <Icon />
-          <span className="truncate">{label}</span>
+          {typeof label === 'string' ? <span className="truncate">{label}</span> : label}
         </TriggerComponent>
       </CollapsibleTrigger>
       <CollapsibleContent>

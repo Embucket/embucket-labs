@@ -5,10 +5,15 @@ import { SqlEditorLeftPanel } from './sql-editor-left-panel/sql-editor-left-pane
 import { useSqlEditorPanelsState } from './sql-editor-panels-state-provider';
 import { SqlEditorResizableHandle, SqlEditorResizablePanel } from './sql-editor-resizable';
 import { SqlEditorRightPanel } from './sql-editor-right-panel/sql-editor-right-panel';
+import { useSyncSqlEditorSelectedTree } from './use-sync-sql-editor-selected-tree';
+import { useSyncSqlEditorTabs } from './use-sync-sql-editor-tabs';
 
 export function SqlEditorPage() {
   const { leftRef, rightRef, setLeftPanelExpanded, setRightPanelExpanded } =
     useSqlEditorPanelsState();
+
+  useSyncSqlEditorTabs();
+  useSyncSqlEditorSelectedTree();
 
   return (
     <>

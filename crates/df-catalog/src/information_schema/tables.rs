@@ -31,6 +31,7 @@ impl InformationSchemaTables {
             Field::new("table_schema", DataType::Utf8, false),
             Field::new("table_name", DataType::Utf8, false),
             Field::new("table_type", DataType::Utf8, false),
+            Field::new("is_iceberg", DataType::Utf8, true),
         ]))
     }
     pub(crate) fn new(config: InformationSchemaConfig) -> Self {
@@ -44,6 +45,7 @@ impl InformationSchemaTables {
             schema_names: StringBuilder::new(),
             table_names: StringBuilder::new(),
             table_types: StringBuilder::new(),
+            is_iceberg: StringBuilder::new(),
             schema: Arc::clone(&self.schema),
         }
     }
@@ -76,6 +78,7 @@ pub struct InformationSchemaTablesBuilder {
     schema_names: StringBuilder,
     table_names: StringBuilder,
     table_types: StringBuilder,
+    is_iceberg: StringBuilder,
 }
 
 impl InformationSchemaTablesBuilder {
@@ -86,7 +89,6 @@ impl InformationSchemaTablesBuilder {
         table_name: impl AsRef<str>,
         table_type: TableType,
     ) {
-        // Note: append_value is actually infallible.
         self.catalog_names.append_value(catalog_name.as_ref());
         self.schema_names.append_value(schema_name.as_ref());
         self.table_names.append_value(table_name.as_ref());
@@ -94,6 +96,10 @@ impl InformationSchemaTablesBuilder {
             TableType::Base => "TABLE",
             TableType::View => "VIEW",
             TableType::Temporary => "TEMPORARY",
+        });
+        self.is_iceberg.append_value(match table_type {
+            TableType::Base => "Y",
+            _ => "N",
         });
     }
 
@@ -105,6 +111,7 @@ impl InformationSchemaTablesBuilder {
                 Arc::new(self.schema_names.finish()),
                 Arc::new(self.table_names.finish()),
                 Arc::new(self.table_types.finish()),
+                Arc::new(self.is_iceberg.finish()),
             ],
         )
     }

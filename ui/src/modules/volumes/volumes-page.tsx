@@ -15,19 +15,23 @@ import { VolumesPageToolbar } from './volumes-page-toolbar';
 export function VolumesPage() {
   const [opened, setOpened] = useState(false);
 
-  const { data: { items: volumes } = {}, isFetching } = useGetVolumes();
+  const {
+    data: { items: volumes } = {},
+    isFetching: isFetchingVolumes,
+    isLoading: isLoadingVolumes,
+  } = useGetVolumes();
 
   return (
     <>
       <PageHeader
         title="Volumes"
         Action={
-          <Button size="sm" disabled={isFetching} onClick={() => setOpened(true)}>
+          <Button size="sm" disabled={isFetchingVolumes} onClick={() => setOpened(true)}>
             Add Volume
           </Button>
         }
       />
-      {!volumes?.length ? (
+      {!volumes?.length && !isLoadingVolumes ? (
         <PageEmptyContainer
           Icon={Box}
           title="No Volumes Found"
@@ -35,9 +39,9 @@ export function VolumesPage() {
         />
       ) : (
         <>
-          <VolumesPageToolbar volumes={volumes} isFetchingVolumes={isFetching} />
+          <VolumesPageToolbar volumes={volumes ?? []} isFetchingVolumes={isFetchingVolumes} />
           <PageScrollArea>
-            <VolumesTable volumes={volumes} isLoading={isFetching} />
+            <VolumesTable volumes={volumes ?? []} isLoading={isLoadingVolumes} />
           </PageScrollArea>
         </>
       )}

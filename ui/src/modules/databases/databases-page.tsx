@@ -17,7 +17,11 @@ import { DatabasesPageToolbar } from './databases-page-toolbar';
 
 export function DatabasesPage() {
   const [opened, setOpened] = useState(false);
-  const { data: { items: databases } = {}, isFetching: isFetchingDatabases } = useGetDatabases();
+  const {
+    data: { items: databases } = {},
+    isLoading: isLoadingDatabases,
+    isFetching: isFetchingDatabases,
+  } = useGetDatabases();
   const { data: { items: volumes } = {}, isFetching: isFetchingVolumes } = useGetVolumes();
 
   return (
@@ -40,7 +44,7 @@ export function DatabasesPage() {
               </Button>
             }
           />
-          {!databases?.length ? (
+          {!databases?.length && !isLoadingDatabases ? (
             <PageEmptyContainer
               Icon={Database}
               title="No Databases Found"
@@ -49,11 +53,11 @@ export function DatabasesPage() {
           ) : (
             <>
               <DatabasesPageToolbar
-                databases={databases}
+                databases={databases ?? []}
                 isFetchingDatabases={isFetchingDatabases}
               />
               <PageScrollArea>
-                <DatabasesTable isLoading={isFetchingDatabases} databases={databases} />
+                <DatabasesTable isLoading={isLoadingDatabases} databases={databases ?? []} />
               </PageScrollArea>
             </>
           )}

@@ -23,7 +23,9 @@ export function TablesPageToolbar({ tables }: TablesPageToolbarProps) {
 
   return (
     <div className="flex items-center justify-between gap-4 p-4">
-      <p className="text-muted-foreground text-sm text-nowrap">{tables.length} tables found</p>
+      <p className="text-muted-foreground text-sm text-nowrap">
+        {tables.length ? `${tables.length} tables found` : ''}
+      </p>
       <div className="justify flex items-center justify-between gap-2">
         <InputRoot className="w-full">
           <InputIcon>

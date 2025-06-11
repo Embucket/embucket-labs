@@ -1,4 +1,3 @@
-use crate::query::UserQuery;
 use crate::session::UserSession;
 use std::collections::HashMap;
 
@@ -17,89 +16,6 @@ use core_utils::Db;
 use datafusion::sql::parser::DFParser;
 use df_catalog::information_schema::session_params::SessionProperty;
 use std::sync::Arc;
-
-#[allow(clippy::unwrap_used)]
-#[test]
-fn test_statement_postprocessing() {
-    let args: [(&str, &str); 26] = [
-        ("select year(ts)", "SELECT date_part('year', ts)"),
-        ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
-        ("select day(ts)", "SELECT date_part('day', ts)"),
-        ("select dayofmonth(ts)", "SELECT date_part('day', ts)"),
-        ("select dayofweek(ts)", "SELECT date_part('dow', ts)"),
-        ("select month(ts)", "SELECT date_part('month', ts)"),
-        ("select weekofyear(ts)", "SELECT date_part('week', ts)"),
-        ("select week(ts)", "SELECT date_part('week', ts)"),
-        ("select hour(ts)", "SELECT date_part('hour', ts)"),
-        ("select minute(ts)", "SELECT date_part('minute', ts)"),
-        ("select second(ts)", "SELECT date_part('second', ts)"),
-        ("select minute(ts)", "SELECT date_part('minute', ts)"),
-        ("select yearofweek(ts)", "SELECT yearofweek(ts)"),
-        ("select yearofweekiso(ts)", "SELECT yearofweekiso(ts)"),
-        // timestamp keywords postprocess
-        (
-            "SELECT dateadd(year, 5, '2025-06-01')",
-            "SELECT dateadd('year', 5, '2025-06-01')",
-        ),
-        (
-            "SELECT dateadd(\"year\", 5, '2025-06-01')",
-            "SELECT dateadd('year', 5, '2025-06-01')",
-        ),
-        (
-            "SELECT datediff(day, 5, '2025-06-01')",
-            "SELECT datediff('day', 5, '2025-06-01')",
-        ),
-        (
-            "SELECT datediff(week, 5, '2025-06-01')",
-            "SELECT datediff('week', 5, '2025-06-01')",
-        ),
-        (
-            "SELECT datediff(nsecond, 10000000, '2025-06-01')",
-            "SELECT datediff('nsecond', 10000000, '2025-06-01')",
-        ),
-        (
-            "SELECT date_diff(hour, 5, '2025-06-01')",
-            "SELECT date_diff('hour', 5, '2025-06-01')",
-        ),
-        (
-            "SELECT date_add(us, 100000, '2025-06-01')",
-            "SELECT date_add('us', 100000, '2025-06-01')",
-        ),
-        // Unique expression names
-        (
-            "SELECT to_date('2024-05-10'), to_date('2024-05-10')",
-            "SELECT to_date('2024-05-10'), to_date('2024-05-10') AS expr_0",
-        ),
-        // Unique expression names with existing aliases
-        (
-            "SELECT TO_DATE('2024-05-10') AS dt, TO_DATE('2024-05-10') AS dt2",
-            "SELECT to_date('2024-05-10') AS dt, to_date('2024-05-10') AS dt2",
-        ),
-        // Unique expression names with some aliases
-        (
-            "SELECT TO_DATE('2024-05-10') AS dt, TO_DATE('2024-05-10')",
-            "SELECT to_date('2024-05-10') AS dt, to_date('2024-05-10')",
-        ),
-        // Unique expression names nested select
-        (
-            "SELECT (SELECT TO_DATE('2024-05-10'), TO_DATE('2024-05-10'))",
-            "SELECT (SELECT to_date('2024-05-10'), to_date('2024-05-10') AS expr_0)",
-        ),
-        // Inline aliases in select
-        (
-            "SELECT 'test txt' AS alias, length(alias) AS t",
-            "SELECT 'test txt' AS alias, length('test txt') AS t",
-        ),
-    ];
-
-    for (init, exp) in args {
-        let statement = DFParser::parse_sql(init).unwrap().pop_front();
-        if let Some(mut s) = statement {
-            let _ = UserQuery::postprocess_query_statement_with_validation(&mut s);
-            assert_eq!(s.to_string(), exp);
-        }
-    }
-}
 
 #[allow(clippy::unwrap_used)]
 #[tokio::test]

@@ -23,14 +23,17 @@ export function ColumnsPage() {
   const { databaseName, schemaName, tableName } = useParams({
     from: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/',
   });
-  const { data: { items: columns } = {}, isFetching } = useGetTableColumns(
-    databaseName,
-    schemaName,
-    tableName,
-  );
+  const {
+    data: { items: columns } = {},
+    isFetching: isFetchingColumns,
+    isLoading: isLoadingColumns,
+  } = useGetTableColumns(databaseName, schemaName, tableName);
 
-  const { data: { items: previewData } = {}, isFetching: isPreviewDataFetching } =
-    useGetTablePreviewData(databaseName, schemaName, tableName);
+  const {
+    data: { items: previewData } = {},
+    isFetching: isPreviewDataFetching,
+    isLoading: isLoadingPreviewData,
+  } = useGetTablePreviewData(databaseName, schemaName, tableName);
 
   return (
     <>
@@ -47,7 +50,7 @@ export function ColumnsPage() {
               <Button
                 size="sm"
                 onClick={() => setIsLoadDataDialogOpened(true)}
-                disabled={isFetching}
+                disabled={isFetchingColumns}
               >
                 Load Data
               </Button>
@@ -59,7 +62,7 @@ export function ColumnsPage() {
               <TabsTrigger value="data-preview">Data Preview</TabsTrigger>
             </TabsList>
             <TabsContent value="columns" className="m-0">
-              {!columns?.length ? (
+              {!columns?.length && !isLoadingColumns ? (
                 <PageEmptyContainer
                   tabs
                   Icon={Columns}
@@ -68,15 +71,18 @@ export function ColumnsPage() {
                 />
               ) : (
                 <>
-                  <ColumnsPageToolbar columns={columns} isFetchingColumns={isFetching} />
+                  <ColumnsPageToolbar
+                    columns={columns ?? []}
+                    isFetchingColumns={isFetchingColumns}
+                  />
                   <PageScrollArea tabs>
-                    <ColumnsTable isLoading={isFetching} columns={columns} />
+                    <ColumnsTable isLoading={isLoadingColumns} columns={columns ?? []} />
                   </PageScrollArea>
                 </>
               )}
             </TabsContent>
             <TabsContent value="data-preview" className="m-0">
-              {!previewData?.length ? (
+              {(!previewData?.length || !previewData[0]?.rows.length) && !isLoadingPreviewData ? (
                 <PageEmptyContainer
                   tabs
                   Icon={Columns}
@@ -86,11 +92,14 @@ export function ColumnsPage() {
               ) : (
                 <>
                   <ColumnsPagePreviewDataToolbar
-                    previewData={previewData}
+                    previewData={previewData ?? []}
                     isFetchingPreviewData={isPreviewDataFetching}
                   />
                   <PageScrollArea tabs>
-                    <DataPreviewTable columns={previewData} isLoading={isPreviewDataFetching} />
+                    <DataPreviewTable
+                      columns={previewData ?? []}
+                      isLoading={isLoadingPreviewData}
+                    />
                   </PageScrollArea>
                 </>
               )}

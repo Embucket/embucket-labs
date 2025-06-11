@@ -199,12 +199,6 @@ pub const AGGREGATE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/kurtosis")
     ),
-    ("LISTAGG", FunctionInfo::new(
-        "LISTAGG",
-        "Returns the concatenated input values, separated by the delimiter string."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/listagg")
-    ),
     ("MAX_BY", FunctionInfo::new(
         "MAX_BY",
         "Finds the row(s) containing the maximum value for a column and returns the value of another column in that row."
@@ -668,12 +662,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_char")
     ),
-    ("TO_VARIANT", FunctionInfo::new(
-        "TO_VARIANT",
-        "Converts any value to a VARIANT value or NULL (if input is NULL)."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_variant")
-    ),
     ("TO_XML", FunctionInfo::new(
         "TO_XML",
         "Converts a VARIANT to a VARCHAR that contains an XML representation of the value."
@@ -847,12 +835,6 @@ pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
     ),
-    ("DAYNAME", FunctionInfo::new(
-        "DAYNAME",
-        "Extracts the three-letter day-of-week name from the specified date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/dayname")
-    ),
     ("DAYOFMONTH", FunctionInfo::new(
         "DAYOFMONTH",
         "Extracts the corresponding date part from a date or timestamp."
@@ -889,12 +871,6 @@ pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/hour-minute-second")
     ),
-    ("LAST_DAY", FunctionInfo::new(
-        "LAST_DAY",
-        "Returns the last day of the specified date part for a date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/last_day")
-    ),
     ("LAST_SUCCESSFUL_SCHEDULED_TIME", FunctionInfo::new(
         "LAST_SUCCESSFUL_SCHEDULED_TIME",
         "Returns the timestamp representing the scheduled time for the most recent successful evaluation of the alert condition, where no errors occurred when executing the action."
@@ -913,29 +889,11 @@ pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
     ),
-    ("MONTHNAME", FunctionInfo::new(
-        "MONTHNAME",
-        "Extracts the three-letter month name from the specified date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/monthname")
-    ),
     ("MONTHS_BETWEEN", FunctionInfo::new(
         "MONTHS_BETWEEN",
         "Returns the number of months between two DATE or TIMESTAMP values."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/months_between")
-    ),
-    ("NEXT_DAY", FunctionInfo::new(
-        "NEXT_DAY",
-        "Returns the date of the first specified DOW (day of week) that occurs after the input date."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/next_day")
-    ),
-    ("PREVIOUS_DAY", FunctionInfo::new(
-        "PREVIOUS_DAY",
-        "Returns the date of the first specified DOW (day of week) that occurs before the input date."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/previous_day")
     ),
     ("QUARTER", FunctionInfo::new(
         "QUARTER",
@@ -2433,13 +2391,6 @@ pub const SEMISTRUCTURED_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/transform")
     ),
-    ("TRY_PARSE_JSON", FunctionInfo::new(
-        "TRY_PARSE_JSON",
-        "A special version of PARSE_JSON that returns a NULL value if an error occurs during parsing."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_parse_json")
-    .with_subcategory("json")
-    ),
     ("TYPEOF", FunctionInfo::new(
         "TYPEOF",
         "Returns the type of a value stored in a VARIANT column."
@@ -2626,12 +2577,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Performs a case-insensitive comparison to match a string against any of one or more specified patterns."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/ilike_any")
-    ),
-    ("JAROWINKLER_SIMILARITY", FunctionInfo::new(
-        "JAROWINKLER_SIMILARITY",
-        "Computes the Jaro-Winkler similarity between two input strings."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/jarowinkler_similarity")
     ),
     ("LEN", FunctionInfo::new(
         "LEN",
@@ -3580,13 +3525,7 @@ pub const TABLE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/rest_event_history")
     ),
-    ("RESULT_SCAN", FunctionInfo::new(
-        "RESULT_SCAN",
-        "Returns the result set of a previous command (within 24 hours of when you executed the query) as if the result was a table."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/result_scan")
-    ),
-    ("SPLIT_TO_TABLE", FunctionInfo::new(
+       ("SPLIT_TO_TABLE", FunctionInfo::new(
         "SPLIT_TO_TABLE",
         "This table function splits a string (based on a specified delimiter) and flattens the results into rows."
     )

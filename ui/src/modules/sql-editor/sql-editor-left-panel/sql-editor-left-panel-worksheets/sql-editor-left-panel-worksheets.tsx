@@ -3,6 +3,7 @@ import { SidebarMenu } from '@/components/ui/sidebar';
 import type { Worksheet } from '@/orval/models';
 
 import { SqlEditorLeftPanelWorksheet } from './sql-editor-left-panel-worksheet';
+import { SqlEditorLeftPanelWorksheetsSkeleton } from './sql-editor-left-panel-worksheets-skeleton';
 
 interface WorksheetsProps {
   worksheets: Worksheet[];
@@ -16,14 +17,22 @@ function Worksheets({ worksheets }: WorksheetsProps) {
 
 interface SqlEditorLeftPanelWorksheetsProps {
   worksheets: Worksheet[];
+  isFetchingWorksheets: boolean;
 }
 
-export function SqlEditorLeftPanelWorksheets({ worksheets }: SqlEditorLeftPanelWorksheetsProps) {
+export function SqlEditorLeftPanelWorksheets({
+  worksheets,
+  isFetchingWorksheets,
+}: SqlEditorLeftPanelWorksheetsProps) {
   return (
     // TODO: Hardcode
     <ScrollArea className="h-[calc(100%-56px-2px)] py-2">
       <SidebarMenu className="flex w-full flex-col px-2">
-        <Worksheets worksheets={worksheets} />
+        {isFetchingWorksheets ? (
+          <SqlEditorLeftPanelWorksheetsSkeleton />
+        ) : (
+          <Worksheets worksheets={worksheets} />
+        )}
       </SidebarMenu>
       <ScrollBar orientation="vertical" />
     </ScrollArea>

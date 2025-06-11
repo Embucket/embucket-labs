@@ -2,17 +2,20 @@ import { Eye, Table, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { SelectedTree } from '@/modules/shared/trees/trees-items';
+import type { TablePreviewDataColumn } from '@/orval/models';
 
 import { useSqlEditorPanelsState } from '../../sql-editor-panels-state-provider';
 
 interface SqlEditorLeftPanelTableColumnsToolbarProps {
   selectedTree?: SelectedTree;
   onSetOpen: (opened: boolean) => void;
+  previewData: TablePreviewDataColumn[];
 }
 
 export const SqlEditorLeftPanelTableColumnsToolbar = ({
   selectedTree,
   onSetOpen,
+  previewData,
 }: SqlEditorLeftPanelTableColumnsToolbarProps) => {
   const { toggleLeftBottomPanel } = useSqlEditorPanelsState();
 
@@ -44,6 +47,7 @@ export const SqlEditorLeftPanelTableColumnsToolbar = ({
           size="icon"
           variant="ghost"
           className="text-muted-foreground size-8"
+          disabled={!previewData.length}
         >
           <Eye className="size-4" />
         </Button>

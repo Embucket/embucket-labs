@@ -92,7 +92,7 @@ impl UserSession {
         let mut ctx = SessionContext::new_with_state(state);
         register_udfs(&mut ctx).map_err(|error| ex_error::RegisterUDFSnafu { error }.build())?;
         register_udafs(&mut ctx).map_err(|error| ex_error::RegisterUDAFSnafu { error }.build())?;
-        register_udtfs(&ctx);
+	register_udtfs(&ctx, history_store.clone());
         register_json_udfs(&mut ctx)
             .map_err(|error| ex_error::RegisterUDFSnafu { error }.build())?;
         //register_geo_native(&ctx);

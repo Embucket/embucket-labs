@@ -1,7 +1,6 @@
 ---
 source: crates/df-catalog/src/tests/information_schema.rs
 description: SELECT * FROM embucket.information_schema.columns
-snapshot_kind: text
 ---
 +---------------+--------------------+-----------------+-------------------------------+-------------+------------------+----------------+-------------+-----------+--------------------------+------------------------+-------------------+-------------------------+---------------+--------------------+---------------+
 | table_catalog | table_schema       | table_name      | column_name                   | column_type | ordinal_position | column_default | is_nullable | data_type | character_maximum_length | character_octet_length | numeric_precision | numeric_precision_radix | numeric_scale | datetime_precision | interval_type |
@@ -65,6 +64,7 @@ snapshot_kind: text
 | embucket      | information_schema | schemata        | schema_name                   | VIEW_COLUMN | 1                |                | NO          | Utf8      |                          | 2147483647             |                   |                         |               |                    |               |
 | embucket      | information_schema | schemata        | schema_owner                  | VIEW_COLUMN | 2                |                | YES         | Utf8      |                          | 2147483647             |                   |                         |               |                    |               |
 | embucket      | information_schema | schemata        | sql_path                      | VIEW_COLUMN | 6                |                | YES         | Utf8      |                          | 2147483647             |                   |                         |               |                    |               |
+| embucket      | information_schema | tables          | is_iceberg                    | VIEW_COLUMN | 4                |                | YES         | Utf8      |                          | 2147483647             |                   |                         |               |                    |               |
 | embucket      | information_schema | tables          | table_catalog                 | VIEW_COLUMN | 0                |                | NO          | Utf8      |                          | 2147483647             |                   |                         |               |                    |               |
 | embucket      | information_schema | tables          | table_name                    | VIEW_COLUMN | 2                |                | NO          | Utf8      |                          | 2147483647             |                   |                         |               |                    |               |
 | embucket      | information_schema | tables          | table_schema                  | VIEW_COLUMN | 1                |                | NO          | Utf8      |                          | 2147483647             |                   |                         |               |                    |               |

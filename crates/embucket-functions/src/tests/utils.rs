@@ -1,6 +1,8 @@
 use crate::session::register_session_context_udfs;
 use crate::table::register_udtfs;
 use crate::{register_udafs, register_udfs};
+use core_history::errors::HistoryStoreError;
+use core_history::{HistoryStore, MockHistoryStore, QueryRecord};
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{SessionConfig, SessionContext};
 use std::sync::Arc;
@@ -22,8 +24,39 @@ pub fn create_session() -> Arc<SessionContext> {
     register_session_context_udfs(&mut ctx).unwrap();
     register_udfs(&mut ctx).expect("Cannot register UDFs");
     register_udafs(&mut ctx).expect("Cannot register UDAFs");
-    register_udtfs(&ctx);
+    register_udtfs(&ctx, history_store_mock());
     Arc::new(ctx)
+}
+pub fn history_store_mock() -> Arc<dyn HistoryStore> {
+    let mut mock = MockHistoryStore::new();
+    mock.expect_get_queries().returning(|_| {
+        let mut records = Vec::new();
+        for i in 0..4 {
+            let mut q = QueryRecord::new("query", None);
+            q.id = i;
+            records.push(q);
+        }
+        Ok(records)
+    });
+    mock.expect_get_query().returning(|id| {
+        let mut record = QueryRecord::new("query", None);
+        let buf = r#"
+        {"a": 1, "b": "2", "c": true}
+        {"a": 2.0, "b": "4", "c": false}
+        "#;
+        record.result = Some(buf.to_string());
+        if id == 500 {
+            return Err(HistoryStoreError::ExecutionResult {
+                message: "Query not found".to_string(),
+            });
+        }
+        if id == 100 {
+            record.error = Some("query error".to_string());
+        }
+        Ok(record)
+    });
+    let history_store: Arc<dyn HistoryStore> = Arc::new(mock);
+    history_store
 }
 
 #[macro_export]
@@ -47,8 +80,6 @@ macro_rules! test_query {
                         }
                     )*
                 )?
-
-                let res = ctx.sql($query).await.unwrap().collect().await;
                 let mut settings = insta::Settings::new();
                 settings.set_description(stringify!($query));
                 settings.set_omit_expression(true);
@@ -59,6 +90,18 @@ macro_rules! test_query {
                 if !setup.is_empty() {
                     settings.set_info(&format!("Setup queries: {}", setup.join("; ")));
                 }
+
+                // Some queries may fail during Dataframe preparing, so we need to check for errors
+                let res = ctx.sql($query).await;
+                if let Err(ref e) = res {
+                    let err = format!("Error: {}", e);
+                    settings.bind(|| {
+                        insta::assert_debug_snapshot!(err);
+                    });
+                    return
+                }
+                let res = res.unwrap().collect().await;
+
                 settings.bind(|| {
                     let df = match res {
                         Ok(record_batches) => {

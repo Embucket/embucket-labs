@@ -38,7 +38,7 @@ export function SqlEditorCenterPanel() {
 
   const queryClient = useQueryClient();
 
-  const { mutateAsync, isPending, isIdle } = useCreateQuery({
+  const { mutateAsync, isPending } = useCreateQuery({
     mutation: {
       onSettled: async (newQueryRecord) => {
         if (!isRightPanelExpanded) {
@@ -115,11 +115,7 @@ export function SqlEditorCenterPanel() {
             order={2}
             ref={bottomRef}
           >
-            <SqlEditorCenterBottomPanel
-              queryRecord={selectedQueryRecord}
-              isLoading={isPending}
-              isIdle={isIdle}
-            />
+            <SqlEditorCenterBottomPanel queryRecord={selectedQueryRecord} isLoading={isPending} />
           </SqlEditorResizablePanel>
         </ResizablePanelGroup>
       </EditorCacheProvider>

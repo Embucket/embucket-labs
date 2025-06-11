@@ -59,6 +59,7 @@ impl ScalarUDFImpl for ParseJsonFunc {
         Ok(DataType::Utf8)
     }
 
+    #[tracing::instrument(level = "trace", skip(self, args))]
     fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
         let args = &args.args;
         if args.len() != 1 {
