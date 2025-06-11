@@ -2,21 +2,21 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
 
-use embucket_functions::table::register_udtfs;
-use embucket_functions::{register_udafs, register_udfs};
 use core_history::store::SlateDBHistoryStore;
 use datafusion::prelude::SessionContext;
+use embucket_functions::table::register_udtfs;
+use embucket_functions::{register_udafs, register_udfs};
 
 /// Find the project root by looking for the crates folder
 fn find_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let mut current_dir = std::env::current_dir()?;
-    
+
     loop {
         let crates_dir = current_dir.join("crates");
         if crates_dir.exists() && crates_dir.is_dir() {
             return Ok(current_dir);
         }
-        
+
         match current_dir.parent() {
             Some(parent) => current_dir = parent.to_path_buf(),
             None => return Err("Could not find project root with crates folder".into()),
@@ -54,12 +54,13 @@ pub async fn generate_implemented_functions_csv() -> Result<(), Box<dyn std::err
     let state = ctx.state();
 
     let all_functions: BTreeSet<_> = state
-    .scalar_functions().keys()
-    .chain(state.aggregate_functions().keys())
-    .chain(state.window_functions().keys())
-    .chain(state.table_functions().keys())
-    .cloned()
-    .collect();
+        .scalar_functions()
+        .keys()
+        .chain(state.aggregate_functions().keys())
+        .chain(state.window_functions().keys())
+        .chain(state.table_functions().keys())
+        .cloned()
+        .collect();
 
     // Create the CSV content
     let mut csv_content = String::new();
@@ -88,11 +89,10 @@ pub async fn generate_implemented_functions_csv() -> Result<(), Box<dyn std::err
     Ok(())
 }
 
-
 #[tokio::main]
 async fn main() {
     if let Err(e) = generate_implemented_functions_csv().await {
         eprintln!("Error: {e}");
         std::process::exit(1);
     }
-} 
+}
