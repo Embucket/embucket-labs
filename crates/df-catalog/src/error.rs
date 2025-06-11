@@ -4,7 +4,6 @@ use datafusion_common::DataFusionError;
 use iceberg_s3tables_catalog::error::Error as S3TablesError;
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error::StackError;
 use stack_error_proc::stack_trace_debug;
 
 #[derive(Snafu)]

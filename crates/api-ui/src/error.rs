@@ -74,6 +74,7 @@ fn metastore_error_into_response(error: &MetastoreError) -> axum::response::Resp
     (code, Json(error)).into_response()
 }
 
+#[allow(clippy::too_many_lines)]
 fn exec_error_into_response(error: &ExecutionError) -> axum::response::Response {
     let status_code = match error {
         ExecutionError::RegisterUDF { .. }

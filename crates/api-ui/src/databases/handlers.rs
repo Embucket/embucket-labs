@@ -1,11 +1,9 @@
-use crate::databases::error::DatabasesAPIError;
 use crate::state::AppState;
 use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters,
     databases::error::{
-        self as databases_error, CreateSnafu, DatabasesResult, DeleteSnafu, GetSnafu, ListSnafu,
-        UpdateSnafu,
+        self as databases_error, CreateSnafu, DatabasesResult, DeleteSnafu, GetSnafu, UpdateSnafu,
     },
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
@@ -20,10 +18,8 @@ use axum::{
     extract::{Path, Query, State},
 };
 use core_executor::models::{QueryContext, QueryResult};
-use core_metastore::error::{
-    self as metastore_error, {MetastoreError, ValidationSnafu},
-};
-use core_metastore::{Database as MetastoreDatabase, metastore};
+use core_metastore::Database as MetastoreDatabase;
+use core_metastore::error::{self as metastore_error, ValidationSnafu};
 use snafu::ResultExt;
 use utoipa::OpenApi;
 use validator::Validate;
@@ -177,7 +173,6 @@ pub async fn delete_database(
         .metastore
         .delete_database(&database_name, query.cascade.unwrap_or_default())
         .await
-        .map_err(Into::into)
         .context(DeleteSnafu)
 }
 
@@ -223,7 +218,6 @@ pub async fn update_database(
         .metastore
         .update_database(&database_name, database)
         .await
-        .map_err(Into::into)
         .context(UpdateSnafu)
         .map(Database::from)
         .map(DatabaseUpdateResponse)

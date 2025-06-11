@@ -110,6 +110,7 @@ impl IntoResponse for DbtError {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn convert_into_response(error: &ExecutionError) -> axum::response::Response {
     let status_code = match error {
         ExecutionError::RegisterUDF { .. }

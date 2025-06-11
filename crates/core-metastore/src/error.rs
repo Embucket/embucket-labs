@@ -1,7 +1,6 @@
 use iceberg_rust_spec::table_metadata::TableMetadataBuilderError;
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error::StackError;
 use stack_error_proc::stack_trace_debug;
 
 #[derive(Snafu)]

@@ -40,18 +40,19 @@ pub struct EmbucketIcebergCatalog {
 
 impl EmbucketIcebergCatalog {
     pub fn new(metastore: Arc<dyn Metastore>, database: String) -> MetastoreResult<Self> {
-        let db = block_on(metastore.get_database(&database))?.ok_or(
+        let db = block_on(metastore.get_database(&database))?.ok_or_else(|| {
             metastore_error::DatabaseNotFoundSnafu {
                 db: database.clone(),
             }
-            .build(),
-        )?;
-        let object_store = block_on(metastore.volume_object_store(&db.volume))?.ok_or(
-            metastore_error::VolumeNotFoundSnafu {
-                volume: db.volume.clone(),
-            }
-            .build(),
-        )?;
+            .build()
+        })?;
+        let object_store =
+            block_on(metastore.volume_object_store(&db.volume))?.ok_or_else(|| {
+                metastore_error::VolumeNotFoundSnafu {
+                    volume: db.volume.clone(),
+                }
+                .build()
+            })?;
         Ok(Self {
             metastore,
             database,

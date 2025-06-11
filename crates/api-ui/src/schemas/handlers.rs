@@ -15,7 +15,7 @@ use axum::{
     extract::{Path, Query, State},
 };
 use core_executor::models::{QueryContext, QueryResult};
-use core_metastore::error::{self as metastore_error, MetastoreError};
+use core_metastore::error as metastore_error;
 use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
 use snafu::ResultExt;
 use std::convert::From;

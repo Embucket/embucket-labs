@@ -9,9 +9,8 @@ use datafusion::catalog::CatalogProvider;
 use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
 use datafusion::datasource::memory::MemTable;
 use datafusion_common::TableReference;
-use snafu::ResultExt;
 
-use super::error::{self as ex_error, ExecutionError, ExecutionResult};
+use super::error::{self as ex_error, ExecutionResult};
 use super::{models::QueryContext, models::QueryResult, session::UserSession};
 use crate::utils::{Config, query_result_to_history};
 use core_history::history_store::HistoryStore;
@@ -120,12 +119,12 @@ impl ExecutionService for CoreExecutionService {
             let sessions = self.df_sessions.read().await;
             sessions
                 .get(session_id)
-                .ok_or(
+                .ok_or_else(|| {
                     ex_error::MissingDataFusionSessionSnafu {
                         id: session_id.to_string(),
                     }
-                    .build(),
-                )?
+                    .build()
+                })?
                 .clone()
         };
 
@@ -177,12 +176,12 @@ impl ExecutionService for CoreExecutionService {
             let sessions = self.df_sessions.read().await;
             sessions
                 .get(session_id)
-                .ok_or(
+                .ok_or_else(|| {
                     ex_error::MissingDataFusionSessionSnafu {
                         id: session_id.to_string(),
                     }
-                    .build(),
-                )?
+                    .build()
+                })?
                 .clone()
         };
 

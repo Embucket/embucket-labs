@@ -43,7 +43,7 @@ pub trait StackError: std::error::Error {
 
 impl<T: ?Sized + StackError> StackError for Arc<T> {
     fn debug_fmt(&self, layer: usize, buf: &mut Vec<String>) {
-        self.as_ref().debug_fmt(layer, buf)
+        self.as_ref().debug_fmt(layer, buf);
     }
 
     fn next(&self) -> Option<&dyn StackError> {
@@ -53,7 +53,7 @@ impl<T: ?Sized + StackError> StackError for Arc<T> {
 
 impl<T: StackError> StackError for Box<T> {
     fn debug_fmt(&self, layer: usize, buf: &mut Vec<String>) {
-        self.as_ref().debug_fmt(layer, buf)
+        self.as_ref().debug_fmt(layer, buf);
     }
 
     fn next(&self) -> Option<&dyn StackError> {

@@ -1,7 +1,9 @@
+#![allow(clippy::needless_pass_by_value)]
 use proc_macro2::{Literal, Span, TokenStream as TokenStream2, TokenTree};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{Attribute, Ident, ItemEnum, Variant, parenthesized};
+
 
 pub fn stack_trace_style_impl(args: TokenStream2, input: TokenStream2) -> TokenStream2 {
     let input_cloned: TokenStream2 = input.clone();
@@ -45,7 +47,7 @@ pub fn stack_trace_style_impl(args: TokenStream2, input: TokenStream2) -> TokenS
 fn build_debug_fmt_impl(enum_name: Ident, variants: Vec<ErrorVariant>) -> TokenStream2 {
     let match_arms = variants
         .iter()
-        .map(|v| v.to_debug_match_arm())
+        .map(ErrorVariant::to_debug_match_arm)
         .collect::<Vec<_>>();
 
     quote! {
@@ -67,7 +69,7 @@ fn build_debug_fmt_impl(enum_name: Ident, variants: Vec<ErrorVariant>) -> TokenS
 fn build_next_impl(enum_name: Ident, variants: Vec<ErrorVariant>) -> TokenStream2 {
     let match_arms = variants
         .iter()
-        .map(|v| v.to_next_match_arm())
+        .map(ErrorVariant::to_next_match_arm)
         .collect::<Vec<_>>();
 
     quote! {
@@ -80,7 +82,7 @@ fn build_next_impl(enum_name: Ident, variants: Vec<ErrorVariant>) -> TokenStream
     }
 }
 
-/// Implement [std::fmt::Debug] via `debug_fmt`
+/// Implement [`std::fmt::Debug`] via `debug_fmt`
 fn build_debug_impl(enum_name: Ident) -> TokenStream2 {
     quote! {
         impl std::fmt::Debug for #enum_name {
@@ -94,6 +96,7 @@ fn build_debug_impl(enum_name: Ident) -> TokenStream2 {
     }
 }
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Debug)]
 struct ErrorVariant {
     name: Ident,
@@ -182,7 +185,7 @@ impl ErrorVariant {
         }
     }
 
-    /// Convert self into an match arm that will be used in [build_debug_impl].
+    /// Convert self into an match arm that will be used in [`build_debug_impl`].
     ///
     /// The generated match arm will be like:
     /// ```rust, ignore
@@ -243,7 +246,7 @@ impl ErrorVariant {
         }
     }
 
-    /// Convert self into an match arm that will be used in [build_next_impl].
+    /// Convert self into an match arm that will be used in [`build_next_impl`].
     ///
     /// The generated match arm will be like:
     /// ```rust, ignore
@@ -306,7 +309,7 @@ impl ErrorVariant {
 fn build_transparent_fn(enum_name: Ident, variants: &[ErrorVariant]) -> TokenStream2 {
     let match_arms = variants
         .iter()
-        .map(|v| v.build_transparent_match_arm())
+        .map(ErrorVariant::build_transparent_match_arm)
         .collect::<Vec<_>>();
 
     quote! {

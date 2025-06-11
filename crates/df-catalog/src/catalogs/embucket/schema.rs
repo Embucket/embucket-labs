@@ -1,6 +1,6 @@
 use crate::block_in_new_runtime;
 use async_trait::async_trait;
-use core_metastore::error::{self as metastore_error, MetastoreError};
+use core_metastore::error as metastore_error;
 use core_metastore::{Metastore, SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::{SchemaProvider, TableProvider};

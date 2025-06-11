@@ -193,6 +193,7 @@ impl UserQuery {
         Ok(())
     }
 
+    #[allow(clippy::too_many_lines)]
     #[instrument(name = "UserQuery::execute", level = "debug", skip(self), err)]
     pub async fn execute(&mut self) -> ExecutionResult<QueryResult> {
         let statement = self
@@ -354,12 +355,17 @@ impl UserQuery {
 
     #[instrument(name = "UserQuery::get_catalog", level = "trace", skip(self), err)]
     pub fn get_catalog(&self, name: &str) -> ExecutionResult<Arc<dyn CatalogProvider>> {
-        self.session.ctx.state().catalog_list().catalog(name).ok_or(
-            ex_error::CatalogNotFoundSnafu {
-                catalog: name.to_string(),
-            }
-            .build(),
-        )
+        self.session
+            .ctx
+            .state()
+            .catalog_list()
+            .catalog(name)
+            .ok_or_else(|| {
+                ex_error::CatalogNotFoundSnafu {
+                    catalog: name.to_string(),
+                }
+                .build()
+            })
     }
 
     /// The code below relies on [`Catalog`] trait for different iceberg catalog
@@ -540,30 +546,30 @@ impl UserQuery {
             if is_logical_plan_effectively_empty(&input) {
                 return self.created_entity_response();
             }
-            let schema_name = name.schema().ok_or(
+            let schema_name = name.schema().ok_or_else(|| {
                 ex_error::InvalidSchemaIdentifierSnafu {
                     ident: name.to_string(),
                 }
-                .build(),
-            )?;
+                .build()
+            })?;
 
             let target_table = catalog
                 .schema(schema_name)
-                .ok_or(
+                .ok_or_else(|| {
                     ex_error::SchemaNotFoundSnafu {
                         schema: schema_name.to_string(),
                     }
-                    .build(),
-                )?
+                    .build()
+                })?
                 .table(name.table())
                 .await
                 .map_err(|error| ex_error::DataFusionSnafu { error }.build())?
-                .ok_or(
+                .ok_or_else(|| {
                     ex_error::TableProviderNotFoundSnafu {
                         table_name: name.table().to_string(),
                     }
-                    .build(),
-                )?;
+                    .build()
+                })?;
 
             let insert_plan = LogicalPlan::Dml(DmlStatement::new(
                 name,

@@ -21,7 +21,7 @@ use axum::{
 };
 use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::TableIdent as MetastoreTableIdent;
-use core_metastore::error::{self as metastore_error, MetastoreError};
+use core_metastore::error as metastore_error;
 use datafusion::arrow::csv::reader::Format;
 use datafusion::arrow::util::display::array_value_to_string;
 use snafu::ResultExt;

@@ -1,4 +1,4 @@
-use crate::error::{self as api_iceberg_error, IcebergAPIError, IcebergAPIResult};
+use crate::error::{IcebergAPIError, IcebergAPIResult};
 use crate::schemas::{
     CommitTable, GetConfigQuery, from_get_schema, from_schema, from_schemas_list, from_tables_list,
     to_create_table, to_schema, to_table_commit,
@@ -6,7 +6,7 @@ use crate::schemas::{
 use crate::state::State as AppState;
 use axum::http::StatusCode;
 use axum::{Json, extract::Path, extract::Query, extract::State};
-use core_metastore::error::{self as metastore_error, MetastoreError};
+use core_metastore::error::{self as metastore_error};
 use core_metastore::{SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use iceberg_rest_catalog::models::{
@@ -124,14 +124,14 @@ pub async fn register_table(
         .volume_for_table(&table_ident)
         .await?
         .map(|v| v.data)
-        .ok_or(
+        .ok_or_else(|| {
             metastore_error::VolumeNotFoundSnafu {
                 volume: format!(
                     "Volume not found for database {database_name} and schema {schema_name}"
                 ),
             }
-            .build(),
-        )?
+            .build()
+        })?
         .get_object_store()?
         .get(&object_store::path::Path::from(register.metadata_location))
         .await

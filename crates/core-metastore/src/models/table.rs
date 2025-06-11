@@ -1,4 +1,4 @@
-use crate::error::{self as metastore_error, MetastoreError, MetastoreResult};
+use crate::error::{self as metastore_error, MetastoreResult};
 use iceberg_rust::{
     catalog::commit::{TableRequirement, TableUpdate as IcebergTableUpdate},
     spec::table_metadata::TableMetadata,
@@ -197,6 +197,7 @@ impl TableRequirementExt {
         &self.0
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn assert(&self, metadata: &TableMetadata, exists: bool) -> MetastoreResult<()> {
         match self.inner() {
             TableRequirement::AssertCreate => {

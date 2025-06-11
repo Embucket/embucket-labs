@@ -2,10 +2,7 @@
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
-use super::error::{
-    self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu,
-    RegisterCatalogSnafu,
-};
+use super::error::{self as ex_error, ExecutionResult};
 use crate::datafusion::analyzer::IcebergTypesAnalyzer;
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
@@ -18,7 +15,7 @@ use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::history_store::HistoryStore;
-use core_metastore::error::{self as metastore_error, MetastoreError};
+use core_metastore::error::{self as metastore_error};
 use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::CatalogProvider;
@@ -92,7 +89,7 @@ impl UserSession {
         let mut ctx = SessionContext::new_with_state(state);
         register_udfs(&mut ctx).map_err(|error| ex_error::RegisterUDFSnafu { error }.build())?;
         register_udafs(&mut ctx).map_err(|error| ex_error::RegisterUDAFSnafu { error }.build())?;
-	register_udtfs(&ctx, history_store.clone());
+        register_udtfs(&ctx, history_store.clone());
         register_json_udfs(&mut ctx)
             .map_err(|error| ex_error::RegisterUDFSnafu { error }.build())?;
         //register_geo_native(&ctx);

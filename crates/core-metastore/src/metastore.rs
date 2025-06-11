@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 #[allow(clippy::wildcard_imports)]
 use crate::models::*;
 use crate::{
-    error::{self as metastore_error, MetastoreError, MetastoreResult},
+    error::{self as metastore_error, MetastoreResult},
     models::{
         RwObject,
         database::{Database, DatabaseIdent},
@@ -380,12 +380,12 @@ impl Metastore for SlateDBMetastore {
         if let Some(store) = self.object_store_cache.get(name) {
             Ok(Some(store.clone()))
         } else {
-            let volume = self.get_volume(name).await?.ok_or(
+            let volume = self.get_volume(name).await?.ok_or_else(|| {
                 metastore_error::VolumeNotFoundSnafu {
                     volume: name.clone(),
                 }
-                .build(),
-            )?;
+                .build()
+            })?;
             let object_store = volume.get_object_store()?;
             self.object_store_cache
                 .insert(name.clone(), object_store.clone());
@@ -409,12 +409,12 @@ impl Metastore for SlateDBMetastore {
         name: &DatabaseIdent,
         database: Database,
     ) -> MetastoreResult<RwObject<Database>> {
-        self.get_volume(&database.volume).await?.ok_or(
+        self.get_volume(&database.volume).await?.ok_or_else(|| {
             metastore_error::VolumeNotFoundSnafu {
                 volume: database.volume.clone(),
             }
-            .build(),
-        )?;
+            .build()
+        })?;
         let key = format!("{KEY_DATABASE}/{name}");
         self.create_object(&key, MetastoreObjectType::Database, database)
             .await
@@ -589,18 +589,18 @@ impl Metastore for SlateDBMetastore {
                     |volume_location| format!("{}/{volume_location}", volume.prefix()),
                 )
             } else {
-                let database = self.get_database(&ident.database).await?.ok_or(
+                let database = self.get_database(&ident.database).await?.ok_or_else(|| {
                     metastore_error::DatabaseNotFoundSnafu {
                         db: ident.database.clone(),
                     }
-                    .build(),
-                )?;
-                let volume = self.get_volume(&database.volume).await?.ok_or(
+                    .build()
+                })?;
+                let volume = self.get_volume(&database.volume).await?.ok_or_else(|| {
                     metastore_error::VolumeNotFoundSnafu {
                         volume: database.volume.clone(),
                     }
-                    .build(),
-                )?;
+                    .build()
+                })?;
 
                 let prefix = volume.prefix();
                 format!(
@@ -659,14 +659,14 @@ impl Metastore for SlateDBMetastore {
                 .create_object(&key, MetastoreObjectType::Table, table.clone())
                 .await?;
 
-            let object_store = self.table_object_store(ident).await?.ok_or(
+            let object_store = self.table_object_store(ident).await?.ok_or_else(|| {
                 metastore_error::TableObjectStoreNotFoundSnafu {
                     table: ident.table.clone(),
                     schema: ident.schema.clone(),
                     db: ident.database.clone(),
                 }
-                .build(),
-            )?;
+                .build()
+            })?;
             let data = Bytes::from(
                 serde_json::to_vec(&table_metadata).context(metastore_error::SerdeSnafu)?,
             );
@@ -704,14 +704,14 @@ impl Metastore for SlateDBMetastore {
         let mut table = self
             .get_table(ident)
             .await?
-            .ok_or(
+            .ok_or_else(|| {
                 metastore_error::TableNotFoundSnafu {
                     table: ident.table.clone(),
                     schema: ident.schema.clone(),
                     db: ident.database.clone(),
                 }
-                .build(),
-            )?
+                .build()
+            })?
             .data;
 
         update
@@ -738,18 +738,18 @@ impl Metastore for SlateDBMetastore {
         );
         let rw_table = self.update_object(&key, table.clone()).await?;
 
-        let db = self.get_database(&ident.database).await?.ok_or(
+        let db = self.get_database(&ident.database).await?.ok_or_else(|| {
             metastore_error::DatabaseNotFoundSnafu {
                 db: ident.database.clone(),
             }
-            .build(),
-        )?;
-        let volume = self.get_volume(&db.volume).await?.ok_or(
+            .build()
+        })?;
+        let volume = self.get_volume(&db.volume).await?.ok_or_else(|| {
             metastore_error::VolumeNotFoundSnafu {
                 volume: db.volume.clone(),
             }
-            .build(),
-        )?;
+            .build()
+        })?;
 
         let object_store = volume.get_object_store()?;
         let data =
@@ -770,14 +770,14 @@ impl Metastore for SlateDBMetastore {
     async fn delete_table(&self, ident: &TableIdent, cascade: bool) -> MetastoreResult<()> {
         if let Some(table) = self.get_table(ident).await? {
             if cascade {
-                let object_store = self.table_object_store(ident).await?.ok_or(
+                let object_store = self.table_object_store(ident).await?.ok_or_else(|| {
                     metastore_error::TableObjectStoreNotFoundSnafu {
                         table: ident.table.clone(),
                         schema: ident.schema.clone(),
                         db: ident.database.clone(),
                     }
-                    .build(),
-                )?;
+                    .build()
+                })?;
                 let url = url::Url::parse(&self.url_for_table(ident).await?)
                     .context(metastore_error::UrlParseSnafu)?;
                 let metadata_path = Path::from(url.path());
@@ -852,21 +852,21 @@ impl Metastore for SlateDBMetastore {
     #[instrument(name = "Metastore::url_for_table", level = "debug", skip(self))]
     async fn url_for_table(&self, ident: &TableIdent) -> MetastoreResult<String> {
         if let Some(tbl) = self.get_table(ident).await? {
-            let database = self.get_database(&ident.database).await?.ok_or(
+            let database = self.get_database(&ident.database).await?.ok_or_else(|| {
                 metastore_error::DatabaseNotFoundSnafu {
                     db: ident.database.clone(),
                 }
-                .build(),
-            )?;
+                .build()
+            })?;
 
             // Table has a custom volume associated
             if let Some(volume_ident) = tbl.volume_ident.as_ref() {
-                let volume = self.get_volume(volume_ident).await?.ok_or(
+                let volume = self.get_volume(volume_ident).await?.ok_or_else(|| {
                     metastore_error::VolumeNotFoundSnafu {
                         volume: volume_ident.clone(),
                     }
-                    .build(),
-                )?;
+                    .build()
+                })?;
 
                 let prefix = volume.prefix();
                 // The location of the table within the custom volume
@@ -877,12 +877,12 @@ impl Metastore for SlateDBMetastore {
                 return Ok(format!("{prefix}/{location}"));
             }
 
-            let volume = self.get_volume(&database.volume).await?.ok_or(
+            let volume = self.get_volume(&database.volume).await?.ok_or_else(|| {
                 metastore_error::VolumeNotFoundSnafu {
                     volume: database.volume.clone(),
                 }
-                .build(),
-            )?;
+                .build()
+            })?;
 
             let prefix = volume.prefix();
 
@@ -921,12 +921,12 @@ impl Metastore for SlateDBMetastore {
         } else {
             self.get_database(&ident.database)
                 .await?
-                .ok_or(
+                .ok_or_else(|| {
                     metastore_error::DatabaseNotFoundSnafu {
                         db: ident.database.clone(),
                     }
-                    .build(),
-                )?
+                    .build()
+                })?
                 .volume
                 .clone()
         };

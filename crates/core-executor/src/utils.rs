@@ -22,7 +22,6 @@ use datafusion::common::ScalarValue;
 use datafusion_expr::{Expr, LogicalPlan};
 use indexmap::IndexMap;
 use serde_json::Value;
-use snafu::ResultExt;
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
 use std::sync::Arc;
