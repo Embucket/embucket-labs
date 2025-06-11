@@ -24,10 +24,10 @@ fn find_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     }
 }
 
-/// Generates the implemented_functions.csv file by extracting all function names
-/// from a fully configured DataFusion SessionContext.
+/// Generates the `implemented_functions.csv` file by extracting all function names
+/// from a fully configured `DataFusion` `SessionContext`.
 pub async fn generate_implemented_functions_csv() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Generating implemented_functions.csv...");
+    eprintln!("Generating implemented_functions.csv...");
 
     // Find project root and construct the CSV path
     let project_root = find_project_root()?;
@@ -80,11 +80,8 @@ pub async fn generate_implemented_functions_csv() -> Result<(), Box<dyn std::err
     // Write to the helper directory
     fs::write(&csv_path, csv_content)?;
 
-    println!(
-        "✅ Generated implemented_functions.csv with {} functions",
-        function_count
-    );
-    println!("📁 File location: {}", csv_path.display());
+    eprintln!("✅ Generated implemented_functions.csv with {function_count} functions");
+    eprintln!("📁 File location: {}", csv_path.display());
 
     Ok(())
 }
