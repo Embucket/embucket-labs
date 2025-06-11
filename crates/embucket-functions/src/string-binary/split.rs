@@ -53,24 +53,11 @@ impl ScalarUDFImpl for SplitFunc {
     }
 
     fn return_type(&self, arg_types: &[DataType]) -> datafusion_common::Result<DataType> {
-        match arg_types[0] {
-            DataType::Utf8 => Ok(DataType::List(Arc::new(Field::new(
-                "item",
-                DataType::Utf8,
-                true,
-            )))),
-            DataType::LargeUtf8 => Ok(DataType::List(Arc::new(Field::new(
-                "item",
-                DataType::LargeUtf8,
-                true,
-            )))),
-            DataType::Utf8View => Ok(DataType::List(Arc::new(Field::new(
-                "item",
-                DataType::Utf8View,
-                true,
-            )))),
-            _ => exec_err!("split function only supports Utf8, LargeUtf8, and Utf8View data types"),
-        }
+        Ok(DataType::List(Arc::new(Field::new(
+            "item",
+            arg_types[0].clone(),
+            true,
+        ))))
     }
 
     fn invoke_with_args(
