@@ -32,6 +32,11 @@ bytes = { workspace = true }
 insta = { version = "1.42.0", features = ["yaml", "filters"] }
 paste = "1"
 
+[[bin]]
+name = "generate-implemented-functions"
+path = "src/bin/generate_implemented_functions.rs"
+
+
 
 
 [lints]

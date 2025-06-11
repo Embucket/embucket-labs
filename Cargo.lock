@@ -2930,6 +2930,7 @@ dependencies = [
  "datafusion-common",
  "datafusion-doc",
  "datafusion-expr",
+ "datafusion-functions-json",
  "datafusion-macros",
  "datafusion-physical-plan",
  "indexmap 2.9.0",

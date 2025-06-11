@@ -1,4 +1,4 @@
-select DISTINCT routine_name from information_schema.routines order by routine_name
+IMPLEMENTED_FUNCTIONS
 abs
 acos
 acosh
