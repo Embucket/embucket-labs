@@ -36,8 +36,5 @@ paste = "1"
 name = "generate-implemented-functions"
 path = "src/bin/generate_implemented_functions.rs"
 
-
-
-
 [lints]
 workspace = true
