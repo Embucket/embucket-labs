@@ -25,11 +25,14 @@ indexmap = "2.9.0"
 strsim = "0.11"
 tracing = "0.1.41"
 tokio = { workspace = true }
+datafusion-functions-json = { workspace = true }
 
 [dev-dependencies]
 bytes = { workspace = true }
 insta = { version = "1.42.0", features = ["yaml", "filters"] }
 paste = "1"
+
+
 
 [lints]
 workspace = true

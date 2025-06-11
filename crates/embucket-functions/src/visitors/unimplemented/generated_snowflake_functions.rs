@@ -591,13 +591,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/st_geometryfromwkt")
     .with_subcategory("geospatial")
     ),
-    ("TO_ARRAY", FunctionInfo::new(
-        "TO_ARRAY",
-        "Converts the input expression to an ARRAY."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_array")
-    .with_subcategory("semi-structured")
-    ),
     ("TO_BINARY", FunctionInfo::new(
         "TO_BINARY",
         "Converts the input expression to a binary value."
@@ -2070,13 +2063,6 @@ pub const SEMISTRUCTURED_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/array_construct_compact")
     .with_subcategory("array")
     ),
-    ("AS_ARRAY", FunctionInfo::new(
-        "AS_ARRAY",
-        "Casts a VARIANT value to an ARRAY value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/as_array")
-    .with_subcategory("conversion")
-    ),
     ("AS_BINARY", FunctionInfo::new(
         "AS_BINARY",
         "Casts a VARIANT value to a BINARY value."
@@ -2131,13 +2117,6 @@ pub const SEMISTRUCTURED_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Casts a VARIANT value to a fixed-point NUMBER value, with optional precision and scale."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/as_decimal-number")
-    .with_subcategory("conversion")
-    ),
-    ("AS_OBJECT", FunctionInfo::new(
-        "AS_OBJECT",
-        "Casts a VARIANT value to an OBJECT value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/as_object")
     .with_subcategory("conversion")
     ),
     ("AS_REAL", FunctionInfo::new(
@@ -2207,23 +2186,11 @@ pub const SEMISTRUCTURED_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/filter")
     ),
-    ("GET_IGNORE_CASE", FunctionInfo::new(
-        "GET_IGNORE_CASE",
-        "Extracts a field value from an object; returns NULL if either of the arguments is NULL."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/get_ignore_case")
-    ),
     ("IS_BINARY", FunctionInfo::new(
         "IS_BINARY",
         "Returns TRUE if its VARIANT argument contains a binary string value."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_binary")
-    ),
-    ("IS_BOOLEAN", FunctionInfo::new(
-        "IS_BOOLEAN",
-        "Returns TRUE if its VARIANT argument contains a BOOLEAN value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_boolean")
     ),
     ("IS_CHAR", FunctionInfo::new(
         "IS_CHAR",
@@ -2249,31 +2216,6 @@ pub const SEMISTRUCTURED_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_decimal")
     ),
-    ("IS_DOUBLE", FunctionInfo::new(
-        "IS_DOUBLE",
-        "Returns TRUE if its VARIANT argument contains a floating-point number, fixed-point number, or integer value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_double-real")
-    ),
-    ("IS_INTEGER", FunctionInfo::new(
-        "IS_INTEGER",
-        "Returns TRUE if its VARIANT argument contains an integer value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_integer")
-    ),
-    ("IS_NULL_VALUE", FunctionInfo::new(
-        "IS_NULL_VALUE",
-        "Returns TRUE if its VARIANT argument is a JSON null value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_null_value")
-    .with_subcategory("json")
-    ),
-    ("IS_REAL", FunctionInfo::new(
-        "IS_REAL",
-        "Returns TRUE if its VARIANT argument contains a floating-point number, fixed-point number, or integer value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_double-real")
-    ),
     ("IS_TIME", FunctionInfo::new(
         "IS_TIME",
         "Verifies whether a VARIANT argument contains a TIME value."
@@ -2297,18 +2239,6 @@ pub const SEMISTRUCTURED_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Verifies whether a VARIANT argument contains the respective timestamp value."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_timestamp")
-    ),
-    ("IS_VARCHAR", FunctionInfo::new(
-        "IS_VARCHAR",
-        "Returns TRUE if its VARIANT argument contains a string value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_char-varchar")
-    ),
-    ("JSON_EXTRACT_PATH_TEXT", FunctionInfo::new(
-        "JSON_EXTRACT_PATH_TEXT",
-        "Parses the first argument as a JSON string and returns the value of the element pointed to by the path in the second argument."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/json_extract_path_text")
     ),
     ("MAP_CAT", FunctionInfo::new(
         "MAP_CAT",
@@ -2352,13 +2282,6 @@ pub const SEMISTRUCTURED_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/map_size")
     .with_subcategory("map")
     ),
-    ("OBJECT_CONSTRUCT_KEEP_NULL", FunctionInfo::new(
-        "OBJECT_CONSTRUCT_KEEP_NULL",
-        "Returns an OBJECT constructed from the arguments that retains key-values pairs with NULL values."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/object_construct_keep_null")
-    .with_subcategory("object")
-    ),
     ("PARSE_XML", FunctionInfo::new(
         "PARSE_XML",
         "Interprets an input string as an XML document, producing an OBJECT value."
@@ -2390,12 +2313,6 @@ pub const SEMISTRUCTURED_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Transforms an array based on the logic in a lambda expression."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/transform")
-    ),
-    ("TYPEOF", FunctionInfo::new(
-        "TYPEOF",
-        "Returns the type of a value stored in a VARIANT column."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/typeof")
     ),
     ("XMLGET", FunctionInfo::new(
         "XMLGET",
@@ -3525,7 +3442,7 @@ pub const TABLE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/rest_event_history")
     ),
-       ("SPLIT_TO_TABLE", FunctionInfo::new(
+    ("SPLIT_TO_TABLE", FunctionInfo::new(
         "SPLIT_TO_TABLE",
         "This table function splits a string (based on a specified delimiter) and flattens the results into rows."
     )

@@ -1,6 +1,7 @@
 pub mod functions_checker;
 pub mod functions_list;
 mod generated_snowflake_functions;
+pub mod helper;
 
 /// Information about a Snowflake function
 #[derive(Debug, Clone)]
