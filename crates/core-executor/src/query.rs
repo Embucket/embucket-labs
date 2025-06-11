@@ -43,8 +43,8 @@ use df_catalog::catalog::CachingCatalog;
 use df_catalog::information_schema::session_params::SessionProperty;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
-    copy_into_identifiers, functions_rewriter, json_element, select_expr_aliases, table_function,
-    unimplemented::functions_checker::visit as unimplemented_functions_checker,
+    copy_into_identifiers, functions_rewriter, json_element, select_expr_aliases,
+    table_result_scan, unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
@@ -184,7 +184,7 @@ impl UserQuery {
             copy_into_identifiers::visit(value);
             select_expr_aliases::visit(value);
             // inline_aliases_in_query::visit(value);
-            table_function::visit(value);
+            table_result_scan::visit(value);
             visit_all(value);
         }
         Ok(())
@@ -1284,6 +1284,21 @@ impl UserQuery {
             })
         }
     }
+
+    /// Fully qualifies all table references in the provided SQL statement.
+    ///
+    /// This function traverses the SQL statement and updates table references to their fully qualified
+    /// names (including catalog and schema), based on the current session context and catalog state.
+    ///
+    /// - Table references that are part of Common Table Expressions (CTEs) are skipped and left as-is.
+    /// - Table functions (recognized by the session context) are also skipped and left unresolved.
+    /// - All other table references are resolved using `resolve_table_object_name` and updated in-place.
+    ///
+    /// # Arguments
+    /// * `statement` - The SQL statement (`DFStatement`) to update.
+    ///
+    /// # Errors
+    /// Returns an error if table resolution fails for any non-CTE, non-table-function reference.
     pub fn update_statement_references(&self, statement: &mut DFStatement) -> ExecutionResult<()> {
         let (_tables, ctes) = resolve_table_references(
             statement,
@@ -1296,7 +1311,6 @@ impl UserQuery {
                 .enable_ident_normalization,
         )
         .context(super::error::DataFusionSnafu)?;
-
         match statement {
             DFStatement::Statement(stmt) => {
                 let cte_names: HashSet<String> = ctes
@@ -1305,7 +1319,12 @@ impl UserQuery {
                     .collect();
 
                 let _ = visit_relations_mut(stmt, |table_name: &mut ObjectName| {
-                    if !cte_names.contains(&table_name.to_string()) {
+                    let is_table_func = self
+                        .session
+                        .ctx
+                        .table_function(table_name.to_string().as_str())
+                        .is_ok();
+                    if !cte_names.contains(&table_name.to_string()) && !is_table_func {
                         match self.resolve_table_object_name(table_name.0.clone()) {
                             Ok(resolved_name) => {
                                 *table_name = ObjectName::from(resolved_name.0);

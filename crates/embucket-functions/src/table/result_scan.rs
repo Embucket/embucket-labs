@@ -1,4 +1,5 @@
 use crate::utils::block_in_new_runtime;
+use core_history::result_set::ResultSet;
 use core_history::{GetQueriesParams, HistoryStore, QueryRecord};
 use datafusion::arrow;
 use datafusion::arrow::array::RecordBatch;
@@ -79,14 +80,18 @@ impl ResultScanFunc {
             DataFusionError::Execution(format!("No result data for query_id {query_id_parsed}"))
         })?;
 
-        let mut buf_reader = BufReader::new(Cursor::new(&result_json));
+        // Deserialize ResultSet string
+        let result_set: ResultSet = serde_json::from_str(&result_json)
+            .map_err(|e| DataFusionError::External(Box::new(e)))?;
+
+        let arrow_json = convert_resultset_to_arrow_json_lines(&result_set)?;
+        let mut buf_reader = BufReader::new(Cursor::new(&arrow_json));
         let (inferred_schema, _) = infer_json_schema(&mut buf_reader, None)
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
         let schema_ref: SchemaRef = Arc::new(inferred_schema);
-
         let json_reader = ReaderBuilder::new(schema_ref.clone())
-            .build(Cursor::new(&result_json))
+            .build(Cursor::new(&arrow_json))
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
         let batches = json_reader
@@ -139,4 +144,22 @@ fn get_query_by_index(queries: &[String], index: i64) -> Option<String> {
 
 fn utf8_val(val: impl Into<String>) -> ScalarValue {
     ScalarValue::Utf8(Some(val.into()))
+}
+
+fn convert_resultset_to_arrow_json_lines(
+    result_set: &ResultSet,
+) -> Result<String, DataFusionError> {
+    let mut output = String::new();
+
+    for row in &result_set.rows {
+        let mut record = serde_json::Map::with_capacity(result_set.columns.len());
+        for (col, value) in result_set.columns.iter().zip(&row.0) {
+            record.insert(col.name.clone(), value.clone());
+        }
+        let json_line =
+            serde_json::to_string(&record).map_err(|e| DataFusionError::External(Box::new(e)))?;
+        output.push_str(&json_line);
+        output.push('\n');
+    }
+    Ok(output)
 }

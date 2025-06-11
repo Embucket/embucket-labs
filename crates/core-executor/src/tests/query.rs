@@ -20,7 +20,7 @@ use std::sync::Arc;
 #[allow(clippy::unwrap_used)]
 #[tokio::test]
 async fn test_update_all_table_names_visitor() {
-    let args: [(&str, &str); 8] = [
+    let args = vec![
         ("select * from foo", "SELECT * FROM embucket.new_schema.foo"),
         (
             "insert into foo (id) values (5)",
@@ -49,6 +49,15 @@ async fn test_update_all_table_names_visitor() {
         (
             "WITH sales_data AS (SELECT * FROM foo) SELECT * FROM sales_data",
             "WITH sales_data AS (SELECT * FROM embucket.new_schema.foo) SELECT * FROM sales_data",
+        ),
+        // Skip table functions
+        (
+            "select * from result_scan('1')",
+            "SELECT * FROM result_scan('1')",
+        ),
+        (
+            "SELECT * from flatten('[1,77]','',false,false,'both')",
+            "SELECT * FROM flatten('[1,77]', '', false, false, 'both')",
         ),
     ];
 
