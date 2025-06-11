@@ -37,8 +37,6 @@ def bootstrap(catalog, schema):
     response.raise_for_status()
 
     ## SCHEMA
-    query = f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}"
-
     USER = os.getenv("EMBUCKET_USER", "xxx")
     PASSWORD = os.getenv("EMBUCKET_PASSWORD", "yyy")
     ACCOUNT = os.getenv("EMBUCKET_ACCOUNT", "acc")
