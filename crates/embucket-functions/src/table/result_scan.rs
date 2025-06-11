@@ -149,7 +149,7 @@ fn utf8_val(val: impl Into<String>) -> ScalarValue {
     ScalarValue::Utf8(Some(val.into()))
 }
 
-pub fn convert_resultset_to_arrow_json_lines(
+fn convert_resultset_to_arrow_json_lines(
     result_set: &ResultSet,
 ) -> Result<String, DataFusionError> {
     let mut lines = String::new();
