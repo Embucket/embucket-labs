@@ -326,6 +326,7 @@ signum
 sin
 sinh
 split_part
+split
 sqrt
 starts_with
 stddev

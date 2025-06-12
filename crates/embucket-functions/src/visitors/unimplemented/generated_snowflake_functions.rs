@@ -2643,12 +2643,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/space")
     ),
-    ("SPLIT", FunctionInfo::new(
-        "SPLIT",
-        "Splits a given string with a given separator and returns the result in an array of strings."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/split")
-    ),
     ("SPLIT_TEXT_RECURSIVE_CHARACTER", FunctionInfo::new(
         "SPLIT_TEXT_RECURSIVE_CHARACTER",
         "The SPLIT_TEXT_RECURSIVE_CHARACTER function splits a string into shorter stings, recursively, for preprocessing text to be used with text embedding or search indexing functions."
