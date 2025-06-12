@@ -94,6 +94,15 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
             date_part_extract::Interval::Quarter,
         ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::Hour,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::Minute,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::Second,
+        ))),
         conditional::booland::get_udf(),
         conditional::boolor::get_udf(),
         conditional::boolxor::get_udf(),
