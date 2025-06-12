@@ -1,6 +1,8 @@
 pub use crate::aggregate::register_udafs;
 use crate::conversion::to_binary::ToBinaryFunc;
 use crate::conversion::{ToBooleanFunc, ToTimeFunc, to_array};
+use crate::datetime::date_part_extract;
+use crate::datetime::date_part_extract::DatePartExtractFunc;
 use crate::semi_structured::get::GetFunc;
 use crate::semi_structured::is_typeof;
 use crate::semi_structured::is_typeof::IsTypeofFunc;
@@ -36,6 +38,7 @@ pub mod tests;
 mod utils;
 pub mod visitors;
 
+#[allow(clippy::too_many_lines)]
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
         datetime::convert_timezone::get_udf(),
@@ -52,6 +55,45 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         datetime::dayname::get_udf(),
         datetime::previous_day::get_udf(),
         datetime::next_day::get_udf(),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::Year,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::YearOfWeek,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::YearOfWeekIso,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::Day,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::DayOfMonth,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::DayOfWeek,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::DayOfWeekIso,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::DayOfYear,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::Week,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::WeekOfYear,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::WeekIso,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::Month,
+        ))),
+        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+            date_part_extract::Interval::Quarter,
+        ))),
         conditional::booland::get_udf(),
         conditional::boolor::get_udf(),
         conditional::boolxor::get_udf(),
