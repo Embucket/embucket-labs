@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/datetime/date_part_extract.rs
+description: "r#\"SELECT '2016-01-02T23:39:20.123-07:00'::TIMESTAMP AS tstamp, \n        WEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS \"WEEK\",\n       WEEKISO('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)       AS \"WEEK ISO\",\n       WEEKOFYEAR('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)    AS \"WEEK OF YEAR\",\n       YEAROFWEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)    AS \"YEAR OF WEEK\",\n       YEAROFWEEKISO('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS \"YEAR OF WEEK ISO\"\"#"
+---
+Ok(
+    [
+        "+-------------------------+------+----------+--------------+--------------+------------------+",
+        "| tstamp                  | WEEK | WEEK ISO | WEEK OF YEAR | YEAR OF WEEK | YEAR OF WEEK ISO |",
+        "+-------------------------+------+----------+--------------+--------------+------------------+",
+        "| 2016-01-03T06:39:20.123 | 1    | 53       | 53           | 2015         | 2015             |",
+        "+-------------------------+------+----------+--------------+--------------+------------------+",
+    ],
+)
