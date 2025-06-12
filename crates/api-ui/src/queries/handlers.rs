@@ -97,7 +97,13 @@ pub async fn query(
             .context
             .as_ref()
             .and_then(|c| c.get("schema").cloned()),
-        payload.worksheet_id,
+        match payload.worksheet_id {
+            None => None,
+            Some(worksheet_id) => match state.history_store.get_worksheet(worksheet_id).await {
+                Err(_) => None,
+                Ok(_) => Some(worksheet_id),
+            },
+        },
     )
     .with_ip_address(addr.ip().to_string());
 
