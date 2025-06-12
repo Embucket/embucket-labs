@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Utc};
+use chrono::{DateTime, Datelike, Timelike, Utc};
 use datafusion::arrow::array::{Array, Int64Builder};
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
@@ -24,6 +24,9 @@ pub enum Interval {
     WeekIso,
     Month,
     Quarter,
+    Hour,
+    Minute,
+    Second,
 }
 
 #[derive(Debug)]
@@ -75,6 +78,9 @@ impl ScalarUDFImpl for DatePartExtractFunc {
             Interval::WeekIso => "weekiso",
             Interval::Month => "month",
             Interval::Quarter => "quarter",
+            Interval::Hour => "hour",
+            Interval::Minute => "minute",
+            Interval::Second => "second",
         }
     }
 
@@ -124,6 +130,9 @@ impl ScalarUDFImpl for DatePartExtractFunc {
                 Interval::Month => naive.date_naive().month() as i32, // 1..=12
                 Interval::Quarter => ((naive.date_naive().month() - 1) / 3 + 1) as i32, // 1..=4
                 Interval::DayOfWeekIso => naive.date_naive().weekday().number_from_monday() as i32,
+                Interval::Hour => naive.hour() as i32,
+                Interval::Minute => naive.minute() as i32,
+                Interval::Second => naive.second() as i32,
             };
 
             res.append_value(value as i64);
