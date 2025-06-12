@@ -27,6 +27,7 @@ pub mod conversion;
 pub mod datetime;
 //pub mod geospatial;
 mod json;
+pub mod math;
 #[path = "semi-structured/mod.rs"]
 pub mod semi_structured;
 pub mod session;
@@ -125,6 +126,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         semi_structured::typeof_func::get_udf(),
         to_array::get_udf(),
         conversion::to_variant::get_udf(),
+        math::div0::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
