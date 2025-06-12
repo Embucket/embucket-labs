@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/datetime/date_part_extract.rs
+description: "r#\"SELECT '2025-04-11T23:39:20.123-07:00'::TIMESTAMP AS tstamp,\n       YEAR('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS \"YEAR\",\n       QUARTER('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS \"QUARTER OF YEAR\",\n       MONTH('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS \"MONTH\",\n       DAY('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS \"DAY\",\n       DAYOFMONTH('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS \"DAY OF MONTH\",\n       DAYOFYEAR('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS \"DAY OF YEAR\";\"#"
+---
+Ok(
+    [
+        "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
+        "| tstamp                  | YEAR | QUARTER OF YEAR | MONTH | DAY | DAY OF MONTH | DAY OF YEAR |",
+        "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
+        "| 2025-04-12T06:39:20.123 | 2025 | 2               | 4     | 11  | 11           | 101         |",
+        "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
+    ],
+)
