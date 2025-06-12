@@ -1,4 +1,4 @@
-use datafusion::arrow::array::{Array, ArrayRef, Float64Array, Int64Array};
+use datafusion::arrow::array::{Array, ArrayRef, Float64Array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DFResult;
 use datafusion::error::DataFusionError;
@@ -8,15 +8,26 @@ use datafusion::logical_expr::{
 use datafusion::scalar::ScalarValue;
 use std::any::Any;
 use std::sync::Arc;
-use crate::datetime::date_add::DateAddFunc;
 
-/// DIV0 function implementation
-/// Performs division like the division operator (/), but returns 0 when the divisor is 0
+/// `DIV0` SQL function
+///
+/// Performs division like the division operator (/), but returns 0 when the divisor is 0 (rather than reporting an error).
+///
+/// Syntax: `DIV0( <dividend> , <divisor> )`
+///
+/// Arguments:
+/// - `dividend`: The number to be divided.
+/// - `divisor`: The number by which to divide.
+///
+/// Example: `SELECT DIV0(10, 0) AS value;`
+///
+/// Returns:
+/// - Returns the result of the division if the divisor is not zero.
+/// - Returns 0 if the divisor is zero.
 #[derive(Debug)]
 pub struct Div0 {
     signature: Signature,
 }
-
 
 impl Default for Div0 {
     fn default() -> Self {
@@ -25,6 +36,7 @@ impl Default for Div0 {
 }
 
 impl Div0 {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             // Support all numeric types
@@ -72,7 +84,7 @@ impl ScalarUDFImpl for Div0 {
         let divisor_f64 = cast_to_f64(&divisor)?;
 
         // Perform the division
-        let result = div0_impl(dividend_f64, divisor_f64)?;
+        let result = div0_impl(&dividend_f64, &divisor_f64)?;
 
         // If both inputs were scalar, return a scalar
         if dividend.len() == 1 && divisor.len() == 1 {
@@ -86,11 +98,11 @@ impl ScalarUDFImpl for Div0 {
 
 fn cast_to_f64(array: &ArrayRef) -> DFResult<ArrayRef> {
     // Use DataFusion's cast functionality to convert any numeric type to Float64
-    Ok(datafusion::arrow::compute::cast(array, &DataType::Float64)
-        .map_err(|e| DataFusionError::Internal(format!("Failed to cast to Float64: {}", e)))?)
+    datafusion::arrow::compute::cast(array, &DataType::Float64)
+        .map_err(|e| DataFusionError::Internal(format!("Failed to cast to Float64: {e}")))
 }
 
-fn div0_impl(dividend: ArrayRef, divisor: ArrayRef) -> DFResult<ArrayRef> {
+fn div0_impl(dividend: &ArrayRef, divisor: &ArrayRef) -> DFResult<ArrayRef> {
     let dividend = dividend
         .as_any()
         .downcast_ref::<Float64Array>()
@@ -105,18 +117,20 @@ fn div0_impl(dividend: ArrayRef, divisor: ArrayRef) -> DFResult<ArrayRef> {
             DataFusionError::Internal("Expected Float64Array for divisor".to_string())
         })?;
 
-    let result = Float64Array::from_iter((0..dividend.len()).map(|i| {
-        if dividend.is_null(i) || divisor.is_null(i) {
-            None
-        } else {
-            let div_val = divisor.value(i);
-            if div_val == 0.0 {
-                Some(0.0)
+    let result = (0..dividend.len())
+        .map(|i| {
+            if dividend.is_null(i) || divisor.is_null(i) {
+                None
             } else {
-                Some(dividend.value(i) / div_val)
+                let div_val = divisor.value(i);
+                if div_val == 0.0 {
+                    Some(0.0)
+                } else {
+                    Some(dividend.value(i) / div_val)
+                }
             }
-        }
-    }));
+        })
+        .collect::<Float64Array>();
 
     Ok(Arc::new(result))
 }
