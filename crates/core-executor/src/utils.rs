@@ -213,8 +213,8 @@ pub fn convert_record_batches(
                     )
                 }
                 DataType::BinaryView => {
-                    let converted_column = cast(&column, &DataType::Utf8View)
-                        .context(ArrowSnafu)?;
+                    let converted_column =
+                        cast(&column, &DataType::Utf8View).context(ArrowSnafu)?;
                     fields.push(
                         Field::new(
                             field.name(),
@@ -233,8 +233,7 @@ pub fn convert_record_batches(
             columns.push(converted_column);
         }
         let new_schema = Arc::new(Schema::new(fields));
-        let converted_batch = RecordBatch::try_new(new_schema, columns)
-            .context(ArrowSnafu)?;
+        let converted_batch = RecordBatch::try_new(new_schema, columns).context(ArrowSnafu)?;
         converted_batches.push(converted_batch);
     }
     Ok(converted_batches)
@@ -464,12 +463,9 @@ impl std::fmt::Display for NormalizedIdent {
     }
 }
 
-pub fn query_result_to_history(
-    result: &ExecutionResult<QueryResult>,
-) -> Result<ResultSet, String> {
+pub fn query_result_to_history(result: &ExecutionResult<QueryResult>) -> Result<ResultSet, String> {
     match result {
-        Ok(query_result) => query_result_to_result_set(query_result)
-            .map_err(|err| err.to_string()),
+        Ok(query_result) => query_result_to_result_set(query_result).map_err(|err| err.to_string()),
         Err(err) => Err(err.to_string()),
     }
 }
@@ -489,19 +485,15 @@ pub fn query_result_to_result_set(query_result: &QueryResult) -> ExecutionResult
         .with_explicit_nulls(true)
         .build::<_, JsonArray>(buffer);
 
-    writer
-        .write_batches(&record_refs)
-        .context(ArrowSnafu)?;
-    writer
-        .finish()
-        .context(ArrowSnafu)?;
+    writer.write_batches(&record_refs).context(ArrowSnafu)?;
+    writer.finish().context(ArrowSnafu)?;
 
     let json_bytes = writer.into_inner();
-    let json_str = String::from_utf8(json_bytes).map_err(|error| Utf8Snafu { error }.build())?;
+    let json_str = String::from_utf8(json_bytes).context(Utf8Snafu)?;
 
     // Deserialize the JSON string into rows of values
     let raw_rows: Vec<IndexMap<String, Value>> =
-        serde_json::from_str(&json_str).map_err(|error| SerdeParseSnafu { error }.build())?;
+        serde_json::from_str(&json_str).context(SerdeParseSnafu)?;
     let rows = raw_rows
         .into_iter()
         .map(|map| Row::new(map.into_values().collect()))

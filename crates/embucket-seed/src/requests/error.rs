@@ -1,6 +1,6 @@
 use http::StatusCode;
-use snafu::prelude::*;
 use snafu::Location;
+use snafu::prelude::*;
 use stack_error_proc::stack_trace_debug;
 
 pub type HttpRequestResult<T> = std::result::Result<T, HttpRequestError>;

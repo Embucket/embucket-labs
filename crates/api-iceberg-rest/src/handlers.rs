@@ -1,4 +1,4 @@
-use crate::error::{self as api_iceberg_rest_error, Operation, IcebergAPIResult};
+use crate::error::{self as api_iceberg_rest_error, IcebergAPIResult, Operation};
 use crate::schemas::{
     CommitTable, GetConfigQuery, from_get_schema, from_schema, from_schemas_list, from_tables_list,
     to_create_table, to_schema, to_table_commit,
@@ -32,7 +32,9 @@ pub async fn create_namespace(
         .metastore
         .create_schema(&ib_schema.ident.clone(), ib_schema)
         .await
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::CreateNamespace })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::CreateNamespace,
+        })?;
     Ok(Json(from_schema(schema.data)))
 }
 
@@ -49,7 +51,9 @@ pub async fn get_namespace(
         .metastore
         .get_schema(&schema_ident)
         .await
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::GetNamespace })?
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::GetNamespace,
+        })?
         // TBD:
         // - get_schema should return no Option, like this: Result<Schema, MetastoreError>
         // - Should we just use Metastore context without artificially creating it?
@@ -61,7 +65,9 @@ pub async fn get_namespace(
             }
             .build()
         })
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::GetNamespace })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::GetNamespace,
+        })?;
     Ok(Json(from_get_schema(schema.data)))
 }
 
@@ -75,7 +81,9 @@ pub async fn delete_namespace(
         .metastore
         .delete_schema(&schema_ident, true)
         .await
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::DeleteNamespace })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::DeleteNamespace,
+        })?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -90,7 +98,9 @@ pub async fn list_namespaces(
         .collect()
         .await
         .context(metastore_error::UtilSlateDBSnafu)
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::ListNamespaces })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::ListNamespaces,
+        })?;
     Ok(Json(from_schemas_list(schemas)))
 }
 
@@ -105,19 +115,25 @@ pub async fn create_table(
         .metastore
         .volume_for_table(&table_ident.clone())
         .await
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::CreateTable })?
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::CreateTable,
+        })?
         .map(|v| v.data.ident);
     let ib_create_table = to_create_table(table, table_ident.clone(), volume_ident);
 
     ib_create_table
         .validate()
         .context(metastore_error::ValidationSnafu)
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::CreateTable })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::CreateTable,
+        })?;
     let table = state
         .metastore
         .create_table(&table_ident, ib_create_table)
         .await
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::CreateTable })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::CreateTable,
+        })?;
     Ok(Json(LoadTableResult::new(table.data.metadata)))
 }
 
@@ -132,7 +148,9 @@ pub async fn register_table(
         .metastore
         .volume_for_table(&table_ident)
         .await
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::RegisterTable })?
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
+        })?
         .map(|v| v.data)
         // TBD:
         // - get_volume should return no Option, like this: Result<Schema, MetastoreError>
@@ -143,21 +161,32 @@ pub async fn register_table(
                 ),
             }
             .build()
-        }).context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::RegisterTable })?
+        })
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
+        })?
         .get_object_store()
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::RegisterTable })?
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
+        })?
         .get(&object_store::path::Path::from(register.metadata_location))
         .await
         .context(metastore_error::ObjectStoreSnafu)
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::RegisterTable })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
+        })?;
     let metadata_bytes = metadata_raw
         .bytes()
         .await
         .context(metastore_error::ObjectStoreSnafu)
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::RegisterTable })?;
-    let table_metadata: TableMetadata =
-        from_slice(&metadata_bytes).context(metastore_error::SerdeSnafu)
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::RegisterTable })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
+        })?;
+    let table_metadata: TableMetadata = from_slice(&metadata_bytes)
+        .context(metastore_error::SerdeSnafu)
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
+        })?;
     Ok(Json(LoadTableResult::new(table_metadata)))
 }
 
@@ -173,7 +202,9 @@ pub async fn commit_table(
         .metastore
         .update_table(&table_ident, table_updates)
         .await
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::CommitTable })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::CommitTable,
+        })?;
     Ok(Json(CommitTableResponse::new(
         ib_table.data.metadata_location,
         ib_table.data.metadata,
@@ -190,7 +221,9 @@ pub async fn get_table(
         .metastore
         .get_table(&table_ident)
         .await
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::GetTable })?
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::GetTable,
+        })?
         .ok_or_else(|| {
             metastore_error::TableNotFoundSnafu {
                 db: database_name.clone(),
@@ -199,7 +232,9 @@ pub async fn get_table(
             }
             .build()
         })
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::GetTable })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::GetTable,
+        })?;
     Ok(Json(LoadTableResult::new(table.data.metadata)))
 }
 
@@ -213,7 +248,9 @@ pub async fn delete_table(
         .metastore
         .delete_table(&table_ident, true)
         .await
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::DeleteTable })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::DeleteTable,
+        })?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -229,7 +266,9 @@ pub async fn list_tables(
         .collect()
         .await
         .context(metastore_error::UtilSlateDBSnafu)
-        .context(api_iceberg_rest_error::MetastoreSnafu { operation: Operation::ListTables })?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::ListTables,
+        })?;
     Ok(Json(from_tables_list(tables)))
 }
 

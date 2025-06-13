@@ -8,10 +8,10 @@ use crate::tests::server::run_test_server_with_demo_auth;
 use core_metastore::RwObject;
 use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use serde_json::json;
+use snafu::location;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use time::Duration;
-use snafu::location;
 
 const JWT_SECRET: &str = "test";
 const DEMO_USER: &str = "demo_user";
@@ -380,7 +380,11 @@ async fn test_jwt_token_expired() {
     );
 
     let www_authenticate: Result<WwwAuthenticate, Option<WwwAuthenticate>> =
-        AuthError::BadAuthToken { error: err, location: location!() }.try_into();
+        AuthError::BadAuthToken {
+            error: err,
+            location: location!(),
+        }
+        .try_into();
     let www_authenticate = www_authenticate.expect("Failed to convert to WwwAuthenticate");
     assert_eq!(
         www_authenticate.to_string(),

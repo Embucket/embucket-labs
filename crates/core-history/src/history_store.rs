@@ -132,16 +132,20 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn get_worksheet(&self, id: WorksheetId) -> HistoryStoreResult<Worksheet> {
         // convert from Bytes to &str, for .get method to convert it back to Bytes
         let key_bytes = Worksheet::get_key(id);
-        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(core_history_errors::BadKeySnafu)?;
+        let key_str =
+            std::str::from_utf8(key_bytes.as_ref()).context(core_history_errors::BadKeySnafu)?;
 
         let res: Option<Worksheet> = self
             .db
             .get(key_str)
             .await
             .context(core_history_errors::WorksheetGetSnafu)?;
-        res.ok_or_else(|| core_history_errors::WorksheetNotFoundSnafu {
-            message: key_str.to_string(),
-        }.build())
+        res.ok_or_else(|| {
+            core_history_errors::WorksheetNotFoundSnafu {
+                message: key_str.to_string(),
+            }
+            .build()
+        })
     }
 
     #[instrument(name = "HistoryStore::update_worksheet", level = "debug", skip(self, worksheet), fields(id = worksheet.id), err)]
@@ -225,12 +229,20 @@ impl HistoryStore for SlateDBHistoryStore {
     #[instrument(name = "HistoryStore::get_query", level = "debug", skip(self), err)]
     async fn get_query(&self, id: QueryRecordId) -> HistoryStoreResult<QueryRecord> {
         let key_bytes = QueryRecord::get_key(id);
-        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(core_history_errors::BadKeySnafu)?;
+        let key_str =
+            std::str::from_utf8(key_bytes.as_ref()).context(core_history_errors::BadKeySnafu)?;
 
-        let res: Option<QueryRecord> = self.db.get(key_str).await.context(core_history_errors::QueryGetSnafu)?;
-        res.ok_or_else(|| core_history_errors::QueryNotFoundSnafu {
-            key: key_str.to_string(),
-        }.build())
+        let res: Option<QueryRecord> = self
+            .db
+            .get(key_str)
+            .await
+            .context(core_history_errors::QueryGetSnafu)?;
+        res.ok_or_else(|| {
+            core_history_errors::QueryNotFoundSnafu {
+                key: key_str.to_string(),
+            }
+            .build()
+        })
     }
 
     #[instrument(name = "HistoryStore::get_queries", level = "debug", skip(self), err)]
@@ -259,9 +271,13 @@ impl HistoryStore for SlateDBHistoryStore {
                 let qh_key = QueryRecordReference::extract_qh_key(&item.key).ok_or(
                     core_history_errors::QueryReferenceKeySnafu {
                         key: format!("{:?}", item.key),
-                    }.build(),
+                    }
+                    .build(),
                 )?;
-                queries_iter.seek(qh_key).await.context(core_history_errors::SeekSnafu)?;
+                queries_iter
+                    .seek(qh_key)
+                    .await
+                    .context(core_history_errors::SeekSnafu)?;
                 match queries_iter.next().await {
                     Ok(Some(query_record_kv)) => {
                         items.push(

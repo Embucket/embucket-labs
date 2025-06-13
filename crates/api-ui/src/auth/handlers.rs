@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use super::error::AuthErrorResponse;
 use super::error::CreateJwtSnafu;
 use crate::auth::error::{
-    self as auth_error, AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu, SetCookieSnafu,
-    TokenErrorKind,
+    self as auth_error, AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu,
+    SetCookieSnafu, TokenErrorKind,
 };
 use crate::auth::models::{AuthResponse, Claims, LoginPayload};
 use crate::state::AppState;
@@ -106,8 +106,7 @@ where
 
 fn ensure_jwt_secret_is_valid(jwt_secret: &str) -> AuthResult<()> {
     if jwt_secret.is_empty() {
-        // can't use NoJwtSecretSnafu.build() in const func
-        return Err(AuthError::NoJwtSecret { location: location!() });
+        return auth_error::NoJwtSecretSnafu.fail();
     }
     Ok(())
 }

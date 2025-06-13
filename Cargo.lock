@@ -2962,6 +2962,7 @@ dependencies = [
  "paste",
  "serde",
  "serde_json",
+ "snafu",
  "stack-error",
  "stack-error-proc",
  "strsim",

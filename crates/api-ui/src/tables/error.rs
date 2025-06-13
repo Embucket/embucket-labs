@@ -6,8 +6,8 @@ use axum::response::IntoResponse;
 use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
-use snafu::prelude::*;
 use snafu::Location;
+use snafu::prelude::*;
 use stack_error_proc::stack_trace_debug;
 
 pub type TablesResult<T> = Result<T, Error>;
@@ -17,15 +17,35 @@ pub type TablesResult<T> = Result<T, Error>;
 #[stack_trace_debug]
 pub enum Error {
     #[snafu(display("Upload file error: {source}"))]
-    UploadFile { source: TableError },
+    UploadFile {
+        source: TableError,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Get table statistics error: {source}"))]
-    GetTableStatistics { source: TableError },
+    GetTableStatistics {
+        source: TableError,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Get table columns error: {source}"))]
-    GetTableColumns { source: TableError },
+    GetTableColumns {
+        source: TableError,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Get table rows error: {source}"))]
-    GetTablePreviewData { source: TableError },
+    GetTablePreviewData {
+        source: TableError,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Get tables error: {source}"))]
-    GetTables { source: TableError },
+    GetTables {
+        source: TableError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 #[derive(Snafu)]
@@ -76,11 +96,11 @@ pub enum TableError {
 impl IntoStatusCode for Error {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::UploadFile { source }
-            | Self::GetTableStatistics { source }
-            | Self::GetTableColumns { source }
-            | Self::GetTablePreviewData { source }
-            | Self::GetTables { source } => match &source {
+            Self::UploadFile { source, .. }
+            | Self::GetTableStatistics { source, .. }
+            | Self::GetTableColumns { source, .. }
+            | Self::GetTablePreviewData { source, .. }
+            | Self::GetTables { source, .. } => match &source {
                 TableError::Metastore { source, .. } => match &source {
                     MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
                     MetastoreError::DatabaseNotFound { .. }
@@ -88,18 +108,18 @@ impl IntoStatusCode for Error {
                     | MetastoreError::TableNotFound { .. }
                     | MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
-                }
+                },
                 TableError::Execution { source, .. } => match &source {
                     ExecutionError::TableNotFound { .. } => StatusCode::NOT_FOUND,
                     ExecutionError::DataFusion { .. } => StatusCode::UNPROCESSABLE_ENTITY,
                     ExecutionError::Arrow { .. } => StatusCode::BAD_REQUEST,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
-                }
+                },
                 TableError::FileField { .. }
                 | TableError::MalformedFileUploadRequest { .. }
                 | TableError::MalformedMultipart { .. }
                 | TableError::MalformedMultipartFileData { .. } => StatusCode::BAD_REQUEST,
-            }
+            },
         }
     }
 }

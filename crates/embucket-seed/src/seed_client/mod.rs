@@ -45,8 +45,7 @@ impl SeedClient {
     ///
     /// Returns `SeedError` if the seed template cannot be parsed
     pub fn try_load_seed_template(&mut self, seed_variant: SeedVariant) -> SeedResult<()> {
-        let raw_seed_data = parse_seed_template(seed_variant.seed_data())
-            .context(LoadSeedSnafu)?;
+        let raw_seed_data = parse_seed_template(seed_variant.seed_data()).context(LoadSeedSnafu)?;
         self.seed_data = raw_seed_data.generate();
         Ok(())
     }

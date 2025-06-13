@@ -203,8 +203,10 @@ impl EmbucketCatalogList {
                         };
                         let tables = schema.schema.table_names();
                         for table in tables {
-                            if let Some(table_provider) =
-                                schema.schema.table(&table).await
+                            if let Some(table_provider) = schema
+                                .schema
+                                .table(&table)
+                                .await
                                 .context(df_catalog_error::DataFusionSnafu)?
                             {
                                 schema.tables_cache.insert(

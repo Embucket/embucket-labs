@@ -1,6 +1,6 @@
-use snafu::Snafu;
-use snafu::Location;
 use slatedb::SlateDBError;
+use snafu::Location;
+use snafu::Snafu;
 use stack_error_proc::stack_trace_debug;
 
 #[derive(Snafu)]
@@ -120,5 +120,12 @@ pub enum HistoryStoreError {
         error: serde_json::Error,
         #[snafu(implicit)]
         location: Location,
-    }
+    },
+
+    #[snafu(display("Query execution error: {message}"))]
+    ExecutionResult {
+        message: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }

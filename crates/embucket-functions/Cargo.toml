@@ -34,6 +34,7 @@ datafusion-functions-json = { workspace = true }
 [dev-dependencies]
 bytes = { workspace = true }
 insta = { version = "1.42.0", features = ["yaml", "filters"] }
+snafu = { workspace = true }
 paste = "1"
 
 [[bin]]

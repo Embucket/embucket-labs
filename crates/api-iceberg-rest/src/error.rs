@@ -2,8 +2,8 @@ use axum::{Json, response::IntoResponse};
 use core_metastore::error::MetastoreError;
 use http;
 use serde::{Deserialize, Serialize};
-use snafu::prelude::*;
 use snafu::Location;
+use snafu::prelude::*;
 use stack_error_proc::stack_trace_debug;
 
 pub type IcebergAPIResult<T> = Result<T, IcebergAPIError>;
@@ -26,7 +26,9 @@ pub enum Operation {
 #[snafu(visibility(pub))]
 #[stack_trace_debug]
 pub enum IcebergAPIError {
-    #[snafu(display("[IcebergAPIError] Operation '{operation:?}' failed. Metastore error: {source}"))]
+    #[snafu(display(
+        "[IcebergAPIError] Operation '{operation:?}' failed. Metastore error: {source}"
+    ))]
     Metastore {
         operation: Operation,
         source: MetastoreError,

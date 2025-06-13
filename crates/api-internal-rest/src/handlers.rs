@@ -46,7 +46,12 @@ pub async fn get_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
 ) -> MetastoreAPIResult<Json<RwObject<Volume>>> {
-    match state.metastore.get_volume(&volume_name).await.context(error::GetVolumeSnafu) {
+    match state
+        .metastore
+        .get_volume(&volume_name)
+        .await
+        .context(error::GetVolumeSnafu)
+    {
         Ok(Some(volume)) => Ok(Json(hide_sensitive(volume))),
         Ok(None) => metastore_error::VolumeNotFoundSnafu {
             volume: volume_name.clone(),
@@ -137,7 +142,12 @@ pub async fn get_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
 ) -> MetastoreAPIResult<Json<RwObject<Database>>> {
-    match state.metastore.get_database(&database_name).await.context(error::GetDatabaseSnafu) {
+    match state
+        .metastore
+        .get_database(&database_name)
+        .await
+        .context(error::GetDatabaseSnafu)
+    {
         Ok(Some(db)) => Ok(Json(db)),
         Ok(None) => metastore_error::DatabaseNotFoundSnafu {
             db: database_name.clone(),

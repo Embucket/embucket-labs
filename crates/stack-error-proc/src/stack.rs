@@ -18,7 +18,6 @@
 // - Add clipy rules to avoid warnings
 // --------------------------------------------------------------------------------
 
-
 #![allow(clippy::needless_pass_by_value)]
 use proc_macro2::{Literal, Span, TokenStream as TokenStream2, TokenTree};
 use quote::{quote, quote_spanned};

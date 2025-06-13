@@ -1,9 +1,9 @@
 use crate::requests::error::HttpRequestError;
 use serde_yaml::Error as SerdeYamlError;
-use snafu::prelude::*;
 use snafu::Location;
-use std::result::Result;
+use snafu::prelude::*;
 use stack_error_proc::stack_trace_debug;
+use std::result::Result;
 
 pub type SeedResult<T> = Result<T, SeedError>;
 

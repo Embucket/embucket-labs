@@ -1,9 +1,9 @@
-use axum::{Json, http, response::IntoResponse};
-use snafu::prelude::*;
-use snafu::Location;
 use crate::schemas::JsonResponse;
+use axum::{Json, http, response::IntoResponse};
 use core_executor::error::ExecutionError;
 use datafusion::arrow::error::ArrowError;
+use snafu::Location;
+use snafu::prelude::*;
 use stack_error_proc::stack_trace_debug;
 
 pub type DbtResult<T> = std::result::Result<T, Error>;
@@ -25,7 +25,7 @@ pub enum Error {
         #[snafu(source)]
         error: serde_json::Error,
         #[snafu(implicit)]
-        location: Location
+        location: Location,
     },
 
     #[snafu(display("Failed to parse query body"))]
@@ -33,13 +33,13 @@ pub enum Error {
         #[snafu(source)]
         error: serde_json::Error,
         #[snafu(implicit)]
-        location: Location
+        location: Location,
     },
 
     #[snafu(display("Missing auth token"))]
     MissingAuthToken {
         #[snafu(implicit)]
-        location: Location
+        location: Location,
     },
 
     #[snafu(display("Invalid warehouse_id format"))]
@@ -47,25 +47,25 @@ pub enum Error {
         #[snafu(source)]
         error: uuid::Error,
         #[snafu(implicit)]
-        location: Location
+        location: Location,
     },
 
     #[snafu(display("Missing DBT session"))]
     MissingDbtSession {
         #[snafu(implicit)]
-        location: Location
+        location: Location,
     },
 
     #[snafu(display("Invalid auth data"))]
     InvalidAuthData {
         #[snafu(implicit)]
-        location: Location
+        location: Location,
     },
 
     #[snafu(display("Feature not implemented"))]
     NotImplemented {
         #[snafu(implicit)]
-        location: Location
+        location: Location,
     },
 
     #[snafu(display("Failed to parse row JSON"))]
@@ -73,7 +73,7 @@ pub enum Error {
         #[snafu(source)]
         error: serde_json::Error,
         #[snafu(implicit)]
-        location: Location
+        location: Location,
     },
 
     #[snafu(display("UTF8 error: {error}"))]
@@ -81,7 +81,7 @@ pub enum Error {
         #[snafu(source)]
         error: std::string::FromUtf8Error,
         #[snafu(implicit)]
-        location: Location
+        location: Location,
     },
 
     #[snafu(display("Arrow error: {error}"))]
@@ -89,7 +89,7 @@ pub enum Error {
         #[snafu(source)]
         error: ArrowError,
         #[snafu(implicit)]
-        location: Location
+        location: Location,
     },
 
     #[snafu(transparent)]
@@ -124,18 +124,20 @@ impl IntoResponse for Error {
         };
 
         let message = match &self {
-            Self::GZipDecompress { error, .. } => format!("failed to decompress GZip body: {error}"),
+            Self::GZipDecompress { error, .. } => {
+                format!("failed to decompress GZip body: {error}")
+            }
             Self::LoginRequestParse { error, .. } => {
                 format!("failed to parse login request: {error}")
             }
             Self::QueryBodyParse { error, .. } => format!("failed to parse query body: {error}"),
-            Self::InvalidWarehouseIdFormat { error, .. } => format!("invalid warehouse_id: {error}"),
+            Self::InvalidWarehouseIdFormat { error, .. } => {
+                format!("invalid warehouse_id: {error}")
+            }
             Self::RowParse { error, .. } => format!("failed to parse row JSON: {error}"),
             Self::MissingAuthToken { .. }
             | Self::MissingDbtSession { .. }
-            | Self::InvalidAuthData { .. } => {
-                "session error".to_string()
-            }
+            | Self::InvalidAuthData { .. } => "session error".to_string(),
             Self::Utf8 { error, .. } => {
                 format!("Error encoding UTF8 string: {error}")
             }

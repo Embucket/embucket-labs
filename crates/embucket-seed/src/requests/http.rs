@@ -130,7 +130,8 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
             error: HttpRequestSnafu {
                 message: error.to_string(),
                 status: response.status(),
-            }.build(),
+            }
+            .build(),
             body: response.text().await.expect("Failed to get response text"),
         })
     }

@@ -5,11 +5,10 @@ use http::header::InvalidHeaderValue;
 use http::{StatusCode, header::MaxSizeReached};
 use jsonwebtoken::errors::{Error as JwtError, ErrorKind as JwtErrorKind};
 use serde::{Deserialize, Serialize};
-use snafu::prelude::*;
 use snafu::Location;
-use utoipa::ToSchema;
+use snafu::prelude::*;
 use stack_error_proc::stack_trace_debug;
-
+use utoipa::ToSchema;
 
 pub type AuthResult<T> = std::result::Result<T, AuthError>;
 
@@ -181,14 +180,13 @@ impl TryFrom<AuthError> for WwwAuthenticate {
                 error,
                 kind: None,
             }),
-            AuthError::BadRefreshToken { error: source, .. } | AuthError::BadAuthToken { error: source, .. } => {
-                Ok(Self {
-                    auth,
-                    realm: "api-auth".to_string(),
-                    error,
-                    kind: Some(TokenErrorKind::from(source.kind().clone())),
-                })
-            }
+            AuthError::BadRefreshToken { error: source, .. }
+            | AuthError::BadAuthToken { error: source, .. } => Ok(Self {
+                auth,
+                realm: "api-auth".to_string(),
+                error,
+                kind: Some(TokenErrorKind::from(source.kind().clone())),
+            }),
             _ => Err(None),
         }
     }

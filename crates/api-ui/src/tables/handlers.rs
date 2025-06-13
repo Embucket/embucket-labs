@@ -1,9 +1,8 @@
 use crate::error::ErrorResponse;
 use crate::state::AppState;
 use crate::tables::error::{
-    self as tables_error,
-    UploadFileSnafu, ExecutionSnafu, MalformedMultipartFileDataSnafu, MalformedMultipartSnafu,
-    TableError, Error, TablesResult,
+    self as tables_errors, Error, ExecutionSnafu, MalformedMultipartFileDataSnafu,
+    MalformedMultipartSnafu, TablesResult, UploadFileSnafu,
 };
 use crate::tables::models::{
     Table, TableColumn, TableColumnsResponse, TablePreviewDataColumn, TablePreviewDataParameters,
@@ -25,7 +24,7 @@ use core_metastore::TableIdent as MetastoreTableIdent;
 use core_metastore::error as metastore_error;
 use datafusion::arrow::csv::reader::Format;
 use datafusion::arrow::util::display::array_value_to_string;
-use snafu::{location, IntoError, ResultExt};
+use snafu::{IntoError, ResultExt, location};
 use std::time::Instant;
 use utoipa::OpenApi;
 
@@ -118,20 +117,18 @@ pub async fn get_table_statistics(
                 updated_at: rw_object.updated_at,
             })))
         }
-        Ok(None) => Err(Error::GetTableStatistics {
-            // TODO: Remove it after refactor Metastore result
-            source: TableError::Metastore {
-                source: metastore_error::TableNotFoundSnafu {
+        Ok(None) => Err(tables_errors::GetTableStatisticsSnafu.into_error(
+            tables_errors::MetastoreSnafu.into_error(
+                metastore_error::TableNotFoundSnafu {
                     table: database_name,
                     schema: schema_name,
                     db: table_name,
-                }.build(),
-                location: location!(),
-            },
-        }),
-        Err(source) => Err(Error::GetTableStatistics {
-            source: tables_error::MetastoreSnafu.into_error(source),
-        }),
+                }
+                .build(),
+            ),
+        )),
+        Err(source) => Err(tables_errors::GetTableStatisticsSnafu
+            .into_error(tables_errors::MetastoreSnafu.into_error(source))),
     }
 }
 #[utoipa::path(
@@ -170,7 +167,7 @@ pub async fn get_table_columns(
         .query(&session_id, sql_string.as_str(), context)
         .await
         .context(ExecutionSnafu)
-        .context(tables_error::GetTableColumnsSnafu)?
+        .context(tables_errors::GetTableColumnsSnafu)?
         .column_info();
     let items: Vec<TableColumn> = columns_info
         .iter()
@@ -239,7 +236,7 @@ pub async fn get_table_preview_data(
         .query(&session_id, sql_string.as_str(), context)
         .await
         .context(ExecutionSnafu)
-        .context(tables_error::GetTablePreviewDataSnafu)?;
+        .context(tables_errors::GetTablePreviewDataSnafu)?;
 
     let mut preview_data_columns = Vec::new();
     for batch in &batches {
@@ -356,9 +353,7 @@ pub async fn upload_file(
             duration_ms: duration.as_millis(),
         }))
     } else {
-        Err(Error::UploadFile {
-            source: tables_error::FileFieldSnafu {}.build(),
-        })
+        Err(tables_errors::UploadFileSnafu.into_error(tables_errors::FileFieldSnafu {}.build()))
     }
 }
 
@@ -418,50 +413,42 @@ pub async fn get_tables(
         .query(&session_id, sql_string.as_str(), context)
         .await
         .context(ExecutionSnafu)
-        .context(tables_error::GetTablesSnafu)?;
+        .context(tables_errors::GetTablesSnafu)?;
     let mut items = Vec::new();
     for record in records {
         let table_names = downcast_string_column(&record, "table_name")
             .context(ExecutionSnafu)
-            .context(tables_error::GetTablesSnafu)?;
-        let schema_names =
-            downcast_string_column(&record, "schema_name")
+            .context(tables_errors::GetTablesSnafu)?;
+        let schema_names = downcast_string_column(&record, "schema_name")
             .context(ExecutionSnafu)
-            .context(tables_error::GetTablesSnafu)?;
-        let database_names =
-            downcast_string_column(&record, "database_name")
+            .context(tables_errors::GetTablesSnafu)?;
+        let database_names = downcast_string_column(&record, "database_name")
             .context(ExecutionSnafu)
-            .context(tables_error::GetTablesSnafu)?;
-        let volume_names =
-            downcast_string_column(&record, "volume_name")
+            .context(tables_errors::GetTablesSnafu)?;
+        let volume_names = downcast_string_column(&record, "volume_name")
             .context(ExecutionSnafu)
-            .context(tables_error::GetTablesSnafu)?;
+            .context(tables_errors::GetTablesSnafu)?;
         let owners = downcast_string_column(&record, "owner")
             .context(ExecutionSnafu)
-            .context(tables_error::GetTablesSnafu)?;
+            .context(tables_errors::GetTablesSnafu)?;
         let table_types = downcast_string_column(&record, "table_type")
             .context(ExecutionSnafu)
-            .context(tables_error::GetTablesSnafu)?;
-        let table_format_values =
-            downcast_string_column(&record, "table_format")
+            .context(tables_errors::GetTablesSnafu)?;
+        let table_format_values = downcast_string_column(&record, "table_format")
             .context(ExecutionSnafu)
-            .context(tables_error::GetTablesSnafu)?;
-        let total_bytes_values =
-            downcast_int64_column(&record, "total_bytes")
+            .context(tables_errors::GetTablesSnafu)?;
+        let total_bytes_values = downcast_int64_column(&record, "total_bytes")
             .context(ExecutionSnafu)
-            .context(tables_error::GetTablesSnafu)?;
-        let total_rows_values =
-            downcast_int64_column(&record, "total_rows")
+            .context(tables_errors::GetTablesSnafu)?;
+        let total_rows_values = downcast_int64_column(&record, "total_rows")
             .context(ExecutionSnafu)
-            .context(tables_error::GetTablesSnafu)?;
-        let created_at_timestamps =
-            downcast_string_column(&record, "created_at")
+            .context(tables_errors::GetTablesSnafu)?;
+        let created_at_timestamps = downcast_string_column(&record, "created_at")
             .context(ExecutionSnafu)
-            .context(tables_error::GetTablesSnafu)?;
-        let updated_at_timestamps =
-            downcast_string_column(&record, "updated_at")
+            .context(tables_errors::GetTablesSnafu)?;
+        let updated_at_timestamps = downcast_string_column(&record, "updated_at")
             .context(ExecutionSnafu)
-            .context(tables_error::GetTablesSnafu)?;
+            .context(tables_errors::GetTablesSnafu)?;
         for i in 0..record.num_rows() {
             items.push(Table {
                 name: table_names.value(i).to_string(),

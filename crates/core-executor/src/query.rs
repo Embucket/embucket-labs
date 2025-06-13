@@ -53,7 +53,7 @@ use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;
-use snafu::{location, IntoError, ResultExt};
+use snafu::{IntoError, ResultExt, location};
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
@@ -196,9 +196,7 @@ impl UserQuery {
         let statement = self
             .parse_query()
             .map_err(Into::into)
-            .map_err(|error| ExecutionError::DataFusion {
-                error, location: location!() })?;
-            // .context(ex_error::DataFusionSnafu {}.build())?;
+            .context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
 
         // TODO: Code should be organized in a better way
@@ -375,10 +373,12 @@ impl UserQuery {
             if let Some(caching_catalog) = catalog.as_any().downcast_ref::<CachingCatalog>() {
                 &caching_catalog.catalog
             } else {
-                return IcebergCatalogResult::Result(ex_error::CatalogDownCastSnafu {
-                    catalog: catalog_name,
-                }
-                .fail());
+                return IcebergCatalogResult::Result(
+                    ex_error::CatalogDownCastSnafu {
+                        catalog: catalog_name,
+                    }
+                    .fail(),
+                );
             };
 
         // Try to resolve the actual underlying catalog type
@@ -394,10 +394,12 @@ impl UserQuery {
             let result = self.execute_logical_plan(plan).await;
             IcebergCatalogResult::Result(result)
         } else {
-            IcebergCatalogResult::Result(ex_error::CatalogDownCastSnafu {
-                catalog: catalog_name,
-            }
-            .fail())
+            IcebergCatalogResult::Result(
+                ex_error::CatalogDownCastSnafu {
+                    catalog: catalog_name,
+                }
+                .fail(),
+            )
         }
     }
 
@@ -417,8 +419,9 @@ impl UserQuery {
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
-            IcebergCatalogResult::Result(result) =>
-                return result.map(|_| self.status_response())?
+            IcebergCatalogResult::Result(result) => {
+                return result.map(|_| self.status_response())?;
+            }
         };
 
         let table_exists = iceberg_catalog
@@ -569,8 +572,9 @@ impl UserQuery {
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
-            IcebergCatalogResult::Result(result) =>
-                return result.map(|_| self.created_entity_response())?
+            IcebergCatalogResult::Result(result) => {
+                return result.map(|_| self.created_entity_response())?;
+            }
         };
 
         let iceberg_ident = ident.to_iceberg_ident();
@@ -958,7 +962,9 @@ impl UserQuery {
             .await;
         let iceberg_catalog = match downcast_result {
             IcebergCatalogResult::Catalog(catalog) => catalog,
-            IcebergCatalogResult::Result(result) => return result.map(|_| self.created_entity_response())?,
+            IcebergCatalogResult::Result(result) => {
+                return result.map(|_| self.created_entity_response())?;
+            }
         };
 
         let schema_exists = iceberg_catalog
@@ -1185,7 +1191,7 @@ impl UserQuery {
         table_names: Vec<TruncateTableTarget>,
     ) -> ExecutionResult<QueryResult> {
         let Some(first_table) = table_names.into_iter().next() else {
-            return ex_error::NoTableNamesForTruncateTableSnafu{}.fail();
+            return ex_error::NoTableNamesForTruncateTableSnafu {}.fail();
         };
 
         let object_name = self.resolve_table_object_name(first_table.name.0)?;
@@ -1336,11 +1342,12 @@ impl UserQuery {
                     .await
                     .context(ex_error::DataFusionSnafu)?;
                 let schema = df.schema().as_arrow().clone();
-                let records = df
-                    .collect()
-                    .await
-                    .context(ex_error::DataFusionSnafu)?;
-                Ok::<QueryResult, ExecutionError>(QueryResult::new(records, Arc::new(schema), query_id))
+                let records = df.collect().await.context(ex_error::DataFusionSnafu)?;
+                Ok::<QueryResult, ExecutionError>(QueryResult::new(
+                    records,
+                    Arc::new(schema),
+                    query_id,
+                ))
             })
             .await
             .context(ex_error::JobSnafu)??;
@@ -1363,7 +1370,11 @@ impl UserQuery {
                     .collect()
                     .await
                     .context(ex_error::DataFusionSnafu)?;
-                Ok::<QueryResult, ExecutionError>(QueryResult::new(records, Arc::new(schema), query_id))
+                Ok::<QueryResult, ExecutionError>(QueryResult::new(
+                    records,
+                    Arc::new(schema),
+                    query_id,
+                ))
             })
             .await
             .context(ex_error::JobSnafu)??;

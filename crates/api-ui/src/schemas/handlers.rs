@@ -102,7 +102,7 @@ pub async fn create_schema(
         .await
         .map(|opt_rw_obj| {
             // We create here MetastoreError since Metastore instead of error returns Option = None
-            // TODO: Remove after refactor Metastore            
+            // TODO: Remove after refactor Metastore
             opt_rw_obj.ok_or_else(|| {
                 metastore_error::SchemaNotFoundSnafu {
                     db: database_name.clone(),
@@ -195,7 +195,7 @@ pub async fn get_schema(
         .await
         .map(|opt_rw_obj| {
             // We create here MetastoreError since Metastore instead of error returns Option = None
-            // TODO: Remove after refactor Metastore            
+            // TODO: Remove after refactor Metastore
             opt_rw_obj.ok_or_else(|| {
                 metastore_error::SchemaNotFoundSnafu {
                     db: database_name.clone(),

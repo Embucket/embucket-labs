@@ -1,4 +1,4 @@
-use crate::error::{self as api_snowflake_rest_error, Error, DbtResult};
+use crate::error::{self as api_snowflake_rest_error, DbtResult, Error};
 use crate::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
     QueryRequestBody, ResponseData,
@@ -70,9 +70,13 @@ fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> Result<String, Error> {
             StreamWriter::try_new_with_options(&mut buf, recs[0].schema_ref(), options)
                 .context(api_snowflake_rest_error::ArrowSnafu)?;
         for rec in recs {
-            writer.write(rec).context(api_snowflake_rest_error::ArrowSnafu)?;
+            writer
+                .write(rec)
+                .context(api_snowflake_rest_error::ArrowSnafu)?;
         }
-        writer.finish().context(api_snowflake_rest_error::ArrowSnafu)?;
+        writer
+            .finish()
+            .context(api_snowflake_rest_error::ArrowSnafu)?;
         drop(writer);
     }
     Ok(engine_base64.encode(buf))
@@ -86,7 +90,9 @@ fn records_to_json_string(recs: &[RecordBatch]) -> Result<String, Error> {
     writer
         .write_batches(&record_refs)
         .context(api_snowflake_rest_error::ArrowSnafu)?;
-    writer.finish().context(api_snowflake_rest_error::ArrowSnafu)?;
+    writer
+        .finish()
+        .context(api_snowflake_rest_error::ArrowSnafu)?;
 
     // Get the underlying buffer back,
     String::from_utf8(writer.into_inner()).context(api_snowflake_rest_error::Utf8Snafu)

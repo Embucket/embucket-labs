@@ -17,7 +17,6 @@ pub enum UIError {
     Metastore { source: MetastoreError },
 }
 
-
 pub(crate) trait IntoStatusCode {
     fn status_code(&self) -> StatusCode;
 }

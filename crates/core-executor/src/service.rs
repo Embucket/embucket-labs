@@ -242,12 +242,11 @@ impl ExecutionService for CoreExecutionService {
             .map(|batch: &RecordBatch| batch.num_rows())
             .sum();
 
-        let table = MemTable::try_new(schema, vec![batches])
-            .context(ex_error::DataFusionSnafu)?;
+        let table = MemTable::try_new(schema, vec![batches]).context(ex_error::DataFusionSnafu)?;
         user_session
             .ctx
             .register_table(source_table.clone(), Arc::new(table))
-                .context(ex_error::DataFusionSnafu)?;
+            .context(ex_error::DataFusionSnafu)?;
 
         let table = source_table.clone();
         let query = if exists {

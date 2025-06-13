@@ -99,6 +99,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Error encoding UTF8 string: {error}"))]
     Utf8 {
+        #[snafu(source)]
         error: std::string::FromUtf8Error,
         #[snafu(implicit)]
         location: Location,
@@ -141,6 +142,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Object store error: {error}"))]
     ObjectStore {
+        #[snafu(source)]
         error: object_store::Error,
         #[snafu(implicit)]
         location: Location,
@@ -230,6 +232,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Failed to register catalog: {source}"))]
     RegisterCatalog {
+        #[snafu(source)]
         source: CatalogError,
         #[snafu(implicit)]
         location: Location,
@@ -237,6 +240,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Failed to parse data: {error}"))]
     SerdeParse {
+        #[snafu(source)]
         error: serde_json::Error,
         #[snafu(implicit)]
         location: Location,
