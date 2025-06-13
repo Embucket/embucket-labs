@@ -133,16 +133,12 @@ datediff
 datefromparts
 datepart
 datetrunc
-day
 dayname
-dayofmonth
-dayofweek
-dayofweekiso
-dayofyear
 decode
 degrees
 dense_rank
 digest
+div0
 element_at
 empty
 encode
@@ -265,7 +261,6 @@ md5
 mean
 median
 min
-month
 monthname
 named_struct
 nanvl
@@ -294,7 +289,6 @@ position
 pow
 power
 previous_day
-quarter
 radians
 random
 range
@@ -405,9 +399,3 @@ var_samp
 var_sample
 variant_element
 version
-week
-weekiso
-weekofyear
-year
-yearofweek
-yearofweekiso
