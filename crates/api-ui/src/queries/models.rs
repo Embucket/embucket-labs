@@ -34,45 +34,45 @@ pub struct ResultSet {
     pub rows: Vec<Row>,
 }
 
-impl ResultSet {
-    pub fn query_result_to_result_set(
-        records: &[RecordBatch],
-        columns: &[ColumnInfo],
-    ) -> std::result::Result<Self, QueryError> {
-        let buf = Vec::new();
-        let write_builder = WriterBuilder::new().with_explicit_nulls(true);
-        let mut writer = write_builder.build::<_, JsonArray>(buf);
+// impl ResultSet {
+//     pub fn query_result_to_result_set(
+//         records: &[RecordBatch],
+//         columns: &[ColumnInfo],
+//     ) -> std::result::Result<Self, QueryError> {
+//         let buf = Vec::new();
+//         let write_builder = WriterBuilder::new().with_explicit_nulls(true);
+//         let mut writer = write_builder.build::<_, JsonArray>(buf);
 
-        // serialize records to str
-        let records: Vec<&RecordBatch> = records.iter().collect();
-        writer
-            .write_batches(&records)
-            .context(CreateResultSetSnafu)?;
-        writer.finish().context(CreateResultSetSnafu)?;
+//         // serialize records to str
+//         let records: Vec<&RecordBatch> = records.iter().collect();
+//         writer
+//             .write_batches(&records)
+//             .context(CreateResultSetSnafu)?;
+//         writer.finish().context(CreateResultSetSnafu)?;
 
-        // Get the underlying buffer back,
-        let buf = writer.into_inner();
-        let record_batch_str = String::from_utf8(buf).context(Utf8Snafu)?;
+//         // Get the underlying buffer back,
+//         let buf = writer.into_inner();
+//         let record_batch_str = String::from_utf8(buf).context(Utf8Snafu)?;
 
-        // convert to array, leaving only values
-        let rows: Vec<IndexMap<String, Value>> =
-            serde_json::from_str(record_batch_str.as_str()).context(ResultParseSnafu)?;
-        let rows: Vec<Row> = rows
-            .into_iter()
-            .map(|obj| Row(obj.values().cloned().collect()))
-            .collect();
+//         // convert to array, leaving only values
+//         let rows: Vec<IndexMap<String, Value>> =
+//             serde_json::from_str(record_batch_str.as_str()).context(ResultParseSnafu)?;
+//         let rows: Vec<Row> = rows
+//             .into_iter()
+//             .map(|obj| Row(obj.values().cloned().collect()))
+//             .collect();
 
-        let columns = columns
-            .iter()
-            .map(|ci| Column {
-                name: ci.name.clone(),
-                r#type: ci.r#type.clone(),
-            })
-            .collect();
+//         let columns = columns
+//             .iter()
+//             .map(|ci| Column {
+//                 name: ci.name.clone(),
+//                 r#type: ci.r#type.clone(),
+//             })
+//             .collect();
 
-        Ok(Self { columns, rows })
-    }
-}
+//         Ok(Self { columns, rows })
+//     }
+// }
 
 impl TryFrom<&str> for ResultSet {
     type Error = QueryError;

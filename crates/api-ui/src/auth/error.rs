@@ -181,12 +181,12 @@ impl TryFrom<AuthError> for WwwAuthenticate {
                 error,
                 kind: None,
             }),
-            AuthError::BadRefreshToken { error, .. } | AuthError::BadAuthToken { error, .. } => {
+            AuthError::BadRefreshToken { error: source, .. } | AuthError::BadAuthToken { error: source, .. } => {
                 Ok(Self {
                     auth,
                     realm: "api-auth".to_string(),
-                    error: error.to_string(),
-                    kind: Some(TokenErrorKind::from(error.kind().clone())),
+                    error,
+                    kind: Some(TokenErrorKind::from(source.kind().clone())),
                 })
             }
             _ => Err(None),

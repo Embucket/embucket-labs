@@ -417,12 +417,8 @@ impl UserQuery {
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
-            IcebergCatalogResult::Result(result) => {
-                return match result {
-                    Ok(_) => self.status_response(),
-                    Err(err) => Err(err),
-                };
-            }
+            IcebergCatalogResult::Result(result) =>
+                return result.map(|_| self.status_response())?
         };
 
         let table_exists = iceberg_catalog
@@ -573,12 +569,8 @@ impl UserQuery {
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
-            IcebergCatalogResult::Result(result) => {
-                return match result {
-                    Ok(_) => self.created_entity_response(),
-                    Err(err) => Err(err),
-                };
-            }
+            IcebergCatalogResult::Result(result) =>
+                return result.map(|_| self.created_entity_response())?
         };
 
         let iceberg_ident = ident.to_iceberg_ident();
@@ -966,12 +958,7 @@ impl UserQuery {
             .await;
         let iceberg_catalog = match downcast_result {
             IcebergCatalogResult::Catalog(catalog) => catalog,
-            IcebergCatalogResult::Result(result) => {
-                return match result {
-                    Ok(_) => self.created_entity_response(),
-                    Err(err) => Err(err),
-                };
-            }
+            IcebergCatalogResult::Result(result) => return result.map(|_| self.created_entity_response())?,
         };
 
         let schema_exists = iceberg_catalog

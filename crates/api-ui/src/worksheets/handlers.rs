@@ -4,6 +4,7 @@ use crate::worksheets::{
     GetWorksheetsParams, SortBy, SortOrder, Worksheet, WorksheetCreatePayload,
     WorksheetCreateResponse, WorksheetResponse, WorksheetUpdatePayload, WorksheetsResponse,
     error::{ListSnafu, WorksheetUpdateError, WorksheetsAPIError, WorksheetsResult},
+    error as worksheets_error,
 };
 use axum::{
     Json,
@@ -11,7 +12,7 @@ use axum::{
 };
 use chrono::Utc;
 use core_history::WorksheetId;
-use snafu::ResultExt;
+use snafu::{IntoError, ResultExt};
 use std::convert::From;
 use tracing;
 use utoipa::OpenApi;
@@ -283,9 +284,7 @@ pub async fn update_worksheet(
     Json(payload): Json<WorksheetUpdatePayload>,
 ) -> WorksheetsResult<()> {
     if payload.name.is_none() && payload.content.is_none() {
-        return Err(WorksheetsAPIError::Update {
-            source: WorksheetUpdateError::NothingToUpdate,
-        });
+        return Err(worksheets_error::UpdateSnafu.into_error(WorksheetUpdateError::NothingToUpdate));
     }
 
     let mut worksheet = state
